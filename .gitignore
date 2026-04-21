@@ -1,0 +1,81 @@
+# Node
+node_modules/
+.env
+.env.*
+dist/
+build/
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Vite
+.vite
+
+# VSCode
+.vscode/
+.history/
+
+# Mac
+Icon?
+
+# Logs
+logs/
+*.log
+
+# Test coverage
+coverage/
+
+# Misc
+*.sublime-workspace
+*.sublime-project
+
+# Supabase
+.supabase/
+
+# Ignore local SQLite DBs
+*.sqlite
+*.sqlite3
+
+# Ignore backups
+*.bak
+
+# Ignore lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Ignore output
+out/
+
+# Ignore temp files
+*.tmp
+*.temp
+
+# Ignore crash reports
+report.*.json
+
+# Ignore IDE files
+.idea/
+*.iml
+
+# Ignore system files
+Desktop.ini
+
+# Ignore test snapshots
+__snapshots__/
+
+# Ignore coverage
+coverage/
+
+# Ignore next.js build
+.next/
+
+# Ignore vercel
+.vercel/
