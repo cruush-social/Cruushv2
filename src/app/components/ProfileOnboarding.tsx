@@ -20,6 +20,7 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
     bio: '',
   });
 
+  // Match filter options with rest of app
   const lookingForOptions = ['Friends', 'Dates', 'Fun', 'Relationship', 'Community', 'Networking'];
   const vibesOptions = ['Artsy', 'Chill', 'Nerdy', 'Adventurous', 'Outdoorsy', 'Creative', 'Activist', 'Thoughtful', 'Musical', 'Playful', 'Alt', 'Goth'];
 
@@ -37,12 +38,12 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
     try {
       const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
       const userProfile = {
-        id: `user_${Date.now()}`,
+        id: userData.id || `user_${Date.now()}`,
         ...profile,
         age: parseInt(profile.age) || 0,
         email: userData.email,
-        lat: 37.7749 + (Math.random() - 0.5) * 0.01,
-        lng: -122.4194 + (Math.random() - 0.5) * 0.01,
+        lat: 40.6782 + (Math.random() - 0.5) * 0.01, // Brooklyn
+        lng: -73.9442 + (Math.random() - 0.5) * 0.01,
         distance: '0.0 mi',
         lastActive: 'just now',
         photo: null,

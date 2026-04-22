@@ -6,6 +6,8 @@ interface MapViewProps {
   onPinClick: (user: any) => void;
   users: any[];
   onMapLoad?: (map: maplibregl.Map) => void;
+  mapInstance?: any;
+  userLocation?: { lat: number; lng: number } | null;
 }
 
 function MapView({ onPinClick, users, onMapLoad }: MapViewProps) {
@@ -14,6 +16,11 @@ function MapView({ onPinClick, users, onMapLoad }: MapViewProps) {
   const markers = useRef<maplibregl.Marker[]>([]);
   const onPinClickRef = useRef(onPinClick);
   const onMapLoadRef = useRef(onMapLoad);
+
+  // Log users for debugging
+  useEffect(() => {
+    console.log('Fetched users:', users);
+  }, [users]);
 
   // Update refs when callbacks change
   useEffect(() => {
@@ -175,9 +182,19 @@ function MapView({ onPinClick, users, onMapLoad }: MapViewProps) {
       markers.current.forEach((marker) => marker.remove());
       markers.current = [];
 
-      // Add new markers
+      // Add new markers, only for users with valid lat/lng/id
       users.forEach((user) => {
         if (!map.current) return;
+        if (
+          typeof user !== 'object' ||
+          user == null ||
+          typeof user.lat !== 'number' ||
+          typeof user.lng !== 'number' ||
+          !user.id
+        ) {
+          console.warn('Skipping invalid user for map pin:', user);
+          return;
+        }
 
         const el = createHeartPinElement(user);
 
@@ -202,6 +219,11 @@ function MapView({ onPinClick, users, onMapLoad }: MapViewProps) {
 
   return (
     <div className="w-full h-full relative">
+      {(!users || users.length === 0) && (
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground z-10">
+          No users found.
+        </div>
+      )}
       <div
         ref={mapContainer}
         className="w-full h-full"

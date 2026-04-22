@@ -50,7 +50,7 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
     navigate('/messages');
   };
   return (
-    <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-2xl">
+    <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-2xl max-w-xs w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30" style={{ maxHeight: '80vh' }}>
       <div className="relative w-full bg-gradient-to-br from-crimson-dark to-crimson-bright" style={{ aspectRatio: '9/16' }}>
         {user.photo ? (
           <img src={user.photo} alt={user.name} className="w-full h-full object-cover" style={{ aspectRatio: '9/16' }} />

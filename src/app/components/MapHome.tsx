@@ -13,24 +13,36 @@ export default function MapHome() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapInstance, setMapInstance] = useState<any>(null);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
+
+  // Fetch users on mount and poll every 10 seconds for live updates
   useEffect(() => {
     fetchUsers();
+    const interval = setInterval(fetchUsers, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Get current user's geolocation
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(
+        (pos) => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        (err) => {
+          console.warn('Geolocation error:', err);
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+      );
+    }
   }, []);
 
   const fetchUsers = async () => {
     try {
-      // First seed users if needed
-      await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/seed-users`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-        },
-      });
-
-      // Then fetch all users
+      // Only fetch a limited number of users for performance
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/users`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/users?limit=50`,
         {
           headers: {
             'Authorization': `Bearer ${publicAnonKey}`,
@@ -43,7 +55,32 @@ export default function MapHome() {
       }
 
       const data = await response.json();
-      setUsers(data.users || []);
+      let fetchedUsers = (data.users || []).slice(0, 50);
+
+      // Try to get the current user from localStorage
+      let currentUser: any = null;
+      try {
+        currentUser = JSON.parse(localStorage.getItem('cruush_user') || 'null');
+      } catch {}
+
+      // If we have live geolocation, update the current user's lat/lng
+      if (currentUser && userLocation) {
+        currentUser.lat = userLocation.lat;
+        currentUser.lng = userLocation.lng;
+      }
+
+      // Only add if valid and not already present
+      if (
+        currentUser &&
+        typeof currentUser.lat === 'number' &&
+        typeof currentUser.lng === 'number' &&
+        currentUser.id &&
+        !fetchedUsers.some((u: any) => u.id === currentUser.id)
+      ) {
+        fetchedUsers = [currentUser, ...fetchedUsers];
+      }
+
+      setUsers(fetchedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -99,7 +136,7 @@ export default function MapHome() {
       </header>
 
       <div className="flex-1 relative">
-        <MapView onPinClick={setSelectedUser} users={users} onMapLoad={setMapInstance} />
+        <MapView onPinClick={setSelectedUser} users={users} onMapLoad={setMapInstance} mapInstance={mapInstance} userLocation={userLocation} />
 
         <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
           <Button
@@ -130,6 +167,20 @@ export default function MapHome() {
               className="bg-card/90 backdrop-blur-sm"
             >
               <ZoomOut className="w-4 h-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={() => {
+                if (mapInstance && userLocation) {
+                  mapInstance.flyTo({ center: [userLocation.lng, userLocation.lat], zoom: 14 });
+                }
+              }}
+              disabled={!mapInstance || !userLocation}
+              className="bg-card/90 backdrop-blur-sm"
+              title="Recenter to your location"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
             </Button>
           </div>
         </div>

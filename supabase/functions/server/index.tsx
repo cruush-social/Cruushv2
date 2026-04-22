@@ -35,21 +35,27 @@ app.get("/make-server-546a0ad0/users", async (c) => {
   }
 });
 
-// Seed initial user data
+// Seed initial user data (PROTECTED: only allow from localhost or with secret header)
 app.post("/make-server-546a0ad0/seed-users", async (c) => {
+  // Restrict access: only allow from localhost or with a secret header
+  const allowed = c.req.header("x-seed-secret") === process.env.SEED_SECRET || c.req.header("host")?.startsWith("localhost");
+  if (!allowed) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
   try {
+    // Brooklyn, NY coordinates: lat ~40.6782, lng ~-73.9442
     const sampleUsers = [
       {
         id: "user1",
         name: "Jordan",
         age: 26,
         pronouns: "they/them",
-        lat: 37.7749,
-        lng: -122.4194,
+        lat: 40.6782 + (Math.random() - 0.5) * 0.01,
+        lng: -73.9442 + (Math.random() - 0.5) * 0.01,
         lastActive: "2m ago",
         distance: "0.3 mi",
-        lookingFor: ["Friends", "Dates", "Fun"],
-        vibes: ["Artsy", "Chill"],
+        lookingFor: ["Friends", "Dates", "Fun", "Relationship", "Community", "Networking"],
+        vibes: ["Artsy", "Chill", "Nerdy", "Adventurous", "Outdoorsy", "Creative", "Activist", "Thoughtful", "Musical", "Playful", "Alt", "Goth"],
         height: "5'9\"",
         weight: "165 lbs",
         photo: null,
@@ -59,12 +65,12 @@ app.post("/make-server-546a0ad0/seed-users", async (c) => {
         name: "Alex",
         age: 29,
         pronouns: "he/him",
-        lat: 37.7759,
-        lng: -122.4184,
+        lat: 40.6782 + (Math.random() - 0.5) * 0.01,
+        lng: -73.9442 + (Math.random() - 0.5) * 0.01,
         lastActive: "5m ago",
         distance: "0.5 mi",
-        lookingFor: ["Dates", "Relationship"],
-        vibes: ["Nerdy", "Adventurous"],
+        lookingFor: ["Dates", "Relationship", "Fun"],
+        vibes: ["Nerdy", "Adventurous", "Alt"],
         height: "6'1\"",
         weight: "180 lbs",
         photo: null,
@@ -74,12 +80,12 @@ app.post("/make-server-546a0ad0/seed-users", async (c) => {
         name: "Sam",
         age: 24,
         pronouns: "she/her",
-        lat: 37.7739,
-        lng: -122.4204,
+        lat: 40.6782 + (Math.random() - 0.5) * 0.01,
+        lng: -73.9442 + (Math.random() - 0.5) * 0.01,
         lastActive: "15m ago",
         distance: "0.8 mi",
-        lookingFor: ["Friends", "Fun"],
-        vibes: ["Outdoorsy", "Creative"],
+        lookingFor: ["Friends", "Fun", "Community"],
+        vibes: ["Outdoorsy", "Creative", "Goth"],
         height: "5'6\"",
         weight: "140 lbs",
         photo: null,
@@ -89,12 +95,12 @@ app.post("/make-server-546a0ad0/seed-users", async (c) => {
         name: "River",
         age: 31,
         pronouns: "they/them",
-        lat: 37.7769,
-        lng: -122.4174,
+        lat: 40.6782 + (Math.random() - 0.5) * 0.01,
+        lng: -73.9442 + (Math.random() - 0.5) * 0.01,
         lastActive: "1h ago",
         distance: "1.2 mi",
-        lookingFor: ["Friends", "Community"],
-        vibes: ["Activist", "Thoughtful"],
+        lookingFor: ["Friends", "Community", "Networking"],
+        vibes: ["Activist", "Thoughtful", "Chill"],
         height: "5'8\"",
         weight: "155 lbs",
         photo: null,
@@ -104,12 +110,12 @@ app.post("/make-server-546a0ad0/seed-users", async (c) => {
         name: "Casey",
         age: 27,
         pronouns: "he/they",
-        lat: 37.7729,
-        lng: -122.4214,
+        lat: 40.6782 + (Math.random() - 0.5) * 0.01,
+        lng: -73.9442 + (Math.random() - 0.5) * 0.01,
         lastActive: "3h ago",
         distance: "1.5 mi",
-        lookingFor: ["Dates", "Fun"],
-        vibes: ["Musical", "Playful"],
+        lookingFor: ["Dates", "Fun", "Relationship"],
+        vibes: ["Musical", "Playful", "Artsy"],
         height: "5'10\"",
         weight: "170 lbs",
         photo: null,
