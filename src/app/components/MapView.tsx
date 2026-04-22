@@ -265,9 +265,10 @@ function MapView({ onPinClick, users, onMapLoad, mapInstance, userLocation }: Ma
   );
 }
 
-const MemoizedMapView = memo(MapView, (prevProps, nextProps) => {
-  // Only re-render if users array reference changes
-  return prevProps.users === nextProps.users;
-});
+const MemoizedMapView = memo(MapView, areUsersEqual);
 
 export default MemoizedMapView;
+// Place this at the top level, before MapView
+function areUsersEqual(prevProps, nextProps) {
+  return prevProps.users === nextProps.users;
+}
