@@ -1,4 +1,4 @@
-import { useEffect, useRef, memo } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -10,78 +10,96 @@ interface MapViewProps {
   userLocation?: { lat: number; lng: number } | null;
 }
 
-function MapView({ onPinClick, users, onMapLoad }: MapViewProps) {
+function MapView({ onPinClick, users, onMapLoad, mapInstance, userLocation }: MapViewProps) {
+  // Maplibre network error UI state (must be at top of component)
+  const [mapError, setMapError] = useState<string | null>(null);
+  useEffect(() => {
+    const handler = (e: any) => setMapError(e.detail || 'Map network error');
+    window.addEventListener('maplibre-network-error', handler);
+    return () => window.removeEventListener('maplibre-network-error', handler);
+  }, []);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
   const onPinClickRef = useRef(onPinClick);
   const onMapLoadRef = useRef(onMapLoad);
 
-  // Log users for debugging
+  // Log users for debugging and warn on invalid
   useEffect(() => {
     console.log('Fetched users:', users);
-  }, [users]);
+    if (Array.isArray(users)) {
+      // Initialize map once
+      useEffect(() => {
+        if (!mapContainer.current || map.current) return;
 
-  // Update refs when callbacks change
-  useEffect(() => {
-    onPinClickRef.current = onPinClick;
-    onMapLoadRef.current = onMapLoad;
-  }, [onPinClick, onMapLoad]);
+        map.current = new maplibregl.Map({
+          container: mapContainer.current,
+          style: {
+            version: 8,
+            sources: {
+              'osm-tiles': {
+                type: 'raster',
+                tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '© OpenStreetMap contributors',
+              },
+            },
+            layers: [
+              {
+                id: 'osm-tiles',
+                type: 'raster',
+                source: 'osm-tiles',
+                minzoom: 0,
+                maxzoom: 19,
+              },
+            ],
+            glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+          },
+          center: [-122.4194, 37.7749],
+          zoom: 13.5,
+          attributionControl: false,
+        });
 
-  const createHeartPinElement = (user: any) => {
-    const container = document.createElement('div');
-    container.style.position = 'relative';
-    container.style.width = '56px';
-    container.style.height = '56px';
-    container.style.cursor = 'pointer';
+        map.current.on('load', () => {
+          if (!map.current) return;
 
-    // Last active badge
-    if (user.lastActive) {
-      const badge = document.createElement('div');
-      badge.style.position = 'absolute';
-      badge.style.top = '-4px';
-      badge.style.left = '-4px';
-      badge.style.zIndex = '10';
-      badge.style.padding = '2px 6px';
-      badge.style.background = 'rgba(0, 0, 0, 0.9)';
-      badge.style.border = '1px solid rgba(255, 255, 255, 0.2)';
-      badge.style.fontSize = '10px';
-      badge.style.fontFamily = 'monospace';
-      badge.style.color = 'rgba(255, 255, 255, 0.9)';
-      badge.textContent = user.lastActive;
-      container.appendChild(badge);
-    }
+          // Notify parent that map is loaded
+          if (onMapLoadRef.current) {
+            onMapLoadRef.current(map.current);
+          }
 
-    // SVG heart
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 100 100');
-    svg.style.width = '100%';
-    svg.style.height = '100%';
-    svg.style.filter = 'drop-shadow(0 0 8px rgba(209, 31, 58, 0.6))';
+          // Add dark overlay for cinematic effect
+          map.current.addLayer({
+            id: 'dark-overlay',
+            type: 'background',
+            paint: {
+              'background-color': '#000000',
+              'background-opacity': 0.85,
+            },
+          });
+        });
 
-    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        // Defensive: catch tile load errors and aborts
+        map.current.on('error', (e: any) => {
+          if (e && e.error && e.error.name === 'AbortError') {
+            // Ignore fetch aborts, but log for debugging
+            console.info('Map tile fetch aborted:', e.error);
+          } else if (e && e.error && e.error.message && e.error.message.includes('Failed to fetch')) {
+            // Network error, show a UI message if needed
+            window.dispatchEvent(new CustomEvent('maplibre-network-error', { detail: e.error.message }));
+            console.error('Map tile fetch failed:', e.error);
+          } else {
+            console.error('Map error:', e);
+          }
+        });
 
-    const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-    gradient.setAttribute('id', `gradient-${user.id}`);
-    gradient.setAttribute('x1', '0%');
-    gradient.setAttribute('y1', '0%');
-    gradient.setAttribute('x2', '100%');
-    gradient.setAttribute('y2', '100%');
-
-    const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-    stop1.setAttribute('offset', '0%');
-    stop1.setAttribute('stop-color', '#d11f3a');
-
-    const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-    stop2.setAttribute('offset', '50%');
-    stop2.setAttribute('stop-color', '#9f1730');
-
-    const stop3 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-    stop3.setAttribute('offset', '100%');
-    stop3.setAttribute('stop-color', '#690f1f');
-
-    gradient.appendChild(stop1);
-    gradient.appendChild(stop2);
+        return () => {
+          markers.current.forEach((marker) => marker.remove());
+          markers.current = [];
+          map.current?.remove();
+          map.current = null;
+        };
+      }, []);
     gradient.appendChild(stop3);
     defs.appendChild(gradient);
     svg.appendChild(defs);
@@ -192,7 +210,7 @@ function MapView({ onPinClick, users, onMapLoad }: MapViewProps) {
           typeof user.lng !== 'number' ||
           !user.id
         ) {
-          console.warn('Skipping invalid user for map pin:', user);
+          // Defensive: skip invalid user
           return;
         }
 
@@ -230,6 +248,19 @@ function MapView({ onPinClick, users, onMapLoad }: MapViewProps) {
         style={{ minHeight: '100%' }}
         suppressHydrationWarning
       />
+      {/* Geolocation error fallback */}
+      {userLocation === null && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded z-30 text-xs">
+          Location unavailable. Please enable location services for best experience.
+        </div>
+      )}
+      {/* Maplibre network error fallback */}
+      {mapError && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-red-900/90 text-white px-4 py-2 rounded z-40 text-xs shadow-lg">
+          Map failed to load tiles. Check your internet connection.<br />
+          <span className="text-xs opacity-80">{mapError}</span>
+        </div>
+      )}
     </div>
   );
 }

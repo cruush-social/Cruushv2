@@ -24,18 +24,40 @@ export default function MapHome() {
   }, []);
 
   // Get current user's geolocation
+  // Geolocation with retry mechanism
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
+    let retryCount = 0;
+    let watchId: number | null = null;
+    const maxRetries = 3;
+    const retryDelay = 2000;
+
+    function startWatch() {
+      if (!navigator.geolocation) {
+        setUserLocation(null);
+        return;
+      }
+      watchId = navigator.geolocation.watchPosition(
         (pos) => {
           setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          retryCount = 0;
         },
         (err) => {
+          setUserLocation(null);
           console.warn('Geolocation error:', err);
+          if (retryCount < maxRetries) {
+            retryCount++;
+            setTimeout(startWatch, retryDelay * retryCount);
+          }
         },
         { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
       );
     }
+    startWatch();
+    return () => {
+      if (watchId !== null && navigator.geolocation && navigator.geolocation.clearWatch) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
   }, []);
 
   const fetchUsers = async () => {
