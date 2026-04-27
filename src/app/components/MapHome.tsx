@@ -46,6 +46,7 @@ export default function MapHome() {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${supabaseAnonKey}`,
+          'x-seed-secret': import.meta.env.VITE_SEED_SECRET || '',
         },
       });
 
