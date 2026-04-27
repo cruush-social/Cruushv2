@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router';
 import { Heart, MessageCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Button } from './ui/button';
-import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+// Use Vite environment variables for Supabase config
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
 export default function CruushActivity() {
   const navigate = useNavigate();
@@ -22,7 +25,7 @@ export default function CruushActivity() {
         `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/cruush/${userData.id}`,
         {
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
           },
         }
       );
@@ -49,7 +52,7 @@ export default function CruushActivity() {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

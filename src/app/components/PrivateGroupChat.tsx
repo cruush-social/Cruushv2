@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Send, MoreVertical, Heart } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
 export default function PrivateGroupChat() {
   const { chatId } = useParams();
@@ -24,7 +26,7 @@ export default function PrivateGroupChat() {
         `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/messages/${chatId}`,
         {
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
           },
         }
       );
@@ -53,7 +55,7 @@ export default function PrivateGroupChat() {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, Send, MapPin, Clock, Heart } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
-import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
 export default function LocalFeed() {
   const navigate = useNavigate();
@@ -22,7 +24,7 @@ export default function LocalFeed() {
         `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/posts`,
         {
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
           },
         }
       );
@@ -51,7 +53,7 @@ export default function LocalFeed() {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

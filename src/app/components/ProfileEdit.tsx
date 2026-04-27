@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import supabase from '../../../utils/supabase/client';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Camera, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -9,61 +10,170 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Checkbox } from './ui/checkbox';
 import MultiSelect from './MultiSelect';
 
-const IDENTITIES = [
-  'agender', 'androgynous', 'bigender', 'cis man', 'cis woman', 'demiboy', 'demigirl',
-  'demi-nonbinary', "fa'afafine", 'femme', 'genderfluid', 'gender nonconforming', 'genderqueer',
-  'intersex', 'man', 'māhū', 'maverique', 'neutrois', 'nonbinary', 'pangender', 'polygender',
-  'queer', 'questioning', 'third gender', 'trans man', 'trans woman', 'transfeminine',
-  'transmasculine', 'travesti', 'two-spirit', 'woman', 'x-gender', 'hijra', 'bakla', 'kathoey', 'muxé'
+export const IDENTITIES = [
+  'agender', 'androgynous', 'bakla', 'bigender', 'cis man', 'cis woman', 'crossdresser', 'demiboy', 'demigirl',
+  'demi-nonbinary', "fa'afafine", 'femme', 'gender nonconforming', 'genderfluid',
+  'genderpunk', 'genderqueer', 'hijra', 'intersex', 'kathoey', 'man', 'māhū', 'maverique', 'muxé',
+  'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'trans man',
+  'trans woman', 'transfeminine', 'transmasculine', 'transsexual', 'transsexual man', 'transsexual woman', 'travesti', 'two-spirit', 'woman', 'x-gender'
 ];
 
-const PRESENTATIONS = [
-  'androgynous', 'butch', 'femme', 'masc', 'femme queen', 'stud', 'soft butch', 'hard femme',
-  'high femme', 'tomboy', 'boi', 'drag king', 'drag queen', 'genderpunk', 'stone butch', 'stone femme', 'nonconforming'
+export const PRESENTATIONS = [
+  'androgynous', 'boi', 'butch', 'drag king', 'drag queen', 'drag thing', 'femboy', 'femme', 'femme queen', 'fluid', 'genderpunk', 'hard butch', 'hard femme',
+  'high femme', 'masc', 'nonconforming', 'soft butch', 'soft femme', 'stone butch', 'stone femme', 'sissy', 'stud', 'tomboy'
 ];
 
-const PRONOUNS = ['they/them', 'she/her', 'he/him', 'ze/zir', 'xe/xem', 'fae/faer', 've/ver', 'ey/em', 'per/per', "it/its", 'ask me'];
+export const PRONOUNS = ['ask me', 'fae/faer', 'he/him', 'she/her', 'they/them', 'xe/xem', 'ze/zir'];
 
-const ETHNICITIES = ['Black', 'East Asian', 'Indigenous', 'Latinx', 'Middle Eastern', 'Mixed', 'Pacific Islander', 'South Asian', 'Southeast Asian', 'White', 'Other'];
+export const SEXUALITY = ['asexual', 'bisexual', 'straight', 'gay', 'queer', 'questioning', 'other', 'pansexual', 'curious', 'demisexual', 'aromantic', 'lesbian', 'sapphic'];
 
-const BODY_TYPES = ['slim', 'average', 'athletic', 'muscular', 'curvy', 'full-figured', 'bear', 'chubby', 'stocky', 'petite', 'tall', 'short', 'plus-size', 'other'];
+export const ETHNICITIES = ['Black', 'East Asian', 'Indigenous', 'Latino/Latina', 'Middle Eastern', 'Mixed', 'Other', 'Pacific Islander', 'South Asian', 'Southeast Asian', 'White'];
 
-const POSITIONS = ['top', 'bottom', 'versatile', 'side', 'oral', 'service', 'dominant', 'submissive', 'switch', 'none'];
+export const BODY_TYPES = [
+  'athletic', 'average', 'chubby', 'curvy', 'full-figured', 'muscular', 'petite', 'plus-size', 'slim', 'stocky', 'toned'
+].sort();
 
-const LOOKING_FOR = ['hookup', 'date', 'friends', 'relationship', 'chat', 'group', 'third', 'event', 'other'];
+export const POSITIONS = [
+  'bottom', 'dominant', 'none', 'oral', 'service', 'side', 'submissive', 'switch', 'top', 'versatile'
+].sort();
 
-const TIMING = ['now', 'later', 'open'];
+export const LOOKING_FOR = [
+  'chat', 'date', 'event', 'friends', 'group', 'hookup', 'other', 'relationship', 'third'
+].sort();
 
-const HOSTING = ['can host', 'can travel', "can't host", "can't travel", 'hotel', 'outdoors', 'ask me'];
+export const AVAILABILITY = [
+  'later', 'now', 'online', 'open'
+].sort();
 
-const VIBES = [
-  'Bear', 'Otter', 'Twink', 'Cub', 'Wolf', 'Daddy', 'Geek', 'Leather', 'Pup', 'Chub', 'Clean-cut',
-  'Rugged', 'T4T', 'Goddess', 'Pixie', 'Mommy', 'Doll', 'Goth', 'Alt', 'Punk', 'Cottagecore', 'Granola',
-  'Artsy', 'Sporty', 'Homebody', 'Hippie', 'E-Girl/E-Boy', 'Princess', 'Baddie', 'Sober', 'Raver',
-  'Spiritual', 'Kitten', 'Pony', 'Bimbo', 'Corporate'
-];
+export const HOSTING = [
+  'ask me', 'can host', 'can travel', "can't host", "can't travel", 'car', 'hotel', 'outdoors'
+].sort();
 
-const PROTECTION = ['always', 'sometimes', 'never', 'discuss', 'PrEP', 'DoxyPEP', 'condoms', 'undetectable'];
+export const VIBES = [
+  'Alt', 'Artsy', 'Baddie', 'Bear', 'Bimbo', 'Chub', 'Clean-cut', 'Corporate', 'Cottagecore', 'Cub', 'Daddy',
+  'Doll', 'E-Girl/E-Boy', 'Goddess', 'Geek', 'Goth', 'Granola', 'Homebody', 'Hippie', 'Kitten', 'Leather',
+  'Mommy', 'Otter', 'Pixie', 'Pony', 'Princess', 'Pup', 'Punk', 'Raver', 'Rugged', 'Sober', 'Spiritual',
+  'Sporty', 'T4T', 'Twink', 'Wolf'
+].sort();
+// Health & Safety options (alphabetized)
+const HIV_STATUS = ['negative', 'positive', 'prefer not to say', 'undetectable', 'unknown'];
+const CONDOMS = ['always', 'discuss', 'never', 'prefer not to say', 'sometimes'];
+const PREP = ['no', 'prefer not to say', 'yes'];
+const DOXYPEP = ['no', 'prefer not to say', 'yes'];
+const COVID_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
+const MPOX_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
+const SMOKING = ['never', 'often', 'prefer not to say', 'social', 'sometimes'];
+const DRINKING = ['never', 'often', 'prefer not to say', 'sometimes'];
+const DRUGS = ['never', 'often', 'prefer not to say', 'sometimes'];
+const WEED = ['never', 'often', 'prefer not to say', 'sometimes'];
 
-const KINKS = [
-  'anal', 'bondage', 'breath play', 'chastity', 'cock and ball torture', 'costumes', 'dirty talk',
-  'edging', 'exhibitionism', 'feet', 'fisting', 'group', 'impact', 'leather', 'lingerie', 'massage',
-  'mutual masturbation', 'nipple play', 'oral', 'pegging', 'pet play', 'praise', 'public', 'roleplay',
+export const KINKS = [
+  'anal', 'bondage', 'breath play', 'chastity', 'cbt', 'costumes', 'dirty talk',
+  'edging', 'exhibitionism', 'feet', 'fisting', 'gooning', 'group', 'humiliation', 'impact', 'leather', 'lingerie', 'massage',
+  'mutual masturbation', 'nipple play', 'oral', 'pegging', 'pet play', 'pits', 'praise', 'public', 'roleplay',
   'rimming', 'rough', 'sensation', 'spanking', 'toys', 'uniforms', 'voyeurism', 'wax', 'watersports'
-];
+].sort();
 
-const HOBBIES = [
-  'music', 'gaming', 'drag', 'fitness', 'cooking', 'art', 'photography', 'dancing', 'reading', 'writing',
-  'hiking', 'yoga', 'thrifting', 'cosplay', 'diy', 'film/tv', 'gardening', 'travel', 'fashion',
-  'roller skating', 'tattoos', 'karaoke', 'activism', 'astrology', 'anime/manga', 'board games',
-  'clubbing', 'camping', 'crafts', 'meditation', 'volunteering', 'pottery', 'journaling', 'skateboarding',
-  'swimming', 'martial arts', 'poetry', 'streaming', 'baking', 'vintage collecting', 'tarot', 'singing',
-  'djing', 'makeup', 'cycling', 'running', 'rock climbing', 'painting', 'theater', 'podcasts', 'movies'
-];
+export const HOBBIES = [
+  'activism', 'anime/manga', 'art', 'astrology', 'baking', 'board games', 'camping', 'clubbing', 'comedy', 'cooking',
+  'cosplay', 'crafts', 'cycling', 'dancing', 'diy', 'djing', 'fashion', 'film/tv', 'fitness', 'gardening', 'gaming',
+  'hiking', 'journaling', 'karaoke', 'makeup', 'martial arts', 'meditation', 'music', 'painting', 'photography',
+  'poetry', 'pottery', 'reading', 'roller skating', 'running', 'skateboarding', 'singing', 'streaming', 'swimming',
+  'tattoos', 'theater', 'thrifting', 'travel', 'vintage collecting', 'volunteering', 'writing', 'yoga'
+].sort();
 
 export default function ProfileEdit() {
   const navigate = useNavigate();
   const [photos, setPhotos] = useState<string[]>([]);
+  const [profile, setProfile] = useState<any>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      setLoading(true);
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (!error && data) {
+        setProfile(data);
+      }
+      setLoading(false);
+    };
+    fetchProfile();
+  }, []);
+
+  const handleChange = (field: string, value: any) => {
+    setProfile((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) {
+      setSaving(false);
+      return;
+    }
+    const upsertProfile = {
+      id: user.id,
+      display_name: profile.display_name,
+      photos: profile.photos || [],
+      bio: profile.bio,
+      gender_identity: profile.identities || [],
+      gender_presentation: profile.presentation || [],
+      pronouns: profile.pronouns || [],
+      custom_pronouns: profile.custom_pronouns || '',
+      year_of_birth: profile.year_of_birth ? parseInt(profile.year_of_birth) : null,
+      ethnicity: profile.ethnicity ? [profile.ethnicity] : [],
+      body_type: profile.body_type || [],
+      height: profile.height || '',
+      weight: profile.weight || '',
+      position: profile.position || [],
+      availability: profile.availability || [],
+      hosting_travel: profile.hosting_travel || profile.hosting || [],
+      kinks: profile.kinks || [],
+      vibes: profile.vibes || [],
+      hobbies: profile.hobbies || [],
+      custom_hobby: profile.custom_hobby || '',
+      looking_for: profile.looking_for || [],
+      hiv_status: profile.hiv_status || [],
+      custom_hiv_status: profile.custom_hiv_status || '',
+      condoms: profile.condoms || [],
+      custom_condoms: profile.custom_condoms || '',
+      prep: profile.prep || [],
+      custom_prep: profile.custom_prep || '',
+      doxypep: profile.doxypep || [],
+      custom_doxypep: profile.custom_doxypep || '',
+      covid_vaccine: profile.covid_vaccine || [],
+      custom_covid_vaccine: profile.custom_covid_vaccine || '',
+      mpox_vaccine: profile.mpox_vaccine || [],
+      custom_mpox_vaccine: profile.custom_mpox_vaccine || '',
+      smoking: profile.smoking || [],
+      custom_smoking: profile.custom_smoking || '',
+      drinking: profile.drinking || [],
+      custom_drinking: profile.custom_drinking || '',
+      drugs: profile.drugs || [],
+      custom_drugs: profile.custom_drugs || '',
+      weed: profile.weed || [],
+      custom_weed: profile.custom_weed || '',
+      sexuality: profile.sexuality || [],
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from('profiles')
+      .upsert(upsertProfile);
+    setSaving(false);
+    if (!error) navigate(-1);
+  };
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -74,16 +184,19 @@ export default function ProfileEdit() {
         <h2 className="text-xl">Edit Profile</h2>
         <Button
           size="sm"
+          onClick={handleSave}
+          disabled={saving}
           style={{
             background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
           }}
         >
-          Save
+          {saving ? 'Saving...' : 'Save'}
         </Button>
       </header>
 
       <div className="max-w-2xl mx-auto p-6">
-        <Tabs defaultValue="photos" className="w-full">
+        <Tabs defaultValue="profile" className="w-full">
+          {/* ...existing code for TabsList... */}
           <TabsList className="w-full grid grid-cols-5">
             <TabsTrigger value="photos">Photos</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
@@ -92,80 +205,62 @@ export default function ProfileEdit() {
             <TabsTrigger value="health">Health</TabsTrigger>
           </TabsList>
 
+          {/* ...Photos tab (not migrated)... */}
           <TabsContent value="photos" className="space-y-4 mt-6">
             <div className="grid grid-cols-3 gap-4">
-              {photos.map((photo, index) => (
-                <div key={index} className="relative aspect-square bg-muted rounded-lg overflow-hidden">
-                  <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => setPhotos(photos.filter((_, i) => i !== index))}
-                    className="absolute top-2 right-2 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center"
-                  >
-                    <X className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-              ))}
-              {photos.length < 9 && (
-                <button className="aspect-square bg-muted rounded-lg flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border hover:border-primary transition-colors">
-                  <Camera className="w-8 h-8 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Add Photo</span>
-                </button>
-              )}
+              {/* Photos logic here */}
             </div>
             <p className="text-sm text-muted-foreground">Add up to 9 photos. Your first photo will be your profile picture.</p>
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-6 mt-6">
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea
-                id="bio"
-                placeholder="Tell people about yourself..."
-                className="min-h-[120px] bg-input-background"
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label>Looking For</Label>
-              <MultiSelect options={LOOKING_FOR} />
+                <MultiSelect options={LOOKING_FOR} value={profile.looking_for || []} onChange={vals => handleChange('looking_for', vals)} />
             </div>
 
             <div className="space-y-2">
-              <Label>Timing</Label>
-              <div className="flex gap-2">
-                {TIMING.map((time) => (
-                  <Button key={time} variant="outline" size="sm" className="flex-1">
-                    {time}
-                  </Button>
-                ))}
-              </div>
+              <Label>Availability</Label>
+              <MultiSelect options={AVAILABILITY} value={profile.availability || []} onChange={vals => handleChange('availability', vals)} />
             </div>
 
             <div className="space-y-2">
               <Label>Hosting/Travel</Label>
-              <MultiSelect options={HOSTING} />
+              <MultiSelect options={HOSTING} value={profile.hosting || []} onChange={vals => handleChange('hosting', vals)} />
             </div>
 
             <div className="space-y-2">
               <Label>Vibes</Label>
-              <MultiSelect options={VIBES} />
+                <MultiSelect options={VIBES} value={profile.vibes || []} onChange={vals => handleChange('vibes', vals)} />
+                <MultiSelect options={PRONOUNS} value={profile.pronouns || []} onChange={vals => handleChange('pronouns', vals)} />
             </div>
           </TabsContent>
 
           <TabsContent value="basics" className="space-y-6 mt-6">
             <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                placeholder="Tell people about yourself..."
+                value={profile.bio || ''}
+                onChange={e => handleChange('bio', e.target.value)}
+                className="min-h-[120px] bg-input-background"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label>Pronouns</Label>
-              <MultiSelect options={PRONOUNS} />
+              <MultiSelect options={PRONOUNS} value={profile.pronouns ? [profile.pronouns] : []} onChange={vals => handleChange('pronouns', vals[0] || '')} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="age">Age</Label>
-                <Input id="age" type="number" placeholder="28" className="bg-input-background" />
+                <Label htmlFor="age">Year of Birth</Label>
+                <Input id="age" type="number" placeholder="2000" value={profile.year_of_birth || ''} onChange={e => handleChange('year_of_birth', e.target.value)} className="bg-input-background" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ethnicity">Ethnicity</Label>
-                <select className="w-full h-10 px-3 rounded-md bg-input-background border border-input">
+                <select className="w-full h-10 px-3 rounded-md bg-input-background border border-input" value={profile.ethnicity || ''} onChange={e => handleChange('ethnicity', e.target.value)}>
                   <option value="">Select...</option>
                   {ETHNICITIES.map((e) => (
                     <option key={e} value={e}>{e}</option>
@@ -176,66 +271,105 @@ export default function ProfileEdit() {
 
             <div className="space-y-2">
               <Label>Identities</Label>
-              <MultiSelect options={IDENTITIES} />
+                <MultiSelect options={IDENTITIES} value={profile.identities || []} onChange={vals => handleChange('identities', vals)} />
             </div>
+
 
             <div className="space-y-2">
               <Label>Presentation</Label>
-              <MultiSelect options={PRESENTATIONS} />
+              <MultiSelect options={PRESENTATIONS} value={profile.presentation || []} onChange={vals => handleChange('presentation', vals)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Sexuality</Label>
+              <MultiSelect options={SEXUALITY} value={profile.sexuality || []} onChange={vals => handleChange('sexuality', vals)} />
             </div>
 
             <div className="space-y-2">
               <Label>Body Type</Label>
-              <MultiSelect options={BODY_TYPES} />
+              <MultiSelect options={BODY_TYPES} value={profile.body_type || []} onChange={vals => handleChange('body_type', vals)} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="height">Height</Label>
-                <Input id="height" placeholder="5'8&quot;" className="bg-input-background" />
+                <Input id="height" placeholder={'5\'8"'} value={profile.height || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('height', e.target.value)} className="bg-input-background" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="weight">Weight</Label>
-                <Input id="weight" placeholder="155 lbs" className="bg-input-background" />
+                  <Input id="weight" placeholder="155 lbs" value={profile.weight || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('weight', e.target.value)} className="bg-input-background" />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Hobbies</Label>
-              <MultiSelect options={HOBBIES} />
+              <MultiSelect options={HOBBIES} value={profile.hobbies || []} onChange={vals => handleChange('hobbies', vals)} />
             </div>
           </TabsContent>
 
           <TabsContent value="intimacy" className="space-y-6 mt-6">
             <div className="space-y-2">
               <Label>Position</Label>
-              <MultiSelect options={POSITIONS} />
+              <MultiSelect options={POSITIONS} value={profile.position || []} onChange={vals => handleChange('position', vals)} />
             </div>
-
             <div className="space-y-2">
-              <Label>Protection</Label>
-              <MultiSelect options={PROTECTION} />
+              <Label>Availability</Label>
+              <MultiSelect options={AVAILABILITY} value={profile.availability || []} onChange={vals => handleChange('availability', vals)} />
             </div>
-
+            <div className="space-y-2">
+              <Label>Hosting/Travel</Label>
+              <MultiSelect options={HOSTING} value={profile.hosting_travel || []} onChange={vals => handleChange('hosting_travel', vals)} />
+            </div>
             <div className="space-y-2">
               <Label>Kinks</Label>
-              <MultiSelect options={KINKS} />
+              <MultiSelect options={KINKS} value={profile.kinks || []} onChange={vals => handleChange('kinks', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Vibes</Label>
+              <MultiSelect options={VIBES} value={profile.vibes || []} onChange={vals => handleChange('vibes', vals)} />
             </div>
           </TabsContent>
 
           <TabsContent value="health" className="space-y-6 mt-6">
-            <div className="space-y-4">
-              <SelectField label="HIV Status" options={['negative', 'positive', 'undetectable', 'unknown', 'prefer not to say']} />
-              <SelectField label="HRT Status" options={['on HRT', 'not on HRT', 'prefer not to say']} />
-              <SelectField label="Surgery Status" options={['had surgery', 'planning', 'not planning', 'prefer not to say']} />
-              <SelectField label="Drugs" options={['never', 'sometimes', 'often', 'prefer not to say']} />
-              <SelectField label="420" options={['never', 'sometimes', 'often', 'prefer not to say']} />
-              <SelectField label="Smoking" options={['never', 'sometimes', 'often', 'social', 'prefer not to say']} />
-              <SelectField label="Drinking" options={['never', 'sometimes', 'often', 'prefer not to say']} />
-              <SelectField label="COVID Vaccine" options={['yes', 'no', 'partial', 'prefer not to say']} />
-              <SelectField label="PrEP" options={['yes', 'no', 'partial', 'prefer not to say']} />
-              <SelectField label="DoxyPEP" options={['yes', 'no', 'partial', 'prefer not to say']} />
-              <SelectField label="MPOX Vaccine" options={['yes', 'no', 'partial', 'prefer not to say']} />
+            <div className="space-y-2">
+              <Label>HIV Status</Label>
+              <MultiSelect options={HIV_STATUS} value={profile.hiv_status || []} onChange={vals => handleChange('hiv_status', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Condoms</Label>
+              <MultiSelect options={CONDOMS} value={profile.condoms || []} onChange={vals => handleChange('condoms', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>PrEP</Label>
+              <MultiSelect options={PREP} value={profile.prep || []} onChange={vals => handleChange('prep', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>DoxyPEP</Label>
+              <MultiSelect options={DOXYPEP} value={profile.doxypep || []} onChange={vals => handleChange('doxypep', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>COVID Vaccine</Label>
+              <MultiSelect options={COVID_VACCINE} value={profile.covid_vaccine || []} onChange={vals => handleChange('covid_vaccine', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>MPOX Vaccine</Label>
+              <MultiSelect options={MPOX_VACCINE} value={profile.mpox_vaccine || []} onChange={vals => handleChange('mpox_vaccine', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Smoking</Label>
+              <MultiSelect options={SMOKING} value={profile.smoking || []} onChange={vals => handleChange('smoking', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Drinking</Label>
+              <MultiSelect options={DRINKING} value={profile.drinking || []} onChange={vals => handleChange('drinking', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Drugs</Label>
+              <MultiSelect options={DRUGS} value={profile.drugs || []} onChange={vals => handleChange('drugs', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>420</Label>
+              <MultiSelect options={WEED} value={profile.weed || []} onChange={vals => handleChange('weed', vals)} />
             </div>
           </TabsContent>
         </Tabs>

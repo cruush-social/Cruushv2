@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router';
 import { X, Heart, MessageCircle, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
 interface ProfileCardProps {
   user: any;
@@ -23,7 +25,7 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

@@ -4,7 +4,9 @@ import { ArrowLeft, Heart, MessageCircle, Share2, Flag, MapPin } from 'lucide-re
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
 export default function ProfileView() {
   const { userId } = useParams();
@@ -20,7 +22,7 @@ export default function ProfileView() {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router';
 import { Search, MessageCircle, Heart } from 'lucide-react';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
 export default function DirectMessages() {
   const navigate = useNavigate();
@@ -20,7 +22,7 @@ export default function DirectMessages() {
         `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/conversations`,
         {
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
           },
         }
       );

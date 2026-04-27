@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Heart } from 'lucide-react';
+import supabase from '../../../utils/supabase/client';
 
 interface AuthProps {
   onAuth: (isNewUser: boolean) => void;
@@ -43,30 +44,34 @@ export default function Auth({ onAuth }: AuthProps) {
       }
     }
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
     try {
       if (isSignUp) {
-        // Store user data in localStorage
-        const userData = {
+        // Supabase sign up
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email,
-          displayName: displayName.trim(),
-          createdAt: new Date().toISOString(),
-        };
-        localStorage.setItem('cruush_user', JSON.stringify(userData));
-        localStorage.setItem('cruush_auth', 'true');
-        setIsLoading(false);
-        onAuth(true); // New user needs onboarding
-      } else {
-        // Check if user exists
-        const storedUser = localStorage.getItem('cruush_user');
-        if (!storedUser) {
-          setError('No account found. Please create an account.');
+          password,
+          options: {
+            data: { display_name: displayName.trim() },
+          },
+        });
+        if (signUpError) {
+          setError(signUpError.message);
           setIsLoading(false);
           return;
         }
-        localStorage.setItem('cruush_auth', 'true');
+        setIsLoading(false);
+        onAuth(true); // New user needs onboarding
+      } else {
+        // Supabase sign in
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) {
+          setError(signInError.message);
+          setIsLoading(false);
+          return;
+        }
         setIsLoading(false);
         onAuth(false); // Existing user, no onboarding needed
       }

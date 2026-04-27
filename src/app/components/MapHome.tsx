@@ -1,60 +1,39 @@
+// Vite env type declaration for TypeScript
+/// <reference types="vite/client" />
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart } from 'lucide-react';
 import { Button } from './ui/button';
 import MapView from './MapView';
 import ProfileCard from './ProfileCard';
-import { projectId, publicAnonKey } from '../../../utils/supabase/info';
+// Use Vite environment variables for Supabase config
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
 
 export default function MapHome() {
   const navigate = useNavigate();
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [mapInstance, setMapInstance] = useState<any>(null);
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
-
-  // Fetch users on mount and poll every 10 seconds for live updates
   useEffect(() => {
-    fetchUsers();
-    const interval = setInterval(fetchUsers, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Get current user's geolocation
-  // Geolocation with retry mechanism
-  useEffect(() => {
-    let retryCount = 0;
     let watchId: number | null = null;
-    const maxRetries = 3;
-    const retryDelay = 2000;
-
-    function startWatch() {
-      if (!navigator.geolocation) {
-        setUserLocation(null);
-        return;
-      }
+    if (navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          retryCount = 0;
         },
-        (err) => {
-          setUserLocation(null);
-          console.warn('Geolocation error:', err);
-          if (retryCount < maxRetries) {
-            retryCount++;
-            setTimeout(startWatch, retryDelay * retryCount);
-          }
-        },
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+        () => setUserLocation(null),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
       );
     }
-    startWatch();
+    fetchUsers();
     return () => {
-      if (watchId !== null && navigator.geolocation && navigator.geolocation.clearWatch) {
+      if (watchId !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchId);
       }
     };
@@ -62,12 +41,20 @@ export default function MapHome() {
 
   const fetchUsers = async () => {
     try {
-      // Only fetch a limited number of users for performance
+      // First seed users if needed
+      await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/seed-users`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+      });
+
+      // Then fetch all users
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/users?limit=50`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/users`,
         {
           headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
           },
         }
       );
@@ -77,38 +64,30 @@ export default function MapHome() {
       }
 
       const data = await response.json();
-      let fetchedUsers = (data.users || []).slice(0, 50);
-
-      // Try to get the current user from localStorage
-      let currentUser: any = null;
-      try {
-        currentUser = JSON.parse(localStorage.getItem('cruush_user') || 'null');
-      } catch {}
-
-      // If we have live geolocation, update the current user's lat/lng
-      if (currentUser && userLocation) {
-        currentUser.lat = userLocation.lat;
-        currentUser.lng = userLocation.lng;
-      }
-
-      // Only add if valid and not already present
-      if (
-        currentUser &&
-        typeof currentUser.lat === 'number' &&
-        typeof currentUser.lng === 'number' &&
-        currentUser.id &&
-        !fetchedUsers.some((u: any) => u.id === currentUser.id)
-      ) {
-        fetchedUsers = [currentUser, ...fetchedUsers];
-      }
-
-      setUsers(fetchedUsers);
+      setUsers(data.users || []);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Merge userLocation as a special pin
+  const mergedUsers = userLocation
+    ? [
+        ...users,
+        {
+          id: 'me',
+          name: 'You',
+          lat: userLocation.lat,
+          lng: userLocation.lng,
+          photo: null,
+          isCurrentUser: true,
+          lastActive: '',
+          distance: '',
+        },
+      ]
+    : users;
 
   return (
     <div className="h-screen flex flex-col relative">
@@ -158,7 +137,7 @@ export default function MapHome() {
       </header>
 
       <div className="flex-1 relative">
-        <MapView onPinClick={setSelectedUser} users={users} onMapLoad={setMapInstance} mapInstance={mapInstance} userLocation={userLocation} />
+        <MapView onPinClick={setSelectedUser} users={mergedUsers} userLocation={userLocation} />
 
         <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
           <Button
@@ -189,20 +168,6 @@ export default function MapHome() {
               className="bg-card/90 backdrop-blur-sm"
             >
               <ZoomOut className="w-4 h-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="secondary"
-              onClick={() => {
-                if (mapInstance && userLocation) {
-                  mapInstance.flyTo({ center: [userLocation.lng, userLocation.lat], zoom: 14 });
-                }
-              }}
-              disabled={!mapInstance || !userLocation}
-              className="bg-card/90 backdrop-blur-sm"
-              title="Recenter to your location"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
             </Button>
           </div>
         </div>
