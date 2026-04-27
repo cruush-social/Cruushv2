@@ -1,3 +1,5 @@
+// @ts-nocheck
+// @ts-nocheck
 import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
@@ -38,7 +40,7 @@ app.get("/make-server-546a0ad0/users", async (c) => {
 // Seed initial user data (PROTECTED: only allow from localhost or with secret header)
 app.post("/make-server-546a0ad0/seed-users", async (c) => {
   // Restrict access: only allow from localhost or with a secret header
-  const allowed = c.req.header("x-seed-secret") === process.env.SEED_SECRET || c.req.header("host")?.startsWith("localhost");
+  const allowed = c.req.header("x-seed-secret") === Deno.env.get("SEED_SECRET") || c.req.header("host")?.startsWith("localhost");
   if (!allowed) {
     return c.json({ error: "Forbidden" }, 403);
   }

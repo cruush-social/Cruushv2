@@ -21,7 +21,7 @@ export default function LocalFeed() {
   const fetchPosts = async () => {
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/posts`,
+        `https://${projectId}.supabase.co/functions/v1/server/posts`,
         {
           headers: {
             'Authorization': `Bearer ${supabaseAnonKey}`,
@@ -49,7 +49,7 @@ export default function LocalFeed() {
       const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/posts`,
+        `https://${projectId}.supabase.co/functions/v1/server/posts`,
         {
           method: 'POST',
           headers: {

@@ -23,7 +23,7 @@ export default function PrivateGroupChat() {
   const fetchMessages = async () => {
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/messages/${chatId}`,
+        `https://${projectId}.supabase.co/functions/v1/server/messages/${chatId}`,
         {
           headers: {
             'Authorization': `Bearer ${supabaseAnonKey}`,
@@ -51,7 +51,7 @@ export default function PrivateGroupChat() {
       const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/messages`,
+        `https://${projectId}.supabase.co/functions/v1/server/messages`,
         {
           method: 'POST',
           headers: {

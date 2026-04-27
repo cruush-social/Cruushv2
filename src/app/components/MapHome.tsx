@@ -42,7 +42,7 @@ export default function MapHome() {
   const fetchUsers = async () => {
     try {
       // First seed users if needed
-      await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/seed-users`, {
+      await fetch(`https://${projectId}.supabase.co/functions/v1/server/seed-users`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${supabaseAnonKey}`,
@@ -51,7 +51,7 @@ export default function MapHome() {
 
       // Then fetch all users
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/users`,
+        `https://${projectId}.supabase.co/functions/v1/server/users`,
         {
           headers: {
             'Authorization': `Bearer ${supabaseAnonKey}`,

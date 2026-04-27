@@ -22,7 +22,7 @@ export default function CruushActivity() {
     try {
       const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/cruush/${userData.id}`,
+        `https://${projectId}.supabase.co/functions/v1/server/cruush/${userData.id}`,
         {
           headers: {
             'Authorization': `Bearer ${supabaseAnonKey}`,
@@ -48,7 +48,7 @@ export default function CruushActivity() {
     try {
       const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
       await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-546a0ad0/cruush`,
+        `https://${projectId}.supabase.co/functions/v1/server/cruush`,
         {
           method: 'POST',
           headers: {
