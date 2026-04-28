@@ -1,8 +1,8 @@
 import "fastify";
-import type pg from "pg";
+import type { DbClient } from "../db.js";
 
 declare module "fastify" {
   interface FastifyInstance {
-    db: pg.Pool;
+    db: DbClient;
   }
 }

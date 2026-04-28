@@ -1,0 +1,47 @@
+{
+  "version": "1.0.0",
+  "project_id": "638a65bb0358e194aaf2656e18fc809d",
+  "current_workflow": "flow-develop",
+  "current_phase": "develop",
+  "session_start": "2026-04-28T20:52:45Z",
+  "decisions": [
+    {
+      "phase": "design_review_ceremony",
+      "decision": "Design review completed for: Implement the next milestone for the cruush repo: checkpoint",
+      "rationale": "[Provider claude unavailable: claude CLI not found in PATH]",
+      "date": "2026-04-28",
+      "commit": "d764fb7e5bc850d3820b46a081d2b4646cb3dc6e"
+    },
+    {
+      "phase": "design_review_ceremony",
+      "decision": "Design review completed for: Continue the next milestone in the cruush repo from the curr",
+      "rationale": "[Provider claude unavailable: claude CLI not found in PATH]",
+      "date": "2026-04-28",
+      "commit": "d764fb7e5bc850d3820b46a081d2b4646cb3dc6e"
+    },
+    {
+      "phase": "design_review_ceremony",
+      "decision": "Design review completed for: Implement the next self-hosted migration milestone for cruus",
+      "rationale": "[Provider claude unavailable: claude CLI not found in PATH]",
+      "date": "2026-04-28",
+      "commit": "d764fb7e5bc850d3820b46a081d2b4646cb3dc6e"
+    }
+  ],
+  "blockers": [],
+  "context": {
+    "discover": null,
+    "define": null,
+    "develop": null,
+    "deliver": null
+  },
+  "metrics": {
+    "phases_completed": 0,
+    "total_execution_time_minutes": 0,
+    "provider_usage": {
+      "codex": 2,
+      "gemini": 0,
+      "perplexity": 0,
+      "claude": 0
+    }
+  }
+}

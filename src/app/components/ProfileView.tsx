@@ -4,9 +4,8 @@ import { ArrowLeft, Heart, MessageCircle, Share2, Flag, MapPin } from 'lucide-re
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+import { sendCruush } from '../lib/cruushApi';
+import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
 
 export default function ProfileView() {
   const { userId } = useParams();
@@ -16,29 +15,17 @@ export default function ProfileView() {
 
   const handleCruush = async () => {
     try {
-      const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/cruush`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fromUserId: userData.id,
-            toUserId: userId,
-          }),
-        }
-      );
+      if (!userId) return;
 
-      if (response.ok) {
-        const data = await response.json();
-        setCruushed(true);
+      const data = await sendCruush(userId, {
+        name: mockUser.name,
+        pronouns: mockUser.pronouns,
+        photo: mockUser.photos[0] ?? null,
+      });
+      setCruushed(true);
 
-        if (data.mutual) {
-          alert("It's a match! 💕");
-        }
+      if (data.mutual) {
+        alert(`It's mutual. You and ${mockUser.name} have a cruush on each other.`);
       }
     } catch (error) {
       console.error('Error sending cruush:', error);
@@ -58,6 +45,7 @@ export default function ProfileView() {
     photos: [],
     identities: ['nonbinary', 'queer'],
     presentation: ['androgynous', 'femme'],
+    sexuality: ['queer', 'pansexual'],
     ethnicity: 'Mixed',
     bodyType: 'athletic',
     height: "5'8\"",
@@ -81,36 +69,42 @@ export default function ProfileView() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center justify-between z-10">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex items-center gap-2">
-          {isOwnProfile ? (
-            <Button variant="outline" onClick={() => navigate('/profile/edit')}>
-              Edit Profile
-            </Button>
-          ) : (
-            <>
-              <Button variant="ghost" size="icon">
-                <Share2 className="w-5 h-5" />
+      <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-2xl items-center justify-between">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex items-center gap-2">
+            {isOwnProfile ? (
+              <Button variant="outline" onClick={() => navigate('/profile/edit')}>
+                Edit Profile
               </Button>
-              <Button variant="ghost" size="icon">
-                <Flag className="w-5 h-5" />
-              </Button>
-            </>
-          )}
+            ) : (
+              <>
+                <Button variant="ghost" size="icon">
+                  <Share2 className="w-5 h-5" />
+                </Button>
+                <Button variant="ghost" size="icon">
+                  <Flag className="w-5 h-5" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
       <div className="max-w-2xl mx-auto">
-        <div className="relative w-full bg-gradient-to-br from-crimson-dark to-crimson-bright" style={{ aspectRatio: '9/16' }}>
+        <div
+          data-testid="profile-hero-media"
+          className="relative w-full overflow-hidden bg-gradient-to-br from-crimson-dark to-crimson-bright"
+          style={PROFILE_HERO_ASPECT_STYLE}
+        >
           {mockUser.photos.length > 0 ? (
             <img
               src={mockUser.photos[0]}
               alt={mockUser.name}
               className="w-full h-full object-cover"
-              style={{ aspectRatio: '9/16' }}
+              style={PROFILE_HERO_ASPECT_STYLE}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -118,64 +112,73 @@ export default function ProfileView() {
             </div>
           )}
         </div>
+      </div>
 
-        <div className="p-6 space-y-6">
-          <div>
-            <h1 className="text-4xl mb-2">
-              {mockUser.name}, {mockUser.age}
-            </h1>
-            <p className="text-muted-foreground">{mockUser.pronouns}</p>
-            <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-              <MapPin className="w-4 h-4" />
-              <span>{mockUser.distance} away</span>
+      <div className="max-w-2xl mx-auto px-4 py-5 sm:px-6 sm:py-6">
+        <div className="space-y-5">
+          <div className="space-y-3">
+            <div>
+              <h1 className="text-4xl mb-2">
+                {mockUser.name}, {mockUser.age}
+              </h1>
+              <p className="text-muted-foreground">{mockUser.pronouns}</p>
+              <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                <MapPin className="w-4 h-4" />
+                <span>{mockUser.distance} away</span>
+              </div>
             </div>
+
+            {!isOwnProfile && (
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={handleCruush}
+                  disabled={cruushed}
+                  style={{
+                    background: cruushed
+                      ? '#666'
+                      : 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+                  }}
+                >
+                  <Heart className={`w-4 h-4 mr-2 ${cruushed ? 'fill-current' : ''}`} />
+                  {cruushed ? 'cruushed!' : 'cruush'}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleMessage}
+                  style={{
+                    borderColor: 'var(--cruush-purple)',
+                    color: 'var(--cruush-purple)',
+                  }}
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Message
+                </Button>
+              </div>
+            )}
           </div>
 
-          {mockUser.bio && (
-            <div>
-              <h3 className="text-lg mb-2">About</h3>
-              <p className="text-muted-foreground">{mockUser.bio}</p>
-            </div>
-          )}
-
-          {!isOwnProfile && (
-            <div className="flex gap-2">
-              <Button
-                className="flex-1"
-                onClick={handleCruush}
-                disabled={cruushed}
-                style={{
-                  background: cruushed
-                    ? '#666'
-                    : 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
-                }}
-              >
-                <Heart className={`w-4 h-4 mr-2 ${cruushed ? 'fill-current' : ''}`} />
-                {cruushed ? 'cruushed!' : 'cruush'}
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={handleMessage}
-                style={{
-                  borderColor: 'var(--cruush-purple)',
-                  color: 'var(--cruush-purple)',
-                }}
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Message
-              </Button>
-            </div>
-          )}
-
           <Tabs defaultValue="basics" className="w-full">
-            <TabsList className="w-full grid grid-cols-3">
-              <TabsTrigger value="basics">Basics</TabsTrigger>
-              <TabsTrigger value="intimacy">Intimacy</TabsTrigger>
-              <TabsTrigger value="interests">Interests</TabsTrigger>
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl border border-border bg-card p-1">
+              <TabsTrigger value="basics" className="min-h-11">
+                Basics
+              </TabsTrigger>
+              <TabsTrigger value="intimacy" className="min-h-11">
+                Intimacy
+              </TabsTrigger>
+              <TabsTrigger value="health" className="min-h-11">
+                Health
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="basics" className="space-y-4 mt-4">
+            <TabsContent value="basics" className="mt-5 space-y-5">
+              {mockUser.bio ? (
+                <Section title="About">
+                  <p className="text-muted-foreground">{mockUser.bio}</p>
+                </Section>
+              ) : null}
+
               <Section title="Identities">
                 <BadgeList items={mockUser.identities} />
               </Section>
@@ -184,27 +187,25 @@ export default function ProfileView() {
                 <BadgeList items={mockUser.presentation} />
               </Section>
 
+              <Section title="Sexuality">
+                <BadgeList items={mockUser.sexuality} />
+              </Section>
+
               <Section title="Stats">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Ethnicity:</span>{' '}
-                    <span>{mockUser.ethnicity}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Body:</span>{' '}
-                    <span>{mockUser.bodyType}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Height:</span>{' '}
-                    <span>{mockUser.height}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Weight:</span>{' '}
-                    <span>{mockUser.weight}</span>
-                  </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <DetailItem label="Ethnicity" value={mockUser.ethnicity} />
+                  <DetailItem label="Body" value={mockUser.bodyType} />
+                  <DetailItem label="Height" value={mockUser.height} />
+                  <DetailItem label="Weight" value={mockUser.weight} />
                 </div>
               </Section>
 
+              <Section title="Hobbies">
+                <BadgeList items={mockUser.hobbies} />
+              </Section>
+            </TabsContent>
+
+            <TabsContent value="intimacy" className="mt-5 space-y-5">
               <Section title="Looking For">
                 <BadgeList items={mockUser.lookingFor} />
                 <div className="mt-2 text-sm text-muted-foreground">
@@ -212,65 +213,45 @@ export default function ProfileView() {
                 </div>
               </Section>
 
+              <Section title="Availability">
+                <BadgeList items={[mockUser.timing]} />
+              </Section>
+
               <Section title="Hosting/Travel">
                 <BadgeList items={mockUser.hosting} />
               </Section>
-            </TabsContent>
 
-            <TabsContent value="intimacy" className="space-y-4 mt-4">
               <Section title="Position">
                 <BadgeList items={mockUser.position} />
-              </Section>
-
-              <Section title="Protection">
-                <BadgeList items={mockUser.protection} />
               </Section>
 
               <Section title="Kinks">
                 <BadgeList items={mockUser.kinks} />
               </Section>
 
-              <Section title="Health">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">HIV:</span>{' '}
-                    <span>{mockUser.hivStatus}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">HRT:</span>{' '}
-                    <span>{mockUser.hrtStatus}</span>
-                  </div>
-                </div>
-              </Section>
-            </TabsContent>
-
-            <TabsContent value="interests" className="space-y-4 mt-4">
               <Section title="Vibes">
                 <BadgeList items={mockUser.vibes} variant="gradient" />
               </Section>
+            </TabsContent>
 
-              <Section title="Hobbies">
-                <BadgeList items={mockUser.hobbies} />
+            <TabsContent value="health" className="mt-5 space-y-5">
+              <Section title="Protection">
+                <BadgeList items={mockUser.protection} />
+              </Section>
+
+              <Section title="Health">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <DetailItem label="HIV" value={mockUser.hivStatus} />
+                  <DetailItem label="HRT" value={mockUser.hrtStatus} />
+                </div>
               </Section>
 
               <Section title="Lifestyle">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Drugs:</span>{' '}
-                    <span>{mockUser.drugs}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">420:</span>{' '}
-                    <span>{mockUser.weed}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Smoking:</span>{' '}
-                    <span>{mockUser.smoking}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Drinking:</span>{' '}
-                    <span>{mockUser.drinking}</span>
-                  </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <DetailItem label="Drugs" value={mockUser.drugs} />
+                  <DetailItem label="420" value={mockUser.weed} />
+                  <DetailItem label="Smoking" value={mockUser.smoking} />
+                  <DetailItem label="Drinking" value={mockUser.drinking} />
                 </div>
               </Section>
             </TabsContent>
@@ -286,6 +267,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <div className="space-y-2">
       <h4 className="text-sm">{title}</h4>
       {children}
+    </div>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card px-3 py-3">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm text-foreground">{value}</div>
     </div>
   );
 }

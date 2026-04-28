@@ -1,15 +1,57 @@
 import { useState } from 'react';
 import { IDENTITIES, LOOKING_FOR, PRONOUNS, VIBES } from '../lib/profileOptions';
-import { Heart, ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Badge } from './ui/badge';
-import supabase from '../../../utils/supabase/client';
-
+import { saveMyProfile, type ProfilePayload } from '../lib/profileApi';
 
 interface ProfileOnboardingProps {
   onComplete: () => void;
 }
+
+type OnboardingProfileState = {
+  name: string;
+  age: string;
+  bio: string;
+  identities: string[];
+  pronouns: string[];
+  lookingFor: string[];
+  vibes: string[];
+  photos: string[];
+  gender_presentation: string[];
+  ethnicity: string[];
+  body_type: string[];
+  height: string;
+  weight: string;
+  position: string[];
+  availability: string[];
+  hosting_travel: string[];
+  kinks: string[];
+  hobbies: string[];
+  hiv_status: string[];
+  condoms: string[];
+  prep: string[];
+  doxypep: string[];
+  covid_vaccine: string[];
+  mpox_vaccine: string[];
+  smoking: string[];
+  drinking: string[];
+  drugs: string[];
+  weed: string[];
+  custom_pronouns: string;
+  custom_hobby: string;
+  custom_hiv_status: string;
+  custom_condoms: string;
+  custom_prep: string;
+  custom_doxypep: string;
+  custom_covid_vaccine: string;
+  custom_mpox_vaccine: string;
+  custom_smoking: string;
+  custom_drinking: string;
+  custom_drugs: string;
+  custom_weed: string;
+  sexuality: string[];
+};
 
 export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps) {
   // Minimal onboarding steps, but state includes all schema fields for upsert
@@ -21,9 +63,9 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
     'lookingFor',
     'vibes',
     'bio',
-  ];
+  ] as const;
   const [step, setStep] = useState(0);
-  const [profile, setProfile] = useState({
+  const [profile, setProfile] = useState<OnboardingProfileState>({
     name: '',
     age: '',
     bio: '',
@@ -68,26 +110,28 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
   });
   const [ageError, setAgeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const setProfileField = (field: string, value: any) => {
+  const setProfileField = <K extends keyof OnboardingProfileState>(field: K, value: OnboardingProfileState[K]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
 
-  const canProceed = () => {
+  const canProceed = (): boolean => {
     const field = steps[step];
     switch (field) {
       case 'name':
         return profile.name.trim().length > 1;
-      case 'age':
+      case 'age': {
         const year = parseInt(profile.age);
         const currentYear = new Date().getFullYear();
         const ageNum = currentYear - year;
-        return (
+        return Boolean(
           profile.age &&
           !isNaN(year) &&
           ageNum >= 18 &&
           ageNum < 120
         );
+      }
       case 'pronouns':
         return profile.pronouns.length > 0;
       case 'identities':
@@ -105,22 +149,33 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
 
   const handleComplete = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
-      const user = (await supabase.auth.getUser()).data.user;
-      if (!user) throw new Error('Not authenticated');
-      const upsertProfile = {
-        id: user.id,
-        display_name: profile.name,
-        year_of_birth: profile.age ? parseInt(profile.age) : null,
+      const displayName = profile.name.trim();
+      const bio = profile.bio.trim();
+      const customPronouns = profile.custom_pronouns.trim();
+      const customHobby = profile.custom_hobby.trim();
+      const customHivStatus = profile.custom_hiv_status.trim();
+      const customCondoms = profile.custom_condoms.trim();
+      const customPrep = profile.custom_prep.trim();
+      const customDoxypep = profile.custom_doxypep.trim();
+      const customCovidVaccine = profile.custom_covid_vaccine.trim();
+      const customMpoxVaccine = profile.custom_mpox_vaccine.trim();
+      const customSmoking = profile.custom_smoking.trim();
+      const customDrinking = profile.custom_drinking.trim();
+      const customDrugs = profile.custom_drugs.trim();
+      const customWeed = profile.custom_weed.trim();
+      const payload: ProfilePayload = {
+        display_name: displayName,
+        year_of_birth: profile.age ? parseInt(profile.age, 10) : null,
         pronouns: profile.pronouns,
-        gender_identity: profile.identities,
+        identities: profile.identities,
         looking_for: profile.lookingFor,
         vibes: profile.vibes,
-        bio: profile.bio,
-        // All other fields included for completeness, but above are required for onboarding gating
+        bio,
         photos: profile.photos,
-        gender_presentation: profile.gender_presentation,
-        ethnicity: profile.ethnicity,
+        presentation: profile.gender_presentation,
+        ethnicity: Array.isArray(profile.ethnicity) ? profile.ethnicity[0] ?? '' : '',
         body_type: profile.body_type,
         height: profile.height,
         weight: profile.weight,
@@ -139,29 +194,33 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
         drinking: profile.drinking,
         drugs: profile.drugs,
         weed: profile.weed,
-        updated_at: new Date().toISOString(),
-        custom_pronouns: profile.custom_pronouns,
-        custom_hobby: profile.custom_hobby,
-        custom_hiv_status: profile.custom_hiv_status,
-        custom_condoms: profile.custom_condoms,
-        custom_prep: profile.custom_prep,
-        custom_doxypep: profile.custom_doxypep,
-        custom_covid_vaccine: profile.custom_covid_vaccine,
-        custom_mpox_vaccine: profile.custom_mpox_vaccine,
-        custom_smoking: profile.custom_smoking,
-        custom_drinking: profile.custom_drinking,
-        custom_drugs: profile.custom_drugs,
-        custom_weed: profile.custom_weed,
+        custom_pronouns: customPronouns,
+        custom_hobby: customHobby,
+        custom_hiv_status: customHivStatus,
+        custom_condoms: customCondoms,
+        custom_prep: customPrep,
+        custom_doxypep: customDoxypep,
+        custom_covid_vaccine: customCovidVaccine,
+        custom_mpox_vaccine: customMpoxVaccine,
+        custom_smoking: customSmoking,
+        custom_drinking: customDrinking,
+        custom_drugs: customDrugs,
+        custom_weed: customWeed,
         sexuality: profile.sexuality,
       };
-      const { error } = await supabase
-        .from('profiles')
-        .upsert(upsertProfile);
-      if (error) throw error;
+
+      const savedProfile = await saveMyProfile(payload);
+      localStorage.setItem('cruush_user', JSON.stringify({
+        id: savedProfile.id,
+        name: savedProfile.display_name,
+        display_name: savedProfile.display_name,
+        age: savedProfile.year_of_birth ? new Date().getFullYear() - savedProfile.year_of_birth : null,
+        year_of_birth: savedProfile.year_of_birth,
+      }));
       onComplete();
     } catch (error) {
       console.error('Error saving profile:', error);
-      onComplete();
+      setSaveError(error instanceof Error ? error.message : 'Failed to save profile.');
     } finally {
       setSaving(false);
     }
@@ -174,6 +233,11 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
         <p className="text-center text-muted-foreground mt-2">Set up your profile</p>
       </header>
       <div className="w-full max-w-md bg-card p-6 rounded-lg shadow space-y-8">
+        {saveError ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {saveError}
+          </div>
+        ) : null}
         <div className="flex items-center gap-2 mb-2">
           {steps.map((_, i) => (
             <div
@@ -211,8 +275,9 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
                       const year = e.target.value;
                       setProfileField('age', year);
                       const currentYear = new Date().getFullYear();
-                      const ageNum = currentYear - parseInt(year);
-                      if (!year || isNaN(parseInt(year))) {
+                      const parsedYear = parseInt(year, 10);
+                      const ageNum = currentYear - parsedYear;
+                      if (!year || isNaN(parsedYear)) {
                         setAgeError(null);
                       } else if (ageNum < 0 || ageNum > 120) {
                         setAgeError('Please enter a valid year.');

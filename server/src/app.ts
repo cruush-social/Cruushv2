@@ -1,13 +1,22 @@
 import cors from "@fastify/cors";
 import Fastify from "fastify";
-import { createPool } from "./db.js";
+import { createPool, type DbClient } from "./db.js";
 import type { AppConfig } from "./config.js";
+import { registerCruushRoutes } from "./routes/cruush.js";
+import { formatError, toApiError } from "./errors.js";
+import { registerPostRoutes } from "./routes/posts.js";
+import { registerProfileRoutes } from "./routes/profiles.js";
+import { registerUserRoutes } from "./routes/users.js";
 
-export function buildServer(config: AppConfig) {
+type BuildServerDeps = {
+  db?: DbClient;
+};
+
+export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   const app = Fastify({
     logger: config.NODE_ENV !== "test"
   });
-  const db = createPool(config);
+  const db = deps.db ?? createPool(config);
 
   void app.register(cors, {
     origin: config.CORS_ORIGIN,
@@ -15,6 +24,16 @@ export function buildServer(config: AppConfig) {
   });
 
   app.decorate("db", db);
+
+  app.setErrorHandler((error, _request, reply) => {
+    const apiError = toApiError(error);
+
+    if (apiError.statusCode >= 500) {
+      app.log.error({ err: error }, "request failed");
+    }
+
+    void reply.code(apiError.statusCode).send(formatError(apiError));
+  });
 
   app.addHook("onClose", async () => {
     await db.end();
@@ -32,11 +51,16 @@ export function buildServer(config: AppConfig) {
   app.get("/api/meta", async () => {
     return {
       service: "cruush-server",
-      auth: "planned",
-      storage: "planned",
+      auth: "supabase-temporary-x-user-id-migration",
+      storage: "postgres",
       migratedFromSupabase: true
     };
   });
+
+  void registerUserRoutes(app);
+  void registerCruushRoutes(app);
+  void registerPostRoutes(app);
+  void registerProfileRoutes(app);
 
   return app;
 }

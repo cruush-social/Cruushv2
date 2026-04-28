@@ -8,7 +8,7 @@ export default function BottomNav() {
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path);
 
   const navItems = [
-    { path: '/', icon: Map, label: 'Map' },
+    { path: '/map', icon: Map, label: 'Map' },
     { path: '/feed', icon: Compass, label: 'Feed' },
     { path: '/cruush', icon: Heart, label: 'cruush' },
     { path: '/messages', icon: MessageCircle, label: 'Messages' },
@@ -16,8 +16,8 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-      <div className="flex items-center justify-around max-w-lg mx-auto">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2">
+      <div className="mx-auto flex max-w-lg items-center justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -25,7 +25,7 @@ export default function BottomNav() {
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className={`flex flex-col items-center gap-1 py-3 px-4 transition-colors ${
+              className={`flex min-w-[64px] flex-col items-center gap-1 rounded-2xl px-4 py-3 transition-colors ${
                 active ? 'text-primary' : 'text-muted-foreground'
               }`}
             >

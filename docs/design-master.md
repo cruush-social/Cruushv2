@@ -102,7 +102,7 @@ Required tabs:
 - Activity
 - Profile
 
-The active tab uses the brand gradient. The nav background should be dark, with a subtle top border.
+The active tab uses the brand gradient. The nav background should be a solid dark surface with a subtle top border.
 
 ## Map Home
 
@@ -115,6 +115,8 @@ Map requirements:
 - Dense urban street-grid feel.
 - 8-12 visible heart-shaped pins in design mocks.
 - Map-first layout with overlays that preserve map context.
+- Mobile map interactions should go directly to the full profile when a user pin or recent-tray user is tapped.
+- Desktop map interactions should open a scrollable mini-profile popup that acts as the desktop profile surface on the map.
 
 Map controls:
 
@@ -122,6 +124,9 @@ Map controls:
 - Default sort: Last Active.
 - Sort options: Last Active, Newest, Closest.
 - Cluster Markers setting can group nearby pins into count bubbles when zoomed out.
+- On mobile, tapping a person on the map or in the recent tray should open their full profile directly.
+- On desktop, tapping a person on the map or in the recent tray should open a floating mini-profile popup in cruush styling.
+- Desktop map popups should make messaging the clearest primary action.
 
 Last active display:
 
@@ -151,23 +156,25 @@ Privacy state:
 
 ## Photo Rules
 
-All user profile photos must use a portrait-first system.
+All user profile photos must follow a split media system.
 
 Required rules:
 
-- Full-size and preview-size profile photos use a 9:16 portrait aspect ratio.
-- Never crop full or preview profile photos into squares, short rectangles, or landscape formats.
-- Profile card photos, profile previews, full profiles, galleries, DMs, group chats, and shared media should preserve portrait presentation.
-- Desktop may use up to a 2:3 portrait ratio, but photos must never be wider than tall.
+- Main full-size profile photos use a `4:5` aspect ratio.
+- Compact preview-size profile photos should use heart crops that visually match the pins.
+- The full profile should read like a direct vertical scroll surface: photo first, then profile content below.
+- Desktop may widen to `1:1` on dense surfaces, but primary profile media should never be wider than tall.
 - Small avatars and tiny pin crops may be circular or heart-cropped.
 
 Surface-specific rules:
 
-- Map profile peek: photo fills the left half at 9:16; metadata sits on the right.
-- Full profile: primary photo occupies full mobile width at 9:16; profile information scrolls below or overlays in a sheet.
-- Profile edit photos: 9:16 portrait tiles in a 2-column grid.
-- DMs and group chats: shared media thumbnails are portrait, not landscape.
-- Event, place, and group detail media should be 9:16 or at least 2:3 portrait.
+- Map and tray previews: use heart-cropped profile photos consistent with the pins. On mobile they open the full profile directly; on desktop they open the scrollable popup profile.
+- Full profile: primary photo occupies full mobile width at `4:5`.
+- Full profile: put the name, distance, actions, and profile sections below the image in a continuous scroll.
+- Full profile: use three primary tabs that mirror the edit architecture: `Basics`, `Intimacy`, and `Health`.
+- Profile edit photos: use `9:16` tiles in a 2-column grid.
+- DMs, activity, feed, map trays, and group chats: compact person previews should be heart-shaped, using the same visual language as the pins.
+- Event, place, and group detail media should prefer `4:5` or square unless the content specifically needs a taller crop.
 
 ## NSFW Photo Handling
 
@@ -220,6 +227,12 @@ Profile edit sections:
 - Basics
 - Intimacy
 - Health & Safety
+
+Public profile sections:
+
+- Basics
+- Intimacy
+- Health
 
 Basics fields:
 
@@ -499,7 +512,7 @@ Tradeoff:
 - Preserve dense profile and filter architecture.
 - Do not reduce complexity; make it coherent and premium.
 - Use heart-shaped map pins.
-- Use 9:16 portrait profile photo surfaces except tiny avatars and pin crops.
+- Use `4:5` profile photo surfaces for primary people/media blocks except tiny avatars and pin crops.
 - Blur NSFW photos by default until users enable explicit photos.
 - Assume cruush hosts NSFW user photos; use adult-web compliance, moderation, and hosting constraints rather than app-store constraints.
 - Include Location Fuzziness in settings.

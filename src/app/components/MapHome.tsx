@@ -2,23 +2,62 @@
 /// <reference types="vite/client" />
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import type { Map as LeafletMap } from 'leaflet';
 import { Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart } from 'lucide-react';
 import { Button } from './ui/button';
+import { useIsMobile } from './ui/use-mobile';
+import HeartPhoto from './HeartPhoto';
 import MapView from './MapView';
-import ProfileCard from './ProfileCard';
-// Use Vite environment variables for Supabase config
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+import MapProfilePopup from './MapProfilePopup';
+import { buildFallbackNearbyUsers, getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+
+function getLastActiveMinutes(lastActive: string) {
+  const value = parseInt(lastActive, 10);
+
+  if (Number.isNaN(value)) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  if (lastActive.includes('d')) {
+    return value * 1440;
+  }
+
+  if (lastActive.includes('h')) {
+    return value * 60;
+  }
+
+  return value;
+}
 
 export default function MapHome() {
   const navigate = useNavigate();
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
+  const isMobile = useIsMobile();
+  const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mapInstance, setMapInstance] = useState<any>(null);
+  const [mapInstance, setMapInstance] = useState<LeafletMap | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [usingPreviewData, setUsingPreviewData] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
+
+  const openProfile = (user: DiscoveryUser) => {
+    navigate(`/profile/${user.id}`);
+  };
+
+  const handleUserSelect = (user: DiscoveryUser) => {
+    if (isMobile) {
+      openProfile(user);
+      return;
+    }
+
+    setSelectedUser(user);
+  };
+
+  useEffect(() => {
+    if (isMobile && selectedUser) {
+      setSelectedUser(null);
+    }
+  }, [isMobile, selectedUser]);
 
   useEffect(() => {
     let watchId: number | null = null;
@@ -31,7 +70,6 @@ export default function MapHome() {
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
       );
     }
-    fetchUsers();
     return () => {
       if (watchId !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchId);
@@ -39,25 +77,20 @@ export default function MapHome() {
     };
   }, []);
 
-  const fetchUsers = async () => {
+  useEffect(() => {
+    void fetchUsers(userLocation);
+  }, [userLocation]);
+
+  const fetchUsers = async (coordinates: { lat: number; lng: number } | null) => {
+    setError(null);
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/users`,
-        {
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch users: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setUsers(data.users || []);
+      setUsers(await getNearbyUsers(coordinates));
+      setUsingPreviewData(false);
     } catch (error) {
       console.error('Error fetching users:', error);
+      setUsers(buildFallbackNearbyUsers(coordinates));
+      setUsingPreviewData(true);
+      setError(null);
     } finally {
       setLoading(false);
     }
@@ -70,6 +103,7 @@ export default function MapHome() {
         {
           id: 'me',
           name: 'You',
+          display_name: 'You',
           lat: userLocation.lat,
           lng: userLocation.lng,
           photo: null,
@@ -81,56 +115,89 @@ export default function MapHome() {
     : users;
 
   return (
-    <div className="h-screen flex flex-col relative">
-      <header className="bg-card border-b border-border p-4 flex items-center justify-between z-10">
-        <h1
-          className="text-3xl tracking-tight"
-          style={{
-            fontFamily: 'UnifrakturMaguntia, serif',
-            background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}
-        >
-          cruush
-        </h1>
+    <div className="h-screen relative">
+      <div className="absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-background/95 via-background/72 to-transparent px-4 pb-8 pt-4 backdrop-blur-sm">
+        <div className="flex items-center justify-between">
+          <h1
+            className="text-3xl tracking-tight"
+            style={{
+              fontFamily: 'UnifrakturMaguntia, serif',
+              background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            cruush
+          </h1>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/lucky')}
-            title="I'm Feeling Lucky"
-          >
-            <Sparkles className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/safety')}
-            title="Safety Center"
-          >
-            <Shield className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" size="icon" title="Notifications">
-            <Bell className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/settings')}
-            title="Settings"
-          >
-            <SettingsIcon className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/lucky')}
+              title="I'm Feeling Lucky"
+            >
+              <Sparkles className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/safety')}
+              title="Safety Center"
+            >
+              <Shield className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" title="Notifications">
+              <Bell className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/settings')}
+              title="Settings"
+            >
+              <SettingsIcon className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
-      </header>
+      </div>
 
-      <div className="flex-1 relative">
-        <MapView onPinClick={setSelectedUser} users={mergedUsers} userLocation={userLocation} />
+      <div className="absolute inset-0">
+        <MapView
+          onPinClick={handleUserSelect}
+          onMapClick={() => setSelectedUser(null)}
+          users={mergedUsers}
+          userLocation={userLocation}
+          onMapReady={setMapInstance}
+        />
 
-        <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+        {error ? (
+          <div className="absolute left-4 right-20 top-24 z-20 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        ) : null}
+
+        {usingPreviewData ? (
+          <div className="absolute left-4 right-20 top-24 z-20 rounded-md border border-primary/30 bg-background/90 p-3 text-sm text-muted-foreground backdrop-blur-sm">
+            Previewing nearby people while live discovery reconnects.
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div className="absolute inset-x-4 top-28 z-20 rounded-md bg-card/90 p-3 text-sm text-muted-foreground backdrop-blur-sm">
+            Loading nearby people...
+          </div>
+        ) : null}
+
+        {!isMobile && selectedUser ? (
+          <MapProfilePopup
+            user={selectedUser}
+            onClose={() => setSelectedUser(null)}
+          />
+        ) : null}
+
+        <div className="absolute right-4 top-24 z-20 flex flex-col gap-2">
           <Button
             style={{
               background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
@@ -163,7 +230,7 @@ export default function MapHome() {
           </div>
         </div>
 
-        {!selectedUser && users.length > 0 && (
+        {users.length > 0 && (
           <div className="absolute bottom-20 left-0 right-0 z-20 pb-2">
             <div className="px-4 pb-2">
               <p className="text-xs text-muted-foreground">Recently Active</p>
@@ -171,34 +238,24 @@ export default function MapHome() {
             <div className="flex gap-3 overflow-x-auto px-4 scrollbar-hide">
               {users
                 .sort((a, b) => {
-                  const aMinutes = parseInt(a.lastActive) || 999;
-                  const bMinutes = parseInt(b.lastActive) || 999;
+                  const aMinutes = getLastActiveMinutes(a.lastActive);
+                  const bMinutes = getLastActiveMinutes(b.lastActive);
                   return aMinutes - bMinutes;
                 })
                 .slice(0, 10)
                 .map((user) => (
                   <button
                     key={user.id}
-                    onClick={() => setSelectedUser(user)}
+                    onClick={() => handleUserSelect(user)}
                     className="flex-shrink-0 w-20"
                   >
                     <div className="relative">
-                      <div
-                        className="w-20 h-28 rounded-xl overflow-hidden bg-gradient-to-br from-crimson-dark to-crimson-bright"
-                        style={{ aspectRatio: '9/16' }}
-                      >
-                        {user.photo ? (
-                          <img
-                            src={user.photo}
-                            alt={user.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Heart className="w-8 h-8 text-white/20" />
-                          </div>
-                        )}
-                      </div>
+                      <HeartPhoto
+                        className="w-20"
+                        label={`${user.name} preview`}
+                        photo={user.photo}
+                        fallback={<Heart className="w-8 h-8 text-white/20" />}
+                      />
                       <div className="absolute top-1 left-1 bg-black/80 backdrop-blur-sm px-1.5 py-0.5 rounded text-[10px] font-mono text-white/90">
                         {user.lastActive}
                       </div>
@@ -208,16 +265,6 @@ export default function MapHome() {
                   </button>
                 ))}
             </div>
-          </div>
-        )}
-
-        {selectedUser && (
-          <div className="absolute bottom-20 left-0 right-0 px-4 z-20">
-            <ProfileCard
-              user={selectedUser}
-              onClose={() => setSelectedUser(null)}
-              onViewProfile={() => navigate(`/profile/${selectedUser.id}`)}
-            />
           </div>
         )}
       </div>

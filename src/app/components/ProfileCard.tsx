@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router';
 import { X, Heart, MessageCircle, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+import { sendCruush } from '../lib/cruushApi';
+import { PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
 
 interface ProfileCardProps {
   user: any;
@@ -19,29 +18,15 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
 
   const handleCruush = async () => {
     try {
-      const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/cruush`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fromUserId: userData.id,
-            toUserId: user.id,
-          }),
-        }
-      );
+      const data = await sendCruush(user.id, {
+        name: user.name,
+        pronouns: user.pronouns,
+        photo: user.photo ?? null,
+      });
+      setCruushed(true);
 
-      if (response.ok) {
-        const data = await response.json();
-        setCruushed(true);
-
-        if (data.mutual) {
-          alert("It's a match! 💕");
-        }
+      if (data.mutual) {
+        alert(`It's mutual. You and ${user.name} have a cruush on each other.`);
       }
     } catch (error) {
       console.error('Error sending cruush:', error);
@@ -52,10 +37,10 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
     navigate('/messages');
   };
   return (
-    <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-2xl max-w-xs w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30" style={{ maxHeight: '80vh' }}>
-      <div className="relative w-full bg-gradient-to-br from-crimson-dark to-crimson-bright" style={{ aspectRatio: '9/16' }}>
+    <div className="bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30" style={{ maxHeight: '80vh' }}>
+      <div className="relative w-full bg-gradient-to-br from-crimson-dark to-crimson-bright" style={PROFILE_CARD_MEDIA_ASPECT_STYLE}>
         {user.photo ? (
-          <img src={user.photo} alt={user.name} className="w-full h-full object-cover" style={{ aspectRatio: '9/16' }} />
+          <img src={user.photo} alt={user.name} className="w-full h-full object-cover" style={PROFILE_CARD_MEDIA_ASPECT_STYLE} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Heart className="w-24 h-24 text-white/20" />

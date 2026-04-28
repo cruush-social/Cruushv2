@@ -1,70 +1,71 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Heart, MessageCircle } from 'lucide-react';
+import HeartPhoto from './HeartPhoto';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Button } from './ui/button';
-// Use Vite environment variables for Supabase config
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+import { getMyCruushActivity, sendCruush, type CruushActivityItem } from '../lib/cruushApi';
+
+function formatRelativeTime(isoTimestamp: string) {
+  const now = Date.now();
+  const then = new Date(isoTimestamp).getTime();
+  const diffMs = now - then;
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) {
+    return 'Just now';
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
 
 export default function CruushActivity() {
   const navigate = useNavigate();
-  const [received, setReceived] = useState<any[]>([]);
-  const [sent, setSent] = useState<any[]>([]);
+  const [received, setReceived] = useState<CruushActivityItem[]>([]);
+  const [sent, setSent] = useState<CruushActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCruushActivity();
+    void fetchCruushActivity();
   }, []);
 
   const fetchCruushActivity = async () => {
+    setError(null);
     try {
-      const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/cruush/${userData.id}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch cruush activity: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await getMyCruushActivity();
       setReceived(data.received || []);
       setSent(data.sent || []);
     } catch (error) {
       console.error('Error fetching cruush activity:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load cruush activity.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCruushBack = async (userId: string) => {
+  const handleCruushBack = async (item: CruushActivityItem) => {
     try {
-      const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
-      await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/cruush`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fromUserId: userData.id,
-            toUserId: userId,
-          }),
-        }
-      );
+      await sendCruush(item.user.id, {
+        name: item.user.name,
+        pronouns: item.user.pronouns,
+        photo: item.user.photo,
+      });
 
-      fetchCruushActivity();
+      await fetchCruushActivity();
     } catch (error) {
       console.error('Error sending cruush:', error);
+      setError(error instanceof Error ? error.message : 'Failed to send cruush.');
     }
   };
 
@@ -75,6 +76,11 @@ export default function CruushActivity() {
       </header>
 
       <div className="max-w-2xl mx-auto">
+        {error ? (
+          <div className="m-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        ) : null}
         <Tabs defaultValue="received" className="w-full">
           <TabsList className="w-full grid grid-cols-2">
             <TabsTrigger value="received">Received</TabsTrigger>
@@ -83,18 +89,18 @@ export default function CruushActivity() {
 
           <TabsContent value="received" className="mt-0">
             <div className="divide-y divide-border">
+              {loading ? (
+                <div className="p-6 text-sm text-muted-foreground">Loading cruush activity...</div>
+              ) : null}
               {received.map((item) => (
                 <div key={item.id} className="p-4 hover:bg-accent transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className="w-14 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-crimson-dark to-crimson-bright" style={{ aspectRatio: '9/16' }}>
-                      {item.user?.photo ? (
-                        <img src={item.user.photo} alt={item.user.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Heart className="w-6 h-6 text-white/20" />
-                        </div>
-                      )}
-                    </div>
+                    <HeartPhoto
+                      className="w-16 flex-shrink-0"
+                      label={`${item.user.name} preview`}
+                      photo={item.user?.photo}
+                      fallback={<Heart className="w-6 h-6 text-white/20" />}
+                    />
 
                     <div className="flex-1">
                       <p>
@@ -102,7 +108,7 @@ export default function CruushActivity() {
                         <span className="text-sm text-muted-foreground">{item.user.pronouns}</span>
                       </p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{item.time} ago</span>
+                        <span>{formatRelativeTime(item.createdAt)}</span>
                         {item.mutual && (
                           <span className="text-primary flex items-center gap-1">
                             <Heart className="w-3 h-3 fill-current" />
@@ -117,7 +123,7 @@ export default function CruushActivity() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleCruushBack(item.toUserId)}
+                          onClick={() => handleCruushBack(item)}
                           style={{
                             borderColor: 'var(--cruush-pink)',
                             color: 'var(--cruush-pink)',
@@ -142,31 +148,31 @@ export default function CruushActivity() {
 
           <TabsContent value="sent" className="mt-0">
             <div className="divide-y divide-border">
+              {loading ? (
+                <div className="p-6 text-sm text-muted-foreground">Loading cruush activity...</div>
+              ) : null}
               {sent.map((item) => (
                 <div key={item.id} className="p-4 hover:bg-accent transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className="w-14 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-crimson-dark to-crimson-bright" style={{ aspectRatio: '9/16' }}>
-                      {item.user?.photo ? (
-                        <img src={item.user.photo} alt={item.user.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Heart className="w-6 h-6 text-white/20" />
-                        </div>
-                      )}
-                    </div>
+                    <HeartPhoto
+                      className="w-16 flex-shrink-0"
+                      label={`${item.user.name} preview`}
+                      photo={item.user?.photo}
+                      fallback={<Heart className="w-6 h-6 text-white/20" />}
+                    />
 
                     <div className="flex-1">
                       <p>
                         {item.user.name}{' '}
                         <span className="text-sm text-muted-foreground">{item.user.pronouns}</span>
                       </p>
-                      <p className="text-xs text-muted-foreground">{item.time} ago</p>
+                      <p className="text-xs text-muted-foreground">{formatRelativeTime(item.createdAt)}</p>
                     </div>
 
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => navigate(`/profile/${item.id}`)}
+                      onClick={() => navigate(`/profile/${item.user.id}`)}
                     >
                       View
                     </Button>
@@ -176,6 +182,13 @@ export default function CruushActivity() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {!loading && received.length === 0 && sent.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-muted-foreground">No cruush activity yet.</p>
+            <p className="text-sm text-muted-foreground mt-2">Send a cruush to start the loop.</p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

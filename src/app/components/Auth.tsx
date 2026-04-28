@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Heart } from 'lucide-react';
 import supabase from '../../../utils/supabase/client';
+import { persistCurrentUser } from '../lib/sessionUser';
 
 interface AuthProps {
   onAuth: (isNewUser: boolean) => void;
@@ -59,11 +60,20 @@ export default function Auth({ onAuth }: AuthProps) {
           setIsLoading(false);
           return;
         }
+        localStorage.setItem('cruush_auth', 'true');
+        if (data.user?.id) {
+          persistCurrentUser({
+            id: data.user.id,
+            name: displayName.trim(),
+            display_name: displayName.trim(),
+            year_of_birth: null,
+          });
+        }
         setIsLoading(false);
         onAuth(true); // New user needs onboarding
       } else {
         // Supabase sign in
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
@@ -71,6 +81,19 @@ export default function Auth({ onAuth }: AuthProps) {
           setError(signInError.message);
           setIsLoading(false);
           return;
+        }
+        localStorage.setItem('cruush_auth', 'true');
+        if (data.user?.id) {
+          const displayNameFromAuth =
+            typeof data.user.user_metadata?.display_name === 'string'
+              ? data.user.user_metadata.display_name
+              : data.user.email ?? 'Cruush user';
+          persistCurrentUser({
+            id: data.user.id,
+            name: displayNameFromAuth,
+            display_name: displayNameFromAuth,
+            year_of_birth: null,
+          });
         }
         setIsLoading(false);
         onAuth(false); // Existing user, no onboarding needed

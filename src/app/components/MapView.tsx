@@ -1,10 +1,12 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L, { Icon, LatLngExpression } from 'leaflet';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import L, { Icon, LatLngExpression, type Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect } from 'react';
 
 interface MapViewProps {
   onPinClick: (user: any) => void;
+  onMapClick?: () => void;
+  onMapReady?: (map: LeafletMap) => void;
   users: any[];
   userLocation?: { lat: number; lng: number } | null;
 }
@@ -17,6 +19,24 @@ function CenterMapOnUser({ userLocation }: { userLocation: { lat: number; lng: n
       map.setView([userLocation.lat, userLocation.lng], 14, { animate: true });
     }
   }, [userLocation, map]);
+  return null;
+}
+
+function CaptureMapInstance({ onMapReady }: { onMapReady?: (map: LeafletMap) => void }) {
+  const map = useMap();
+
+  useEffect(() => {
+    onMapReady?.(map);
+  }, [map, onMapReady]);
+
+  return null;
+}
+
+function CaptureMapClicks({ onMapClick }: { onMapClick?: () => void }) {
+  useMapEvents({
+    click: () => onMapClick?.(),
+  });
+
   return null;
 }
 
@@ -36,7 +56,7 @@ const otherIcon = new L.Icon({
   className: 'leaflet-other-marker',
 });
 
-function MapView({ onPinClick, users, userLocation }: MapViewProps) {
+function MapView({ onPinClick, onMapClick, onMapReady, users, userLocation }: MapViewProps) {
   // Center on user or fallback
   const center: LatLngExpression = userLocation ? [userLocation.lat, userLocation.lng] : [40.7128, -74.006];
 
@@ -48,19 +68,19 @@ function MapView({ onPinClick, users, userLocation }: MapViewProps) {
       scrollWheelZoom={true}
       dragging={true}
       doubleClickZoom={true}
-      zoomControl={true}
+      zoomControl={false}
       attributionControl={false}
     >
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         attribution={"&copy; <a href='https://carto.com/attributions'>CARTO</a>"}
       />
+      <CaptureMapInstance onMapReady={onMapReady} />
+      <CaptureMapClicks onMapClick={onMapClick} />
       <CenterMapOnUser userLocation={userLocation || null} />
       {/* User pin */}
       {userLocation && (
-        <Marker position={[userLocation.lat, userLocation.lng] as LatLngExpression} icon={userIcon as Icon}>
-          <Popup>You are here</Popup>
-        </Marker>
+        <Marker position={[userLocation.lat, userLocation.lng] as LatLngExpression} icon={userIcon as Icon} />
       )}
       {/* Other users */}
       {users && users.filter(u => u.lat && u.lng && u.id !== 'me').map((user) => (
@@ -69,9 +89,7 @@ function MapView({ onPinClick, users, userLocation }: MapViewProps) {
           position={[user.lat, user.lng] as LatLngExpression}
           icon={otherIcon as Icon}
           eventHandlers={{ click: () => onPinClick(user) }}
-        >
-          <Popup>{user.display_name || 'User'}</Popup>
-        </Marker>
+        />
       ))}
     </MapContainer>
   );

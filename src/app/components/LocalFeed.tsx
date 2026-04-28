@@ -2,41 +2,53 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Send, MapPin, Clock, Heart } from 'lucide-react';
 import { Button } from './ui/button';
+import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+import { createFeedPost, getFeedPosts, type FeedPost, type FeedPostExpiry } from '../lib/postApi';
+
+function formatRelativeTime(isoTimestamp: string) {
+  const now = Date.now();
+  const then = new Date(isoTimestamp).getTime();
+  const diffMs = now - then;
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) {
+    return 'Just now';
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
 
 export default function LocalFeed() {
   const navigate = useNavigate();
   const [newPost, setNewPost] = useState('');
-  const [posts, setPosts] = useState<any[]>([]);
-  const [expiresIn, setExpiresIn] = useState('6h');
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('6h');
   const [loading, setLoading] = useState(true);
+  const [posting, setPosting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchPosts();
+    void fetchPosts();
   }, []);
 
   const fetchPosts = async () => {
+    setError(null);
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/posts`,
-        {
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch posts: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setPosts(data.posts || []);
+      setPosts(await getFeedPosts());
     } catch (error) {
       console.error('Error fetching posts:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load the local feed.');
     } finally {
       setLoading(false);
     }
@@ -45,31 +57,20 @@ export default function LocalFeed() {
   const handlePost = async () => {
     if (!newPost.trim()) return;
 
+    setPosting(true);
+    setError(null);
     try {
-      const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
-
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/posts`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: userData.id,
-            content: newPost,
-            expiresIn,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        setNewPost('');
-        fetchPosts();
-      }
+      const createdPost = await createFeedPost({
+        content: newPost.trim(),
+        expiresIn,
+      });
+      setNewPost('');
+      setPosts((prev) => [createdPost, ...prev]);
     } catch (error) {
       console.error('Error posting:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create post.');
+    } finally {
+      setPosting(false);
     }
   };
 
@@ -87,6 +88,11 @@ export default function LocalFeed() {
 
       <div className="max-w-2xl mx-auto">
         <div className="p-4 bg-card border-b border-border">
+          {error ? (
+            <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          ) : null}
           <Textarea
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
@@ -119,7 +125,7 @@ export default function LocalFeed() {
             </div>
             <Button
               onClick={handlePost}
-              disabled={!newPost.trim()}
+              disabled={!newPost.trim() || posting}
               style={{
                 background: newPost.trim()
                   ? 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)'
@@ -127,24 +133,28 @@ export default function LocalFeed() {
               }}
             >
               <Send className="w-4 h-4 mr-2" />
-              Post
+              {posting ? 'Posting...' : 'Post'}
             </Button>
           </div>
         </div>
 
-        <div className="divide-y divide-border">
+        {loading ? (
+          <div className="p-12 text-center">
+            <p className="text-muted-foreground">Loading nearby posts...</p>
+          </div>
+        ) : null}
+
+        {!loading ? (
+          <div className="divide-y divide-border">
           {posts.map((post) => (
             <div key={post.id} className="p-4 hover:bg-accent/50 transition-colors">
               <div className="flex gap-3">
-                <div className="w-12 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-crimson-dark to-crimson-bright" style={{ aspectRatio: '9/16' }}>
-                  {post.user?.photo ? (
-                    <img src={post.user.photo} alt={post.user.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Heart className="w-5 h-5 text-white/20" />
-                    </div>
-                  )}
-                </div>
+                <HeartPhoto
+                  className="w-14 flex-shrink-0"
+                  label={`${post.user.name} preview`}
+                  photo={post.user?.photo}
+                  fallback={<Heart className="w-5 h-5 text-white/20" />}
+                />
 
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center justify-between">
@@ -158,7 +168,7 @@ export default function LocalFeed() {
                           <MapPin className="w-3 h-3" />
                           {post.distance}
                         </span>
-                        <span>{post.timestamp}</span>
+                        <span>{formatRelativeTime(post.createdAt)}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -172,9 +182,10 @@ export default function LocalFeed() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        ) : null}
 
-        {posts.length === 0 && (
+        {!loading && posts.length === 0 && (
           <div className="p-12 text-center">
             <p className="text-muted-foreground">No posts nearby yet.</p>
             <p className="text-sm text-muted-foreground mt-2">Be the first to share something!</p>

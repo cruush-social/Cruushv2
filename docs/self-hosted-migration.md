@@ -49,6 +49,13 @@ Current Supabase-shaped endpoints in the frontend:
 - `/server/messages`
 - `/server/cruush`
 
+Current migration status:
+
+- Profiles are already app-owned through `GET /api/profiles/me` and `PUT /api/profiles/me`.
+- Posts are already app-owned through `GET /api/posts` and `POST /api/posts`.
+- Cruush activity/actions are already app-owned through `GET /api/cruush/:userId` and `POST /api/cruush`.
+- The next remaining function slices are users/discovery and messages/conversations.
+
 ### Phase 3
 
 Replace Supabase auth with app-owned session auth.
@@ -93,9 +100,14 @@ The `server/` folder is the first slice:
 
 ## Recommended next coding step
 
-Implement app-owned profile routes:
+Implement app-owned user discovery routes:
 
-- `GET /api/profiles/me`
-- `PUT /api/profiles/me`
+- `GET /api/users`
+- optional seed/dev-only helpers outside the public app surface
 
-Once those exist, update `ProfileOnboarding.tsx` and `ProfileEdit.tsx` to call the new API instead of Supabase directly.
+Once those exist, update `MapHome.tsx` and the map/feed discovery surfaces to stop depending on the old Supabase `users` edge function. After that, migrate messages and conversations.
+
+## Phase 1 notes
+
+- The temporary `x-user-id` header is only a migration boundary while Supabase auth remains on the frontend. It is not production authentication.
+- Before shipping this API publicly, replace that header with app-owned auth and add request rate limiting on profile writes, ideally per user and per IP.

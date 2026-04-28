@@ -81,3 +81,6 @@ coverage/
 
 # Ignore vercel
 .vercel/
+
+# Ignore docs
+.docs/design-master.md

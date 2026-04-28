@@ -74,6 +74,7 @@ export default function App() {
             <Route path="/groups/:groupId" element={<GroupDetail />} />
             <Route path="/events/:eventId" element={<EventDetail />} />
             <Route path="/places/:placeId" element={<PlaceDetail />} />
+            <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
             <Route path="/chat/group/:chatId" element={<PrivateGroupChat />} />
             <Route path="/messages" element={<DirectMessages />} />
             <Route path="/cruush" element={<CruushActivity />} />

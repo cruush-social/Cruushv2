@@ -1,54 +1,136 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Send, MoreVertical, Heart } from 'lucide-react';
+import { ArrowLeft, CornerDownLeft, Heart, Image as ImageIcon, MapPin, MoreHorizontal, Send, Shield, Users } from 'lucide-react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
+import { Badge } from './ui/badge';
+import HeartPhoto from './HeartPhoto';
+import { Textarea } from './ui/textarea';
+import { fallbackConversations, fallbackMessagesByConversationId, type ChatMessageRecord, type ConversationThread } from '../lib/messageFixtures';
+import { getCurrentUserId } from '../lib/sessionUser';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const projectId = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+const projectId =
+  typeof supabaseUrl === 'string'
+    ? supabaseUrl.replace('https://', '').replace('.supabase.co', '')
+    : null;
+
+function formatMessageTime(isoTimestamp: string) {
+  return new Date(isoTimestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function getConversationInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+function normalizeRemoteMessages(remoteMessages: any[], activeUserId: string | null) {
+  return remoteMessages.map((message) => ({
+    id: String(message.id),
+    author: message.userId === activeUserId ? 'self' : 'other',
+    content: String(message.content ?? ''),
+    timestamp: String(message.timestamp ?? new Date().toISOString()),
+  })) as ChatMessageRecord[];
+}
 
 export default function PrivateGroupChat() {
   const { chatId } = useParams();
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessageRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [usingSampleData, setUsingSampleData] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const conversation: ConversationThread =
+    fallbackConversations.find((item) => item.id === chatId) ?? fallbackConversations[0];
+  const quickPrompts = conversation.kind === 'group'
+    ? ['still in', 'hosting pregame', 'share cross streets later', 'what time are we landing?']
+    : ['you around now?', 'hosting or traveling?', 'what vibe are you after?', 'send cross streets later'];
 
   useEffect(() => {
-    if (chatId) {
-      fetchMessages();
-    }
-  }, [chatId]);
+    const loadChatState = async () => {
+      try {
+        const resolvedUserId = await getCurrentUserId();
+        setCurrentUserId(resolvedUserId);
+        setError(null);
 
-  const fetchMessages = async () => {
-    try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/messages/${chatId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-          },
+        if (!chatId) {
+          setMessages(fallbackMessagesByConversationId[conversation.id] ?? []);
+          setUsingSampleData(true);
+          return;
         }
-      );
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch messages: ${response.statusText}`);
+        if (!projectId || !supabaseAnonKey) {
+          setMessages(fallbackMessagesByConversationId[chatId] ?? fallbackMessagesByConversationId[conversation.id] ?? []);
+          setUsingSampleData(true);
+          return;
+        }
+
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/server/messages/${chatId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${supabaseAnonKey}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch messages: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const normalized = Array.isArray(data.messages)
+          ? normalizeRemoteMessages(data.messages, resolvedUserId)
+          : [];
+
+        if (normalized.length > 0) {
+          setMessages(normalized);
+          setUsingSampleData(false);
+        } else {
+          setMessages(fallbackMessagesByConversationId[chatId] ?? fallbackMessagesByConversationId[conversation.id] ?? []);
+          setUsingSampleData(true);
+        }
+      } catch (error) {
+        console.error('Error loading chat:', error);
+        setMessages(fallbackMessagesByConversationId[chatId ?? conversation.id] ?? fallbackMessagesByConversationId[conversation.id] ?? []);
+        setUsingSampleData(true);
+        setError(error instanceof Error ? error.message : 'Failed to load live chat.');
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const data = await response.json();
-      setMessages(data.messages || []);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    void loadChatState();
+  }, [chatId, conversation.id]);
 
   const handleSend = async () => {
     if (!message.trim()) return;
 
+    const trimmedMessage = message.trim();
+    const optimisticMessage: ChatMessageRecord = {
+      id: `local-${Date.now()}`,
+      author: 'self',
+      content: trimmedMessage,
+      timestamp: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setMessage('');
+
     try {
-      const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
+      const userId = currentUserId ?? await getCurrentUserId();
+
+      if (!projectId || !supabaseAnonKey) {
+        setUsingSampleData(true);
+        setError(null);
+        return;
+      }
 
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/server/messages`,
@@ -60,100 +142,221 @@ export default function PrivateGroupChat() {
           },
           body: JSON.stringify({
             conversationId: chatId,
-            userId: userData.id,
-            content: message,
+            userId,
+            content: trimmedMessage,
           }),
         }
       );
 
       if (response.ok) {
-        setMessage('');
-        fetchMessages();
+        setError(null);
+      } else {
+        throw new Error(`Failed to send message: ${response.statusText}`);
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      setError(error instanceof Error ? error.message : 'Failed to send message.');
     }
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <header className="bg-card border-b border-border p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h2 className="text-lg">Chat</h2>
-            <p className="text-xs text-muted-foreground">{messages.length} messages</p>
+    <div className="relative min-h-screen bg-background pb-20">
+      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(circle at top, rgba(255, 47, 114, 0.12), transparent 32%), radial-gradient(circle at 80% 18%, rgba(122, 43, 255, 0.12), transparent 30%)' }} />
+
+      <header className="sticky top-0 z-10 border-b border-border bg-background/88 px-4 py-4 backdrop-blur-md">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to messages">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+
+            <HeartPhoto
+              className="w-12 shrink-0"
+              label={`${conversation.user.name} preview`}
+              photo={conversation.user.photo}
+              fallback={
+                conversation.kind === 'group'
+                  ? <Users className="size-5 text-white/80" />
+                  : <div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>
+              }
+            />
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="truncate text-lg">{conversation.user.name}</h2>
+                {conversation.kind === 'group' ? (
+                  <Badge variant="outline" className="border-border/80 bg-card/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Group
+                  </Badge>
+                ) : null}
+                {conversation.mutual ? (
+                  <Badge variant="outline" className="border-primary/20 bg-primary/10 text-[10px] uppercase tracking-[0.18em] text-primary">
+                    Mutual cruush
+                  </Badge>
+                ) : null}
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                {conversation.user.pronouns ? <span>{conversation.user.pronouns}</span> : null}
+                {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="size-3" />
+                  {conversation.distance}
+                </span>
+                {usingSampleData ? <span>Preview thread</span> : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" title="Media states" aria-label="Open media options">
+              <ImageIcon className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" title="Safety tools" aria-label="Open safety options">
+              <Shield className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" aria-label="More conversation options">
+              <MoreHorizontal className="w-5 h-5" />
+            </Button>
           </div>
         </div>
-        <Button variant="ghost" size="icon">
-          <MoreVertical className="w-5 h-5" />
-        </Button>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
-        {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <p>No messages yet. Start the conversation!</p>
+      <div className="mx-auto flex max-w-2xl flex-col px-4 pb-[calc(8rem+env(safe-area-inset-bottom))] pt-4">
+        {error ? (
+          <div className="mb-4 rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
           </div>
-        ) : (
-          messages.map((msg) => {
-            const userData = JSON.parse(localStorage.getItem('cruush_user') || '{}');
-            const isOwn = msg.userId === userData.id;
+        ) : null}
+
+        <div className="mb-4 flex flex-wrap gap-2">
+          {conversation.tags.map((tag) => (
+            <Badge key={tag} variant="outline" className="border-primary/20 bg-primary/10 text-primary">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+
+        <div className="rounded-3xl border border-border bg-card/70 p-3 text-sm text-muted-foreground">
+          Keep specifics here until you both want to move.
+        </div>
+
+        <div className="mt-4 flex-1 space-y-4">
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className={`flex ${index % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+                  <div className="max-w-[72%] animate-pulse rounded-3xl bg-card px-4 py-5 text-transparent">loading</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {!loading && messages.length === 0 ? (
+            <div className="flex min-h-[40vh] items-center justify-center">
+              <div className="rounded-3xl border border-dashed border-border bg-card/60 p-10 text-center">
+                <Heart className="mx-auto mb-4 size-12 text-muted-foreground" />
+                <p className="text-muted-foreground">No messages yet.</p>
+                <p className="mt-2 text-sm text-muted-foreground">Break the ice when the vibe is right.</p>
+              </div>
+            </div>
+          ) : null}
+
+          {!loading && messages.map((msg) => {
+            const isOwn = msg.author === 'self';
+            const isSystem = msg.author === 'system';
+
+            if (isSystem) {
+              return (
+                <div key={msg.id} className="flex justify-center">
+                  <div className="max-w-[80%] rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-center text-xs text-primary">
+                    {msg.content}
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div
                 key={msg.id}
-                className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}
+                className={`flex items-end gap-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
               >
-                {!isOwn && (
-                  <div className="w-8 h-14 flex-shrink-0 rounded overflow-hidden bg-gradient-to-br from-crimson-dark to-crimson-bright" style={{ aspectRatio: '9/16' }}>
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Heart className="w-4 h-4 text-white/20" />
-                    </div>
-                  </div>
-                )}
-                <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                {!isOwn ? (
+                  <HeartPhoto
+                    className="w-9 shrink-0"
+                    label={`${conversation.user.name} preview`}
+                    photo={conversation.user.photo}
+                    fallback={<div className="text-[10px] text-white/75">{getConversationInitials(conversation.user.name)}</div>}
+                  />
+                ) : null}
+
+                <div className={`max-w-[78%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
                   <div
-                    className={`px-4 py-2 rounded-2xl ${
+                    className={`rounded-[22px] px-4 py-3 text-sm leading-relaxed ${
                       isOwn
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
+                        ? 'text-white'
+                        : 'border border-border bg-card text-foreground'
                     }`}
+                    style={isOwn ? { background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)' } : undefined}
                   >
-                    <p className="text-sm">{msg.content}</p>
+                    {msg.content}
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <span className="px-1 text-[11px] text-muted-foreground">{formatMessageTime(msg.timestamp)}</span>
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
 
-      <div className="fixed bottom-20 left-0 right-0 bg-card border-t border-border p-4">
-        <div className="flex gap-2 max-w-2xl mx-auto">
-          <Input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type a message..."
-            className="bg-input-background"
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!message.trim()}
-            style={{
-              background: message.trim()
-                ? 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)'
-                : undefined,
-            }}
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+        <div className="fixed bottom-20 left-0 right-0 border-t border-border bg-background/90 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
+          <div className="mx-auto max-w-2xl space-y-3">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => setMessage(prompt)}
+                  className="rounded-full border border-border bg-card/80 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            <div className="rounded-[28px] border border-border bg-card/85 p-3 shadow-lg shadow-black/20">
+              <div className="flex items-end gap-3">
+                <Textarea
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault();
+                      void handleSend();
+                    }
+                  }}
+                  placeholder={conversation.kind === 'group' ? 'Drop the plan...' : 'Say what you want...'}
+                  className="min-h-[60px] border-0 bg-transparent px-0 py-1 focus-visible:ring-0"
+                />
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" title="Quick reply" aria-label="Insert quick reply">
+                    <CornerDownLeft className="size-4" />
+                  </Button>
+                  <Button
+                    onClick={() => void handleSend()}
+                    disabled={!message.trim()}
+                    className="rounded-full"
+                    aria-label="Send message"
+                    style={{
+                      background: message.trim()
+                        ? 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)'
+                        : undefined,
+                    }}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
