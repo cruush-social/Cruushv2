@@ -1,0 +1,21 @@
+create table if not exists profiles (
+  id uuid primary key references app_users(id) on delete cascade,
+  display_name text,
+  bio text,
+  photos text[] not null default '{}',
+  pronouns text[] not null default '{}',
+  identities text[] not null default '{}',
+  presentation text[] not null default '{}',
+  sexuality text[] not null default '{}',
+  body_type text[] not null default '{}',
+  height text,
+  weight text,
+  position text[] not null default '{}',
+  availability text[] not null default '{}',
+  hosting_travel text[] not null default '{}',
+  kinks text[] not null default '{}',
+  vibes text[] not null default '{}',
+  hobbies text[] not null default '{}',
+  looking_for text[] not null default '{}',
+  updated_at timestamptz not null default now()
+);
