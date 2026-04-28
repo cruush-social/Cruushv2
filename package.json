@@ -6,6 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
+    "security:check": "bash scripts/security-check.sh",
     "test": "vitest run"
   },
   "dependencies": {

@@ -41,16 +41,6 @@ export default function MapHome() {
 
   const fetchUsers = async () => {
     try {
-      // First seed users if needed
-      await fetch(`https://${projectId}.supabase.co/functions/v1/server/seed-users`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-          'x-seed-secret': import.meta.env.VITE_SEED_SECRET || '',
-        },
-      });
-
-      // Then fetch all users
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/server/users`,
         {

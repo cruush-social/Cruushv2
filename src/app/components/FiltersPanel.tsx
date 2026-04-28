@@ -5,16 +5,19 @@ import { Label } from './ui/label';
 import { Slider } from './ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect from './MultiSelect';
+import {
+  AVAILABILITY,
+  HOBBIES,
+  HOSTING,
+  IDENTITIES,
+  KINKS,
+  LOOKING_FOR,
+  POSITIONS,
+  PRESENTATIONS,
+  VIBES,
+} from '../lib/profileOptions';
 
-const IDENTITIES = ['nonbinary', 'trans man', 'trans woman', 'cis man', 'cis woman', 'genderfluid', 'queer'];
-const PRESENTATIONS = ['androgynous', 'butch', 'femme', 'masc', 'stud'];
-const POSITIONS = ['top', 'bottom', 'versatile', 'side'];
-const LOOKING_FOR = ['hookup', 'date', 'friends', 'relationship', 'chat'];
-const TIMING = ['now', 'later', 'open'];
-const HOSTING = ['can host', 'can travel'];
-const VIBES = ['Bear', 'Daddy', 'Twink', 'Alt', 'Goth', 'Artsy', 'Leather', 'T4T'];
-const KINKS = ['bondage', 'roleplay', 'toys', 'leather', 'group'];
-const HOBBIES = ['music', 'art', 'gaming', 'fitness', 'hiking'];
+const TIMING = AVAILABILITY;
 
 export default function FiltersPanel() {
   const navigate = useNavigate();

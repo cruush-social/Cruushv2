@@ -41,6 +41,11 @@ fi
 
 git add -A
 
+if grep -q '"security:check"' package.json; then
+  echo "Running security check"
+  npm run security:check
+fi
+
 if git diff --cached --quiet; then
   echo "Nothing staged. No commit created."
   exit 0

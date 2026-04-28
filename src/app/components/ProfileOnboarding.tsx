@@ -1,6 +1,5 @@
 import { useState } from 'react';
-// Import option arrays from ProfileEdit for consistency
-import { IDENTITIES, PRESENTATIONS, PRONOUNS, SEXUALITY, BODY_TYPES, POSITIONS, AVAILABILITY, LOOKING_FOR, VIBES } from './ProfileEdit';
+import { IDENTITIES, LOOKING_FOR, PRONOUNS, VIBES } from '../lib/profileOptions';
 import { Heart, ArrowRight, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
