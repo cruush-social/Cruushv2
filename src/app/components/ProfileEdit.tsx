@@ -1,13 +1,13 @@
+import type { ChangeEvent } from 'react';
 import { useState, useEffect } from 'react';
 import supabase from '../../../utils/supabase/client';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Camera, X } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Checkbox } from './ui/checkbox';
 import MultiSelect from './MultiSelect';
 
 export const IDENTITIES = [
@@ -84,7 +84,6 @@ export const HOBBIES = [
 
 export default function ProfileEdit() {
   const navigate = useNavigate();
-  const [photos, setPhotos] = useState<string[]>([]);
   const [profile, setProfile] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -293,11 +292,11 @@ export default function ProfileEdit() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="height">Height</Label>
-                <Input id="height" placeholder={'5\'8"'} value={profile.height || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('height', e.target.value)} className="bg-input-background" />
+                <Input id="height" placeholder={'5\'8"'} value={profile.height || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('height', e.target.value)} className="bg-input-background" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="weight">Weight</Label>
-                  <Input id="weight" placeholder="155 lbs" value={profile.weight || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('weight', e.target.value)} className="bg-input-background" />
+                  <Input id="weight" placeholder="155 lbs" value={profile.weight || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('weight', e.target.value)} className="bg-input-background" />
               </div>
             </div>
 
@@ -374,20 +373,6 @@ export default function ProfileEdit() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
-  );
-}
-
-function SelectField({ label, options }: { label: string; options: string[] }) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <select className="w-full h-10 px-3 rounded-md bg-input-background border border-input">
-        <option value="">Select...</option>
-        {options.map((opt) => (
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-      </select>
     </div>
   );
 }

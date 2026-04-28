@@ -18,6 +18,7 @@ import Settings from './components/Settings';
 import FeelingLucky from './components/FeelingLucky';
 import RequestsDashboard from './components/RequestsDashboard';
 import BottomNav from './components/BottomNav';
+import AppErrorBoundary from './components/AppErrorBoundary';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -59,28 +60,31 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-background text-foreground">
-        <Routes>
-          <Route path="/" element={<MapHome />} />
-          <Route path="/feed" element={<LocalFeed />} />
-          <Route path="/profile" element={<ProfileView />} />
-          <Route path="/profile/:userId" element={<ProfileView />} />
-          <Route path="/profile/edit" element={<ProfileEdit />} />
-          <Route path="/filters" element={<FiltersPanel />} />
-          <Route path="/safety" element={<SafetyCenter />} />
-          <Route path="/groups/:groupId" element={<GroupDetail />} />
-          <Route path="/events/:eventId" element={<EventDetail />} />
-          <Route path="/places/:placeId" element={<PlaceDetail />} />
-          <Route path="/chat/group/:chatId" element={<PrivateGroupChat />} />
-          <Route path="/messages" element={<DirectMessages />} />
-          <Route path="/cruush" element={<CruushActivity />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/lucky" element={<FeelingLucky />} />
-          <Route path="/requests" element={<RequestsDashboard />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <BottomNav />
-      </div>
+      <AppErrorBoundary>
+        <div className="min-h-screen bg-background text-foreground">
+          <Routes>
+            <Route path="/" element={<Navigate to="/feed" replace />} />
+            <Route path="/map" element={<MapHome />} />
+            <Route path="/feed" element={<LocalFeed />} />
+            <Route path="/profile" element={<ProfileView />} />
+            <Route path="/profile/:userId" element={<ProfileView />} />
+            <Route path="/profile/edit" element={<ProfileEdit />} />
+            <Route path="/filters" element={<FiltersPanel />} />
+            <Route path="/safety" element={<SafetyCenter />} />
+            <Route path="/groups/:groupId" element={<GroupDetail />} />
+            <Route path="/events/:eventId" element={<EventDetail />} />
+            <Route path="/places/:placeId" element={<PlaceDetail />} />
+            <Route path="/chat/group/:chatId" element={<PrivateGroupChat />} />
+            <Route path="/messages" element={<DirectMessages />} />
+            <Route path="/cruush" element={<CruushActivity />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/lucky" element={<FeelingLucky />} />
+            <Route path="/requests" element={<RequestsDashboard />} />
+            <Route path="*" element={<Navigate to="/feed" replace />} />
+          </Routes>
+          <BottomNav />
+        </div>
+      </AppErrorBoundary>
     </BrowserRouter>
   );
 }
