@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Heart } from 'lucide-react';
-import supabase from '../../../utils/supabase/client';
-import { persistCurrentUser } from '../lib/sessionUser';
+import { signIn, signUp, type AuthSessionPayload } from '../lib/authApi';
+import { persistSessionUser } from '../lib/sessionUser';
 
 interface AuthProps {
-  onAuth: (isNewUser: boolean) => void;
+  onAuth: (session: AuthSessionPayload) => void;
 }
 
 export default function Auth({ onAuth }: AuthProps) {
@@ -47,59 +47,25 @@ export default function Auth({ onAuth }: AuthProps) {
 
     try {
       if (isSignUp) {
-        // Supabase sign up
-        const { data, error: signUpError } = await supabase.auth.signUp({
+        const session = await signUp({
           email,
           password,
-          options: {
-            data: { display_name: displayName.trim() },
-          },
+          displayName: displayName.trim(),
         });
-        if (signUpError) {
-          setError(signUpError.message);
-          setIsLoading(false);
-          return;
-        }
-        localStorage.setItem('cruush_auth', 'true');
-        if (data.user?.id) {
-          persistCurrentUser({
-            id: data.user.id,
-            name: displayName.trim(),
-            display_name: displayName.trim(),
-            year_of_birth: null,
-          });
-        }
+        persistSessionUser(session);
         setIsLoading(false);
-        onAuth(true); // New user needs onboarding
+        onAuth(session);
       } else {
-        // Supabase sign in
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        const session = await signIn({
           email,
           password,
         });
-        if (signInError) {
-          setError(signInError.message);
-          setIsLoading(false);
-          return;
-        }
-        localStorage.setItem('cruush_auth', 'true');
-        if (data.user?.id) {
-          const displayNameFromAuth =
-            typeof data.user.user_metadata?.display_name === 'string'
-              ? data.user.user_metadata.display_name
-              : data.user.email ?? 'Cruush user';
-          persistCurrentUser({
-            id: data.user.id,
-            name: displayNameFromAuth,
-            display_name: displayNameFromAuth,
-            year_of_birth: null,
-          });
-        }
+        persistSessionUser(session);
         setIsLoading(false);
-        onAuth(false); // Existing user, no onboarding needed
+        onAuth(session);
       }
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
       setIsLoading(false);
     }
   };

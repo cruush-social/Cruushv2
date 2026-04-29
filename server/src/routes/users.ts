@@ -164,56 +164,74 @@ async function loadDiscoveryRows(app: FastifyInstance) {
   }
 }
 
+function mapModernDiscoveryRow(
+  row: DiscoveryProfileRow,
+  centerLat: number,
+  centerLng: number,
+  index: number
+) {
+  const coordinates = getDiscoveryCoordinates(centerLat, centerLng, index);
+
+  return {
+    id: row.id,
+    name: coerceDisplayName(row.display_name),
+    display_name: coerceDisplayName(row.display_name),
+    age: row.year_of_birth ? new Date().getFullYear() - row.year_of_birth : null,
+    pronouns: coerceStringArray(row.pronouns).join(", "),
+    lat: coordinates.lat,
+    lng: coordinates.lng,
+    lastActive: formatLastActiveFromDate(row.updated_at),
+    distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
+    lookingFor: coerceStringArray(row.looking_for),
+    vibes: coerceStringArray(row.vibes),
+    photo: row.photos?.[0] ?? null
+  };
+}
+
+function mapLegacyDiscoveryRow(
+  row: LegacyDiscoveryProfileRow,
+  centerLat: number,
+  centerLng: number,
+  index: number
+) {
+  const legacyCoordinates = getLegacyCoordinates(row, centerLat, centerLng, index);
+
+  return {
+    id: row.id,
+    name: coerceDisplayName(row.display_name),
+    display_name: coerceDisplayName(row.display_name),
+    age: row.age ?? null,
+    pronouns: typeof row.pronouns === "string" ? row.pronouns.trim() : "",
+    lat: legacyCoordinates.lat,
+    lng: legacyCoordinates.lng,
+    lastActive: row.last_active
+      ? formatLastActiveFromDate(row.last_active)
+      : formatLastActiveFromMinutes(5 + index * 7),
+    distance: formatDistanceMiles(centerLat, centerLng, legacyCoordinates.lat, legacyCoordinates.lng),
+    lookingFor: coerceStringArray(row.looking_for),
+    vibes: coerceStringArray(row.legacy_vibe_tags),
+    photo: row.primary_photo_url?.trim() || null
+  };
+}
+
 export async function registerUserRoutes(app: FastifyInstance) {
   app.get("/api/users", async (request, reply) => {
-    getAuthenticatedUserId(request);
+    await getAuthenticatedUserId(request);
     const parsedQuery = discoveryQuerySchema.parse(request.query);
     const centerLat = parsedQuery.lat ?? DEFAULT_CENTER.lat;
     const centerLng = parsedQuery.lng ?? DEFAULT_CENTER.lng;
 
     const usedIds = new Set<string>();
     const discoveryRows = await loadDiscoveryRows(app);
-    const realUsers = discoveryRows.rows.map((row, index) => {
-      usedIds.add(row.id);
-
-      if (discoveryRows.mode === "modern") {
-        const coordinates = getDiscoveryCoordinates(centerLat, centerLng, index);
-
-        return {
-          id: row.id,
-          name: coerceDisplayName(row.display_name),
-          display_name: coerceDisplayName(row.display_name),
-          age: row.year_of_birth ? new Date().getFullYear() - row.year_of_birth : null,
-          pronouns: coerceStringArray(row.pronouns).join(", "),
-          lat: coordinates.lat,
-          lng: coordinates.lng,
-          lastActive: formatLastActiveFromDate(row.updated_at),
-          distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
-          lookingFor: coerceStringArray(row.looking_for),
-          vibes: coerceStringArray(row.vibes),
-          photo: row.photos?.[0] ?? null
-        };
-      }
-
-      const legacyCoordinates = getLegacyCoordinates(row, centerLat, centerLng, index);
-
-      return {
-        id: row.id,
-        name: coerceDisplayName(row.display_name),
-        display_name: coerceDisplayName(row.display_name),
-        age: row.age ?? null,
-        pronouns: row.pronouns?.trim() ?? "",
-        lat: legacyCoordinates.lat,
-        lng: legacyCoordinates.lng,
-        lastActive: row.last_active
-          ? formatLastActiveFromDate(row.last_active)
-          : formatLastActiveFromMinutes(5 + index * 7),
-        distance: formatDistanceMiles(centerLat, centerLng, legacyCoordinates.lat, legacyCoordinates.lng),
-        lookingFor: coerceStringArray(row.looking_for),
-        vibes: coerceStringArray(row.legacy_vibe_tags),
-        photo: row.primary_photo_url?.trim() || null
-      };
-    });
+    const realUsers = discoveryRows.mode === "modern"
+      ? discoveryRows.rows.map((row, index) => {
+          usedIds.add(row.id);
+          return mapModernDiscoveryRow(row, centerLat, centerLng, index);
+        })
+      : discoveryRows.rows.map((row, index) => {
+          usedIds.add(row.id);
+          return mapLegacyDiscoveryRow(row, centerLat, centerLng, index);
+        });
 
     const fallbackUsers = demoDiscoveryUsers
       .filter((user) => !usedIds.has(user.id))

@@ -162,12 +162,12 @@ async function loadProfile(app: FastifyInstance, userId: string, reply: FastifyR
 
 export async function registerProfileRoutes(app: FastifyInstance) {
   app.get("/api/profiles/me", async (request, reply) => {
-    const userId = getAuthenticatedUserId(request);
+    const userId = await getAuthenticatedUserId(request);
     return loadProfile(app, userId, reply);
   });
 
   app.put("/api/profiles/me", async (request, reply) => {
-    const userId = getAuthenticatedUserId(request);
+    const userId = await getAuthenticatedUserId(request);
     const payload = profilePayloadSchema.parse(request.body);
     const values = PROFILE_COLUMNS.map((column) => {
       if (column === "id") {

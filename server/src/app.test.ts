@@ -39,9 +39,107 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       service: "cruush-server",
-      auth: "supabase-temporary-x-user-id-migration",
+      auth: "session-cookie-with-dev-x-user-id-fallback",
       storage: "postgres",
       migratedFromSupabase: true
+    });
+  });
+
+  it("creates a session cookie on POST /api/auth/signup", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          display_name: "River",
+          email_verified_at: null,
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "session-1",
+          user_id: userId,
+          expires_at: "2026-05-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/signup",
+      payload: {
+        email: "river@example.com",
+        password: "password-123",
+        displayName: "River"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
+    expect(query.mock.calls[1]?.[0]).toContain("insert into app_sessions");
+    expect(response.headers["set-cookie"]).toContain("cruush_session=");
+    expect(response.headers["set-cookie"]).toContain("HttpOnly");
+    expect(response.headers["set-cookie"]).toContain("SameSite=Lax");
+    expect(response.json()).toEqual({
+      data: {
+        user: {
+          id: userId,
+          email: "river@example.com",
+          displayName: "River",
+          emailVerifiedAt: null,
+          createdAt: "2026-04-28T12:00:00.000Z"
+        },
+        profile: null,
+        needsOnboarding: true
+      }
+    });
+  });
+
+  it("returns the current session from GET /api/auth/me", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          app_display_name: "River",
+          email_verified_at: null,
+          created_at: "2026-04-28T12:00:00.000Z",
+          profile_display_name: "River",
+          year_of_birth: 1998
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
+    expect(response.json()).toEqual({
+      data: {
+        user: {
+          id: userId,
+          email: "river@example.com",
+          displayName: "River",
+          emailVerifiedAt: null,
+          createdAt: "2026-04-28T12:00:00.000Z"
+        },
+        profile: {
+          displayName: "River",
+          yearOfBirth: 1998
+        },
+        needsOnboarding: false
+      }
     });
   });
 
@@ -148,37 +246,44 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "AUTH_REQUIRED",
-        message: "Authentication required. Temporary x-user-id header is mandatory for this migration slice.",
+        message: "Authentication required.",
         details: expect.any(Object)
       }
     });
   });
 
   it("returns the local feed from GET /api/posts", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "post-1",
-        user_id: userId,
-        content: "Looking now",
-        expires_in: "6h",
-        expires_at: "2026-04-28T18:00:00.000Z",
-        created_at: "2026-04-28T12:00:00.000Z",
-        display_name: "Cruusher",
-        pronouns: ["they/them"],
-        photos: ["https://example.com/photo.jpg"]
-      }]
-    });
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-1",
+          user_id: userId,
+          content: "Looking now",
+          expires_in: "6h",
+          expires_at: "2026-04-28T18:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: ["https://example.com/photo.jpg"]
+        }]
+      });
 
     const response = await app.inject({
       method: "GET",
       url: "/api/posts",
-      headers: {
-        "x-user-id": userId
+      cookies: {
+        cruush_session: "test-session-token"
       }
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledWith(expect.stringContaining("from posts p"));
+    expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
+    expect(query.mock.calls[1]?.[0]).toContain("from posts p");
     expect(response.json()).toEqual({
       data: [{
         id: "post-1",
@@ -415,7 +520,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "AUTH_REQUIRED",
-        message: "Authentication required. Temporary x-user-id header is mandatory for this migration slice.",
+        message: "Authentication required.",
         details: expect.any(Object)
       }
     });
@@ -434,7 +539,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "AUTH_REQUIRED",
-        message: "Authentication required. Temporary x-user-id header is mandatory for this migration slice.",
+        message: "Authentication required.",
         details: expect.any(Object)
       }
     });
@@ -607,7 +712,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "AUTH_REQUIRED",
-        message: "Authentication required. Temporary x-user-id header is mandatory for this migration slice.",
+        message: "Authentication required.",
         details: expect.any(Object)
       }
     });

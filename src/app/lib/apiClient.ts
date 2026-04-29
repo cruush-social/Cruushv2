@@ -1,5 +1,3 @@
-import { getCurrentUserId } from './sessionUser';
-
 type ApiErrorBody = {
   error?: {
     code?: string;
@@ -22,24 +20,11 @@ export class ApiClientError extends Error {
   }
 }
 
-function getApiBaseUrl() {
+export function getApiBaseUrl() {
   return (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
 }
 
-export async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
-  const userId = await getCurrentUserId();
-  const headers = new Headers(init?.headers);
-  headers.set('x-user-id', userId);
-
-  if (init?.body) {
-    headers.set('content-type', 'application/json');
-  }
-
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers,
-  });
-
+export async function parseApiResponse<T>(response: Response): Promise<T> {
   const bodyText = await response.text();
   let body: ({ data?: T } & ApiErrorBody) | {} = {};
 
@@ -64,4 +49,20 @@ export async function requestApi<T>(path: string, init?: RequestInit): Promise<T
   }
 
   return parsedBody.data as T;
+}
+
+export async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+
+  if (init?.body && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    ...init,
+    headers,
+    credentials: 'include',
+  });
+
+  return parseApiResponse<T>(response);
 }

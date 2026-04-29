@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import MapHome from './components/MapHome';
 import LocalFeed from './components/LocalFeed';
 import ProfileView from './components/ProfileView';
@@ -19,32 +19,73 @@ import FeelingLucky from './components/FeelingLucky';
 import RequestsDashboard from './components/RequestsDashboard';
 import BottomNav from './components/BottomNav';
 import AppErrorBoundary from './components/AppErrorBoundary';
+import { loadCurrentSession } from './lib/sessionUser';
+import type { AuthSessionPayload } from './lib/authApi';
+
+function redirectToMap() {
+  window.history.replaceState({}, '', '/map');
+}
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('cruush_auth') === 'true';
-  });
-  const [needsOnboarding, setNeedsOnboarding] = useState(() => {
-    if (!isAuthenticated) return false;
-    const user = localStorage.getItem('cruush_user');
-    if (!user) return false;
-    const userData = JSON.parse(user);
-    // Check if user has completed onboarding (has name and age)
-    return !userData.name || !userData.age;
-  });
+  const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
-  const handleAuth = (isNewUser: boolean) => {
-    setIsAuthenticated(true);
-    if (isNewUser) {
-      setNeedsOnboarding(true);
-    }
+  useEffect(() => {
+    let isActive = true;
+
+    const bootstrap = async () => {
+      try {
+        const session = await loadCurrentSession();
+
+        if (!isActive) {
+          return;
+        }
+
+        if (!session) {
+          setNeedsOnboarding(false);
+          setAuthStatus('signed_out');
+          return;
+        }
+
+        setNeedsOnboarding(session.needsOnboarding);
+        setAuthStatus('signed_in');
+      } catch {
+        if (!isActive) {
+          return;
+        }
+
+        setNeedsOnboarding(false);
+        setAuthStatus('signed_out');
+      }
+    };
+
+    void bootstrap();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const handleAuth = (session: AuthSessionPayload) => {
+    redirectToMap();
+    setNeedsOnboarding(session.needsOnboarding);
+    setAuthStatus('signed_in');
   };
 
   const handleOnboardingComplete = () => {
+    redirectToMap();
     setNeedsOnboarding(false);
   };
 
-  if (!isAuthenticated) {
+  if (authStatus === 'loading') {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-sm text-muted-foreground">Loading session...</div>
+      </div>
+    );
+  }
+
+  if (authStatus === 'signed_out') {
     return <Auth onAuth={handleAuth} />;
   }
 
@@ -63,7 +104,7 @@ export default function App() {
       <AppErrorBoundary>
         <div className="min-h-screen bg-background text-foreground">
           <Routes>
-            <Route path="/" element={<Navigate to="/feed" replace />} />
+            <Route path="/" element={<Navigate to="/map" replace />} />
             <Route path="/map" element={<MapHome />} />
             <Route path="/feed" element={<LocalFeed />} />
             <Route path="/profile" element={<ProfileView />} />
@@ -81,7 +122,7 @@ export default function App() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/lucky" element={<FeelingLucky />} />
             <Route path="/requests" element={<RequestsDashboard />} />
-            <Route path="*" element={<Navigate to="/feed" replace />} />
+            <Route path="*" element={<Navigate to="/map" replace />} />
           </Routes>
           <BottomNav />
         </div>

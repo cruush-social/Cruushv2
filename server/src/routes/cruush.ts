@@ -71,7 +71,7 @@ function mapSentCruushRow(row: SentCruushRow) {
 
 export async function registerCruushRoutes(app: FastifyInstance) {
   app.get("/api/cruush/:userId", async (request, reply) => {
-    const authenticatedUserId = getAuthenticatedUserId(request);
+    const authenticatedUserId = await getAuthenticatedUserId(request);
     const requestedUserId = (request.params as { userId?: string }).userId?.trim();
 
     if (!requestedUserId || requestedUserId !== authenticatedUserId) {
@@ -136,7 +136,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/cruush", async (request, reply) => {
-    const authenticatedUserId = getAuthenticatedUserId(request);
+    const authenticatedUserId = await getAuthenticatedUserId(request);
     const payload = createCruushPayloadSchema.parse(request.body);
 
     if (payload.toUserId === authenticatedUserId) {

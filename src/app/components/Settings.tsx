@@ -1,10 +1,14 @@
 import { useNavigate } from 'react-router';
+import { useState } from 'react';
 import { ArrowLeft, User, Bell, Shield, HelpCircle, LogOut, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
+import { signOut } from '../lib/authApi';
+import { clearCurrentUser } from '../lib/sessionUser';
 
 export default function Settings() {
   const navigate = useNavigate();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const settingsSections = [
     {
@@ -98,14 +102,19 @@ export default function Settings() {
         <Button
           variant="outline"
           className="w-full text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-          onClick={() => {
-            localStorage.removeItem('cruush_auth');
-            localStorage.removeItem('cruush_user');
-            window.location.href = '/';
+          disabled={isSigningOut}
+          onClick={async () => {
+            setIsSigningOut(true);
+            try {
+              await signOut();
+            } finally {
+              clearCurrentUser();
+              window.location.href = '/';
+            }
           }}
         >
           <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
+          {isSigningOut ? 'Signing Out...' : 'Sign Out'}
         </Button>
 
         <div className="text-center space-y-2 pt-8">

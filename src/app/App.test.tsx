@@ -1,6 +1,16 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+
+const { loadCurrentSession, persistSessionUser } = vi.hoisted(() => ({
+  loadCurrentSession: vi.fn(),
+  persistSessionUser: vi.fn(),
+}));
+
+vi.mock('./lib/sessionUser', () => ({
+  loadCurrentSession,
+  persistSessionUser,
+}));
 
 vi.mock('./components/MapHome', () => ({
   default: () => <div>Mock Map</div>
@@ -55,7 +65,9 @@ vi.mock('./components/CruushActivity', () => ({
 }));
 
 vi.mock('./components/Auth', () => ({
-  default: () => <div>Mock Auth</div>
+  default: ({ onAuth }: { onAuth: (session: { needsOnboarding: boolean }) => void }) => (
+    <button onClick={() => onAuth({ needsOnboarding: false })}>Mock Auth</button>
+  )
 }));
 
 vi.mock('./components/Settings', () => ({
@@ -78,14 +90,41 @@ describe('App', () => {
   beforeEach(() => {
     localStorage.clear();
     window.history.replaceState({}, '', '/');
-    localStorage.setItem('cruush_auth', 'true');
-    localStorage.setItem('cruush_user', JSON.stringify({ name: 'Test User', age: 28 }));
+    loadCurrentSession.mockReset();
+    persistSessionUser.mockReset();
   });
 
-  it('renders the authenticated shell without crashing', async () => {
+  it('renders the authenticated shell on the map by default', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: null,
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+    });
+
     render(<App />);
 
-    expect(await screen.findByText('Mock Feed')).toBeInTheDocument();
+    expect(await screen.findByText('Mock Map')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Bottom Navigation' })).toBeInTheDocument();
+  });
+
+  it('redirects to /map after login', async () => {
+    loadCurrentSession.mockResolvedValue(null);
+    window.history.replaceState({}, '', '/feed');
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mock Auth' }));
+
+    expect(await screen.findByText('Mock Map')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/map');
   });
 });

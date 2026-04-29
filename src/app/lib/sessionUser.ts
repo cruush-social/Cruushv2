@@ -1,6 +1,8 @@
-import supabase from '../../../utils/supabase/client';
+import { ApiClientError } from './apiClient';
+import { getAuthSession, type AuthSessionPayload } from './authApi';
 
 type StoredCruushUser = {
+  age?: number | null;
   display_name?: string;
   id?: string;
   name?: string;
@@ -31,23 +33,54 @@ export function persistCurrentUser(user: StoredCruushUser) {
   localStorage.setItem('cruush_user', JSON.stringify(nextUser));
 }
 
-export async function getCurrentUserId() {
-  const parsed = readStoredUser();
+export function clearCurrentUser() {
+  localStorage.removeItem('cruush_auth');
+  localStorage.removeItem('cruush_user');
+}
 
-  if (parsed?.id) {
-    return parsed.id;
+export function getStoredUserId() {
+  return readStoredUser()?.id ?? null;
+}
+
+export function persistSessionUser(session: AuthSessionPayload) {
+  const yearOfBirth = session.profile?.yearOfBirth ?? null;
+  const displayName = session.profile?.displayName?.trim() || session.user.displayName;
+
+  persistCurrentUser({
+    id: session.user.id,
+    name: displayName,
+    display_name: displayName,
+    age: yearOfBirth ? new Date().getFullYear() - yearOfBirth : null,
+    year_of_birth: yearOfBirth,
+  });
+}
+
+export async function loadCurrentSession() {
+  try {
+    const session = await getAuthSession();
+    persistSessionUser(session);
+    return session;
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 401) {
+      clearCurrentUser();
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+export async function getCurrentUserId() {
+  const storedUserId = getStoredUserId();
+
+  if (storedUserId) {
+    return storedUserId;
   }
 
-  const { data, error } = await supabase.auth.getUser();
+  const session = await loadCurrentSession();
 
-  if (!error && data.user?.id) {
-    persistCurrentUser({
-      id: data.user.id,
-      name: parsed?.name ?? data.user.user_metadata?.display_name ?? data.user.email ?? 'Cruush user',
-      display_name: parsed?.display_name ?? data.user.user_metadata?.display_name ?? data.user.email ?? 'Cruush user',
-      year_of_birth: parsed?.year_of_birth ?? null,
-    });
-    return data.user.id;
+  if (session?.user.id) {
+    return session.user.id;
   }
 
   throw new Error('Unable to determine the current user.');

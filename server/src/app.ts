@@ -2,6 +2,7 @@ import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { createPool, type DbClient } from "./db.js";
 import type { AppConfig } from "./config.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
 import { formatError, toApiError } from "./errors.js";
 import { registerPostRoutes } from "./routes/posts.js";
@@ -23,6 +24,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     credentials: true
   });
 
+  app.decorate("config", config);
   app.decorate("db", db);
 
   app.setErrorHandler((error, _request, reply) => {
@@ -51,12 +53,13 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   app.get("/api/meta", async () => {
     return {
       service: "cruush-server",
-      auth: "supabase-temporary-x-user-id-migration",
+      auth: "session-cookie-with-dev-x-user-id-fallback",
       storage: "postgres",
       migratedFromSupabase: true
     };
   });
 
+  void registerAuthRoutes(app);
   void registerUserRoutes(app);
   void registerCruushRoutes(app);
   void registerPostRoutes(app);

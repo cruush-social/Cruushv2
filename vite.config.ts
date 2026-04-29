@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import fs from 'fs'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
@@ -16,6 +17,18 @@ function figmaAssetResolver() {
   }
 }
 
+const devCertDirectory = path.resolve(__dirname, '.dev/certs')
+const devKeyPath = path.join(devCertDirectory, 'localhost-key.pem')
+const devCertPath = path.join(devCertDirectory, 'localhost-cert.pem')
+
+const httpsConfig =
+  fs.existsSync(devKeyPath) && fs.existsSync(devCertPath)
+    ? {
+        key: fs.readFileSync(devKeyPath),
+        cert: fs.readFileSync(devCertPath),
+      }
+    : undefined
+
 export default defineConfig({
   plugins: [
     figmaAssetResolver(),
@@ -25,6 +38,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    https: httpsConfig,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:3001',

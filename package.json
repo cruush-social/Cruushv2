@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
+    "dev": "node scripts/ensure-dev-cert.mjs && vite",
     "security:check": "bash scripts/security-check.sh",
     "test": "vitest run"
   },

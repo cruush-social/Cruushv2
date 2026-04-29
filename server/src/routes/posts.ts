@@ -45,7 +45,7 @@ const POST_COLUMNS = `
 
 export async function registerPostRoutes(app: FastifyInstance) {
   app.get("/api/posts", async (request, reply) => {
-    getAuthenticatedUserId(request);
+    await getAuthenticatedUserId(request);
 
     const result = await app.db.query<PostRow>(
       `select ${POST_COLUMNS}
@@ -62,7 +62,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/posts", async (request, reply) => {
-    const userId = getAuthenticatedUserId(request);
+    const userId = await getAuthenticatedUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
 
     const result = await app.db.query<PostRow>(
