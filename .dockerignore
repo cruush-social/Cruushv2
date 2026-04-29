@@ -1,0 +1,10 @@
+.git
+.dev
+.vscode
+dist
+node_modules
+server/node_modules
+server/dist
+*.log
+pnpm-debug.log
+pnpm-debug-full.log
