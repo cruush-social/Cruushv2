@@ -6,12 +6,7 @@ import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { fallbackConversations, type ConversationThread } from '../lib/messageFixtures';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const projectId =
-  typeof supabaseUrl === 'string'
-    ? supabaseUrl.replace('https://', '').replace('.supabase.co', '')
-    : null;
+import { getConversations } from '../lib/messagesApi';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -74,30 +69,10 @@ export default function DirectMessages() {
   }, []);
 
   const fetchConversations = async () => {
-    if (!projectId || !supabaseAnonKey) {
-      setConversations(fallbackConversations);
-      setUsingSampleData(true);
-      setLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/conversations`,
-        {
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch conversations: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const normalized = Array.isArray(data.conversations)
-        ? data.conversations.map(normalizeConversation)
+      const data = await getConversations();
+      const normalized = Array.isArray(data)
+        ? data.map(normalizeConversation)
         : [];
 
       if (normalized.length > 0) {

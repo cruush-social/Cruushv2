@@ -10,7 +10,10 @@ const app = buildServer({
   HOST: "127.0.0.1",
   DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
   CORS_ORIGIN: "http://localhost:5173",
-  SESSION_SECRET: "test-secret"
+  SESSION_SECRET: "test-secret",
+  APP_URL: "https://cruush.test",
+  RESEND_API_KEY: "",
+  MAIL_FROM: ""
 }, {
   db: {
     query,
@@ -139,6 +142,349 @@ describe("server", () => {
           yearOfBirth: 1998
         },
         needsOnboarding: false
+      }
+    });
+  });
+
+  it("creates a verification token on POST /api/auth/verification/send", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          display_name: "River",
+          email_verified_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          expires_at: "2026-04-30T12:00:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/verification/send",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(query.mock.calls[2]?.[0]).toContain("delete from email_verification_tokens");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into email_verification_tokens");
+    expect(response.json()).toEqual({
+      data: {
+        alreadyVerified: false,
+        expiresAt: "2026-04-30T12:00:00.000Z",
+        previewUrl: expect.stringContaining("https://cruush.test/verify-email?token=")
+      }
+    });
+  });
+
+  it("verifies an email token on POST /api/auth/verification/verify", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          display_name: "River",
+          email_verified_at: "2026-04-29T12:05:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          app_display_name: "River",
+          email_verified_at: "2026-04-29T12:05:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          profile_display_name: "River",
+          year_of_birth: 1998
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/verification/verify",
+      payload: {
+        token: "verification-token-1234567890"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from email_verification_tokens");
+    expect(query.mock.calls[1]?.[0]).toContain("update app_users");
+    expect(query.mock.calls[2]?.[0]).toContain("delete from email_verification_tokens");
+    expect(response.json()).toEqual({
+      data: {
+        user: {
+          id: userId,
+          email: "river@example.com",
+          displayName: "River",
+          emailVerifiedAt: "2026-04-29T12:05:00.000Z",
+          createdAt: "2026-04-28T12:00:00.000Z"
+        },
+        profile: {
+          displayName: "River",
+          yearOfBirth: 1998
+        },
+        needsOnboarding: false,
+        verified: true
+      }
+    });
+  });
+
+  it("returns conversations from GET /api/conversations", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "conv-1",
+        kind: "dm",
+        title: null,
+        tags: ["Hosting", "Now"],
+        updated_at: "2026-04-29T12:00:00.000Z",
+        last_message: "hosting for another hour",
+        unread_count: 2,
+        pinned: true,
+        muted: false,
+        other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        other_user_name: "Alex",
+        other_user_pronouns: ["they/them"],
+        other_user_photo: "https://example.com/alex.jpg",
+        member_count: 2
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/conversations",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
+    expect(response.json()).toEqual({
+      data: [{
+        id: "conv-1",
+        kind: "dm",
+        user: {
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          name: "Alex",
+          pronouns: "they/them",
+          photo: "https://example.com/alex.jpg"
+        },
+        distance: "Nearby",
+        updatedAt: "2026-04-29T12:00:00.000Z",
+        lastMessage: "hosting for another hour",
+        unreadCount: 2,
+        pinned: true,
+        muted: false,
+        mutual: false,
+        membersLabel: undefined,
+        tags: ["Hosting", "Now"]
+      }]
+    });
+  });
+
+  it("opens or creates a dm conversation on POST /api/conversations/dm", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "conv-1"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "conv-1",
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: "https://example.com/alex.jpg",
+          member_count: 2
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/conversations/dm",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        otherUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[1]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into conversation_members");
+    expect(response.json()).toEqual({
+      data: {
+        id: "conv-1",
+        kind: "dm",
+        user: {
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          name: "Alex",
+          pronouns: "they/them",
+          photo: "https://example.com/alex.jpg"
+        },
+        distance: "Nearby",
+        updatedAt: "2026-04-29T12:00:00.000Z",
+        lastMessage: "",
+        unreadCount: 0,
+        pinned: false,
+        muted: false,
+        mutual: false,
+        membersLabel: undefined,
+        tags: []
+      }
+    });
+  });
+
+  it("returns a conversation and its messages from GET /api/messages/:conversationId", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "conv-1",
+          kind: "dm",
+          title: null,
+          tags: ["Hosting"],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: "https://example.com/alex.jpg",
+          member_count: 2
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "msg-1",
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          content: "you around now?",
+          created_at: "2026-04-29T12:05:00.000Z"
+        }, {
+          id: "msg-2",
+          user_id: userId,
+          content: "yeah nearby",
+          created_at: "2026-04-29T12:06:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/messages/conv-1",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("join conversations c");
+    expect(query.mock.calls[1]?.[0]).toContain("from messages m");
+    expect(response.json()).toEqual({
+      data: {
+        conversation: {
+          id: "conv-1",
+          kind: "dm",
+          user: {
+            id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            name: "Alex",
+            pronouns: "they/them",
+            photo: "https://example.com/alex.jpg"
+          },
+          distance: "Nearby",
+          updatedAt: "2026-04-29T12:00:00.000Z",
+          lastMessage: "",
+          unreadCount: 0,
+          pinned: false,
+          muted: false,
+          mutual: false,
+          membersLabel: undefined,
+          tags: ["Hosting"]
+        },
+        messages: [{
+          id: "msg-1",
+          userId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          content: "you around now?",
+          timestamp: "2026-04-29T12:05:00.000Z"
+        }, {
+          id: "msg-2",
+          userId: userId,
+          content: "yeah nearby",
+          timestamp: "2026-04-29T12:06:00.000Z"
+        }]
+      }
+    });
+  });
+
+  it("creates a message on POST /api/messages", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "msg-3",
+        user_id: userId,
+        content: "on my way",
+        created_at: "2026-04-29T12:10:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId: "conv-1",
+        content: "on my way"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("insert into messages");
+    expect(response.json()).toEqual({
+      data: {
+        id: "msg-3",
+        userId: userId,
+        content: "on my way",
+        timestamp: "2026-04-29T12:10:00.000Z"
       }
     });
   });

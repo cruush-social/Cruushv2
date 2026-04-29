@@ -17,6 +17,7 @@ import Auth from './components/Auth';
 import Settings from './components/Settings';
 import FeelingLucky from './components/FeelingLucky';
 import RequestsDashboard from './components/RequestsDashboard';
+import VerifyEmail from './components/VerifyEmail';
 import BottomNav from './components/BottomNav';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import { loadCurrentSession } from './lib/sessionUser';
@@ -86,12 +87,19 @@ export default function App() {
   }
 
   if (authStatus === 'signed_out') {
-    return <Auth onAuth={handleAuth} />;
+    return (
+      <BrowserRouter key="public-router">
+        <Routes>
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="*" element={<Auth onAuth={handleAuth} />} />
+        </Routes>
+      </BrowserRouter>
+    );
   }
 
   if (needsOnboarding) {
     return (
-      <BrowserRouter>
+      <BrowserRouter key="onboarding-router">
         <Routes>
           <Route path="*" element={<ProfileOnboarding onComplete={handleOnboardingComplete} />} />
         </Routes>
@@ -100,7 +108,7 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter key="app-router">
       <AppErrorBoundary>
         <div className="min-h-screen bg-background text-foreground">
           <Routes>
@@ -112,6 +120,7 @@ export default function App() {
             <Route path="/profile/edit" element={<ProfileEdit />} />
             <Route path="/filters" element={<FiltersPanel />} />
             <Route path="/safety" element={<SafetyCenter />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/groups/:groupId" element={<GroupDetail />} />
             <Route path="/events/:eventId" element={<EventDetail />} />
             <Route path="/places/:placeId" element={<PlaceDetail />} />

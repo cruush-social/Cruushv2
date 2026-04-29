@@ -4,6 +4,7 @@ import { X, Heart, MessageCircle, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { sendCruush } from '../lib/cruushApi';
+import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
 
 interface ProfileCardProps {
@@ -33,8 +34,8 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
     }
   };
 
-  const handleMessage = () => {
-    navigate('/messages');
+  const handleMessage = async () => {
+    await openConversationOrInbox(navigate, user.id);
   };
   return (
     <div className="bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30" style={{ maxHeight: '80vh' }}>
@@ -113,7 +114,9 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
           <Button
             variant="outline"
             className="flex-1"
-            onClick={handleMessage}
+            onClick={() => {
+              void handleMessage();
+            }}
             style={{
               borderColor: 'var(--cruush-purple)',
               color: 'var(--cruush-purple)',

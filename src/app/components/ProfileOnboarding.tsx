@@ -3,7 +3,9 @@ import { IDENTITIES, LOOKING_FOR, PRONOUNS, VIBES } from '../lib/profileOptions'
 import { ArrowRight, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { sendVerificationEmail } from '../lib/authApi';
 import { saveMyProfile, type ProfilePayload } from '../lib/profileApi';
+import { persistCurrentUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 
 interface ProfileOnboardingProps {
   onComplete: () => void;
@@ -210,13 +212,15 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
       };
 
       const savedProfile = await saveMyProfile(payload);
-      localStorage.setItem('cruush_user', JSON.stringify({
+      persistCurrentUser({
         id: savedProfile.id,
         name: savedProfile.display_name,
         display_name: savedProfile.display_name,
         age: savedProfile.year_of_birth ? new Date().getFullYear() - savedProfile.year_of_birth : null,
         year_of_birth: savedProfile.year_of_birth,
-      }));
+      });
+      const verificationDelivery = await sendVerificationEmail();
+      setVerificationPreviewUrl(verificationDelivery.previewUrl);
       onComplete();
     } catch (error) {
       console.error('Error saving profile:', error);

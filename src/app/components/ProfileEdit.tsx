@@ -15,6 +15,7 @@ import {
   saveMyProfile,
   type ProfilePayload,
 } from '../lib/profileApi';
+import { persistCurrentUser } from '../lib/sessionUser';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -100,13 +101,13 @@ export default function ProfileEdit() {
         ...emptyProfilePayload,
         ...savedProfile,
       });
-      localStorage.setItem('cruush_user', JSON.stringify({
+      persistCurrentUser({
         id: savedProfile.id,
         name: savedProfile.display_name,
         display_name: savedProfile.display_name,
         age: savedProfile.year_of_birth ? new Date().getFullYear() - savedProfile.year_of_birth : null,
         year_of_birth: savedProfile.year_of_birth,
-      }));
+      });
       navigate(-1);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Failed to save profile.');

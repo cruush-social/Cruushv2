@@ -13,5 +13,9 @@ export const signInPayloadSchema = z.object({
   password: z.string().min(1).max(200)
 }).strict();
 
+export const verifyEmailPayloadSchema = z.object({
+  token: z.string().trim().min(20).max(512)
+}).strict();
+
 export type SignUpPayload = z.infer<typeof signUpPayloadSchema>;
 export type SignInPayload = z.infer<typeof signInPayloadSchema>;

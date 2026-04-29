@@ -6,7 +6,10 @@ const configSchema = z.object({
   HOST: z.string().min(1).default("0.0.0.0"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   CORS_ORIGIN: z.string().min(1).default("http://localhost:5173"),
-  SESSION_SECRET: z.string().min(1, "SESSION_SECRET is required")
+  SESSION_SECRET: z.string().min(1, "SESSION_SECRET is required"),
+  APP_URL: z.string().url().default("http://localhost:5173"),
+  RESEND_API_KEY: z.string().optional().default(""),
+  MAIL_FROM: z.string().optional().default("")
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

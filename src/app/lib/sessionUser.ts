@@ -4,10 +4,13 @@ import { getAuthSession, type AuthSessionPayload } from './authApi';
 type StoredCruushUser = {
   age?: number | null;
   display_name?: string;
+  email_verified_at?: string | null;
   id?: string;
   name?: string;
   year_of_birth?: number | null;
 };
+
+const VERIFICATION_PREVIEW_URL_KEY = 'cruush_verification_preview_url';
 
 function readStoredUser() {
   const storedUser = localStorage.getItem('cruush_user');
@@ -36,10 +39,15 @@ export function persistCurrentUser(user: StoredCruushUser) {
 export function clearCurrentUser() {
   localStorage.removeItem('cruush_auth');
   localStorage.removeItem('cruush_user');
+  localStorage.removeItem(VERIFICATION_PREVIEW_URL_KEY);
 }
 
 export function getStoredUserId() {
   return readStoredUser()?.id ?? null;
+}
+
+export function getStoredCurrentUser() {
+  return readStoredUser();
 }
 
 export function persistSessionUser(session: AuthSessionPayload) {
@@ -51,8 +59,30 @@ export function persistSessionUser(session: AuthSessionPayload) {
     name: displayName,
     display_name: displayName,
     age: yearOfBirth ? new Date().getFullYear() - yearOfBirth : null,
+    email_verified_at: session.user.emailVerifiedAt,
     year_of_birth: yearOfBirth,
   });
+
+  if (session.user.emailVerifiedAt) {
+    clearVerificationPreviewUrl();
+  }
+}
+
+export function getVerificationPreviewUrl() {
+  return localStorage.getItem(VERIFICATION_PREVIEW_URL_KEY);
+}
+
+export function setVerificationPreviewUrl(previewUrl: string | null) {
+  if (previewUrl) {
+    localStorage.setItem(VERIFICATION_PREVIEW_URL_KEY, previewUrl);
+    return;
+  }
+
+  localStorage.removeItem(VERIFICATION_PREVIEW_URL_KEY);
+}
+
+export function clearVerificationPreviewUrl() {
+  localStorage.removeItem(VERIFICATION_PREVIEW_URL_KEY);
 }
 
 export async function loadCurrentSession() {

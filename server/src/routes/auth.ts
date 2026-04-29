@@ -11,7 +11,8 @@ import {
   shouldUseSecureCookies,
   verifyPassword
 } from "../auth.js";
-import { signInPayloadSchema, signUpPayloadSchema } from "../auth-schema.js";
+import { sendVerificationEmail } from "../mailer.js";
+import { signInPayloadSchema, signUpPayloadSchema, verifyEmailPayloadSchema } from "../auth-schema.js";
 
 type SessionLookupRow = {
   user_id: string;
@@ -37,6 +38,21 @@ type CreatedUserRow = {
 
 type PasswordUserRow = CreatedUserRow & {
   password_hash: string;
+};
+
+type VerificationUserRow = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  email_verified_at: string | Date | null;
+};
+
+type VerificationTokenRow = {
+  expires_at: string | Date;
+};
+
+type VerificationLookupRow = {
+  user_id: string;
 };
 
 function mapSessionRow(row: AuthUserRow) {
@@ -141,6 +157,13 @@ function clearSessionCookie(reply: FastifyReply, request: FastifyRequest) {
   reply.header("set-cookie", createClearedSessionCookie(shouldUseSecureCookies(request)));
 }
 
+function buildVerificationUrl(request: FastifyRequest, token: string) {
+  const baseUrl = request.server.config.APP_URL || request.headers.origin || request.server.config.CORS_ORIGIN;
+  const verificationUrl = new URL("/verify-email", baseUrl);
+  verificationUrl.searchParams.set("token", token);
+  return verificationUrl.toString();
+}
+
 export async function registerAuthRoutes(app: FastifyInstance) {
   app.post("/api/auth/signup", async (request, reply) => {
     const payload = signUpPayloadSchema.parse(request.body);
@@ -216,6 +239,108 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     return reply.send({
       data: await loadAuthSession(app, userId)
+    });
+  });
+
+  app.post("/api/auth/verification/send", async (request, reply) => {
+    const userId = await resolveSessionUserId(request);
+    const userResult = await app.db.query<VerificationUserRow>(
+      `select id, email, display_name, email_verified_at
+       from app_users
+       where id = $1
+       limit 1`,
+      [userId]
+    );
+
+    const user = userResult.rows[0];
+
+    if (!user) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+    }
+
+    if (user.email_verified_at) {
+      return reply.code(202).send({
+        data: {
+          alreadyVerified: true,
+          expiresAt: null,
+          previewUrl: null
+        }
+      });
+    }
+
+    await app.db.query(
+      "delete from email_verification_tokens where user_id = $1",
+      [userId]
+    );
+
+    const token = generateSessionToken();
+    const tokenHash = hashSessionToken(token);
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+    const insertResult = await app.db.query<VerificationTokenRow>(
+      `insert into email_verification_tokens (user_id, token_hash, expires_at)
+       values ($1, $2, $3)
+       returning expires_at`,
+      [userId, tokenHash, expiresAt.toISOString()]
+    );
+
+    const preview = await sendVerificationEmail({
+      config: request.server.config,
+      email: user.email,
+      logger: request.log,
+      verificationUrl: buildVerificationUrl(request, token)
+    });
+
+    return reply.code(202).send({
+      data: {
+        alreadyVerified: false,
+        expiresAt: new Date(insertResult.rows[0].expires_at).toISOString(),
+        previewUrl: preview.previewUrl
+      }
+    });
+  });
+
+  app.post("/api/auth/verification/verify", async (request, reply) => {
+    const payload = verifyEmailPayloadSchema.parse(request.body);
+    const tokenHash = hashSessionToken(payload.token);
+    const verificationLookup = await app.db.query<VerificationLookupRow>(
+      `select user_id
+       from email_verification_tokens
+       where token_hash = $1
+         and expires_at > now()
+       limit 1`,
+      [tokenHash]
+    );
+
+    const verificationToken = verificationLookup.rows[0];
+
+    if (!verificationToken) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Verification link is invalid or expired.");
+    }
+
+    const updatedUser = await app.db.query<CreatedUserRow>(
+      `update app_users
+       set email_verified_at = coalesce(email_verified_at, now())
+       where id = $1
+       returning id, email, display_name, email_verified_at, created_at`,
+      [verificationToken.user_id]
+    );
+
+    if (!updatedUser.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Account not found.");
+    }
+
+    await app.db.query(
+      "delete from email_verification_tokens where user_id = $1",
+      [verificationToken.user_id]
+    );
+
+    const session = await loadAuthSession(app, verificationToken.user_id);
+
+    return reply.send({
+      data: {
+        ...session,
+        verified: true
+      }
     });
   });
 

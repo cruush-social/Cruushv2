@@ -7,12 +7,7 @@ import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
 import { fallbackConversations, fallbackMessagesByConversationId, type ChatMessageRecord, type ConversationThread } from '../lib/messageFixtures';
 import { getCurrentUserId } from '../lib/sessionUser';
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const projectId =
-  typeof supabaseUrl === 'string'
-    ? supabaseUrl.replace('https://', '').replace('.supabase.co', '')
-    : null;
+import { createMessage, getConversationMessages } from '../lib/messagesApi';
 
 function formatMessageTime(isoTimestamp: string) {
   return new Date(isoTimestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -41,13 +36,15 @@ export default function PrivateGroupChat() {
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessageRecord[]>([]);
+  const [liveConversation, setLiveConversation] = useState<ConversationThread | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [usingSampleData, setUsingSampleData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const conversation: ConversationThread =
+  const fallbackConversation: ConversationThread =
     fallbackConversations.find((item) => item.id === chatId) ?? fallbackConversations[0];
+  const conversation: ConversationThread = liveConversation ?? fallbackConversation;
   const quickPrompts = conversation.kind === 'group'
     ? ['still in', 'hosting pregame', 'share cross streets later', 'what time are we landing?']
     : ['you around now?', 'hosting or traveling?', 'what vibe are you after?', 'send cross streets later'];
@@ -60,45 +57,31 @@ export default function PrivateGroupChat() {
         setError(null);
 
         if (!chatId) {
-          setMessages(fallbackMessagesByConversationId[conversation.id] ?? []);
+          setMessages(fallbackMessagesByConversationId[fallbackConversation.id] ?? []);
           setUsingSampleData(true);
           return;
         }
 
-        if (!projectId || !supabaseAnonKey) {
-          setMessages(fallbackMessagesByConversationId[chatId] ?? fallbackMessagesByConversationId[conversation.id] ?? []);
-          setUsingSampleData(true);
-          return;
-        }
-
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/messages/${chatId}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${supabaseAnonKey}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch messages: ${response.statusText}`);
-        }
-
-        const data = await response.json();
+        const data = await getConversationMessages(chatId);
         const normalized = Array.isArray(data.messages)
           ? normalizeRemoteMessages(data.messages, resolvedUserId)
           : [];
 
-        if (normalized.length > 0) {
+        if (data.conversation) {
+          setLiveConversation(data.conversation);
+        }
+
+        if (normalized.length > 0 || data.conversation) {
           setMessages(normalized);
           setUsingSampleData(false);
         } else {
-          setMessages(fallbackMessagesByConversationId[chatId] ?? fallbackMessagesByConversationId[conversation.id] ?? []);
+          setMessages(fallbackMessagesByConversationId[chatId] ?? fallbackMessagesByConversationId[fallbackConversation.id] ?? []);
           setUsingSampleData(true);
         }
       } catch (error) {
         console.error('Error loading chat:', error);
-        setMessages(fallbackMessagesByConversationId[chatId ?? conversation.id] ?? fallbackMessagesByConversationId[conversation.id] ?? []);
+        setLiveConversation(null);
+        setMessages(fallbackMessagesByConversationId[chatId ?? fallbackConversation.id] ?? fallbackMessagesByConversationId[fallbackConversation.id] ?? []);
         setUsingSampleData(true);
         setError(error instanceof Error ? error.message : 'Failed to load live chat.');
       } finally {
@@ -107,7 +90,7 @@ export default function PrivateGroupChat() {
     };
 
     void loadChatState();
-  }, [chatId, conversation.id]);
+  }, [chatId, fallbackConversation.id]);
 
   const handleSend = async () => {
     if (!message.trim()) return;
@@ -124,35 +107,16 @@ export default function PrivateGroupChat() {
     setMessage('');
 
     try {
-      const userId = currentUserId ?? await getCurrentUserId();
+      await (currentUserId ?? getCurrentUserId());
 
-      if (!projectId || !supabaseAnonKey) {
+      if (!chatId || usingSampleData) {
         setUsingSampleData(true);
         setError(null);
         return;
       }
 
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/messages`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            conversationId: chatId,
-            userId,
-            content: trimmedMessage,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        setError(null);
-      } else {
-        throw new Error(`Failed to send message: ${response.statusText}`);
-      }
+      await createMessage(chatId, trimmedMessage);
+      setError(null);
     } catch (error) {
       console.error('Error sending message:', error);
       setError(error instanceof Error ? error.message : 'Failed to send message.');

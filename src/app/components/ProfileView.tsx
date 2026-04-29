@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { sendCruush } from '../lib/cruushApi';
+import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
 
 export default function ProfileView() {
@@ -32,8 +33,13 @@ export default function ProfileView() {
     }
   };
 
-  const handleMessage = () => {
-    navigate('/messages');
+  const handleMessage = async () => {
+    if (!userId) {
+      navigate('/messages');
+      return;
+    }
+
+    await openConversationOrInbox(navigate, userId);
   };
 
   const mockUser = {
@@ -146,7 +152,9 @@ export default function ProfileView() {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={handleMessage}
+                  onClick={() => {
+                    void handleMessage();
+                  }}
                   style={{
                     borderColor: 'var(--cruush-purple)',
                     color: 'var(--cruush-purple)',

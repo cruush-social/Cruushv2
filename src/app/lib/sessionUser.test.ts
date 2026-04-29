@@ -9,7 +9,14 @@ vi.mock('./authApi', () => ({
   getAuthSession,
 }));
 
-import { getCurrentUserId, loadCurrentSession } from './sessionUser';
+import {
+  clearVerificationPreviewUrl,
+  getCurrentUserId,
+  getStoredCurrentUser,
+  getVerificationPreviewUrl,
+  loadCurrentSession,
+  setVerificationPreviewUrl,
+} from './sessionUser';
 
 describe('sessionUser', () => {
   beforeEach(() => {
@@ -56,5 +63,42 @@ describe('sessionUser', () => {
 
     await expect(loadCurrentSession()).resolves.toBeNull();
     expect(localStorage.getItem('cruush_user')).toBeNull();
+  });
+
+  it('stores and clears the dev verification preview url', () => {
+    setVerificationPreviewUrl('https://cruush.test/verify-email?token=abc');
+
+    expect(getVerificationPreviewUrl()).toBe('https://cruush.test/verify-email?token=abc');
+
+    clearVerificationPreviewUrl();
+
+    expect(getVerificationPreviewUrl()).toBeNull();
+  });
+
+  it('persists the verification timestamp from the backend session', async () => {
+    getAuthSession.mockResolvedValue({
+      user: {
+        id: 'user-auth-3',
+        email: 'verified@example.com',
+        displayName: 'Verified',
+        emailVerifiedAt: '2026-04-29T12:05:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Verified',
+        yearOfBirth: 1994,
+      },
+      needsOnboarding: false,
+    });
+
+    await expect(loadCurrentSession()).resolves.toMatchObject({
+      user: {
+        id: 'user-auth-3',
+      },
+    });
+    expect(getStoredCurrentUser()).toMatchObject({
+      id: 'user-auth-3',
+      email_verified_at: '2026-04-29T12:05:00.000Z',
+    });
   });
 });

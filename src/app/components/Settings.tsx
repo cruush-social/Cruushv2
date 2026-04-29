@@ -1,14 +1,27 @@
 import { useNavigate } from 'react-router';
-import { useState } from 'react';
-import { ArrowLeft, User, Bell, Shield, HelpCircle, LogOut, ChevronRight } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowLeft, User, Bell, Shield, HelpCircle, LogOut, ChevronRight, MailCheck, MailWarning, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
-import { signOut } from '../lib/authApi';
-import { clearCurrentUser } from '../lib/sessionUser';
+import { sendVerificationEmail, signOut } from '../lib/authApi';
+import {
+  clearCurrentUser,
+  getStoredCurrentUser,
+  getVerificationPreviewUrl,
+  setVerificationPreviewUrl,
+} from '../lib/sessionUser';
 
 export default function Settings() {
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
+  const storedUser = useMemo(() => getStoredCurrentUser(), []);
+  const [previewUrl, setPreviewUrlState] = useState(() => getVerificationPreviewUrl());
+  const isEmailVerified = Boolean(storedUser?.email_verified_at);
+  const displayName = storedUser?.display_name ?? storedUser?.name ?? 'Cruush user';
+  const age = storedUser?.age ?? null;
 
   const settingsSections = [
     {
@@ -47,12 +60,90 @@ export default function Settings() {
             A
           </div>
           <div className="flex-1">
-            <h3 className="text-xl">Alex</h3>
-            <p className="text-sm text-muted-foreground">they/them • 28</p>
+            <h3 className="text-xl">{displayName}</h3>
+            <p className="text-sm text-muted-foreground">{age ? `${age}` : 'Profile in progress'}</p>
           </div>
           <Button variant="outline" onClick={() => navigate('/profile/edit')}>
             Edit
           </Button>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-sm text-muted-foreground px-2">Email</h3>
+          <div className="bg-card rounded-2xl border border-border p-4 space-y-4">
+            <div className="flex items-start gap-3">
+              {isEmailVerified ? (
+                <MailCheck className="w-5 h-5 text-emerald-400 mt-0.5" />
+              ) : (
+                <MailWarning className="w-5 h-5 text-amber-400 mt-0.5" />
+              )}
+              <div className="flex-1 space-y-1">
+                <p>{isEmailVerified ? 'Email verified' : 'Email verification pending'}</p>
+                <p className="text-sm text-muted-foreground">
+                  {isEmailVerified
+                    ? 'Your account is verified.'
+                    : 'We send verification after onboarding. You can resend the link from here.'}
+                </p>
+              </div>
+            </div>
+
+            {verificationError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {verificationError}
+              </div>
+            ) : null}
+
+            {verificationNotice ? (
+              <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+                {verificationNotice}
+              </div>
+            ) : null}
+
+            {!isEmailVerified ? (
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  disabled={isResendingVerification}
+                  onClick={async () => {
+                    setVerificationError(null);
+                    setVerificationNotice(null);
+                    setIsResendingVerification(true);
+
+                    try {
+                      const delivery = await sendVerificationEmail();
+                      setVerificationPreviewUrl(delivery.previewUrl);
+                      setPreviewUrlState(delivery.previewUrl);
+                      setVerificationNotice(
+                        delivery.alreadyVerified
+                          ? 'This account is already verified.'
+                          : 'Verification email sent.',
+                      );
+                    } catch (error) {
+                      setVerificationError(
+                        error instanceof Error ? error.message : 'Failed to send verification email.',
+                      );
+                    } finally {
+                      setIsResendingVerification(false);
+                    }
+                  }}
+                >
+                  {isResendingVerification ? 'Sending...' : 'Resend email'}
+                </Button>
+
+                {previewUrl ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      window.location.href = previewUrl;
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Open dev link
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {settingsSections.map((section) => (

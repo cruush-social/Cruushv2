@@ -4,6 +4,7 @@ import { Heart, MapPin, MessageCircle, Sparkles, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { sendCruush } from '../lib/cruushApi';
+import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
 
 interface MapProfilePopupProps {
@@ -172,7 +173,9 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
               style={{
                 background: 'linear-gradient(135deg, rgba(255,47,114,0.96) 0%, rgba(122,43,255,0.96) 42%, rgba(34,184,255,0.96) 100%)',
               }}
-              onClick={() => navigate('/messages')}
+              onClick={() => {
+                void openConversationOrInbox(navigate, user.id);
+              }}
             >
               <MessageCircle className="mr-2 h-4 w-4" />
               Message now

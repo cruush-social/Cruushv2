@@ -5,6 +5,7 @@ import type { AppConfig } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
 import { formatError, toApiError } from "./errors.js";
+import { registerMessageRoutes } from "./routes/messages.js";
 import { registerPostRoutes } from "./routes/posts.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerUserRoutes } from "./routes/users.js";
@@ -60,6 +61,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   });
 
   void registerAuthRoutes(app);
+  void registerMessageRoutes(app);
   void registerUserRoutes(app);
   void registerCruushRoutes(app);
   void registerPostRoutes(app);

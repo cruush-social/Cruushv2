@@ -15,6 +15,16 @@ export type AuthSessionPayload = {
   needsOnboarding: boolean;
 };
 
+export type VerificationDeliveryPayload = {
+  alreadyVerified: boolean;
+  expiresAt: string | null;
+  previewUrl: string | null;
+};
+
+export type VerifyEmailPayload = AuthSessionPayload & {
+  verified: boolean;
+};
+
 export function getAuthSession() {
   return requestApi<AuthSessionPayload>('/api/auth/me');
 }
@@ -36,5 +46,18 @@ export function signIn(payload: { email: string; password: string }) {
 export function signOut() {
   return requestApi<void>('/api/auth/logout', {
     method: 'POST',
+  });
+}
+
+export function sendVerificationEmail() {
+  return requestApi<VerificationDeliveryPayload>('/api/auth/verification/send', {
+    method: 'POST',
+  });
+}
+
+export function verifyEmailToken(token: string) {
+  return requestApi<VerifyEmailPayload>('/api/auth/verification/verify', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
   });
 }
