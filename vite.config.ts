@@ -20,9 +20,10 @@ function figmaAssetResolver() {
 const devCertDirectory = path.resolve(__dirname, '.dev/certs')
 const devKeyPath = path.join(devCertDirectory, 'localhost-key.pem')
 const devCertPath = path.join(devCertDirectory, 'localhost-cert.pem')
+const useHttps = process.env.VITE_DEV_HTTPS !== '0' && process.env.VITE_DEV_HTTPS !== 'false'
 
 const httpsConfig =
-  fs.existsSync(devKeyPath) && fs.existsSync(devCertPath)
+  useHttps && fs.existsSync(devKeyPath) && fs.existsSync(devCertPath)
     ? {
         key: fs.readFileSync(devKeyPath),
         cert: fs.readFileSync(devCertPath),
