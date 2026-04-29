@@ -21,8 +21,26 @@ const app = buildServer({
   }
 });
 
+const developmentApp = buildServer({
+  NODE_ENV: "development",
+  PORT: 3001,
+  HOST: "127.0.0.1",
+  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  CORS_ORIGIN: "http://localhost:5173",
+  SESSION_SECRET: "test-secret",
+  APP_URL: "https://cruush.test",
+  RESEND_API_KEY: "",
+  MAIL_FROM: ""
+}, {
+  db: {
+    query,
+    end
+  }
+});
+
 afterAll(async () => {
   await app.close();
+  await developmentApp.close();
 });
 
 beforeEach(() => {
@@ -42,9 +60,28 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       service: "cruush-server",
-      auth: "session-cookie-with-dev-x-user-id-fallback",
+      auth: "session-cookie",
       storage: "postgres",
       migratedFromSupabase: true
+    });
+  });
+
+  it("does not allow x-user-id auth outside test mode", async () => {
+    const response = await developmentApp.inject({
+      method: "GET",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      error: {
+        code: "AUTH_REQUIRED",
+        message: "Authentication required.",
+        details: null
+      }
     });
   });
 

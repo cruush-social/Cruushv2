@@ -1,6 +1,6 @@
 # Self-Hosted Migration Plan
 
-This repo is currently using Supabase for three different jobs:
+This repo started with Supabase doing three different jobs:
 
 1. Auth via `supabase.auth.*`
 2. Direct table access to `profiles`
@@ -24,7 +24,28 @@ If the goal is the cheapest scalable path, the first move is not "replace Supaba
 - Coolify gives you deployment, SSL, logs, and database management without forcing platform lock-in.
 - You only add storage and background jobs when the product actually needs them.
 
-## What to migrate first
+## Current status
+
+Completed backend slices:
+
+- app-owned auth and session cookies
+- email verification flow
+- profiles API
+- posts API
+- cruush API
+- users/discovery API
+- conversations/messages API
+- direct-message open/create flow from profile and map actions
+
+Security status:
+
+- browser auth is now cookie-based
+- the old `x-user-id` header path is test-only and no longer accepted in local development or production
+- frontend `VITE_SUPABASE_*` config has been removed from the example env surface
+
+That means the main product loop is now on the app-owned backend. This is the point where Coolify deployment stops being premature and becomes the correct next step.
+
+## What was migrated
 
 ### Phase 1
 
@@ -51,21 +72,26 @@ Current Supabase-shaped endpoints in the frontend:
 
 Current migration status:
 
-- Profiles are already app-owned through `GET /api/profiles/me` and `PUT /api/profiles/me`.
-- Posts are already app-owned through `GET /api/posts` and `POST /api/posts`.
-- Cruush activity/actions are already app-owned through `GET /api/cruush/:userId` and `POST /api/cruush`.
-- The next remaining function slices are users/discovery and messages/conversations.
+- Profiles are app-owned through `GET /api/profiles/me` and `PUT /api/profiles/me`.
+- Posts are app-owned through `GET /api/posts` and `POST /api/posts`.
+- Cruush activity/actions are app-owned through `GET /api/cruush/:userId` and `POST /api/cruush`.
+- Users/discovery is app-owned through `GET /api/users`.
+- Conversations/messages are app-owned through:
+  - `POST /api/conversations/dm`
+  - `GET /api/conversations`
+  - `GET /api/messages/:conversationId`
+  - `POST /api/messages`
 
 ### Phase 3
 
 Replace Supabase auth with app-owned session auth.
 
-Recommended shape:
+Status:
 
-- email/password auth
-- secure httpOnly session cookies
-- password reset flow
-- email verification only if product needs it immediately
+- email/password auth is implemented
+- secure httpOnly session cookies are implemented
+- email verification is implemented
+- password reset flow is still pending if you want it
 
 ### Phase 4
 
@@ -98,16 +124,50 @@ The `server/` folder is the first slice:
 - Dockerfile for deployment
 - `docker-compose.selfhost.yml` for local bring-up
 
-## Recommended next coding step
+## Next step: Coolify
 
-Implement app-owned user discovery routes:
+The next work is operational:
 
-- `GET /api/users`
-- optional seed/dev-only helpers outside the public app surface
+1. Provision three services in Coolify
+   - frontend
+   - API (`server/`)
+   - PostgreSQL
 
-Once those exist, update `MapHome.tsx` and the map/feed discovery surfaces to stop depending on the old Supabase `users` edge function. After that, migrate messages and conversations.
+2. Set production env vars on the API
+   - `NODE_ENV=production`
+   - `DATABASE_URL`
+   - `CORS_ORIGIN`
+   - `SESSION_SECRET`
+   - `APP_URL`
+   - `MAIL_FROM`
+   - `RESEND_API_KEY`
 
-## Phase 1 notes
+3. Apply SQL migrations in order
+   - `server/sql/003_profiles_migration_slice.sql`
+   - `server/sql/004_posts.sql`
+   - `server/sql/005_cruushes.sql`
+   - `server/sql/006_auth_session_upgrade.sql`
+   - `server/sql/007_email_verification_tokens.sql`
+   - `server/sql/008_messages.sql`
+   - `server/sql/009_direct_messages.sql`
 
-- The temporary `x-user-id` header is only a migration boundary while Supabase auth remains on the frontend. It is not production authentication.
-- Before shipping this API publicly, replace that header with app-owned auth and add request rate limiting on profile writes, ideally per user and per IP.
+4. Point the frontend at the deployed API
+   - either same-origin through the reverse proxy
+   - or `VITE_API_BASE_URL=https://api.cruush.app`
+
+5. Smoke-test the real product loop
+   - signup
+   - onboarding
+   - verification email
+   - map load
+   - profile open
+   - send cruush
+   - open DM
+   - send message
+
+## Remaining backend work after deployment
+
+- password reset flow
+- rate limiting on auth/profile/message routes
+- photo/object storage migration
+- pruning the last Supabase dependency and any dead migration code

@@ -54,7 +54,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   app.get("/api/meta", async () => {
     return {
       service: "cruush-server",
-      auth: "session-cookie-with-dev-x-user-id-fallback",
+      auth: "session-cookie",
       storage: "postgres",
       migratedFromSupabase: true
     };

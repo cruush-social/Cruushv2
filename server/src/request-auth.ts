@@ -30,7 +30,7 @@ export async function getAuthenticatedUserId(request: FastifyRequest) {
     }
   }
 
-  if (request.server.config.NODE_ENV !== "production") {
+  if (request.server.config.NODE_ENV === "test") {
     if (parsedHeaders.success) {
       return parsedHeaders.data["x-user-id"];
     }
