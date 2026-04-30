@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 export type ErrorCode =
   | "AUTH_REQUIRED"
   | "FORBIDDEN"
+  | "LOCATION_STORAGE_UNAVAILABLE"
   | "NOT_FOUND"
   | "VALIDATION_ERROR"
   | "INTERNAL_ERROR";

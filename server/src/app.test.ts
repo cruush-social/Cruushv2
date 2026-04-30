@@ -536,6 +536,10 @@ describe("server", () => {
         looking_for: ["Fun"],
         vibes: ["Chill"],
         photos: ["https://example.com/alex.jpg"],
+        lat: 40.711,
+        lng: -74.002,
+        fuzzy_lat: 40.7115,
+        fuzzy_lng: -74.0025,
         updated_at: "2026-04-28T12:00:00.000Z"
       }]
     });
@@ -551,7 +555,9 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(1);
     expect(query.mock.calls[0]?.[0]).toContain("from profiles");
-    expect(query.mock.calls[0]?.[1]).toBeUndefined();
+    expect(query.mock.calls[0]?.[0]).toContain("where id <> $1");
+    expect(query.mock.calls[0]?.[0]).toContain("and lat is not null");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId]);
 
     const body = response.json();
     expect(Array.isArray(body.data)).toBe(true);
@@ -560,6 +566,8 @@ describe("server", () => {
       name: "Alex",
       display_name: "Alex",
       pronouns: "they/them",
+      lat: 40.7115,
+      lng: -74.0025,
       lookingFor: ["Fun"],
       vibes: ["Chill"],
       photo: "https://example.com/alex.jpg"
@@ -570,6 +578,10 @@ describe("server", () => {
 
   it("falls back to the legacy profile schema on GET /api/users", async () => {
     query
+      .mockRejectedValueOnce({
+        code: "42703",
+        message: 'column "year_of_birth" does not exist'
+      })
       .mockRejectedValueOnce({
         code: "42703",
         message: 'column "year_of_birth" does not exist'
@@ -600,8 +612,8 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(2);
-    expect(query.mock.calls[1]?.[0]).toContain("tribes as legacy_vibe_tags");
+    expect(query).toHaveBeenCalledTimes(3);
+    expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
 
     expect(response.json()).toEqual({
       data: expect.arrayContaining([
@@ -1237,6 +1249,50 @@ describe("server", () => {
         id: userId,
         ...payload,
         updated_at: "2026-04-28T12:05:00.000Z"
+      }
+    });
+  });
+
+  it("stores the authenticated profile location on PUT /api/profiles/me/location", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: userId,
+        lat: 40.711,
+        lng: -74.002,
+        fuzzy_lat: 40.711,
+        fuzzy_lng: -74.002,
+        location_fuzz_radius_meters: 0,
+        location_updated_at: "2026-04-29T12:05:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/location",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        lat: 40.711,
+        lng: -74.002,
+        fuzz_radius_meters: 0
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("insert into profiles");
+    expect(query.mock.calls[0]?.[0]).toContain("location_updated_at");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, 40.711, -74.002, 0]);
+    expect(response.json()).toEqual({
+      data: {
+        id: userId,
+        lat: 40.711,
+        lng: -74.002,
+        fuzzy_lat: 40.711,
+        fuzzy_lng: -74.002,
+        fuzz_radius_meters: 0,
+        location_updated_at: "2026-04-29T12:05:00.000Z"
       }
     });
   });

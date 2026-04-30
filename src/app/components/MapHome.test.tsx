@@ -8,6 +8,10 @@ const { getNearbyUsers, buildFallbackNearbyUsers } = vi.hoisted(() => ({
   buildFallbackNearbyUsers: vi.fn(),
 }));
 
+const { syncMyLocation } = vi.hoisted(() => ({
+  syncMyLocation: vi.fn(),
+}));
+
 const { useIsMobile } = vi.hoisted(() => ({
   useIsMobile: vi.fn(),
 }));
@@ -15,6 +19,10 @@ const { useIsMobile } = vi.hoisted(() => ({
 vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
   buildFallbackNearbyUsers,
+}));
+
+vi.mock('../lib/locationApi', () => ({
+  syncMyLocation,
 }));
 
 vi.mock('./ui/use-mobile', () => ({
@@ -65,11 +73,29 @@ describe('MapHome', () => {
     ]);
 
     buildFallbackNearbyUsers.mockReturnValue([]);
+    syncMyLocation.mockReset();
+    syncMyLocation.mockResolvedValue({
+      id: 'user-1',
+      lat: 40.7,
+      lng: -73.9,
+      fuzzy_lat: 40.7,
+      fuzzy_lng: -73.9,
+      fuzz_radius_meters: 0,
+      location_updated_at: '2026-04-29T12:00:00.000Z',
+    });
 
     Object.defineProperty(global.navigator, 'geolocation', {
       configurable: true,
       value: {
-        watchPosition: vi.fn().mockReturnValue(1),
+        watchPosition: vi.fn().mockImplementation((success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
+          success({
+            coords: {
+              latitude: 40.701,
+              longitude: -73.901,
+            },
+          });
+          return 1;
+        }),
         clearWatch: vi.fn(),
       },
     });
@@ -109,5 +135,26 @@ describe('MapHome', () => {
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+  });
+
+  it('syncs the current geolocation while loading nearby users', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+
+    expect(syncMyLocation).toHaveBeenCalledWith({
+      lat: 40.701,
+      lng: -73.901,
+      fuzz_radius_meters: 0,
+    });
+    expect(getNearbyUsers).toHaveBeenCalledWith({ lat: 40.701, lng: -73.901 });
   });
 });

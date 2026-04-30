@@ -52,6 +52,14 @@ export const profilePayloadSchema = z.object({
 
 export type ProfilePayload = z.infer<typeof profilePayloadSchema>;
 
+export const profileLocationPayloadSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  fuzz_radius_meters: z.number().int().min(0).max(500).optional().default(0)
+}).strict();
+
+export type ProfileLocationPayload = z.infer<typeof profileLocationPayloadSchema>;
+
 export const emptyProfile = {
   display_name: "",
   photos: [],

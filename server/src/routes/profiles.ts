@@ -1,6 +1,11 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { ApiError } from "../errors.js";
-import { emptyProfile, profilePayloadSchema, type ProfilePayload } from "../profile-schema.js";
+import {
+  emptyProfile,
+  profileLocationPayloadSchema,
+  profilePayloadSchema,
+  type ProfilePayload
+} from "../profile-schema.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 
 type ProfileRow = {
@@ -49,6 +54,16 @@ type ProfileRow = {
   updated_at: string | Date;
 };
 
+type ProfileLocationRow = {
+  id: string;
+  lat: number | null;
+  lng: number | null;
+  fuzzy_lat: number | null;
+  fuzzy_lng: number | null;
+  location_fuzz_radius_meters: number | null;
+  location_updated_at: string | Date | null;
+};
+
 const PROFILE_COLUMNS = [
   "id",
   "display_name",
@@ -93,6 +108,24 @@ const PROFILE_COLUMNS = [
   "weed",
   "custom_weed"
 ] as const;
+
+function isSchemaCompatibilityError(error: unknown) {
+  const code = typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: string }).code)
+    : "";
+
+  if (["42703", "42P01", "42883", "22P02"].includes(code)) {
+    return true;
+  }
+
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  return (
+    message.includes("column") ||
+    message.includes("relation") ||
+    message.includes("operator does not exist") ||
+    message.includes("does not exist")
+  );
+}
 
 function mapProfileRow(row: ProfileRow) {
   return {
@@ -140,6 +173,20 @@ function mapProfileRow(row: ProfileRow) {
     weed: row.weed ?? [],
     custom_weed: row.custom_weed ?? "",
     updated_at: new Date(row.updated_at).toISOString()
+  };
+}
+
+function mapProfileLocationRow(row: ProfileLocationRow) {
+  return {
+    id: row.id,
+    lat: row.lat,
+    lng: row.lng,
+    fuzzy_lat: row.fuzzy_lat,
+    fuzzy_lng: row.fuzzy_lng,
+    fuzz_radius_meters: row.location_fuzz_radius_meters ?? 0,
+    location_updated_at: row.location_updated_at
+      ? new Date(row.location_updated_at).toISOString()
+      : null
   };
 }
 
@@ -198,5 +245,56 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     return reply.send({
       data: mapProfileRow(result.rows[0])
     });
+  });
+
+  app.put("/api/profiles/me/location", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const payload = profileLocationPayloadSchema.parse(request.body);
+
+    try {
+      const result = await app.db.query<ProfileLocationRow>(
+        `insert into profiles (
+           id,
+           lat,
+           lng,
+           fuzzy_lat,
+           fuzzy_lng,
+           location_fuzz_radius_meters,
+           location_updated_at
+         )
+         values ($1, $2, $3, $2, $3, $4, now())
+         on conflict (id) do update
+         set lat = excluded.lat,
+             lng = excluded.lng,
+             fuzzy_lat = excluded.fuzzy_lat,
+             fuzzy_lng = excluded.fuzzy_lng,
+             location_fuzz_radius_meters = excluded.location_fuzz_radius_meters,
+             location_updated_at = now(),
+             updated_at = now()
+         returning
+           id::text as id,
+           lat,
+           lng,
+           fuzzy_lat,
+           fuzzy_lng,
+           location_fuzz_radius_meters,
+           location_updated_at`,
+        [userId, payload.lat, payload.lng, payload.fuzz_radius_meters]
+      );
+
+      return reply.send({
+        data: mapProfileLocationRow(result.rows[0])
+      });
+    } catch (error) {
+      if (isSchemaCompatibilityError(error)) {
+        throw new ApiError(
+          503,
+          "LOCATION_STORAGE_UNAVAILABLE",
+          "Location storage is unavailable until the latest database migrations run."
+        );
+      }
+
+      throw error;
+    }
   });
 }

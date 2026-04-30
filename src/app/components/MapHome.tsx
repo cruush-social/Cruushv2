@@ -1,6 +1,6 @@
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import type { CruushMapInstance } from './MapView';
 import { Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart } from 'lucide-react';
@@ -9,6 +9,7 @@ import { useIsMobile } from './ui/use-mobile';
 import HeartPhoto from './HeartPhoto';
 import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
+import { syncMyLocation } from '../lib/locationApi';
 import { buildFallbackNearbyUsers, getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 
 function getLastActiveMinutes(lastActive: string) {
@@ -39,6 +40,7 @@ export default function MapHome() {
   const [error, setError] = useState<string | null>(null);
   const [usingPreviewData, setUsingPreviewData] = useState(false);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
+  const lastSyncedLocationKeyRef = useRef<string | null>(null);
 
   const openProfile = (user: DiscoveryUser) => {
     navigate(`/profile/${user.id}`);
@@ -79,6 +81,28 @@ export default function MapHome() {
 
   useEffect(() => {
     void fetchUsers(userLocation);
+  }, [userLocation]);
+
+  useEffect(() => {
+    if (!userLocation) {
+      return;
+    }
+
+    const locationKey = `${userLocation.lat.toFixed(4)}:${userLocation.lng.toFixed(4)}`;
+
+    if (lastSyncedLocationKeyRef.current === locationKey) {
+      return;
+    }
+
+    lastSyncedLocationKeyRef.current = locationKey;
+
+    void syncMyLocation({
+      lat: userLocation.lat,
+      lng: userLocation.lng,
+      fuzz_radius_meters: 0,
+    }).catch((syncError) => {
+      console.error('Error syncing location:', syncError);
+    });
   }, [userLocation]);
 
   const fetchUsers = async (coordinates: { lat: number; lng: number } | null) => {

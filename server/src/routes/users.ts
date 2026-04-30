@@ -17,8 +17,14 @@ type DiscoveryProfileRow = {
   looking_for: string[] | null;
   vibes: string[] | null;
   photos: string[] | null;
+  lat: number | null;
+  lng: number | null;
+  fuzzy_lat: number | null;
+  fuzzy_lng: number | null;
   updated_at: string | Date;
 };
+
+type PreviewDiscoveryProfileRow = Omit<DiscoveryProfileRow, "lat" | "lng" | "fuzzy_lat" | "fuzzy_lng">;
 
 type LegacyDiscoveryProfileRow = {
   id: string;
@@ -112,9 +118,9 @@ function getLegacyCoordinates(
   };
 }
 
-async function loadDiscoveryRows(app: FastifyInstance) {
-  try {
-    const modernRows = await app.db.query<DiscoveryProfileRow>(
+async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string) {
+  const loadPreviewRows = async () => {
+    const modernRows = await app.db.query<PreviewDiscoveryProfileRow>(
       `select
          id::text as id,
          display_name,
@@ -125,8 +131,40 @@ async function loadDiscoveryRows(app: FastifyInstance) {
          photos,
          updated_at
        from profiles
+       where id <> $1
        order by updated_at desc
-       limit 12`
+       limit 12`,
+      [currentUserId]
+    );
+
+    return {
+      mode: "modern_preview" as const,
+      rows: modernRows.rows
+    };
+  };
+
+  try {
+    const modernRows = await app.db.query<DiscoveryProfileRow>(
+      `select
+         id::text as id,
+         display_name,
+         year_of_birth,
+         pronouns,
+         looking_for,
+         vibes,
+         photos,
+         lat,
+         lng,
+         fuzzy_lat,
+         fuzzy_lng,
+         updated_at
+       from profiles
+       where id <> $1
+         and lat is not null
+         and lng is not null
+       order by updated_at desc
+       limit 12`,
+      [currentUserId]
     );
 
     return {
@@ -136,6 +174,14 @@ async function loadDiscoveryRows(app: FastifyInstance) {
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) {
       throw error;
+    }
+
+    try {
+      return await loadPreviewRows();
+    } catch (previewError) {
+      if (!isSchemaCompatibilityError(previewError)) {
+        throw previewError;
+      }
     }
 
     const legacyRows = await app.db.query<LegacyDiscoveryProfileRow>(
@@ -166,6 +212,36 @@ async function loadDiscoveryRows(app: FastifyInstance) {
 
 function mapModernDiscoveryRow(
   row: DiscoveryProfileRow,
+  centerLat: number,
+  centerLng: number
+) {
+  const coordinates = {
+    lat: row.fuzzy_lat ?? row.lat,
+    lng: row.fuzzy_lng ?? row.lng
+  };
+
+  if (coordinates.lat == null || coordinates.lng == null) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    name: coerceDisplayName(row.display_name),
+    display_name: coerceDisplayName(row.display_name),
+    age: row.year_of_birth ? new Date().getFullYear() - row.year_of_birth : null,
+    pronouns: coerceStringArray(row.pronouns).join(", "),
+    lat: coordinates.lat,
+    lng: coordinates.lng,
+    lastActive: formatLastActiveFromDate(row.updated_at),
+    distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
+    lookingFor: coerceStringArray(row.looking_for),
+    vibes: coerceStringArray(row.vibes),
+    photo: row.photos?.[0] ?? null
+  };
+}
+
+function mapPreviewDiscoveryRow(
+  row: PreviewDiscoveryProfileRow,
   centerLat: number,
   centerLng: number,
   index: number
@@ -216,25 +292,32 @@ function mapLegacyDiscoveryRow(
 
 export async function registerUserRoutes(app: FastifyInstance) {
   app.get("/api/users", async (request, reply) => {
-    await getAuthenticatedUserId(request);
+    const currentUserId = await getAuthenticatedUserId(request);
     const parsedQuery = discoveryQuerySchema.parse(request.query);
     const centerLat = parsedQuery.lat ?? DEFAULT_CENTER.lat;
     const centerLng = parsedQuery.lng ?? DEFAULT_CENTER.lng;
 
     const usedIds = new Set<string>();
-    const discoveryRows = await loadDiscoveryRows(app);
+    const discoveryRows = await loadDiscoveryRows(app, currentUserId);
     const realUsers = discoveryRows.mode === "modern"
-      ? discoveryRows.rows.map((row, index) => {
-          usedIds.add(row.id);
-          return mapModernDiscoveryRow(row, centerLat, centerLng, index);
-        })
-      : discoveryRows.rows.map((row, index) => {
-          usedIds.add(row.id);
-          return mapLegacyDiscoveryRow(row, centerLat, centerLng, index);
-        });
+      ? discoveryRows.rows
+          .map((row) => {
+            usedIds.add(row.id);
+            return mapModernDiscoveryRow(row, centerLat, centerLng);
+          })
+          .filter((row): row is NonNullable<typeof row> => row !== null)
+      : discoveryRows.mode === "modern_preview"
+        ? discoveryRows.rows.map((row, index) => {
+            usedIds.add(row.id);
+            return mapPreviewDiscoveryRow(row, centerLat, centerLng, index);
+          })
+        : discoveryRows.rows.map((row, index) => {
+            usedIds.add(row.id);
+            return mapLegacyDiscoveryRow(row, centerLat, centerLng, index);
+          });
 
     const fallbackUsers = demoDiscoveryUsers
-      .filter((user) => !usedIds.has(user.id))
+      .filter((user) => !usedIds.has(user.id) && user.id !== currentUserId)
       .map((user, index) => {
         const coordinates = getDiscoveryCoordinates(centerLat, centerLng, realUsers.length + index);
 
