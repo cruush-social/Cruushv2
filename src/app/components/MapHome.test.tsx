@@ -3,9 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import MapHome from './MapHome';
 
-const { getNearbyUsers, buildFallbackNearbyUsers } = vi.hoisted(() => ({
+const { getNearbyUsers } = vi.hoisted(() => ({
   getNearbyUsers: vi.fn(),
-  buildFallbackNearbyUsers: vi.fn(),
 }));
 
 const { syncMyLocation } = vi.hoisted(() => ({
@@ -18,7 +17,6 @@ const { useIsMobile } = vi.hoisted(() => ({
 
 vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
-  buildFallbackNearbyUsers,
 }));
 
 vi.mock('../lib/locationApi', () => ({
@@ -52,7 +50,6 @@ function LocationProbe() {
 describe('MapHome', () => {
   beforeEach(() => {
     getNearbyUsers.mockReset();
-    buildFallbackNearbyUsers.mockReset();
     useIsMobile.mockReset();
 
     getNearbyUsers.mockResolvedValue([
@@ -71,8 +68,6 @@ describe('MapHome', () => {
         photo: null,
       },
     ]);
-
-    buildFallbackNearbyUsers.mockReturnValue([]);
     syncMyLocation.mockReset();
     syncMyLocation.mockResolvedValue({
       id: 'user-1',
@@ -156,5 +151,37 @@ describe('MapHome', () => {
       fuzz_radius_meters: 0,
     });
     expect(getNearbyUsers).toHaveBeenCalledWith({ lat: 40.701, lng: -73.901 });
+  });
+
+  it('shows an explicit empty state when discovery returns no nearby users', async () => {
+    useIsMobile.mockReturnValue(false);
+    getNearbyUsers.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect((await screen.findAllByText(/No one nearby yet/i)).length).toBeGreaterThan(0);
+  });
+
+  it('shows an error instead of fake nearby users when discovery fails', async () => {
+    useIsMobile.mockReturnValue(false);
+    getNearbyUsers.mockRejectedValue(new Error('Discovery offline'));
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Discovery offline')).toBeInTheDocument();
+    expect(screen.queryByText(/No one nearby yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pin Jordan' })).not.toBeInTheDocument();
   });
 });

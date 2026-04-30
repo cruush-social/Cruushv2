@@ -576,12 +576,27 @@ describe("server", () => {
     expect(body.data[0].lastActive).toMatch(/ago$/);
   });
 
+  it("returns an empty array when no nearby profiles have stored coordinates", async () => {
+    query.mockResolvedValueOnce({
+      rows: []
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: []
+    });
+  });
+
   it("falls back to the legacy profile schema on GET /api/users", async () => {
     query
-      .mockRejectedValueOnce({
-        code: "42703",
-        message: 'column "year_of_birth" does not exist'
-      })
       .mockRejectedValueOnce({
         code: "42703",
         message: 'column "year_of_birth" does not exist'
@@ -612,8 +627,8 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(3);
-    expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1]?.[0]).toContain("tribes as legacy_vibe_tags");
 
     expect(response.json()).toEqual({
       data: expect.arrayContaining([

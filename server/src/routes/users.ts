@@ -1,7 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
-  demoDiscoveryUsers,
   formatDistanceMiles,
   formatLastActiveFromDate,
   formatLastActiveFromMinutes,
@@ -23,8 +22,6 @@ type DiscoveryProfileRow = {
   fuzzy_lng: number | null;
   updated_at: string | Date;
 };
-
-type PreviewDiscoveryProfileRow = Omit<DiscoveryProfileRow, "lat" | "lng" | "fuzzy_lat" | "fuzzy_lng">;
 
 type LegacyDiscoveryProfileRow = {
   id: string;
@@ -119,30 +116,6 @@ function getLegacyCoordinates(
 }
 
 async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string) {
-  const loadPreviewRows = async () => {
-    const modernRows = await app.db.query<PreviewDiscoveryProfileRow>(
-      `select
-         id::text as id,
-         display_name,
-         year_of_birth,
-         pronouns,
-         looking_for,
-         vibes,
-         photos,
-         updated_at
-       from profiles
-       where id <> $1
-       order by updated_at desc
-       limit 12`,
-      [currentUserId]
-    );
-
-    return {
-      mode: "modern_preview" as const,
-      rows: modernRows.rows
-    };
-  };
-
   try {
     const modernRows = await app.db.query<DiscoveryProfileRow>(
       `select
@@ -174,14 +147,6 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string) {
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) {
       throw error;
-    }
-
-    try {
-      return await loadPreviewRows();
-    } catch (previewError) {
-      if (!isSchemaCompatibilityError(previewError)) {
-        throw previewError;
-      }
     }
 
     const legacyRows = await app.db.query<LegacyDiscoveryProfileRow>(
@@ -223,30 +188,6 @@ function mapModernDiscoveryRow(
   if (coordinates.lat == null || coordinates.lng == null) {
     return null;
   }
-
-  return {
-    id: row.id,
-    name: coerceDisplayName(row.display_name),
-    display_name: coerceDisplayName(row.display_name),
-    age: row.year_of_birth ? new Date().getFullYear() - row.year_of_birth : null,
-    pronouns: coerceStringArray(row.pronouns).join(", "),
-    lat: coordinates.lat,
-    lng: coordinates.lng,
-    lastActive: formatLastActiveFromDate(row.updated_at),
-    distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
-    lookingFor: coerceStringArray(row.looking_for),
-    vibes: coerceStringArray(row.vibes),
-    photo: row.photos?.[0] ?? null
-  };
-}
-
-function mapPreviewDiscoveryRow(
-  row: PreviewDiscoveryProfileRow,
-  centerLat: number,
-  centerLng: number,
-  index: number
-) {
-  const coordinates = getDiscoveryCoordinates(centerLat, centerLng, index);
 
   return {
     id: row.id,
@@ -306,39 +247,13 @@ export async function registerUserRoutes(app: FastifyInstance) {
             return mapModernDiscoveryRow(row, centerLat, centerLng);
           })
           .filter((row): row is NonNullable<typeof row> => row !== null)
-      : discoveryRows.mode === "modern_preview"
-        ? discoveryRows.rows.map((row, index) => {
-            usedIds.add(row.id);
-            return mapPreviewDiscoveryRow(row, centerLat, centerLng, index);
-          })
-        : discoveryRows.rows.map((row, index) => {
+      : discoveryRows.rows.map((row, index) => {
             usedIds.add(row.id);
             return mapLegacyDiscoveryRow(row, centerLat, centerLng, index);
           });
 
-    const fallbackUsers = demoDiscoveryUsers
-      .filter((user) => !usedIds.has(user.id) && user.id !== currentUserId)
-      .map((user, index) => {
-        const coordinates = getDiscoveryCoordinates(centerLat, centerLng, realUsers.length + index);
-
-        return {
-          id: user.id,
-          name: user.name,
-          display_name: user.name,
-          age: user.age,
-          pronouns: user.pronouns,
-          lat: coordinates.lat,
-          lng: coordinates.lng,
-          lastActive: formatLastActiveFromMinutes(user.lastActiveMinutes),
-          distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
-          lookingFor: user.lookingFor,
-          vibes: user.vibes,
-          photo: user.photo
-        };
-      });
-
     return reply.send({
-      data: [...realUsers, ...fallbackUsers].slice(0, 12)
+      data: realUsers.slice(0, 12)
     });
   });
 }

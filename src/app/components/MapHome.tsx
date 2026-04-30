@@ -10,7 +10,7 @@ import HeartPhoto from './HeartPhoto';
 import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
 import { syncMyLocation } from '../lib/locationApi';
-import { buildFallbackNearbyUsers, getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 
 function getLastActiveMinutes(lastActive: string) {
   const value = parseInt(lastActive, 10);
@@ -38,7 +38,6 @@ export default function MapHome() {
   const [loading, setLoading] = useState(true);
   const [mapInstance, setMapInstance] = useState<CruushMapInstance | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [usingPreviewData, setUsingPreviewData] = useState(false);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const lastSyncedLocationKeyRef = useRef<string | null>(null);
 
@@ -111,15 +110,14 @@ export default function MapHome() {
   }, [userLocation]);
 
   const fetchUsers = async (coordinates: { lat: number; lng: number } | null) => {
+    setLoading(true);
     setError(null);
     try {
       setUsers(await getNearbyUsers(coordinates));
-      setUsingPreviewData(false);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      setUsers(buildFallbackNearbyUsers(coordinates));
-      setUsingPreviewData(true);
-      setError(null);
+    } catch (fetchError) {
+      console.error('Error fetching users:', fetchError);
+      setUsers([]);
+      setError(fetchError instanceof Error ? fetchError.message : 'Failed to load nearby people.');
     } finally {
       setLoading(false);
     }
@@ -213,15 +211,18 @@ export default function MapHome() {
           </div>
         ) : null}
 
-        {usingPreviewData ? (
-          <div className="absolute left-4 right-20 top-24 z-20 rounded-md border border-primary/30 bg-background/90 p-3 text-sm text-muted-foreground backdrop-blur-sm">
-            Previewing nearby people while live discovery reconnects.
-          </div>
-        ) : null}
-
         {loading ? (
           <div className="absolute inset-x-4 top-28 z-20 rounded-md bg-card/90 p-3 text-sm text-muted-foreground backdrop-blur-sm">
             Loading nearby people...
+          </div>
+        ) : null}
+
+        {!loading && !error && users.length === 0 ? (
+          <div className="absolute left-4 right-4 top-28 z-20 rounded-2xl border border-white/10 bg-background/88 p-4 text-sm text-white/72 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-md">
+            <div className="text-xs uppercase tracking-[0.18em] text-white/45">No one nearby yet</div>
+            <p className="mt-2 leading-6">
+              Keep your location on and profile visible. When someone nearby checks in, they will land here instead of a demo tray.
+            </p>
           </div>
         ) : null}
 
