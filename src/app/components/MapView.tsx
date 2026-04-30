@@ -1,97 +1,204 @@
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
-import L, { Icon, LatLngExpression, type Map as LeafletMap } from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import maplibregl, {
+  type LngLatLike,
+  type Map as MapLibreMap,
+  type Marker as MapLibreMarker,
+} from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+
+type MapUser = {
+  id: string;
+  name?: string;
+  display_name?: string;
+  lat: number;
+  lng: number;
+  isCurrentUser?: boolean;
+};
 
 interface MapViewProps {
-  onPinClick: (user: any) => void;
+  onPinClick: (user: MapUser) => void;
   onMapClick?: () => void;
-  onMapReady?: (map: LeafletMap) => void;
-  users: any[];
+  onMapReady?: (map: MapLibreMap) => void;
+  users: MapUser[];
   userLocation?: { lat: number; lng: number } | null;
 }
 
-// Custom hook to center map on user
-function CenterMapOnUser({ userLocation }: { userLocation: { lat: number; lng: number } | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (userLocation) {
-      map.setView([userLocation.lat, userLocation.lng], 14, { animate: true });
-    }
-  }, [userLocation, map]);
-  return null;
+const DEFAULT_CENTER: LngLatLike = [-74.006, 40.7128];
+const DEFAULT_ZOOM = 14;
+
+const rasterStyle = {
+  version: 8,
+  sources: {
+    cartoDark: {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      ],
+      tileSize: 256,
+      attribution: '&copy; CARTO &copy; OpenStreetMap contributors',
+    },
+  },
+  layers: [
+    {
+      id: 'carto-dark',
+      type: 'raster',
+      source: 'cartoDark',
+    },
+  ],
+} as const;
+
+const HEART_PATH =
+  'M22 39.5C14.4 33.1 5 25.2 5 15.4C5 9.7 9.3 5.5 14.6 5.5C17.7 5.5 20.5 7 22 9.5C23.5 7 26.3 5.5 29.4 5.5C34.7 5.5 39 9.7 39 15.4C39 25.2 29.6 33.1 22 39.5Z';
+
+function isMapUser(value: MapUser) {
+  return Number.isFinite(value.lat) && Number.isFinite(value.lng);
 }
 
-function CaptureMapInstance({ onMapReady }: { onMapReady?: (map: LeafletMap) => void }) {
-  const map = useMap();
-
-  useEffect(() => {
-    onMapReady?.(map);
-  }, [map, onMapReady]);
-
-  return null;
+function getDisplayName(user: MapUser) {
+  return user.name?.trim() || user.display_name?.trim() || 'person';
 }
 
-function CaptureMapClicks({ onMapClick }: { onMapClick?: () => void }) {
-  useMapEvents({
-    click: () => onMapClick?.(),
-  });
+function createMarkerElement(user: MapUser, onPinClick: (user: MapUser) => void) {
+  const isCurrentUser = user.id === 'me' || user.isCurrentUser;
+  const element = document.createElement(isCurrentUser ? 'div' : 'button');
+  const name = getDisplayName(user);
 
-  return null;
+  element.className = [
+    'relative flex h-11 w-11 items-center justify-center border-0 bg-transparent p-0',
+    isCurrentUser
+      ? 'drop-shadow-[0_0_14px_rgba(34,184,255,0.7)]'
+      : 'drop-shadow-[0_0_16px_rgba(255,47,114,0.55)] transition-transform hover:scale-110',
+  ].join(' ');
+
+  if (isCurrentUser) {
+    element.setAttribute('aria-label', 'Your current location');
+  } else {
+    const button = element as HTMLButtonElement;
+    button.type = 'button';
+    button.setAttribute('aria-label', `Open ${name} on map`);
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      onPinClick(user);
+    });
+  }
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 44 44');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.classList.add('h-11', 'w-11');
+
+  const heart = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  heart.setAttribute('d', HEART_PATH);
+  heart.setAttribute('fill', isCurrentUser ? '#22b8ff' : '#d11f3a');
+  heart.setAttribute('stroke', '#ffffff');
+  heart.setAttribute('stroke-width', '2');
+
+  const spark = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  spark.setAttribute('cx', '22');
+  spark.setAttribute('cy', '18');
+  spark.setAttribute('r', isCurrentUser ? '4.5' : '3.5');
+  spark.setAttribute('fill', '#ffffff');
+  spark.setAttribute('fill-opacity', isCurrentUser ? '0.95' : '0.82');
+
+  svg.append(heart, spark);
+  element.appendChild(svg);
+
+  return element;
 }
 
-const userIcon = new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconSize: [32, 48],
-  iconAnchor: [16, 48],
-  popupAnchor: [0, -48],
-  className: 'leaflet-user-marker',
-});
-
-const otherIcon = new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconSize: [28, 42],
-  iconAnchor: [14, 42],
-  popupAnchor: [0, -42],
-  className: 'leaflet-other-marker',
-});
+export type CruushMapInstance = MapLibreMap;
 
 function MapView({ onPinClick, onMapClick, onMapReady, users, userLocation }: MapViewProps) {
-  // Center on user or fallback
-  const center: LatLngExpression = userLocation ? [userLocation.lat, userLocation.lng] : [40.7128, -74.006];
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const markersRef = useRef<MapLibreMarker[]>([]);
+  const onPinClickRef = useRef(onPinClick);
+  const onMapClickRef = useRef(onMapClick);
+
+  useEffect(() => {
+    onPinClickRef.current = onPinClick;
+  }, [onPinClick]);
+
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) {
+      return;
+    }
+
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: rasterStyle,
+      center: DEFAULT_CENTER,
+      zoom: DEFAULT_ZOOM,
+      attributionControl: false,
+    });
+
+    map.on('click', () => onMapClickRef.current?.());
+    mapRef.current = map;
+    onMapReady?.(map);
+
+    return () => {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [onMapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map || !userLocation) {
+      return;
+    }
+
+    map.setCenter([userLocation.lng, userLocation.lat]);
+    map.setZoom(DEFAULT_ZOOM);
+  }, [userLocation]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
+
+    const markerUsers = users.filter((user) => user.id !== 'me' && isMapUser(user));
+
+    if (userLocation) {
+      markerUsers.unshift({
+        id: 'me',
+        name: 'You',
+        display_name: 'You',
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+        isCurrentUser: true,
+      });
+    }
+
+    markersRef.current = markerUsers.map((user) => {
+      const element = createMarkerElement(user, (selectedUser) => onPinClickRef.current(selectedUser));
+      return new maplibregl.Marker({ element })
+        .setLngLat([user.lng, user.lat])
+        .addTo(map);
+    });
+  }, [users, userLocation]);
 
   return (
-    <MapContainer
-      center={center}
-      zoom={14}
-      style={{ height: '100%', width: '100%', minHeight: 400, borderRadius: 12 }}
-      scrollWheelZoom={true}
-      dragging={true}
-      doubleClickZoom={true}
-      zoomControl={false}
-      attributionControl={false}
-    >
-      <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution={"&copy; <a href='https://carto.com/attributions'>CARTO</a>"}
-      />
-      <CaptureMapInstance onMapReady={onMapReady} />
-      <CaptureMapClicks onMapClick={onMapClick} />
-      <CenterMapOnUser userLocation={userLocation || null} />
-      {/* User pin */}
-      {userLocation && (
-        <Marker position={[userLocation.lat, userLocation.lng] as LatLngExpression} icon={userIcon as Icon} />
-      )}
-      {/* Other users */}
-      {users && users.filter(u => u.lat && u.lng && u.id !== 'me').map((user) => (
-        <Marker
-          key={user.id}
-          position={[user.lat, user.lng] as LatLngExpression}
-          icon={otherIcon as Icon}
-          eventHandlers={{ click: () => onPinClick(user) }}
-        />
-      ))}
-    </MapContainer>
+    <div
+      ref={containerRef}
+      className="cruush-map h-full min-h-[400px] w-full overflow-hidden bg-background"
+      data-testid="maplibre-map"
+    />
   );
 }
 

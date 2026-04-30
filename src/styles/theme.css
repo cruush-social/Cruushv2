@@ -209,6 +209,10 @@
     display: none;
   }
 
+  .cruush-map .maplibregl-canvas {
+    filter: brightness(1.2) contrast(1.14) saturate(0.9);
+  }
+
   /* Pulse animation for map pins */
   @keyframes pulse {
     0%, 100% {

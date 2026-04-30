@@ -2,7 +2,7 @@
 /// <reference types="vite/client" />
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import type { Map as LeafletMap } from 'leaflet';
+import type { CruushMapInstance } from './MapView';
 import { Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
@@ -35,7 +35,7 @@ export default function MapHome() {
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mapInstance, setMapInstance] = useState<LeafletMap | null>(null);
+  const [mapInstance, setMapInstance] = useState<CruushMapInstance | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [usingPreviewData, setUsingPreviewData] = useState(false);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
@@ -115,11 +115,12 @@ export default function MapHome() {
     : users;
 
   return (
-    <div className="h-screen relative">
-      <div className="absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-background/95 via-background/72 to-transparent px-4 pb-8 pt-4 backdrop-blur-sm">
+    <div className="relative h-screen overflow-hidden bg-background">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
+      <div className="absolute inset-x-0 top-0 z-30 px-5 pb-12 pt-5">
         <div className="flex items-center justify-between">
           <h1
-            className="text-3xl tracking-tight"
+            className="text-3xl tracking-tight drop-shadow-[0_0_18px_rgba(122,43,255,0.5)]"
             style={{
               fontFamily: 'UnifrakturMaguntia, serif',
               background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
@@ -131,12 +132,13 @@ export default function MapHome() {
             cruush
           </h1>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate('/lucky')}
               title="I'm Feeling Lucky"
+              className="rounded-full text-white/90 hover:bg-white/10"
             >
               <Sparkles className="w-5 h-5" />
             </Button>
@@ -145,10 +147,11 @@ export default function MapHome() {
               size="icon"
               onClick={() => navigate('/safety')}
               title="Safety Center"
+              className="rounded-full text-white/90 hover:bg-white/10"
             >
               <Shield className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" title="Notifications">
+            <Button variant="ghost" size="icon" title="Notifications" className="rounded-full text-white/90 hover:bg-white/10">
               <Bell className="w-5 h-5" />
             </Button>
             <Button
@@ -156,6 +159,7 @@ export default function MapHome() {
               size="icon"
               onClick={() => navigate('/settings')}
               title="Settings"
+              className="rounded-full text-white/90 hover:bg-white/10"
             >
               <SettingsIcon className="w-5 h-5" />
             </Button>
@@ -171,6 +175,8 @@ export default function MapHome() {
           userLocation={userLocation}
           onMapReady={setMapInstance}
         />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-80 bg-gradient-to-t from-background via-background/78 to-transparent" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
 
         {error ? (
           <div className="absolute left-4 right-20 top-24 z-20 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
@@ -197,8 +203,9 @@ export default function MapHome() {
           />
         ) : null}
 
-        <div className="absolute right-4 top-24 z-20 flex flex-col gap-2">
+        <div className="absolute right-4 top-28 z-30 flex flex-col items-end gap-2">
           <Button
+            className="rounded-full border border-white/15 px-5 shadow-[0_12px_35px_rgba(255,47,114,0.25)]"
             style={{
               background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
             }}
@@ -214,7 +221,7 @@ export default function MapHome() {
               variant="secondary"
               onClick={() => mapInstance?.zoomIn()}
               disabled={!mapInstance}
-              className="bg-card/90 backdrop-blur-sm"
+              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
             >
               <ZoomIn className="w-4 h-4" />
             </Button>
@@ -223,7 +230,7 @@ export default function MapHome() {
               variant="secondary"
               onClick={() => mapInstance?.zoomOut()}
               disabled={!mapInstance}
-              className="bg-card/90 backdrop-blur-sm"
+              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
             >
               <ZoomOut className="w-4 h-4" />
             </Button>
@@ -231,11 +238,15 @@ export default function MapHome() {
         </div>
 
         {users.length > 0 && (
-          <div className="absolute bottom-20 left-0 right-0 z-20 pb-2">
-            <div className="px-4 pb-2">
-              <p className="text-xs text-muted-foreground">Recently Active</p>
-            </div>
-            <div className="flex gap-3 overflow-x-auto px-4 scrollbar-hide">
+          <div className="absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 px-4">
+            <div className="mx-auto max-w-5xl rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+              <div className="mb-2 flex items-center justify-between px-1">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/70">Recently Active</p>
+                <div className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] text-white/75">
+                  Last Active
+                </div>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
               {users
                 .sort((a, b) => {
                   const aMinutes = getLastActiveMinutes(a.lastActive);
@@ -247,23 +258,24 @@ export default function MapHome() {
                   <button
                     key={user.id}
                     onClick={() => handleUserSelect(user)}
-                    className="flex-shrink-0 w-20"
+                    className="group flex w-16 flex-shrink-0 flex-col items-center text-center"
                   >
                     <div className="relative">
                       <HeartPhoto
-                        className="w-20"
+                        className="w-16 transition-transform group-hover:scale-105"
                         label={`${user.name} preview`}
                         photo={user.photo}
-                        fallback={<Heart className="w-8 h-8 text-white/20" />}
+                        fallback={<Heart className="w-6 h-6 text-white/22" />}
                       />
-                      <div className="absolute top-1 left-1 bg-black/80 backdrop-blur-sm px-1.5 py-0.5 rounded text-[10px] font-mono text-white/90">
+                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-black/80 px-2 py-0.5 font-mono text-[10px] text-white/90 shadow-lg backdrop-blur-sm">
                         {user.lastActive}
                       </div>
                     </div>
-                    <p className="text-xs mt-1 truncate">{user.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{user.distance}</p>
+                    <p className="mt-1 w-full truncate text-xs text-white/90">{user.name}</p>
+                    <p className="text-[10px] text-white/45">{user.distance}</p>
                   </button>
                 ))}
+              </div>
             </div>
           </div>
         )}
