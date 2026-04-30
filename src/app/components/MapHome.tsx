@@ -43,7 +43,12 @@ export default function MapHome() {
   const lastSyncedLocationKeyRef = useRef<string | null>(null);
 
   const openProfile = (user: DiscoveryUser) => {
-    navigate(`/profile/${user.id}`);
+    navigate(`/profile/${user.id}`, {
+      state: {
+        distance: user.distance,
+        lastActive: user.lastActive,
+      },
+    });
   };
 
   const handleUserSelect = (user: DiscoveryUser) => {

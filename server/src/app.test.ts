@@ -1048,6 +1048,76 @@ describe("server", () => {
     });
   });
 
+  it("returns another user's profile on GET /api/profiles/:userId", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        display_name: "Alex",
+        photos: ["https://example.com/alex.jpg"],
+        bio: "Nearby now",
+        pronouns: ["they/them"],
+        custom_pronouns: "",
+        year_of_birth: 1998,
+        ethnicity: ["Latinx"],
+        identities: ["Non-binary"],
+        presentation: ["Femme"],
+        sexuality: ["Queer"],
+        body_type: ["Athletic"],
+        height: "5'8\"",
+        weight: "155 lbs",
+        position: ["Vers"],
+        availability: ["Now"],
+        hosting_travel: ["Hosting"],
+        kinks: ["Leather"],
+        vibes: ["Playful"],
+        hobbies: ["Hiking"],
+        custom_hobby: "",
+        looking_for: ["Dates"],
+        hiv_status: ["Negative"],
+        custom_hiv_status: "",
+        condoms: ["Always"],
+        custom_condoms: "",
+        prep: ["Daily"],
+        custom_prep: "",
+        doxypep: ["Sometimes"],
+        custom_doxypep: "",
+        covid_vaccine: ["Boosted"],
+        custom_covid_vaccine: "",
+        mpox_vaccine: ["Vaccinated"],
+        custom_mpox_vaccine: "",
+        smoking: ["Never"],
+        custom_smoking: "",
+        drinking: ["Socially"],
+        custom_drinking: "",
+        drugs: ["No"],
+        custom_drugs: "",
+        weed: ["Occasionally"],
+        custom_weed: "",
+        updated_at: "2026-04-28T12:00:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("from profiles"), ["53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"]);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        display_name: "Alex",
+        bio: "Nearby now",
+        pronouns: ["they/them"],
+        looking_for: ["Dates"]
+      })
+    });
+  });
+
   it("returns 404 when the profile does not exist", async () => {
     query.mockResolvedValueOnce({ rows: [] });
 

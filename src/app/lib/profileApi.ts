@@ -99,6 +99,10 @@ export async function getMyProfile() {
   return requestApi<ProfileRecord>('/api/profiles/me');
 }
 
+export async function getProfileById(userId: string) {
+  return requestApi<ProfileRecord>(`/api/profiles/${userId}`);
+}
+
 export async function saveMyProfile(profile: ProfilePayload) {
   return requestApi<ProfileRecord>('/api/profiles/me', {
     method: 'PUT',

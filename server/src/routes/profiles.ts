@@ -191,6 +191,12 @@ function mapProfileLocationRow(row: ProfileLocationRow) {
 }
 
 async function loadProfile(app: FastifyInstance, userId: string, reply: FastifyReply) {
+  return reply.send({
+    data: await loadProfileData(app, userId)
+  });
+}
+
+async function loadProfileData(app: FastifyInstance, userId: string) {
   const result = await app.db.query<ProfileRow>(
     `select ${PROFILE_COLUMNS.join(", ")}, updated_at
      from profiles
@@ -202,15 +208,22 @@ async function loadProfile(app: FastifyInstance, userId: string, reply: FastifyR
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
 
-  return reply.send({
-    data: mapProfileRow(result.rows[0])
-  });
+  return mapProfileRow(result.rows[0]);
 }
 
 export async function registerProfileRoutes(app: FastifyInstance) {
   app.get("/api/profiles/me", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     return loadProfile(app, userId, reply);
+  });
+
+  app.get("/api/profiles/:userId", async (request, reply) => {
+    await getAuthenticatedUserId(request);
+    const { userId } = request.params as { userId: string };
+
+    return reply.send({
+      data: await loadProfileData(app, userId)
+    });
   });
 
   app.put("/api/profiles/me", async (request, reply) => {
