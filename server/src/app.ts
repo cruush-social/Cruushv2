@@ -35,6 +35,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
 
       callback(null, false);
     },
+    methods: ["GET", "POST", "PUT", "OPTIONS"],
     credentials: true
   });
 

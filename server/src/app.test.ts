@@ -116,6 +116,20 @@ describe("server", () => {
     expect(allowedResponse.statusCode).toBe(204);
     expect(allowedResponse.headers["access-control-allow-origin"]).toBe("https://staging.cruush.app");
     expect(allowedResponse.headers["access-control-allow-credentials"]).toBe("true");
+    expect(allowedResponse.headers["access-control-allow-methods"]).toContain("POST");
+
+    const putResponse = await corsApp.inject({
+      method: "OPTIONS",
+      url: "/api/profiles/me",
+      headers: {
+        origin: "https://staging.cruush.app",
+        "access-control-request-method": "PUT"
+      }
+    });
+
+    expect(putResponse.statusCode).toBe(204);
+    expect(putResponse.headers["access-control-allow-origin"]).toBe("https://staging.cruush.app");
+    expect(putResponse.headers["access-control-allow-methods"]).toContain("PUT");
 
     const blockedResponse = await corsApp.inject({
       method: "OPTIONS",
