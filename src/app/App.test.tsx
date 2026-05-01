@@ -65,9 +65,41 @@ vi.mock('./components/CruushActivity', () => ({
 }));
 
 vi.mock('./components/Auth', () => ({
-  default: ({ onAuth }: { onAuth: (session: { needsOnboarding: boolean }) => void }) => (
-    <button onClick={() => onAuth({ needsOnboarding: false })}>Mock Auth</button>
+  default: ({ onAuth }: { onAuth: (session: {
+    user: {
+      id: string;
+      email: string;
+      displayName: string;
+      emailVerifiedAt: string;
+      createdAt: string;
+    };
+    profile: null;
+    needsOnboarding: boolean;
+  }) => void }) => (
+    <button
+      onClick={() => onAuth({
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          displayName: 'Test User',
+          emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+          createdAt: '2026-04-28T12:00:00.000Z',
+        },
+        profile: null,
+        needsOnboarding: false,
+      })}
+    >
+      Mock Auth
+    </button>
   )
+}));
+
+vi.mock('./components/EmailVerificationGate', () => ({
+  default: () => <div>Mock Verify Gate</div>
+}));
+
+vi.mock('./components/ResetPassword', () => ({
+  default: () => <div>Mock Reset Password</div>
 }));
 
 vi.mock('./components/Settings', () => ({
@@ -100,7 +132,7 @@ describe('App', () => {
         id: 'user-1',
         email: 'test@example.com',
         displayName: 'Test User',
-        emailVerifiedAt: null,
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
         createdAt: '2026-04-28T12:00:00.000Z',
       },
       profile: {
@@ -126,5 +158,14 @@ describe('App', () => {
 
     expect(await screen.findByText('Mock Map')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/map');
+  });
+
+  it('renders the reset password route while signed out', async () => {
+    loadCurrentSession.mockResolvedValue(null);
+    window.history.replaceState({}, '', '/reset-password?token=reset-token-1234567890');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
   });
 });

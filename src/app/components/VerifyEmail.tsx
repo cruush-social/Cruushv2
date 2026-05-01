@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { verifyEmailToken } from '../lib/authApi';
-import { clearVerificationPreviewUrl, persistSessionUser } from '../lib/sessionUser';
+import { clearVerificationPreviewUrl } from '../lib/sessionUser';
 import { Button } from './ui/button';
 
 type VerifyState =
@@ -25,15 +25,14 @@ export default function VerifyEmail() {
       }
 
       try {
-        const session = await verifyEmailToken(token);
+        await verifyEmailToken(token);
 
         if (!isActive) {
           return;
         }
 
-        persistSessionUser(session);
         clearVerificationPreviewUrl();
-        setState({ status: 'success', message: 'Your email is verified.' });
+        setState({ status: 'success', message: 'Your email is verified. Sign in to continue.' });
       } catch (error) {
         if (!isActive) {
           return;
@@ -67,7 +66,7 @@ export default function VerifyEmail() {
               window.location.href = '/';
             }}
           >
-            Return to cruush
+            Sign in
           </Button>
         ) : null}
       </div>

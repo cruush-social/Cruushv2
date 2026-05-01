@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 
 export type ErrorCode =
   | "AUTH_REQUIRED"
+  | "EMAIL_VERIFICATION_REQUIRED"
   | "FORBIDDEN"
   | "LOCATION_STORAGE_UNAVAILABLE"
   | "NOT_FOUND"

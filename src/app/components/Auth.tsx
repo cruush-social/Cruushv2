@@ -1,27 +1,62 @@
-import { useState } from 'react';
-import { Heart } from 'lucide-react';
-import { signIn, signUp, type AuthSessionPayload } from '../lib/authApi';
-import { persistSessionUser } from '../lib/sessionUser';
+import { useCallback, useState } from 'react';
+import { Heart, MailCheck } from 'lucide-react';
+import { requestPasswordReset, signIn, signUp, type AuthSessionPayload } from '../lib/authApi';
+import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
+import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 
 interface AuthProps {
   onAuth: (session: AuthSessionPayload) => void;
 }
 
 export default function Auth({ onAuth }: AuthProps) {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [verificationPreviewUrl, setLocalVerificationPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const isSignUp = mode === 'signup';
+  const isForgotPassword = mode === 'forgot';
+  const turnstileSiteKey = getTurnstileSiteKey();
+  const handleCaptchaTokenChange = useCallback((token: string) => {
+    setCaptchaToken(token);
+  }, []);
+
+  const resetCaptcha = () => {
+    setCaptchaToken('');
+    setCaptchaResetKey((current) => current + 1);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
     setIsLoading(true);
 
-    // Validation
+    if (isForgotPassword) {
+      try {
+        const delivery = await requestPasswordReset(email);
+        setLocalVerificationPreviewUrl(delivery.previewUrl);
+        setNotice('If that email belongs to an account, a reset link is on the way.');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unable to request a password reset.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    if (turnstileSiteKey && !captchaToken) {
+      setError('Complete the captcha to continue.');
+      setIsLoading(false);
+      return;
+    }
+
     if (isSignUp) {
       if (!displayName.trim()) {
         setError('Display name is required');
@@ -47,18 +82,25 @@ export default function Auth({ onAuth }: AuthProps) {
 
     try {
       if (isSignUp) {
-        const session = await signUp({
+        const delivery = await signUp({
           email,
           password,
           displayName: displayName.trim(),
+          captchaToken,
         });
-        persistSessionUser(session);
+        setVerificationPreviewUrl(delivery.previewUrl);
+        setLocalVerificationPreviewUrl(delivery.previewUrl);
+        setNotice('Check your email to verify your account, then sign in.');
+        setMode('signin');
+        setPassword('');
+        setConfirmPassword('');
         setIsLoading(false);
-        onAuth(session);
+        resetCaptcha();
       } else {
         const session = await signIn({
           email,
           password,
+          captchaToken,
         });
         persistSessionUser(session);
         setIsLoading(false);
@@ -67,13 +109,37 @@ export default function Auth({ onAuth }: AuthProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
       setIsLoading(false);
+      resetCaptcha();
     }
   };
 
   const toggleMode = () => {
-    setIsSignUp(!isSignUp);
+    setMode(isSignUp ? 'signin' : 'signup');
     setError('');
+    setNotice('');
     setConfirmPassword('');
+    setLocalVerificationPreviewUrl(null);
+    resetCaptcha();
+  };
+
+  const showForgotPassword = () => {
+    setMode('forgot');
+    setError('');
+    setNotice('');
+    setPassword('');
+    setConfirmPassword('');
+    setLocalVerificationPreviewUrl(null);
+    resetCaptcha();
+  };
+
+  const showSignIn = () => {
+    setMode('signin');
+    setError('');
+    setNotice('');
+    setPassword('');
+    setConfirmPassword('');
+    setLocalVerificationPreviewUrl(null);
+    resetCaptcha();
   };
 
   return (
@@ -126,7 +192,21 @@ export default function Auth({ onAuth }: AuthProps) {
             </div>
           )}
 
-          {isSignUp && (
+          {notice && (
+            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-2">
+              <div className="flex items-start gap-2">
+                <MailCheck className="mt-0.5 h-4 w-4 text-[#22b8ff]" />
+                <span>{notice}</span>
+              </div>
+              {verificationPreviewUrl ? (
+                <a className="block text-[#22b8ff] underline" href={verificationPreviewUrl}>
+                  Open link
+                </a>
+              ) : null}
+            </div>
+          )}
+
+          {!isForgotPassword && isSignUp && (
             <div className="space-y-2">
               <label htmlFor="displayName" className="text-sm text-white/60">
                 Display Name
@@ -160,24 +240,26 @@ export default function Auth({ onAuth }: AuthProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="password" className="text-sm text-white/60">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff2f72]/50 transition-colors rounded-sm"
-              required
-              disabled={isLoading}
-              minLength={isSignUp ? 8 : 1}
-            />
-          </div>
+          {!isForgotPassword && (
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm text-white/60">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff2f72]/50 transition-colors rounded-sm"
+                required
+                disabled={isLoading}
+                minLength={isSignUp ? 8 : 1}
+              />
+            </div>
+          )}
 
-          {isSignUp && (
+          {!isForgotPassword && isSignUp && (
             <div className="space-y-2">
               <label htmlFor="confirmPassword" className="text-sm text-white/60">
                 Confirm Password
@@ -193,6 +275,10 @@ export default function Auth({ onAuth }: AuthProps) {
                 disabled={isLoading}
               />
             </div>
+          )}
+
+          {!isForgotPassword && (
+            <Turnstile onTokenChange={handleCaptchaTokenChange} resetKey={captchaResetKey} />
           )}
 
           <button
@@ -221,21 +307,38 @@ export default function Auth({ onAuth }: AuthProps) {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                {isSignUp ? 'Creating Account...' : 'Signing In...'}
+                {isSignUp ? 'Creating Account...' : isForgotPassword ? 'Sending Reset Link...' : 'Signing In...'}
               </span>
             ) : (
-              <>{isSignUp ? 'Create Account' : 'Sign In'}</>
+              <>{isSignUp ? 'Create Account' : isForgotPassword ? 'Send Reset Link' : 'Sign In'}</>
             )}
           </button>
 
-          <button
-            type="button"
-            onClick={toggleMode}
-            disabled={isLoading}
-            className="w-full text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-50"
-          >
-            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-          </button>
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={isForgotPassword ? showSignIn : toggleMode}
+              disabled={isLoading}
+              className="w-full text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-50"
+            >
+              {isForgotPassword
+                ? 'Back to sign in'
+                : isSignUp
+                  ? 'Already have an account? Sign in'
+                  : "Don't have an account? Sign up"}
+            </button>
+
+            {!isSignUp && !isForgotPassword ? (
+              <button
+                type="button"
+                onClick={showForgotPassword}
+                disabled={isLoading}
+                className="w-full text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-50"
+              >
+                Forgot your password?
+              </button>
+            ) : null}
+          </div>
         </form>
 
         <p className="text-xs text-center text-white/30">

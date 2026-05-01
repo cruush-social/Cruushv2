@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
+import { hashPassword, hashSessionToken } from "./auth.js";
 
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
@@ -13,7 +14,8 @@ const app = buildServer({
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
-  MAIL_FROM: ""
+  MAIL_FROM: "",
+  TURNSTILE_SECRET_KEY: ""
 }, {
   db: {
     query,
@@ -30,7 +32,8 @@ const developmentApp = buildServer({
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
-  MAIL_FROM: ""
+  MAIL_FROM: "",
+  TURNSTILE_SECRET_KEY: ""
 }, {
   db: {
     query,
@@ -47,7 +50,26 @@ const corsApp = buildServer({
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
-  MAIL_FROM: ""
+  MAIL_FROM: "",
+  TURNSTILE_SECRET_KEY: ""
+}, {
+  db: {
+    query,
+    end
+  }
+});
+
+const turnstileApp = buildServer({
+  NODE_ENV: "test",
+  PORT: 3001,
+  HOST: "127.0.0.1",
+  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  CORS_ORIGIN: "http://localhost:5173",
+  SESSION_SECRET: "test-secret",
+  APP_URL: "https://cruush.test",
+  RESEND_API_KEY: "",
+  MAIL_FROM: "",
+  TURNSTILE_SECRET_KEY: "turnstile-secret"
 }, {
   db: {
     query,
@@ -59,6 +81,7 @@ afterAll(async () => {
   await app.close();
   await developmentApp.close();
   await corsApp.close();
+  await turnstileApp.close();
 });
 
 beforeEach(() => {
@@ -143,7 +166,7 @@ describe("server", () => {
     expect(blockedResponse.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
-  it("creates a session cookie on POST /api/auth/signup", async () => {
+  it("creates a verification token on POST /api/auth/signup without signing in", async () => {
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -155,11 +178,11 @@ describe("server", () => {
         }]
       })
       .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
         rows: [{
-          id: "session-1",
-          user_id: userId,
-          expires_at: "2026-05-28T12:00:00.000Z",
-          created_at: "2026-04-28T12:00:00.000Z"
+          expires_at: "2026-04-30T12:00:00.000Z"
         }]
       });
 
@@ -175,21 +198,194 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
-    expect(query.mock.calls[1]?.[0]).toContain("insert into app_sessions");
-    expect(response.headers["set-cookie"]).toContain("cruush_session=");
-    expect(response.headers["set-cookie"]).toContain("HttpOnly");
-    expect(response.headers["set-cookie"]).toContain("SameSite=Lax");
+    expect(query.mock.calls[1]?.[0]).toContain("delete from email_verification_tokens");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into email_verification_tokens");
+    expect(response.headers["set-cookie"]).toBeUndefined();
     expect(response.json()).toEqual({
       data: {
-        user: {
+        alreadyVerified: false,
+        email: "river@example.com",
+        expiresAt: "2026-04-30T12:00:00.000Z",
+        previewUrl: expect.stringContaining("https://cruush.test/verify-email?token=")
+      }
+    });
+  });
+
+  it("requires a valid Turnstile token on signup when configured", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ success: false })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await turnstileApp.inject({
+      method: "POST",
+      url: "/api/auth/signup",
+      payload: {
+        email: "river@example.com",
+        password: "password-123",
+        displayName: "River",
+        captchaToken: "invalid-captcha"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      expect.objectContaining({
+        method: "POST"
+      })
+    );
+    expect(query).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects login before email verification", async () => {
+    const passwordHash = await hashPassword("password-123");
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: userId,
+        email: "river@example.com",
+        password_hash: passwordHash,
+        display_name: "River",
+        email_verified_at: null,
+        created_at: "2026-04-28T12:00:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "river@example.com",
+        password: "password-123"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.headers["set-cookie"]).toBeUndefined();
+    expect(response.json()).toEqual({
+      error: {
+        code: "EMAIL_VERIFICATION_REQUIRED",
+        message: "Verify your email before signing in.",
+        details: null
+      }
+    });
+  });
+
+  it("requires a valid Turnstile token on login when configured", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ success: false })
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await turnstileApp.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "river@example.com",
+        password: "password-123",
+        captchaToken: "invalid-captcha"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("sends a password reset email without leaking whether the account exists", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
           id: userId,
-          email: "river@example.com",
-          displayName: "River",
-          emailVerifiedAt: null,
-          createdAt: "2026-04-28T12:00:00.000Z"
-        },
-        profile: null,
-        needsOnboarding: true
+          email: "river@example.com"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          expires_at: "2026-04-30T12:00:00.000Z"
+        }]
+      });
+
+    const existingResponse = await app.inject({
+      method: "POST",
+      url: "/api/auth/password/forgot",
+      payload: {
+        email: "river@example.com"
+      }
+    });
+
+    expect(existingResponse.statusCode).toBe(202);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_users");
+    expect(query.mock.calls[1]?.[0]).toContain("delete from password_reset_tokens");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into password_reset_tokens");
+    expect(existingResponse.json()).toEqual({
+      data: {
+        accepted: true,
+        previewUrl: expect.stringContaining("https://cruush.test/reset-password?token=")
+      }
+    });
+
+    query.mockReset();
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const missingResponse = await app.inject({
+      method: "POST",
+      url: "/api/auth/password/forgot",
+      payload: {
+        email: "missing@example.com"
+      }
+    });
+
+    expect(missingResponse.statusCode).toBe(202);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(missingResponse.json()).toEqual({
+      data: {
+        accepted: true,
+        previewUrl: null
+      }
+    });
+  });
+
+  it("resets a password with a valid reset token and deletes outstanding reset tokens", async () => {
+    const resetToken = "reset-token-1234567890";
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/password/reset",
+      payload: {
+        token: resetToken,
+        password: "new-password-123"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from password_reset_tokens");
+    expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken(resetToken)]);
+    expect(query.mock.calls[1]?.[0]).toContain("update app_users");
+    expect(query.mock.calls[2]?.[0]).toContain("delete from password_reset_tokens");
+    expect(response.json()).toEqual({
+      data: {
+        reset: true
       }
     });
   });
@@ -330,19 +526,8 @@ describe("server", () => {
     expect(query.mock.calls[2]?.[0]).toContain("delete from email_verification_tokens");
     expect(response.json()).toEqual({
       data: {
-        user: {
-          id: userId,
-          email: "river@example.com",
-          displayName: "River",
-          emailVerifiedAt: "2026-04-29T12:05:00.000Z",
-          createdAt: "2026-04-28T12:00:00.000Z"
-        },
-        profile: {
-          displayName: "River",
-          yearOfBirth: 1998
-        },
-        needsOnboarding: false,
-        verified: true
+        verified: true,
+        email: "river@example.com"
       }
     });
   });

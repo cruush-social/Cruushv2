@@ -18,6 +18,8 @@ import Settings from './components/Settings';
 import FeelingLucky from './components/FeelingLucky';
 import RequestsDashboard from './components/RequestsDashboard';
 import VerifyEmail from './components/VerifyEmail';
+import EmailVerificationGate from './components/EmailVerificationGate';
+import ResetPassword from './components/ResetPassword';
 import BottomNav from './components/BottomNav';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import { loadCurrentSession } from './lib/sessionUser';
@@ -29,6 +31,7 @@ function redirectToMap() {
 
 export default function App() {
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
+  const [session, setSession] = useState<AuthSessionPayload | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
@@ -43,11 +46,13 @@ export default function App() {
         }
 
         if (!session) {
+          setSession(null);
           setNeedsOnboarding(false);
           setAuthStatus('signed_out');
           return;
         }
 
+        setSession(session);
         setNeedsOnboarding(session.needsOnboarding);
         setAuthStatus('signed_in');
       } catch {
@@ -68,9 +73,25 @@ export default function App() {
   }, []);
 
   const handleAuth = (session: AuthSessionPayload) => {
-    redirectToMap();
+    setSession(session);
+    if (session.user.emailVerifiedAt) {
+      redirectToMap();
+    }
     setNeedsOnboarding(session.needsOnboarding);
     setAuthStatus('signed_in');
+  };
+
+  const handleVerified = (nextSession: AuthSessionPayload) => {
+    setSession(nextSession);
+    setNeedsOnboarding(nextSession.needsOnboarding);
+    redirectToMap();
+    setAuthStatus('signed_in');
+  };
+
+  const handleSignedOut = () => {
+    setSession(null);
+    setNeedsOnboarding(false);
+    setAuthStatus('signed_out');
   };
 
   const handleOnboardingComplete = () => {
@@ -91,7 +112,29 @@ export default function App() {
       <BrowserRouter key="public-router">
         <Routes>
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="*" element={<Auth onAuth={handleAuth} />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  if (!session?.user.emailVerifiedAt) {
+    return (
+      <BrowserRouter key="verification-router">
+        <Routes>
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route
+            path="*"
+            element={(
+              <EmailVerificationGate
+                email={session?.user.email ?? ''}
+                onSignedOut={handleSignedOut}
+                onVerified={handleVerified}
+              />
+            )}
+          />
         </Routes>
       </BrowserRouter>
     );

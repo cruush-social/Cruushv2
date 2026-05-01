@@ -42,7 +42,8 @@ const configSchema = z.object({
   SESSION_SECRET: z.string().min(1, "SESSION_SECRET is required"),
   APP_URL: z.string().url().default("http://localhost:5173"),
   RESEND_API_KEY: z.string().optional().default(""),
-  MAIL_FROM: z.string().optional().default("")
+  MAIL_FROM: z.string().optional().default(""),
+  TURNSTILE_SECRET_KEY: z.string().optional().default("")
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

@@ -11,8 +11,15 @@ import {
   shouldUseSecureCookies,
   verifyPassword
 } from "../auth.js";
-import { sendVerificationEmail } from "../mailer.js";
-import { signInPayloadSchema, signUpPayloadSchema, verifyEmailPayloadSchema } from "../auth-schema.js";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../mailer.js";
+import {
+  forgotPasswordPayloadSchema,
+  resetPasswordPayloadSchema,
+  signInPayloadSchema,
+  signUpPayloadSchema,
+  verifyEmailPayloadSchema
+} from "../auth-schema.js";
+import { verifyTurnstileToken } from "../turnstile.js";
 
 type SessionLookupRow = {
   user_id: string;
@@ -55,6 +62,15 @@ type VerificationLookupRow = {
   user_id: string;
 };
 
+type PasswordResetUserRow = {
+  id: string;
+  email: string;
+};
+
+type PasswordResetLookupRow = {
+  user_id: string;
+};
+
 function mapSessionRow(row: AuthUserRow) {
   const displayName = row.app_display_name?.trim() || row.profile_display_name?.trim() || row.email;
   const profileDisplayName = row.profile_display_name?.trim() || null;
@@ -92,6 +108,50 @@ async function createSession(app: FastifyInstance, userId: string) {
   return {
     token,
     expiresAt,
+  };
+}
+
+async function createVerificationToken(app: FastifyInstance, userId: string) {
+  await app.db.query(
+    "delete from email_verification_tokens where user_id = $1",
+    [userId]
+  );
+
+  const token = generateSessionToken();
+  const tokenHash = hashSessionToken(token);
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+  const result = await app.db.query<VerificationTokenRow>(
+    `insert into email_verification_tokens (user_id, token_hash, expires_at)
+     values ($1, $2, $3)
+     returning expires_at`,
+    [userId, tokenHash, expiresAt.toISOString()]
+  );
+
+  return {
+    token,
+    expiresAt: new Date(result.rows[0].expires_at)
+  };
+}
+
+async function createPasswordResetToken(app: FastifyInstance, userId: string) {
+  await app.db.query(
+    "delete from password_reset_tokens where user_id = $1",
+    [userId]
+  );
+
+  const token = generateSessionToken();
+  const tokenHash = hashSessionToken(token);
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
+  const result = await app.db.query<VerificationTokenRow>(
+    `insert into password_reset_tokens (user_id, token_hash, expires_at)
+     values ($1, $2, $3)
+     returning expires_at`,
+    [userId, tokenHash, expiresAt.toISOString()]
+  );
+
+  return {
+    token,
+    expiresAt: new Date(result.rows[0].expires_at)
   };
 }
 
@@ -164,9 +224,17 @@ function buildVerificationUrl(request: FastifyRequest, token: string) {
   return verificationUrl.toString();
 }
 
+function buildPasswordResetUrl(request: FastifyRequest, token: string) {
+  const baseUrl = request.server.config.APP_URL || request.headers.origin || request.server.config.CORS_ORIGIN;
+  const resetUrl = new URL("/reset-password", baseUrl);
+  resetUrl.searchParams.set("token", token);
+  return resetUrl.toString();
+}
+
 export async function registerAuthRoutes(app: FastifyInstance) {
   app.post("/api/auth/signup", async (request, reply) => {
     const payload = signUpPayloadSchema.parse(request.body);
+    await verifyTurnstileToken(request, payload.captchaToken);
     const passwordHash = await hashPassword(payload.password);
 
     let createdUser: CreatedUserRow;
@@ -192,26 +260,27 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       throw error;
     }
 
-    const session = await createSession(app, createdUser.id);
-    setSessionCookie(reply, request, session.token, session.expiresAt);
+    const verification = await createVerificationToken(app, createdUser.id);
+    const preview = await sendVerificationEmail({
+      config: request.server.config,
+      email: createdUser.email,
+      logger: request.log,
+      verificationUrl: buildVerificationUrl(request, verification.token)
+    });
 
     return reply.code(201).send({
       data: {
-        user: {
-          id: createdUser.id,
-          email: createdUser.email,
-          displayName: createdUser.display_name?.trim() || createdUser.email,
-          emailVerifiedAt: createdUser.email_verified_at ? new Date(createdUser.email_verified_at).toISOString() : null,
-          createdAt: new Date(createdUser.created_at).toISOString(),
-        },
-        profile: null,
-        needsOnboarding: true,
+        alreadyVerified: false,
+        email: createdUser.email,
+        expiresAt: verification.expiresAt.toISOString(),
+        previewUrl: preview.previewUrl
       }
     });
   });
 
   app.post("/api/auth/login", async (request, reply) => {
     const payload = signInPayloadSchema.parse(request.body);
+    await verifyTurnstileToken(request, payload.captchaToken);
     const result = await app.db.query<PasswordUserRow>(
       `select id, email, password_hash, display_name, email_verified_at, created_at
        from app_users
@@ -226,11 +295,95 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 
+    if (!user.email_verified_at) {
+      throw new ApiError(403, "EMAIL_VERIFICATION_REQUIRED", "Verify your email before signing in.");
+    }
+
     const session = await createSession(app, user.id);
     setSessionCookie(reply, request, session.token, session.expiresAt);
 
     return reply.send({
       data: await loadAuthSession(app, user.id)
+    });
+  });
+
+  app.post("/api/auth/password/forgot", async (request, reply) => {
+    const payload = forgotPasswordPayloadSchema.parse(request.body);
+    const result = await app.db.query<PasswordResetUserRow>(
+      `select id, email
+       from app_users
+       where email = $1
+       limit 1`,
+      [payload.email]
+    );
+
+    const user = result.rows[0];
+
+    if (!user) {
+      return reply.code(202).send({
+        data: {
+          accepted: true,
+          previewUrl: null
+        }
+      });
+    }
+
+    const reset = await createPasswordResetToken(app, user.id);
+    const preview = await sendPasswordResetEmail({
+      config: request.server.config,
+      email: user.email,
+      logger: request.log,
+      resetUrl: buildPasswordResetUrl(request, reset.token)
+    });
+
+    return reply.code(202).send({
+      data: {
+        accepted: true,
+        previewUrl: preview.previewUrl
+      }
+    });
+  });
+
+  app.post("/api/auth/password/reset", async (request, reply) => {
+    const payload = resetPasswordPayloadSchema.parse(request.body);
+    const tokenHash = hashSessionToken(payload.token);
+    const resetLookup = await app.db.query<PasswordResetLookupRow>(
+      `select user_id
+       from password_reset_tokens
+       where token_hash = $1
+         and expires_at > now()
+       limit 1`,
+      [tokenHash]
+    );
+
+    const resetToken = resetLookup.rows[0];
+
+    if (!resetToken) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Password reset link is invalid or expired.");
+    }
+
+    const passwordHash = await hashPassword(payload.password);
+    const updatedUser = await app.db.query<{ id: string }>(
+      `update app_users
+       set password_hash = $1
+       where id = $2
+       returning id`,
+      [passwordHash, resetToken.user_id]
+    );
+
+    if (!updatedUser.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Account not found.");
+    }
+
+    await app.db.query(
+      "delete from password_reset_tokens where user_id = $1",
+      [resetToken.user_id]
+    );
+
+    return reply.send({
+      data: {
+        reset: true
+      }
     });
   });
 
@@ -268,32 +421,18 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       });
     }
 
-    await app.db.query(
-      "delete from email_verification_tokens where user_id = $1",
-      [userId]
-    );
-
-    const token = generateSessionToken();
-    const tokenHash = hashSessionToken(token);
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
-    const insertResult = await app.db.query<VerificationTokenRow>(
-      `insert into email_verification_tokens (user_id, token_hash, expires_at)
-       values ($1, $2, $3)
-       returning expires_at`,
-      [userId, tokenHash, expiresAt.toISOString()]
-    );
-
+    const verification = await createVerificationToken(app, userId);
     const preview = await sendVerificationEmail({
       config: request.server.config,
       email: user.email,
       logger: request.log,
-      verificationUrl: buildVerificationUrl(request, token)
+      verificationUrl: buildVerificationUrl(request, verification.token)
     });
 
     return reply.code(202).send({
       data: {
         alreadyVerified: false,
-        expiresAt: new Date(insertResult.rows[0].expires_at).toISOString(),
+        expiresAt: verification.expiresAt.toISOString(),
         previewUrl: preview.previewUrl
       }
     });
@@ -334,12 +473,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       [verificationToken.user_id]
     );
 
-    const session = await loadAuthSession(app, verificationToken.user_id);
-
     return reply.send({
       data: {
-        ...session,
-        verified: true
+        verified: true,
+        email: updatedUser.rows[0].email
       }
     });
   });
