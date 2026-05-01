@@ -73,6 +73,13 @@ export function verifyEmailToken(token: string) {
   });
 }
 
+export function resendVerificationEmail(payload: { email: string; password: string }) {
+  return requestApi<VerificationDeliveryPayload>('/api/auth/verification/resend', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function requestPasswordReset(email: string) {
   return requestApi<PasswordResetRequestPayload>('/api/auth/password/forgot', {
     method: 'POST',

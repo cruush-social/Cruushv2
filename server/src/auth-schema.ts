@@ -28,5 +28,10 @@ export const resetPasswordPayloadSchema = z.object({
   password: z.string().min(8).max(200)
 }).strict();
 
+export const resendVerificationPayloadSchema = z.object({
+  email: authEmailSchema,
+  password: z.string().min(1).max(200)
+}).strict();
+
 export type SignUpPayload = z.infer<typeof signUpPayloadSchema>;
 export type SignInPayload = z.infer<typeof signInPayloadSchema>;

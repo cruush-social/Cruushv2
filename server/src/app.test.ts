@@ -481,6 +481,50 @@ describe("server", () => {
     });
   });
 
+  it("resends verification email from POST /api/auth/verification/resend for unverified credentials", async () => {
+    const passwordHash = await hashPassword("password-123");
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          password_hash: passwordHash,
+          display_name: "River",
+          email_verified_at: null,
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          expires_at: "2026-04-30T12:00:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/verification/resend",
+      payload: {
+        email: "river@example.com",
+        password: "password-123"
+      }
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_users");
+    expect(query.mock.calls[1]?.[0]).toContain("delete from email_verification_tokens");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into email_verification_tokens");
+    expect(response.json()).toEqual({
+      data: {
+        alreadyVerified: false,
+        expiresAt: "2026-04-30T12:00:00.000Z",
+        previewUrl: expect.stringContaining("https://cruush.test/verify-email?token=")
+      }
+    });
+  });
+
   it("verifies an email token on POST /api/auth/verification/verify", async () => {
     query
       .mockResolvedValueOnce({

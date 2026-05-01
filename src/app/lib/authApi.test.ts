@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   requestPasswordReset,
   resetPassword,
+  resendVerificationEmail,
   signIn,
   signUp
 } from './authApi';
@@ -60,6 +61,21 @@ describe('authApi', () => {
       body: JSON.stringify({
         token: 'reset-token-1234567890',
         password: 'new-password-123',
+      }),
+    }));
+  });
+
+  it('calls the verification resend endpoint', async () => {
+    await resendVerificationEmail({
+      email: 'river@example.com',
+      password: 'password-123',
+    });
+
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/auth/verification/resend', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        email: 'river@example.com',
+        password: 'password-123',
       }),
     }));
   });

@@ -1,6 +1,12 @@
 import { useCallback, useState } from 'react';
 import { Heart, MailCheck } from 'lucide-react';
-import { requestPasswordReset, signIn, signUp, type AuthSessionPayload } from '../lib/authApi';
+import {
+  requestPasswordReset,
+  resendVerificationEmail,
+  signIn,
+  signUp,
+  type AuthSessionPayload
+} from '../lib/authApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 
@@ -19,6 +25,7 @@ export default function Auth({ onAuth }: AuthProps) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [verificationPreviewUrl, setLocalVerificationPreviewUrl] = useState<string | null>(null);
+  const [verificationRetryAvailable, setVerificationRetryAvailable] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const isSignUp = mode === 'signup';
   const isForgotPassword = mode === 'forgot';
@@ -36,6 +43,7 @@ export default function Auth({ onAuth }: AuthProps) {
     e.preventDefault();
     setError('');
     setNotice('');
+    setVerificationRetryAvailable(false);
     setIsLoading(true);
 
     if (isForgotPassword) {
@@ -107,7 +115,17 @@ export default function Auth({ onAuth }: AuthProps) {
         onAuth(session);
       }
     } catch (err) {
+      const errorCode = err instanceof Error ? (err as Error & { code?: string }).code : undefined;
+
+      if (errorCode === 'EMAIL_VERIFICATION_REQUIRED') {
+        setError(err.message);
+        setVerificationRetryAvailable(true);
+        setIsLoading(false);
+        return;
+      }
+
       setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
+      setVerificationRetryAvailable(false);
       setIsLoading(false);
       resetCaptcha();
     }
@@ -117,6 +135,7 @@ export default function Auth({ onAuth }: AuthProps) {
     setMode(isSignUp ? 'signin' : 'signup');
     setError('');
     setNotice('');
+    setVerificationRetryAvailable(false);
     setConfirmPassword('');
     setLocalVerificationPreviewUrl(null);
     resetCaptcha();
@@ -126,6 +145,7 @@ export default function Auth({ onAuth }: AuthProps) {
     setMode('forgot');
     setError('');
     setNotice('');
+    setVerificationRetryAvailable(false);
     setPassword('');
     setConfirmPassword('');
     setLocalVerificationPreviewUrl(null);
@@ -136,10 +156,33 @@ export default function Auth({ onAuth }: AuthProps) {
     setMode('signin');
     setError('');
     setNotice('');
+    setVerificationRetryAvailable(false);
     setPassword('');
     setConfirmPassword('');
     setLocalVerificationPreviewUrl(null);
     resetCaptcha();
+  };
+
+  const handleResendVerification = async () => {
+    setError('');
+    setNotice('');
+    setIsLoading(true);
+
+    try {
+      const delivery = await resendVerificationEmail({
+        email,
+        password,
+      });
+      setVerificationPreviewUrl(delivery.previewUrl);
+      setLocalVerificationPreviewUrl(delivery.previewUrl);
+      setNotice('Verification email sent. Check your inbox, then sign in again.');
+      setVerificationRetryAvailable(false);
+      resetCaptcha();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to resend the verification email.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -205,6 +248,20 @@ export default function Auth({ onAuth }: AuthProps) {
               ) : null}
             </div>
           )}
+
+          {verificationRetryAvailable && !notice ? (
+            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-3">
+              <p>That account is not verified yet.</p>
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={isLoading}
+                className="w-full h-11 text-sm text-white bg-white/10 border border-white/15 rounded-sm hover:bg-white/15 disabled:opacity-50"
+              >
+                Resend verification email
+              </button>
+            </div>
+          ) : null}
 
           {!isForgotPassword && isSignUp && (
             <div className="space-y-2">

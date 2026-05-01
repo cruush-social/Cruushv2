@@ -15,6 +15,7 @@ import { sendPasswordResetEmail, sendVerificationEmail } from "../mailer.js";
 import {
   forgotPasswordPayloadSchema,
   resetPasswordPayloadSchema,
+  resendVerificationPayloadSchema,
   signInPayloadSchema,
   signUpPayloadSchema,
   verifyEmailPayloadSchema
@@ -383,6 +384,49 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     return reply.send({
       data: {
         reset: true
+      }
+    });
+  });
+
+  app.post("/api/auth/verification/resend", async (request, reply) => {
+    const payload = resendVerificationPayloadSchema.parse(request.body);
+    const result = await app.db.query<PasswordUserRow>(
+      `select id, email, password_hash, display_name, email_verified_at, created_at
+       from app_users
+       where email = $1
+       limit 1`,
+      [payload.email]
+    );
+
+    const user = result.rows[0];
+
+    if (!user || !(await verifyPassword(payload.password, user.password_hash))) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
+    }
+
+    if (user.email_verified_at) {
+      return reply.code(202).send({
+        data: {
+          alreadyVerified: true,
+          expiresAt: null,
+          previewUrl: null
+        }
+      });
+    }
+
+    const verification = await createVerificationToken(app, user.id);
+    const preview = await sendVerificationEmail({
+      config: request.server.config,
+      email: user.email,
+      logger: request.log,
+      verificationUrl: buildVerificationUrl(request, verification.token)
+    });
+
+    return reply.code(202).send({
+      data: {
+        alreadyVerified: false,
+        expiresAt: verification.expiresAt.toISOString(),
+        previewUrl: preview.previewUrl
       }
     });
   });
