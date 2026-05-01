@@ -38,9 +38,27 @@ const developmentApp = buildServer({
   }
 });
 
+const corsApp = buildServer({
+  NODE_ENV: "test",
+  PORT: 3001,
+  HOST: "127.0.0.1",
+  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  CORS_ORIGIN: "https://www.cruush.app,https://staging.cruush.app",
+  SESSION_SECRET: "test-secret",
+  APP_URL: "https://cruush.test",
+  RESEND_API_KEY: "",
+  MAIL_FROM: ""
+}, {
+  db: {
+    query,
+    end
+  }
+});
+
 afterAll(async () => {
   await app.close();
   await developmentApp.close();
+  await corsApp.close();
 });
 
 beforeEach(() => {
@@ -83,6 +101,32 @@ describe("server", () => {
         details: null
       }
     });
+  });
+
+  it("allows only configured CORS origins", async () => {
+    const allowedResponse = await corsApp.inject({
+      method: "OPTIONS",
+      url: "/api/auth/signup",
+      headers: {
+        origin: "https://staging.cruush.app",
+        "access-control-request-method": "POST"
+      }
+    });
+
+    expect(allowedResponse.statusCode).toBe(204);
+    expect(allowedResponse.headers["access-control-allow-origin"]).toBe("https://staging.cruush.app");
+    expect(allowedResponse.headers["access-control-allow-credentials"]).toBe("true");
+
+    const blockedResponse = await corsApp.inject({
+      method: "OPTIONS",
+      url: "/api/auth/signup",
+      headers: {
+        origin: "https://evil.example",
+        "access-control-request-method": "POST"
+      }
+    });
+
+    expect(blockedResponse.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
   it("creates a session cookie on POST /api/auth/signup", async () => {

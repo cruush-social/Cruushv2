@@ -19,9 +19,22 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     logger: config.NODE_ENV !== "test"
   });
   const db = deps.db ?? createPool(config);
+  const allowedCorsOrigins = new Set(
+    config.CORS_ORIGIN
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  );
 
   void app.register(cors, {
-    origin: config.CORS_ORIGIN,
+    origin: (origin, callback) => {
+      if (!origin || allowedCorsOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(null, false);
+    },
     credentials: true
   });
 
