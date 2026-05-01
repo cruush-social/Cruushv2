@@ -168,4 +168,45 @@ describe('App', () => {
 
     expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
   });
+
+  it('renders the reset password route while signed in', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+    });
+    window.history.replaceState({}, '', '/reset-password?token=reset-token-1234567890');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
+  });
+
+  it('renders the reset password route while onboarding is required', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: null,
+      needsOnboarding: true,
+    });
+    window.history.replaceState({}, '', '/reset-password?token=reset-token-1234567890');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
+  });
 });

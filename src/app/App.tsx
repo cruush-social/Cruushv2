@@ -144,6 +144,8 @@ export default function App() {
     return (
       <BrowserRouter key="onboarding-router">
         <Routes>
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="*" element={<ProfileOnboarding onComplete={handleOnboardingComplete} />} />
         </Routes>
       </BrowserRouter>
@@ -164,6 +166,7 @@ export default function App() {
             <Route path="/filters" element={<FiltersPanel />} />
             <Route path="/safety" element={<SafetyCenter />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/groups/:groupId" element={<GroupDetail />} />
             <Route path="/events/:eventId" element={<EventDetail />} />
             <Route path="/places/:placeId" element={<PlaceDetail />} />
