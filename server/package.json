@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node --enable-source-maps dist/index.js",
+    "migrate": "node --enable-source-maps dist/migrate.js",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
