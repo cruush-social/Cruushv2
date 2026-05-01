@@ -20,6 +20,7 @@ import {
   signUpPayloadSchema,
   verifyEmailPayloadSchema
 } from "../auth-schema.js";
+import { assertRateLimit } from "../rate-limit.js";
 import { verifyTurnstileToken } from "../turnstile.js";
 
 type SessionLookupRow = {
@@ -71,6 +72,9 @@ type PasswordResetUserRow = {
 type PasswordResetLookupRow = {
   user_id: string;
 };
+
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
 function mapSessionRow(row: AuthUserRow) {
   const displayName = row.app_display_name?.trim() || row.profile_display_name?.trim() || row.email;
@@ -232,9 +236,38 @@ function buildPasswordResetUrl(request: FastifyRequest, token: string) {
   return resetUrl.toString();
 }
 
+function getRequestIp(request: FastifyRequest) {
+  return request.ip || "unknown";
+}
+
+function applyRateLimits(limits: Array<{
+  key: string;
+  max: number;
+  windowMs: number;
+  message: string;
+}>) {
+  for (const limit of limits) {
+    assertRateLimit(limit);
+  }
+}
+
 export async function registerAuthRoutes(app: FastifyInstance) {
   app.post("/api/auth/signup", async (request, reply) => {
     const payload = signUpPayloadSchema.parse(request.body);
+    applyRateLimits([
+      {
+        key: `signup:ip:${getRequestIp(request)}`,
+        max: 10,
+        windowMs: FIFTEEN_MINUTES_MS,
+        message: "Too many sign-up attempts. Try again later."
+      },
+      {
+        key: `signup:email:${payload.email}`,
+        max: 3,
+        windowMs: HOUR_MS,
+        message: "Too many sign-up attempts. Try again later."
+      }
+    ]);
     await verifyTurnstileToken(request, payload.captchaToken);
     const passwordHash = await hashPassword(payload.password);
 
@@ -281,6 +314,20 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/login", async (request, reply) => {
     const payload = signInPayloadSchema.parse(request.body);
+    applyRateLimits([
+      {
+        key: `login:ip:${getRequestIp(request)}`,
+        max: 30,
+        windowMs: FIFTEEN_MINUTES_MS,
+        message: "Too many sign-in attempts. Try again later."
+      },
+      {
+        key: `login:email:${payload.email}`,
+        max: 10,
+        windowMs: FIFTEEN_MINUTES_MS,
+        message: "Too many sign-in attempts. Try again later."
+      }
+    ]);
     await verifyTurnstileToken(request, payload.captchaToken);
     const result = await app.db.query<PasswordUserRow>(
       `select id, email, password_hash, display_name, email_verified_at, created_at
@@ -310,6 +357,20 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/password/forgot", async (request, reply) => {
     const payload = forgotPasswordPayloadSchema.parse(request.body);
+    applyRateLimits([
+      {
+        key: `password-forgot:ip:${getRequestIp(request)}`,
+        max: 20,
+        windowMs: HOUR_MS,
+        message: "Too many password reset requests. Try again later."
+      },
+      {
+        key: `password-forgot:email:${payload.email}`,
+        max: 5,
+        windowMs: HOUR_MS,
+        message: "Too many password reset requests. Try again later."
+      }
+    ]);
     const result = await app.db.query<PasswordResetUserRow>(
       `select id, email
        from app_users
@@ -347,6 +408,12 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/password/reset", async (request, reply) => {
     const payload = resetPasswordPayloadSchema.parse(request.body);
+    applyRateLimits([{
+      key: `password-reset:ip:${getRequestIp(request)}`,
+      max: 10,
+      windowMs: HOUR_MS,
+      message: "Too many password reset attempts. Try again later."
+    }]);
     const tokenHash = hashSessionToken(payload.token);
     const resetLookup = await app.db.query<PasswordResetLookupRow>(
       `select user_id
@@ -377,6 +444,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     }
 
     await app.db.query(
+      "delete from app_sessions where user_id = $1",
+      [resetToken.user_id]
+    );
+
+    await app.db.query(
       "delete from password_reset_tokens where user_id = $1",
       [resetToken.user_id]
     );
@@ -390,6 +462,20 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/verification/resend", async (request, reply) => {
     const payload = resendVerificationPayloadSchema.parse(request.body);
+    applyRateLimits([
+      {
+        key: `verification-resend:ip:${getRequestIp(request)}`,
+        max: 20,
+        windowMs: HOUR_MS,
+        message: "Too many verification email requests. Try again later."
+      },
+      {
+        key: `verification-resend:email:${payload.email}`,
+        max: 5,
+        windowMs: HOUR_MS,
+        message: "Too many verification email requests. Try again later."
+      }
+    ]);
     const result = await app.db.query<PasswordUserRow>(
       `select id, email, password_hash, display_name, email_verified_at, created_at
        from app_users
@@ -441,6 +527,12 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/verification/send", async (request, reply) => {
     const userId = await resolveSessionUserId(request);
+    applyRateLimits([{
+      key: `verification-send:user:${userId}`,
+      max: 5,
+      windowMs: HOUR_MS,
+      message: "Too many verification email requests. Try again later."
+    }]);
     const userResult = await app.db.query<VerificationUserRow>(
       `select id, email, display_name, email_verified_at
        from app_users
@@ -484,6 +576,12 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/verification/verify", async (request, reply) => {
     const payload = verifyEmailPayloadSchema.parse(request.body);
+    applyRateLimits([{
+      key: `verification-verify:ip:${getRequestIp(request)}`,
+      max: 10,
+      windowMs: HOUR_MS,
+      message: "Too many verification attempts. Try again later."
+    }]);
     const tokenHash = hashSessionToken(payload.token);
     const verificationLookup = await app.db.query<VerificationLookupRow>(
       `select user_id

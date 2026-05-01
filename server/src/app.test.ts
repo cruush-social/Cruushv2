@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
 import { hashPassword, hashSessionToken } from "./auth.js";
+import { resetRateLimitBuckets } from "./rate-limit.js";
 
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
@@ -87,6 +88,7 @@ afterAll(async () => {
 beforeEach(() => {
   query.mockReset();
   end.mockClear();
+  resetRateLimitBuckets();
 });
 
 describe("server", () => {
@@ -295,6 +297,41 @@ describe("server", () => {
     vi.unstubAllGlobals();
   });
 
+  it("rate limits repeated login attempts for the same email", async () => {
+    query.mockResolvedValue({ rows: [] });
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        payload: {
+          email: "river@example.com",
+          password: "wrong-password"
+        }
+      });
+
+      expect(response.statusCode).toBe(401);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "river@example.com",
+        password: "wrong-password"
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many sign-in attempts. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+  });
+
   it("sends a password reset email without leaking whether the account exists", async () => {
     query
       .mockResolvedValueOnce({
@@ -352,7 +389,7 @@ describe("server", () => {
     });
   });
 
-  it("resets a password with a valid reset token and deletes outstanding reset tokens", async () => {
+  it("resets a password with a valid reset token, invalidates sessions, and deletes outstanding reset tokens", async () => {
     const resetToken = "reset-token-1234567890";
     query
       .mockResolvedValueOnce({
@@ -364,6 +401,9 @@ describe("server", () => {
         rows: [{
           id: userId
         }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
       })
       .mockResolvedValueOnce({
         rows: []
@@ -382,7 +422,9 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from password_reset_tokens");
     expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken(resetToken)]);
     expect(query.mock.calls[1]?.[0]).toContain("update app_users");
-    expect(query.mock.calls[2]?.[0]).toContain("delete from password_reset_tokens");
+    expect(query.mock.calls[2]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[2]?.[1]).toEqual([userId]);
+    expect(query.mock.calls[3]?.[0]).toContain("delete from password_reset_tokens");
     expect(response.json()).toEqual({
       data: {
         reset: true
@@ -1420,6 +1462,85 @@ describe("server", () => {
     });
   });
 
+  it("rate limits repeated reads of another user's profile", async () => {
+    query.mockResolvedValue({
+      rows: [{
+        id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        display_name: "Alex",
+        photos: ["https://example.com/alex.jpg"],
+        bio: "Nearby now",
+        pronouns: ["they/them"],
+        custom_pronouns: "",
+        year_of_birth: 1998,
+        ethnicity: ["Latinx"],
+        identities: ["Non-binary"],
+        presentation: ["Femme"],
+        sexuality: ["Queer"],
+        body_type: ["Athletic"],
+        height: "5'8\"",
+        weight: "155 lbs",
+        position: ["Vers"],
+        availability: ["Now"],
+        hosting_travel: ["Hosting"],
+        kinks: ["Leather"],
+        vibes: ["Playful"],
+        hobbies: ["Hiking"],
+        custom_hobby: "",
+        looking_for: ["Dates"],
+        hiv_status: ["Negative"],
+        custom_hiv_status: "",
+        condoms: ["Always"],
+        custom_condoms: "",
+        prep: ["Daily"],
+        custom_prep: "",
+        doxypep: ["Sometimes"],
+        custom_doxypep: "",
+        covid_vaccine: ["Boosted"],
+        custom_covid_vaccine: "",
+        mpox_vaccine: ["Vaccinated"],
+        custom_mpox_vaccine: "",
+        smoking: ["Never"],
+        custom_smoking: "",
+        drinking: ["Socially"],
+        custom_drinking: "",
+        drugs: ["No"],
+        custom_drugs: "",
+        weed: ["Occasionally"],
+        custom_weed: "",
+        updated_at: "2026-04-28T12:00:00.000Z"
+      }]
+    });
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        headers: {
+          "x-user-id": userId
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+    }
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many profile requests. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+  });
+
   it("returns 404 when the profile does not exist", async () => {
     query.mockResolvedValueOnce({ rows: [] });
 
@@ -1631,12 +1752,16 @@ describe("server", () => {
         id: userId,
         lat: 40.711,
         lng: -74.002,
-        fuzzy_lat: 40.711,
-        fuzzy_lng: -74.002,
-        location_fuzz_radius_meters: 0,
+        fuzzy_lat: 40.7114,
+        fuzzy_lng: -74.0016,
+        location_fuzz_radius_meters: 50,
         location_updated_at: "2026-04-29T12:05:00.000Z"
       }]
     });
+
+    const randomSpy = vi.spyOn(Math, "random")
+      .mockReturnValueOnce(0.125)
+      .mockReturnValueOnce(0.75);
 
     const response = await app.inject({
       method: "PUT",
@@ -1647,24 +1772,98 @@ describe("server", () => {
       payload: {
         lat: 40.711,
         lng: -74.002,
-        fuzz_radius_meters: 0
+        fuzz_radius_meters: 50
       }
     });
 
+    randomSpy.mockRestore();
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(1);
     expect(query.mock.calls[0]?.[0]).toContain("insert into profiles");
     expect(query.mock.calls[0]?.[0]).toContain("location_updated_at");
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, 40.711, -74.002, 0]);
+    expect(query.mock.calls[0]?.[1]?.[0]).toBe(userId);
+    expect(query.mock.calls[0]?.[1]?.[1]).toBe(40.711);
+    expect(query.mock.calls[0]?.[1]?.[2]).toBe(-74.002);
+    expect(query.mock.calls[0]?.[1]?.[5]).toBe(50);
+    expect(query.mock.calls[0]?.[1]?.[3]).not.toBe(40.711);
+    expect(query.mock.calls[0]?.[1]?.[4]).not.toBe(-74.002);
     expect(response.json()).toEqual({
       data: {
         id: userId,
         lat: 40.711,
         lng: -74.002,
-        fuzzy_lat: 40.711,
-        fuzzy_lng: -74.002,
-        fuzz_radius_meters: 0,
+        fuzzy_lat: 40.7114,
+        fuzzy_lng: -74.0016,
+        fuzz_radius_meters: 50,
         location_updated_at: "2026-04-29T12:05:00.000Z"
+      }
+    });
+  });
+
+  it("invalidates active sessions after resetting a password", async () => {
+    const resetToken = "reset-token-1234567890";
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/password/reset",
+      payload: {
+        token: resetToken,
+        password: "new-password-123"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[2]?.[1]).toEqual([userId]);
+    expect(query.mock.calls[3]?.[0]).toContain("delete from password_reset_tokens");
+  });
+
+  it("rate limits repeated forgot password requests for the same email", async () => {
+    query.mockResolvedValue({ rows: [] });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/password/forgot",
+        payload: {
+          email: "river@example.com"
+        }
+      });
+
+      expect(response.statusCode).toBe(202);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/password/forgot",
+      payload: {
+        email: "river@example.com"
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many password reset requests. Try again later.",
+        details: expect.any(Object)
       }
     });
   });

@@ -7,6 +7,7 @@ import {
   type ProfilePayload
 } from "../profile-schema.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
+import { assertRateLimit } from "../rate-limit.js";
 
 type ProfileRow = {
   id: string;
@@ -190,6 +191,32 @@ function mapProfileLocationRow(row: ProfileLocationRow) {
   };
 }
 
+function clampCoordinate(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function createFuzzyCoordinates(lat: number, lng: number, radiusMeters: number) {
+  if (radiusMeters <= 0) {
+    return {
+      fuzzyLat: lat,
+      fuzzyLng: lng
+    };
+  }
+
+  const angle = Math.random() * Math.PI * 2;
+  const distance = Math.sqrt(Math.random()) * radiusMeters;
+  const latOffset = (distance * Math.cos(angle)) / 111_320;
+  const lngScale = Math.cos((lat * Math.PI) / 180);
+  const lngOffset = lngScale === 0
+    ? 0
+    : (distance * Math.sin(angle)) / (111_320 * lngScale);
+
+  return {
+    fuzzyLat: clampCoordinate(lat + latOffset, -90, 90),
+    fuzzyLng: clampCoordinate(lng + lngOffset, -180, 180)
+  };
+}
+
 async function loadProfile(app: FastifyInstance, userId: string, reply: FastifyReply) {
   return reply.send({
     data: await loadProfileData(app, userId)
@@ -218,7 +245,13 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/profiles/:userId", async (request, reply) => {
-    await getAuthenticatedUserId(request);
+    const authenticatedUserId = await getAuthenticatedUserId(request);
+    assertRateLimit({
+      key: `profile-read:${authenticatedUserId}`,
+      max: 30,
+      windowMs: 60 * 1000,
+      message: "Too many profile requests. Try again later."
+    });
     const { userId } = request.params as { userId: string };
 
     return reply.send({
@@ -263,6 +296,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.put("/api/profiles/me/location", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = profileLocationPayloadSchema.parse(request.body);
+    const fuzzyCoordinates = createFuzzyCoordinates(payload.lat, payload.lng, payload.fuzz_radius_meters);
 
     try {
       const result = await app.db.query<ProfileLocationRow>(
@@ -275,7 +309,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
            location_fuzz_radius_meters,
            location_updated_at
          )
-         values ($1, $2, $3, $2, $3, $4, now())
+         values ($1, $2, $3, $4, $5, $6, now())
          on conflict (id) do update
          set lat = excluded.lat,
              lng = excluded.lng,
@@ -292,7 +326,14 @@ export async function registerProfileRoutes(app: FastifyInstance) {
            fuzzy_lng,
            location_fuzz_radius_meters,
            location_updated_at`,
-        [userId, payload.lat, payload.lng, payload.fuzz_radius_meters]
+        [
+          userId,
+          payload.lat,
+          payload.lng,
+          fuzzyCoordinates.fuzzyLat,
+          fuzzyCoordinates.fuzzyLng,
+          payload.fuzz_radius_meters
+        ]
       );
 
       return reply.send({

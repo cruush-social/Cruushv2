@@ -7,6 +7,7 @@ import {
   getDiscoveryCoordinates
 } from "../discovery-users.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
+import { assertRateLimit } from "../rate-limit.js";
 
 type DiscoveryProfileRow = {
   id: string;
@@ -234,6 +235,12 @@ function mapLegacyDiscoveryRow(
 export async function registerUserRoutes(app: FastifyInstance) {
   app.get("/api/users", async (request, reply) => {
     const currentUserId = await getAuthenticatedUserId(request);
+    assertRateLimit({
+      key: `discovery-read:${currentUserId}`,
+      max: 30,
+      windowMs: 60 * 1000,
+      message: "Too many discovery refreshes. Try again later."
+    });
     const parsedQuery = discoveryQuerySchema.parse(request.query);
     const centerLat = parsedQuery.lat ?? DEFAULT_CENTER.lat;
     const centerLng = parsedQuery.lng ?? DEFAULT_CENTER.lng;

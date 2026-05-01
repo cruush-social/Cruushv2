@@ -6,6 +6,7 @@ export type ErrorCode =
   | "FORBIDDEN"
   | "LOCATION_STORAGE_UNAVAILABLE"
   | "NOT_FOUND"
+  | "RATE_LIMITED"
   | "VALIDATION_ERROR"
   | "INTERNAL_ERROR";
 
