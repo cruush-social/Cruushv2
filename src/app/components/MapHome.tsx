@@ -147,14 +147,7 @@ export default function MapHome() {
       <div className="absolute inset-x-0 top-0 z-30 px-5 pb-12 pt-5">
         <div className="flex items-center justify-between">
           <h1
-            className="text-3xl tracking-tight drop-shadow-[0_0_18px_rgba(122,43,255,0.5)]"
-            style={{
-              fontFamily: 'UnifrakturMaguntia, serif',
-              background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
+            className="cruush-logo-text text-3xl tracking-tight"
           >
             cruush
           </h1>
@@ -235,9 +228,9 @@ export default function MapHome() {
 
         <div className="absolute right-4 top-28 z-30 flex flex-col items-end gap-2">
           <Button
-            className="rounded-full border border-white/15 px-5 shadow-[0_12px_35px_rgba(255,47,114,0.25)]"
+            className="rounded-full border border-white/15 px-5 shadow-[0_12px_35px_rgba(255,7,114,0.25)]"
             style={{
-              background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+              background: 'var(--cruush-gradient)',
             }}
             onClick={() => navigate('/filters')}
           >

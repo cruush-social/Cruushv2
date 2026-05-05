@@ -115,7 +115,7 @@ export default function SafetyCenter() {
                     onClick={startCheckIn}
                     className="w-full"
                     style={{
-                      background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+                      background: 'var(--cruush-gradient)',
                     }}
                   >
                     <Clock className="w-4 h-4 mr-2" />
@@ -139,7 +139,7 @@ export default function SafetyCenter() {
                       className="flex-1"
                       onClick={stopCheckIn}
                       style={{
-                        background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+                        background: 'var(--cruush-gradient)',
                       }}
                     >
                       I'm Safe
@@ -230,7 +230,7 @@ export default function SafetyCenter() {
               <Button
                 className="w-full"
                 style={{
-                  background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+                  background: 'var(--cruush-gradient)',
                 }}
               >
                 Save Contacts

@@ -47,6 +47,8 @@ describe('Auth', () => {
   it('shows a resend verification action after an unverified login attempt', async () => {
     render(<Auth onAuth={vi.fn()} />);
 
+    expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('cruush-logo-text');
+
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));

@@ -4,10 +4,17 @@
   --font-size: 16px;
 
   /* cruush brand colors */
-  --cruush-pink: #ff2f72;
-  --cruush-purple: #7a2bff;
-  --cruush-blue: #22b8ff;
-  --cruush-gradient: linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%);
+  --cruush-pink: #ff0072;
+  --cruush-magenta: #6f00ff;
+  --cruush-purple: #6f00ff;
+  --cruush-indigo: #004bff;
+  --cruush-blue: #004bff;
+  --Crush-logo: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 53.04%, #004BFF 100%);
+  --cruush-gradient: var(--Crush-logo);
+  --cruush-logo-gradient: var(--Crush-logo);
+  --cruush-gradient-soft-18: linear-gradient(90deg, rgba(255, 0, 114, 0.18) 6.08%, rgba(111, 0, 255, 0.18) 53.04%, rgba(0, 75, 255, 0.18) 100%);
+  --cruush-gradient-soft-28: linear-gradient(90deg, rgba(255, 0, 114, 0.28) 6.08%, rgba(111, 0, 255, 0.28) 53.04%, rgba(0, 75, 255, 0.28) 100%);
+  --cruush-logo-glow: none;
   --crimson-bright: #d11f3a;
   --crimson-mid: #9f1730;
   --crimson-dark: #690f1f;
@@ -19,7 +26,7 @@
   --card-foreground: #f5f5f7;
   --popover: #1a1a24;
   --popover-foreground: #f5f5f7;
-  --primary: #ff2f72;
+  --primary: #ff0072;
   --primary-foreground: #ffffff;
   --secondary: #1f1f2e;
   --secondary-foreground: #f5f5f7;
@@ -35,21 +42,21 @@
   --switch-background: #2a2a3e;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #7a2bff;
-  --chart-1: #ff2f72;
-  --chart-2: #7a2bff;
-  --chart-3: #22b8ff;
+  --ring: #6f00ff;
+  --chart-1: #ff0072;
+  --chart-2: #6f00ff;
+  --chart-3: #004bff;
   --chart-4: #d11f3a;
   --chart-5: #9f1730;
   --radius: 1rem;
   --sidebar: #12121a;
   --sidebar-foreground: #f5f5f7;
-  --sidebar-primary: #ff2f72;
+  --sidebar-primary: #ff0072;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #1f1f2e;
   --sidebar-accent-foreground: #f5f5f7;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #7a2bff;
+  --sidebar-ring: #6f00ff;
 }
 
 .dark {
@@ -211,6 +218,16 @@
 
   .cruush-map .maplibregl-canvas {
     filter: brightness(1.2) contrast(1.14) saturate(0.9);
+  }
+
+  .cruush-logo-text {
+    font-family: 'UnifrakturMaguntia', serif;
+    background: var(--cruush-logo-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    filter: none;
   }
 
   /* Pulse animation for map pins */

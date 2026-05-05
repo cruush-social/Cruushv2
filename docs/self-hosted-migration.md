@@ -150,6 +150,8 @@ The next work is operational:
    - `server/sql/007_email_verification_tokens.sql`
    - `server/sql/008_messages.sql`
    - `server/sql/009_direct_messages.sql`
+   - `server/sql/010_profile_locations.sql`
+   - `server/sql/011_password_reset_tokens.sql`
 
 4. Point the frontend at the deployed API
    - either same-origin through the reverse proxy

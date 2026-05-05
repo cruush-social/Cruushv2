@@ -64,7 +64,7 @@ export default function RequestsDashboard() {
                       <Button
                         size="sm"
                         style={{
-                          background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+                          background: 'var(--cruush-gradient)',
                         }}
                       >
                         <Check className="w-4 h-4" />
@@ -91,7 +91,7 @@ export default function RequestsDashboard() {
                     <div
                       className="w-12 h-12 rounded-lg flex items-center justify-center"
                       style={{
-                        background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+                        background: 'var(--cruush-gradient)',
                       }}
                     >
                       <Calendar className="w-6 h-6" />

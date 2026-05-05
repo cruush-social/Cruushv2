@@ -28,11 +28,11 @@ export default function BottomNav() {
               onClick={() => navigate(item.path)}
               className={`flex min-w-[64px] flex-col items-center gap-1 rounded-2xl px-4 py-3 transition-colors ${
                 active
-                  ? 'bg-white/[0.055] text-primary shadow-[0_0_24px_rgba(255,47,114,0.14)]'
+                  ? 'bg-white/[0.055] text-primary shadow-[0_0_24px_rgba(255,7,114,0.14)]'
                   : 'text-white/52 hover:bg-white/[0.035] hover:text-white/78'
               }`}
             >
-              <Icon className={`h-6 w-6 ${active ? 'drop-shadow-[0_0_10px_rgba(255,47,114,0.55)]' : ''}`} />
+              <Icon className={`h-6 w-6 ${active ? 'drop-shadow-[0_0_10px_rgba(255,7,114,0.55)]' : ''}`} />
               <span className="text-xs">{item.label}</span>
             </button>
           );

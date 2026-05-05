@@ -108,6 +108,8 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
+    expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('cruush-logo-text');
+
     fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');

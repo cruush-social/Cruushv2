@@ -54,7 +54,7 @@ export default function ResetPassword() {
         className="absolute inset-0 opacity-20"
         style={{
           background:
-            'radial-gradient(circle at 20% 30%, rgba(255, 47, 114, 0.15), transparent 50%), radial-gradient(circle at 80% 70%, rgba(34, 184, 255, 0.1), transparent 50%)',
+            'radial-gradient(circle at 20% 30%, rgba(255, 7, 114, 0.15), transparent 50%), radial-gradient(circle at 80% 70%, rgba(0, 75, 255, 0.1), transparent 50%)',
         }}
       />
 
@@ -65,14 +65,7 @@ export default function ResetPassword() {
           </div>
           <div>
             <h1
-              className="text-6xl mb-4"
-              style={{
-                fontFamily: 'UnifrakturMaguntia, serif',
-                background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
+              className="cruush-logo-text text-6xl mb-4"
             >
               cruush
             </h1>
@@ -82,14 +75,14 @@ export default function ResetPassword() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff2f72] text-sm rounded">
+            <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff0072] text-sm rounded">
               {error}
             </div>
           )}
 
           {notice && (
             <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded flex items-start gap-2">
-              <KeyRound className="mt-0.5 h-4 w-4 text-[#22b8ff]" />
+              <KeyRound className="mt-0.5 h-4 w-4 text-[#004bff]" />
               <span>{notice}</span>
             </div>
           )}
@@ -103,7 +96,7 @@ export default function ResetPassword() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff2f72]/50 transition-colors rounded-sm"
+              className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
               required
               minLength={8}
               disabled={isLoading}
@@ -119,7 +112,7 @@ export default function ResetPassword() {
               type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
-              className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff2f72]/50 transition-colors rounded-sm"
+              className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
               required
               minLength={8}
               disabled={isLoading}
@@ -131,7 +124,7 @@ export default function ResetPassword() {
             disabled={isLoading}
             className="w-full h-14 text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
-              background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+              background: 'var(--cruush-gradient)',
             }}
           >
             {isLoading ? 'Resetting Password...' : 'Reset Password'}

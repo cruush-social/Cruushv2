@@ -54,7 +54,7 @@ export default function Settings() {
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center text-2xl"
             style={{
-              background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+              background: 'var(--cruush-gradient)',
             }}
           >
             A
@@ -210,14 +210,7 @@ export default function Settings() {
 
         <div className="text-center space-y-2 pt-8">
           <p
-            className="text-2xl"
-            style={{
-              fontFamily: 'UnifrakturMaguntia, serif',
-              background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
+            className="cruush-logo-text text-2xl"
           >
             cruush
           </p>

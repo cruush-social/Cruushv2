@@ -192,7 +192,7 @@ export default function Auth({ onAuth }: AuthProps) {
         className="absolute inset-0 opacity-20"
         style={{
           background:
-            'radial-gradient(circle at 20% 30%, rgba(255, 47, 114, 0.15), transparent 50%), radial-gradient(circle at 80% 70%, rgba(122, 43, 255, 0.1), transparent 50%)',
+            'radial-gradient(circle at 20% 30%, rgba(255, 7, 114, 0.15), transparent 50%), radial-gradient(circle at 80% 70%, rgba(111, 0, 255, 0.1), transparent 50%)',
         }}
       />
 
@@ -205,20 +205,19 @@ export default function Auth({ onAuth }: AuthProps) {
               <div
                 className="absolute inset-0 blur-xl opacity-30"
                 style={{
-                  background: 'radial-gradient(circle, rgba(255, 47, 114, 0.6), transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(255, 7, 114, 0.6), transparent 70%)',
                 }}
               />
             </div>
           </div>
           <div>
             <h1
-              className="text-7xl mb-4"
+              className="cruush-logo-text inline-block text-7xl mb-4"
               style={{
-                fontFamily: 'UnifrakturMaguntia, serif',
-                background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+                background: 'var(--Crush-logo)',
+                backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
               }}
             >
               cruush
@@ -230,7 +229,7 @@ export default function Auth({ onAuth }: AuthProps) {
         {/* Auth form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff2f72] text-sm rounded">
+            <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff0072] text-sm rounded">
               {error}
             </div>
           )}
@@ -238,11 +237,11 @@ export default function Auth({ onAuth }: AuthProps) {
           {notice && (
             <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-2">
               <div className="flex items-start gap-2">
-                <MailCheck className="mt-0.5 h-4 w-4 text-[#22b8ff]" />
+                <MailCheck className="mt-0.5 h-4 w-4 text-[#004bff]" />
                 <span>{notice}</span>
               </div>
               {verificationPreviewUrl ? (
-                <a className="block text-[#22b8ff] underline" href={verificationPreviewUrl}>
+                <a className="block text-[#004bff] underline" href={verificationPreviewUrl}>
                   Open link
                 </a>
               ) : null}
@@ -274,7 +273,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="how you'll appear"
-                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff2f72]/50 transition-colors rounded-sm"
+                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required={isSignUp}
                 disabled={isLoading}
               />
@@ -291,7 +290,7 @@ export default function Auth({ onAuth }: AuthProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff2f72]/50 transition-colors rounded-sm"
+              className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
               required
               disabled={isLoading}
             />
@@ -308,7 +307,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff2f72]/50 transition-colors rounded-sm"
+                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required
                 disabled={isLoading}
                 minLength={isSignUp ? 8 : 1}
@@ -327,7 +326,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff2f72]/50 transition-colors rounded-sm"
+                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required={isSignUp}
                 disabled={isLoading}
               />
@@ -343,7 +342,7 @@ export default function Auth({ onAuth }: AuthProps) {
             disabled={isLoading}
             className="w-full h-14 text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
             style={{
-              background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+              background: 'var(--cruush-gradient)',
             }}
           >
             {isLoading ? (

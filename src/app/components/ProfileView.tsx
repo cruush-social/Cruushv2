@@ -208,8 +208,8 @@ export default function ProfileView() {
       <div className="mx-auto max-w-2xl">
         <div
           data-testid="profile-hero-media"
-          className="relative w-full overflow-hidden bg-gradient-to-br from-crimson-dark to-crimson-bright"
-          style={PROFILE_HERO_ASPECT_STYLE}
+          className="relative w-full overflow-hidden"
+          style={{ ...PROFILE_HERO_ASPECT_STYLE, background: 'var(--cruush-gradient)' }}
         >
           {profileView.photos.length > 0 ? (
             <img
@@ -255,7 +255,7 @@ export default function ProfileView() {
                   style={{
                     background: cruushed
                       ? '#666'
-                      : 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+                      : 'var(--cruush-gradient)',
                   }}
                 >
                   <Heart className={`w-4 h-4 mr-2 ${cruushed ? 'fill-current' : ''}`} />
@@ -395,13 +395,13 @@ function BadgeList({ items, variant = 'default' }: { items: string[]; variant?: 
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => (
-        <span
-          key={item}
-          className="rounded-full border px-3 py-1 text-sm"
-          style={variant === 'gradient'
+                <span
+                  key={item}
+                  className="rounded-full border px-3 py-1 text-sm"
+                  style={variant === 'gradient'
             ? {
                 borderColor: 'transparent',
-                background: 'linear-gradient(135deg, rgba(255,47,114,0.18) 0%, rgba(122,43,255,0.18) 42%, rgba(34,184,255,0.18) 100%)',
+                background: 'var(--cruush-gradient-soft-18)',
               }
             : undefined}
         >

@@ -128,7 +128,7 @@ export default function LocalFeed() {
               disabled={!newPost.trim() || posting}
               style={{
                 background: newPost.trim()
-                  ? 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)'
+                  ? 'var(--cruush-gradient)'
                   : undefined,
               }}
             >

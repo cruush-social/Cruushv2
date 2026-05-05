@@ -183,7 +183,7 @@ export default function FiltersPanel() {
             className="flex-1"
             onClick={() => navigate(-1)}
             style={{
-              background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+              background: 'var(--cruush-gradient)',
             }}
           >
             Apply Filters

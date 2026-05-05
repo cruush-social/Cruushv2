@@ -118,7 +118,7 @@ export default function DirectMessages() {
 
   return (
     <div className="relative min-h-screen bg-background pb-20">
-      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(circle at top, rgba(255, 47, 114, 0.15), transparent 35%), radial-gradient(circle at 80% 20%, rgba(122, 43, 255, 0.12), transparent 28%)' }} />
+      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(circle at top, rgba(255, 7, 114, 0.15), transparent 35%), radial-gradient(circle at 80% 20%, rgba(111, 0, 255, 0.12), transparent 28%)' }} />
 
       <header className="sticky top-0 z-10 border-b border-border bg-background/88 px-4 pb-4 pt-4 backdrop-blur-md">
         <div className="mx-auto max-w-2xl space-y-4">

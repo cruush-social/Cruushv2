@@ -125,7 +125,7 @@ export default function PrivateGroupChat() {
 
   return (
     <div className="relative min-h-screen bg-background pb-20">
-      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(circle at top, rgba(255, 47, 114, 0.12), transparent 32%), radial-gradient(circle at 80% 18%, rgba(122, 43, 255, 0.12), transparent 30%)' }} />
+      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(circle at top, rgba(255, 7, 114, 0.12), transparent 32%), radial-gradient(circle at 80% 18%, rgba(111, 0, 255, 0.12), transparent 30%)' }} />
 
       <header className="sticky top-0 z-10 border-b border-border bg-background/88 px-4 py-4 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
@@ -260,7 +260,7 @@ export default function PrivateGroupChat() {
                         ? 'text-white'
                         : 'border border-border bg-card text-foreground'
                     }`}
-                    style={isOwn ? { background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)' } : undefined}
+                    style={isOwn ? { background: 'var(--cruush-gradient)' } : undefined}
                   >
                     {msg.content}
                   </div>
@@ -311,7 +311,7 @@ export default function PrivateGroupChat() {
                     aria-label="Send message"
                     style={{
                       background: message.trim()
-                        ? 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)'
+                        ? 'var(--cruush-gradient)'
                         : undefined,
                     }}
                   >

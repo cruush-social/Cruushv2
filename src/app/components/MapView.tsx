@@ -69,8 +69,8 @@ function createMarkerElement(user: MapUser, onPinClick: (user: MapUser) => void)
   element.className = [
     'relative flex h-11 w-11 items-center justify-center border-0 bg-transparent p-0',
     isCurrentUser
-      ? 'drop-shadow-[0_0_14px_rgba(34,184,255,0.7)]'
-      : 'drop-shadow-[0_0_16px_rgba(255,47,114,0.55)] transition-transform hover:scale-110',
+      ? 'drop-shadow-[0_0_14px_rgba(0,75,255,0.7)]'
+      : 'drop-shadow-[0_0_16px_rgba(255,7,114,0.55)] transition-transform hover:scale-110',
   ].join(' ');
 
   if (isCurrentUser) {
@@ -92,7 +92,7 @@ function createMarkerElement(user: MapUser, onPinClick: (user: MapUser) => void)
 
   const heart = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   heart.setAttribute('d', HEART_PATH);
-  heart.setAttribute('fill', isCurrentUser ? '#22b8ff' : '#d11f3a');
+  heart.setAttribute('fill', isCurrentUser ? '#004bff' : '#d11f3a');
   heart.setAttribute('stroke', '#ffffff');
   heart.setAttribute('stroke-width', '2');
 

@@ -29,7 +29,10 @@ export default function EventDetail() {
       </header>
 
       <div className="max-w-2xl mx-auto p-6 space-y-6">
-        <div className="bg-gradient-to-br from-primary to-purple-600 h-64 rounded-2xl flex items-center justify-center">
+        <div
+          className="h-64 rounded-2xl flex items-center justify-center"
+          style={{ background: 'var(--cruush-gradient)' }}
+        >
           <Calendar className="w-32 h-32 text-white/20" />
         </div>
 
@@ -67,7 +70,7 @@ export default function EventDetail() {
         <Button
           className="w-full"
           style={{
-            background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+            background: 'var(--cruush-gradient)',
           }}
         >
           <Calendar className="w-4 h-4 mr-2" />

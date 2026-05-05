@@ -30,7 +30,10 @@ export default function GroupDetail() {
       </header>
 
       <div className="max-w-2xl mx-auto p-6 space-y-6">
-        <div className="bg-gradient-to-br from-crimson-dark to-crimson-bright h-48 rounded-2xl flex items-center justify-center">
+        <div
+          className="h-48 rounded-2xl flex items-center justify-center"
+          style={{ background: 'var(--cruush-gradient)' }}
+        >
           <Heart className="w-24 h-24 text-white/20" />
         </div>
 
@@ -47,7 +50,7 @@ export default function GroupDetail() {
                 <Avatar>
                   <AvatarFallback
                     style={{
-                      background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+                      background: 'var(--cruush-gradient)',
                     }}
                   >
                     {member.name[0]}
@@ -79,7 +82,7 @@ export default function GroupDetail() {
         <Button
           className="w-full"
           style={{
-            background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+            background: 'var(--cruush-gradient)',
           }}
         >
           <Users className="w-4 h-4 mr-2" />

@@ -39,7 +39,10 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
   };
   return (
     <div className="bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30" style={{ maxHeight: '80vh' }}>
-      <div className="relative w-full bg-gradient-to-br from-crimson-dark to-crimson-bright" style={PROFILE_CARD_MEDIA_ASPECT_STYLE}>
+      <div
+        className="relative w-full"
+        style={{ ...PROFILE_CARD_MEDIA_ASPECT_STYLE, background: 'var(--cruush-gradient)' }}
+      >
         {user.photo ? (
           <img src={user.photo} alt={user.name} className="w-full h-full object-cover" style={PROFILE_CARD_MEDIA_ASPECT_STYLE} />
         ) : (

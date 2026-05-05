@@ -51,8 +51,9 @@ Do not replace this with generic copy such as `{displayName} liked you`, `Someon
 - Logo font: UnifrakturMaguntia.
 - Heading font: Cormorant Garamond.
 - Body and UI font: Spectral.
-- Core colors: `#ff2f72`, `#7a2bff`, `#22b8ff`.
-- Logo gradient: `linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)`.
+- Core colors: `#ff0072`, `#6f00ff`, `#004bff`.
+- Logo gradient: `linear-gradient(90deg, #ff0072 6.08%, #6f00ff 53.04%, #004bff 100%)`.
+- All gradient accents across the app should reuse the same pink-to-violet-to-blue progression as the logo mock, without extra glow.
 - Fallback heart colors for profiles without photos: `#d11f3a`, `#9f1730`, `#690f1f`.
 - Overall interface: mostly monochrome with selective gradient accents.
 - Map style: dark, cinematic, dense urban street map.

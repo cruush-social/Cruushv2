@@ -230,7 +230,7 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <header className="mb-6 text-center">
-        <h1 className="text-4xl font-bold mb-2" style={{ fontFamily: 'UnifrakturMaguntia, serif', background: 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>cruush</h1>
+        <h1 className="cruush-logo-text text-4xl font-bold mb-2">cruush</h1>
         <p className="text-center text-muted-foreground mt-2">Set up your profile</p>
       </header>
       <div className="w-full max-w-md bg-card p-6 rounded-lg shadow space-y-8">

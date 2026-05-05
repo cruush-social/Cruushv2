@@ -40,8 +40,8 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
     >
       <div className="max-h-[calc(100vh-8rem)] overflow-y-auto">
         <div
-          className="relative overflow-hidden bg-gradient-to-br from-crimson-dark via-crimson-dark to-crimson-bright"
-          style={PROFILE_HERO_ASPECT_STYLE}
+          className="relative overflow-hidden"
+          style={{ ...PROFILE_HERO_ASPECT_STYLE, background: 'var(--cruush-gradient)' }}
         >
           {user.photo ? (
             <img
@@ -125,7 +125,7 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
                   <Badge
                     key={item}
                     className="border-0 text-white"
-                    style={{ background: 'linear-gradient(135deg, rgba(255,47,114,0.28) 0%, rgba(122,43,255,0.28) 42%, rgba(34,184,255,0.28) 100%)' }}
+                    style={{ background: 'var(--cruush-gradient-soft-28)' }}
                   >
                     {item}
                   </Badge>
@@ -161,7 +161,7 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
               style={{
                 background: cruushed
                   ? 'rgba(255,255,255,0.16)'
-                  : 'linear-gradient(135deg, #ff2f72 0%, #7a2bff 42%, #22b8ff 100%)',
+                  : 'var(--cruush-gradient)',
               }}
               aria-label={cruushed ? 'Cruush sent' : 'Send cruush'}
             >
@@ -171,7 +171,7 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
             <Button
               className="h-12 justify-center rounded-2xl border-0 text-base text-white"
               style={{
-                background: 'linear-gradient(135deg, rgba(255,47,114,0.96) 0%, rgba(122,43,255,0.96) 42%, rgba(34,184,255,0.96) 100%)',
+                background: 'var(--cruush-gradient)',
               }}
               onClick={() => {
                 void openConversationOrInbox(navigate, user.id);
