@@ -223,17 +223,31 @@ function clearSessionCookie(reply: FastifyReply, request: FastifyRequest) {
 }
 
 function buildVerificationUrl(request: FastifyRequest, token: string) {
-  const baseUrl = request.server.config.APP_URL || request.headers.origin || request.server.config.CORS_ORIGIN;
+  const baseUrl = getPublicAppUrl(request);
   const verificationUrl = new URL("/verify-email", baseUrl);
   verificationUrl.searchParams.set("token", token);
   return verificationUrl.toString();
 }
 
 function buildPasswordResetUrl(request: FastifyRequest, token: string) {
-  const baseUrl = request.server.config.APP_URL || request.headers.origin || request.server.config.CORS_ORIGIN;
+  const baseUrl = getPublicAppUrl(request);
   const resetUrl = new URL("/reset-password", baseUrl);
   resetUrl.searchParams.set("token", token);
   return resetUrl.toString();
+}
+
+function getPublicAppUrl(request: FastifyRequest) {
+  const allowedOrigins = request.server.config.CORS_ORIGIN
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const requestOrigin = typeof request.headers.origin === "string" ? request.headers.origin : "";
+
+  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  return request.server.config.APP_URL;
 }
 
 function getRequestIp(request: FastifyRequest) {

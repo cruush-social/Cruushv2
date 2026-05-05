@@ -60,6 +60,24 @@ const corsApp = buildServer({
   }
 });
 
+const emailLinkApp = buildServer({
+  NODE_ENV: "test",
+  PORT: 3001,
+  HOST: "127.0.0.1",
+  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  CORS_ORIGIN: "https://www.cruush.app,https://staging.cruush.app",
+  SESSION_SECRET: "test-secret",
+  APP_URL: "https://api.cruush.test",
+  RESEND_API_KEY: "",
+  MAIL_FROM: "",
+  TURNSTILE_SECRET_KEY: ""
+}, {
+  db: {
+    query,
+    end
+  }
+});
+
 const turnstileApp = buildServer({
   NODE_ENV: "test",
   PORT: 3001,
@@ -82,6 +100,7 @@ afterAll(async () => {
   await app.close();
   await developmentApp.close();
   await corsApp.close();
+  await emailLinkApp.close();
   await turnstileApp.close();
 });
 
@@ -209,6 +228,50 @@ describe("server", () => {
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
         previewUrl: expect.stringContaining("https://cruush.test/verify-email?token=")
+      }
+    });
+  });
+
+  it("uses the allowed frontend origin for verification links when the API has its own APP_URL", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          display_name: "River",
+          email_verified_at: null,
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          expires_at: "2026-04-30T12:00:00.000Z"
+        }]
+      });
+
+    const response = await emailLinkApp.inject({
+      method: "POST",
+      url: "/api/auth/signup",
+      headers: {
+        origin: "https://www.cruush.app"
+      },
+      payload: {
+        email: "river@example.com",
+        password: "password-123",
+        displayName: "River"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      data: {
+        alreadyVerified: false,
+        email: "river@example.com",
+        expiresAt: "2026-04-30T12:00:00.000Z",
+        previewUrl: expect.stringContaining("https://www.cruush.app/verify-email?token=")
       }
     });
   });

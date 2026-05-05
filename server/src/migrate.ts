@@ -15,7 +15,8 @@ const migrationFiles = [
   "007_email_verification_tokens.sql",
   "008_messages.sql",
   "009_direct_messages.sql",
-  "010_profile_locations.sql"
+  "010_profile_locations.sql",
+  "011_password_reset_tokens.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;
