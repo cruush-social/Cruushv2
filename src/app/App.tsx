@@ -29,6 +29,20 @@ function redirectToMap() {
   window.history.replaceState({}, '', '/map');
 }
 
+function getTokenLinkType() {
+  const searchParams = new URLSearchParams(window.location.search);
+
+  if (searchParams.has('verifyEmailToken')) {
+    return 'verify-email';
+  }
+
+  if (searchParams.has('resetPasswordToken')) {
+    return 'reset-password';
+  }
+
+  return null;
+}
+
 export default function App() {
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
@@ -104,6 +118,28 @@ export default function App() {
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-sm text-muted-foreground">Loading session...</div>
       </div>
+    );
+  }
+
+  const tokenLinkType = getTokenLinkType();
+
+  if (tokenLinkType === 'verify-email') {
+    return (
+      <BrowserRouter key="root-verification-router">
+        <Routes>
+          <Route path="*" element={<VerifyEmail />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  if (tokenLinkType === 'reset-password') {
+    return (
+      <BrowserRouter key="root-reset-router">
+        <Routes>
+          <Route path="*" element={<ResetPassword />} />
+        </Routes>
+      </BrowserRouter>
     );
   }
 

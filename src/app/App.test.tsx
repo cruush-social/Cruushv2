@@ -98,6 +98,10 @@ vi.mock('./components/EmailVerificationGate', () => ({
   default: () => <div>Mock Verify Gate</div>
 }));
 
+vi.mock('./components/VerifyEmail', () => ({
+  default: () => <div>Mock Verify Email</div>
+}));
+
 vi.mock('./components/ResetPassword', () => ({
   default: () => <div>Mock Reset Password</div>
 }));
@@ -163,6 +167,24 @@ describe('App', () => {
   it('renders the reset password route while signed out', async () => {
     loadCurrentSession.mockResolvedValue(null);
     window.history.replaceState({}, '', '/reset-password?token=reset-token-1234567890');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
+  });
+
+  it('renders the verification route from the root verification token query', async () => {
+    loadCurrentSession.mockResolvedValue(null);
+    window.history.replaceState({}, '', '/?verifyEmailToken=verification-token-1234567890');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Verify Email')).toBeInTheDocument();
+  });
+
+  it('renders the reset password route from the root reset token query', async () => {
+    loadCurrentSession.mockResolvedValue(null);
+    window.history.replaceState({}, '', '/?resetPasswordToken=reset-token-1234567890');
 
     render(<App />);
 

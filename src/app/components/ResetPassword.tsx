@@ -4,7 +4,10 @@ import { Heart, KeyRound } from 'lucide-react';
 import { resetPassword } from '../lib/authApi';
 
 export default function ResetPassword() {
-  const token = useMemo(() => new URLSearchParams(window.location.search).get('token') ?? '', []);
+  const token = useMemo(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    return searchParams.get('token') ?? searchParams.get('resetPasswordToken') ?? '';
+  }, []);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');

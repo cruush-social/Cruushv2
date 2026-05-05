@@ -128,6 +128,26 @@ describe("server", () => {
     });
   });
 
+  it("redirects legacy verification page links to the root verification token route", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/verify-email?token=verification-token-1234567890"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("https://cruush.test/?verifyEmailToken=verification-token-1234567890");
+  });
+
+  it("redirects legacy password reset page links to the root reset token route", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/reset-password?token=reset-token-1234567890"
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe("https://cruush.test/?resetPasswordToken=reset-token-1234567890");
+  });
+
   it("does not allow x-user-id auth outside test mode", async () => {
     const response = await developmentApp.inject({
       method: "GET",
@@ -227,7 +247,7 @@ describe("server", () => {
         alreadyVerified: false,
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
-        previewUrl: expect.stringContaining("https://cruush.test/verify-email?token=")
+        previewUrl: expect.stringContaining("https://cruush.test/?verifyEmailToken=")
       }
     });
   });
@@ -271,7 +291,51 @@ describe("server", () => {
         alreadyVerified: false,
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
-        previewUrl: expect.stringContaining("https://www.cruush.app/verify-email?token=")
+        previewUrl: expect.stringContaining("https://www.cruush.app/?verifyEmailToken=")
+      }
+    });
+  });
+
+  it("falls back to the configured frontend origin when APP_URL points at the request host", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          display_name: "River",
+          email_verified_at: null,
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          expires_at: "2026-04-30T12:00:00.000Z"
+        }]
+      });
+
+    const response = await emailLinkApp.inject({
+      method: "POST",
+      url: "/api/auth/signup",
+      headers: {
+        host: "api.cruush.test"
+      },
+      payload: {
+        email: "river@example.com",
+        password: "password-123",
+        displayName: "River"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      data: {
+        alreadyVerified: false,
+        email: "river@example.com",
+        expiresAt: "2026-04-30T12:00:00.000Z",
+        previewUrl: expect.stringContaining("https://www.cruush.app/?verifyEmailToken=")
       }
     });
   });
@@ -427,7 +491,7 @@ describe("server", () => {
     expect(existingResponse.json()).toEqual({
       data: {
         accepted: true,
-        previewUrl: expect.stringContaining("https://cruush.test/reset-password?token=")
+        previewUrl: expect.stringContaining("https://cruush.test/?resetPasswordToken=")
       }
     });
 
@@ -581,7 +645,7 @@ describe("server", () => {
       data: {
         alreadyVerified: false,
         expiresAt: "2026-04-30T12:00:00.000Z",
-        previewUrl: expect.stringContaining("https://cruush.test/verify-email?token=")
+        previewUrl: expect.stringContaining("https://cruush.test/?verifyEmailToken=")
       }
     });
   });
@@ -625,7 +689,7 @@ describe("server", () => {
       data: {
         alreadyVerified: false,
         expiresAt: "2026-04-30T12:00:00.000Z",
-        previewUrl: expect.stringContaining("https://cruush.test/verify-email?token=")
+        previewUrl: expect.stringContaining("https://cruush.test/?verifyEmailToken=")
       }
     });
   });

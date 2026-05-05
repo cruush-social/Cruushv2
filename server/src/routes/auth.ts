@@ -223,31 +223,62 @@ function clearSessionCookie(reply: FastifyReply, request: FastifyRequest) {
 }
 
 function buildVerificationUrl(request: FastifyRequest, token: string) {
-  const baseUrl = getPublicAppUrl(request);
-  const verificationUrl = new URL("/verify-email", baseUrl);
-  verificationUrl.searchParams.set("token", token);
-  return verificationUrl.toString();
+  return buildRootTokenUrl(request, "verifyEmailToken", token);
 }
 
 function buildPasswordResetUrl(request: FastifyRequest, token: string) {
-  const baseUrl = getPublicAppUrl(request);
-  const resetUrl = new URL("/reset-password", baseUrl);
-  resetUrl.searchParams.set("token", token);
-  return resetUrl.toString();
+  return buildRootTokenUrl(request, "resetPasswordToken", token);
+}
+
+function buildRootTokenUrl(request: FastifyRequest, tokenParam: string, token: string) {
+  const url = new URL("/", getPublicAppUrl(request));
+  url.searchParams.set(tokenParam, token);
+  return url.toString();
 }
 
 function getPublicAppUrl(request: FastifyRequest) {
-  const allowedOrigins = request.server.config.CORS_ORIGIN
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const allowedOrigins = getAllowedCorsOrigins(request);
   const requestOrigin = typeof request.headers.origin === "string" ? request.headers.origin : "";
 
   if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
     return requestOrigin;
   }
 
-  return request.server.config.APP_URL;
+  const appUrl = request.server.config.APP_URL;
+
+  if (allowedOrigins.length > 0 && !allowedOrigins.includes(appUrl) && hasSameHostAsRequest(appUrl, request)) {
+    return allowedOrigins[0];
+  }
+
+  return appUrl;
+}
+
+function getAllowedCorsOrigins(request: FastifyRequest) {
+  return request.server.config.CORS_ORIGIN
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+function getFirstHeaderValue(value: string | string[] | undefined) {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  return rawValue?.split(",")[0]?.trim() ?? "";
+}
+
+function hasSameHostAsRequest(url: string, request: FastifyRequest) {
+  const requestHost = getFirstHeaderValue(request.headers["x-forwarded-host"]) || getFirstHeaderValue(request.headers.host);
+  return requestHost ? new URL(url).host === requestHost : false;
+}
+
+function getTokenQueryParam(request: FastifyRequest) {
+  const query = request.query;
+
+  if (!query || typeof query !== "object" || !("token" in query)) {
+    return "";
+  }
+
+  const token = (query as { token?: unknown }).token;
+  return typeof token === "string" ? token : "";
 }
 
 function getRequestIp(request: FastifyRequest) {
@@ -266,6 +297,20 @@ function applyRateLimits(limits: Array<{
 }
 
 export async function registerAuthRoutes(app: FastifyInstance) {
+  app.get("/verify-email", async (request, reply) => {
+    return reply
+      .code(302)
+      .header("location", buildRootTokenUrl(request, "verifyEmailToken", getTokenQueryParam(request)))
+      .send();
+  });
+
+  app.get("/reset-password", async (request, reply) => {
+    return reply
+      .code(302)
+      .header("location", buildRootTokenUrl(request, "resetPasswordToken", getTokenQueryParam(request)))
+      .send();
+  });
+
   app.post("/api/auth/signup", async (request, reply) => {
     const payload = signUpPayloadSchema.parse(request.body);
     applyRateLimits([

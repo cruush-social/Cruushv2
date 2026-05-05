@@ -11,7 +11,7 @@ type VerifyState =
 export default function VerifyEmail() {
   const token = useMemo(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    return searchParams.get('token');
+    return searchParams.get('token') ?? searchParams.get('verifyEmailToken');
   }, []);
   const [state, setState] = useState<VerifyState>({ status: 'verifying' });
 
