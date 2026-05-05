@@ -54,6 +54,10 @@ Do not replace this with generic copy such as `{displayName} liked you`, `Someon
 - Core colors: `#ff0072`, `#6f00ff`, `#004bff`.
 - Logo gradient: `linear-gradient(90deg, #ff0072 6.08%, #6f00ff 53.04%, #004bff 100%)`.
 - All gradient accents across the app should reuse the same pink-to-violet-to-blue progression as the logo mock, without extra glow.
+- Heart fallback rules:
+  - Map pins for other users without photos use the red-to-crimson heart gradient.
+  - The signed-in user without a photo uses the blue heart gradient.
+  - Compact heart avatars on feed, messages, and similar surfaces use the pink-to-red heart gradient instead of the older red-to-crimson version.
 - Fallback heart colors for profiles without photos: `#d11f3a`, `#9f1730`, `#690f1f`.
 - Overall interface: mostly monochrome with selective gradient accents.
 - Map style: dark, cinematic, dense urban street map.

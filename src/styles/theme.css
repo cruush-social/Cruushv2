@@ -14,6 +14,9 @@
   --cruush-logo-gradient: var(--Crush-logo);
   --cruush-gradient-soft-18: linear-gradient(90deg, rgba(255, 0, 114, 0.18) 6.08%, rgba(111, 0, 255, 0.18) 53.04%, rgba(0, 75, 255, 0.18) 100%);
   --cruush-gradient-soft-28: linear-gradient(90deg, rgba(255, 0, 114, 0.28) 6.08%, rgba(111, 0, 255, 0.28) 53.04%, rgba(0, 75, 255, 0.28) 100%);
+  --cruush-heart-photo-gradient: linear-gradient(90deg, #FF0072 0%, #DA045D 48.5577%, #B40849 100%);
+  --cruush-heart-pin-red-gradient: linear-gradient(90deg, #FF0072 0%, #DA045D 48.5577%, #B40849 100%);
+  --cruush-heart-pin-blue-gradient: linear-gradient(90deg, #0099FF 0%, #1968EA 48.5577%, #3236D4 100%);
   --cruush-logo-glow: none;
   --crimson-bright: #d11f3a;
   --crimson-mid: #9f1730;
