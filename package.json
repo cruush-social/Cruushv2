@@ -6,6 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "node scripts/ensure-dev-cert.mjs && vite",
+    "dev:local": "node scripts/dev-local.mjs",
     "security:check": "bash scripts/security-check.sh",
     "test": "vitest run"
   },

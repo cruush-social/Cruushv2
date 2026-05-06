@@ -39,6 +39,8 @@ export default function MapHome() {
   const [mapInstance, setMapInstance] = useState<CruushMapInstance | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const lastSyncedLocationKeyRef = useRef<string | null>(null);
 
   const openProfile = (user: DiscoveryUser) => {
@@ -123,10 +125,62 @@ export default function MapHome() {
     }
   };
 
+  const hasActiveFilters =
+    filters.ageRange[0] !== DEFAULT_FILTER_STATE.ageRange[0] ||
+    filters.ageRange[1] !== DEFAULT_FILTER_STATE.ageRange[1] ||
+    filters.distance !== DEFAULT_FILTER_STATE.distance ||
+    [
+      filters.identities,
+      filters.presentations,
+      filters.lookingFor,
+      filters.timing,
+      filters.hosting,
+      filters.vibes,
+      filters.hobbies,
+      filters.positions,
+      filters.kinks,
+      filters.bodyTypes,
+      filters.sexuality,
+      filters.condoms,
+      filters.drugs,
+      filters.weed,
+      filters.smoking,
+      filters.drinking,
+    ].some((items) => items.length > 0);
+
+  const filteredUsers = users.filter((user) => {
+    const distanceMiles = Number.parseFloat(user.distance);
+    if (Number.isFinite(distanceMiles) && distanceMiles > filters.distance) {
+      return false;
+    }
+
+    if (user.age !== null) {
+      if (user.age < filters.ageRange[0] || user.age > filters.ageRange[1]) {
+        return false;
+      }
+    }
+
+    if (filters.lookingFor.length > 0) {
+      const lookingFor = user.lookingFor.map((item) => item.toLowerCase());
+      if (!filters.lookingFor.some((item) => lookingFor.includes(item.toLowerCase()))) {
+        return false;
+      }
+    }
+
+    if (filters.vibes.length > 0) {
+      const vibes = user.vibes.map((item) => item.toLowerCase());
+      if (!filters.vibes.some((item) => vibes.includes(item.toLowerCase()))) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
   // Merge userLocation as a special pin
   const mergedUsers = userLocation
     ? [
-        ...users,
+        ...filteredUsers,
         {
           id: 'me',
           name: 'You',
@@ -139,7 +193,7 @@ export default function MapHome() {
           distance: '',
         },
       ]
-    : users;
+    : filteredUsers;
 
   return (
     <div className="relative h-screen overflow-hidden bg-background">
@@ -174,18 +228,18 @@ export default function MapHome() {
             <Button variant="ghost" size="icon" title="Notifications" className="rounded-full text-white/90 hover:bg-white/10">
               <Bell className="w-5 h-5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/settings')}
-              title="Settings"
-              className="rounded-full text-white/90 hover:bg-white/10"
-            >
-              <SettingsIcon className="w-5 h-5" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/settings')}
+                title="Settings"
+                className="rounded-full text-white/90 hover:bg-white/10"
+              >
+                <SettingsIcon className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
 
       <div className="absolute inset-0">
         <MapView
@@ -232,10 +286,15 @@ export default function MapHome() {
             style={{
               background: 'var(--cruush-gradient)',
             }}
-            onClick={() => navigate('/filters')}
+            onClick={() => setIsFiltersOpen(true)}
           >
             <Filter className="w-4 h-4 mr-2" />
             Filters
+            {hasActiveFilters ? (
+              <span className="ml-2 rounded-full bg-black/20 px-2 py-0.5 text-[11px] font-semibold">
+                On
+              </span>
+            ) : null}
           </Button>
 
           <div className="flex flex-col gap-2">
@@ -260,7 +319,7 @@ export default function MapHome() {
           </div>
         </div>
 
-        {users.length > 0 && (
+        {filteredUsers.length > 0 && (
           <div className="absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 px-4">
             <div className="mx-auto max-w-5xl rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
               <div className="mb-2 flex items-center justify-between px-1">
@@ -270,7 +329,7 @@ export default function MapHome() {
                 </div>
               </div>
               <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
-              {users
+              {filteredUsers
                 .sort((a, b) => {
                   const aMinutes = getLastActiveMinutes(a.lastActive);
                   const bMinutes = getLastActiveMinutes(b.lastActive);
@@ -302,6 +361,16 @@ export default function MapHome() {
             </div>
           </div>
         )}
+
+        <MapFiltersSurface
+          mode="sheet"
+          open={isFiltersOpen}
+          onOpenChange={setIsFiltersOpen}
+          value={filters}
+          onChange={setFilters}
+          onClear={() => setFilters(DEFAULT_FILTER_STATE)}
+          onApply={() => setIsFiltersOpen(false)}
+        />
       </div>
     </div>
   );

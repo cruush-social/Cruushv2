@@ -167,6 +167,29 @@ The next work is operational:
    - open DM
    - send message
 
+## Local development
+
+For local testing that does not affect staging:
+
+1. Start local Postgres
+   - `docker compose -f docker-compose.selfhost.yml up -d postgres`
+
+2. Copy the env examples
+   - optional if you want to override the defaults
+   - `cp .env.local.example .env.local`
+   - `cp server/.env.local.example server/.env.local`
+
+3. Run the local stack
+   - `npm run dev:local`
+
+The local launcher applies server migrations first, then starts:
+- the local API on `http://localhost:3001`
+- the frontend on `http://localhost:5173`
+
+It reads `server/.env.example` as the fallback local server config, so the copy step is only needed when you want to override the defaults.
+
+If you want auth emails to return to staging while you are testing locally, set `APP_URL=https://staging.cruush.app` in `server/.env.local`. That changes the callback target only; it does not affect staging deployment settings.
+
 ## Remaining backend work after deployment
 
 - password reset flow

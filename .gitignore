@@ -48,6 +48,9 @@ coverage/
 
 # Ignore backups
 *.bak
+*.dump
+*.backup
+*.sql.gz
 
 # Ignore lock files
 package-lock.json
