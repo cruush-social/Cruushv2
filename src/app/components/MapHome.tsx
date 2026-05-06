@@ -9,6 +9,7 @@ import { useIsMobile } from './ui/use-mobile';
 import HeartPhoto from './HeartPhoto';
 import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
+import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import { syncMyLocation } from '../lib/locationApi';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 

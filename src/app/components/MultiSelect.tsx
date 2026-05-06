@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge } from './ui/badge';
 import { X } from 'lucide-react';
 
@@ -11,6 +11,10 @@ interface MultiSelectProps {
 export default function MultiSelect({ options, value = [], onChange }: MultiSelectProps) {
   const [selected, setSelected] = useState<string[]>(value);
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setSelected(value);
+  }, [value]);
 
   const toggleOption = (option: string) => {
     const newSelected = selected.includes(option)
