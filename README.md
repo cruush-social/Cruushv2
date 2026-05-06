@@ -21,11 +21,21 @@
 
   ### 1. Start local Postgres
 
-  The repo already includes a local Postgres service:
+  If you have Docker installed, you can use the bundled Postgres service:
 
   ```bash
   docker compose -f docker-compose.selfhost.yml up -d postgres
   ```
+
+  If you do not have Docker, use Homebrew instead:
+
+  ```bash
+  brew install postgresql@16
+  brew services start postgresql@16
+  createdb cruush
+  ```
+
+  If `createdb cruush` fails because the `postgres` role does not exist, use the role created by your local Postgres install and update `DATABASE_URL` in `server/.env.local` to match.
 
   ### 2. Review local env defaults
 
@@ -96,4 +106,6 @@
   npm --prefix server run dev
   npm --prefix server run migrate:dev
   ```
+
+  If you are using the Homebrew Postgres path, make sure `DATABASE_URL` points at your local database before running `npm run dev:local`.
   
