@@ -52,7 +52,8 @@ Do not replace this with generic copy such as `{displayName} liked you`, `Someon
 - Heading font: Cormorant Garamond.
 - Body and UI font: Spectral.
 - Core colors: #FF0072, #6F00FF, #3826FF, #004BFF, #1181FF 
-- Logo gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 43.11%, #3826FF 58.46%, #004BFF 73.81%, #1181FF 100%);
+- Logo gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 53.27%, #004BFF 100%)
+- Button gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 43.11%, #3826FF 58.46%, #004BFF 73.81%, #1181FF 100%);
 - All gradient accents across the app should reuse the same pink-to-violet-to-blue progression as the logo mock, without extra glow.
 - Heart fallback rules:
   - Map pins for other users without photos use the red-to-crimson heart gradient.
