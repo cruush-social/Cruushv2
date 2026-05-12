@@ -9,8 +9,8 @@
   --cruush-purple: #3826FF;
   --cruush-indigo: #004bff;
   --cruush-blue: #1181FF;
-  --Crush-logo: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 43.11%, #3826FF 58.46%, #004BFF 73.81%, #1181FF 100%);
-  --cruush-gradient: var(--Crush-logo);
+  --Crush-logo: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 53.27%, #004BFF 100%);
+  --cruush-gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 43.11%, #3826FF 58.46%, #004BFF 73.81%, #1181FF 100%);
   --cruush-logo-gradient: var(--Crush-logo);
   --cruush-gradient-soft-18: linear-gradient(90deg, rgba(255, 0, 114, 0.18) 6.08%, rgba(111, 0, 255, 0.18) 53.04%, rgba(0, 75, 255, 0.18) 100%);
   --cruush-gradient-soft-28: linear-gradient(90deg, rgba(255, 0, 114, 0.28) 6.08%, rgba(111, 0, 255, 0.28) 53.04%, rgba(0, 75, 255, 0.28) 100%);
