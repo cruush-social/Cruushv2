@@ -75,6 +75,10 @@ type PasswordResetLookupRow = {
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
+const DEVELOPMENT_ADMIN_EMAIL = "admin@cruush.local";
+const DEVELOPMENT_ADMIN_PASSWORD = "admin-password";
+const DEVELOPMENT_ADMIN_DISPLAY_NAME = "Admin";
+const DEVELOPMENT_ADMIN_YEAR_OF_BIRTH = 1990;
 
 function mapSessionRow(row: AuthUserRow) {
   const displayName = row.app_display_name?.trim() || row.profile_display_name?.trim() || row.email;
@@ -183,6 +187,45 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
   }
 
   return mapSessionRow(row);
+}
+
+function isDevelopmentAdminLogin(app: FastifyInstance, email: string, password: string) {
+  return (
+    app.config.NODE_ENV !== "production" &&
+    email === DEVELOPMENT_ADMIN_EMAIL &&
+    password === DEVELOPMENT_ADMIN_PASSWORD
+  );
+}
+
+async function ensureDevelopmentAdminUser(app: FastifyInstance) {
+  const passwordHash = await hashPassword(DEVELOPMENT_ADMIN_PASSWORD);
+  const userResult = await app.db.query<CreatedUserRow>(
+    `insert into app_users (email, password_hash, display_name, email_verified_at)
+     values ($1, $2, $3, now())
+     on conflict (email) do update
+     set password_hash = excluded.password_hash,
+         display_name = excluded.display_name,
+         email_verified_at = coalesce(app_users.email_verified_at, now())
+     returning id, email, display_name, email_verified_at, created_at`,
+    [DEVELOPMENT_ADMIN_EMAIL, passwordHash, DEVELOPMENT_ADMIN_DISPLAY_NAME]
+  );
+  const user = userResult.rows[0];
+
+  if (!user) {
+    throw new ApiError(500, "INTERNAL_ERROR", "Unable to create development admin.");
+  }
+
+  await app.db.query(
+    `insert into profiles (id, display_name, year_of_birth)
+     values ($1, $2, $3)
+     on conflict (id) do update
+     set display_name = excluded.display_name,
+         year_of_birth = coalesce(profiles.year_of_birth, excluded.year_of_birth),
+         updated_at = now()`,
+    [user.id, DEVELOPMENT_ADMIN_DISPLAY_NAME, DEVELOPMENT_ADMIN_YEAR_OF_BIRTH]
+  );
+
+  return user.id;
 }
 
 async function resolveSessionUserId(request: FastifyRequest) {
@@ -373,6 +416,17 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/login", async (request, reply) => {
     const payload = signInPayloadSchema.parse(request.body);
+
+    if (isDevelopmentAdminLogin(app, payload.email, payload.password)) {
+      const userId = await ensureDevelopmentAdminUser(app);
+      const session = await createSession(app, userId);
+      setSessionCookie(reply, request, session.token, session.expiresAt);
+
+      return reply.send({
+        data: await loadAuthSession(app, userId)
+      });
+    }
+
     applyRateLimits([
       {
         key: `login:ip:${getRequestIp(request)}`,

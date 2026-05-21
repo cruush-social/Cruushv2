@@ -1,14 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import MapHome from './MapHome';
 
 const { getNearbyUsers } = vi.hoisted(() => ({
   getNearbyUsers: vi.fn(),
-}));
-
-const { syncMyLocation } = vi.hoisted(() => ({
-  syncMyLocation: vi.fn(),
 }));
 
 const { useIsMobile } = vi.hoisted(() => ({
@@ -19,23 +15,19 @@ vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
 }));
 
-vi.mock('../lib/locationApi', () => ({
-  syncMyLocation,
-}));
-
 vi.mock('./ui/use-mobile', () => ({
   useIsMobile,
 }));
 
 vi.mock('./MapView', () => ({
-  default: ({ users, onPinClick, onMapClick }: { users: any[]; onPinClick: (user: any) => void; onMapClick?: () => void }) => (
+  default: ({ markers, onPinClick, onMapClick }: { markers: any[]; onPinClick: (marker: any) => void; onMapClick?: () => void }) => (
     <div>
       <button onClick={() => onMapClick?.()}>Map background</button>
-      {users
-        .filter((user) => user.id !== 'me')
-        .map((user) => (
-          <button key={user.id} onClick={() => onPinClick(user)}>
-            {`Pin ${user.name}`}
+      {markers
+        .filter((marker) => marker.id !== 'me')
+        .map((marker) => (
+          <button key={marker.id} onClick={() => onPinClick(marker)}>
+            {`Pin ${marker.displayName}`}
           </button>
         ))}
     </div>
@@ -68,30 +60,17 @@ describe('MapHome', () => {
         photo: null,
       },
     ]);
-    syncMyLocation.mockReset();
-    syncMyLocation.mockResolvedValue({
-      id: 'user-1',
-      lat: 40.7,
-      lng: -73.9,
-      fuzzy_lat: 40.7,
-      fuzzy_lng: -73.9,
-      fuzz_radius_meters: 0,
-      location_updated_at: '2026-04-29T12:00:00.000Z',
-    });
-
     Object.defineProperty(global.navigator, 'geolocation', {
       configurable: true,
       value: {
-        watchPosition: vi.fn().mockImplementation((success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
+        getCurrentPosition: vi.fn().mockImplementation((success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
           success({
             coords: {
               latitude: 40.701,
               longitude: -73.901,
             },
           });
-          return 1;
         }),
-        clearWatch: vi.fn(),
       },
     });
   });
@@ -134,7 +113,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 
-  it('syncs the current geolocation while loading nearby users', async () => {
+  it('requests geolocation only after the user opts in and uses approximate coordinates', async () => {
     useIsMobile.mockReturnValue(false);
 
     render(
@@ -146,13 +125,18 @@ describe('MapHome', () => {
     );
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
 
-    expect(syncMyLocation).toHaveBeenCalledWith({
-      lat: 40.701,
-      lng: -73.901,
-      fuzz_radius_meters: 0,
+    fireEvent.click(screen.getByRole('button', { name: /use my location/i }));
+
+    await waitFor(() => {
+      expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+      expect(getNearbyUsers).toHaveBeenLastCalledWith({
+        lat: expect.any(Number),
+        lng: expect.any(Number),
+      });
     });
-    expect(getNearbyUsers).toHaveBeenCalledWith({ lat: 40.701, lng: -73.901 });
+    expect(getNearbyUsers.mock.calls.at(-1)?.[0]).not.toEqual({ lat: 40.701, lng: -73.901 });
   });
 
   it('shows an explicit empty state when discovery returns no nearby users', async () => {

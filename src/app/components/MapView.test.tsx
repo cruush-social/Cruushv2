@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import MapView from './MapView';
+import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import MapView, { createCruushVectorStyle, getMapStyle } from './MapView';
 
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
@@ -77,6 +78,10 @@ describe('MapView', () => {
     markerInstances.length = 0;
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('initializes MapLibre and wires map and marker interactions', () => {
     const onMapClick = vi.fn();
     const onMapReady = vi.fn();
@@ -87,25 +92,36 @@ describe('MapView', () => {
         onMapClick={onMapClick}
         onMapReady={onMapReady}
         onPinClick={onPinClick}
-        userLocation={{ lat: 40.73, lng: -73.99 }}
-        users={[
+        focusCoordinates={{ approximateLatitude: 40.73, approximateLongitude: -73.99 }}
+        markers={[
           {
             id: 'me',
-            name: 'You',
-            lat: 40.73,
-            lng: -73.99,
+            displayName: 'You',
+            approximateLatitude: 40.73,
+            approximateLongitude: -73.99,
+            isCurrentUser: true,
           },
           {
             id: 'user-1',
-            name: 'Jordan',
-            lat: 40.72,
-            lng: -74.01,
+            displayName: 'Jordan',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
           },
         ]}
       />
     );
 
     expect(MockMap.calls).toHaveLength(1);
+    expect(MockMap.calls[0]).toEqual(expect.objectContaining({
+      style: expect.objectContaining({
+        sources: expect.objectContaining({
+          openmaptiles: expect.objectContaining({
+            type: 'vector',
+            url: 'https://tiles.openfreemap.org/planet',
+          }),
+        }),
+      }),
+    }));
     expect(onMapReady).toHaveBeenCalledWith(mapInstances[0]);
 
     mapInstances[0].trigger('click');
@@ -114,5 +130,68 @@ describe('MapView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open Jordan on map' }));
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }));
     expect(screen.queryByRole('button', { name: 'Open You on map' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Your approximate area')).toBeInTheDocument();
+  });
+
+  it('creates a custom dark vector style with the Cruush map palette', () => {
+    const style = createCruushVectorStyle() as any;
+    const layerById = new Map(style.layers.map((layer: any) => [layer.id, layer]));
+
+    expect(style.sources.openmaptiles).toEqual({
+      type: 'vector',
+      url: 'https://tiles.openfreemap.org/planet',
+    });
+    expect(style.glyphs).toBe('https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf');
+    expect(layerById.get('background')?.paint['background-color']).toBe('#080808');
+    expect(layerById.get('major-roads')?.paint['line-color']).toBe('#242424');
+    expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#505050');
+    expect(layerById.get('secondary-road-labels')?.paint['text-color']).toBe('#a0a0a0');
+    expect(layerById.get('primary-road-labels')?.paint['text-color']).toBe('#d0d0d0');
+    expect(layerById.get('prominent-road-labels')?.paint['text-color']).toBe('#ffffff');
+    expect(layerById.get('poi-labels')?.paint['text-color']).toBe('#c0c0c0');
+    expect(layerById.get('poi-dots')?.paint['circle-stroke-color']).toBe('#383838');
+  });
+
+  it('creates valid MapLibre style JSON for the default vector map', () => {
+    expect(validateStyleMin(createCruushVectorStyle())).toEqual([]);
+  });
+
+  it('keeps the explicit style URL override as highest priority', () => {
+    vi.stubEnv('VITE_MAP_STYLE_URL', 'https://example.com/custom-style.json');
+    vi.stubEnv('VITE_MAP_TILE_URL', 'https://tiles.example.com/{z}/{x}/{y}.png');
+
+    expect(getMapStyle()).toBe('https://example.com/custom-style.json');
+  });
+
+  it('uses the raster tile URL override as a fallback before the default vector style', () => {
+    vi.stubEnv('VITE_MAP_TILE_URL', 'https://tiles.example.com/{z}/{x}/{y}.png');
+    vi.stubEnv('VITE_MAP_ATTRIBUTION', '&copy; Example Tiles');
+
+    const style = getMapStyle() as any;
+
+    expect(style.sources.osmRasterTiles).toEqual({
+      type: 'raster',
+      tiles: ['https://tiles.example.com/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: '&copy; Example Tiles',
+    });
+    expect(style.layers).toEqual([
+      {
+        id: 'osm-raster-tiles',
+        type: 'raster',
+        source: 'osmRasterTiles',
+      },
+    ]);
+  });
+
+  it('allows vector tile and glyph URLs to be overridden without switching to raster tiles', () => {
+    vi.stubEnv('VITE_MAP_VECTOR_TILEJSON_URL', 'https://tiles.example.com/planet.json');
+    vi.stubEnv('VITE_MAP_GLYPHS_URL', 'https://fonts.example.com/{fontstack}/{range}.pbf');
+
+    const style = getMapStyle() as any;
+
+    expect(style.sources.openmaptiles.url).toBe('https://tiles.example.com/planet.json');
+    expect(style.glyphs).toBe('https://fonts.example.com/{fontstack}/{range}.pbf');
+    expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
   });
 });

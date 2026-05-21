@@ -1,17 +1,20 @@
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import type { CruushMapInstance } from './MapView';
-import { Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart } from 'lucide-react';
+import type { CruushMapInstance, MapMarker } from './MapView';
+import { Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart, LocateFixed } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
 import HeartPhoto from './HeartPhoto';
 import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
-import { syncMyLocation } from '../lib/locationApi';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import {
+  approximateDisplayCoordinates,
+  type ApproximateCoordinates,
+} from '../lib/locationPrivacy';
 
 function getLastActiveMinutes(lastActive: string) {
   const value = parseInt(lastActive, 10);
@@ -35,14 +38,15 @@ export default function MapHome() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'ready' | 'error'>('idle');
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [mapInstance, setMapInstance] = useState<CruushMapInstance | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
-  const lastSyncedLocationKeyRef = useRef<string | null>(null);
 
   const openProfile = (user: DiscoveryUser) => {
     navigate(`/profile/${user.id}`, {
@@ -69,48 +73,8 @@ export default function MapHome() {
   }, [isMobile, selectedUser]);
 
   useEffect(() => {
-    let watchId: number | null = null;
-    if (navigator.geolocation) {
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        },
-        () => setUserLocation(null),
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
-      );
-    }
-    return () => {
-      if (watchId !== null && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchId);
-      }
-    };
+    void fetchUsers(null);
   }, []);
-
-  useEffect(() => {
-    void fetchUsers(userLocation);
-  }, [userLocation]);
-
-  useEffect(() => {
-    if (!userLocation) {
-      return;
-    }
-
-    const locationKey = `${userLocation.lat.toFixed(4)}:${userLocation.lng.toFixed(4)}`;
-
-    if (lastSyncedLocationKeyRef.current === locationKey) {
-      return;
-    }
-
-    lastSyncedLocationKeyRef.current = locationKey;
-
-    void syncMyLocation({
-      lat: userLocation.lat,
-      lng: userLocation.lng,
-      fuzz_radius_meters: 0,
-    }).catch((syncError) => {
-      console.error('Error syncing location:', syncError);
-    });
-  }, [userLocation]);
 
   const fetchUsers = async (coordinates: { lat: number; lng: number } | null) => {
     setLoading(true);
@@ -124,6 +88,40 @@ export default function MapHome() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUseMyLocation = () => {
+    setLocationError(null);
+
+    if (!navigator.geolocation) {
+      setLocationStatus('error');
+      setLocationError('Your browser does not support location sharing.');
+      return;
+    }
+
+    setLocationStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        // Exact browser coordinates stay local here. Only approximate coordinates
+        // should ever be displayed on the map or shared with other users.
+        const approximateLocation = approximateDisplayCoordinates({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+
+        setUserApproximateLocation(approximateLocation);
+        setLocationStatus('ready');
+        void fetchUsers({
+          lat: approximateLocation.approximateLatitude,
+          lng: approximateLocation.approximateLongitude,
+        });
+      },
+      () => {
+        setLocationStatus('error');
+        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60_000 },
+    );
   };
 
   const hasActiveFilters =
@@ -178,34 +176,64 @@ export default function MapHome() {
     return true;
   });
 
-  // Merge userLocation as a special pin
-  const mergedUsers = userLocation
-    ? [
-        ...filteredUsers,
-        {
-          id: 'me',
-          name: 'You',
-          display_name: 'You',
-          lat: userLocation.lat,
-          lng: userLocation.lng,
-          photo: null,
-          isCurrentUser: true,
-          lastActive: '',
-          distance: '',
-        },
-      ]
-    : filteredUsers;
+  const mapMarkers = useMemo<MapMarker[]>(() => {
+    const nearbyMarkers = filteredUsers.map((user) => {
+      const approximateCoordinates = approximateDisplayCoordinates({
+        latitude: user.lat,
+        longitude: user.lng,
+      });
+
+      return {
+        id: user.id,
+        displayName: user.name,
+        approximateLatitude: approximateCoordinates.approximateLatitude,
+        approximateLongitude: approximateCoordinates.approximateLongitude,
+        lastActiveLabel: user.lastActive,
+        photo: user.photo,
+      };
+    });
+
+    if (!userApproximateLocation) {
+      return nearbyMarkers;
+    }
+
+    return [
+      {
+        id: 'me',
+        displayName: 'You',
+        approximateLatitude: userApproximateLocation.approximateLatitude,
+        approximateLongitude: userApproximateLocation.approximateLongitude,
+        lastActiveLabel: 'Approximate',
+        photo: null,
+        isCurrentUser: true,
+      },
+      ...nearbyMarkers,
+    ];
+  }, [filteredUsers, userApproximateLocation]);
+
+  const handleMarkerSelect = (marker: MapMarker) => {
+    const selectedMarkerUser = filteredUsers.find((user) => user.id === marker.id);
+
+    if (selectedMarkerUser) {
+      handleUserSelect(selectedMarkerUser);
+    }
+  };
 
   return (
     <div className="relative h-screen overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div className="absolute inset-x-0 top-0 z-30 px-5 pb-12 pt-5">
         <div className="flex items-center justify-between">
-          <h1
-            className="cruush-logo-text text-3xl tracking-tight"
-          >
-            cruush
-          </h1>
+          <div>
+            <h1
+              className="cruush-logo-text text-3xl tracking-tight"
+            >
+              cruush
+            </h1>
+            <div className="mt-2 inline-flex rounded-full border border-white/10 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72 backdrop-blur-md">
+              NYC beta
+            </div>
+          </div>
 
           <div className="flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md">
             <Button
@@ -244,10 +272,10 @@ export default function MapHome() {
 
       <div className="absolute inset-0">
         <MapView
-          onPinClick={handleUserSelect}
+          onPinClick={handleMarkerSelect}
           onMapClick={() => setSelectedUser(null)}
-          users={mergedUsers}
-          userLocation={userLocation}
+          markers={mapMarkers}
+          focusCoordinates={userApproximateLocation}
           onMapReady={setMapInstance}
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-80 bg-gradient-to-t from-background via-background/78 to-transparent" />
@@ -256,6 +284,12 @@ export default function MapHome() {
         {error ? (
           <div className="absolute left-4 right-20 top-24 z-20 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
+          </div>
+        ) : null}
+
+        {locationError ? (
+          <div className="absolute left-4 right-20 top-40 z-20 rounded-md border border-white/10 bg-background/82 p-3 text-sm text-white/72 backdrop-blur-md">
+            {locationError}
           </div>
         ) : null}
 
@@ -298,6 +332,22 @@ export default function MapHome() {
             ) : null}
           </Button>
 
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleUseMyLocation}
+            disabled={locationStatus === 'locating'}
+            className="h-auto rounded-2xl border border-white/10 bg-background/62 px-4 py-3 text-left text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md hover:bg-white/10"
+          >
+            <LocateFixed className="mr-2 h-4 w-4 shrink-0" />
+            <span className="flex flex-col leading-tight">
+              <span>{locationStatus === 'locating' ? 'Finding area...' : 'Use my location'}</span>
+              <span className="text-[11px] font-normal text-white/58">
+                Improves nearby discovery, approximate only
+              </span>
+            </span>
+          </Button>
+
           <div className="flex flex-col gap-2">
             <Button
               size="icon"
@@ -330,11 +380,11 @@ export default function MapHome() {
                 </div>
               </div>
               <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
-              {filteredUsers
+              {[...filteredUsers]
                 .sort((a, b) => {
-                  const aMinutes = getLastActiveMinutes(a.lastActive);
-                  const bMinutes = getLastActiveMinutes(b.lastActive);
-                  return aMinutes - bMinutes;
+                  const firstUserMinutes = getLastActiveMinutes(a.lastActive);
+                  const secondUserMinutes = getLastActiveMinutes(b.lastActive);
+                  return firstUserMinutes - secondUserMinutes;
                 })
                 .slice(0, 10)
                 .map((user) => (
