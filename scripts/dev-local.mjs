@@ -80,7 +80,7 @@ const serverEnvFromFiles = {
 const frontendEnv = {
   ...process.env,
   ...rootEnv,
-  VITE_API_BASE_URL: rootEnv.VITE_API_BASE_URL ?? 'http://localhost:3001',
+  VITE_API_BASE_URL: rootEnv.VITE_API_BASE_URL ?? '',
 };
 
 const serverEnv = {
