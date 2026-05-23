@@ -12,6 +12,8 @@ export type DiscoveryUser = {
   distance: string;
   lookingFor: string[];
   vibes: string[];
+  position: string[];
+  hostingTravel: string[];
   photo: string | null;
 };
 

@@ -1,11 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import maplibregl, {
   type LngLatLike,
   type Map as MapLibreMap,
   type Marker as MapLibreMarker,
   type StyleSpecification,
 } from 'maplibre-gl';
+import {
+  ArrowDown,
+  ArrowUp,
+  Ban,
+  Bed,
+  Car,
+  CircleDot,
+  CircleHelp,
+  Crown,
+  HandHeart,
+  HeartHandshake,
+  Home,
+  Hotel,
+  MessageCircle,
+  MinusCircle,
+  Mountain,
+  MoveHorizontal,
+  RefreshCw,
+  Repeat2,
+  Trees,
+  type LucideIcon,
+} from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
+export type MapMarkerBadge = {
+  kind: 'self' | 'position' | 'hostingTravel';
+  label: string;
+  iconName?: string;
+};
 
 export type MapMarker = {
   id: string;
@@ -15,6 +44,7 @@ export type MapMarker = {
   lastActiveLabel?: string;
   photo?: string | null;
   isCurrentUser?: boolean;
+  badge?: MapMarkerBadge | null;
 };
 
 interface MapViewProps {
@@ -39,7 +69,9 @@ const DEFAULT_TILE_URLS = [
 ];
 const DEFAULT_ATTRIBUTION = '&copy; CARTO &copy; OpenStreetMap contributors';
 const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
-const DEFAULT_GLYPHS_URL = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
+const DEFAULT_GLYPHS_URL = 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf';
+const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond Regular'];
+const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold'];
 
 function createRasterStyle(tileUrls: string[], attribution: string): StyleSpecification {
   return {
@@ -239,8 +271,9 @@ export function createCruushVectorStyle(
         layout: {
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': ['Noto Sans Regular'],
+          'text-font': MAP_LABEL_FONT_REGULAR,
           'text-size': ['interpolate', ['linear'], ['zoom'], 15, 10, 17, 12],
+          'text-transform': 'uppercase',
           'text-padding': 2,
         },
         paint: {
@@ -265,8 +298,9 @@ export function createCruushVectorStyle(
         layout: {
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': ['Noto Sans Regular'],
+          'text-font': MAP_LABEL_FONT_REGULAR,
           'text-size': ['interpolate', ['linear'], ['zoom'], 12, 11, 16, 14],
+          'text-transform': 'uppercase',
           'text-padding': 2,
         },
         paint: {
@@ -285,8 +319,9 @@ export function createCruushVectorStyle(
         layout: {
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': ['Noto Sans Bold'],
+          'text-font': MAP_LABEL_FONT_BOLD,
           'text-size': ['interpolate', ['linear'], ['zoom'], 10, 12, 16, 15],
+          'text-transform': 'uppercase',
           'text-padding': 2,
         },
         paint: {
@@ -305,8 +340,9 @@ export function createCruushVectorStyle(
         layout: {
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': ['Noto Sans Bold'],
+          'text-font': MAP_LABEL_FONT_BOLD,
           'text-size': ['interpolate', ['linear'], ['zoom'], 9, 13, 16, 16],
+          'text-transform': 'uppercase',
           'text-padding': 2,
         },
         paint: {
@@ -323,8 +359,9 @@ export function createCruushVectorStyle(
         minzoom: 14,
         layout: {
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': ['Noto Sans Regular'],
+          'text-font': MAP_LABEL_FONT_REGULAR,
           'text-size': ['interpolate', ['linear'], ['zoom'], 14, 10, 17, 12],
+          'text-transform': 'uppercase',
           'text-offset': [0, 0.75],
           'text-anchor': 'top',
           'text-padding': 2,
@@ -343,7 +380,7 @@ export function createCruushVectorStyle(
         minzoom: 8,
         layout: {
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': ['Noto Sans Bold'],
+          'text-font': MAP_LABEL_FONT_BOLD,
           'text-size': [
             'interpolate',
             ['linear'],
@@ -353,6 +390,7 @@ export function createCruushVectorStyle(
             12,
             17,
           ],
+          'text-transform': 'uppercase',
           'text-padding': 4,
         },
         paint: {
@@ -391,6 +429,70 @@ export function getMapStyle() {
 const HEART_PATH =
   'M35.2 54.4C35.2 54.4 16 40 16 28C16 20.8 20.8 16 25.6 16C30.4 16 35.2 20.8 35.2 20.8C35.2 20.8 40 16 44.8 16C49.6 16 54.4 20.8 54.4 28C54.4 40 35.2 54.4 35.2 54.4Z';
 
+const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
+  top: ArrowUp,
+  bottom: ArrowDown,
+  versatile: Repeat2,
+  switch: RefreshCw,
+  dominant: Crown,
+  submissive: HandHeart,
+  side: MoveHorizontal,
+  oral: MessageCircle,
+  service: HeartHandshake,
+  none: MinusCircle,
+  'stone top': Mountain,
+  'pillow princess': Bed,
+  gooner: CircleDot,
+};
+
+const HOSTING_TRAVEL_BADGE_ICONS: Record<string, LucideIcon> = {
+  'can host': Home,
+  'cant host': Ban,
+  car: Car,
+  hotel: Hotel,
+  outdoors: Trees,
+  'ask me': CircleHelp,
+};
+
+function normalizeBadgeValue(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ').replace("can't", 'cant');
+}
+
+function findKnownBadgeValue(values: string[] | undefined, knownValues: Record<string, LucideIcon>) {
+  return values
+    ?.map(normalizeBadgeValue)
+    .find((value) => Boolean(knownValues[value]));
+}
+
+export function createMapMarkerBadge(positionValues: string[] = [], hostingTravelValues: string[] = []) {
+  const positionValue = findKnownBadgeValue(positionValues, POSITION_BADGE_ICONS);
+
+  if (positionValue) {
+    return {
+      kind: 'position',
+      label: positionValue,
+      iconName: positionValue,
+    } satisfies MapMarkerBadge;
+  }
+
+  const hostingTravelValue = findKnownBadgeValue(hostingTravelValues, HOSTING_TRAVEL_BADGE_ICONS);
+
+  if (hostingTravelValue) {
+    return {
+      kind: 'hostingTravel',
+      label: hostingTravelValue,
+      iconName: hostingTravelValue,
+    } satisfies MapMarkerBadge;
+  }
+
+  return null;
+}
+
+type RenderedMapMarker = {
+  marker: MapLibreMarker;
+  root: Root;
+};
+
 function isMapMarker(value: MapMarker) {
   return Number.isFinite(value.approximateLatitude) && Number.isFinite(value.approximateLongitude);
 }
@@ -399,14 +501,142 @@ function getDisplayName(marker: MapMarker) {
   return marker.displayName.trim() || 'person';
 }
 
+function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
+  if (!badge?.iconName) {
+    return null;
+  }
+
+  if (badge.kind === 'position') {
+    return POSITION_BADGE_ICONS[badge.iconName] ?? null;
+  }
+
+  if (badge.kind === 'hostingTravel') {
+    return HOSTING_TRAVEL_BADGE_ICONS[badge.iconName] ?? null;
+  }
+
+  return null;
+}
+
+function MarkerBadge({ badge, isCurrentUser, markerId }: { badge?: MapMarkerBadge | null; isCurrentUser: boolean; markerId: string }) {
+  if (isCurrentUser) {
+    return (
+      <span
+        className="absolute right-0 top-5 rounded-full border border-[#22B8FF]/70 bg-black/75 px-1.5 py-0.5 text-[9px] font-semibold leading-none tracking-[0.12em] text-[#C7F0FF] shadow-[0_0_14px_rgba(34,184,255,0.7)] backdrop-blur-sm"
+        data-testid={`marker-badge-${markerId}`}
+      >
+        YOU
+      </span>
+    );
+  }
+
+  const Icon = getBadgeIcon(badge);
+
+  if (!badge || !Icon) {
+    return null;
+  }
+
+  return (
+    <span
+      aria-label={badge.label}
+      className="absolute right-0 top-5 flex h-6 w-6 items-center justify-center rounded-full border border-[#FF4A6A]/70 bg-black/75 text-white shadow-[0_0_14px_rgba(209,31,58,0.65)] backdrop-blur-sm"
+      data-testid={`marker-badge-${markerId}`}
+      role="img"
+      title={badge.label}
+    >
+      <Icon aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.4} />
+    </span>
+  );
+}
+
+function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
+  const hasPhoto = Boolean(marker.photo);
+  const gradientId = `marker-fill-${marker.id}`;
+  const clipId = `marker-photo-clip-${marker.id}`;
+  const filterId = `marker-shadow-${marker.id}`;
+  const borderColor = isCurrentUser ? '#22B8FF' : '#D11F3A';
+  const shadowMatrix = isCurrentUser
+    ? '0 0 0 0 0.133333 0 0 0 0 0.721569 0 0 0 0 1 0 0 0 1 0'
+    : '0 0 0 0 0.819608 0 0 0 0 0.121569 0 0 0 0 0.227451 0 0 0 0.72 0';
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-14 w-14"
+      data-testid={`marker-heart-${marker.id}`}
+      data-has-photo={hasPhoto ? 'true' : 'false'}
+      data-marker-theme={isCurrentUser ? 'current' : 'nearby'}
+      height="71"
+      viewBox="0 0 71 71"
+      width="71"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="16" x2="54.4" y1="16" y2="54.4" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={isCurrentUser ? '#0099FF' : '#FF0072'} />
+          <stop offset="48.5577%" stopColor={isCurrentUser ? '#1968EA' : '#DA045D'} />
+          <stop offset="100%" stopColor={isCurrentUser ? '#3236D4' : '#B40849'} />
+        </linearGradient>
+        <clipPath id={clipId}>
+          <path d={HEART_PATH} />
+        </clipPath>
+        <filter id={filterId} x="-4.8" y="-4.8" width="80" height="80" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+          <feFlood floodOpacity="0" result="BackgroundImageFix" />
+          <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+          <feOffset />
+          <feGaussianBlur stdDeviation="8" />
+          <feColorMatrix type="matrix" values={shadowMatrix} />
+          <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
+          <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape" />
+        </filter>
+      </defs>
+      <g filter={`url(#${filterId})`}>
+        {hasPhoto ? (
+          <>
+            <image
+              clipPath={`url(#${clipId})`}
+              data-testid={`marker-photo-fill-${marker.id}`}
+              height="71"
+              href={marker.photo ?? ''}
+              preserveAspectRatio="xMidYMid slice"
+              width="71"
+            />
+            <path d={HEART_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
+          </>
+        ) : (
+          <path d={HEART_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="1.8" />
+        )}
+        <circle cx="35.2" cy="24.8" r={isCurrentUser ? '4.5' : '3.5'} fill="#ffffff" fillOpacity={isCurrentUser ? '0.95' : '0.82'} />
+      </g>
+    </svg>
+  );
+}
+
+function MapMarkerPin({ marker }: { marker: MapMarker }) {
+  const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
+  const markerBadge = isCurrentUser ? { kind: 'self', label: 'YOU' } satisfies MapMarkerBadge : marker.badge;
+
+  return (
+    <span className="pointer-events-none relative flex h-[76px] w-[82px] flex-col items-center overflow-visible">
+      <span className="relative flex h-14 w-[82px] items-center justify-center">
+        <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
+        <MarkerBadge badge={markerBadge} isCurrentUser={isCurrentUser} markerId={marker.id} />
+      </span>
+      {marker.lastActiveLabel ? (
+        <span className="mt-0.5 max-w-[76px] truncate rounded-full bg-black/75 px-2 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-[0.12em] text-white/78 shadow-[0_6px_18px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+          {marker.lastActiveLabel}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) => void) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
-  const hasPhoto = Boolean(marker.photo);
   const element = document.createElement(isCurrentUser ? 'div' : 'button');
   const name = getDisplayName(marker);
 
   element.className = [
-    'relative flex h-11 w-11 items-center justify-center border-0 bg-transparent p-0',
+    'relative flex h-[76px] w-[82px] items-start justify-center overflow-visible border-0 bg-transparent p-0',
     isCurrentUser
       ? 'drop-shadow-[0_0_16px_#22B8FF]'
       : 'drop-shadow-[0_0_16px_rgba(209,31,58,0.60)] transition-transform hover:scale-110',
@@ -424,119 +654,23 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
     });
   }
 
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  svg.setAttribute('width', '71');
-  svg.setAttribute('height', '71');
-  svg.setAttribute('viewBox', '0 0 71 71');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.classList.add('h-11', 'w-11');
+  const root = createRoot(element);
+  root.render(<MapMarkerPin marker={marker} />);
 
-  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-
-  if (hasPhoto) {
-    const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
-    pattern.setAttribute('id', `marker-photo-${marker.id}`);
-    pattern.setAttribute('width', '1');
-    pattern.setAttribute('height', '1');
-
-    const image = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-    image.setAttribute('href', marker.photo ?? '');
-    image.setAttribute('width', '71');
-    image.setAttribute('height', '71');
-    image.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-    pattern.appendChild(image);
-    defs.appendChild(pattern);
-  }
-
-  const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-  gradient.setAttribute('id', `marker-fill-${marker.id}`);
-  gradient.setAttribute('x1', '16');
-  gradient.setAttribute('y1', '16');
-  gradient.setAttribute('x2', '54.4');
-  gradient.setAttribute('y2', '54.4');
-  gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
-
-  const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-  stop1.setAttribute('offset', '0%');
-  stop1.setAttribute('stop-color', isCurrentUser ? '#0099FF' : '#FF0072');
-  const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-  stop2.setAttribute('offset', '48.5577%');
-  stop2.setAttribute('stop-color', isCurrentUser ? '#1968EA' : '#DA045D');
-  const stop3 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-  stop3.setAttribute('offset', '100%');
-  stop3.setAttribute('stop-color', isCurrentUser ? '#3236D4' : '#B40849');
-  gradient.append(stop1, stop2, stop3);
-  defs.appendChild(gradient);
-
-  const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
-  filter.setAttribute('id', `marker-shadow-${marker.id}`);
-  filter.setAttribute('x', '-4.8');
-  filter.setAttribute('y', '-4.8');
-  filter.setAttribute('width', '80');
-  filter.setAttribute('height', '80');
-  filter.setAttribute('filterUnits', 'userSpaceOnUse');
-  filter.setAttribute('color-interpolation-filters', 'sRGB');
-
-  const flood = document.createElementNS('http://www.w3.org/2000/svg', 'feFlood');
-  flood.setAttribute('flood-opacity', '0');
-  flood.setAttribute('result', 'BackgroundImageFix');
-  const alpha = document.createElementNS('http://www.w3.org/2000/svg', 'feColorMatrix');
-  alpha.setAttribute('in', 'SourceAlpha');
-  alpha.setAttribute('type', 'matrix');
-  alpha.setAttribute('values', '0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0');
-  alpha.setAttribute('result', 'hardAlpha');
-  const offset = document.createElementNS('http://www.w3.org/2000/svg', 'feOffset');
-  const blur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-  blur.setAttribute('stdDeviation', '8');
-  const color = document.createElementNS('http://www.w3.org/2000/svg', 'feColorMatrix');
-  color.setAttribute('type', 'matrix');
-  color.setAttribute(
-    'values',
-    isCurrentUser
-      ? '0 0 0 0 0.133333 0 0 0 0 0.721569 0 0 0 0 1 0 0 0 1 0'
-      : '0 0 0 0 0.819608 0 0 0 0 0.121569 0 0 0 0 0.227451 0 0 0 0.6 0',
-  );
-  const blend1 = document.createElementNS('http://www.w3.org/2000/svg', 'feBlend');
-  blend1.setAttribute('mode', 'normal');
-  blend1.setAttribute('in2', 'BackgroundImageFix');
-  blend1.setAttribute('result', 'effect1_dropShadow');
-  const blend2 = document.createElementNS('http://www.w3.org/2000/svg', 'feBlend');
-  blend2.setAttribute('mode', 'normal');
-  blend2.setAttribute('in', 'SourceGraphic');
-  blend2.setAttribute('in2', 'effect1_dropShadow');
-  blend2.setAttribute('result', 'shape');
-
-  filter.append(flood, alpha, offset, blur, color, blend1, blend2);
-  defs.appendChild(filter);
-
-  const heartGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  heartGroup.setAttribute('filter', `url(#marker-shadow-${marker.id})`);
-
-  const heart = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  heart.setAttribute('d', HEART_PATH);
-  heart.setAttribute('fill', hasPhoto ? `url(#marker-photo-${marker.id})` : `url(#marker-fill-${marker.id})`);
-
-  const spark = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  spark.setAttribute('cx', '35.2');
-  spark.setAttribute('cy', '24.8');
-  spark.setAttribute('r', isCurrentUser ? '4.5' : '3.5');
-  spark.setAttribute('fill', '#ffffff');
-  spark.setAttribute('fill-opacity', isCurrentUser ? '0.95' : '0.82');
-
-  heartGroup.append(heart, spark);
-  svg.append(defs, heartGroup);
-  element.appendChild(svg);
-
-  return element;
+  return { element, root };
 }
 
 export type CruushMapInstance = MapLibreMap;
 
+function cleanupRenderedMarker({ marker, root }: RenderedMapMarker) {
+  marker.remove();
+  queueMicrotask(() => root.unmount());
+}
+
 function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const markersRef = useRef<MapLibreMarker[]>([]);
+  const markersRef = useRef<RenderedMapMarker[]>([]);
   const onPinClickRef = useRef(onPinClick);
   const onMapClickRef = useRef(onMapClick);
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -583,7 +717,7 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
     }
 
     return () => {
-      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current.forEach(cleanupRenderedMarker);
       markersRef.current = [];
       mapRef.current?.remove();
       mapRef.current = null;
@@ -608,16 +742,20 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
       return;
     }
 
-    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current.forEach(cleanupRenderedMarker);
     markersRef.current = [];
 
     const visibleMarkers = markers.filter(isMapMarker);
 
     markersRef.current = visibleMarkers.map((marker) => {
-      const element = createMarkerElement(marker, (selectedMarker) => onPinClickRef.current(selectedMarker));
-      return new maplibregl.Marker({ element })
+      const { element, root } = createMarkerElement(marker, (selectedMarker) => onPinClickRef.current(selectedMarker));
+      const mapMarker = new maplibregl.Marker({ element })
         .setLngLat([marker.approximateLongitude, marker.approximateLatitude])
         .addTo(map);
+      return {
+        marker: mapMarker,
+        root,
+      };
     });
   }, [markers]);
 

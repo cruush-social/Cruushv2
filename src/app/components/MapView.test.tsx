@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import MapView, { createCruushVectorStyle, getMapStyle } from './MapView';
+import MapView, { createCruushVectorStyle, createMapMarkerBadge, getMapStyle } from './MapView';
 
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
@@ -82,7 +82,7 @@ describe('MapView', () => {
     vi.unstubAllEnvs();
   });
 
-  it('initializes MapLibre and wires map and marker interactions', () => {
+  it('initializes MapLibre and wires map and marker interactions', async () => {
     const onMapClick = vi.fn();
     const onMapReady = vi.fn();
     const onPinClick = vi.fn();
@@ -99,6 +99,7 @@ describe('MapView', () => {
             displayName: 'You',
             approximateLatitude: 40.73,
             approximateLongitude: -73.99,
+            lastActiveLabel: 'Now',
             isCurrentUser: true,
           },
           {
@@ -106,6 +107,8 @@ describe('MapView', () => {
             displayName: 'Jordan',
             approximateLatitude: 40.72,
             approximateLongitude: -74.01,
+            lastActiveLabel: '2m ago',
+            badge: createMapMarkerBadge(['Top'], []),
           },
         ]}
       />
@@ -127,10 +130,90 @@ describe('MapView', () => {
     mapInstances[0].trigger('click');
     expect(onMapClick).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open Jordan on map' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan on map' }));
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }));
     expect(screen.queryByRole('button', { name: 'Open You on map' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Your approximate area')).toBeInTheDocument();
+    expect(screen.getByText('YOU')).toBeInTheDocument();
+    expect(screen.getByText('Now')).toBeInTheDocument();
+    expect(screen.getByText('2m ago')).toBeInTheDocument();
+    expect(screen.getByLabelText('top')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
+    expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
+  });
+
+  it('renders photo markers with current and nearby styling', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'me',
+            displayName: 'You',
+            approximateLatitude: 40.73,
+            approximateLongitude: -73.99,
+            photo: 'https://example.com/me.jpg',
+            isCurrentUser: true,
+            lastActiveLabel: 'Now',
+          },
+          {
+            id: 'user-photo',
+            displayName: 'Kai',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            photo: 'https://example.com/kai.jpg',
+            lastActiveLabel: '12m ago',
+          },
+        ]}
+      />
+    );
+
+    expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
+    expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
+    expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
+    expect(screen.getByTestId('marker-photo-fill-user-photo')).toHaveAttribute('href', 'https://example.com/kai.jpg');
+    expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-has-photo', 'true');
+    expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-marker-theme', 'nearby');
+    expect(screen.getByText('12m ago')).toBeInTheDocument();
+  });
+
+  it('uses hosting badges only when no known position badge exists', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'user-hosting',
+            displayName: 'Mika',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            badge: createMapMarkerBadge(['unknown'], ['Can Host']),
+          },
+        ]}
+      />
+    );
+
+    expect(await screen.findByLabelText('can host')).toBeInTheDocument();
+  });
+
+  it('does not render a badge for users without known position or hosting data', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'user-empty',
+            displayName: 'River',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            badge: createMapMarkerBadge([], []),
+          },
+        ]}
+      />
+    );
+
+    expect(await screen.findByRole('button', { name: 'Open River on map' })).toBeInTheDocument();
+    expect(screen.queryByTestId('marker-badge-user-empty')).not.toBeInTheDocument();
   });
 
   it('creates a custom dark vector style with the Cruush map palette', () => {
@@ -141,7 +224,7 @@ describe('MapView', () => {
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
     });
-    expect(style.glyphs).toBe('https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf');
+    expect(style.glyphs).toBe('https://fonts.openmaptiles.org/{fontstack}/{range}.pbf');
     expect(layerById.get('background')?.paint['background-color']).toBe('#080808');
     expect(layerById.get('major-roads')?.paint['line-color']).toBe('#242424');
     expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#505050');
@@ -150,6 +233,18 @@ describe('MapView', () => {
     expect(layerById.get('prominent-road-labels')?.paint['text-color']).toBe('#ffffff');
     expect(layerById.get('poi-labels')?.paint['text-color']).toBe('#c0c0c0');
     expect(layerById.get('poi-dots')?.paint['circle-stroke-color']).toBe('#383838');
+    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Regular']);
+    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Regular']);
+    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold']);
+    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold']);
+    expect(layerById.get('poi-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Regular']);
+    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold']);
+    expect(layerById.get('minor-road-labels')?.layout['text-transform']).toBe('uppercase');
+    expect(layerById.get('secondary-road-labels')?.layout['text-transform']).toBe('uppercase');
+    expect(layerById.get('primary-road-labels')?.layout['text-transform']).toBe('uppercase');
+    expect(layerById.get('prominent-road-labels')?.layout['text-transform']).toBe('uppercase');
+    expect(layerById.get('poi-labels')?.layout['text-transform']).toBe('uppercase');
+    expect(layerById.get('place-labels')?.layout['text-transform']).toBe('uppercase');
   });
 
   it('creates valid MapLibre style JSON for the default vector map', () => {
