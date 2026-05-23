@@ -57,7 +57,7 @@
   - `HOST=0.0.0.0`
   - `CORS_ORIGIN=http://localhost:5173`
   - `APP_URL=http://localhost:5173`
-  - `VITE_API_BASE_URL=http://localhost:3001`
+  - `VITE_API_BASE_URL=` (blank; the Vite `/api` proxy reaches `http://localhost:3001`)
 
   ### 3. Optional override files
 
