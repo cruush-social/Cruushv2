@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
+  demoDiscoveryUsers,
   formatDistanceMiles,
   formatLastActiveFromDate,
   formatLastActiveFromMinutes,
@@ -232,6 +233,30 @@ function mapLegacyDiscoveryRow(
   };
 }
 
+function mapDemoDiscoveryUser(
+  user: (typeof demoDiscoveryUsers)[number],
+  centerLat: number,
+  centerLng: number,
+  index: number
+) {
+  const coordinates = getDiscoveryCoordinates(centerLat, centerLng, index);
+
+  return {
+    id: user.id,
+    name: user.name,
+    display_name: user.name,
+    age: user.age,
+    pronouns: user.pronouns,
+    lat: coordinates.lat,
+    lng: coordinates.lng,
+    lastActive: formatLastActiveFromMinutes(user.lastActiveMinutes),
+    distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
+    lookingFor: user.lookingFor,
+    vibes: user.vibes,
+    photo: user.photo
+  };
+}
+
 export async function registerUserRoutes(app: FastifyInstance) {
   app.get("/api/users", async (request, reply) => {
     const currentUserId = await getAuthenticatedUserId(request);
@@ -259,8 +284,14 @@ export async function registerUserRoutes(app: FastifyInstance) {
             return mapLegacyDiscoveryRow(row, centerLat, centerLng, index);
           });
 
+    const discoveryUsers = realUsers.length > 0
+      ? realUsers
+      : demoDiscoveryUsers.map((user, index) => (
+          mapDemoDiscoveryUser(user, centerLat, centerLng, index)
+        ));
+
     return reply.send({
-      data: realUsers.slice(0, 12)
+      data: discoveryUsers.slice(0, 12)
     });
   });
 }

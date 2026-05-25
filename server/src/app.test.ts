@@ -1129,7 +1129,7 @@ describe("server", () => {
     expect(body.data[0].lastActive).toMatch(/ago$/);
   });
 
-  it("returns an empty array when no nearby profiles have stored coordinates", async () => {
+  it("returns Brooklyn demo users with photos when no nearby profiles have stored coordinates", async () => {
     query.mockResolvedValueOnce({
       rows: []
     });
@@ -1143,9 +1143,15 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      data: []
+    const body = response.json();
+    expect(body.data).toHaveLength(5);
+    expect(body.data[0]).toMatchObject({
+      name: "Jordan",
+      photo: expect.stringMatching(/^https:\/\//),
+      lat: expect.any(Number),
+      lng: expect.any(Number)
     });
+    expect(body.data.every((user: { photo: string | null }) => Boolean(user.photo))).toBe(true);
   });
 
   it("falls back to the legacy profile schema on GET /api/users", async () => {

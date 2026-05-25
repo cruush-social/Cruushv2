@@ -10,11 +10,11 @@ type DemoDiscoveryUserSeed = {
 };
 
 const DEMO_USER_OFFSETS = [
-  { lat: 0.0034, lng: -0.0021 },
-  { lat: -0.0022, lng: 0.0031 },
-  { lat: 0.0012, lng: 0.0043 },
-  { lat: -0.0038, lng: -0.0015 },
-  { lat: 0.0044, lng: 0.0011 }
+  { lat: 0.0096, lng: -0.0058 },
+  { lat: -0.0065, lng: 0.0124 },
+  { lat: 0.0142, lng: 0.0091 },
+  { lat: -0.0128, lng: -0.0084 },
+  { lat: 0.0028, lng: 0.0182 }
 ];
 
 export const demoDiscoveryUsers: DemoDiscoveryUserSeed[] = [
@@ -25,7 +25,7 @@ export const demoDiscoveryUsers: DemoDiscoveryUserSeed[] = [
     pronouns: "they/them",
     lookingFor: ["Friends", "Dates", "Fun"],
     vibes: ["Artsy", "Chill", "Goth"],
-    photo: null,
+    photo: "https://i.pravatar.cc/240?img=5",
     lastActiveMinutes: 2
   },
   {
@@ -35,7 +35,7 @@ export const demoDiscoveryUsers: DemoDiscoveryUserSeed[] = [
     pronouns: "he/him",
     lookingFor: ["Dates", "Relationship", "Fun"],
     vibes: ["Nerdy", "Adventurous", "Alt"],
-    photo: null,
+    photo: "https://i.pravatar.cc/240?img=12",
     lastActiveMinutes: 5
   },
   {
@@ -45,7 +45,7 @@ export const demoDiscoveryUsers: DemoDiscoveryUserSeed[] = [
     pronouns: "she/her",
     lookingFor: ["Friends", "Fun", "Community"],
     vibes: ["Outdoorsy", "Creative", "Goth"],
-    photo: null,
+    photo: "https://i.pravatar.cc/240?img=32",
     lastActiveMinutes: 15
   },
   {
@@ -55,7 +55,7 @@ export const demoDiscoveryUsers: DemoDiscoveryUserSeed[] = [
     pronouns: "they/them",
     lookingFor: ["Friends", "Community", "Networking"],
     vibes: ["Activist", "Thoughtful", "Chill"],
-    photo: null,
+    photo: "https://i.pravatar.cc/240?img=47",
     lastActiveMinutes: 60
   },
   {
@@ -65,7 +65,7 @@ export const demoDiscoveryUsers: DemoDiscoveryUserSeed[] = [
     pronouns: "he/they",
     lookingFor: ["Dates", "Fun", "Relationship"],
     vibes: ["Musical", "Playful", "Artsy"],
-    photo: null,
+    photo: "https://i.pravatar.cc/240?img=57",
     lastActiveMinutes: 180
   }
 ];
