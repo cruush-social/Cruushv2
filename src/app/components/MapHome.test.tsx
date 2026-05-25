@@ -7,6 +7,10 @@ const { getNearbyUsers } = vi.hoisted(() => ({
   getNearbyUsers: vi.fn(),
 }));
 
+const { getMyProfile } = vi.hoisted(() => ({
+  getMyProfile: vi.fn(),
+}));
+
 const { useIsMobile } = vi.hoisted(() => ({
   useIsMobile: vi.fn(),
 }));
@@ -15,14 +19,33 @@ vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
 }));
 
+vi.mock('../lib/profileApi', () => ({
+  getMyProfile,
+}));
+
 vi.mock('./ui/use-mobile', () => ({
   useIsMobile,
 }));
 
 vi.mock('./MapView', () => ({
+  createMapMarkerBadge: (position: string[] = [], hostingTravel: string[] = []) => {
+    const knownPosition = position.map((value) => value.trim().toLowerCase()).find((value) => ['top', 'bottom', 'versatile'].includes(value));
+    const knownHosting = hostingTravel.map((value) => value.trim().toLowerCase()).find((value) => ['can host', 'car'].includes(value));
+    const label = knownPosition ?? knownHosting;
+    return label ? { kind: knownPosition ? 'position' : 'hostingTravel', label, iconName: label } : null;
+  },
   default: ({ markers, onPinClick, onMapClick }: { markers: any[]; onPinClick: (marker: any) => void; onMapClick?: () => void }) => (
     <div>
       <button onClick={() => onMapClick?.()}>Map background</button>
+      {markers.map((marker) => (
+        <div
+          data-testid={`marker-${marker.id}`}
+          data-badge={marker.badge?.label ?? ''}
+          data-last-active={marker.lastActiveLabel ?? ''}
+          data-photo={marker.photo ?? ''}
+          key={`marker-data-${marker.id}`}
+        />
+      ))}
       {markers
         .filter((marker) => marker.id !== 'me')
         .map((marker) => (
@@ -42,7 +65,12 @@ function LocationProbe() {
 describe('MapHome', () => {
   beforeEach(() => {
     getNearbyUsers.mockReset();
+    getMyProfile.mockReset();
     useIsMobile.mockReset();
+
+    getMyProfile.mockResolvedValue({
+      photos: ['https://example.com/me.jpg'],
+    });
 
     getNearbyUsers.mockResolvedValue([
       {
@@ -57,6 +85,8 @@ describe('MapHome', () => {
         distance: '0.2 mi',
         lookingFor: ['Fun'],
         vibes: ['Goth'],
+        position: ['Top'],
+        hostingTravel: ['Can Host'],
         photo: null,
       },
     ]);
@@ -135,11 +165,29 @@ describe('MapHome', () => {
         lat: expect.any(Number),
         lng: expect.any(Number),
       });
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
     });
     expect(getNearbyUsers.mock.calls.at(-1)?.[0]).not.toEqual({ lat: 40.701, lng: -73.901 });
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
   });
 
-  it('shows an explicit empty state when discovery returns no nearby users', async () => {
+  it('passes discovery badge metadata and last active labels into map markers', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+    expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-last-active', '2m ago');
+    expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-badge', 'top');
+  });
+
+  it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([]);
 
@@ -151,7 +199,11 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    expect((await screen.findAllByText(/No one nearby yet/i)).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('button', { name: 'Pin Mika Demo' })).toBeInTheDocument();
+    expect(screen.getAllByText('Demo NYC pin').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('marker-demo-nyc-connected-pin')).toHaveAttribute('data-badge', 'versatile');
+    expect(screen.getByTestId('marker-demo-nyc-connected-pin')).toHaveAttribute('data-last-active', '3m ago');
+    expect(screen.getByTestId('marker-demo-nyc-connected-pin').getAttribute('data-photo')).toContain('data:image/svg+xml');
   });
 
   it('shows an error instead of fake nearby users when discovery fails', async () => {
@@ -167,7 +219,8 @@ describe('MapHome', () => {
     );
 
     expect(await screen.findByText('Discovery offline')).toBeInTheDocument();
-    expect(screen.queryByText(/No one nearby yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pin Jordan' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
   });
 });

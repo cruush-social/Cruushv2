@@ -1088,6 +1088,8 @@ describe("server", () => {
         pronouns: ["they/them"],
         looking_for: ["Fun"],
         vibes: ["Chill"],
+        position: ["Top"],
+        hosting_travel: ["Can Host"],
         photos: ["https://example.com/alex.jpg"],
         lat: 40.711,
         lng: -74.002,
@@ -1123,6 +1125,8 @@ describe("server", () => {
       lng: -74.0025,
       lookingFor: ["Fun"],
       vibes: ["Chill"],
+      position: ["Top"],
+      hostingTravel: ["Can Host"],
       photo: "https://example.com/alex.jpg"
     });
     expect(body.data[0].distance).toMatch(/ mi$/);
@@ -1193,6 +1197,8 @@ describe("server", () => {
           pronouns: "they/them",
           lookingFor: ["Fun", "Dates"],
           vibes: ["Goth"],
+          position: [],
+          hostingTravel: [],
           photo: "https://example.com/jordan.jpg"
         })
       ])

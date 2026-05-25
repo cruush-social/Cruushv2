@@ -117,12 +117,12 @@
   npm run dev:local
   ```
 
-  Map tiles default to a custom dark MapLibre vector style backed by OpenFreeMap. The style uses a high-contrast grey/black palette so NYC roads and street names stay readable without changing the Cruush map UI. You can override the map source in `.env.local`:
+  Map tiles default to a custom dark MapLibre vector style backed by OpenFreeMap with Cormorant Garamond map labels from OpenMapTiles glyphs. The style uses a high-contrast grey/black palette so NYC roads and street names stay readable without changing the Cruush map UI. You can override the map source in `.env.local`:
 
   ```bash
   VITE_MAP_STYLE_URL=
   VITE_MAP_VECTOR_TILEJSON_URL=https://tiles.openfreemap.org/planet
-  VITE_MAP_GLYPHS_URL=https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf
+  VITE_MAP_GLYPHS_URL=https://fonts.openmaptiles.org/{fontstack}/{range}.pbf
   VITE_MAP_TILE_URL=https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png
   VITE_MAP_ATTRIBUTION=&copy; CARTO &copy; OpenStreetMap contributors
   ```

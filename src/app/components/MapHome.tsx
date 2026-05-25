@@ -2,7 +2,7 @@
 /// <reference types="vite/client" />
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import type { CruushMapInstance, MapMarker } from './MapView';
+import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './MapView';
 import { Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart, LocateFixed } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
@@ -11,10 +11,57 @@ import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import {
   approximateDisplayCoordinates,
   type ApproximateCoordinates,
 } from '../lib/locationPrivacy';
+
+const DEMO_NYC_PROFILE_PHOTO = `data:image/svg+xml,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
+  <defs>
+    <radialGradient id="skin" cx="50%" cy="34%" r="68%">
+      <stop offset="0%" stop-color="#ffd0df"/>
+      <stop offset="58%" stop-color="#b84a65"/>
+      <stop offset="100%" stop-color="#36121d"/>
+    </radialGradient>
+    <linearGradient id="backdrop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff0072"/>
+      <stop offset="55%" stop-color="#5d1741"/>
+      <stop offset="100%" stop-color="#070707"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="320" fill="url(#backdrop)"/>
+  <circle cx="230" cy="62" r="52" fill="#22b8ff" opacity=".24"/>
+  <circle cx="102" cy="92" r="76" fill="#ffffff" opacity=".08"/>
+  <circle cx="160" cy="128" r="70" fill="url(#skin)"/>
+  <path d="M58 320c8-78 62-126 136-126 62 0 108 42 118 126z" fill="#090909"/>
+  <path d="M75 320c11-46 45-76 93-76 38 0 70 24 84 76z" fill="#d11f3a" opacity=".64"/>
+  <path d="M78 138c12-66 52-96 109-82 42 10 66 42 70 92-30-42-68-52-114-34-22 9-46 24-65 24z" fill="#080808"/>
+  <circle cx="135" cy="136" r="8" fill="#11080d"/>
+  <circle cx="190" cy="136" r="8" fill="#11080d"/>
+  <path d="M134 174c18 15 42 15 60 0" fill="none" stroke="#fff1f6" stroke-width="9" stroke-linecap="round" opacity=".7"/>
+  <path d="M36 42h92" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity=".22"/>
+  <path d="M42 68h58" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity=".18"/>
+</svg>
+`)}`;
+
+const DEMO_NYC_DISCOVERY_USER: DiscoveryUser = {
+  id: 'demo-nyc-connected-pin',
+  name: 'Mika Demo',
+  display_name: 'Mika Demo',
+  age: 29,
+  pronouns: 'he/they',
+  lat: 40.7336,
+  lng: -74.0027,
+  lastActive: '3m ago',
+  distance: 'Demo NYC pin',
+  lookingFor: ['Cruising', 'Tonight', 'Consent first'],
+  vibes: ['Red heart pin', 'Photo fill', 'West Village'],
+  position: ['Versatile'],
+  hostingTravel: ['Can Host'],
+  photo: DEMO_NYC_PROFILE_PHOTO,
+};
 
 function getLastActiveMinutes(lastActive: string) {
   const value = parseInt(lastActive, 10);
@@ -47,6 +94,7 @@ export default function MapHome() {
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
+  const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
 
   const openProfile = (user: DiscoveryUser) => {
     navigate(`/profile/${user.id}`, {
@@ -74,6 +122,27 @@ export default function MapHome() {
 
   useEffect(() => {
     void fetchUsers(null);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getMyProfile()
+      .then((profile) => {
+        if (isMounted) {
+          setCurrentProfile(profile);
+        }
+      })
+      .catch((profileError) => {
+        console.error('Error loading current profile for map marker:', profileError);
+        if (isMounted) {
+          setCurrentProfile(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const fetchUsers = async (coordinates: { lat: number; lng: number } | null) => {
@@ -176,8 +245,11 @@ export default function MapHome() {
     return true;
   });
 
+  const shouldShowDemoUser = !loading && !error && users.length === 0;
+  const displayedUsers = shouldShowDemoUser ? [DEMO_NYC_DISCOVERY_USER] : filteredUsers;
+
   const mapMarkers = useMemo<MapMarker[]>(() => {
-    const nearbyMarkers = filteredUsers.map((user) => {
+    const nearbyMarkers = displayedUsers.map((user) => {
       const approximateCoordinates = approximateDisplayCoordinates({
         latitude: user.lat,
         longitude: user.lng,
@@ -190,6 +262,7 @@ export default function MapHome() {
         approximateLongitude: approximateCoordinates.approximateLongitude,
         lastActiveLabel: user.lastActive,
         photo: user.photo,
+        badge: createMapMarkerBadge(user.position, user.hostingTravel),
       };
     });
 
@@ -203,16 +276,20 @@ export default function MapHome() {
         displayName: 'You',
         approximateLatitude: userApproximateLocation.approximateLatitude,
         approximateLongitude: userApproximateLocation.approximateLongitude,
-        lastActiveLabel: 'Approximate',
-        photo: null,
+        lastActiveLabel: 'Now',
+        photo: currentProfile?.photos[0] ?? null,
         isCurrentUser: true,
+        badge: {
+          kind: 'self',
+          label: 'YOU',
+        },
       },
       ...nearbyMarkers,
     ];
-  }, [filteredUsers, userApproximateLocation]);
+  }, [currentProfile, displayedUsers, userApproximateLocation]);
 
   const handleMarkerSelect = (marker: MapMarker) => {
-    const selectedMarkerUser = filteredUsers.find((user) => user.id === marker.id);
+    const selectedMarkerUser = displayedUsers.find((user) => user.id === marker.id);
 
     if (selectedMarkerUser) {
       handleUserSelect(selectedMarkerUser);
@@ -299,11 +376,11 @@ export default function MapHome() {
           </div>
         ) : null}
 
-        {!loading && !error && users.length === 0 ? (
-          <div className="absolute left-4 right-4 top-28 z-20 rounded-2xl border border-white/10 bg-background/88 p-4 text-sm text-white/72 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-md">
-            <div className="text-xs uppercase tracking-[0.18em] text-white/45">No one nearby yet</div>
+        {shouldShowDemoUser ? (
+          <div className="absolute left-4 right-4 top-28 z-20 rounded-2xl border border-white/10 bg-background/88 p-4 text-sm text-white/72 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-md sm:right-auto sm:max-w-sm">
+            <div className="text-xs uppercase tracking-[0.18em] text-white/45">Demo NYC pin</div>
             <p className="mt-2 leading-6">
-              Keep your location on and profile visible. When someone nearby checks in, they will land here instead of a demo tray.
+              Mika Demo is fake data near the West Village so the connected-user pin design is visible while real discovery is empty.
             </p>
           </div>
         ) : null}
@@ -370,7 +447,7 @@ export default function MapHome() {
           </div>
         </div>
 
-        {filteredUsers.length > 0 && (
+        {displayedUsers.length > 0 && (
           <div className="absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 px-4">
             <div className="mx-auto max-w-5xl rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
               <div className="mb-2 flex items-center justify-between px-1">
@@ -380,7 +457,7 @@ export default function MapHome() {
                 </div>
               </div>
               <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
-              {[...filteredUsers]
+              {[...displayedUsers]
                 .sort((a, b) => {
                   const firstUserMinutes = getLastActiveMinutes(a.lastActive);
                   const secondUserMinutes = getLastActiveMinutes(b.lastActive);
