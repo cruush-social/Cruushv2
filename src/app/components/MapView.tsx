@@ -639,7 +639,7 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
     'relative flex h-[76px] w-[82px] items-start justify-center overflow-visible border-0 bg-transparent p-0',
     isCurrentUser
       ? 'drop-shadow-[0_0_16px_#22B8FF]'
-      : 'drop-shadow-[0_0_16px_rgba(209,31,58,0.60)] transition-transform hover:scale-110',
+      : 'drop-shadow-[0_0_16px_rgba(209,31,58,0.60)] transition-[filter] hover:drop-shadow-[0_0_22px_rgba(209,31,58,0.78)]',
   ].join(' ');
 
   if (isCurrentUser) {
