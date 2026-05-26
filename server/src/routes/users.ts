@@ -6,6 +6,10 @@ import {
   formatLastActiveFromMinutes,
   getDiscoveryCoordinates
 } from "../discovery-users.js";
+import {
+  createSensitiveProfileToken,
+  getSensitiveProfileTokenKeyVersion
+} from "../profile-sensitive.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { assertRateLimit } from "../rate-limit.js";
 
@@ -16,7 +20,10 @@ type DiscoveryProfileRow = {
   pronouns: string[] | null;
   looking_for: string[] | null;
   vibes: string[] | null;
+  scenes: string[] | null;
+  archetypes: string[] | null;
   position: string[] | null;
+  role: string[] | null;
   hosting_travel: string[] | null;
   photos: string[] | null;
   lat: number | null;
@@ -41,10 +48,52 @@ type LegacyDiscoveryProfileRow = {
   fuzzy_lng: number | null;
 };
 
+const queryArrayField = z.preprocess((value) => {
+  if (value === undefined) {
+    return [];
+  }
+
+  const values = Array.isArray(value) ? value : [value];
+
+  return values.flatMap((item) => typeof item === "string"
+    ? item.split(",").map((part) => part.trim()).filter(Boolean)
+    : []);
+}, z.array(z.string().trim().min(1).max(120)).max(50).default([]));
+
+const crowdQueryArrayField = z.preprocess((value) => {
+  if (value === undefined) {
+    return [];
+  }
+
+  const values = Array.isArray(value) ? value : [value];
+
+  return values.flatMap((item) => typeof item === "string"
+    ? item.split(",").map((part) => part.trim()).filter(Boolean)
+    : []);
+}, z.array(z.enum(["T4T", "Sapphic", "Gay"])).max(3).default([]));
+
 const discoveryQuerySchema = z.object({
   lat: z.coerce.number().min(-90).max(90).optional(),
-  lng: z.coerce.number().min(-180).max(180).optional()
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  identities: queryArrayField,
+  presentations: queryArrayField,
+  lookingFor: queryArrayField,
+  timing: queryArrayField,
+  hosting: queryArrayField,
+  vibes: queryArrayField,
+  scenes: queryArrayField,
+  archetypes: queryArrayField,
+  crowds: crowdQueryArrayField,
+  hobbies: queryArrayField,
+  positions: queryArrayField,
+  roles: queryArrayField,
+  kinks: queryArrayField,
+  bodyTypes: queryArrayField,
+  sexuality: queryArrayField,
+  substanceBoundaries: queryArrayField
 });
+
+type DiscoveryQuery = z.infer<typeof discoveryQuerySchema>;
 
 const DEFAULT_CENTER = {
   lat: 40.6782,
@@ -104,6 +153,57 @@ function coerceDisplayName(value: string | null) {
   return value?.trim() || "Cruush user";
 }
 
+function normalizeFilterTokenValue(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function addTextArrayFilter(where: string[], values: unknown[], column: string, selectedValues: string[]) {
+  if (selectedValues.length === 0) {
+    return;
+  }
+
+  values.push(selectedValues);
+  where.push(`${column} && $${values.length}::text[]`);
+}
+
+function addSensitiveTokenFilter(
+  app: FastifyInstance,
+  where: string[],
+  values: unknown[],
+  tokenKind: "crowd" | "kink",
+  selectedValues: string[]
+) {
+  if (selectedValues.length === 0) {
+    return;
+  }
+
+  const tokenKeyVersion = getSensitiveProfileTokenKeyVersion(app.config);
+  const tokenHashes = selectedValues
+    .map((value) => normalizeFilterTokenValue(value))
+    .filter(Boolean)
+    .map((value) => createSensitiveProfileToken(app.config, `${tokenKind}:${value}`, tokenKeyVersion).token_hash);
+
+  if (tokenHashes.length === 0) {
+    return;
+  }
+
+  values.push(tokenHashes);
+  const tokenHashesPlaceholder = `$${values.length}`;
+  values.push(tokenKeyVersion);
+  const tokenKeyVersionPlaceholder = `$${values.length}`;
+  where.push(`exists (
+           select 1
+           from profile_sensitive_tokens pst
+           where pst.user_id = profiles.id
+             and pst.token_hash = any(${tokenHashesPlaceholder}::text[])
+             and pst.token_key_version = ${tokenKeyVersionPlaceholder}
+         )`);
+}
+
 function getLegacyCoordinates(
   row: LegacyDiscoveryProfileRow,
   centerLat: number,
@@ -118,8 +218,32 @@ function getLegacyCoordinates(
   };
 }
 
-async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string) {
+async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, filters: DiscoveryQuery) {
   try {
+    const values: unknown[] = [currentUserId];
+    const where = [
+      "id <> $1",
+      "lat is not null",
+      "lng is not null"
+    ];
+
+    addTextArrayFilter(where, values, "identities", filters.identities);
+    addTextArrayFilter(where, values, "presentation", filters.presentations);
+    addTextArrayFilter(where, values, "looking_for", filters.lookingFor);
+    addTextArrayFilter(where, values, "availability", filters.timing);
+    addTextArrayFilter(where, values, "hosting_travel", filters.hosting);
+    addTextArrayFilter(where, values, "vibes", filters.vibes);
+    addTextArrayFilter(where, values, "scenes", filters.scenes);
+    addTextArrayFilter(where, values, "archetypes", filters.archetypes);
+    addTextArrayFilter(where, values, "hobbies", filters.hobbies);
+    addTextArrayFilter(where, values, "position", filters.positions);
+    addTextArrayFilter(where, values, "role", filters.roles);
+    addTextArrayFilter(where, values, "body_type", filters.bodyTypes);
+    addTextArrayFilter(where, values, "sexuality", filters.sexuality);
+    addTextArrayFilter(where, values, "substance_boundaries", filters.substanceBoundaries);
+    addSensitiveTokenFilter(app, where, values, "crowd", filters.crowds);
+    addSensitiveTokenFilter(app, where, values, "kink", filters.kinks);
+
     const modernRows = await app.db.query<DiscoveryProfileRow>(
       `select
          id::text as id,
@@ -128,7 +252,10 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string) {
          pronouns,
          looking_for,
          vibes,
+         scenes,
+         archetypes,
          position,
+         role,
          hosting_travel,
          photos,
          lat,
@@ -137,12 +264,10 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string) {
          fuzzy_lng,
          updated_at
        from profiles
-       where id <> $1
-         and lat is not null
-         and lng is not null
+       where ${where.join("\n         and ")}
        order by updated_at desc
        limit 12`,
-      [currentUserId]
+      values
     );
 
     return {
@@ -206,7 +331,10 @@ function mapModernDiscoveryRow(
     distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
     lookingFor: coerceStringArray(row.looking_for),
     vibes: coerceStringArray(row.vibes),
+    scenes: coerceStringArray(row.scenes),
+    archetypes: coerceStringArray(row.archetypes),
     position: coerceStringArray(row.position),
+    role: coerceStringArray(row.role),
     hostingTravel: coerceStringArray(row.hosting_travel),
     photo: row.photos?.[0] ?? null
   };
@@ -234,7 +362,10 @@ function mapLegacyDiscoveryRow(
     distance: formatDistanceMiles(centerLat, centerLng, legacyCoordinates.lat, legacyCoordinates.lng),
     lookingFor: coerceStringArray(row.looking_for),
     vibes: coerceStringArray(row.legacy_vibe_tags),
+    scenes: [],
+    archetypes: [],
     position: [],
+    role: [],
     hostingTravel: [],
     photo: row.primary_photo_url?.trim() || null
   };
@@ -254,7 +385,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
     const centerLng = parsedQuery.lng ?? DEFAULT_CENTER.lng;
 
     const usedIds = new Set<string>();
-    const discoveryRows = await loadDiscoveryRows(app, currentUserId);
+    const discoveryRows = await loadDiscoveryRows(app, currentUserId, parsedQuery);
     const realUsers = discoveryRows.mode === "modern"
       ? discoveryRows.rows
           .map((row) => {

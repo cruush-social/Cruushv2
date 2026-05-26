@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect from './MultiSelect';
 import {
   AVAILABILITY,
+  ARCHETYPES,
+  CROWDS,
   HOBBIES,
   HOSTING,
   IDENTITIES,
@@ -15,6 +17,7 @@ import {
   POSITIONS,
   PRESENTATIONS,
   ROLES,
+  SCENES,
   SUBSTANCE_BOUNDARIES,
   VIBES,
 } from '../lib/profileOptions';
@@ -68,6 +71,11 @@ export default function FiltersPanel() {
               <Label>Presentation</Label>
               <MultiSelect options={PRESENTATIONS} />
             </div>
+
+            <div className="space-y-2">
+              <Label>Crowds</Label>
+              <MultiSelect ariaLabel="Crowds" options={CROWDS} />
+            </div>
           </TabsContent>
 
           <TabsContent value="looking" className="space-y-6 mt-6">
@@ -94,7 +102,17 @@ export default function FiltersPanel() {
 
             <div className="space-y-2">
               <Label>Vibes</Label>
-              <MultiSelect options={VIBES} />
+              <MultiSelect ariaLabel="Vibes" options={VIBES} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Scenes</Label>
+              <MultiSelect ariaLabel="Scenes" options={SCENES} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Archetypes</Label>
+              <MultiSelect ariaLabel="Archetypes" options={ARCHETYPES} />
             </div>
 
             <div className="space-y-2">
@@ -119,16 +137,6 @@ export default function FiltersPanel() {
               <MultiSelect ariaLabel="Kinks & Fetishes" optionGroups={KINK_GROUPS} />
             </div>
 
-            <div className="space-y-2">
-              <Label>Protection</Label>
-              <div className="flex flex-wrap gap-2">
-                {['always', 'PrEP', 'condoms', 'undetectable'].map((prot) => (
-                  <Button key={prot} variant="outline" size="sm">
-                    {prot}
-                  </Button>
-                ))}
-              </div>
-            </div>
           </TabsContent>
 
           <TabsContent value="lifestyle" className="space-y-6 mt-6">

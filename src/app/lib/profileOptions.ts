@@ -2,8 +2,8 @@ export const IDENTITIES = [
   'agender', 'androgynous', 'bakla', 'bigender', 'cis man', 'cis woman', 'crossdresser', 'demiboy', 'demigirl',
   'demi-nonbinary', "fa'afafine", 'femme', 'gender nonconforming', 'genderfluid',
   'genderpunk', 'genderqueer', 'hijra', 'intersex', 'kathoey', 'man', 'māhū', 'maverique', 'muxé',
-  'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'trans man',
-  'trans woman', 'transfeminine', 'transmasculine', 'transsexual', 'transsexual man', 'transsexual woman', 'travesti', 'two-spirit', 'woman', 'x-gender'
+  'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'travesti',
+  'two-spirit', 'woman', 'x-gender'
 ];
 
 export const PRESENTATIONS = [
@@ -42,11 +42,19 @@ export const HOSTING = [
 ].sort();
 
 export const VIBES = [
-  'Alt', 'Artsy', 'Baddie', 'Bear', 'Bimbo', 'Chub', 'Clean-cut', 'Corporate', 'Cottagecore', 'Cub', 'Daddy',
-  'Doll', 'E-Girl/E-Boy', 'Goddess', 'Geek', 'Goth', 'Granola', 'Homebody', 'Hippie', 'Kitten', 'Leather',
-  'Mommy', 'Otter', 'Pixie', 'Pony', 'Princess', 'Pup', 'Punk', 'Raver', 'Rugged', 'Sober', 'Spiritual',
-  'Sporty', 'Twink', 'Wolf'
+  'Alt', 'Artsy', 'Clean-cut', 'Corporate', 'Cottagecore', 'E-Girl/E-Boy', 'Geek', 'Goth', 'Granola',
+  'Homebody', 'Hippie', 'Punk', 'Raver', 'Rugged', 'Sober', 'Spiritual', 'Sporty'
 ].sort();
+
+export const SCENES = [
+  'Ballroom', 'Bear', 'Chub', 'Cub', 'Drag', 'Leather', 'Otter', 'Rave', 'Twink', 'Wolf'
+].sort();
+
+export const ARCHETYPES = [
+  'Baddie', 'Bimbo', 'Brat', 'Daddy', 'Doll', 'Goddess', 'Kitten', 'Mommy', 'Pixie', 'Princess', 'Pup', 'Service'
+].sort();
+
+export const CROWDS = ['Gay', 'Sapphic', 'T4T'].sort();
 
 export const HIV_STATUS = ['negative', 'positive', 'prefer not to say', 'undetectable', 'unknown'];
 export const CONDOMS = ['always', 'discuss', 'never', 'prefer not to say', 'sometimes'];

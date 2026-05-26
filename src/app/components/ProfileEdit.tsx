@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
+import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
@@ -21,9 +22,11 @@ import {
 import { persistCurrentUser } from '../lib/sessionUser';
 import {
   AVAILABILITY,
+  ARCHETYPES,
   BODY_TYPES,
   CONDOMS,
   COVID_VACCINE,
+  CROWDS,
   DOXYPEP,
   ETHNICITIES,
   HIV_STATUS,
@@ -39,6 +42,7 @@ import {
   PROFILE_VISIBILITY_OPTIONS,
   PRONOUNS,
   ROLES,
+  SCENES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
   VIBES,
@@ -71,16 +75,22 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     weight: profile.weight ?? '',
     position: profile.position ?? [],
     role: profile.role ?? [],
+    is_trans: profile.is_trans ?? null,
+    trans_status_visibility: profile.trans_status_visibility ?? 'public',
+    crowds: profile.crowds ?? [],
     availability: profile.availability ?? [],
     hosting_travel: profile.hosting_travel ?? [],
     kinks: profile.kinks ?? [],
     kink_interests: profile.kink_interests ?? [],
     kinks_visibility: profile.kinks_visibility ?? 'public',
     vibes: profile.vibes ?? [],
+    scenes: profile.scenes ?? [],
+    archetypes: profile.archetypes ?? [],
     hobbies: profile.hobbies ?? [],
     custom_hobby: (profile.custom_hobby ?? '').trim(),
     looking_for: profile.looking_for ?? [],
     hiv_status: profile.hiv_status ?? [],
+    hiv_status_visibility: profile.hiv_status_visibility ?? 'mutual_cruushes',
     custom_hiv_status: (profile.custom_hiv_status ?? '').trim(),
     condoms: profile.condoms ?? [],
     custom_condoms: (profile.custom_condoms ?? '').trim(),
@@ -131,6 +141,14 @@ export default function ProfileEdit() {
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleTransChange = (checked: boolean) => {
+    setProfile((prev) => ({
+      ...prev,
+      is_trans: checked,
+      crowds: checked ? prev.crowds ?? [] : (prev.crowds ?? []).filter((crowd) => crowd !== 'T4T'),
+    }));
+  };
+
   const handleKinksChange = (selectedKinks: string[]) => {
     setProfile((prev) => {
       const existingById = new Map((prev.kink_interests ?? []).map((interest) => [interest.kink_id, interest]));
@@ -179,15 +197,21 @@ export default function ProfileEdit() {
     body_type: profile.body_type || [],
     position: profile.position || [],
     role: profile.role || [],
+    is_trans: profile.is_trans ?? null,
+    trans_status_visibility: profile.trans_status_visibility || 'public',
+    crowds: profile.crowds || [],
     availability: profile.availability || [],
     hosting_travel: profile.hosting_travel || [],
     kinks: profile.kinks || [],
     kink_interests: profile.kink_interests || [],
     kinks_visibility: profile.kinks_visibility || 'public',
     vibes: profile.vibes || [],
+    scenes: profile.scenes || [],
+    archetypes: profile.archetypes || [],
     hobbies: profile.hobbies || [],
     looking_for: profile.looking_for || [],
     hiv_status: profile.hiv_status || [],
+    hiv_status_visibility: profile.hiv_status_visibility || 'mutual_cruushes',
     condoms: profile.condoms || [],
     prep: profile.prep || [],
     doxypep: profile.doxypep || [],
@@ -268,7 +292,22 @@ export default function ProfileEdit() {
 
             <div className="space-y-2">
               <Label>Vibes</Label>
-              <MultiSelect options={VIBES} value={normalizedProfile.vibes} onChange={(vals) => handleChange('vibes', vals)} />
+              <MultiSelect ariaLabel="Vibes" options={VIBES} value={normalizedProfile.vibes} onChange={(vals) => handleChange('vibes', vals)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Scenes</Label>
+              <MultiSelect ariaLabel="Scenes" options={SCENES} value={normalizedProfile.scenes} onChange={(vals) => handleChange('scenes', vals)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Archetypes</Label>
+              <MultiSelect
+                ariaLabel="Archetypes"
+                options={ARCHETYPES}
+                value={normalizedProfile.archetypes}
+                onChange={(vals) => handleChange('archetypes', vals)}
+              />
             </div>
           </TabsContent>
 
@@ -326,6 +365,39 @@ export default function ProfileEdit() {
             <div className="space-y-2">
               <Label>Sexuality</Label>
               <MultiSelect options={SEXUALITY} value={normalizedProfile.sexuality} onChange={(vals) => handleChange('sexuality', vals)} />
+            </div>
+
+            <div className="space-y-3 rounded-md border border-border bg-card/40 p-4">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="is_trans"
+                  checked={normalizedProfile.is_trans === true}
+                  onCheckedChange={(checked) => handleTransChange(checked === true)}
+                />
+                <Label htmlFor="is_trans">I am trans</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Trans status visibility</Label>
+                <MultiSelect
+                  ariaLabel="Trans status visibility"
+                  options={VISIBILITY_OPTION_LABELS}
+                  value={[getVisibilityLabel(normalizedProfile.trans_status_visibility)]}
+                  onChange={(values) => handleChange('trans_status_visibility', getVisibilityValue(values[0]))}
+                  selectionMode="single"
+                  placeholder="Select visibility..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Crowds</Label>
+                <MultiSelect
+                  ariaLabel="Crowds"
+                  options={normalizedProfile.is_trans === true ? CROWDS : CROWDS.filter((crowd) => crowd !== 'T4T')}
+                  value={normalizedProfile.crowds}
+                  onChange={(vals) => handleChange('crowds', vals)}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -403,14 +475,25 @@ export default function ProfileEdit() {
             </div>
             <div className="space-y-2">
               <Label>Vibes</Label>
-              <MultiSelect options={VIBES} value={normalizedProfile.vibes} onChange={vals => handleChange('vibes', vals)} />
+              <MultiSelect ariaLabel="Vibes" options={VIBES} value={normalizedProfile.vibes} onChange={vals => handleChange('vibes', vals)} />
             </div>
           </TabsContent>
 
           <TabsContent value="health" className="space-y-6 mt-6">
             <div className="space-y-2">
               <Label>HIV Status</Label>
-              <MultiSelect options={HIV_STATUS} value={normalizedProfile.hiv_status} onChange={vals => handleChange('hiv_status', vals)} />
+              <MultiSelect ariaLabel="HIV Status" options={HIV_STATUS} value={normalizedProfile.hiv_status} onChange={vals => handleChange('hiv_status', vals)} />
+            </div>
+            <div className="space-y-2">
+              <Label>HIV status visibility</Label>
+              <MultiSelect
+                ariaLabel="HIV status visibility"
+                options={VISIBILITY_OPTION_LABELS}
+                value={[getVisibilityLabel(normalizedProfile.hiv_status_visibility)]}
+                onChange={(values) => handleChange('hiv_status_visibility', getVisibilityValue(values[0]))}
+                selectionMode="single"
+                placeholder="Select visibility..."
+              />
             </div>
             <div className="space-y-2">
               <Label>Condoms</Label>

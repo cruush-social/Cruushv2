@@ -99,12 +99,16 @@ export default function ProfileView() {
       bodyType: formatJoined(profile.body_type),
       height: profile.height || null,
       weight: profile.weight || null,
+      isTrans: profile.is_trans,
+      crowds: profile.crowds,
       position: profile.position,
       role: profile.role,
       lookingFor: profile.looking_for,
       timing: formatJoined(profile.availability),
       hosting: profile.hosting_travel,
       vibes: profile.vibes,
+      scenes: profile.scenes,
+      archetypes: profile.archetypes,
       kinks: profile.kinks,
       hobbies: profile.hobbies,
       protection: [...profile.condoms, ...profile.prep, ...profile.doxypep].filter(Boolean),
@@ -304,8 +308,16 @@ export default function ProfileView() {
                 <BadgeList items={profileView.sexuality} />
               </Section>
 
+              <Section title="Crowds">
+                <BadgeList items={profileView.crowds} />
+              </Section>
+
               <Section title="Stats">
                 <div className="grid grid-cols-2 gap-3 text-sm">
+                  <DetailItem
+                    label="Trans status"
+                    value={profileView.isTrans === true ? 'Yes' : profileView.isTrans === false ? 'No' : null}
+                  />
                   <DetailItem label="Ethnicity" value={profileView.ethnicity} />
                   <DetailItem label="Body" value={profileView.bodyType} />
                   <DetailItem label="Height" value={profileView.height} />
@@ -350,6 +362,14 @@ export default function ProfileView() {
 
               <Section title="Vibes">
                 <BadgeList items={profileView.vibes} variant="gradient" />
+              </Section>
+
+              <Section title="Scenes">
+                <BadgeList items={profileView.scenes} />
+              </Section>
+
+              <Section title="Archetypes">
+                <BadgeList items={profileView.archetypes} />
               </Section>
             </TabsContent>
 

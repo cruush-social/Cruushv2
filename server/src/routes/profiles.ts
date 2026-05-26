@@ -6,6 +6,16 @@ import {
   profilePayloadSchema,
   type ProfilePayload
 } from "../profile-schema.js";
+import {
+  CROWD_OPTIONS,
+  createCrowdTokens,
+  createSensitiveProfileTokens,
+  decryptSensitiveProfile,
+  encryptSensitiveProfile,
+  type EncryptedSensitiveProfile,
+  type SensitiveProfileData,
+  type SensitiveProfileToken
+} from "../profile-sensitive.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { assertRateLimit } from "../rate-limit.js";
 
@@ -26,15 +36,19 @@ type ProfileRow = {
   weight: string | null;
   position: string[] | null;
   role: string[] | null;
+  trans_status_visibility: ProfileVisibility | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
   kinks: string[] | null;
   kinks_visibility: ProfileVisibility | null;
   vibes: string[] | null;
+  scenes: string[] | null;
+  archetypes: string[] | null;
   hobbies: string[] | null;
   custom_hobby: string | null;
   looking_for: string[] | null;
   hiv_status: string[] | null;
+  hiv_status_visibility: ProfileVisibility | null;
   custom_hiv_status: string | null;
   condoms: string[] | null;
   custom_condoms: string | null;
@@ -47,6 +61,11 @@ type ProfileRow = {
   mpox_vaccine: string[] | null;
   custom_mpox_vaccine: string | null;
   substance_boundaries: string[] | null;
+  profile_sensitive_ciphertext: string | null;
+  profile_sensitive_nonce: string | null;
+  profile_sensitive_auth_tag: string | null;
+  profile_sensitive_key_version: string | null;
+  profile_sensitive_token_key_version: string | null;
   updated_at: string | Date;
 };
 
@@ -91,15 +110,19 @@ const PROFILE_COLUMNS = [
   "weight",
   "position",
   "role",
+  "trans_status_visibility",
   "availability",
   "hosting_travel",
   "kinks",
   "kinks_visibility",
   "vibes",
+  "scenes",
+  "archetypes",
   "hobbies",
   "custom_hobby",
   "looking_for",
   "hiv_status",
+  "hiv_status_visibility",
   "custom_hiv_status",
   "condoms",
   "custom_condoms",
@@ -111,7 +134,12 @@ const PROFILE_COLUMNS = [
   "custom_covid_vaccine",
   "mpox_vaccine",
   "custom_mpox_vaccine",
-  "substance_boundaries"
+  "substance_boundaries",
+  "profile_sensitive_ciphertext",
+  "profile_sensitive_nonce",
+  "profile_sensitive_auth_tag",
+  "profile_sensitive_key_version",
+  "profile_sensitive_token_key_version"
 ] as const;
 
 function toKinkId(value: string) {
@@ -193,12 +221,41 @@ function isSchemaCompatibilityError(error: unknown) {
 function mapProfileRow(
   row: ProfileRow,
   kinkInterests: ProfileKinkInterest[] = [],
-  options: { showKinks?: boolean } = {}
+  options: {
+    includePrivateSensitive?: boolean;
+    hasMutualCrowd?: boolean;
+    sensitiveProfile?: SensitiveProfileData | null;
+    showKinks?: boolean;
+  } = {}
 ) {
-  const showKinks = options.showKinks ?? true;
+  const includePrivateSensitive = options.includePrivateSensitive ?? true;
+  const hasMutualCrowd = options.hasMutualCrowd ?? false;
+  const canShowByVisibility = (visibility: ProfileVisibility | null | undefined) => {
+    if (includePrivateSensitive) {
+      return true;
+    }
+
+    if ((visibility ?? "public") === "public") {
+      return true;
+    }
+
+    if ((visibility ?? "public") === "mutual_crowds") {
+      return hasMutualCrowd;
+    }
+
+    return false;
+  };
+  const sensitiveProfile = options.sensitiveProfile ?? null;
+  const showKinks = options.showKinks ?? canShowByVisibility(row.kinks_visibility);
+  const showTransStatus = canShowByVisibility(row.trans_status_visibility);
+  const showHivStatus = canShowByVisibility(row.hiv_status_visibility);
   const legacyKinks = showKinks ? row.kinks ?? [] : [];
-  const resolvedKinkInterests = kinkInterests.length > 0
-    ? kinkInterests
+  const sensitiveKinkInterests = showKinks ? sensitiveProfile?.kink_interests ?? [] : [];
+  const sensitiveKinks = showKinks ? sensitiveProfile?.kinks ?? [] : [];
+  const resolvedKinkInterests = sensitiveKinkInterests.length > 0
+    ? sensitiveKinkInterests
+    : kinkInterests.length > 0
+      ? kinkInterests
     : legacyKinks
       .map((kink) => legacyKinkToInterest(kink))
       .filter((interest): interest is ProfileKinkInterest => Boolean(interest));
@@ -221,19 +278,27 @@ function mapProfileRow(
     weight: row.weight ?? "",
     position: row.position ?? [],
     role: row.role ?? [],
+    is_trans: showTransStatus ? sensitiveProfile?.is_trans ?? null : null,
+    trans_status_visibility: row.trans_status_visibility ?? "public",
+    crowds: includePrivateSensitive ? sensitiveProfile?.crowds ?? [] : [],
     availability: row.availability ?? [],
     hosting_travel: row.hosting_travel ?? [],
     kinks: resolvedKinkInterests.length > 0
       ? resolvedKinkInterests.map((interest) => interest.label ?? interest.kink_id)
-      : legacyKinks,
+      : sensitiveKinks.length > 0
+        ? sensitiveKinks
+        : legacyKinks,
     kink_interests: resolvedKinkInterests,
     kinks_visibility: row.kinks_visibility ?? "public",
     vibes: row.vibes ?? [],
+    scenes: row.scenes ?? [],
+    archetypes: row.archetypes ?? [],
     hobbies: row.hobbies ?? [],
     custom_hobby: row.custom_hobby ?? "",
     looking_for: row.looking_for ?? [],
-    hiv_status: row.hiv_status ?? [],
-    custom_hiv_status: row.custom_hiv_status ?? "",
+    hiv_status: showHivStatus ? sensitiveProfile?.hiv_status ?? row.hiv_status ?? [] : [],
+    hiv_status_visibility: row.hiv_status_visibility ?? "mutual_cruushes",
+    custom_hiv_status: showHivStatus ? sensitiveProfile?.custom_hiv_status ?? row.custom_hiv_status ?? "" : "",
     condoms: row.condoms ?? [],
     custom_condoms: row.custom_condoms ?? "",
     prep: row.prep ?? [],
@@ -291,7 +356,7 @@ function createFuzzyCoordinates(lat: number, lng: number, radiusMeters: number) 
 
 async function loadProfile(app: FastifyInstance, userId: string, reply: FastifyReply) {
   return reply.send({
-    data: await loadProfileData(app, userId, { includePrivateKinks: true })
+    data: await loadProfileData(app, userId, { includePrivateSensitive: true })
   });
 }
 
@@ -331,25 +396,41 @@ async function syncProfileKinkInterests(app: FastifyInstance, userId: string, ki
     if (kinkInterests.length === 0) {
       return;
     }
+  } catch (error) {
+    if (isSchemaCompatibilityError(error)) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+async function syncSensitiveProfileTokens(app: FastifyInstance, userId: string, tokens: SensitiveProfileToken[]) {
+  try {
+    await app.db.query(
+      "delete from profile_sensitive_tokens where user_id = $1",
+      [userId]
+    );
+
+    if (tokens.length === 0) {
+      return;
+    }
 
     await app.db.query(
-      `insert into profile_kink_interests (
+      `insert into profile_sensitive_tokens (
          user_id,
-         kink_id
+         token_hash,
+         token_key_version
        )
        select
          $1,
-         interest.payload ->> 'kink_id'
-       from jsonb_array_elements($2::jsonb) as interest(payload)
-       where interest.payload ? 'kink_id'
-       on conflict (user_id, kink_id) do update
+         token.payload ->> 'token_hash',
+         token.payload ->> 'token_key_version'
+       from jsonb_array_elements($2::jsonb) as token(payload)
+       where token.payload ? 'token_hash'
+       on conflict (user_id, token_hash, token_key_version) do update
        set updated_at = now()`,
-      [
-        userId,
-        JSON.stringify(kinkInterests.map((interest) => ({
-          kink_id: interest.kink_id
-        })))
-      ]
+      [userId, JSON.stringify(tokens)]
     );
   } catch (error) {
     if (isSchemaCompatibilityError(error)) {
@@ -360,10 +441,58 @@ async function syncProfileKinkInterests(app: FastifyInstance, userId: string, ki
   }
 }
 
+async function loadSensitiveProfileTokenHashes(app: FastifyInstance, userId: string) {
+  try {
+    const result = await app.db.query<{ token_hash: string | null }>(
+      "select token_hash from profile_sensitive_tokens where user_id = $1",
+      [userId]
+    );
+
+    return new Set(result.rows.map((row) => row.token_hash).filter((tokenHash): tokenHash is string => Boolean(tokenHash)));
+  } catch (error) {
+    if (isSchemaCompatibilityError(error)) {
+      return new Set<string>();
+    }
+
+    throw error;
+  }
+}
+
+async function profilesShareCrowd(app: FastifyInstance, firstUserId: string, secondUserId: string) {
+  if (firstUserId === secondUserId) {
+    return true;
+  }
+
+  const [firstTokens, secondTokens] = await Promise.all([
+    loadSensitiveProfileTokenHashes(app, firstUserId),
+    loadSensitiveProfileTokenHashes(app, secondUserId)
+  ]);
+  const crowdTokenHashes = new Set(createCrowdTokens(app.config, [...CROWD_OPTIONS]).map((token) => token.token_hash));
+
+  for (const tokenHash of crowdTokenHashes) {
+    if (firstTokens.has(tokenHash) && secondTokens.has(tokenHash)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function buildSensitiveProfile(payload: ProfilePayload, kinkInterests: ProfileKinkInterest[]): SensitiveProfileData {
+  return {
+    is_trans: payload.is_trans,
+    crowds: payload.crowds,
+    kinks: kinkInterests.map((interest) => interest.label ?? interest.kink_id),
+    kink_interests: kinkInterests,
+    hiv_status: payload.hiv_status,
+    custom_hiv_status: payload.custom_hiv_status
+  };
+}
+
 async function loadProfileData(
   app: FastifyInstance,
   userId: string,
-  options: { includePrivateKinks: boolean }
+  options: { includePrivateSensitive: boolean; viewerUserId?: string }
 ) {
   const result = await app.db.query<ProfileRow>(
     `select ${PROFILE_COLUMNS.join(", ")}, updated_at
@@ -377,12 +506,25 @@ async function loadProfileData(
   }
 
   const row = result.rows[0];
-  const showKinks = options.includePrivateKinks || (row.kinks_visibility ?? "public") === "public";
+  const needsMutualCrowd =
+    row.kinks_visibility === "mutual_crowds" ||
+    row.trans_status_visibility === "mutual_crowds" ||
+    row.hiv_status_visibility === "mutual_crowds";
+  const hasMutualCrowd = options.viewerUserId && needsMutualCrowd
+    ? await profilesShareCrowd(app, options.viewerUserId, userId)
+    : false;
+  const sensitiveProfile = decryptSensitiveProfile(app.config, row);
+  const showKinks = options.includePrivateSensitive || (row.kinks_visibility ?? "public") === "public" || ((row.kinks_visibility ?? "public") === "mutual_crowds" && hasMutualCrowd);
   const kinkInterests = showKinks
     ? await loadProfileKinkInterests(app, userId)
     : [];
 
-  return mapProfileRow(row, kinkInterests, { showKinks });
+  return mapProfileRow(row, kinkInterests, {
+    includePrivateSensitive: options.includePrivateSensitive,
+    hasMutualCrowd,
+    sensitiveProfile,
+    showKinks
+  });
 }
 
 export async function registerProfileRoutes(app: FastifyInstance) {
@@ -402,7 +544,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     const { userId } = request.params as { userId: string };
 
     return reply.send({
-      data: await loadProfileData(app, userId, { includePrivateKinks: false })
+      data: await loadProfileData(app, userId, { includePrivateSensitive: false, viewerUserId: authenticatedUserId })
     });
   });
 
@@ -410,10 +552,14 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     const userId = await getAuthenticatedUserId(request);
     const payload = profilePayloadSchema.parse(request.body);
     const kinkInterests = normalizeKinkInterests(payload);
+    const sensitiveProfile = buildSensitiveProfile(payload, kinkInterests);
+    const encryptedSensitiveProfile = encryptSensitiveProfile(app.config, sensitiveProfile);
     const payloadForColumns: ProfilePayload = {
       ...payload,
-      kinks: kinkInterests.map((interest) => interest.label ?? interest.kink_id),
-      kink_interests: kinkInterests
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
     };
     const values = PROFILE_COLUMNS.map((column) => {
       if (column === "id") {
@@ -422,6 +568,10 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
       if (column === "ethnicity") {
         return payloadForColumns.ethnicity ? [payloadForColumns.ethnicity] : [];
+      }
+
+      if (column in encryptedSensitiveProfile) {
+        return encryptedSensitiveProfile[column as keyof EncryptedSensitiveProfile];
       }
 
       return payloadForColumns[column as keyof ProfilePayload];
@@ -441,9 +591,13 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       values
     );
     await syncProfileKinkInterests(app, userId, kinkInterests);
+    await syncSensitiveProfileTokens(app, userId, createSensitiveProfileTokens(app.config, sensitiveProfile));
 
     return reply.send({
-      data: mapProfileRow(result.rows[0], kinkInterests)
+      data: mapProfileRow(result.rows[0], kinkInterests, {
+        includePrivateSensitive: true,
+        sensitiveProfile
+      })
     });
   });
 

@@ -31,12 +31,19 @@ describe('ProfileEdit', () => {
       year_of_birth: 1998,
       position: [],
       role: [],
+      is_trans: false,
+      trans_status_visibility: 'public',
+      crowds: [],
       kinks: ['leather'],
       kink_interests: [{
         kink_id: 'leather',
         label: 'leather',
       }],
       kinks_visibility: 'public',
+      scenes: [],
+      archetypes: [],
+      hiv_status: [],
+      hiv_status_visibility: 'public',
       updated_at: '2026-04-29T12:00:00.000Z',
     };
 
@@ -95,5 +102,54 @@ describe('ProfileEdit', () => {
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('roles');
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('is_seeking');
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('visibility');
+  });
+
+  it('lets users set trans status, crowds, scenes, archetypes, and HIV visibility', async () => {
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    const profileTab = await screen.findByRole('tab', { name: 'Profile' });
+    fireEvent.click(profileTab);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scenes' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Bear' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Archetypes' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Daddy' }));
+
+    const basicsTab = screen.getByRole('tab', { name: 'Basics' });
+    fireEvent.click(basicsTab);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'I am trans' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trans status visibility' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Mutual Crowds' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
+    fireEvent.click(screen.getByRole('option', { name: 'T4T' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Sapphic' }));
+
+    const healthTab = screen.getByRole('tab', { name: 'Health' });
+    fireEvent.click(healthTab);
+
+    fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'undetectable' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'HIV status visibility' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Mutual Cruushes' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      is_trans: true,
+      trans_status_visibility: 'mutual_crowds',
+      crowds: ['T4T', 'Sapphic'],
+      scenes: ['Bear'],
+      archetypes: ['Daddy'],
+      hiv_status: ['undetectable'],
+      hiv_status_visibility: 'mutual_cruushes',
+    })));
   });
 });

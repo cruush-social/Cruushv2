@@ -43,7 +43,10 @@ const configSchema = z.object({
   APP_URL: z.string().url().default("http://localhost:5173"),
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default(""),
-  TURNSTILE_SECRET_KEY: z.string().optional().default("")
+  TURNSTILE_SECRET_KEY: z.string().optional().default(""),
+  PROFILE_ENCRYPTION_KEY: z.string().optional().default(""),
+  PROFILE_TOKEN_KEY: z.string().optional().default(""),
+  PROFILE_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

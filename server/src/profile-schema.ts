@@ -8,6 +8,7 @@ const arrayField = z.array(z.string().trim().min(1).max(120)).max(25).optional()
 const kinkArrayField = z.array(z.string().trim().min(1).max(120)).max(50).optional().default([]);
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
+const transStatusSchema = z.boolean().nullable().optional().default(null);
 
 export const profileKinkInterestSchema = z.object({
   kink_id: z.string().trim().min(1).max(120),
@@ -31,16 +32,22 @@ export const profilePayloadSchema = z.object({
   weight: shortStringField,
   position: arrayField,
   role: arrayField,
+  is_trans: transStatusSchema,
+  trans_status_visibility: profileVisibilitySchema.optional().default("public"),
+  crowds: z.array(z.enum(["T4T", "Sapphic", "Gay"])).max(3).optional().default([]),
   availability: arrayField,
   hosting_travel: arrayField,
   kinks: kinkArrayField,
   kink_interests: z.array(profileKinkInterestSchema).max(50).optional().default([]),
   kinks_visibility: profileVisibilitySchema.optional().default("public"),
   vibes: arrayField,
+  scenes: arrayField,
+  archetypes: arrayField,
   hobbies: arrayField,
   custom_hobby: shortStringField,
   looking_for: arrayField,
   hiv_status: arrayField,
+  hiv_status_visibility: profileVisibilitySchema.optional().default("mutual_cruushes"),
   custom_hiv_status: shortStringField,
   condoms: arrayField,
   custom_condoms: shortStringField,
@@ -53,7 +60,15 @@ export const profilePayloadSchema = z.object({
   mpox_vaccine: arrayField,
   custom_mpox_vaccine: shortStringField,
   substance_boundaries: arrayField
-}).strict();
+}).strict().superRefine((payload, ctx) => {
+  if (payload.crowds.includes("T4T") && payload.is_trans !== true) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "T4T crowd membership requires trans status.",
+      path: ["crowds"]
+    });
+  }
+});
 
 export type ProfilePayload = z.infer<typeof profilePayloadSchema>;
 
@@ -81,16 +96,22 @@ export const emptyProfile = {
   weight: "",
   position: [],
   role: [],
+  is_trans: null,
+  trans_status_visibility: "public",
+  crowds: [],
   availability: [],
   hosting_travel: [],
   kinks: [],
   kink_interests: [],
   kinks_visibility: "public",
   vibes: [],
+  scenes: [],
+  archetypes: [],
   hobbies: [],
   custom_hobby: "",
   looking_for: [],
   hiv_status: [],
+  hiv_status_visibility: "mutual_cruushes",
   custom_hiv_status: "",
   condoms: [],
   custom_condoms: "",

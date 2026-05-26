@@ -17,7 +17,10 @@ const app = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: ""
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -35,7 +38,10 @@ const developmentApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: ""
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -53,7 +59,10 @@ const productionApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: ""
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -71,7 +80,10 @@ const corsApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: ""
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -89,7 +101,10 @@ const emailLinkApp = buildServer({
   APP_URL: "https://api.cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: ""
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -107,7 +122,10 @@ const turnstileApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: "turnstile-secret"
+  TURNSTILE_SECRET_KEY: "turnstile-secret",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -1534,6 +1552,9 @@ describe("server", () => {
         weight: "155 lbs",
         position: ["Vers"],
         role: ["Switch"],
+        is_trans: null,
+        trans_status_visibility: "public",
+        crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
         kinks: ["Leather"],
@@ -1543,10 +1564,13 @@ describe("server", () => {
           label: "Leather",
         }],
         vibes: ["Playful"],
+        scenes: [],
+        archetypes: [],
         hobbies: ["Hiking"],
         custom_hobby: "",
         looking_for: ["Dates"],
         hiv_status: ["Negative"],
+        hiv_status_visibility: "mutual_cruushes",
         custom_hiv_status: "",
         condoms: ["Always"],
         custom_condoms: "",
@@ -1591,6 +1615,9 @@ describe("server", () => {
         weight: "155 lbs",
         position: ["Vers"],
         role: ["Switch"],
+        is_trans: null,
+        trans_status_visibility: "public",
+        crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
         kinks: ["Leather"],
@@ -1600,10 +1627,13 @@ describe("server", () => {
           label: "Leather",
         }],
         vibes: ["Playful"],
+        scenes: [],
+        archetypes: [],
         hobbies: ["Hiking"],
         custom_hobby: "",
         looking_for: ["Dates"],
         hiv_status: ["Negative"],
+        hiv_status_visibility: "mutual_cruushes",
         custom_hiv_status: "",
         condoms: ["Always"],
         custom_condoms: "",
@@ -2022,7 +2052,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledTimes(3);
     expect(query.mock.calls[0]?.[0]).toContain("insert into profiles");
     expect(query.mock.calls[0]?.[1]?.[0]).toBe(userId);
     expect(query.mock.calls[0]?.[1]?.[7]).toEqual(["Latinx"]);
@@ -2031,6 +2061,12 @@ describe("server", () => {
       data: {
         id: userId,
         ...payload,
+        is_trans: null,
+        trans_status_visibility: "public",
+        crowds: [],
+        scenes: [],
+        archetypes: [],
+        hiv_status_visibility: "mutual_cruushes",
         updated_at: "2026-04-28T12:05:00.000Z"
       }
     });
@@ -2107,9 +2143,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[2]?.[1]?.[1]).not.toContain("is_seeking");
-    expect(query.mock.calls[2]?.[1]?.[1]).not.toContain("roles");
-    expect(query.mock.calls[2]?.[1]?.[1]).not.toContain("visibility");
+    const tokenInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profile_sensitive_tokens"));
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("is_seeking");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("roles");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("visibility");
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         position: ["top"],
@@ -2119,6 +2156,117 @@ describe("server", () => {
         kink_interests: [expect.objectContaining({
           kink_id: "leather"
         })]
+      })
+    });
+  });
+
+  it("stores trans status, crowds, kinks, and HIV status through encrypted profile storage and blind tokens", async () => {
+    query.mockResolvedValue({
+      rows: [{
+        id: userId,
+        display_name: "Cruusher",
+        photos: [],
+        bio: "Updated bio",
+        pronouns: [],
+        custom_pronouns: "",
+        year_of_birth: 1994,
+        ethnicity: [],
+        identities: [],
+        presentation: [],
+        sexuality: [],
+        body_type: [],
+        height: "",
+        weight: "",
+        position: [],
+        role: [],
+        availability: [],
+        hosting_travel: [],
+        kinks: [],
+        kinks_visibility: "mutual_crowds",
+        trans_status_visibility: "mutual_crowds",
+        hiv_status: [],
+        hiv_status_visibility: "mutual_cruushes",
+        vibes: ["Goth"],
+        scenes: ["Bear"],
+        archetypes: ["Daddy"],
+        hobbies: [],
+        custom_hobby: "",
+        looking_for: [],
+        custom_hiv_status: "",
+        condoms: [],
+        custom_condoms: "",
+        prep: [],
+        custom_prep: "",
+        doxypep: [],
+        custom_doxypep: "",
+        covid_vaccine: [],
+        custom_covid_vaccine: "",
+        mpox_vaccine: [],
+        custom_mpox_vaccine: "",
+        substance_boundaries: [],
+        profile_sensitive_ciphertext: "encrypted",
+        profile_sensitive_nonce: "nonce",
+        profile_sensitive_auth_tag: "tag",
+        profile_sensitive_key_version: "v1",
+        profile_sensitive_token_key_version: "v1",
+        updated_at: "2026-04-28T12:05:00.000Z"
+      }]
+    });
+
+    const payload = {
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994,
+      is_trans: true,
+      trans_status_visibility: "mutual_crowds",
+      crowds: ["T4T", "Sapphic"],
+      kinks: ["leather"],
+      kink_interests: [{
+        kink_id: "leather",
+        label: "leather"
+      }],
+      kinks_visibility: "mutual_crowds",
+      hiv_status: ["undetectable"],
+      hiv_status_visibility: "mutual_cruushes",
+      vibes: ["Goth"],
+      scenes: ["Bear"],
+      archetypes: ["Daddy"]
+    };
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("profile_sensitive_ciphertext");
+    expect(query.mock.calls[0]?.[0]).toContain("profile_sensitive_token_key_version");
+    expect(query.mock.calls[0]?.[1]).not.toContain("leather");
+    expect(query.mock.calls[0]?.[1]).not.toContain("undetectable");
+    expect(query.mock.calls[0]?.[1]).not.toContain("T4T");
+    expect(query.mock.calls[0]?.[1]).not.toContain("Sapphic");
+    expect(query.mock.calls[0]?.[1]).not.toContain(true);
+
+    const tokenInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profile_sensitive_tokens"));
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("leather");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("undetectable");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("T4T");
+
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        is_trans: true,
+        trans_status_visibility: "mutual_crowds",
+        crowds: ["T4T", "Sapphic"],
+        kinks: ["leather"],
+        kinks_visibility: "mutual_crowds",
+        hiv_status: ["undetectable"],
+        hiv_status_visibility: "mutual_cruushes",
+        scenes: ["Bear"],
+        archetypes: ["Daddy"]
       })
     });
   });

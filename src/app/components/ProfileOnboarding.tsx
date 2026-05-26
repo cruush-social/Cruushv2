@@ -26,12 +26,18 @@ type OnboardingProfileState = {
   weight: string;
   position: string[];
   role: string[];
+  is_trans: boolean | null;
+  trans_status_visibility: ProfilePayload['trans_status_visibility'];
+  crowds: string[];
   availability: string[];
   hosting_travel: string[];
   kinks: string[];
   kinks_visibility: ProfilePayload['kinks_visibility'];
+  scenes: string[];
+  archetypes: string[];
   hobbies: string[];
   hiv_status: string[];
+  hiv_status_visibility: ProfilePayload['hiv_status_visibility'];
   condoms: string[];
   prep: string[];
   doxypep: string[];
@@ -77,12 +83,18 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
     weight: '',
     position: [],
     role: [],
+    is_trans: null,
+    trans_status_visibility: 'public',
+    crowds: [],
     availability: [],
     hosting_travel: [],
     kinks: [],
     kinks_visibility: 'public',
+    scenes: [],
+    archetypes: [],
     hobbies: [],
     hiv_status: [],
+    hiv_status_visibility: 'mutual_cruushes',
     condoms: [],
     prep: [],
     doxypep: [],
@@ -168,13 +180,19 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
         weight: profile.weight,
         position: profile.position,
         role: profile.role,
+        is_trans: profile.is_trans,
+        trans_status_visibility: profile.trans_status_visibility,
+        crowds: profile.crowds,
         availability: profile.availability,
         hosting_travel: profile.hosting_travel,
         kinks: profile.kinks,
         kink_interests: profile.kinks.map(toDefaultKinkInterest),
         kinks_visibility: profile.kinks_visibility,
+        scenes: profile.scenes,
+        archetypes: profile.archetypes,
         hobbies: profile.hobbies,
         hiv_status: profile.hiv_status,
+        hiv_status_visibility: profile.hiv_status_visibility,
         condoms: profile.condoms,
         prep: profile.prep,
         doxypep: profile.doxypep,

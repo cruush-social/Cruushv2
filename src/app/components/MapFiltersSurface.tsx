@@ -6,8 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
 import {
   AVAILABILITY,
+  ARCHETYPES,
   BODY_TYPES,
-  CONDOMS,
+  CROWDS,
   HOBBIES,
   HOSTING,
   IDENTITIES,
@@ -16,6 +17,7 @@ import {
   POSITIONS,
   PRESENTATIONS,
   ROLES,
+  SCENES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
   VIBES,
@@ -30,13 +32,15 @@ export interface FilterState {
   timing: string[];
   hosting: string[];
   vibes: string[];
+  scenes: string[];
+  archetypes: string[];
+  crowds: string[];
   hobbies: string[];
   positions: string[];
   roles: string[];
   kinks: string[];
   bodyTypes: string[];
   sexuality: string[];
-  condoms: string[];
   substanceBoundaries: string[];
 }
 
@@ -49,13 +53,15 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   timing: [],
   hosting: [],
   vibes: [],
+  scenes: [],
+  archetypes: [],
+  crowds: [],
   hobbies: [],
   positions: [],
   roles: [],
   kinks: [],
   bodyTypes: [],
   sexuality: [],
-  condoms: [],
   substanceBoundaries: [],
 };
 
@@ -163,6 +169,7 @@ export default function MapFiltersSurface({
 
               <FieldGroup label="Gender Identities" options={IDENTITIES} stateKey="identities" value={value} onChange={onChange} />
               <FieldGroup label="Presentation" options={PRESENTATIONS} stateKey="presentations" value={value} onChange={onChange} />
+              <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} onChange={onChange} />
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} onChange={onChange} />
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} onChange={onChange} />
             </TabsContent>
@@ -172,6 +179,8 @@ export default function MapFiltersSurface({
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} onChange={onChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} onChange={onChange} />
               <FieldGroup label="Vibes" options={VIBES} stateKey="vibes" value={value} onChange={onChange} />
+              <FieldGroup label="Scenes" options={SCENES} stateKey="scenes" value={value} onChange={onChange} />
+              <FieldGroup label="Archetypes" options={ARCHETYPES} stateKey="archetypes" value={value} onChange={onChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} onChange={onChange} />
             </TabsContent>
 
@@ -179,7 +188,6 @@ export default function MapFiltersSurface({
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
               <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
               <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
-              <FieldGroup label="Protection" options={CONDOMS} stateKey="condoms" value={value} onChange={onChange} />
             </TabsContent>
 
             <TabsContent value="lifestyle" className="mt-6 space-y-6">

@@ -24,16 +24,22 @@ export type ProfilePayload = {
   weight: string;
   position: string[];
   role: string[];
+  is_trans: boolean | null;
+  trans_status_visibility: ProfileVisibility;
+  crowds: string[];
   availability: string[];
   hosting_travel: string[];
   kinks: string[];
   kink_interests: KinkInterest[];
   kinks_visibility: ProfileVisibility;
   vibes: string[];
+  scenes: string[];
+  archetypes: string[];
   hobbies: string[];
   custom_hobby: string;
   looking_for: string[];
   hiv_status: string[];
+  hiv_status_visibility: ProfileVisibility;
   custom_hiv_status: string;
   condoms: string[];
   custom_condoms: string;
@@ -69,16 +75,22 @@ export const emptyProfilePayload: ProfilePayload = {
   weight: '',
   position: [],
   role: [],
+  is_trans: null,
+  trans_status_visibility: 'public',
+  crowds: [],
   availability: [],
   hosting_travel: [],
   kinks: [],
   kink_interests: [],
   kinks_visibility: 'public',
   vibes: [],
+  scenes: [],
+  archetypes: [],
   hobbies: [],
   custom_hobby: '',
   looking_for: [],
   hiv_status: [],
+  hiv_status_visibility: 'mutual_cruushes',
   custom_hiv_status: '',
   condoms: [],
   custom_condoms: '',
