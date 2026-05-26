@@ -57,7 +57,7 @@
   - `HOST=0.0.0.0`
   - `CORS_ORIGIN=http://localhost:5173`
   - `APP_URL=http://localhost:5173`
-  - `VITE_API_BASE_URL=http://localhost:3001`
+  - `VITE_API_BASE_URL=` (blank; the Vite `/api` proxy reaches `http://localhost:3001`)
 
   ### 3. Optional override files
 
@@ -108,4 +108,24 @@
   ```
 
   If you are using the Homebrew Postgres path, make sure `DATABASE_URL` points at your local database before running `npm run dev:local`.
+
+  ## Map foundation
+
+  The MVP map is available at `/map` after sign-in/onboarding. Run it locally with:
+
+  ```bash
+  npm run dev:local
+  ```
+
+  Map tiles default to a custom dark MapLibre vector style backed by OpenFreeMap with Cormorant Garamond map labels from OpenMapTiles glyphs. The style uses a high-contrast grey/black palette so NYC roads and street names stay readable without changing the Cruush map UI. You can override the map source in `.env.local`:
+
+  ```bash
+  VITE_MAP_STYLE_URL=
+  VITE_MAP_VECTOR_TILEJSON_URL=https://tiles.openfreemap.org/planet
+  VITE_MAP_GLYPHS_URL=https://fonts.openmaptiles.org/{fontstack}/{range}.pbf
+  VITE_MAP_TILE_URL=https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png
+  VITE_MAP_ATTRIBUTION=&copy; CARTO &copy; OpenStreetMap contributors
+  ```
+
+  `VITE_MAP_STYLE_URL` takes priority when set. `VITE_MAP_TILE_URL` switches the map back to a raster tile fallback. Do not put paid or secret map API keys in frontend env vars. Nearby markers come from the existing discovery API; the map screen does not create real-time presence, matching, messaging, or premium filters. Browser geolocation is requested only after tapping “Use my location,” and exact coordinates are kept out of the UI. The current implementation snaps coordinates to an approximate area before map display and discovery refreshes.
   

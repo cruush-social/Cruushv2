@@ -42,6 +42,24 @@ const developmentApp = buildServer({
   }
 });
 
+const productionApp = buildServer({
+  NODE_ENV: "production",
+  PORT: 3001,
+  HOST: "127.0.0.1",
+  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  CORS_ORIGIN: "http://localhost:5173",
+  SESSION_SECRET: "test-secret",
+  APP_URL: "https://cruush.test",
+  RESEND_API_KEY: "",
+  MAIL_FROM: "",
+  TURNSTILE_SECRET_KEY: ""
+}, {
+  db: {
+    query,
+    end
+  }
+});
+
 const corsApp = buildServer({
   NODE_ENV: "test",
   PORT: 3001,
@@ -99,6 +117,7 @@ const turnstileApp = buildServer({
 afterAll(async () => {
   await app.close();
   await developmentApp.close();
+  await productionApp.close();
   await corsApp.close();
   await emailLinkApp.close();
   await turnstileApp.close();
@@ -400,6 +419,84 @@ describe("server", () => {
         details: null
       }
     });
+  });
+
+  it("signs in the hardcoded development admin", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "admin@cruush.local",
+          display_name: "Admin",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "admin@cruush.local",
+          app_display_name: "Admin",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          profile_display_name: "Admin",
+          year_of_birth: 1990
+        }]
+      });
+
+    const response = await developmentApp.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "admin@cruush.local",
+        password: "admin-password"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["set-cookie"]).toContain("cruush_session=");
+    expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
+    expect(query.mock.calls[1]?.[0]).toContain("insert into profiles");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into app_sessions");
+    expect(response.json()).toEqual({
+      data: {
+        user: {
+          id: userId,
+          email: "admin@cruush.local",
+          displayName: "Admin",
+          emailVerifiedAt: "2026-04-28T12:00:00.000Z",
+          createdAt: "2026-04-28T12:00:00.000Z"
+        },
+        profile: {
+          displayName: "Admin",
+          yearOfBirth: 1990
+        },
+        needsOnboarding: false
+      }
+    });
+  });
+
+  it("does not allow the hardcoded admin login in production", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await productionApp.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "admin@cruush.local",
+        password: "admin-password"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_users");
   });
 
   it("requires a valid Turnstile token on login when configured", async () => {
@@ -991,6 +1088,8 @@ describe("server", () => {
         pronouns: ["they/them"],
         looking_for: ["Fun"],
         vibes: ["Chill"],
+        position: ["Top"],
+        hosting_travel: ["Can Host"],
         photos: ["https://example.com/alex.jpg"],
         lat: 40.711,
         lng: -74.002,
@@ -1026,6 +1125,8 @@ describe("server", () => {
       lng: -74.0025,
       lookingFor: ["Fun"],
       vibes: ["Chill"],
+      position: ["Top"],
+      hostingTravel: ["Can Host"],
       photo: "https://example.com/alex.jpg"
     });
     expect(body.data[0].distance).toMatch(/ mi$/);
@@ -1096,6 +1197,8 @@ describe("server", () => {
           pronouns: "they/them",
           lookingFor: ["Fun", "Dates"],
           vibes: ["Goth"],
+          position: [],
+          hostingTravel: [],
           photo: "https://example.com/jordan.jpg"
         })
       ])

@@ -16,6 +16,8 @@ type DiscoveryProfileRow = {
   pronouns: string[] | null;
   looking_for: string[] | null;
   vibes: string[] | null;
+  position: string[] | null;
+  hosting_travel: string[] | null;
   photos: string[] | null;
   lat: number | null;
   lng: number | null;
@@ -126,6 +128,8 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string) {
          pronouns,
          looking_for,
          vibes,
+         position,
+         hosting_travel,
          photos,
          lat,
          lng,
@@ -202,6 +206,8 @@ function mapModernDiscoveryRow(
     distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
     lookingFor: coerceStringArray(row.looking_for),
     vibes: coerceStringArray(row.vibes),
+    position: coerceStringArray(row.position),
+    hostingTravel: coerceStringArray(row.hosting_travel),
     photo: row.photos?.[0] ?? null
   };
 }
@@ -228,6 +234,8 @@ function mapLegacyDiscoveryRow(
     distance: formatDistanceMiles(centerLat, centerLng, legacyCoordinates.lat, legacyCoordinates.lng),
     lookingFor: coerceStringArray(row.looking_for),
     vibes: coerceStringArray(row.legacy_vibe_tags),
+    position: [],
+    hostingTravel: [],
     photo: row.primary_photo_url?.trim() || null
   };
 }
