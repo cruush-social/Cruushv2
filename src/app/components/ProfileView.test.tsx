@@ -58,14 +58,7 @@ describe('ProfileView', () => {
       custom_covid_vaccine: '',
       mpox_vaccine: ['Vaccinated'],
       custom_mpox_vaccine: '',
-      smoking: ['Never'],
-      custom_smoking: '',
-      drinking: ['Socially'],
-      custom_drinking: '',
-      drugs: ['No'],
-      custom_drugs: '',
-      weed: ['Occasionally'],
-      custom_weed: '',
+      substance_boundaries: ['No alcohol involved', "Let's discuss"],
       updated_at: '2026-04-29T12:00:00.000Z',
     });
   });

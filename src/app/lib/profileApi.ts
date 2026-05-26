@@ -34,14 +34,7 @@ export type ProfilePayload = {
   custom_covid_vaccine: string;
   mpox_vaccine: string[];
   custom_mpox_vaccine: string;
-  smoking: string[];
-  custom_smoking: string;
-  drinking: string[];
-  custom_drinking: string;
-  drugs: string[];
-  custom_drugs: string;
-  weed: string[];
-  custom_weed: string;
+  substance_boundaries: string[];
 };
 
 export type ProfileRecord = ProfilePayload & {
@@ -83,14 +76,7 @@ export const emptyProfilePayload: ProfilePayload = {
   custom_covid_vaccine: '',
   mpox_vaccine: [],
   custom_mpox_vaccine: '',
-  smoking: [],
-  custom_smoking: '',
-  drinking: [],
-  custom_drinking: '',
-  drugs: [],
-  custom_drugs: '',
-  weed: [],
-  custom_weed: '',
+  substance_boundaries: [],
 };
 
 export { ApiClientError as ProfileApiError };

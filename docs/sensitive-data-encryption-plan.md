@@ -65,10 +65,7 @@ Keep queryable:
 - vibes
 - kinks
 - hobbies
-- drugs
-- 420
-- smoking
-- drinking
+- substance boundaries
 - condoms
 
 Encrypt:

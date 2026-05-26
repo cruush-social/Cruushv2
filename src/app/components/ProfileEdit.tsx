@@ -22,8 +22,6 @@ import {
   CONDOMS,
   COVID_VACCINE,
   DOXYPEP,
-  DRINKING,
-  DRUGS,
   ETHNICITIES,
   HIV_STATUS,
   HOBBIES,
@@ -37,9 +35,8 @@ import {
   PRESENTATIONS,
   PRONOUNS,
   SEXUALITY,
-  SMOKING,
+  SUBSTANCE_BOUNDARIES,
   VIBES,
-  WEED,
 } from '../lib/profileOptions';
 
 export default function ProfileEdit() {
@@ -92,10 +89,6 @@ export default function ProfileEdit() {
         custom_doxypep: profile.custom_doxypep.trim(),
         custom_covid_vaccine: profile.custom_covid_vaccine.trim(),
         custom_mpox_vaccine: profile.custom_mpox_vaccine.trim(),
-        custom_smoking: profile.custom_smoking.trim(),
-        custom_drinking: profile.custom_drinking.trim(),
-        custom_drugs: profile.custom_drugs.trim(),
-        custom_weed: profile.custom_weed.trim(),
       });
       setProfile({
         ...emptyProfilePayload,
@@ -139,10 +132,7 @@ export default function ProfileEdit() {
     doxypep: profile.doxypep || [],
     covid_vaccine: profile.covid_vaccine || [],
     mpox_vaccine: profile.mpox_vaccine || [],
-    smoking: profile.smoking || [],
-    drinking: profile.drinking || [],
-    drugs: profile.drugs || [],
-    weed: profile.weed || [],
+    substance_boundaries: profile.substance_boundaries || [],
     year_of_birth: profile.year_of_birth,
   };
 
@@ -349,20 +339,13 @@ export default function ProfileEdit() {
               <MultiSelect options={MPOX_VACCINE} value={normalizedProfile.mpox_vaccine} onChange={vals => handleChange('mpox_vaccine', vals)} />
             </div>
             <div className="space-y-2">
-              <Label>Smoking</Label>
-              <MultiSelect options={SMOKING} value={normalizedProfile.smoking} onChange={vals => handleChange('smoking', vals)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Drinking</Label>
-              <MultiSelect options={DRINKING} value={normalizedProfile.drinking} onChange={vals => handleChange('drinking', vals)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Drugs</Label>
-              <MultiSelect options={DRUGS} value={normalizedProfile.drugs} onChange={vals => handleChange('drugs', vals)} />
-            </div>
-            <div className="space-y-2">
-              <Label>420</Label>
-              <MultiSelect options={WEED} value={normalizedProfile.weed} onChange={vals => handleChange('weed', vals)} />
+              <Label>Substance Boundaries</Label>
+              <p className="text-sm text-muted-foreground">Select anything you do not want involved when meeting.</p>
+              <MultiSelect
+                options={SUBSTANCE_BOUNDARIES}
+                value={normalizedProfile.substance_boundaries}
+                onChange={vals => handleChange('substance_boundaries', vals)}
+              />
             </div>
           </TabsContent>
         </Tabs>

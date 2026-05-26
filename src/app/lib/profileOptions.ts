@@ -41,7 +41,7 @@ export const VIBES = [
   'Alt', 'Artsy', 'Baddie', 'Bear', 'Bimbo', 'Chub', 'Clean-cut', 'Corporate', 'Cottagecore', 'Cub', 'Daddy',
   'Doll', 'E-Girl/E-Boy', 'Goddess', 'Geek', 'Goth', 'Granola', 'Homebody', 'Hippie', 'Kitten', 'Leather',
   'Mommy', 'Otter', 'Pixie', 'Pony', 'Princess', 'Pup', 'Punk', 'Raver', 'Rugged', 'Sober', 'Spiritual',
-  'Sporty', 'T4T', 'Twink', 'Wolf'
+  'Sporty', 'Twink', 'Wolf'
 ].sort();
 
 export const HIV_STATUS = ['negative', 'positive', 'prefer not to say', 'undetectable', 'unknown'];
@@ -50,10 +50,15 @@ export const PREP = ['no', 'prefer not to say', 'yes'];
 export const DOXYPEP = ['no', 'prefer not to say', 'yes'];
 export const COVID_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
 export const MPOX_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
-export const SMOKING = ['never', 'often', 'prefer not to say', 'social', 'sometimes'];
-export const DRINKING = ['never', 'often', 'prefer not to say', 'sometimes'];
-export const DRUGS = ['never', 'often', 'prefer not to say', 'sometimes'];
-export const WEED = ['never', 'often', 'prefer not to say', 'sometimes'];
+export const SUBSTANCE_BOUNDARIES = [
+  'No alcohol involved',
+  'No cannabis involved',
+  'No tobacco or vaping involved',
+  'No poppers involved',
+  'No PnP',
+  'No other drugs involved',
+  "Let's discuss",
+];
 
 export const KINKS = [
   'anal', 'bondage', 'breath play', 'chastity', 'cbt', 'costumes', 'dirty talk',

@@ -14,11 +14,4 @@ alter table profiles add column if not exists covid_vaccine text[] not null defa
 alter table profiles add column if not exists custom_covid_vaccine text not null default '';
 alter table profiles add column if not exists mpox_vaccine text[] not null default '{}';
 alter table profiles add column if not exists custom_mpox_vaccine text not null default '';
-alter table profiles add column if not exists smoking text[] not null default '{}';
-alter table profiles add column if not exists custom_smoking text not null default '';
-alter table profiles add column if not exists drinking text[] not null default '{}';
-alter table profiles add column if not exists custom_drinking text not null default '';
-alter table profiles add column if not exists drugs text[] not null default '{}';
-alter table profiles add column if not exists custom_drugs text not null default '';
-alter table profiles add column if not exists weed text[] not null default '{}';
-alter table profiles add column if not exists custom_weed text not null default '';
+alter table profiles add column if not exists substance_boundaries text[] not null default '{}';

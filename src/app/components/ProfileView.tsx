@@ -108,10 +108,7 @@ export default function ProfileView() {
       protection: [...profile.condoms, ...profile.prep, ...profile.doxypep].filter(Boolean),
       hivStatus: formatJoined(profile.hiv_status),
       mpoxStatus: formatJoined(profile.mpox_vaccine),
-      drugs: formatJoined(profile.drugs),
-      weed: formatJoined(profile.weed),
-      smoking: formatJoined(profile.smoking),
-      drinking: formatJoined(profile.drinking),
+      substanceBoundaries: formatJoined(profile.substance_boundaries),
     };
   }, [previewState?.distance, previewState?.lastActive, profile]);
 
@@ -363,11 +360,8 @@ export default function ProfileView() {
               </Section>
 
               <Section title="Lifestyle">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <DetailItem label="Drugs" value={profileView.drugs} />
-                  <DetailItem label="420" value={profileView.weed} />
-                  <DetailItem label="Smoking" value={profileView.smoking} />
-                  <DetailItem label="Drinking" value={profileView.drinking} />
+                <div className="grid gap-3 text-sm">
+                  <DetailItem label="Substance Boundaries" value={profileView.substanceBoundaries} />
                 </div>
               </Section>
             </TabsContent>

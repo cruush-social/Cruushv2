@@ -33,13 +33,6 @@ create table if not exists profiles (
   custom_covid_vaccine text not null default '',
   mpox_vaccine text[] not null default '{}',
   custom_mpox_vaccine text not null default '',
-  smoking text[] not null default '{}',
-  custom_smoking text not null default '',
-  drinking text[] not null default '{}',
-  custom_drinking text not null default '',
-  drugs text[] not null default '{}',
-  custom_drugs text not null default '',
-  weed text[] not null default '{}',
-  custom_weed text not null default '',
+  substance_boundaries text[] not null default '{}',
   updated_at timestamptz not null default now()
 );

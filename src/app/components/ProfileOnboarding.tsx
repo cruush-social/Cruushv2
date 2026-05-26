@@ -35,10 +35,7 @@ type OnboardingProfileState = {
   doxypep: string[];
   covid_vaccine: string[];
   mpox_vaccine: string[];
-  smoking: string[];
-  drinking: string[];
-  drugs: string[];
-  weed: string[];
+  substance_boundaries: string[];
   custom_pronouns: string;
   custom_hobby: string;
   custom_hiv_status: string;
@@ -47,10 +44,6 @@ type OnboardingProfileState = {
   custom_doxypep: string;
   custom_covid_vaccine: string;
   custom_mpox_vaccine: string;
-  custom_smoking: string;
-  custom_drinking: string;
-  custom_drugs: string;
-  custom_weed: string;
   sexuality: string[];
 };
 
@@ -91,10 +84,7 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
     doxypep: [],
     covid_vaccine: [],
     mpox_vaccine: [],
-    smoking: [],
-    drinking: [],
-    drugs: [],
-    weed: [],
+    substance_boundaries: [],
     custom_pronouns: '',
     custom_hobby: '',
     custom_hiv_status: '',
@@ -103,10 +93,6 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
     custom_doxypep: '',
     custom_covid_vaccine: '',
     custom_mpox_vaccine: '',
-    custom_smoking: '',
-    custom_drinking: '',
-    custom_drugs: '',
-    custom_weed: '',
     sexuality: [],
   });
   const [ageError, setAgeError] = useState<string | null>(null);
@@ -162,10 +148,6 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
       const customDoxypep = profile.custom_doxypep.trim();
       const customCovidVaccine = profile.custom_covid_vaccine.trim();
       const customMpoxVaccine = profile.custom_mpox_vaccine.trim();
-      const customSmoking = profile.custom_smoking.trim();
-      const customDrinking = profile.custom_drinking.trim();
-      const customDrugs = profile.custom_drugs.trim();
-      const customWeed = profile.custom_weed.trim();
       const payload: ProfilePayload = {
         display_name: displayName,
         year_of_birth: profile.age ? parseInt(profile.age, 10) : null,
@@ -191,10 +173,7 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
         doxypep: profile.doxypep,
         covid_vaccine: profile.covid_vaccine,
         mpox_vaccine: profile.mpox_vaccine,
-        smoking: profile.smoking,
-        drinking: profile.drinking,
-        drugs: profile.drugs,
-        weed: profile.weed,
+        substance_boundaries: profile.substance_boundaries,
         custom_pronouns: customPronouns,
         custom_hobby: customHobby,
         custom_hiv_status: customHivStatus,
@@ -203,10 +182,6 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
         custom_doxypep: customDoxypep,
         custom_covid_vaccine: customCovidVaccine,
         custom_mpox_vaccine: customMpoxVaccine,
-        custom_smoking: customSmoking,
-        custom_drinking: customDrinking,
-        custom_drugs: customDrugs,
-        custom_weed: customWeed,
         sexuality: profile.sexuality,
       };
 

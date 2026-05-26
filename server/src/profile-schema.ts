@@ -40,14 +40,7 @@ export const profilePayloadSchema = z.object({
   custom_covid_vaccine: shortStringField,
   mpox_vaccine: arrayField,
   custom_mpox_vaccine: shortStringField,
-  smoking: arrayField,
-  custom_smoking: shortStringField,
-  drinking: arrayField,
-  custom_drinking: shortStringField,
-  drugs: arrayField,
-  custom_drugs: shortStringField,
-  weed: arrayField,
-  custom_weed: shortStringField
+  substance_boundaries: arrayField
 }).strict();
 
 export type ProfilePayload = z.infer<typeof profilePayloadSchema>;
@@ -94,12 +87,5 @@ export const emptyProfile = {
   custom_covid_vaccine: "",
   mpox_vaccine: [],
   custom_mpox_vaccine: "",
-  smoking: [],
-  custom_smoking: "",
-  drinking: [],
-  custom_drinking: "",
-  drugs: [],
-  custom_drugs: "",
-  weed: [],
-  custom_weed: ""
+  substance_boundaries: []
 } satisfies ProfilePayload;

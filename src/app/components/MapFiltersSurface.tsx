@@ -8,8 +8,6 @@ import {
   AVAILABILITY,
   BODY_TYPES,
   CONDOMS,
-  DRINKING,
-  DRUGS,
   HOBBIES,
   HOSTING,
   IDENTITIES,
@@ -18,9 +16,8 @@ import {
   POSITIONS,
   PRESENTATIONS,
   SEXUALITY,
-  SMOKING,
+  SUBSTANCE_BOUNDARIES,
   VIBES,
-  WEED,
 } from '../lib/profileOptions';
 
 export interface FilterState {
@@ -38,10 +35,7 @@ export interface FilterState {
   bodyTypes: string[];
   sexuality: string[];
   condoms: string[];
-  drugs: string[];
-  weed: string[];
-  smoking: string[];
-  drinking: string[];
+  substanceBoundaries: string[];
 }
 
 export const DEFAULT_FILTER_STATE: FilterState = {
@@ -59,10 +53,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   bodyTypes: [],
   sexuality: [],
   condoms: [],
-  drugs: [],
-  weed: [],
-  smoking: [],
-  drinking: [],
+  substanceBoundaries: [],
 };
 
 interface MapFiltersSurfaceProps {
@@ -184,10 +175,13 @@ export default function MapFiltersSurface({
             </TabsContent>
 
             <TabsContent value="lifestyle" className="mt-6 space-y-6">
-              <FieldGroup label="Drugs" options={DRUGS} stateKey="drugs" value={value} onChange={onChange} />
-              <FieldGroup label="420" options={WEED} stateKey="weed" value={value} onChange={onChange} />
-              <FieldGroup label="Smoking" options={SMOKING} stateKey="smoking" value={value} onChange={onChange} />
-              <FieldGroup label="Drinking" options={DRINKING} stateKey="drinking" value={value} onChange={onChange} />
+              <FieldGroup
+                label="Substance Boundaries"
+                options={SUBSTANCE_BOUNDARIES}
+                stateKey="substanceBoundaries"
+                value={value}
+                onChange={onChange}
+              />
             </TabsContent>
           </Tabs>
         </div>

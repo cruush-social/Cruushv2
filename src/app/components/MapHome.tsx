@@ -210,10 +210,7 @@ export default function MapHome() {
       filters.bodyTypes,
       filters.sexuality,
       filters.condoms,
-      filters.drugs,
-      filters.weed,
-      filters.smoking,
-      filters.drinking,
+      filters.substanceBoundaries,
     ].some((items) => items.length > 0);
 
   const filteredUsers = users.filter((user) => {

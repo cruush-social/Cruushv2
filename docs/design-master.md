@@ -257,7 +257,7 @@ Mutable taxonomy source:
 
 ## Filter Architecture
 
-Filters should be grouped into 15 major groups:
+Filters should be grouped into 12 major groups:
 
 - Age Range
 - Gender Identities
@@ -269,10 +269,7 @@ Filters should be grouped into 15 major groups:
 - Vibes
 - Kinks
 - Hobbies
-- Drugs
-- 420
-- Smoking
-- Drinking
+- Substance Boundaries
 - Protection
 
 Filters should be dense but scannable. Do not flatten the architecture into a small dating-app filter set.

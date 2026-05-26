@@ -44,14 +44,7 @@ type ProfileRow = {
   custom_covid_vaccine: string | null;
   mpox_vaccine: string[] | null;
   custom_mpox_vaccine: string | null;
-  smoking: string[] | null;
-  custom_smoking: string | null;
-  drinking: string[] | null;
-  custom_drinking: string | null;
-  drugs: string[] | null;
-  custom_drugs: string | null;
-  weed: string[] | null;
-  custom_weed: string | null;
+  substance_boundaries: string[] | null;
   updated_at: string | Date;
 };
 
@@ -100,14 +93,7 @@ const PROFILE_COLUMNS = [
   "custom_covid_vaccine",
   "mpox_vaccine",
   "custom_mpox_vaccine",
-  "smoking",
-  "custom_smoking",
-  "drinking",
-  "custom_drinking",
-  "drugs",
-  "custom_drugs",
-  "weed",
-  "custom_weed"
+  "substance_boundaries"
 ] as const;
 
 function isSchemaCompatibilityError(error: unknown) {
@@ -165,14 +151,7 @@ function mapProfileRow(row: ProfileRow) {
     custom_covid_vaccine: row.custom_covid_vaccine ?? "",
     mpox_vaccine: row.mpox_vaccine ?? [],
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
-    smoking: row.smoking ?? [],
-    custom_smoking: row.custom_smoking ?? "",
-    drinking: row.drinking ?? [],
-    custom_drinking: row.custom_drinking ?? "",
-    drugs: row.drugs ?? [],
-    custom_drugs: row.custom_drugs ?? "",
-    weed: row.weed ?? [],
-    custom_weed: row.custom_weed ?? "",
+    substance_boundaries: row.substance_boundaries ?? [],
     updated_at: new Date(row.updated_at).toISOString()
   };
 }

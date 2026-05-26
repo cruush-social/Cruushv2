@@ -14,6 +14,7 @@ import {
   LOOKING_FOR,
   POSITIONS,
   PRESENTATIONS,
+  SUBSTANCE_BOUNDARIES,
   VIBES,
 } from '../lib/profileOptions';
 
@@ -126,47 +127,8 @@ export default function FiltersPanel() {
 
           <TabsContent value="lifestyle" className="space-y-6 mt-6">
             <div className="space-y-2">
-              <Label>Drugs</Label>
-              <div className="flex gap-2">
-                {['never', 'sometimes', 'often'].map((opt) => (
-                  <Button key={opt} variant="outline" size="sm" className="flex-1">
-                    {opt}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>420</Label>
-              <div className="flex gap-2">
-                {['never', 'sometimes', 'often'].map((opt) => (
-                  <Button key={opt} variant="outline" size="sm" className="flex-1">
-                    {opt}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Smoking</Label>
-              <div className="flex gap-2">
-                {['never', 'sometimes', 'social'].map((opt) => (
-                  <Button key={opt} variant="outline" size="sm" className="flex-1">
-                    {opt}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Drinking</Label>
-              <div className="flex gap-2">
-                {['never', 'sometimes', 'often'].map((opt) => (
-                  <Button key={opt} variant="outline" size="sm" className="flex-1">
-                    {opt}
-                  </Button>
-                ))}
-              </div>
+              <Label>Substance Boundaries</Label>
+              <MultiSelect options={SUBSTANCE_BOUNDARIES} />
             </div>
           </TabsContent>
         </Tabs>
