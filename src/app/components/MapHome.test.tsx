@@ -187,6 +187,21 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-badge', 'top');
   });
 
+  it('does not draw a dark progressive gradient over the bottom of the map', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    const { container } = render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+    expect(container.querySelector('.bg-gradient-to-t')).toBeNull();
+  });
+
   it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([]);
