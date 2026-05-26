@@ -22,7 +22,7 @@ export const BODY_TYPES = [
 ].sort();
 
 export const POSITIONS = [
-  'bottom', 'dominant', 'none', 'oral', 'service', 'side', 'submissive', 'switch', 'top', 'versatile'
+  'bottom', 'dominant', 'none', 'oral', 'service', 'side', 'submissive', 'switch', 'top', 'versatile', 'gooner', 'pillow princess', 'stone top'
 ].sort();
 
 export const LOOKING_FOR = [
