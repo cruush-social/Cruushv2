@@ -7,12 +7,23 @@ import {
   type ProfilePayload
 } from "../profile-schema.js";
 import {
+  canSubjectViewProfile,
+  visibilityRulesArePublic,
+  type VisibilityCoordinates,
+  type VisibilitySubjectProfile
+} from "../profile-visibility.js";
+import {
   CROWD_OPTIONS,
   createCrowdTokens,
+  createProfileVisibilityTokens,
   createSensitiveProfileTokens,
+  decryptProfileVisibility,
   decryptSensitiveProfile,
+  encryptProfileVisibility,
+  type EncryptedProfileVisibility,
   encryptSensitiveProfile,
   type EncryptedSensitiveProfile,
+  type ProfileVisibilityRules,
   type SensitiveProfileData,
   type SensitiveProfileToken
 } from "../profile-sensitive.js";
@@ -66,7 +77,44 @@ type ProfileRow = {
   profile_sensitive_auth_tag: string | null;
   profile_sensitive_key_version: string | null;
   profile_sensitive_token_key_version: string | null;
+  profile_visibility_ciphertext: string | null;
+  profile_visibility_nonce: string | null;
+  profile_visibility_auth_tag: string | null;
+  profile_visibility_key_version: string | null;
+  profile_visibility_token_key_version: string | null;
+  trans_crowds_changed_at: string | Date | null;
+  lat?: number | null;
+  lng?: number | null;
+  fuzzy_lat?: number | null;
+  fuzzy_lng?: number | null;
   updated_at: string | Date;
+};
+
+type VisibilitySubjectRow = {
+  year_of_birth: number | null;
+  identities: string[] | null;
+  presentation: string[] | null;
+  sexuality: string[] | null;
+  body_type: string[] | null;
+  looking_for: string[] | null;
+  availability: string[] | null;
+  hosting_travel: string[] | null;
+  vibes: string[] | null;
+  scenes: string[] | null;
+  archetypes: string[] | null;
+  hobbies: string[] | null;
+  position: string[] | null;
+  role: string[] | null;
+  kinks: string[] | null;
+  substance_boundaries: string[] | null;
+  lat: number | null;
+  lng: number | null;
+  fuzzy_lat: number | null;
+  fuzzy_lng: number | null;
+  profile_sensitive_ciphertext: string | null;
+  profile_sensitive_nonce: string | null;
+  profile_sensitive_auth_tag: string | null;
+  profile_sensitive_key_version: string | null;
 };
 
 type ProfileVisibility = "public" | "mutual_cruushes" | "mutual_crowds";
@@ -139,7 +187,13 @@ const PROFILE_COLUMNS = [
   "profile_sensitive_nonce",
   "profile_sensitive_auth_tag",
   "profile_sensitive_key_version",
-  "profile_sensitive_token_key_version"
+  "profile_sensitive_token_key_version",
+  "profile_visibility_ciphertext",
+  "profile_visibility_nonce",
+  "profile_visibility_auth_tag",
+  "profile_visibility_key_version",
+  "profile_visibility_token_key_version",
+  "trans_crowds_changed_at"
 ] as const;
 
 function toKinkId(value: string) {
@@ -225,6 +279,7 @@ function mapProfileRow(
     includePrivateSensitive?: boolean;
     hasMutualCrowd?: boolean;
     sensitiveProfile?: SensitiveProfileData | null;
+    visibilityRules?: ProfileVisibilityRules | null;
     showKinks?: boolean;
   } = {}
 ) {
@@ -246,6 +301,7 @@ function mapProfileRow(
     return false;
   };
   const sensitiveProfile = options.sensitiveProfile ?? null;
+  const visibilityRules = options.visibilityRules ?? null;
   const showKinks = options.showKinks ?? canShowByVisibility(row.kinks_visibility);
   const showTransStatus = canShowByVisibility(row.trans_status_visibility);
   const showHivStatus = canShowByVisibility(row.hiv_status_visibility);
@@ -310,6 +366,7 @@ function mapProfileRow(
     mpox_vaccine: row.mpox_vaccine ?? [],
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
     substance_boundaries: row.substance_boundaries ?? [],
+    visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
     updated_at: new Date(row.updated_at).toISOString()
   };
 }
@@ -326,6 +383,94 @@ function mapProfileLocationRow(row: ProfileLocationRow) {
       ? new Date(row.location_updated_at).toISOString()
       : null
   };
+}
+
+function getProfileCoordinates(row: Pick<ProfileRow | VisibilitySubjectRow, "lat" | "lng" | "fuzzy_lat" | "fuzzy_lng">): VisibilityCoordinates {
+  return {
+    lat: row.fuzzy_lat ?? row.lat ?? null,
+    lng: row.fuzzy_lng ?? row.lng ?? null
+  };
+}
+
+function sensitiveKinksForVisibility(sensitiveProfile: SensitiveProfileData | null, fallbackKinks: string[] | null | undefined) {
+  if (!sensitiveProfile) {
+    return fallbackKinks ?? [];
+  }
+
+  if (sensitiveProfile.kink_interests.length > 0) {
+    return sensitiveProfile.kink_interests.map((interest) => interest.label ?? interest.kink_id);
+  }
+
+  return sensitiveProfile.kinks;
+}
+
+async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string): Promise<VisibilitySubjectProfile | null> {
+  try {
+    const result = await app.db.query<VisibilitySubjectRow>(
+      `select
+         year_of_birth,
+         identities,
+         presentation,
+         sexuality,
+         body_type,
+         looking_for,
+         availability,
+         hosting_travel,
+         vibes,
+         scenes,
+         archetypes,
+         hobbies,
+         position,
+         role,
+         kinks,
+         substance_boundaries,
+         lat,
+         lng,
+         fuzzy_lat,
+         fuzzy_lng,
+         profile_sensitive_ciphertext,
+         profile_sensitive_nonce,
+         profile_sensitive_auth_tag,
+         profile_sensitive_key_version
+       from profiles
+       where id = $1`,
+      [userId]
+    );
+    const row = result.rows[0];
+
+    if (!row) {
+      return null;
+    }
+
+    const sensitiveProfile = decryptSensitiveProfile(app.config, row);
+
+    return {
+      year_of_birth: row.year_of_birth,
+      identities: row.identities ?? [],
+      presentations: row.presentation ?? [],
+      looking_for: row.looking_for ?? [],
+      timing: row.availability ?? [],
+      hosting: row.hosting_travel ?? [],
+      vibes: row.vibes ?? [],
+      scenes: row.scenes ?? [],
+      archetypes: row.archetypes ?? [],
+      crowds: sensitiveProfile?.crowds ?? [],
+      hobbies: row.hobbies ?? [],
+      positions: row.position ?? [],
+      roles: row.role ?? [],
+      kinks: sensitiveKinksForVisibility(sensitiveProfile, row.kinks),
+      body_types: row.body_type ?? [],
+      sexuality: row.sexuality ?? [],
+      substance_boundaries: row.substance_boundaries ?? [],
+      coordinates: getProfileCoordinates(row)
+    };
+  } catch (error) {
+    if (isSchemaCompatibilityError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 function clampCoordinate(value: number, min: number, max: number) {
@@ -489,13 +634,127 @@ function buildSensitiveProfile(payload: ProfilePayload, kinkInterests: ProfileKi
   };
 }
 
+function combineSensitiveTokens(...tokenGroups: SensitiveProfileToken[][]) {
+  const tokensByKey = new Map<string, SensitiveProfileToken>();
+
+  for (const tokens of tokenGroups) {
+    for (const token of tokens) {
+      tokensByKey.set(`${token.token_key_version}:${token.token_hash}`, token);
+    }
+  }
+
+  return [...tokensByKey.values()];
+}
+
+function sortedStrings(values: string[]) {
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
+function stringArraysEqual(first: string[], second: string[]) {
+  const sortedFirst = sortedStrings(first);
+  const sortedSecond = sortedStrings(second);
+
+  return sortedFirst.length === sortedSecond.length && sortedFirst.every((value, index) => value === sortedSecond[index]);
+}
+
+type ExistingIdentityState = {
+  exists: boolean;
+  sensitiveProfile: SensitiveProfileData | null;
+  changedAt: Date | null;
+};
+
+async function loadExistingIdentityState(app: FastifyInstance, userId: string): Promise<ExistingIdentityState> {
+  try {
+    const result = await app.db.query<{
+      profile_sensitive_ciphertext: string | null;
+      profile_sensitive_nonce: string | null;
+      profile_sensitive_auth_tag: string | null;
+      profile_sensitive_key_version: string | null;
+      trans_crowds_changed_at: string | Date | null;
+    }>(
+      `select
+         profile_sensitive_ciphertext,
+         profile_sensitive_nonce,
+         profile_sensitive_auth_tag,
+         profile_sensitive_key_version,
+         trans_crowds_changed_at
+       from profiles
+       where id = $1`,
+      [userId]
+    );
+    const row = result.rows[0];
+
+    if (!row) {
+      return {
+        exists: false,
+        sensitiveProfile: null,
+        changedAt: null
+      };
+    }
+
+    let sensitiveProfile: SensitiveProfileData | null = null;
+
+    try {
+      sensitiveProfile = decryptSensitiveProfile(app.config, row);
+    } catch {
+      sensitiveProfile = null;
+    }
+
+    return {
+      exists: true,
+      sensitiveProfile,
+      changedAt: row.trans_crowds_changed_at ? new Date(row.trans_crowds_changed_at) : null
+    };
+  } catch (error) {
+    if (isSchemaCompatibilityError(error)) {
+      return {
+        exists: false,
+        sensitiveProfile: null,
+        changedAt: null
+      };
+    }
+
+    throw error;
+  }
+}
+
+function hasTransCrowdChange(existingState: ExistingIdentityState, sensitiveProfile: SensitiveProfileData) {
+  if (!existingState.exists) {
+    return sensitiveProfile.is_trans !== null || sensitiveProfile.crowds.length > 0;
+  }
+
+  if (!existingState.sensitiveProfile) {
+    return sensitiveProfile.is_trans !== null || sensitiveProfile.crowds.length > 0;
+  }
+
+  return existingState.sensitiveProfile.is_trans !== sensitiveProfile.is_trans ||
+    !stringArraysEqual(existingState.sensitiveProfile.crowds, sensitiveProfile.crowds);
+}
+
+function assertTransCrowdChangeAllowed(existingState: ExistingIdentityState, hasChange: boolean) {
+  if (!hasChange || !existingState.changedAt) {
+    return;
+  }
+
+  const lockWindowMs = 14 * 24 * 60 * 60 * 1000;
+  const lockExpiresAt = existingState.changedAt.getTime() + lockWindowMs;
+
+  if (Date.now() < lockExpiresAt) {
+    throw new ApiError(
+      400,
+      "VALIDATION_ERROR",
+      "Trans status and crowd selection can only be changed once every 14 days."
+    );
+  }
+}
+
 async function loadProfileData(
   app: FastifyInstance,
   userId: string,
   options: { includePrivateSensitive: boolean; viewerUserId?: string }
 ) {
   const result = await app.db.query<ProfileRow>(
-    `select ${PROFILE_COLUMNS.join(", ")}, updated_at
+    `select ${PROFILE_COLUMNS.join(", ")}, lat, lng, fuzzy_lat, fuzzy_lng, updated_at
      from profiles
      where id = $1`,
     [userId]
@@ -514,6 +773,18 @@ async function loadProfileData(
     ? await profilesShareCrowd(app, options.viewerUserId, userId)
     : false;
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
+  const visibilityRules = decryptProfileVisibility(app.config, row);
+
+  if (!options.includePrivateSensitive && !visibilityRulesArePublic(visibilityRules)) {
+    const viewerProfile = options.viewerUserId
+      ? await loadVisibilitySubjectProfile(app, options.viewerUserId)
+      : null;
+
+    if (!viewerProfile || !canSubjectViewProfile(visibilityRules, viewerProfile, getProfileCoordinates(row))) {
+      throw new ApiError(404, "NOT_FOUND", "Profile not found");
+    }
+  }
+
   const showKinks = options.includePrivateSensitive || (row.kinks_visibility ?? "public") === "public" || ((row.kinks_visibility ?? "public") === "mutual_crowds" && hasMutualCrowd);
   const kinkInterests = showKinks
     ? await loadProfileKinkInterests(app, userId)
@@ -523,6 +794,7 @@ async function loadProfileData(
     includePrivateSensitive: options.includePrivateSensitive,
     hasMutualCrowd,
     sensitiveProfile,
+    visibilityRules,
     showKinks
   });
 }
@@ -553,7 +825,11 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     const payload = profilePayloadSchema.parse(request.body);
     const kinkInterests = normalizeKinkInterests(payload);
     const sensitiveProfile = buildSensitiveProfile(payload, kinkInterests);
+    const existingIdentityState = await loadExistingIdentityState(app, userId);
+    const hasIdentityChange = hasTransCrowdChange(existingIdentityState, sensitiveProfile);
+    assertTransCrowdChangeAllowed(existingIdentityState, hasIdentityChange);
     const encryptedSensitiveProfile = encryptSensitiveProfile(app.config, sensitiveProfile);
+    const encryptedProfileVisibility = encryptProfileVisibility(app.config, payload.visibility_rules);
     const payloadForColumns: ProfilePayload = {
       ...payload,
       kinks: [],
@@ -574,13 +850,23 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         return encryptedSensitiveProfile[column as keyof EncryptedSensitiveProfile];
       }
 
+      if (column in encryptedProfileVisibility) {
+        return encryptedProfileVisibility[column as keyof EncryptedProfileVisibility];
+      }
+
+      if (column === "trans_crowds_changed_at") {
+        return hasIdentityChange ? new Date() : null;
+      }
+
       return payloadForColumns[column as keyof ProfilePayload];
     });
 
     const placeholders = PROFILE_COLUMNS.map((_, index) => `$${index + 1}`);
     const updates = PROFILE_COLUMNS
       .filter((column) => column !== "id")
-      .map((column) => `${column} = excluded.${column}`);
+      .map((column) => column === "trans_crowds_changed_at"
+        ? `${column} = coalesce(excluded.${column}, profiles.${column})`
+        : `${column} = excluded.${column}`);
 
     const result = await app.db.query<ProfileRow>(
       `insert into profiles (${PROFILE_COLUMNS.join(", ")})
@@ -591,12 +877,16 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       values
     );
     await syncProfileKinkInterests(app, userId, kinkInterests);
-    await syncSensitiveProfileTokens(app, userId, createSensitiveProfileTokens(app.config, sensitiveProfile));
+    await syncSensitiveProfileTokens(app, userId, combineSensitiveTokens(
+      createSensitiveProfileTokens(app.config, sensitiveProfile),
+      createProfileVisibilityTokens(app.config, payload.visibility_rules)
+    ));
 
     return reply.send({
       data: mapProfileRow(result.rows[0], kinkInterests, {
         includePrivateSensitive: true,
-        sensitiveProfile
+        sensitiveProfile,
+        visibilityRules: payload.visibility_rules
       })
     });
   });

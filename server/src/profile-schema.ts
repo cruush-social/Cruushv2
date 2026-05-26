@@ -9,6 +9,39 @@ const kinkArrayField = z.array(z.string().trim().min(1).max(120)).max(50).option
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
 const transStatusSchema = z.boolean().nullable().optional().default(null);
+const crowdSchema = z.enum(["T4T", "Sapphic", "Gay"]);
+const visibilityArrayField = z.array(z.string().trim().min(1).max(120)).max(50).optional().default([]);
+
+const profileVisibilityRulesSchema = z.object({
+  active_crowd_modes: z.array(crowdSchema).max(3).optional().default([]),
+  age_range: z.tuple([
+    z.number().int().min(18).max(99),
+    z.number().int().min(18).max(99)
+  ]).nullable().optional().default(null),
+  distance: z.number().int().min(1).max(100).nullable().optional().default(null),
+  identities: visibilityArrayField,
+  presentations: visibilityArrayField,
+  looking_for: visibilityArrayField,
+  timing: visibilityArrayField,
+  hosting: visibilityArrayField,
+  vibes: visibilityArrayField,
+  crowds: z.array(crowdSchema).max(3).optional().default([]),
+  hobbies: visibilityArrayField,
+  positions: visibilityArrayField,
+  roles: visibilityArrayField,
+  kinks: visibilityArrayField,
+  body_types: visibilityArrayField,
+  sexuality: visibilityArrayField,
+  substance_boundaries: visibilityArrayField
+}).strict().superRefine((rules, ctx) => {
+  if (rules.age_range && rules.age_range[0] > rules.age_range[1]) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Visibility age range minimum cannot be greater than maximum.",
+      path: ["age_range"]
+    });
+  }
+});
 
 export const profileKinkInterestSchema = z.object({
   kink_id: z.string().trim().min(1).max(120),
@@ -34,7 +67,7 @@ export const profilePayloadSchema = z.object({
   role: arrayField,
   is_trans: transStatusSchema,
   trans_status_visibility: profileVisibilitySchema.optional().default("public"),
-  crowds: z.array(z.enum(["T4T", "Sapphic", "Gay"])).max(3).optional().default([]),
+  crowds: z.array(crowdSchema).max(3).optional().default([]),
   availability: arrayField,
   hosting_travel: arrayField,
   kinks: kinkArrayField,
@@ -59,7 +92,26 @@ export const profilePayloadSchema = z.object({
   custom_covid_vaccine: shortStringField,
   mpox_vaccine: arrayField,
   custom_mpox_vaccine: shortStringField,
-  substance_boundaries: arrayField
+  substance_boundaries: arrayField,
+  visibility_rules: profileVisibilityRulesSchema.optional().default({
+    active_crowd_modes: [],
+    age_range: null,
+    distance: null,
+    identities: [],
+    presentations: [],
+    looking_for: [],
+    timing: [],
+    hosting: [],
+    vibes: [],
+    crowds: [],
+    hobbies: [],
+    positions: [],
+    roles: [],
+    kinks: [],
+    body_types: [],
+    sexuality: [],
+    substance_boundaries: []
+  })
 }).strict().superRefine((payload, ctx) => {
   if (payload.crowds.includes("T4T") && payload.is_trans !== true) {
     ctx.addIssue({
@@ -67,6 +119,25 @@ export const profilePayloadSchema = z.object({
       message: "T4T crowd membership requires trans status.",
       path: ["crowds"]
     });
+  }
+
+  if (payload.visibility_rules.active_crowd_modes.includes("T4T") && (payload.is_trans !== true || !payload.crowds.includes("T4T"))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "T4T crowd mode requires trans status and T4T crowd membership.",
+      path: ["visibility_rules", "active_crowd_modes"]
+    });
+  }
+
+  for (const crowdMode of payload.visibility_rules.active_crowd_modes) {
+    if (!payload.crowds.includes(crowdMode)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Crowd mode requires matching crowd membership.",
+        path: ["visibility_rules", "active_crowd_modes"]
+      });
+      break;
+    }
   }
 });
 
@@ -123,5 +194,24 @@ export const emptyProfile = {
   custom_covid_vaccine: "",
   mpox_vaccine: [],
   custom_mpox_vaccine: "",
-  substance_boundaries: []
+  substance_boundaries: [],
+  visibility_rules: {
+    active_crowd_modes: [],
+    age_range: null,
+    distance: null,
+    identities: [],
+    presentations: [],
+    looking_for: [],
+    timing: [],
+    hosting: [],
+    vibes: [],
+    crowds: [],
+    hobbies: [],
+    positions: [],
+    roles: [],
+    kinks: [],
+    body_types: [],
+    sexuality: [],
+    substance_boundaries: []
+  }
 } satisfies ProfilePayload;

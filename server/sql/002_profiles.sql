@@ -45,6 +45,12 @@ create table if not exists profiles (
   profile_sensitive_auth_tag text,
   profile_sensitive_key_version text not null default 'v1',
   profile_sensitive_token_key_version text not null default 'v1',
+  profile_visibility_ciphertext text,
+  profile_visibility_nonce text,
+  profile_visibility_auth_tag text,
+  profile_visibility_key_version text not null default 'v1',
+  profile_visibility_token_key_version text not null default 'v1',
+  trans_crowds_changed_at timestamptz,
   updated_at timestamptz not null default now()
 );
 

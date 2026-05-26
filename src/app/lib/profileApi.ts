@@ -2,6 +2,26 @@ import { ApiClientError, requestApi } from './apiClient';
 
 export type ProfileVisibility = 'public' | 'mutual_cruushes' | 'mutual_crowds';
 
+export type ProfileVisibilityRules = {
+  active_crowd_modes: string[];
+  age_range: [number, number] | null;
+  distance: number | null;
+  identities: string[];
+  presentations: string[];
+  looking_for: string[];
+  timing: string[];
+  hosting: string[];
+  vibes: string[];
+  crowds: string[];
+  hobbies: string[];
+  positions: string[];
+  roles: string[];
+  kinks: string[];
+  body_types: string[];
+  sexuality: string[];
+  substance_boundaries: string[];
+};
+
 export type KinkInterest = {
   kink_id: string;
   label?: string;
@@ -52,6 +72,7 @@ export type ProfilePayload = {
   mpox_vaccine: string[];
   custom_mpox_vaccine: string;
   substance_boundaries: string[];
+  visibility_rules: ProfileVisibilityRules;
 };
 
 export type ProfileRecord = ProfilePayload & {
@@ -103,6 +124,25 @@ export const emptyProfilePayload: ProfilePayload = {
   mpox_vaccine: [],
   custom_mpox_vaccine: '',
   substance_boundaries: [],
+  visibility_rules: {
+    active_crowd_modes: [],
+    age_range: null,
+    distance: null,
+    identities: [],
+    presentations: [],
+    looking_for: [],
+    timing: [],
+    hosting: [],
+    vibes: [],
+    crowds: [],
+    hobbies: [],
+    positions: [],
+    roles: [],
+    kinks: [],
+    body_types: [],
+    sexuality: [],
+    substance_boundaries: [],
+  },
 };
 
 export { ApiClientError as ProfileApiError };

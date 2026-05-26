@@ -7,8 +7,9 @@ const { getNearbyUsers } = vi.hoisted(() => ({
   getNearbyUsers: vi.fn(),
 }));
 
-const { getMyProfile } = vi.hoisted(() => ({
+const { getMyProfile, saveMyProfile } = vi.hoisted(() => ({
   getMyProfile: vi.fn(),
+  saveMyProfile: vi.fn(),
 }));
 
 const { useIsMobile } = vi.hoisted(() => ({
@@ -19,9 +20,15 @@ vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
 }));
 
-vi.mock('../lib/profileApi', () => ({
-  getMyProfile,
-}));
+vi.mock('../lib/profileApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi');
+
+  return {
+    ...actual,
+    getMyProfile,
+    saveMyProfile,
+  };
+});
 
 vi.mock('./ui/use-mobile', () => ({
   useIsMobile,
@@ -63,14 +70,31 @@ function LocationProbe() {
 }
 
 describe('MapHome', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+
     getNearbyUsers.mockReset();
     getMyProfile.mockReset();
+    saveMyProfile.mockReset();
     useIsMobile.mockReset();
 
-    getMyProfile.mockResolvedValue({
+    const currentProfile = {
+      ...emptyProfilePayload,
+      id: 'me',
+      display_name: 'Jordan Local',
+      year_of_birth: 1998,
+      is_trans: true,
+      crowds: ['T4T', 'Sapphic'],
       photos: ['https://example.com/me.jpg'],
-    });
+      updated_at: '2026-04-29T12:00:00.000Z',
+    };
+
+    getMyProfile.mockResolvedValue(currentProfile);
+    saveMyProfile.mockImplementation(async (profile) => ({
+      ...profile,
+      id: 'me',
+      updated_at: '2026-04-29T12:00:00.000Z',
+    }));
 
     getNearbyUsers.mockResolvedValue([
       {
@@ -237,5 +261,36 @@ describe('MapHome', () => {
     expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pin Jordan' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
+  });
+
+  it('separates seeking from visibility and saves active crowd modes', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /seeking/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /visibility/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^filters/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /visibility/i }));
+    expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crowd Mode' }));
+    fireEvent.click(screen.getByRole('option', { name: 'T4T' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      visibility_rules: expect.objectContaining({
+        active_crowd_modes: ['T4T'],
+      }),
+    })));
+    expect(getNearbyUsers).toHaveBeenCalledTimes(2);
   });
 });

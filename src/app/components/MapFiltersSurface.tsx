@@ -63,6 +63,8 @@ interface MapFiltersSurfaceProps {
   mode?: 'sheet';
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title?: string;
+  description?: string;
   value: FilterState;
   onChange: (value: FilterState) => void;
   onClear: () => void;
@@ -110,6 +112,8 @@ function FieldGroup({
 export default function MapFiltersSurface({
   open,
   onOpenChange,
+  title = 'Seeking',
+  description = 'Refine nearby people by distance, profile details, and vibe.',
   value,
   onChange,
   onClear,
@@ -119,8 +123,8 @@ export default function MapFiltersSurface({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full overflow-y-auto border-white/10 bg-background/95 p-0 sm:max-w-xl">
         <SheetHeader className="border-b border-white/10 px-5 py-4">
-          <SheetTitle>Filters</SheetTitle>
-          <SheetDescription>Refine nearby people by distance, profile details, and vibe.</SheetDescription>
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
 
         <div className="px-5 py-4">

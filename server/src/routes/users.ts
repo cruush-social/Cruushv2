@@ -8,8 +8,15 @@ import {
 } from "../discovery-users.js";
 import {
   createSensitiveProfileToken,
+  decryptProfileVisibility,
+  decryptSensitiveProfile,
   getSensitiveProfileTokenKeyVersion
 } from "../profile-sensitive.js";
+import {
+  canSubjectViewProfile,
+  type VisibilityCoordinates,
+  type VisibilitySubjectProfile
+} from "../profile-visibility.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { assertRateLimit } from "../rate-limit.js";
 
@@ -26,12 +33,29 @@ type DiscoveryProfileRow = {
   role: string[] | null;
   hosting_travel: string[] | null;
   photos: string[] | null;
+  identities: string[] | null;
+  presentation: string[] | null;
+  sexuality: string[] | null;
+  body_type: string[] | null;
+  availability: string[] | null;
+  hobbies: string[] | null;
+  substance_boundaries: string[] | null;
+  profile_sensitive_ciphertext: string | null;
+  profile_sensitive_nonce: string | null;
+  profile_sensitive_auth_tag: string | null;
+  profile_sensitive_key_version: string | null;
+  profile_visibility_ciphertext: string | null;
+  profile_visibility_nonce: string | null;
+  profile_visibility_auth_tag: string | null;
+  profile_visibility_key_version: string | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
   fuzzy_lng: number | null;
   updated_at: string | Date;
 };
+
+type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "display_name" | "photos" | "updated_at">;
 
 type LegacyDiscoveryProfileRow = {
   id: string;
@@ -236,6 +260,144 @@ function getLegacyCoordinates(
   };
 }
 
+function getCoordinates(row: Pick<DiscoveryProfileRow | DiscoveryViewerRow, "lat" | "lng" | "fuzzy_lat" | "fuzzy_lng">): VisibilityCoordinates {
+  return {
+    lat: row.fuzzy_lat ?? row.lat ?? null,
+    lng: row.fuzzy_lng ?? row.lng ?? null
+  };
+}
+
+function sensitiveKinksForVisibility(
+  sensitiveProfile: ReturnType<typeof decryptSensitiveProfile>,
+  fallbackKinks: string[] | null | undefined
+) {
+  if (!sensitiveProfile) {
+    return fallbackKinks ?? [];
+  }
+
+  if (sensitiveProfile.kink_interests.length > 0) {
+    return sensitiveProfile.kink_interests.map((interest) => interest.label ?? interest.kink_id);
+  }
+
+  return sensitiveProfile.kinks;
+}
+
+function toVisibilitySubject(app: FastifyInstance, row: DiscoveryProfileRow | DiscoveryViewerRow): VisibilitySubjectProfile {
+  const sensitiveProfile = decryptSensitiveProfile(app.config, row);
+
+  return {
+    year_of_birth: row.year_of_birth,
+    identities: row.identities ?? [],
+    presentations: row.presentation ?? [],
+    looking_for: row.looking_for ?? [],
+    timing: row.availability ?? [],
+    hosting: row.hosting_travel ?? [],
+    vibes: row.vibes ?? [],
+    scenes: row.scenes ?? [],
+    archetypes: row.archetypes ?? [],
+    crowds: sensitiveProfile?.crowds ?? [],
+    hobbies: row.hobbies ?? [],
+    positions: row.position ?? [],
+    roles: row.role ?? [],
+    kinks: sensitiveKinksForVisibility(sensitiveProfile, null),
+    body_types: row.body_type ?? [],
+    sexuality: row.sexuality ?? [],
+    substance_boundaries: row.substance_boundaries ?? [],
+    coordinates: getCoordinates(row)
+  };
+}
+
+async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) {
+  try {
+    const result = await app.db.query<DiscoveryViewerRow>(
+      `select
+         year_of_birth,
+         pronouns,
+         looking_for,
+         vibes,
+         scenes,
+         archetypes,
+         position,
+         role,
+         hosting_travel,
+         identities,
+         presentation,
+         sexuality,
+         body_type,
+         availability,
+         hobbies,
+         substance_boundaries,
+         profile_sensitive_ciphertext,
+         profile_sensitive_nonce,
+         profile_sensitive_auth_tag,
+         profile_sensitive_key_version,
+         profile_visibility_ciphertext,
+         profile_visibility_nonce,
+         profile_visibility_auth_tag,
+         profile_visibility_key_version,
+         lat,
+         lng,
+         fuzzy_lat,
+         fuzzy_lng
+       from profiles
+       where id = $1`,
+      [currentUserId]
+    );
+    const row = result.rows[0];
+
+    if (!row) {
+      return {
+        subject: null,
+        activeCrowdModes: [] as string[]
+      };
+    }
+
+    return {
+      subject: toVisibilitySubject(app, row),
+      activeCrowdModes: decryptProfileVisibility(app.config, row)?.active_crowd_modes ?? []
+    };
+  } catch (error) {
+    if (isSchemaCompatibilityError(error)) {
+      return {
+        subject: null,
+        activeCrowdModes: [] as string[]
+      };
+    }
+
+    throw error;
+  }
+}
+
+function hasAnyCrowd(requiredCrowds: string[], subject: VisibilitySubjectProfile) {
+  if (requiredCrowds.length === 0) {
+    return true;
+  }
+
+  const subjectCrowds = new Set((subject.crowds ?? []).map((crowd) => crowd.toLowerCase()));
+
+  return requiredCrowds.some((crowd) => subjectCrowds.has(crowd.toLowerCase()));
+}
+
+function discoveryRowIsVisibleToViewer(
+  app: FastifyInstance,
+  row: DiscoveryProfileRow,
+  viewer: { subject: VisibilitySubjectProfile | null; activeCrowdModes: string[] }
+) {
+  if (!viewer.subject) {
+    return true;
+  }
+
+  const targetSubject = toVisibilitySubject(app, row);
+
+  if (!hasAnyCrowd(viewer.activeCrowdModes, targetSubject)) {
+    return false;
+  }
+
+  const targetVisibilityRules = decryptProfileVisibility(app.config, row);
+
+  return canSubjectViewProfile(targetVisibilityRules, viewer.subject, getCoordinates(row));
+}
+
 async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, filters: DiscoveryQuery) {
   try {
     const values: unknown[] = [currentUserId];
@@ -276,6 +438,21 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          role,
          hosting_travel,
          photos,
+         identities,
+         presentation,
+         sexuality,
+         body_type,
+         availability,
+         hobbies,
+         substance_boundaries,
+         profile_sensitive_ciphertext,
+         profile_sensitive_nonce,
+         profile_sensitive_auth_tag,
+         profile_sensitive_key_version,
+         profile_visibility_ciphertext,
+         profile_visibility_nonce,
+         profile_visibility_auth_tag,
+         profile_visibility_key_version,
          lat,
          lng,
          fuzzy_lat,
@@ -407,9 +584,11 @@ export async function registerUserRoutes(app: FastifyInstance) {
     const centerLng = parsedQuery.lng ?? DEFAULT_CENTER.lng;
 
     const usedIds = new Set<string>();
+    const discoveryViewer = await loadDiscoveryViewer(app, currentUserId);
     const discoveryRows = await loadDiscoveryRows(app, currentUserId, parsedQuery);
     const realUsers = discoveryRows.mode === "modern"
       ? discoveryRows.rows
+          .filter((row) => discoveryRowIsVisibleToViewer(app, row, discoveryViewer))
           .map((row) => {
             usedIds.add(row.id);
             return mapModernDiscoveryRow(row, centerLat, centerLng);

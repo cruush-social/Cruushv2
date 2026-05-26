@@ -18,6 +18,7 @@ import {
   toKinkId,
   type ProfileVisibility,
   type ProfilePayload,
+  type ProfileVisibilityRules,
 } from '../lib/profileApi';
 import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
 import {
@@ -111,6 +112,33 @@ function sanitizeKinkInterests(profile: ProfilePayload): ProfilePayload['kink_in
     .filter((interest): interest is ProfilePayload['kink_interests'][number] => Boolean(interest));
 }
 
+function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRules {
+  const rules = profile.visibility_rules ?? emptyProfilePayload.visibility_rules;
+  const allowedActiveCrowds = new Set(sanitizeCrowds(profile));
+
+  return {
+    ...emptyProfilePayload.visibility_rules,
+    ...rules,
+    active_crowd_modes: uniqueValues(rules.active_crowd_modes ?? []).filter((crowd) => allowedActiveCrowds.has(crowd)),
+    identities: uniqueValues(rules.identities ?? []),
+    presentations: uniqueValues(rules.presentations ?? []),
+    looking_for: uniqueValues(rules.looking_for ?? []),
+    timing: uniqueValues(rules.timing ?? []),
+    hosting: uniqueValues(rules.hosting ?? []),
+    vibes: uniqueValues(rules.vibes ?? []),
+    crowds: uniqueValues(rules.crowds ?? []),
+    hobbies: uniqueValues(rules.hobbies ?? []),
+    positions: uniqueValues(rules.positions ?? []),
+    roles: uniqueValues(rules.roles ?? []),
+    kinks: uniqueValues(rules.kinks ?? []),
+    body_types: uniqueValues(rules.body_types ?? []),
+    sexuality: uniqueValues(rules.sexuality ?? []),
+    substance_boundaries: uniqueValues(rules.substance_boundaries ?? []),
+    age_range: rules.age_range ?? null,
+    distance: rules.distance ?? null,
+  };
+}
+
 function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
   return {
     display_name: getSaveDisplayName(profile),
@@ -156,6 +184,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     mpox_vaccine: profile.mpox_vaccine ?? [],
     custom_mpox_vaccine: (profile.custom_mpox_vaccine ?? '').trim(),
     substance_boundaries: profile.substance_boundaries ?? [],
+    visibility_rules: sanitizeVisibilityRules(profile),
   };
 }
 
@@ -199,6 +228,23 @@ export default function ProfileEdit() {
       ...prev,
       is_trans: checked,
       crowds: checked ? prev.crowds ?? [] : (prev.crowds ?? []).filter((crowd) => crowd !== 'T4T'),
+      visibility_rules: checked
+        ? prev.visibility_rules
+        : {
+            ...(prev.visibility_rules ?? emptyProfilePayload.visibility_rules),
+            active_crowd_modes: (prev.visibility_rules?.active_crowd_modes ?? []).filter((crowd) => crowd !== 'T4T'),
+          },
+    }));
+  };
+
+  const handleCrowdsChange = (crowds: string[]) => {
+    setProfile((prev) => ({
+      ...prev,
+      crowds,
+      visibility_rules: {
+        ...(prev.visibility_rules ?? emptyProfilePayload.visibility_rules),
+        active_crowd_modes: (prev.visibility_rules?.active_crowd_modes ?? []).filter((crowd) => crowds.includes(crowd)),
+      },
     }));
   };
 
@@ -271,6 +317,7 @@ export default function ProfileEdit() {
     covid_vaccine: profile.covid_vaccine || [],
     mpox_vaccine: profile.mpox_vaccine || [],
     substance_boundaries: profile.substance_boundaries || [],
+    visibility_rules: sanitizeVisibilityRules(profile),
     year_of_birth: profile.year_of_birth,
   };
   return (
@@ -438,7 +485,7 @@ export default function ProfileEdit() {
                   ariaLabel="Crowds"
                   options={normalizedProfile.is_trans === true ? CROWDS : CROWDS.filter((crowd) => crowd !== 'T4T')}
                   value={normalizedProfile.crowds}
-                  onChange={(vals) => handleChange('crowds', vals)}
+                  onChange={handleCrowdsChange}
                 />
               </div>
             </div>

@@ -176,6 +176,11 @@ describe('ProfileEdit', () => {
       year_of_birth: 1998,
       is_trans: false,
       crowds: ['T4T', 'Sapphic'],
+      visibility_rules: {
+        ...emptyProfilePayload.visibility_rules,
+        active_crowd_modes: ['T4T', 'Sapphic'],
+        looking_for: ['hookup'],
+      },
       updated_at: '2026-04-29T12:00:00.000Z',
     });
 
@@ -191,6 +196,49 @@ describe('ProfileEdit', () => {
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       is_trans: false,
       crowds: ['Sapphic'],
+      visibility_rules: expect.objectContaining({
+        active_crowd_modes: ['Sapphic'],
+        looking_for: ['hookup'],
+      }),
+    })));
+  });
+
+  it('preserves existing visibility rules while saving profile edits', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+
+    getMyProfile.mockResolvedValueOnce({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: 'Jordan',
+      year_of_birth: 1998,
+      is_trans: true,
+      crowds: ['T4T', 'Sapphic'],
+      visibility_rules: {
+        ...emptyProfilePayload.visibility_rules,
+        active_crowd_modes: ['T4T'],
+        distance: 10,
+        looking_for: ['hookup'],
+        kinks: ['leather'],
+      },
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      visibility_rules: expect.objectContaining({
+        active_crowd_modes: ['T4T'],
+        distance: 10,
+        looking_for: ['hookup'],
+        kinks: ['leather'],
+      }),
     })));
   });
 
