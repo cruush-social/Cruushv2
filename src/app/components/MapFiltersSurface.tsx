@@ -3,7 +3,7 @@ import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import { Slider } from './ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import MultiSelect from './MultiSelect';
+import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -11,10 +11,11 @@ import {
   HOBBIES,
   HOSTING,
   IDENTITIES,
-  KINKS,
+  KINK_GROUPS,
   LOOKING_FOR,
   POSITIONS,
   PRESENTATIONS,
+  ROLES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
   VIBES,
@@ -31,6 +32,7 @@ export interface FilterState {
   vibes: string[];
   hobbies: string[];
   positions: string[];
+  roles: string[];
   kinks: string[];
   bodyTypes: string[];
   sexuality: string[];
@@ -49,6 +51,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   vibes: [],
   hobbies: [],
   positions: [],
+  roles: [],
   kinks: [],
   bodyTypes: [],
   sexuality: [],
@@ -78,12 +81,14 @@ function updateList(value: FilterState, key: MultiSelectKey, items: string[]): F
 function FieldGroup({
   label,
   options,
+  optionGroups,
   stateKey,
   value,
   onChange,
 }: {
   label: string;
-  options: string[];
+  options?: string[];
+  optionGroups?: MultiSelectOptionGroup[];
   stateKey: MultiSelectKey;
   value: FilterState;
   onChange: (value: FilterState) => void;
@@ -92,7 +97,9 @@ function FieldGroup({
     <div className="space-y-2">
       <Label>{label}</Label>
       <MultiSelect
+        ariaLabel={label}
         options={options}
+        optionGroups={optionGroups}
         value={value[stateKey]}
         onChange={(items) => onChange(updateList(value, stateKey, items))}
       />
@@ -170,7 +177,8 @@ export default function MapFiltersSurface({
 
             <TabsContent value="intimacy" className="mt-6 space-y-6">
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
-              <FieldGroup label="Kinks" options={KINKS} stateKey="kinks" value={value} onChange={onChange} />
+              <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
+              <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
               <FieldGroup label="Protection" options={CONDOMS} stateKey="condoms" value={value} onChange={onChange} />
             </TabsContent>
 

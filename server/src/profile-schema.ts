@@ -5,6 +5,15 @@ const currentYear = new Date().getFullYear();
 const stringField = z.string().trim().max(500).optional().default("");
 const shortStringField = z.string().trim().max(120).optional().default("");
 const arrayField = z.array(z.string().trim().min(1).max(120)).max(25).optional().default([]);
+const kinkArrayField = z.array(z.string().trim().min(1).max(120)).max(50).optional().default([]);
+
+const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
+
+export const profileKinkInterestSchema = z.object({
+  kink_id: z.string().trim().min(1).max(120),
+  label: z.string().trim().min(1).max(120).optional(),
+  category: z.string().trim().min(1).max(120).optional()
+}).strict();
 
 export const profilePayloadSchema = z.object({
   display_name: z.string().trim().min(2).max(80),
@@ -21,9 +30,12 @@ export const profilePayloadSchema = z.object({
   height: shortStringField,
   weight: shortStringField,
   position: arrayField,
+  role: arrayField,
   availability: arrayField,
   hosting_travel: arrayField,
-  kinks: arrayField,
+  kinks: kinkArrayField,
+  kink_interests: z.array(profileKinkInterestSchema).max(50).optional().default([]),
+  kinks_visibility: profileVisibilitySchema.optional().default("public"),
   vibes: arrayField,
   hobbies: arrayField,
   custom_hobby: shortStringField,
@@ -68,9 +80,12 @@ export const emptyProfile = {
   height: "",
   weight: "",
   position: [],
+  role: [],
   availability: [],
   hosting_travel: [],
   kinks: [],
+  kink_interests: [],
+  kinks_visibility: "public",
   vibes: [],
   hobbies: [],
   custom_hobby: "",

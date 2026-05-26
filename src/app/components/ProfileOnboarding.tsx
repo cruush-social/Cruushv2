@@ -3,7 +3,7 @@ import { IDENTITIES, LOOKING_FOR, PRONOUNS, VIBES } from '../lib/profileOptions'
 import { ArrowRight, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { saveMyProfile, type ProfilePayload } from '../lib/profileApi';
+import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload } from '../lib/profileApi';
 import { persistCurrentUser } from '../lib/sessionUser';
 
 interface ProfileOnboardingProps {
@@ -25,9 +25,11 @@ type OnboardingProfileState = {
   height: string;
   weight: string;
   position: string[];
+  role: string[];
   availability: string[];
   hosting_travel: string[];
   kinks: string[];
+  kinks_visibility: ProfilePayload['kinks_visibility'];
   hobbies: string[];
   hiv_status: string[];
   condoms: string[];
@@ -74,9 +76,11 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
     height: '',
     weight: '',
     position: [],
+    role: [],
     availability: [],
     hosting_travel: [],
     kinks: [],
+    kinks_visibility: 'public',
     hobbies: [],
     hiv_status: [],
     condoms: [],
@@ -163,9 +167,12 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
         height: profile.height,
         weight: profile.weight,
         position: profile.position,
+        role: profile.role,
         availability: profile.availability,
         hosting_travel: profile.hosting_travel,
         kinks: profile.kinks,
+        kink_interests: profile.kinks.map(toDefaultKinkInterest),
+        kinks_visibility: profile.kinks_visibility,
         hobbies: profile.hobbies,
         hiv_status: profile.hiv_status,
         condoms: profile.condoms,

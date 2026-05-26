@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
 import { hashPassword, hashSessionToken } from "./auth.js";
+import { emptyProfile } from "./profile-schema.js";
 import { resetRateLimitBuckets } from "./rate-limit.js";
 
 const query = vi.fn();
@@ -1532,9 +1533,15 @@ describe("server", () => {
         height: "5'8\"",
         weight: "155 lbs",
         position: ["Vers"],
+        role: ["Switch"],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
         kinks: ["Leather"],
+        kinks_visibility: "mutual_crowds",
+        kink_interests: [{
+          kink_id: "leather",
+          label: "Leather",
+        }],
         vibes: ["Playful"],
         hobbies: ["Hiking"],
         custom_hobby: "",
@@ -1583,9 +1590,15 @@ describe("server", () => {
         height: "5'8\"",
         weight: "155 lbs",
         position: ["Vers"],
+        role: ["Switch"],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
         kinks: ["Leather"],
+        kinks_visibility: "mutual_crowds",
+        kink_interests: [{
+          kink_id: "leather",
+          label: "Leather",
+        }],
         vibes: ["Playful"],
         hobbies: ["Hiking"],
         custom_hobby: "",
@@ -1605,6 +1618,49 @@ describe("server", () => {
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
         updated_at: "2026-04-28T12:00:00.000Z"
       }
+    });
+  });
+
+  it("returns kink and fetish interests with field-level visibility metadata", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          display_name: "Cruusher",
+          ethnicity: [],
+          kinks: [],
+          kinks_visibility: "mutual_crowds",
+          substance_boundaries: [],
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          kink_id: "leather",
+          label: "Leather",
+          category: "Gear"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        kinks: ["Leather"],
+        kinks_visibility: "mutual_crowds",
+        kink_interests: [{
+          kink_id: "leather",
+          label: "Leather",
+          category: "Gear"
+        }]
+      })
     });
   });
 
@@ -1667,6 +1723,47 @@ describe("server", () => {
         bio: "Nearby now",
         pronouns: ["they/them"],
         looking_for: ["Dates"]
+      })
+    });
+  });
+
+  it("hides another user's kinks when the field is not public", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          ethnicity: [],
+          position: ["top"],
+          role: [],
+          kinks: ["Leather"],
+          kinks_visibility: "mutual_cruushes",
+          substance_boundaries: [],
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          kink_id: "leather",
+          label: "Leather",
+          category: "Gear"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        kinks: [],
+        kink_interests: [],
+        kinks_visibility: "mutual_cruushes"
       })
     });
   });
@@ -1849,9 +1946,11 @@ describe("server", () => {
         height: "",
         weight: "",
         position: [],
+        role: ["submissive"],
         availability: [],
         hosting_travel: [],
         kinks: [],
+        kinks_visibility: "public",
         vibes: ["Playful"],
         hobbies: [],
         custom_hobby: "",
@@ -1888,9 +1987,12 @@ describe("server", () => {
       height: "",
       weight: "",
       position: [],
+      role: ["submissive"],
       availability: [],
       hosting_travel: [],
       kinks: [],
+      kink_interests: [],
+      kinks_visibility: "public",
       vibes: ["Playful"],
       hobbies: [],
       custom_hobby: "",
@@ -1920,7 +2022,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(2);
     expect(query.mock.calls[0]?.[0]).toContain("insert into profiles");
     expect(query.mock.calls[0]?.[1]?.[0]).toBe(userId);
     expect(query.mock.calls[0]?.[1]?.[7]).toEqual(["Latinx"]);
@@ -1931,6 +2033,93 @@ describe("server", () => {
         ...payload,
         updated_at: "2026-04-28T12:05:00.000Z"
       }
+    });
+  });
+
+  it("accepts field-level mutual crowd visibility for kinks and fetishes", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          display_name: "Cruusher",
+          photos: [],
+          bio: "Updated bio",
+          pronouns: [],
+          custom_pronouns: "",
+          year_of_birth: 1994,
+          ethnicity: [],
+          identities: [],
+          presentation: [],
+          sexuality: [],
+          body_type: [],
+          height: "",
+          weight: "",
+          position: ["top"],
+          role: ["switch"],
+          availability: [],
+          hosting_travel: [],
+          kinks: ["leather"],
+          kinks_visibility: "mutual_crowds",
+          vibes: [],
+          hobbies: [],
+          custom_hobby: "",
+          looking_for: [],
+          hiv_status: [],
+          custom_hiv_status: "",
+          condoms: [],
+          custom_condoms: "",
+          prep: [],
+          custom_prep: "",
+          doxypep: [],
+          custom_doxypep: "",
+          covid_vaccine: [],
+          custom_covid_vaccine: "",
+          mpox_vaccine: [],
+          custom_mpox_vaccine: "",
+          substance_boundaries: [],
+          updated_at: "2026-04-28T12:05:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const payload = {
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994,
+      position: ["top"],
+      role: ["switch"],
+      kinks: ["leather"],
+      kinks_visibility: "mutual_crowds",
+      kink_interests: [{
+        kink_id: "leather",
+        label: "leather"
+      }]
+    };
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[1]?.[1]).not.toContain("is_seeking");
+    expect(query.mock.calls[2]?.[1]?.[1]).not.toContain("roles");
+    expect(query.mock.calls[2]?.[1]?.[1]).not.toContain("visibility");
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        position: ["top"],
+        role: ["switch"],
+        kinks: ["leather"],
+        kinks_visibility: "mutual_crowds",
+        kink_interests: [expect.objectContaining({
+          kink_id: "leather"
+        })]
+      })
     });
   });
 

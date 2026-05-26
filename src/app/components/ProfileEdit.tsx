@@ -13,6 +13,9 @@ import {
   getMyProfile,
   ProfileApiError,
   saveMyProfile,
+  toDefaultKinkInterest,
+  toKinkId,
+  type ProfileVisibility,
   type ProfilePayload,
 } from '../lib/profileApi';
 import { persistCurrentUser } from '../lib/sessionUser';
@@ -27,17 +30,71 @@ import {
   HOBBIES,
   HOSTING,
   IDENTITIES,
-  KINKS,
+  KINK_GROUPS,
   LOOKING_FOR,
   MPOX_VACCINE,
   POSITIONS,
   PREP,
   PRESENTATIONS,
+  PROFILE_VISIBILITY_OPTIONS,
   PRONOUNS,
+  ROLES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
   VIBES,
 } from '../lib/profileOptions';
+
+const VISIBILITY_OPTION_LABELS = PROFILE_VISIBILITY_OPTIONS.map((option) => option.label);
+
+function getVisibilityLabel(value: ProfileVisibility): string {
+  return PROFILE_VISIBILITY_OPTIONS.find((option) => option.value === value)?.label ?? 'Public';
+}
+
+function getVisibilityValue(label: string | undefined): ProfileVisibility {
+  return (PROFILE_VISIBILITY_OPTIONS.find((option) => option.label === label)?.value ?? 'public') as ProfileVisibility;
+}
+
+function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
+  return {
+    display_name: (profile.display_name ?? '').trim(),
+    photos: profile.photos ?? [],
+    bio: (profile.bio ?? '').trim(),
+    pronouns: profile.pronouns ?? [],
+    custom_pronouns: (profile.custom_pronouns ?? '').trim(),
+    year_of_birth: profile.year_of_birth ?? null,
+    ethnicity: profile.ethnicity ?? '',
+    identities: profile.identities ?? [],
+    presentation: profile.presentation ?? [],
+    sexuality: profile.sexuality ?? [],
+    body_type: profile.body_type ?? [],
+    height: profile.height ?? '',
+    weight: profile.weight ?? '',
+    position: profile.position ?? [],
+    role: profile.role ?? [],
+    availability: profile.availability ?? [],
+    hosting_travel: profile.hosting_travel ?? [],
+    kinks: profile.kinks ?? [],
+    kink_interests: profile.kink_interests ?? [],
+    kinks_visibility: profile.kinks_visibility ?? 'public',
+    vibes: profile.vibes ?? [],
+    hobbies: profile.hobbies ?? [],
+    custom_hobby: (profile.custom_hobby ?? '').trim(),
+    looking_for: profile.looking_for ?? [],
+    hiv_status: profile.hiv_status ?? [],
+    custom_hiv_status: (profile.custom_hiv_status ?? '').trim(),
+    condoms: profile.condoms ?? [],
+    custom_condoms: (profile.custom_condoms ?? '').trim(),
+    prep: profile.prep ?? [],
+    custom_prep: (profile.custom_prep ?? '').trim(),
+    doxypep: profile.doxypep ?? [],
+    custom_doxypep: (profile.custom_doxypep ?? '').trim(),
+    covid_vaccine: profile.covid_vaccine ?? [],
+    custom_covid_vaccine: (profile.custom_covid_vaccine ?? '').trim(),
+    mpox_vaccine: profile.mpox_vaccine ?? [],
+    custom_mpox_vaccine: (profile.custom_mpox_vaccine ?? '').trim(),
+    substance_boundaries: profile.substance_boundaries ?? [],
+  };
+}
 
 export default function ProfileEdit() {
   const navigate = useNavigate();
@@ -45,6 +102,7 @@ export default function ProfileEdit() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('profile');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -73,23 +131,23 @@ export default function ProfileEdit() {
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleKinksChange = (selectedKinks: string[]) => {
+    setProfile((prev) => {
+      const existingById = new Map((prev.kink_interests ?? []).map((interest) => [interest.kink_id, interest]));
+
+      return {
+        ...prev,
+        kinks: selectedKinks,
+        kink_interests: selectedKinks.map((kink) => existingById.get(toKinkId(kink)) ?? toDefaultKinkInterest(kink)),
+      };
+    });
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
-      const savedProfile = await saveMyProfile({
-        ...profile,
-        display_name: profile.display_name.trim(),
-        bio: profile.bio.trim(),
-        custom_pronouns: profile.custom_pronouns.trim(),
-        custom_hobby: profile.custom_hobby.trim(),
-        custom_hiv_status: profile.custom_hiv_status.trim(),
-        custom_condoms: profile.custom_condoms.trim(),
-        custom_prep: profile.custom_prep.trim(),
-        custom_doxypep: profile.custom_doxypep.trim(),
-        custom_covid_vaccine: profile.custom_covid_vaccine.trim(),
-        custom_mpox_vaccine: profile.custom_mpox_vaccine.trim(),
-      });
+      const savedProfile = await saveMyProfile(toProfileSavePayload(profile));
       setProfile({
         ...emptyProfilePayload,
         ...savedProfile,
@@ -120,9 +178,12 @@ export default function ProfileEdit() {
     sexuality: profile.sexuality || [],
     body_type: profile.body_type || [],
     position: profile.position || [],
+    role: profile.role || [],
     availability: profile.availability || [],
     hosting_travel: profile.hosting_travel || [],
     kinks: profile.kinks || [],
+    kink_interests: profile.kink_interests || [],
+    kinks_visibility: profile.kinks_visibility || 'public',
     vibes: profile.vibes || [],
     hobbies: profile.hobbies || [],
     looking_for: profile.looking_for || [],
@@ -135,7 +196,6 @@ export default function ProfileEdit() {
     substance_boundaries: profile.substance_boundaries || [],
     year_of_birth: profile.year_of_birth,
   };
-
   return (
     <div className="min-h-screen bg-background pb-20">
       <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center justify-between z-10">
@@ -161,14 +221,14 @@ export default function ProfileEdit() {
             {error}
           </div>
         ) : null}
-        <Tabs defaultValue="profile" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* ...existing code for TabsList... */}
           <TabsList className="w-full grid grid-cols-5">
-            <TabsTrigger value="photos">Photos</TabsTrigger>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="basics">Basics</TabsTrigger>
-            <TabsTrigger value="intimacy">Intimacy</TabsTrigger>
-            <TabsTrigger value="health">Health</TabsTrigger>
+            <TabsTrigger value="photos" onClick={() => setActiveTab('photos')}>Photos</TabsTrigger>
+            <TabsTrigger value="profile" onClick={() => setActiveTab('profile')}>Profile</TabsTrigger>
+            <TabsTrigger value="basics" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
+            <TabsTrigger value="intimacy" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
+            <TabsTrigger value="health" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
           </TabsList>
 
           {/* ...Photos tab (not migrated)... */}
@@ -291,9 +351,27 @@ export default function ProfileEdit() {
           </TabsContent>
 
           <TabsContent value="intimacy" className="space-y-6 mt-6">
-            <div className="space-y-2">
-              <Label>Position</Label>
-              <MultiSelect options={POSITIONS} value={normalizedProfile.position} onChange={vals => handleChange('position', vals)} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Position</Label>
+                <MultiSelect
+                  ariaLabel="Position"
+                  options={POSITIONS}
+                  value={normalizedProfile.position}
+                  onChange={(vals) => handleChange('position', vals)}
+                  selectionMode="single"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Role</Label>
+                <MultiSelect
+                  ariaLabel="Role"
+                  options={ROLES}
+                  value={normalizedProfile.role}
+                  onChange={(vals) => handleChange('role', vals)}
+                  selectionMode="single"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Availability</Label>
@@ -304,8 +382,24 @@ export default function ProfileEdit() {
               <MultiSelect options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', vals)} />
             </div>
             <div className="space-y-2">
-              <Label>Kinks</Label>
-              <MultiSelect options={KINKS} value={normalizedProfile.kinks} onChange={vals => handleChange('kinks', vals)} />
+              <Label>Kinks & Fetishes</Label>
+              <MultiSelect
+                ariaLabel="Kinks & Fetishes"
+                optionGroups={KINK_GROUPS}
+                value={normalizedProfile.kinks}
+                onChange={handleKinksChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Kinks & Fetishes visibility</Label>
+              <MultiSelect
+                ariaLabel="Kinks & Fetishes visibility"
+                options={VISIBILITY_OPTION_LABELS}
+                value={[getVisibilityLabel(normalizedProfile.kinks_visibility)]}
+                onChange={(values) => handleChange('kinks_visibility', getVisibilityValue(values[0]))}
+                selectionMode="single"
+                placeholder="Select visibility..."
+              />
             </div>
             <div className="space-y-2">
               <Label>Vibes</Label>

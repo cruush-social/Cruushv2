@@ -32,6 +32,7 @@ export default function ProfileView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cruushed, setCruushed] = useState(false);
+  const [activeTab, setActiveTab] = useState('basics');
 
   useEffect(() => {
     let active = true;
@@ -99,6 +100,7 @@ export default function ProfileView() {
       height: profile.height || null,
       weight: profile.weight || null,
       position: profile.position,
+      role: profile.role,
       lookingFor: profile.looking_for,
       timing: formatJoined(profile.availability),
       hosting: profile.hosting_travel,
@@ -276,11 +278,11 @@ export default function ProfileView() {
             ) : null}
           </div>
 
-          <Tabs defaultValue="basics" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl border border-border bg-card p-1">
-              <TabsTrigger value="basics" className="min-h-11">Basics</TabsTrigger>
-              <TabsTrigger value="intimacy" className="min-h-11">Intimacy</TabsTrigger>
-              <TabsTrigger value="health" className="min-h-11">Health</TabsTrigger>
+              <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
+              <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
+              <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basics" className="mt-5 space-y-5">
@@ -338,7 +340,11 @@ export default function ProfileView() {
                 <BadgeList items={profileView.position} />
               </Section>
 
-              <Section title="Kinks">
+              <Section title="Role">
+                <BadgeList items={profileView.role} />
+              </Section>
+
+              <Section title="Kinks & Fetishes">
                 <BadgeList items={profileView.kinks} />
               </Section>
 

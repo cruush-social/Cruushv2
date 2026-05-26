@@ -22,7 +22,11 @@ export const BODY_TYPES = [
 ].sort();
 
 export const POSITIONS = [
-  'bottom', 'dominant', 'none', 'oral', 'service', 'side', 'submissive', 'switch', 'top', 'versatile', 'gooner', 'pillow princess', 'stone top'
+  'bottom', 'pillow princess', 'side', 'stone top', 'top', 'vers bottom', 'vers top', 'versatile'
+].sort();
+
+export const ROLES = [
+  'dominant', 'service', 'submissive', 'switch'
 ].sort();
 
 export const LOOKING_FOR = [
@@ -60,12 +64,71 @@ export const SUBSTANCE_BOUNDARIES = [
   "Let's discuss",
 ];
 
-export const KINKS = [
-  'anal', 'bondage', 'breath play', 'chastity', 'cbt', 'costumes', 'dirty talk',
-  'edging', 'exhibitionism', 'feet', 'fisting', 'gooning', 'group', 'humiliation', 'impact', 'leather', 'lingerie', 'massage',
-  'mutual masturbation', 'nipple play', 'oral', 'pegging', 'pet play', 'pits', 'praise', 'public', 'roleplay',
-  'rimming', 'rough', 'sensation', 'spanking', 'toys', 'uniforms', 'voyeurism', 'wax', 'watersports'
-].sort();
+export const PROFILE_VISIBILITY_OPTIONS = [
+  { value: 'public', label: 'Public' },
+  { value: 'mutual_cruushes', label: 'Mutual Cruushes' },
+  { value: 'mutual_crowds', label: 'Mutual Crowds' },
+];
+
+export const KINK_CATALOG = [
+  { id: 'anal', label: 'anal', category: 'Body & Touch' },
+  { id: 'massage', label: 'massage', category: 'Body & Touch' },
+  { id: 'mutual-masturbation', label: 'mutual masturbation', category: 'Body & Touch' },
+  { id: 'nipple-play', label: 'nipple play', category: 'Body & Touch' },
+  { id: 'oral', label: 'oral', category: 'Body & Touch' },
+  { id: 'pegging', label: 'pegging', category: 'Body & Touch' },
+  { id: 'pits', label: 'pits', category: 'Body & Touch' },
+  { id: 'rimming', label: 'rimming', category: 'Body & Touch' },
+  { id: 'bondage', label: 'bondage', category: 'Power' },
+  { id: 'chastity', label: 'chastity', category: 'Power' },
+  { id: 'edging', label: 'edging', category: 'Power' },
+  { id: 'humiliation', label: 'humiliation', category: 'Power' },
+  { id: 'impact', label: 'impact', category: 'Power' },
+  { id: 'praise', label: 'praise', category: 'Power' },
+  { id: 'rough', label: 'rough', category: 'Power' },
+  { id: 'spanking', label: 'spanking', category: 'Power' },
+  { id: 'costumes', label: 'costumes', category: 'Gear' },
+  { id: 'leather', label: 'leather', category: 'Gear' },
+  { id: 'lingerie', label: 'lingerie', category: 'Gear' },
+  { id: 'uniforms', label: 'uniforms', category: 'Gear' },
+  { id: 'dirty-talk', label: 'dirty talk', category: 'Roleplay' },
+  { id: 'pet-play', label: 'pet play', category: 'Roleplay' },
+  { id: 'roleplay', label: 'roleplay', category: 'Roleplay' },
+  { id: 'group', label: 'group', category: 'Group' },
+  { id: 'exhibitionism', label: 'exhibitionism', category: 'Voyeur / Exhibition' },
+  { id: 'public', label: 'public', category: 'Voyeur / Exhibition' },
+  { id: 'voyeurism', label: 'voyeurism', category: 'Voyeur / Exhibition' },
+  { id: 'sensation', label: 'sensation', category: 'Sensory' },
+  { id: 'wax', label: 'wax', category: 'Sensory' },
+  { id: 'toys', label: 'toys', category: 'Toys' },
+  { id: 'breath-play', label: 'breath play', category: 'Edge / Discuss' },
+  { id: 'cbt', label: 'cbt', category: 'Edge / Discuss' },
+  { id: 'feet', label: 'feet', category: 'Other / Discuss' },
+  { id: 'fisting', label: 'fisting', category: 'Other / Discuss' },
+  { id: 'gooning', label: 'gooning', category: 'Other / Discuss' },
+  { id: 'watersports', label: 'watersports', category: 'Other / Discuss' },
+].sort((a, b) => a.label.localeCompare(b.label));
+
+export const KINKS = KINK_CATALOG.map((kink) => kink.label);
+
+export const KINK_GROUPS = [
+  'Body & Touch',
+  'Power',
+  'Gear',
+  'Roleplay',
+  'Group',
+  'Voyeur / Exhibition',
+  'Sensory',
+  'Toys',
+  'Edge / Discuss',
+  'Other / Discuss',
+].map((category) => ({
+  label: category,
+  options: KINK_CATALOG
+    .filter((kink) => kink.category === category)
+    .map((kink) => kink.label)
+    .sort((a, b) => a.localeCompare(b)),
+})).filter((group) => group.options.length > 0);
 
 export const HOBBIES = [
   'activism', 'anime/manga', 'art', 'astrology', 'baking', 'board games', 'camping', 'clubbing', 'comedy', 'cooking',

@@ -25,9 +25,11 @@ type ProfileRow = {
   height: string | null;
   weight: string | null;
   position: string[] | null;
+  role: string[] | null;
   availability: string[] | null;
   hosting_travel: string[] | null;
   kinks: string[] | null;
+  kinks_visibility: ProfileVisibility | null;
   vibes: string[] | null;
   hobbies: string[] | null;
   custom_hobby: string | null;
@@ -46,6 +48,20 @@ type ProfileRow = {
   custom_mpox_vaccine: string | null;
   substance_boundaries: string[] | null;
   updated_at: string | Date;
+};
+
+type ProfileVisibility = "public" | "mutual_cruushes" | "mutual_crowds";
+
+type ProfileKinkInterest = {
+  kink_id: string;
+  label?: string;
+  category?: string;
+};
+
+type ProfileKinkInterestRow = {
+  kink_id: string | null;
+  label: string | null;
+  category: string | null;
 };
 
 type ProfileLocationRow = {
@@ -74,9 +90,11 @@ const PROFILE_COLUMNS = [
   "height",
   "weight",
   "position",
+  "role",
   "availability",
   "hosting_travel",
   "kinks",
+  "kinks_visibility",
   "vibes",
   "hobbies",
   "custom_hobby",
@@ -96,6 +114,64 @@ const PROFILE_COLUMNS = [
   "substance_boundaries"
 ] as const;
 
+function toKinkId(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function legacyKinkToInterest(kink: string): ProfileKinkInterest | null {
+  const kinkId = toKinkId(kink);
+
+  if (!kinkId) {
+    return null;
+  }
+
+  return {
+    kink_id: kinkId,
+    label: kink
+  };
+}
+
+function mapKinkInterestRow(row: ProfileKinkInterestRow): ProfileKinkInterest | null {
+  if (!row.kink_id) {
+    return null;
+  }
+
+  return {
+    kink_id: row.kink_id,
+    label: row.label ?? row.kink_id,
+    category: row.category ?? undefined
+  };
+}
+
+function normalizeKinkInterests(payload: ProfilePayload): ProfileKinkInterest[] {
+  const sourceInterests = payload.kink_interests.length > 0
+    ? payload.kink_interests
+    : payload.kinks.map((kink) => legacyKinkToInterest(kink)).filter((interest): interest is ProfileKinkInterest => Boolean(interest));
+  const seen = new Set<string>();
+  const interests: ProfileKinkInterest[] = [];
+
+  for (const interest of sourceInterests) {
+    const kinkId = toKinkId(interest.kink_id);
+
+    if (!kinkId || seen.has(kinkId)) {
+      continue;
+    }
+
+    seen.add(kinkId);
+    interests.push({
+      kink_id: kinkId,
+      label: interest.label?.trim() || interest.kink_id,
+      category: interest.category?.trim() || undefined
+    });
+  }
+
+  return interests;
+}
+
 function isSchemaCompatibilityError(error: unknown) {
   const code = typeof error === "object" && error !== null && "code" in error
     ? String((error as { code?: string }).code)
@@ -114,7 +190,19 @@ function isSchemaCompatibilityError(error: unknown) {
   );
 }
 
-function mapProfileRow(row: ProfileRow) {
+function mapProfileRow(
+  row: ProfileRow,
+  kinkInterests: ProfileKinkInterest[] = [],
+  options: { showKinks?: boolean } = {}
+) {
+  const showKinks = options.showKinks ?? true;
+  const legacyKinks = showKinks ? row.kinks ?? [] : [];
+  const resolvedKinkInterests = kinkInterests.length > 0
+    ? kinkInterests
+    : legacyKinks
+      .map((kink) => legacyKinkToInterest(kink))
+      .filter((interest): interest is ProfileKinkInterest => Boolean(interest));
+
   return {
     id: row.id,
     ...emptyProfile,
@@ -132,9 +220,14 @@ function mapProfileRow(row: ProfileRow) {
     height: row.height ?? "",
     weight: row.weight ?? "",
     position: row.position ?? [],
+    role: row.role ?? [],
     availability: row.availability ?? [],
     hosting_travel: row.hosting_travel ?? [],
-    kinks: row.kinks ?? [],
+    kinks: resolvedKinkInterests.length > 0
+      ? resolvedKinkInterests.map((interest) => interest.label ?? interest.kink_id)
+      : legacyKinks,
+    kink_interests: resolvedKinkInterests,
+    kinks_visibility: row.kinks_visibility ?? "public",
     vibes: row.vibes ?? [],
     hobbies: row.hobbies ?? [],
     custom_hobby: row.custom_hobby ?? "",
@@ -198,11 +291,80 @@ function createFuzzyCoordinates(lat: number, lng: number, radiusMeters: number) 
 
 async function loadProfile(app: FastifyInstance, userId: string, reply: FastifyReply) {
   return reply.send({
-    data: await loadProfileData(app, userId)
+    data: await loadProfileData(app, userId, { includePrivateKinks: true })
   });
 }
 
-async function loadProfileData(app: FastifyInstance, userId: string) {
+async function loadProfileKinkInterests(app: FastifyInstance, userId: string) {
+  try {
+    const result = await app.db.query<ProfileKinkInterestRow>(
+      `select
+         pki.kink_id,
+         kc.label,
+         kc.category
+       from profile_kink_interests pki
+       join kink_catalog kc on kc.id = pki.kink_id
+       where pki.user_id = $1
+       order by kc.sort_order, kc.label`,
+      [userId]
+    );
+
+    return (result?.rows ?? [])
+      .map((row) => mapKinkInterestRow(row))
+      .filter((interest): interest is ProfileKinkInterest => Boolean(interest));
+  } catch (error) {
+    if (isSchemaCompatibilityError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+async function syncProfileKinkInterests(app: FastifyInstance, userId: string, kinkInterests: ProfileKinkInterest[]) {
+  try {
+    await app.db.query(
+      "delete from profile_kink_interests where user_id = $1",
+      [userId]
+    );
+
+    if (kinkInterests.length === 0) {
+      return;
+    }
+
+    await app.db.query(
+      `insert into profile_kink_interests (
+         user_id,
+         kink_id
+       )
+       select
+         $1,
+         interest.payload ->> 'kink_id'
+       from jsonb_array_elements($2::jsonb) as interest(payload)
+       where interest.payload ? 'kink_id'
+       on conflict (user_id, kink_id) do update
+       set updated_at = now()`,
+      [
+        userId,
+        JSON.stringify(kinkInterests.map((interest) => ({
+          kink_id: interest.kink_id
+        })))
+      ]
+    );
+  } catch (error) {
+    if (isSchemaCompatibilityError(error)) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+async function loadProfileData(
+  app: FastifyInstance,
+  userId: string,
+  options: { includePrivateKinks: boolean }
+) {
   const result = await app.db.query<ProfileRow>(
     `select ${PROFILE_COLUMNS.join(", ")}, updated_at
      from profiles
@@ -214,7 +376,13 @@ async function loadProfileData(app: FastifyInstance, userId: string) {
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
 
-  return mapProfileRow(result.rows[0]);
+  const row = result.rows[0];
+  const showKinks = options.includePrivateKinks || (row.kinks_visibility ?? "public") === "public";
+  const kinkInterests = showKinks
+    ? await loadProfileKinkInterests(app, userId)
+    : [];
+
+  return mapProfileRow(row, kinkInterests, { showKinks });
 }
 
 export async function registerProfileRoutes(app: FastifyInstance) {
@@ -234,23 +402,29 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     const { userId } = request.params as { userId: string };
 
     return reply.send({
-      data: await loadProfileData(app, userId)
+      data: await loadProfileData(app, userId, { includePrivateKinks: false })
     });
   });
 
   app.put("/api/profiles/me", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = profilePayloadSchema.parse(request.body);
+    const kinkInterests = normalizeKinkInterests(payload);
+    const payloadForColumns: ProfilePayload = {
+      ...payload,
+      kinks: kinkInterests.map((interest) => interest.label ?? interest.kink_id),
+      kink_interests: kinkInterests
+    };
     const values = PROFILE_COLUMNS.map((column) => {
       if (column === "id") {
         return userId;
       }
 
       if (column === "ethnicity") {
-        return payload.ethnicity ? [payload.ethnicity] : [];
+        return payloadForColumns.ethnicity ? [payloadForColumns.ethnicity] : [];
       }
 
-      return payload[column as keyof ProfilePayload];
+      return payloadForColumns[column as keyof ProfilePayload];
     });
 
     const placeholders = PROFILE_COLUMNS.map((_, index) => `$${index + 1}`);
@@ -266,9 +440,10 @@ export async function registerProfileRoutes(app: FastifyInstance) {
        returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
       values
     );
+    await syncProfileKinkInterests(app, userId, kinkInterests);
 
     return reply.send({
-      data: mapProfileRow(result.rows[0])
+      data: mapProfileRow(result.rows[0], kinkInterests)
     });
   });
 

@@ -253,21 +253,26 @@ Mutable taxonomy source:
 - The canonical mutable option lists live in `src/app/lib/profileOptions.ts`.
 - Add, remove, rename, or reorder options there first.
 - The master guide should describe the architecture and category intent; the code owns the current exact lists.
-- This applies to pronouns, identities, presentations, ethnicities, body types, positions, looking-for values, timing, hosting/travel, vibes, protection, kinks, hobbies, and health/safety values.
+- This applies to pronouns, identities, presentations, ethnicities, body types, positions, roles, looking-for values, timing, hosting/travel, vibes, protection, kinks/fetishes, hobbies, and health/safety values.
+- Position is the top/bottom/versatile-style field, including vers top, vers bottom, pillow princess, and stone top. Role is the dominant/submissive/switch-style field, including service.
+- Kinks and fetishes use a catalog-backed tap-to-select list. The whole Kinks & Fetishes field has one visibility setting instead of per-kink role or seeking controls.
+- Visibility options should use the same vocabulary across profile fields: public, mutual Cruushes, and mutual crowds.
+- Dropdown/selectable-control rule for future implementation: do not create one-off dropdown UI or raw `<select>` controls for profile, filter, or visibility taxonomies. Use the existing shared `MultiSelect` control for multi-select and single-select taxonomy pickers; extend that component if the app needs new dropdown behavior.
 
 ## Filter Architecture
 
-Filters should be grouped into 12 major groups:
+Filters should be grouped into 13 major groups:
 
 - Age Range
 - Gender Identities
 - Presentation
 - Hosting/Travel
 - Position
+- Role
 - Looking For
 - Timing
 - Vibes
-- Kinks
+- Kinks & Fetishes
 - Hobbies
 - Substance Boundaries
 - Protection

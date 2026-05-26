@@ -206,6 +206,7 @@ export default function MapHome() {
       filters.vibes,
       filters.hobbies,
       filters.positions,
+      filters.roles,
       filters.kinks,
       filters.bodyTypes,
       filters.sexuality,

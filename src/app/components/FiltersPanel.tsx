@@ -10,10 +10,11 @@ import {
   HOBBIES,
   HOSTING,
   IDENTITIES,
-  KINKS,
+  KINK_GROUPS,
   LOOKING_FOR,
   POSITIONS,
   PRESENTATIONS,
+  ROLES,
   SUBSTANCE_BOUNDARIES,
   VIBES,
 } from '../lib/profileOptions';
@@ -109,8 +110,13 @@ export default function FiltersPanel() {
             </div>
 
             <div className="space-y-2">
-              <Label>Kinks</Label>
-              <MultiSelect options={KINKS} />
+              <Label>Role</Label>
+              <MultiSelect options={ROLES} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Kinks & Fetishes</Label>
+              <MultiSelect ariaLabel="Kinks & Fetishes" optionGroups={KINK_GROUPS} />
             </div>
 
             <div className="space-y-2">

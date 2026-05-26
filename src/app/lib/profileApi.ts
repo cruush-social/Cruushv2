@@ -1,5 +1,13 @@
 import { ApiClientError, requestApi } from './apiClient';
 
+export type ProfileVisibility = 'public' | 'mutual_cruushes' | 'mutual_crowds';
+
+export type KinkInterest = {
+  kink_id: string;
+  label?: string;
+  category?: string;
+};
+
 export type ProfilePayload = {
   display_name: string;
   photos: string[];
@@ -15,9 +23,12 @@ export type ProfilePayload = {
   height: string;
   weight: string;
   position: string[];
+  role: string[];
   availability: string[];
   hosting_travel: string[];
   kinks: string[];
+  kink_interests: KinkInterest[];
+  kinks_visibility: ProfileVisibility;
   vibes: string[];
   hobbies: string[];
   custom_hobby: string;
@@ -57,9 +68,12 @@ export const emptyProfilePayload: ProfilePayload = {
   height: '',
   weight: '',
   position: [],
+  role: [],
   availability: [],
   hosting_travel: [],
   kinks: [],
+  kink_interests: [],
+  kinks_visibility: 'public',
   vibes: [],
   hobbies: [],
   custom_hobby: '',
@@ -80,6 +94,21 @@ export const emptyProfilePayload: ProfilePayload = {
 };
 
 export { ApiClientError as ProfileApiError };
+
+export function toKinkId(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+export function toDefaultKinkInterest(kink: string): KinkInterest {
+  return {
+    kink_id: toKinkId(kink),
+    label: kink,
+  };
+}
 
 export async function getMyProfile() {
   return requestApi<ProfileRecord>('/api/profiles/me');
