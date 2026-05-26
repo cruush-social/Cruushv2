@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge } from './ui/badge';
 import { X } from 'lucide-react';
 
@@ -28,11 +28,20 @@ export default function MultiSelect({
 }: MultiSelectProps) {
   const [selected, setSelected] = useState<string[]>(value);
   const [isOpen, setIsOpen] = useState(false);
-  const groups = optionGroups ?? [{ label: '', options }];
+  const groups = useMemo(() => optionGroups ?? [{ label: '', options }], [optionGroups, options]);
+  const hasCategoryPicker = Boolean(optionGroups?.length && optionGroups.length > 1);
+  const [activeGroupLabel, setActiveGroupLabel] = useState(groups[0]?.label ?? '');
+  const activeGroup = groups.find((group) => group.label === activeGroupLabel) ?? groups[0] ?? { label: '', options: [] };
 
   useEffect(() => {
     setSelected(value);
   }, [value]);
+
+  useEffect(() => {
+    if (!groups.some((group) => group.label === activeGroupLabel)) {
+      setActiveGroupLabel(groups[0]?.label ?? '');
+    }
+  }, [activeGroupLabel, groups]);
 
   const toggleOption = (option: string) => {
     const newSelected = selectionMode === 'single'
@@ -87,33 +96,87 @@ export default function MultiSelect({
               onClick={() => setIsOpen(false)}
             />
             <div
-              role="listbox"
-              aria-label={ariaLabel}
-              className="absolute top-full left-0 right-0 mt-2 max-h-72 overflow-y-auto bg-popover border border-border rounded-md shadow-lg z-20"
+              className="absolute top-full left-0 right-0 mt-2 overflow-hidden rounded-md border border-border bg-popover shadow-lg z-20"
             >
-              {groups.map((group) => (
-                <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
-                  {group.label ? (
-                    <div className="sticky top-0 bg-popover px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      {group.label}
+              {hasCategoryPicker ? (
+                <div className="grid max-h-80 sm:grid-cols-[11rem_minmax(0,1fr)]">
+                  <div
+                    role="tablist"
+                    aria-label={`${ariaLabel ?? 'Options'} categories`}
+                    className="flex gap-1 overflow-x-auto border-b border-border p-2 sm:max-h-80 sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
+                  >
+                    {groups.map((group) => {
+                      const selectedCount = group.options.filter((option) => selected.includes(option)).length;
+                      const isActive = group.label === activeGroup.label;
+
+                      return (
+                        <button
+                          key={group.label}
+                          type="button"
+                          role="tab"
+                          aria-selected={isActive}
+                          onClick={() => setActiveGroupLabel(group.label)}
+                          className={`flex shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors sm:w-full ${
+                            isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                          }`}
+                        >
+                          <span>{group.label}</span>
+                          {selectedCount > 0 ? (
+                            <span aria-hidden="true" className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                              {selectedCount}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div role="listbox" aria-label={ariaLabel} className="max-h-64 overflow-y-auto py-1 sm:max-h-80">
+                    <div role="group" aria-label={activeGroup.label || undefined}>
+                      {activeGroup.options.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          role="option"
+                          aria-selected={selected.includes(option)}
+                          onClick={() => toggleOption(option)}
+                          className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
+                            selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      ))}
                     </div>
-                  ) : null}
-                  {group.options.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      role="option"
-                      aria-selected={selected.includes(option)}
-                      onClick={() => toggleOption(option)}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
-                        selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
-                      }`}
-                    >
-                      {option}
-                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div role="listbox" aria-label={ariaLabel} className="max-h-72 overflow-y-auto">
+                  {groups.map((group) => (
+                    <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
+                      {group.label ? (
+                        <div className="sticky top-0 bg-popover px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                          {group.label}
+                        </div>
+                      ) : null}
+                      {group.options.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          role="option"
+                          aria-selected={selected.includes(option)}
+                          onClick={() => toggleOption(option)}
+                          className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
+                            selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
                   ))}
                 </div>
-              ))}
+              )}
             </div>
           </>
         )}

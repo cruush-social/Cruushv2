@@ -14,7 +14,7 @@ export const profileKinkInterestSchema = z.object({
   kink_id: z.string().trim().min(1).max(120),
   label: z.string().trim().min(1).max(120).optional(),
   category: z.string().trim().min(1).max(120).optional()
-}).strict();
+}).strip();
 
 export const profilePayloadSchema = z.object({
   display_name: z.string().trim().min(2).max(80),

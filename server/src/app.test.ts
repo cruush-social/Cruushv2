@@ -2129,7 +2129,10 @@ describe("server", () => {
       kinks_visibility: "mutual_crowds",
       kink_interests: [{
         kink_id: "leather",
-        label: "leather"
+        label: "leather",
+        roles: ["give"],
+        is_seeking: true,
+        visibility: "public"
       }]
     };
 
@@ -2267,6 +2270,83 @@ describe("server", () => {
         hiv_status_visibility: "mutual_cruushes",
         scenes: ["Bear"],
         archetypes: ["Daddy"]
+      })
+    });
+  });
+
+  it("accepts local data image profile photos on PUT /api/profiles/me", async () => {
+    const localPhoto = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E";
+
+    query.mockResolvedValue({
+      rows: [{
+        id: userId,
+        display_name: "Cruusher",
+        photos: [localPhoto],
+        bio: "Updated bio",
+        pronouns: [],
+        custom_pronouns: "",
+        year_of_birth: 1994,
+        ethnicity: [],
+        identities: [],
+        presentation: [],
+        sexuality: [],
+        body_type: [],
+        height: "",
+        weight: "",
+        position: [],
+        role: [],
+        availability: [],
+        hosting_travel: [],
+        kinks: [],
+        kinks_visibility: "public",
+        trans_status_visibility: "public",
+        hiv_status: [],
+        hiv_status_visibility: "mutual_cruushes",
+        vibes: [],
+        scenes: [],
+        archetypes: [],
+        hobbies: [],
+        custom_hobby: "",
+        looking_for: [],
+        custom_hiv_status: "",
+        condoms: [],
+        custom_condoms: "",
+        prep: [],
+        custom_prep: "",
+        doxypep: [],
+        custom_doxypep: "",
+        covid_vaccine: [],
+        custom_covid_vaccine: "",
+        mpox_vaccine: [],
+        custom_mpox_vaccine: "",
+        substance_boundaries: [],
+        profile_sensitive_ciphertext: "encrypted",
+        profile_sensitive_nonce: "nonce",
+        profile_sensitive_auth_tag: "tag",
+        profile_sensitive_key_version: "v1",
+        profile_sensitive_token_key_version: "v1",
+        updated_at: "2026-04-28T12:05:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        year_of_birth: 1994,
+        photos: [localPhoto]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        photos: [localPhoto]
       })
     });
   });

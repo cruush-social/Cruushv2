@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect from './MultiSelect';
 import {
   AVAILABILITY,
-  ARCHETYPES,
   CROWDS,
   HOBBIES,
   HOSTING,
@@ -17,9 +16,8 @@ import {
   POSITIONS,
   PRESENTATIONS,
   ROLES,
-  SCENES,
   SUBSTANCE_BOUNDARIES,
-  VIBES,
+  VIBE_GROUPS,
 } from '../lib/profileOptions';
 
 const TIMING = AVAILABILITY;
@@ -102,17 +100,7 @@ export default function FiltersPanel() {
 
             <div className="space-y-2">
               <Label>Vibes</Label>
-              <MultiSelect ariaLabel="Vibes" options={VIBES} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Scenes</Label>
-              <MultiSelect ariaLabel="Scenes" options={SCENES} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Archetypes</Label>
-              <MultiSelect ariaLabel="Archetypes" options={ARCHETYPES} />
+              <MultiSelect ariaLabel="Vibes" optionGroups={VIBE_GROUPS} />
             </div>
 
             <div className="space-y-2">

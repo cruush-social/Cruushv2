@@ -19,10 +19,9 @@ import {
   type ProfileVisibility,
   type ProfilePayload,
 } from '../lib/profileApi';
-import { persistCurrentUser } from '../lib/sessionUser';
+import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
 import {
   AVAILABILITY,
-  ARCHETYPES,
   BODY_TYPES,
   CONDOMS,
   COVID_VACCINE,
@@ -42,10 +41,9 @@ import {
   PROFILE_VISIBILITY_OPTIONS,
   PRONOUNS,
   ROLES,
-  SCENES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
-  VIBES,
+  VIBE_GROUPS,
 } from '../lib/profileOptions';
 
 const VISIBILITY_OPTION_LABELS = PROFILE_VISIBILITY_OPTIONS.map((option) => option.label);
@@ -58,9 +56,64 @@ function getVisibilityValue(label: string | undefined): ProfileVisibility {
   return (PROFILE_VISIBILITY_OPTIONS.find((option) => option.label === label)?.value ?? 'public') as ProfileVisibility;
 }
 
+function getSaveDisplayName(profile: ProfilePayload) {
+  const profileDisplayName = (profile.display_name ?? '').trim();
+
+  if (profileDisplayName.length >= 2) {
+    return profileDisplayName;
+  }
+
+  const storedUser = getStoredCurrentUser();
+
+  return (storedUser?.display_name ?? storedUser?.name ?? 'Cruush user').trim();
+}
+
+function uniqueValues(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function mergeCategorizedVibes(profile: ProfilePayload) {
+  return uniqueValues([
+    ...(profile.vibes ?? []),
+    ...(profile.scenes ?? []),
+    ...(profile.archetypes ?? []),
+  ]);
+}
+
+function sanitizeCrowds(profile: ProfilePayload) {
+  const allowedCrowds = new Set(profile.is_trans === true ? CROWDS : CROWDS.filter((crowd) => crowd !== 'T4T'));
+
+  return uniqueValues(profile.crowds ?? []).filter((crowd) => allowedCrowds.has(crowd));
+}
+
+function sanitizeKinkInterests(profile: ProfilePayload): ProfilePayload['kink_interests'] {
+  const sourceInterests = (profile.kink_interests ?? []).length > 0
+    ? profile.kink_interests ?? []
+    : (profile.kinks ?? []).map(toDefaultKinkInterest);
+  const seen = new Set<string>();
+
+  return sourceInterests
+    .map((interest) => {
+      const kinkId = toKinkId(interest.kink_id || interest.label || '');
+
+      if (!kinkId || seen.has(kinkId)) {
+        return null;
+      }
+
+      seen.add(kinkId);
+
+      return {
+        kink_id: kinkId,
+        label: interest.label?.trim() || interest.kink_id,
+        category: interest.category?.trim() || undefined,
+      };
+    })
+    .filter((interest): interest is ProfilePayload['kink_interests'][number] => Boolean(interest));
+}
+
 function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
   return {
-    display_name: (profile.display_name ?? '').trim(),
+    display_name: getSaveDisplayName(profile),
     photos: profile.photos ?? [],
     bio: (profile.bio ?? '').trim(),
     pronouns: profile.pronouns ?? [],
@@ -77,15 +130,15 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     role: profile.role ?? [],
     is_trans: profile.is_trans ?? null,
     trans_status_visibility: profile.trans_status_visibility ?? 'public',
-    crowds: profile.crowds ?? [],
+    crowds: sanitizeCrowds(profile),
     availability: profile.availability ?? [],
     hosting_travel: profile.hosting_travel ?? [],
     kinks: profile.kinks ?? [],
-    kink_interests: profile.kink_interests ?? [],
+    kink_interests: sanitizeKinkInterests(profile),
     kinks_visibility: profile.kinks_visibility ?? 'public',
-    vibes: profile.vibes ?? [],
-    scenes: profile.scenes ?? [],
-    archetypes: profile.archetypes ?? [],
+    vibes: mergeCategorizedVibes(profile),
+    scenes: [],
+    archetypes: [],
     hobbies: profile.hobbies ?? [],
     custom_hobby: (profile.custom_hobby ?? '').trim(),
     looking_for: profile.looking_for ?? [],
@@ -199,15 +252,15 @@ export default function ProfileEdit() {
     role: profile.role || [],
     is_trans: profile.is_trans ?? null,
     trans_status_visibility: profile.trans_status_visibility || 'public',
-    crowds: profile.crowds || [],
+    crowds: sanitizeCrowds(profile),
     availability: profile.availability || [],
     hosting_travel: profile.hosting_travel || [],
     kinks: profile.kinks || [],
     kink_interests: profile.kink_interests || [],
     kinks_visibility: profile.kinks_visibility || 'public',
-    vibes: profile.vibes || [],
-    scenes: profile.scenes || [],
-    archetypes: profile.archetypes || [],
+    vibes: mergeCategorizedVibes(profile),
+    scenes: [],
+    archetypes: [],
     hobbies: profile.hobbies || [],
     looking_for: profile.looking_for || [],
     hiv_status: profile.hiv_status || [],
@@ -292,21 +345,11 @@ export default function ProfileEdit() {
 
             <div className="space-y-2">
               <Label>Vibes</Label>
-              <MultiSelect ariaLabel="Vibes" options={VIBES} value={normalizedProfile.vibes} onChange={(vals) => handleChange('vibes', vals)} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Scenes</Label>
-              <MultiSelect ariaLabel="Scenes" options={SCENES} value={normalizedProfile.scenes} onChange={(vals) => handleChange('scenes', vals)} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Archetypes</Label>
               <MultiSelect
-                ariaLabel="Archetypes"
-                options={ARCHETYPES}
-                value={normalizedProfile.archetypes}
-                onChange={(vals) => handleChange('archetypes', vals)}
+                ariaLabel="Vibes"
+                optionGroups={VIBE_GROUPS}
+                value={normalizedProfile.vibes}
+                onChange={(vals) => handleChange('vibes', vals)}
               />
             </div>
           </TabsContent>
@@ -472,10 +515,6 @@ export default function ProfileEdit() {
                 selectionMode="single"
                 placeholder="Select visibility..."
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Vibes</Label>
-              <MultiSelect ariaLabel="Vibes" options={VIBES} value={normalizedProfile.vibes} onChange={vals => handleChange('vibes', vals)} />
             </div>
           </TabsContent>
 

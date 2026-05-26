@@ -170,6 +170,24 @@ function addTextArrayFilter(where: string[], values: unknown[], column: string, 
   where.push(`${column} && $${values.length}::text[]`);
 }
 
+function addVibeFilter(where: string[], values: unknown[], selectedValues: string[]) {
+  if (selectedValues.length === 0) {
+    return;
+  }
+
+  values.push(selectedValues);
+  const selectedValuesPlaceholder = `$${values.length}`;
+  where.push(`(
+           vibes && ${selectedValuesPlaceholder}::text[]
+           or scenes && ${selectedValuesPlaceholder}::text[]
+           or archetypes && ${selectedValuesPlaceholder}::text[]
+         )`);
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values)];
+}
+
 function addSensitiveTokenFilter(
   app: FastifyInstance,
   where: string[],
@@ -232,7 +250,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     addTextArrayFilter(where, values, "looking_for", filters.lookingFor);
     addTextArrayFilter(where, values, "availability", filters.timing);
     addTextArrayFilter(where, values, "hosting_travel", filters.hosting);
-    addTextArrayFilter(where, values, "vibes", filters.vibes);
+    addVibeFilter(where, values, filters.vibes);
     addTextArrayFilter(where, values, "scenes", filters.scenes);
     addTextArrayFilter(where, values, "archetypes", filters.archetypes);
     addTextArrayFilter(where, values, "hobbies", filters.hobbies);
@@ -330,7 +348,11 @@ function mapModernDiscoveryRow(
     lastActive: formatLastActiveFromDate(row.updated_at),
     distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
     lookingFor: coerceStringArray(row.looking_for),
-    vibes: coerceStringArray(row.vibes),
+    vibes: uniqueStrings([
+      ...coerceStringArray(row.vibes),
+      ...coerceStringArray(row.scenes),
+      ...coerceStringArray(row.archetypes)
+    ]),
     scenes: coerceStringArray(row.scenes),
     archetypes: coerceStringArray(row.archetypes),
     position: coerceStringArray(row.position),

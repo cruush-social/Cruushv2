@@ -57,9 +57,7 @@ const DEMO_NYC_DISCOVERY_USER: DiscoveryUser = {
   lastActive: '3m ago',
   distance: 'Demo NYC pin',
   lookingFor: ['Cruising', 'Tonight', 'Consent first'],
-  vibes: ['Red heart pin', 'Photo fill', 'West Village'],
-  scenes: ['Bear'],
-  archetypes: ['Daddy'],
+  vibes: ['Red heart pin', 'Photo fill', 'West Village', 'Bear', 'Daddy'],
   position: ['Versatile'],
   role: ['Switch'],
   hostingTravel: ['Can Host'],
@@ -209,8 +207,6 @@ export default function MapHome() {
       filters.timing,
       filters.hosting,
       filters.vibes,
-      filters.scenes,
-      filters.archetypes,
       filters.crowds,
       filters.hobbies,
       filters.positions,
@@ -241,22 +237,8 @@ export default function MapHome() {
     }
 
     if (filters.vibes.length > 0) {
-      const vibes = user.vibes.map((item) => item.toLowerCase());
+      const vibes = [...user.vibes, ...(user.scenes ?? []), ...(user.archetypes ?? [])].map((item) => item.toLowerCase());
       if (!filters.vibes.some((item) => vibes.includes(item.toLowerCase()))) {
-        return false;
-      }
-    }
-
-    if (filters.scenes.length > 0) {
-      const scenes = (user.scenes ?? []).map((item) => item.toLowerCase());
-      if (!filters.scenes.some((item) => scenes.includes(item.toLowerCase()))) {
-        return false;
-      }
-    }
-
-    if (filters.archetypes.length > 0) {
-      const archetypes = (user.archetypes ?? []).map((item) => item.toLowerCase());
-      if (!filters.archetypes.some((item) => archetypes.includes(item.toLowerCase()))) {
         return false;
       }
     }

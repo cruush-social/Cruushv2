@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
 import {
   AVAILABILITY,
-  ARCHETYPES,
   BODY_TYPES,
   CROWDS,
   HOBBIES,
@@ -17,10 +16,9 @@ import {
   POSITIONS,
   PRESENTATIONS,
   ROLES,
-  SCENES,
   SEXUALITY,
   SUBSTANCE_BOUNDARIES,
-  VIBES,
+  VIBE_GROUPS,
 } from '../lib/profileOptions';
 
 export interface FilterState {
@@ -32,8 +30,6 @@ export interface FilterState {
   timing: string[];
   hosting: string[];
   vibes: string[];
-  scenes: string[];
-  archetypes: string[];
   crowds: string[];
   hobbies: string[];
   positions: string[];
@@ -53,8 +49,6 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   timing: [],
   hosting: [],
   vibes: [],
-  scenes: [],
-  archetypes: [],
   crowds: [],
   hobbies: [],
   positions: [],
@@ -178,9 +172,7 @@ export default function MapFiltersSurface({
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} onChange={onChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} onChange={onChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} onChange={onChange} />
-              <FieldGroup label="Vibes" options={VIBES} stateKey="vibes" value={value} onChange={onChange} />
-              <FieldGroup label="Scenes" options={SCENES} stateKey="scenes" value={value} onChange={onChange} />
-              <FieldGroup label="Archetypes" options={ARCHETYPES} stateKey="archetypes" value={value} onChange={onChange} />
+              <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} onChange={onChange} />
             </TabsContent>
 

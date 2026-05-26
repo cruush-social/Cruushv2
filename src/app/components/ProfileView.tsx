@@ -106,9 +106,7 @@ export default function ProfileView() {
       lookingFor: profile.looking_for,
       timing: formatJoined(profile.availability),
       hosting: profile.hosting_travel,
-      vibes: profile.vibes,
-      scenes: profile.scenes,
-      archetypes: profile.archetypes,
+      vibes: [...new Set([...profile.vibes, ...profile.scenes, ...profile.archetypes])],
       kinks: profile.kinks,
       hobbies: profile.hobbies,
       protection: [...profile.condoms, ...profile.prep, ...profile.doxypep].filter(Boolean),
@@ -362,14 +360,6 @@ export default function ProfileView() {
 
               <Section title="Vibes">
                 <BadgeList items={profileView.vibes} variant="gradient" />
-              </Section>
-
-              <Section title="Scenes">
-                <BadgeList items={profileView.scenes} />
-              </Section>
-
-              <Section title="Archetypes">
-                <BadgeList items={profileView.archetypes} />
               </Section>
             </TabsContent>
 

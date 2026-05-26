@@ -20,6 +20,7 @@ vi.mock('../lib/profileApi', async () => {
 
 describe('ProfileEdit', () => {
   beforeEach(async () => {
+    localStorage.clear();
     getMyProfile.mockReset();
     saveMyProfile.mockReset();
 
@@ -38,6 +39,9 @@ describe('ProfileEdit', () => {
       kink_interests: [{
         kink_id: 'leather',
         label: 'leather',
+        roles: ['give'],
+        is_seeking: true,
+        visibility: 'public',
       }],
       kinks_visibility: 'public',
       scenes: [],
@@ -78,7 +82,9 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('option', { name: 'service' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Kinks & Fetishes' }));
+    expect(screen.getByRole('tablist', { name: 'Kinks & Fetishes categories' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Body & Touch' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Gear' }));
     const gearGroup = screen.getByRole('group', { name: 'Gear' });
     expect(within(gearGroup).getByRole('option', { name: 'leather' })).toBeInTheDocument();
 
@@ -104,7 +110,7 @@ describe('ProfileEdit', () => {
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('visibility');
   });
 
-  it('lets users set trans status, crowds, scenes, archetypes, and HIV visibility', async () => {
+  it('lets users set trans status, crowds, categorized vibes, and HIV visibility', async () => {
     render(
       <MemoryRouter>
         <ProfileEdit />
@@ -114,11 +120,17 @@ describe('ProfileEdit', () => {
     const profileTab = await screen.findByRole('tab', { name: 'Profile' });
     fireEvent.click(profileTab);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Scenes' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Bear' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
+    expect(screen.getByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Style & Energy' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
+    const scenesGroup = screen.getByRole('group', { name: 'Scenes' });
+    fireEvent.click(within(scenesGroup).getByRole('option', { name: 'Bear' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Archetypes' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Daddy' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Archetypes' }));
+    const archetypesGroup = screen.getByRole('group', { name: 'Archetypes' });
+
+    fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Daddy' }));
 
     const basicsTab = screen.getByRole('tab', { name: 'Basics' });
     fireEvent.click(basicsTab);
@@ -146,10 +158,66 @@ describe('ProfileEdit', () => {
       is_trans: true,
       trans_status_visibility: 'mutual_crowds',
       crowds: ['T4T', 'Sapphic'],
-      scenes: ['Bear'],
-      archetypes: ['Daddy'],
+      vibes: ['Bear', 'Daddy'],
+      scenes: [],
+      archetypes: [],
       hiv_status: ['undetectable'],
       hiv_status_visibility: 'mutual_cruushes',
+    })));
+  });
+
+  it('drops stale T4T crowd membership when trans status is not selected', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+
+    getMyProfile.mockResolvedValueOnce({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: 'Jordan',
+      year_of_birth: 1998,
+      is_trans: false,
+      crowds: ['T4T', 'Sapphic'],
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      is_trans: false,
+      crowds: ['Sapphic'],
+    })));
+  });
+
+  it('uses the stored session display name when saving a fresh empty profile', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+
+    localStorage.setItem('cruush_user', JSON.stringify({
+      display_name: 'River Local',
+    }));
+    getMyProfile.mockResolvedValueOnce({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: '',
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      display_name: 'River Local',
     })));
   });
 });

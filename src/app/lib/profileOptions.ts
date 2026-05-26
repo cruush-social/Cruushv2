@@ -30,7 +30,7 @@ export const ROLES = [
 ].sort();
 
 export const LOOKING_FOR = [
-  'chat', 'date', 'event', 'friends', 'group', 'hookup', 'other', 'relationship', 'third'
+  'chat', 'cruise', 'friends', 'group', 'hookup', 'right now'
 ].sort();
 
 export const AVAILABILITY = [
@@ -41,18 +41,29 @@ export const HOSTING = [
   'ask me', 'can host', 'can travel', "can't host", "can't travel", 'car', 'hotel', 'outdoors'
 ].sort();
 
-export const VIBES = [
-  'Alt', 'Artsy', 'Clean-cut', 'Corporate', 'Cottagecore', 'E-Girl/E-Boy', 'Geek', 'Goth', 'Granola',
-  'Homebody', 'Hippie', 'Punk', 'Raver', 'Rugged', 'Sober', 'Spiritual', 'Sporty'
-].sort();
+export const VIBE_GROUPS = [
+  {
+    label: 'Style & Energy',
+    options: [
+      'Alt', 'Artsy', 'Chill', 'Clean-cut', 'Corporate', 'Cottagecore', 'E-Girl/E-Boy', 'Geek', 'Goth', 'Granola',
+      'Homebody', 'Hippie', 'Punk', 'Rugged', 'Sober', 'Spiritual', 'Sporty'
+    ].sort(),
+  },
+  {
+    label: 'Scenes',
+    options: [
+      'Ballroom', 'Bear', 'Chub', 'Cub', 'Drag', 'Furry', 'Leather', 'Otter', 'Rave', 'Twink', 'Wolf'
+    ].sort(),
+  },
+  {
+    label: 'Archetypes',
+    options: [
+      'Baddie', 'Bimbo', 'Brat', 'Daddy', 'Doll', 'Goddess', 'Kitten', 'Mommy', 'Pixie', 'Pony', 'Princess', 'Pup', 'Service'
+    ].sort(),
+  },
+];
 
-export const SCENES = [
-  'Ballroom', 'Bear', 'Chub', 'Cub', 'Drag', 'Leather', 'Otter', 'Rave', 'Twink', 'Wolf'
-].sort();
-
-export const ARCHETYPES = [
-  'Baddie', 'Bimbo', 'Brat', 'Daddy', 'Doll', 'Goddess', 'Kitten', 'Mommy', 'Pixie', 'Princess', 'Pup', 'Service'
-].sort();
+export const VIBES = VIBE_GROUPS.flatMap((group) => group.options).sort();
 
 export const CROWDS = ['Gay', 'Sapphic', 'T4T'].sort();
 
@@ -139,9 +150,9 @@ export const KINK_GROUPS = [
 })).filter((group) => group.options.length > 0);
 
 export const HOBBIES = [
-  'activism', 'anime/manga', 'art', 'astrology', 'baking', 'board games', 'camping', 'clubbing', 'comedy', 'cooking',
-  'cosplay', 'crafts', 'cycling', 'dancing', 'diy', 'djing', 'fashion', 'film/tv', 'fitness', 'gardening', 'gaming',
+  'activism', 'anime/manga', 'art', 'astrology', 'baking', 'board games', 'camping', 'comedy', 'cooking',
+  'cosplay', 'crafts', 'cycling', 'dancing', 'diy', 'djing', 'film/tv', 'fitness', 'gardening', 'gaming',
   'hiking', 'journaling', 'karaoke', 'makeup', 'martial arts', 'meditation', 'music', 'painting', 'photography',
   'poetry', 'pottery', 'reading', 'roller skating', 'running', 'skateboarding', 'singing', 'streaming', 'swimming',
-  'tattoos', 'theater', 'thrifting', 'travel', 'vintage collecting', 'volunteering', 'writing', 'yoga'
+  'theater', 'thrifting', 'vintage collecting', 'volunteering', 'writing', 'yoga'
 ].sort();

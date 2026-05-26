@@ -12,8 +12,8 @@ export type DiscoveryUser = {
   distance: string;
   lookingFor: string[];
   vibes: string[];
-  scenes: string[];
-  archetypes: string[];
+  scenes?: string[];
+  archetypes?: string[];
   position: string[];
   role: string[];
   hostingTravel: string[];
@@ -32,8 +32,6 @@ export type DiscoveryFilterParams = {
   timing?: string[];
   hosting?: string[];
   vibes?: string[];
-  scenes?: string[];
-  archetypes?: string[];
   crowds?: string[];
   hobbies?: string[];
   positions?: string[];
@@ -66,8 +64,6 @@ export async function getNearbyUsers(coordinates?: Coordinates | null, filters?:
   appendListParams(params, 'timing', filters?.timing);
   appendListParams(params, 'hosting', filters?.hosting);
   appendListParams(params, 'vibes', filters?.vibes);
-  appendListParams(params, 'scenes', filters?.scenes);
-  appendListParams(params, 'archetypes', filters?.archetypes);
   appendListParams(params, 'crowds', filters?.crowds);
   appendListParams(params, 'hobbies', filters?.hobbies);
   appendListParams(params, 'positions', filters?.positions);
