@@ -107,7 +107,7 @@ Required tabs:
 - Activity
 - Profile
 
-The active tab uses the brand gradient. The nav background should be a solid dark surface with a subtle top border.
+The active tab uses the brand gradient. The nav background should be a solid dark surface with a subtle top border. Do not add a progressive dark fade, transparent scrim, or backdrop blur at the bottom edge of the viewport.
 
 ## Map Home
 
