@@ -76,7 +76,6 @@ type PasswordResetLookupRow = {
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const DEVELOPMENT_ADMIN_EMAIL = "admin@cruush.local";
-const DEVELOPMENT_ADMIN_PASSWORD = "admin-password";
 const DEVELOPMENT_ADMIN_DISPLAY_NAME = "Admin";
 const DEVELOPMENT_ADMIN_YEAR_OF_BIRTH = 1990;
 
@@ -191,14 +190,16 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
 
 function isDevelopmentAdminLogin(app: FastifyInstance, email: string, password: string) {
   return (
+    app.config.DEVELOPMENT_ADMIN_ENABLED &&
     app.config.NODE_ENV !== "production" &&
+    app.config.DEVELOPMENT_ADMIN_PASSWORD.length > 0 &&
     email === DEVELOPMENT_ADMIN_EMAIL &&
-    password === DEVELOPMENT_ADMIN_PASSWORD
+    password === app.config.DEVELOPMENT_ADMIN_PASSWORD
   );
 }
 
 async function ensureDevelopmentAdminUser(app: FastifyInstance) {
-  const passwordHash = await hashPassword(DEVELOPMENT_ADMIN_PASSWORD);
+  const passwordHash = await hashPassword(app.config.DEVELOPMENT_ADMIN_PASSWORD);
   const userResult = await app.db.query<CreatedUserRow>(
     `insert into app_users (email, password_hash, display_name, email_verified_at)
      values ($1, $2, $3, now())
@@ -503,18 +504,25 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       });
     }
 
-    const reset = await createPasswordResetToken(app, user.id);
-    const preview = await sendPasswordResetEmail({
-      config: request.server.config,
-      email: user.email,
-      logger: request.log,
-      resetUrl: buildPasswordResetUrl(request, reset.token)
-    });
+    let previewUrl: string | null = null;
+
+    try {
+      const reset = await createPasswordResetToken(app, user.id);
+      const preview = await sendPasswordResetEmail({
+        config: request.server.config,
+        email: user.email,
+        logger: request.log,
+        resetUrl: buildPasswordResetUrl(request, reset.token)
+      });
+      previewUrl = preview.previewUrl;
+    } catch (error) {
+      request.log.error({ err: error }, "password reset email unavailable");
+    }
 
     return reply.code(202).send({
       data: {
         accepted: true,
-        previewUrl: preview.previewUrl
+        previewUrl
       }
     });
   });

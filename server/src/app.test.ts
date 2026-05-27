@@ -18,6 +18,9 @@ const app = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
+  EMAIL_PREVIEW_ENABLED: true,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
@@ -39,6 +42,33 @@ const developmentApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
+  EMAIL_PREVIEW_ENABLED: true,
+  DEVELOPMENT_ADMIN_ENABLED: true,
+  DEVELOPMENT_ADMIN_PASSWORD: "admin-password",
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
+}, {
+  db: {
+    query,
+    end
+  }
+});
+
+const lockedDevelopmentApp = buildServer({
+  NODE_ENV: "development",
+  PORT: 3001,
+  HOST: "127.0.0.1",
+  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  CORS_ORIGIN: "http://localhost:5173",
+  SESSION_SECRET: "test-secret",
+  APP_URL: "https://cruush.test",
+  RESEND_API_KEY: "",
+  MAIL_FROM: "",
+  EMAIL_PREVIEW_ENABLED: false,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
@@ -60,6 +90,9 @@ const productionApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
+  EMAIL_PREVIEW_ENABLED: false,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
@@ -81,6 +114,9 @@ const corsApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
+  EMAIL_PREVIEW_ENABLED: false,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
@@ -102,6 +138,9 @@ const emailLinkApp = buildServer({
   APP_URL: "https://api.cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
+  EMAIL_PREVIEW_ENABLED: true,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
@@ -123,6 +162,9 @@ const turnstileApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
+  EMAIL_PREVIEW_ENABLED: false,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
   TURNSTILE_SECRET_KEY: "turnstile-secret",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
@@ -137,6 +179,7 @@ const turnstileApp = buildServer({
 afterAll(async () => {
   await app.close();
   await developmentApp.close();
+  await lockedDevelopmentApp.close();
   await productionApp.close();
   await corsApp.close();
   await emailLinkApp.close();
@@ -519,6 +562,23 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from app_users");
   });
 
+  it("does not allow the hardcoded admin login without explicit development opt-in", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await lockedDevelopmentApp.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "admin@cruush.local",
+        password: "admin-password"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_users");
+  });
+
   it("requires a valid Turnstile token on login when configured", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -626,6 +686,40 @@ describe("server", () => {
     expect(missingResponse.statusCode).toBe(202);
     expect(query).toHaveBeenCalledTimes(1);
     expect(missingResponse.json()).toEqual({
+      data: {
+        accepted: true,
+        previewUrl: null
+      }
+    });
+  });
+
+  it("does not reveal existing accounts when reset email delivery is unavailable", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          expires_at: "2026-04-30T12:00:00.000Z"
+        }]
+      });
+
+    const response = await lockedDevelopmentApp.inject({
+      method: "POST",
+      url: "/api/auth/password/forgot",
+      payload: {
+        email: "river@example.com"
+      }
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toEqual({
       data: {
         accepted: true,
         previewUrl: null
