@@ -1,16 +1,16 @@
 import { z } from "zod";
+import { multilineTextSchema, optionalSingleLineTextSchema, singleLineTextSchema } from "./input-schema.js";
 
 const currentYear = new Date().getFullYear();
 
-const stringField = z.string().trim().max(500).optional().default("");
-const shortStringField = z.string().trim().max(120).optional().default("");
-const arrayField = z.array(z.string().trim().min(1).max(120)).max(25).optional().default([]);
-const kinkArrayField = z.array(z.string().trim().min(1).max(120)).max(50).optional().default([]);
+const shortStringField = optionalSingleLineTextSchema(120);
+const arrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(25).optional().default([]);
+const kinkArrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(50).optional().default([]);
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
 const transStatusSchema = z.boolean().nullable().optional().default(null);
 const crowdSchema = z.enum(["T4T", "Sapphic", "Gay"]);
-const visibilityArrayField = z.array(z.string().trim().min(1).max(120)).max(50).optional().default([]);
+const visibilityArrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(50).optional().default([]);
 
 const profileVisibilityRulesSchema = z.object({
   active_crowd_modes: z.array(crowdSchema).max(3).optional().default([]),
@@ -44,19 +44,19 @@ const profileVisibilityRulesSchema = z.object({
 });
 
 export const profileKinkInterestSchema = z.object({
-  kink_id: z.string().trim().min(1).max(120),
-  label: z.string().trim().min(1).max(120).optional(),
-  category: z.string().trim().min(1).max(120).optional()
+  kink_id: singleLineTextSchema({ min: 1, max: 120 }),
+  label: singleLineTextSchema({ min: 1, max: 120 }).optional(),
+  category: singleLineTextSchema({ min: 1, max: 120 }).optional()
 }).strip();
 
 export const profilePayloadSchema = z.object({
-  display_name: z.string().trim().min(2).max(80),
+  display_name: singleLineTextSchema({ min: 2, max: 80 }),
   photos: z.array(z.string().trim().url().max(2048)).max(9).optional().default([]),
-  bio: z.string().trim().max(2000).optional().default(""),
+  bio: multilineTextSchema({ max: 2000 }).optional().default(""),
   pronouns: arrayField,
   custom_pronouns: shortStringField,
   year_of_birth: z.number().int().min(currentYear - 120).max(currentYear - 18).nullable().optional().default(null),
-  ethnicity: z.string().trim().max(120).optional().default(""),
+  ethnicity: optionalSingleLineTextSchema(120),
   identities: arrayField,
   presentation: arrayField,
   sexuality: arrayField,

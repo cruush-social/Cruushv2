@@ -3,10 +3,11 @@ import { buildServer } from "./app.js";
 import { hashPassword, hashSessionToken } from "./auth.js";
 import { emptyProfile } from "./profile-schema.js";
 import { encryptProfileVisibility, encryptSensitiveProfile } from "./profile-sensitive.js";
-import { resetRateLimitBuckets } from "./rate-limit.js";
+import { createMemoryRateLimiter } from "./rate-limit.js";
 
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
+const rateLimiter = createMemoryRateLimiter();
 
 const app = buildServer({
   NODE_ENV: "test",
@@ -29,7 +30,8 @@ const app = buildServer({
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 const developmentApp = buildServer({
@@ -53,7 +55,8 @@ const developmentApp = buildServer({
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 const lockedDevelopmentApp = buildServer({
@@ -77,7 +80,8 @@ const lockedDevelopmentApp = buildServer({
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 const productionApp = buildServer({
@@ -101,7 +105,8 @@ const productionApp = buildServer({
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 const corsApp = buildServer({
@@ -125,7 +130,8 @@ const corsApp = buildServer({
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 const emailLinkApp = buildServer({
@@ -149,7 +155,8 @@ const emailLinkApp = buildServer({
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 const turnstileApp = buildServer({
@@ -173,7 +180,8 @@ const turnstileApp = buildServer({
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 afterAll(async () => {
@@ -189,11 +197,12 @@ afterAll(async () => {
 beforeEach(() => {
   query.mockReset();
   end.mockClear();
-  resetRateLimitBuckets();
+  rateLimiter.reset?.();
 });
 
 describe("server", () => {
   const userId = "d271f6da-c51d-4d73-a322-d9c56f45d4fa";
+  const conversationId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
 
   it("returns metadata from /api/meta", async () => {
     const response = await app.inject({
@@ -1067,7 +1076,7 @@ describe("server", () => {
   it("returns conversations from GET /api/conversations", async () => {
     query.mockResolvedValueOnce({
       rows: [{
-        id: "conv-1",
+        id: conversationId,
         kind: "dm",
         title: null,
         tags: ["Hosting", "Now"],
@@ -1096,7 +1105,7 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
     expect(response.json()).toEqual({
       data: [{
-        id: "conv-1",
+        id: conversationId,
         kind: "dm",
         user: {
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -1126,7 +1135,7 @@ describe("server", () => {
       })
       .mockResolvedValueOnce({
         rows: [{
-          id: "conv-1"
+          id: conversationId
         }]
       })
       .mockResolvedValueOnce({
@@ -1134,7 +1143,7 @@ describe("server", () => {
       })
       .mockResolvedValueOnce({
         rows: [{
-          id: "conv-1",
+          id: conversationId,
           kind: "dm",
           title: null,
           tags: [],
@@ -1167,7 +1176,7 @@ describe("server", () => {
     expect(query.mock.calls[2]?.[0]).toContain("insert into conversation_members");
     expect(response.json()).toEqual({
       data: {
-        id: "conv-1",
+        id: conversationId,
         kind: "dm",
         user: {
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -1192,7 +1201,7 @@ describe("server", () => {
     query
       .mockResolvedValueOnce({
         rows: [{
-          id: "conv-1",
+          id: conversationId,
           kind: "dm",
           title: null,
           tags: ["Hosting"],
@@ -1222,7 +1231,7 @@ describe("server", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/messages/conv-1",
+      url: `/api/messages/${conversationId}`,
       headers: {
         "x-user-id": userId
       }
@@ -1234,7 +1243,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       data: {
         conversation: {
-          id: "conv-1",
+          id: conversationId,
           kind: "dm",
           user: {
             id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -1267,6 +1276,26 @@ describe("server", () => {
     });
   });
 
+  it("rejects invalid conversation ids before querying messages", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/messages/not-a-uuid",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it("creates a message on POST /api/messages", async () => {
     query.mockResolvedValueOnce({
       rows: [{
@@ -1284,7 +1313,7 @@ describe("server", () => {
         "x-user-id": userId
       },
       payload: {
-        conversationId: "conv-1",
+        conversationId,
         content: "on my way"
       }
     });
@@ -1299,6 +1328,30 @@ describe("server", () => {
         timestamp: "2026-04-29T12:10:00.000Z"
       }
     });
+  });
+
+  it("rejects invalid message conversation ids before querying messages", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId: "not-a-uuid",
+        content: "nearby now"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("returns nearby users from GET /api/users", async () => {
@@ -1355,6 +1408,26 @@ describe("server", () => {
     });
     expect(body.data[0].distance).toMatch(/ mi$/);
     expect(body.data[0].lastActive).toMatch(/ago$/);
+  });
+
+  it("rejects unknown discovery query parameters before querying users", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?debug=true",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("filters discovery by the current user's active crowd modes", async () => {
@@ -1694,6 +1767,37 @@ describe("server", () => {
     });
   });
 
+  it("normalizes post text before storing it", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "post-1",
+        user_id: userId,
+        content: "Hosting now",
+        expires_in: "6h",
+        expires_at: "2026-04-28T18:00:00.000Z",
+        created_at: "2026-04-28T12:00:00.000Z",
+        display_name: "Cruusher",
+        pronouns: ["they/them"],
+        photos: []
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: " \u0000Hosting\u0007 now\u0000 ",
+        expiresIn: "6h"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "Hosting now", "6h"]);
+  });
+
   it("forbids reading another user's cruush activity", async () => {
     const response = await app.inject({
       method: "GET",
@@ -1709,6 +1813,25 @@ describe("server", () => {
         code: "FORBIDDEN",
         message: "You can only access your own cruush activity.",
         details: null
+      }
+    });
+  });
+
+  it("rejects invalid cruush activity user ids before authorization checks", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/cruush/not-a-uuid",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
       }
     });
   });
@@ -1793,7 +1916,7 @@ describe("server", () => {
       rows: [{
         id: "cruush-3",
         from_user_id: userId,
-        to_user_id: "user1",
+        to_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
         created_at: "2026-04-28T12:10:00.000Z",
         mutual: false
       }]
@@ -1806,7 +1929,7 @@ describe("server", () => {
         "x-user-id": userId
       },
       payload: {
-        toUserId: "user1",
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
         targetUser: {
           name: "Jordan",
           pronouns: "they/them",
@@ -1818,16 +1941,39 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     expect(query).toHaveBeenCalledTimes(1);
     expect(query.mock.calls[0]?.[0]).toContain("insert into cruushes");
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "user1", "Jordan", "they/them", null]);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97", "Jordan", "they/them", null]);
     expect(response.json()).toEqual({
       data: {
         id: "cruush-3",
         fromUserId: userId,
-        toUserId: "user1",
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
         createdAt: "2026-04-28T12:10:00.000Z",
         mutual: false
       }
     });
+  });
+
+  it("rejects invalid cruush target ids before querying", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/cruush",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        toUserId: "not-a-uuid"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("requires the temporary x-user-id header on GET /api/profiles/me", async () => {
@@ -2088,6 +2234,26 @@ describe("server", () => {
         looking_for: ["Dates"]
       })
     });
+  });
+
+  it("rejects invalid profile ids before querying profiles", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/not-a-uuid",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("returns 404 when another user's visibility rules exclude the viewer profile fields", async () => {

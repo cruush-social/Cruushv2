@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { singleLineTextSchema } from "./input-schema.js";
 
 export const authEmailSchema = z.string().trim().email().max(320).transform((value) => value.toLowerCase());
 
 export const signUpPayloadSchema = z.object({
   email: authEmailSchema,
   password: z.string().min(8).max(200),
-  displayName: z.string().trim().min(2).max(80),
+  displayName: singleLineTextSchema({ min: 2, max: 80 }),
   captchaToken: z.string().trim().max(4096).optional()
 }).strict();
 

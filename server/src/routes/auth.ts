@@ -20,7 +20,6 @@ import {
   signUpPayloadSchema,
   verifyEmailPayloadSchema
 } from "../auth-schema.js";
-import { assertRateLimit } from "../rate-limit.js";
 import { verifyTurnstileToken } from "../turnstile.js";
 
 type SessionLookupRow = {
@@ -330,14 +329,14 @@ function getRequestIp(request: FastifyRequest) {
   return request.ip || "unknown";
 }
 
-function applyRateLimits(limits: Array<{
+async function applyRateLimits(app: FastifyInstance, limits: Array<{
   key: string;
   max: number;
   windowMs: number;
   message: string;
 }>) {
   for (const limit of limits) {
-    assertRateLimit(limit);
+    await app.rateLimiter.assert(limit);
   }
 }
 
@@ -358,7 +357,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/signup", async (request, reply) => {
     const payload = signUpPayloadSchema.parse(request.body);
-    applyRateLimits([
+    await applyRateLimits(app, [
       {
         key: `signup:ip:${getRequestIp(request)}`,
         max: AUTH_ATTEMPT_MAX,
@@ -419,7 +418,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   app.post("/api/auth/login", async (request, reply) => {
     const payload = signInPayloadSchema.parse(request.body);
 
-    applyRateLimits([
+    await applyRateLimits(app, [
       {
         key: `login:ip:${getRequestIp(request)}`,
         max: AUTH_ATTEMPT_MAX,
@@ -473,7 +472,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/password/forgot", async (request, reply) => {
     const payload = forgotPasswordPayloadSchema.parse(request.body);
-    applyRateLimits([
+    await applyRateLimits(app, [
       {
         key: `password-forgot:ip:${getRequestIp(request)}`,
         max: AUTH_ATTEMPT_MAX,
@@ -531,7 +530,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/password/reset", async (request, reply) => {
     const payload = resetPasswordPayloadSchema.parse(request.body);
-    applyRateLimits([{
+    await applyRateLimits(app, [{
       key: `password-reset:ip:${getRequestIp(request)}`,
       max: AUTH_ATTEMPT_MAX,
       windowMs: AUTH_ATTEMPT_WINDOW_MS,
@@ -585,7 +584,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/verification/resend", async (request, reply) => {
     const payload = resendVerificationPayloadSchema.parse(request.body);
-    applyRateLimits([
+    await applyRateLimits(app, [
       {
         key: `verification-resend:ip:${getRequestIp(request)}`,
         max: AUTH_ATTEMPT_MAX,
@@ -650,7 +649,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/verification/send", async (request, reply) => {
     const userId = await resolveSessionUserId(request);
-    applyRateLimits([{
+    await applyRateLimits(app, [{
       key: `verification-send:user:${userId}`,
       max: AUTH_ATTEMPT_MAX,
       windowMs: AUTH_ATTEMPT_WINDOW_MS,
@@ -699,7 +698,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/verification/verify", async (request, reply) => {
     const payload = verifyEmailPayloadSchema.parse(request.body);
-    applyRateLimits([{
+    await applyRateLimits(app, [{
       key: `verification-verify:ip:${getRequestIp(request)}`,
       max: AUTH_ATTEMPT_MAX,
       windowMs: AUTH_ATTEMPT_WINDOW_MS,

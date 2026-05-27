@@ -18,7 +18,7 @@ import {
   type VisibilitySubjectProfile
 } from "../profile-visibility.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
-import { assertRateLimit } from "../rate-limit.js";
+import { normalizeSingleLineText } from "../input-schema.js";
 
 type DiscoveryProfileRow = {
   id: string;
@@ -80,9 +80,9 @@ const queryArrayField = z.preprocess((value) => {
   const values = Array.isArray(value) ? value : [value];
 
   return values.flatMap((item) => typeof item === "string"
-    ? item.split(",").map((part) => part.trim()).filter(Boolean)
+    ? item.split(",").map(normalizeSingleLineText).filter(Boolean)
     : []);
-}, z.array(z.string().trim().min(1).max(120)).max(50).default([]));
+}, z.array(z.string().min(1).max(120)).max(50).default([]));
 
 const crowdQueryArrayField = z.preprocess((value) => {
   if (value === undefined) {
@@ -115,7 +115,7 @@ const discoveryQuerySchema = z.object({
   bodyTypes: queryArrayField,
   sexuality: queryArrayField,
   substanceBoundaries: queryArrayField
-});
+}).strict();
 
 type DiscoveryQuery = z.infer<typeof discoveryQuerySchema>;
 
@@ -573,13 +573,13 @@ function mapLegacyDiscoveryRow(
 export async function registerUserRoutes(app: FastifyInstance) {
   app.get("/api/users", async (request, reply) => {
     const currentUserId = await getAuthenticatedUserId(request);
-    assertRateLimit({
+    const parsedQuery = discoveryQuerySchema.parse(request.query);
+    await app.rateLimiter.assert({
       key: `discovery-read:${currentUserId}`,
       max: 30,
       windowMs: 60 * 1000,
       message: "Too many discovery refreshes. Try again later."
     });
-    const parsedQuery = discoveryQuerySchema.parse(request.query);
     const centerLat = parsedQuery.lat ?? DEFAULT_CENTER.lat;
     const centerLng = parsedQuery.lng ?? DEFAULT_CENTER.lng;
 

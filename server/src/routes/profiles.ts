@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
+import { z } from "zod";
 import { ApiError } from "../errors.js";
 import {
   emptyProfile,
@@ -28,7 +29,10 @@ import {
   type SensitiveProfileToken
 } from "../profile-sensitive.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
-import { assertRateLimit } from "../rate-limit.js";
+
+const profileParamsSchema = z.object({
+  userId: z.uuid()
+}).strict();
 
 type ProfileRow = {
   id: string;
@@ -807,13 +811,13 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
   app.get("/api/profiles/:userId", async (request, reply) => {
     const authenticatedUserId = await getAuthenticatedUserId(request);
-    assertRateLimit({
+    const { userId } = profileParamsSchema.parse(request.params);
+    await app.rateLimiter.assert({
       key: `profile-read:${authenticatedUserId}`,
       max: 30,
       windowMs: 60 * 1000,
       message: "Too many profile requests. Try again later."
     });
-    const { userId } = request.params as { userId: string };
 
     return reply.send({
       data: await loadProfileData(app, userId, { includePrivateSensitive: false, viewerUserId: authenticatedUserId })
