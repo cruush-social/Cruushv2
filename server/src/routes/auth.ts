@@ -74,7 +74,8 @@ type PasswordResetLookupRow = {
 };
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
+const AUTH_ATTEMPT_MAX = 5;
+const AUTH_ATTEMPT_WINDOW_MS = FIFTEEN_MINUTES_MS;
 const DEVELOPMENT_ADMIN_EMAIL = "admin@cruush.local";
 const DEVELOPMENT_ADMIN_DISPLAY_NAME = "Admin";
 const DEVELOPMENT_ADMIN_YEAR_OF_BIRTH = 1990;
@@ -360,14 +361,14 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     applyRateLimits([
       {
         key: `signup:ip:${getRequestIp(request)}`,
-        max: 10,
-        windowMs: FIFTEEN_MINUTES_MS,
+        max: AUTH_ATTEMPT_MAX,
+        windowMs: AUTH_ATTEMPT_WINDOW_MS,
         message: "Too many sign-up attempts. Try again later."
       },
       {
         key: `signup:email:${payload.email}`,
-        max: 3,
-        windowMs: HOUR_MS,
+        max: AUTH_ATTEMPT_MAX,
+        windowMs: AUTH_ATTEMPT_WINDOW_MS,
         message: "Too many sign-up attempts. Try again later."
       }
     ]);
@@ -418,6 +419,21 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   app.post("/api/auth/login", async (request, reply) => {
     const payload = signInPayloadSchema.parse(request.body);
 
+    applyRateLimits([
+      {
+        key: `login:ip:${getRequestIp(request)}`,
+        max: AUTH_ATTEMPT_MAX,
+        windowMs: AUTH_ATTEMPT_WINDOW_MS,
+        message: "Too many sign-in attempts. Try again later."
+      },
+      {
+        key: `login:email:${payload.email}`,
+        max: AUTH_ATTEMPT_MAX,
+        windowMs: AUTH_ATTEMPT_WINDOW_MS,
+        message: "Too many sign-in attempts. Try again later."
+      }
+    ]);
+
     if (isDevelopmentAdminLogin(app, payload.email, payload.password)) {
       const userId = await ensureDevelopmentAdminUser(app);
       const session = await createSession(app, userId);
@@ -428,20 +444,6 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       });
     }
 
-    applyRateLimits([
-      {
-        key: `login:ip:${getRequestIp(request)}`,
-        max: 30,
-        windowMs: FIFTEEN_MINUTES_MS,
-        message: "Too many sign-in attempts. Try again later."
-      },
-      {
-        key: `login:email:${payload.email}`,
-        max: 10,
-        windowMs: FIFTEEN_MINUTES_MS,
-        message: "Too many sign-in attempts. Try again later."
-      }
-    ]);
     await verifyTurnstileToken(request, payload.captchaToken);
     const result = await app.db.query<PasswordUserRow>(
       `select id, email, password_hash, display_name, email_verified_at, created_at
@@ -474,14 +476,14 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     applyRateLimits([
       {
         key: `password-forgot:ip:${getRequestIp(request)}`,
-        max: 20,
-        windowMs: HOUR_MS,
+        max: AUTH_ATTEMPT_MAX,
+        windowMs: AUTH_ATTEMPT_WINDOW_MS,
         message: "Too many password reset requests. Try again later."
       },
       {
         key: `password-forgot:email:${payload.email}`,
-        max: 5,
-        windowMs: HOUR_MS,
+        max: AUTH_ATTEMPT_MAX,
+        windowMs: AUTH_ATTEMPT_WINDOW_MS,
         message: "Too many password reset requests. Try again later."
       }
     ]);
@@ -531,8 +533,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const payload = resetPasswordPayloadSchema.parse(request.body);
     applyRateLimits([{
       key: `password-reset:ip:${getRequestIp(request)}`,
-      max: 10,
-      windowMs: HOUR_MS,
+      max: AUTH_ATTEMPT_MAX,
+      windowMs: AUTH_ATTEMPT_WINDOW_MS,
       message: "Too many password reset attempts. Try again later."
     }]);
     const tokenHash = hashSessionToken(payload.token);
@@ -586,14 +588,14 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     applyRateLimits([
       {
         key: `verification-resend:ip:${getRequestIp(request)}`,
-        max: 20,
-        windowMs: HOUR_MS,
+        max: AUTH_ATTEMPT_MAX,
+        windowMs: AUTH_ATTEMPT_WINDOW_MS,
         message: "Too many verification email requests. Try again later."
       },
       {
         key: `verification-resend:email:${payload.email}`,
-        max: 5,
-        windowMs: HOUR_MS,
+        max: AUTH_ATTEMPT_MAX,
+        windowMs: AUTH_ATTEMPT_WINDOW_MS,
         message: "Too many verification email requests. Try again later."
       }
     ]);
@@ -650,8 +652,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const userId = await resolveSessionUserId(request);
     applyRateLimits([{
       key: `verification-send:user:${userId}`,
-      max: 5,
-      windowMs: HOUR_MS,
+      max: AUTH_ATTEMPT_MAX,
+      windowMs: AUTH_ATTEMPT_WINDOW_MS,
       message: "Too many verification email requests. Try again later."
     }]);
     const userResult = await app.db.query<VerificationUserRow>(
@@ -699,8 +701,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const payload = verifyEmailPayloadSchema.parse(request.body);
     applyRateLimits([{
       key: `verification-verify:ip:${getRequestIp(request)}`,
-      max: 10,
-      windowMs: HOUR_MS,
+      max: AUTH_ATTEMPT_MAX,
+      windowMs: AUTH_ATTEMPT_WINDOW_MS,
       message: "Too many verification attempts. Try again later."
     }]);
     const tokenHash = hashSessionToken(payload.token);

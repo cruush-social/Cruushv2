@@ -422,6 +422,44 @@ describe("server", () => {
     });
   });
 
+  it("rate limits repeated sign-up attempts", async () => {
+    query.mockRejectedValue({ code: "23505" });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/signup",
+        payload: {
+          email: "river@example.com",
+          password: "password-123",
+          displayName: "River"
+        }
+      });
+
+      expect(response.statusCode).toBe(409);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/signup",
+      payload: {
+        email: "river@example.com",
+        password: "password-123",
+        displayName: "River"
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many sign-up attempts. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(5);
+  });
+
   it("requires a valid Turnstile token on signup when configured", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -604,7 +642,7 @@ describe("server", () => {
   it("rate limits repeated login attempts for the same email", async () => {
     query.mockResolvedValue({ rows: [] });
 
-    for (let attempt = 0; attempt < 10; attempt += 1) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
       const response = await app.inject({
         method: "POST",
         url: "/api/auth/login",
@@ -768,6 +806,42 @@ describe("server", () => {
         reset: true
       }
     });
+  });
+
+  it("rate limits repeated password reset token attempts", async () => {
+    query.mockResolvedValue({ rows: [] });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/password/reset",
+        payload: {
+          token: "invalid-reset-token-1234567890",
+          password: "new-password-123"
+        }
+      });
+
+      expect(response.statusCode).toBe(400);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/password/reset",
+      payload: {
+        token: "invalid-reset-token-1234567890",
+        password: "new-password-123"
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many password reset attempts. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(5);
   });
 
   it("returns the current session from GET /api/auth/me", async () => {
@@ -954,6 +1028,40 @@ describe("server", () => {
         email: "river@example.com"
       }
     });
+  });
+
+  it("rate limits repeated email verification token attempts", async () => {
+    query.mockResolvedValue({ rows: [] });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/verification/verify",
+        payload: {
+          token: "invalid-verification-token"
+        }
+      });
+
+      expect(response.statusCode).toBe(400);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/verification/verify",
+      payload: {
+        token: "invalid-verification-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many verification attempts. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(5);
   });
 
   it("returns conversations from GET /api/conversations", async () => {
