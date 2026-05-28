@@ -65,10 +65,13 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
 });
 
 vi.mock('maplibre-gl', () => ({
+  __esModule: true,
   default: {
     Map: MockMap,
     Marker: MockMarker,
   },
+  Map: MockMap,
+  Marker: MockMarker,
 }));
 
 describe('MapView', () => {
@@ -182,7 +185,27 @@ describe('MapView', () => {
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
   });
 
-  it('ignores hosting badges when no known position badge exists', async () => {
+  it('keeps the positioned marker element stable on hover', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'user-hover',
+            displayName: 'Noor',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            lastActiveLabel: '8m ago',
+          },
+        ]}
+      />
+    );
+
+    expect(await screen.findByRole('button', { name: 'Open Noor on map' })).toBeInTheDocument();
+    expect(markerInstances[0].element.className).not.toContain('hover:scale');
+  });
+
+  it('uses hosting badges only when no known position badge exists', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -225,7 +248,9 @@ describe('MapView', () => {
 
   it('creates a custom dark vector style with the Cruush map palette', () => {
     const style = createCruushVectorStyle() as any;
-    const layerById = new Map(style.layers.map((layer: any) => [layer.id, layer]));
+    const layerById = new Map<string, any>(
+      style.layers.map((layer: any) => [layer.id, layer] as [string, any])
+    );
 
     expect(style.sources.openmaptiles).toEqual({
       type: 'vector',

@@ -589,7 +589,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
 }
 
 function MapMarkerPin({ marker }: { marker: MapMarker }) {
-  const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
+  const isCurrentUser = marker.id === 'me' || marker.isCurrentUser === true;
 
   return (
     <span className="pointer-events-none relative flex h-[70px] w-[82px] items-start justify-center overflow-visible">
@@ -609,8 +609,8 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
   element.className = [
     'relative flex h-[70px] w-[82px] items-start justify-center overflow-visible border-0 bg-transparent p-0',
     isCurrentUser
-      ? 'drop-shadow-[0_0_18px_rgba(11,168,255,0.72)]'
-      : 'drop-shadow-[0_0_18px_rgba(255,0,114,0.62)] transition-transform hover:scale-110',
+      ? 'drop-shadow-[0_0_16px_#22B8FF]'
+      : 'drop-shadow-[0_0_16px_rgba(209,31,58,0.60)] transition-[filter] hover:drop-shadow-[0_0_22px_rgba(209,31,58,0.78)]',
   ].join(' ');
 
   if (isCurrentUser) {
