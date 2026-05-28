@@ -279,10 +279,7 @@ export default function MapHome() {
         lastActiveLabel: 'Now',
         photo: currentProfile?.photos[0] ?? null,
         isCurrentUser: true,
-        badge: {
-          kind: 'self',
-          label: 'YOU',
-        },
+        badge: createMapMarkerBadge(currentProfile?.position ?? []),
       },
       ...nearbyMarkers,
     ];

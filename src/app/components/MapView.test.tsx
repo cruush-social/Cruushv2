@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, { createCruushVectorStyle, createMapMarkerBadge, getMapStyle } from './MapView';
@@ -101,6 +101,7 @@ describe('MapView', () => {
             approximateLongitude: -73.99,
             lastActiveLabel: 'Now',
             isCurrentUser: true,
+            badge: createMapMarkerBadge(['Bottom'], []),
           },
           {
             id: 'user-1',
@@ -114,7 +115,7 @@ describe('MapView', () => {
       />
     );
 
-    expect(MockMap.calls).toHaveLength(1);
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
     expect(MockMap.calls[0]).toEqual(expect.objectContaining({
       style: expect.objectContaining({
         sources: expect.objectContaining({
@@ -134,12 +135,14 @@ describe('MapView', () => {
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }));
     expect(screen.queryByRole('button', { name: 'Open You on map' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Your approximate area')).toBeInTheDocument();
-    expect(screen.getByText('YOU')).toBeInTheDocument();
-    expect(screen.getByText('Now')).toBeInTheDocument();
-    expect(screen.getByText('2m ago')).toBeInTheDocument();
+    expect(screen.queryByText('YOU')).not.toBeInTheDocument();
+    expect(screen.queryByText('Now')).not.toBeInTheDocument();
+    expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('bottom')).toBeInTheDocument();
     expect(screen.getByLabelText('top')).toBeInTheDocument();
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
+    expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-16', 'w-16');
   });
 
   it('renders photo markers with current and nearby styling', async () => {
@@ -155,6 +158,7 @@ describe('MapView', () => {
             photo: 'https://example.com/me.jpg',
             isCurrentUser: true,
             lastActiveLabel: 'Now',
+            badge: createMapMarkerBadge(['Vers'], []),
           },
           {
             id: 'user-photo',
@@ -174,10 +178,11 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-photo-fill-user-photo')).toHaveAttribute('href', 'https://example.com/kai.jpg');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-marker-theme', 'nearby');
-    expect(screen.getByText('12m ago')).toBeInTheDocument();
+    expect(screen.getByLabelText('versatile')).toBeInTheDocument();
+    expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
   });
 
-  it('uses hosting badges only when no known position badge exists', async () => {
+  it('ignores hosting badges when no known position badge exists', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -193,7 +198,9 @@ describe('MapView', () => {
       />
     );
 
-    expect(await screen.findByLabelText('can host')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Open Mika on map' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('can host')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('marker-badge-user-hosting')).not.toBeInTheDocument();
   });
 
   it('does not render a badge for users without known position or hosting data', async () => {
@@ -224,7 +231,7 @@ describe('MapView', () => {
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
     });
-    expect(style.glyphs).toBe('https://fonts.openmaptiles.org/{fontstack}/{range}.pbf');
+    expect(style.glyphs).toBeUndefined();
     expect(layerById.get('background')?.paint['background-color']).toBe('#080808');
     expect(layerById.get('major-roads')?.paint['line-color']).toBe('#242424');
     expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#505050');
@@ -233,18 +240,20 @@ describe('MapView', () => {
     expect(layerById.get('prominent-road-labels')?.paint['text-color']).toBe('#ffffff');
     expect(layerById.get('poi-labels')?.paint['text-color']).toBe('#c0c0c0');
     expect(layerById.get('poi-dots')?.paint['circle-stroke-color']).toBe('#383838');
-    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Regular']);
-    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Regular']);
-    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold']);
-    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold']);
-    expect(layerById.get('poi-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Regular']);
-    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold']);
-    expect(layerById.get('minor-road-labels')?.layout['text-transform']).toBe('uppercase');
-    expect(layerById.get('secondary-road-labels')?.layout['text-transform']).toBe('uppercase');
-    expect(layerById.get('primary-road-labels')?.layout['text-transform']).toBe('uppercase');
-    expect(layerById.get('prominent-road-labels')?.layout['text-transform']).toBe('uppercase');
-    expect(layerById.get('poi-labels')?.layout['text-transform']).toBe('uppercase');
-    expect(layerById.get('place-labels')?.layout['text-transform']).toBe('uppercase');
+    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
+    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
+    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
+    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
+    expect(layerById.get('poi-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
+    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
+    expect(layerById.get('minor-road-labels')?.layout['text-transform']).toBeUndefined();
+    expect(layerById.get('secondary-road-labels')?.layout['text-transform']).toBeUndefined();
+    expect(layerById.get('primary-road-labels')?.layout['text-transform']).toBeUndefined();
+    expect(layerById.get('prominent-road-labels')?.layout['text-transform']).toBeUndefined();
+    expect(layerById.get('poi-labels')?.layout['text-transform']).toBeUndefined();
+    expect(layerById.get('place-labels')?.layout['text-transform']).toBeUndefined();
+    expect(layerById.get('minor-road-labels')?.layout['text-letter-spacing']).toBe(0.02);
+    expect(layerById.get('place-labels')?.layout['text-letter-spacing']).toBe(0.035);
   });
 
   it('creates valid MapLibre style JSON for the default vector map', () => {

@@ -30,9 +30,7 @@ vi.mock('./ui/use-mobile', () => ({
 vi.mock('./MapView', () => ({
   createMapMarkerBadge: (position: string[] = [], hostingTravel: string[] = []) => {
     const knownPosition = position.map((value) => value.trim().toLowerCase()).find((value) => ['top', 'bottom', 'versatile'].includes(value));
-    const knownHosting = hostingTravel.map((value) => value.trim().toLowerCase()).find((value) => ['can host', 'car'].includes(value));
-    const label = knownPosition ?? knownHosting;
-    return label ? { kind: knownPosition ? 'position' : 'hostingTravel', label, iconName: label } : null;
+    return knownPosition ? { kind: 'position', label: knownPosition, iconName: knownPosition } : null;
   },
   default: ({ markers, onPinClick, onMapClick }: { markers: any[]; onPinClick: (marker: any) => void; onMapClick?: () => void }) => (
     <div>
@@ -70,6 +68,7 @@ describe('MapHome', () => {
 
     getMyProfile.mockResolvedValue({
       photos: ['https://example.com/me.jpg'],
+      position: ['Bottom'],
     });
 
     getNearbyUsers.mockResolvedValue([
@@ -166,6 +165,7 @@ describe('MapHome', () => {
         lng: expect.any(Number),
       });
       expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-badge', 'bottom');
     });
     expect(getNearbyUsers.mock.calls.at(-1)?.[0]).not.toEqual({ lat: 40.701, lng: -73.901 });
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');

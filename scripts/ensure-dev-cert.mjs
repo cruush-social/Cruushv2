@@ -63,6 +63,12 @@ try {
 
   console.log(`Generated local HTTPS certificate at ${certDirectory}`);
 } catch (error) {
+  if (error?.code === "ENOENT") {
+    console.warn("OpenSSL was not found on PATH. Continuing without a local HTTPS certificate.");
+    console.warn("Vite will serve the app over HTTP for local development.");
+    process.exit(0);
+  }
+
   console.error("Failed to generate a local HTTPS certificate with openssl.");
   throw error;
 } finally {

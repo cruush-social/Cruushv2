@@ -9,29 +9,23 @@ import maplibregl, {
 import {
   ArrowDown,
   ArrowUp,
-  Ban,
   Bed,
-  Car,
   CircleDot,
-  CircleHelp,
   Crown,
   HandHeart,
   HeartHandshake,
-  Home,
-  Hotel,
   MessageCircle,
   MinusCircle,
   Mountain,
   MoveHorizontal,
   RefreshCw,
   Repeat2,
-  Trees,
   type LucideIcon,
 } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 export type MapMarkerBadge = {
-  kind: 'self' | 'position' | 'hostingTravel';
+  kind: 'position';
   label: string;
   iconName?: string;
 };
@@ -69,9 +63,9 @@ const DEFAULT_TILE_URLS = [
 ];
 const DEFAULT_ATTRIBUTION = '&copy; CARTO &copy; OpenStreetMap contributors';
 const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
-const DEFAULT_GLYPHS_URL = 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf';
-const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond Regular'];
-const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold'];
+const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
+const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
+const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 
 function createRasterStyle(tileUrls: string[], attribution: string): StyleSpecification {
   return {
@@ -94,13 +88,27 @@ function createRasterStyle(tileUrls: string[], attribution: string): StyleSpecif
   };
 }
 
+async function loadMapLabelFonts() {
+  if (typeof document === 'undefined' || !('fonts' in document)) {
+    return;
+  }
+
+  const fontFaceSet = document.fonts;
+
+  await Promise.allSettled([
+    fontFaceSet.load(`400 24px "${MAP_LABEL_FONT_FAMILY}"`),
+    fontFaceSet.load(`700 24px "${MAP_LABEL_FONT_FAMILY}"`),
+    fontFaceSet.ready,
+  ]);
+}
+
 export function createCruushVectorStyle(
   tileJsonUrl = DEFAULT_VECTOR_TILEJSON_URL,
-  glyphsUrl = DEFAULT_GLYPHS_URL,
+  glyphsUrl?: string,
 ): StyleSpecification {
   return {
     version: 8,
-    glyphs: glyphsUrl,
+    ...(glyphsUrl ? { glyphs: glyphsUrl } : {}),
     sources: {
       openmaptiles: {
         type: 'vector',
@@ -273,7 +281,7 @@ export function createCruushVectorStyle(
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_REGULAR,
           'text-size': ['interpolate', ['linear'], ['zoom'], 15, 10, 17, 12],
-          'text-transform': 'uppercase',
+          'text-letter-spacing': 0.02,
           'text-padding': 2,
         },
         paint: {
@@ -300,7 +308,7 @@ export function createCruushVectorStyle(
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_REGULAR,
           'text-size': ['interpolate', ['linear'], ['zoom'], 12, 11, 16, 14],
-          'text-transform': 'uppercase',
+          'text-letter-spacing': 0.025,
           'text-padding': 2,
         },
         paint: {
@@ -321,7 +329,7 @@ export function createCruushVectorStyle(
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_BOLD,
           'text-size': ['interpolate', ['linear'], ['zoom'], 10, 12, 16, 15],
-          'text-transform': 'uppercase',
+          'text-letter-spacing': 0.03,
           'text-padding': 2,
         },
         paint: {
@@ -342,7 +350,7 @@ export function createCruushVectorStyle(
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_BOLD,
           'text-size': ['interpolate', ['linear'], ['zoom'], 9, 13, 16, 16],
-          'text-transform': 'uppercase',
+          'text-letter-spacing': 0.035,
           'text-padding': 2,
         },
         paint: {
@@ -361,7 +369,7 @@ export function createCruushVectorStyle(
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_REGULAR,
           'text-size': ['interpolate', ['linear'], ['zoom'], 14, 10, 17, 12],
-          'text-transform': 'uppercase',
+          'text-letter-spacing': 0.02,
           'text-offset': [0, 0.75],
           'text-anchor': 'top',
           'text-padding': 2,
@@ -390,7 +398,7 @@ export function createCruushVectorStyle(
             12,
             17,
           ],
-          'text-transform': 'uppercase',
+          'text-letter-spacing': 0.035,
           'text-padding': 4,
         },
         paint: {
@@ -422,12 +430,12 @@ export function getMapStyle() {
 
   return createCruushVectorStyle(
     configuredVectorTileJsonUrl || DEFAULT_VECTOR_TILEJSON_URL,
-    configuredGlyphsUrl || DEFAULT_GLYPHS_URL,
+    configuredGlyphsUrl || undefined,
   );
 }
 
 const HEART_PATH =
-  'M35.2 54.4C35.2 54.4 16 40 16 28C16 20.8 20.8 16 25.6 16C30.4 16 35.2 20.8 35.2 20.8C35.2 20.8 40 16 44.8 16C49.6 16 54.4 20.8 54.4 28C54.4 40 35.2 54.4 35.2 54.4Z';
+  'M32 56C30.55 54.67 8 39.75 8 23.75C8 14.95 13.95 8 22 8C27.05 8 30.2 10.78 32 14.05C33.8 10.78 36.95 8 42 8C50.05 8 56 14.95 56 23.75C56 39.75 33.45 54.67 32 56Z';
 
 const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
   top: ArrowUp,
@@ -445,43 +453,29 @@ const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
   gooner: CircleDot,
 };
 
-const HOSTING_TRAVEL_BADGE_ICONS: Record<string, LucideIcon> = {
-  'can host': Home,
-  'cant host': Ban,
-  car: Car,
-  hotel: Hotel,
-  outdoors: Trees,
-  'ask me': CircleHelp,
+const POSITION_BADGE_ALIASES: Record<string, string> = {
+  vers: 'versatile',
 };
 
 function normalizeBadgeValue(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ').replace("can't", 'cant');
+  const normalizedValue = value.trim().toLowerCase().replace(/\s+/g, ' ');
+  return POSITION_BADGE_ALIASES[normalizedValue] ?? normalizedValue;
 }
 
-function findKnownBadgeValue(values: string[] | undefined, knownValues: Record<string, LucideIcon>) {
+function findKnownBadgeValue(values: string[] | undefined) {
   return values
     ?.map(normalizeBadgeValue)
-    .find((value) => Boolean(knownValues[value]));
+    .find((value) => Boolean(POSITION_BADGE_ICONS[value]));
 }
 
-export function createMapMarkerBadge(positionValues: string[] = [], hostingTravelValues: string[] = []) {
-  const positionValue = findKnownBadgeValue(positionValues, POSITION_BADGE_ICONS);
+export function createMapMarkerBadge(positionValues: string[] = [], _hostingTravelValues: string[] = []) {
+  const positionValue = findKnownBadgeValue(positionValues);
 
   if (positionValue) {
     return {
       kind: 'position',
       label: positionValue,
       iconName: positionValue,
-    } satisfies MapMarkerBadge;
-  }
-
-  const hostingTravelValue = findKnownBadgeValue(hostingTravelValues, HOSTING_TRAVEL_BADGE_ICONS);
-
-  if (hostingTravelValue) {
-    return {
-      kind: 'hostingTravel',
-      label: hostingTravelValue,
-      iconName: hostingTravelValue,
     } satisfies MapMarkerBadge;
   }
 
@@ -506,29 +500,10 @@ function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
     return null;
   }
 
-  if (badge.kind === 'position') {
-    return POSITION_BADGE_ICONS[badge.iconName] ?? null;
-  }
-
-  if (badge.kind === 'hostingTravel') {
-    return HOSTING_TRAVEL_BADGE_ICONS[badge.iconName] ?? null;
-  }
-
-  return null;
+  return POSITION_BADGE_ICONS[badge.iconName] ?? null;
 }
 
 function MarkerBadge({ badge, isCurrentUser, markerId }: { badge?: MapMarkerBadge | null; isCurrentUser: boolean; markerId: string }) {
-  if (isCurrentUser) {
-    return (
-      <span
-        className="absolute right-0 top-5 rounded-full border border-[#22B8FF]/70 bg-black/75 px-1.5 py-0.5 text-[9px] font-semibold leading-none tracking-[0.12em] text-[#C7F0FF] shadow-[0_0_14px_rgba(34,184,255,0.7)] backdrop-blur-sm"
-        data-testid={`marker-badge-${markerId}`}
-      >
-        YOU
-      </span>
-    );
-  }
-
   const Icon = getBadgeIcon(badge);
 
   if (!badge || !Icon) {
@@ -538,12 +513,15 @@ function MarkerBadge({ badge, isCurrentUser, markerId }: { badge?: MapMarkerBadg
   return (
     <span
       aria-label={badge.label}
-      className="absolute right-0 top-5 flex h-6 w-6 items-center justify-center rounded-full border border-[#FF4A6A]/70 bg-black/75 text-white shadow-[0_0_14px_rgba(209,31,58,0.65)] backdrop-blur-sm"
+      className={[
+        'absolute right-1 top-7 flex h-5 w-5 items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        isCurrentUser ? 'border-[#0BA8FF]/80' : 'border-[#FF0072]/80',
+      ].join(' ')}
       data-testid={`marker-badge-${markerId}`}
       role="img"
       title={badge.label}
     >
-      <Icon aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.4} />
+      <Icon aria-hidden="true" className="h-3 w-3" strokeWidth={2.6} />
     </span>
   );
 }
@@ -553,37 +531,37 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const gradientId = `marker-fill-${marker.id}`;
   const clipId = `marker-photo-clip-${marker.id}`;
   const filterId = `marker-shadow-${marker.id}`;
-  const borderColor = isCurrentUser ? '#22B8FF' : '#D11F3A';
+  const borderColor = isCurrentUser ? '#0BA8FF' : '#FF0072';
   const shadowMatrix = isCurrentUser
-    ? '0 0 0 0 0.133333 0 0 0 0 0.721569 0 0 0 0 1 0 0 0 1 0'
-    : '0 0 0 0 0.819608 0 0 0 0 0.121569 0 0 0 0 0.227451 0 0 0 0.72 0';
+    ? '0 0 0 0 0.039216 0 0 0 0 0.658824 0 0 0 0 1 0 0 0 0.68 0'
+    : '0 0 0 0 1 0 0 0 0 0 0 0 0 0 0.447059 0 0 0 0.68 0';
 
   return (
     <svg
       aria-hidden="true"
-      className="h-14 w-14"
+      className="h-16 w-16"
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isCurrentUser ? 'current' : 'nearby'}
-      height="71"
-      viewBox="0 0 71 71"
-      width="71"
+      height="64"
+      viewBox="0 0 64 64"
+      width="64"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <linearGradient id={gradientId} x1="16" x2="54.4" y1="16" y2="54.4" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={isCurrentUser ? '#0099FF' : '#FF0072'} />
-          <stop offset="48.5577%" stopColor={isCurrentUser ? '#1968EA' : '#DA045D'} />
-          <stop offset="100%" stopColor={isCurrentUser ? '#3236D4' : '#B40849'} />
+        <linearGradient id={gradientId} x1="10" x2="55" y1="9" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={isCurrentUser ? '#00B8FF' : '#FF0072'} />
+          <stop offset="52%" stopColor={isCurrentUser ? '#0A7DF4' : '#E00062'} />
+          <stop offset="100%" stopColor={isCurrentUser ? '#3236D4' : '#B00045'} />
         </linearGradient>
         <clipPath id={clipId}>
           <path d={HEART_PATH} />
         </clipPath>
-        <filter id={filterId} x="-4.8" y="-4.8" width="80" height="80" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+        <filter id={filterId} x="-8" y="-8" width="80" height="80" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
           <feFlood floodOpacity="0" result="BackgroundImageFix" />
           <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-          <feOffset />
-          <feGaussianBlur stdDeviation="8" />
+          <feOffset dx="1.5" dy="4" />
+          <feGaussianBlur stdDeviation="7" />
           <feColorMatrix type="matrix" values={shadowMatrix} />
           <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
           <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape" />
@@ -595,17 +573,16 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             <image
               clipPath={`url(#${clipId})`}
               data-testid={`marker-photo-fill-${marker.id}`}
-              height="71"
+              height="64"
               href={marker.photo ?? ''}
               preserveAspectRatio="xMidYMid slice"
-              width="71"
+              width="64"
             />
             <path d={HEART_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
           </>
         ) : (
-          <path d={HEART_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="1.8" />
+          <path d={HEART_PATH} fill={`url(#${gradientId})`} />
         )}
-        <circle cx="35.2" cy="24.8" r={isCurrentUser ? '4.5' : '3.5'} fill="#ffffff" fillOpacity={isCurrentUser ? '0.95' : '0.82'} />
       </g>
     </svg>
   );
@@ -613,19 +590,13 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
 
 function MapMarkerPin({ marker }: { marker: MapMarker }) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
-  const markerBadge = isCurrentUser ? { kind: 'self', label: 'YOU' } satisfies MapMarkerBadge : marker.badge;
 
   return (
-    <span className="pointer-events-none relative flex h-[76px] w-[82px] flex-col items-center overflow-visible">
-      <span className="relative flex h-14 w-[82px] items-center justify-center">
+    <span className="pointer-events-none relative flex h-[70px] w-[82px] items-start justify-center overflow-visible">
+      <span className="relative flex h-16 w-[82px] items-center justify-center">
         <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
-        <MarkerBadge badge={markerBadge} isCurrentUser={isCurrentUser} markerId={marker.id} />
+        <MarkerBadge badge={marker.badge} isCurrentUser={isCurrentUser} markerId={marker.id} />
       </span>
-      {marker.lastActiveLabel ? (
-        <span className="mt-0.5 max-w-[76px] truncate rounded-full bg-black/75 px-2 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-[0.12em] text-white/78 shadow-[0_6px_18px_rgba(0,0,0,0.35)] backdrop-blur-sm">
-          {marker.lastActiveLabel}
-        </span>
-      ) : null}
     </span>
   );
 }
@@ -636,10 +607,10 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
   const name = getDisplayName(marker);
 
   element.className = [
-    'relative flex h-[76px] w-[82px] items-start justify-center overflow-visible border-0 bg-transparent p-0',
+    'relative flex h-[70px] w-[82px] items-start justify-center overflow-visible border-0 bg-transparent p-0',
     isCurrentUser
-      ? 'drop-shadow-[0_0_16px_#22B8FF]'
-      : 'drop-shadow-[0_0_16px_rgba(209,31,58,0.60)] transition-transform hover:scale-110',
+      ? 'drop-shadow-[0_0_18px_rgba(11,168,255,0.72)]'
+      : 'drop-shadow-[0_0_18px_rgba(255,0,114,0.62)] transition-transform hover:scale-110',
   ].join(' ');
 
   if (isCurrentUser) {
@@ -673,6 +644,7 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
   const markersRef = useRef<RenderedMapMarker[]>([]);
   const onPinClickRef = useRef(onPinClick);
   const onMapClickRef = useRef(onMapClick);
+  const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
   const mapStyle = useMemo(() => getMapStyle(), []);
@@ -690,42 +662,57 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
       return;
     }
 
-    try {
-      const map = new maplibregl.Map({
-        container: containerRef.current,
-        style: mapStyle,
-        center: DEFAULT_CENTER,
-        zoom: DEFAULT_ZOOM,
-        attributionControl: false,
-      });
+    let isMounted = true;
 
-      map.on('click', () => onMapClickRef.current?.());
-      map.on('load', () => {
-        setMapLoadStatus('ready');
-        setMapError(null);
-      });
-      map.on('error', () => {
+    const initializeMap = async () => {
+      await loadMapLabelFonts();
+
+      if (!isMounted || !containerRef.current || mapRef.current) {
+        return;
+      }
+
+      try {
+        const map = new maplibregl.Map({
+          container: containerRef.current,
+          style: mapStyle,
+          center: DEFAULT_CENTER,
+          zoom: DEFAULT_ZOOM,
+          attributionControl: false,
+        });
+
+        map.on('click', () => onMapClickRef.current?.());
+        map.on('load', () => {
+          setMapLoadStatus('ready');
+          setMapError(null);
+        });
+        map.on('error', () => {
+          setMapLoadStatus('error');
+          setMapError('Map tiles could not load. Check the map style or tile URL configuration.');
+        });
+        mapRef.current = map;
+        setMapInstance(map);
+        onMapReady?.(map);
+      } catch (error) {
+        console.error('Error initializing map:', error);
         setMapLoadStatus('error');
-        setMapError('Map tiles could not load. Check the map style or tile URL configuration.');
-      });
-      mapRef.current = map;
-      onMapReady?.(map);
-    } catch (error) {
-      console.error('Error initializing map:', error);
-      setMapLoadStatus('error');
-      setMapError('Map could not start. Check the map style or tile URL configuration.');
-    }
+        setMapError('Map could not start. Check the map style or tile URL configuration.');
+      }
+    };
+
+    void initializeMap();
 
     return () => {
+      isMounted = false;
       markersRef.current.forEach(cleanupRenderedMarker);
       markersRef.current = [];
       mapRef.current?.remove();
       mapRef.current = null;
+      setMapInstance(null);
     };
   }, [mapStyle, onMapReady]);
 
   useEffect(() => {
-    const map = mapRef.current;
+    const map = mapInstance ?? mapRef.current;
 
     if (!map || !focusCoordinates) {
       return;
@@ -733,10 +720,10 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
 
     map.setCenter([focusCoordinates.approximateLongitude, focusCoordinates.approximateLatitude]);
     map.setZoom(FOCUSED_ZOOM);
-  }, [focusCoordinates]);
+  }, [focusCoordinates, mapInstance]);
 
   useEffect(() => {
-    const map = mapRef.current;
+    const map = mapInstance ?? mapRef.current;
 
     if (!map) {
       return;
@@ -757,7 +744,7 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
         root,
       };
     });
-  }, [markers]);
+  }, [markers, mapInstance]);
 
   return (
     <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">
