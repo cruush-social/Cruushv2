@@ -7,14 +7,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect from './MultiSelect';
 import {
   AVAILABILITY,
+  CROWDS,
   HOBBIES,
   HOSTING,
   IDENTITIES,
-  KINKS,
+  KINK_GROUPS,
   LOOKING_FOR,
   POSITIONS,
   PRESENTATIONS,
-  VIBES,
+  ROLES,
+  SUBSTANCE_BOUNDARIES,
+  VIBE_GROUPS,
 } from '../lib/profileOptions';
 
 const TIMING = AVAILABILITY;
@@ -66,6 +69,11 @@ export default function FiltersPanel() {
               <Label>Presentation</Label>
               <MultiSelect options={PRESENTATIONS} />
             </div>
+
+            <div className="space-y-2">
+              <Label>Crowds</Label>
+              <MultiSelect ariaLabel="Crowds" options={CROWDS} />
+            </div>
           </TabsContent>
 
           <TabsContent value="looking" className="space-y-6 mt-6">
@@ -92,7 +100,7 @@ export default function FiltersPanel() {
 
             <div className="space-y-2">
               <Label>Vibes</Label>
-              <MultiSelect options={VIBES} />
+              <MultiSelect ariaLabel="Vibes" optionGroups={VIBE_GROUPS} />
             </div>
 
             <div className="space-y-2">
@@ -108,65 +116,21 @@ export default function FiltersPanel() {
             </div>
 
             <div className="space-y-2">
-              <Label>Kinks</Label>
-              <MultiSelect options={KINKS} />
+              <Label>Role</Label>
+              <MultiSelect options={ROLES} />
             </div>
 
             <div className="space-y-2">
-              <Label>Protection</Label>
-              <div className="flex flex-wrap gap-2">
-                {['always', 'PrEP', 'condoms', 'undetectable'].map((prot) => (
-                  <Button key={prot} variant="outline" size="sm">
-                    {prot}
-                  </Button>
-                ))}
-              </div>
+              <Label>Kinks & Fetishes</Label>
+              <MultiSelect ariaLabel="Kinks & Fetishes" optionGroups={KINK_GROUPS} />
             </div>
+
           </TabsContent>
 
           <TabsContent value="lifestyle" className="space-y-6 mt-6">
             <div className="space-y-2">
-              <Label>Drugs</Label>
-              <div className="flex gap-2">
-                {['never', 'sometimes', 'often'].map((opt) => (
-                  <Button key={opt} variant="outline" size="sm" className="flex-1">
-                    {opt}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>420</Label>
-              <div className="flex gap-2">
-                {['never', 'sometimes', 'often'].map((opt) => (
-                  <Button key={opt} variant="outline" size="sm" className="flex-1">
-                    {opt}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Smoking</Label>
-              <div className="flex gap-2">
-                {['never', 'sometimes', 'social'].map((opt) => (
-                  <Button key={opt} variant="outline" size="sm" className="flex-1">
-                    {opt}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Drinking</Label>
-              <div className="flex gap-2">
-                {['never', 'sometimes', 'often'].map((opt) => (
-                  <Button key={opt} variant="outline" size="sm" className="flex-1">
-                    {opt}
-                  </Button>
-                ))}
-              </div>
+              <Label>Substance Boundaries</Label>
+              <MultiSelect options={SUBSTANCE_BOUNDARIES} />
             </div>
           </TabsContent>
         </Tabs>

@@ -16,7 +16,13 @@ const migrationFiles = [
   "008_messages.sql",
   "009_direct_messages.sql",
   "010_profile_locations.sql",
-  "011_password_reset_tokens.sql"
+  "011_password_reset_tokens.sql",
+  "012_substance_boundaries.sql",
+  "013_kink_fetish_interests.sql",
+  "014_profile_role_and_kink_visibility.sql",
+  "015_profile_sensitive_tokens.sql",
+  "016_profile_visibility_rules.sql",
+  "017_rate_limit_buckets.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

@@ -1,10 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
 import { hashPassword, hashSessionToken } from "./auth.js";
-import { resetRateLimitBuckets } from "./rate-limit.js";
+import { emptyProfile } from "./profile-schema.js";
+import { encryptProfileVisibility, encryptSensitiveProfile } from "./profile-sensitive.js";
+import { createMemoryRateLimiter } from "./rate-limit.js";
 
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
+const rateLimiter = createMemoryRateLimiter();
 
 const app = buildServer({
   NODE_ENV: "test",
@@ -16,12 +19,19 @@ const app = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: ""
+  EMAIL_PREVIEW_ENABLED: true,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 const developmentApp = buildServer({
@@ -34,12 +44,44 @@ const developmentApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: ""
+  EMAIL_PREVIEW_ENABLED: true,
+  DEVELOPMENT_ADMIN_ENABLED: true,
+  DEVELOPMENT_ADMIN_PASSWORD: "admin-password",
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
+});
+
+const lockedDevelopmentApp = buildServer({
+  NODE_ENV: "development",
+  PORT: 3001,
+  HOST: "127.0.0.1",
+  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  CORS_ORIGIN: "http://localhost:5173",
+  SESSION_SECRET: "test-secret",
+  APP_URL: "https://cruush.test",
+  RESEND_API_KEY: "",
+  MAIL_FROM: "",
+  EMAIL_PREVIEW_ENABLED: false,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
+}, {
+  db: {
+    query,
+    end
+  },
+  rateLimiter
 });
 
 const productionApp = buildServer({
@@ -52,12 +94,19 @@ const productionApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: ""
+  EMAIL_PREVIEW_ENABLED: false,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 const corsApp = buildServer({
@@ -70,12 +119,19 @@ const corsApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: ""
+  EMAIL_PREVIEW_ENABLED: false,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 const emailLinkApp = buildServer({
@@ -88,12 +144,19 @@ const emailLinkApp = buildServer({
   APP_URL: "https://api.cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: ""
+  EMAIL_PREVIEW_ENABLED: true,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
+  TURNSTILE_SECRET_KEY: "",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 const turnstileApp = buildServer({
@@ -106,17 +169,25 @@ const turnstileApp = buildServer({
   APP_URL: "https://cruush.test",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
-  TURNSTILE_SECRET_KEY: "turnstile-secret"
+  EMAIL_PREVIEW_ENABLED: false,
+  DEVELOPMENT_ADMIN_ENABLED: false,
+  DEVELOPMENT_ADMIN_PASSWORD: "",
+  TURNSTILE_SECRET_KEY: "turnstile-secret",
+  PROFILE_ENCRYPTION_KEY: "",
+  PROFILE_TOKEN_KEY: "",
+  PROFILE_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
     end
-  }
+  },
+  rateLimiter
 });
 
 afterAll(async () => {
   await app.close();
   await developmentApp.close();
+  await lockedDevelopmentApp.close();
   await productionApp.close();
   await corsApp.close();
   await emailLinkApp.close();
@@ -126,11 +197,12 @@ afterAll(async () => {
 beforeEach(() => {
   query.mockReset();
   end.mockClear();
-  resetRateLimitBuckets();
+  rateLimiter.reset?.();
 });
 
 describe("server", () => {
   const userId = "d271f6da-c51d-4d73-a322-d9c56f45d4fa";
+  const conversationId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
 
   it("returns metadata from /api/meta", async () => {
     const response = await app.inject({
@@ -359,6 +431,44 @@ describe("server", () => {
     });
   });
 
+  it("rate limits repeated sign-up attempts", async () => {
+    query.mockRejectedValue({ code: "23505" });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/signup",
+        payload: {
+          email: "river@example.com",
+          password: "password-123",
+          displayName: "River"
+        }
+      });
+
+      expect(response.statusCode).toBe(409);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/signup",
+      payload: {
+        email: "river@example.com",
+        password: "password-123",
+        displayName: "River"
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many sign-up attempts. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(5);
+  });
+
   it("requires a valid Turnstile token on signup when configured", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -499,6 +609,23 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from app_users");
   });
 
+  it("does not allow the hardcoded admin login without explicit development opt-in", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await lockedDevelopmentApp.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "admin@cruush.local",
+        password: "admin-password"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_users");
+  });
+
   it("requires a valid Turnstile token on login when configured", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -524,7 +651,7 @@ describe("server", () => {
   it("rate limits repeated login attempts for the same email", async () => {
     query.mockResolvedValue({ rows: [] });
 
-    for (let attempt = 0; attempt < 10; attempt += 1) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
       const response = await app.inject({
         method: "POST",
         url: "/api/auth/login",
@@ -613,6 +740,40 @@ describe("server", () => {
     });
   });
 
+  it("does not reveal existing accounts when reset email delivery is unavailable", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          expires_at: "2026-04-30T12:00:00.000Z"
+        }]
+      });
+
+    const response = await lockedDevelopmentApp.inject({
+      method: "POST",
+      url: "/api/auth/password/forgot",
+      payload: {
+        email: "river@example.com"
+      }
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toEqual({
+      data: {
+        accepted: true,
+        previewUrl: null
+      }
+    });
+  });
+
   it("resets a password with a valid reset token, invalidates sessions, and deletes outstanding reset tokens", async () => {
     const resetToken = "reset-token-1234567890";
     query
@@ -654,6 +815,42 @@ describe("server", () => {
         reset: true
       }
     });
+  });
+
+  it("rate limits repeated password reset token attempts", async () => {
+    query.mockResolvedValue({ rows: [] });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/password/reset",
+        payload: {
+          token: "invalid-reset-token-1234567890",
+          password: "new-password-123"
+        }
+      });
+
+      expect(response.statusCode).toBe(400);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/password/reset",
+      payload: {
+        token: "invalid-reset-token-1234567890",
+        password: "new-password-123"
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many password reset attempts. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(5);
   });
 
   it("returns the current session from GET /api/auth/me", async () => {
@@ -842,10 +1039,44 @@ describe("server", () => {
     });
   });
 
+  it("rate limits repeated email verification token attempts", async () => {
+    query.mockResolvedValue({ rows: [] });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/verification/verify",
+        payload: {
+          token: "invalid-verification-token"
+        }
+      });
+
+      expect(response.statusCode).toBe(400);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/verification/verify",
+      payload: {
+        token: "invalid-verification-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many verification attempts. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(5);
+  });
+
   it("returns conversations from GET /api/conversations", async () => {
     query.mockResolvedValueOnce({
       rows: [{
-        id: "conv-1",
+        id: conversationId,
         kind: "dm",
         title: null,
         tags: ["Hosting", "Now"],
@@ -874,7 +1105,7 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
     expect(response.json()).toEqual({
       data: [{
-        id: "conv-1",
+        id: conversationId,
         kind: "dm",
         user: {
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -904,7 +1135,7 @@ describe("server", () => {
       })
       .mockResolvedValueOnce({
         rows: [{
-          id: "conv-1"
+          id: conversationId
         }]
       })
       .mockResolvedValueOnce({
@@ -912,7 +1143,7 @@ describe("server", () => {
       })
       .mockResolvedValueOnce({
         rows: [{
-          id: "conv-1",
+          id: conversationId,
           kind: "dm",
           title: null,
           tags: [],
@@ -945,7 +1176,7 @@ describe("server", () => {
     expect(query.mock.calls[2]?.[0]).toContain("insert into conversation_members");
     expect(response.json()).toEqual({
       data: {
-        id: "conv-1",
+        id: conversationId,
         kind: "dm",
         user: {
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -970,7 +1201,7 @@ describe("server", () => {
     query
       .mockResolvedValueOnce({
         rows: [{
-          id: "conv-1",
+          id: conversationId,
           kind: "dm",
           title: null,
           tags: ["Hosting"],
@@ -1000,7 +1231,7 @@ describe("server", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/messages/conv-1",
+      url: `/api/messages/${conversationId}`,
       headers: {
         "x-user-id": userId
       }
@@ -1012,7 +1243,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       data: {
         conversation: {
-          id: "conv-1",
+          id: conversationId,
           kind: "dm",
           user: {
             id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -1045,6 +1276,26 @@ describe("server", () => {
     });
   });
 
+  it("rejects invalid conversation ids before querying messages", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/messages/not-a-uuid",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it("creates a message on POST /api/messages", async () => {
     query.mockResolvedValueOnce({
       rows: [{
@@ -1062,7 +1313,7 @@ describe("server", () => {
         "x-user-id": userId
       },
       payload: {
-        conversationId: "conv-1",
+        conversationId,
         content: "on my way"
       }
     });
@@ -1079,25 +1330,51 @@ describe("server", () => {
     });
   });
 
-  it("returns nearby users from GET /api/users", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-        display_name: "Alex",
-        year_of_birth: 1998,
-        pronouns: ["they/them"],
-        looking_for: ["Fun"],
-        vibes: ["Chill"],
-        position: ["Top"],
-        hosting_travel: ["Can Host"],
-        photos: ["https://example.com/alex.jpg"],
-        lat: 40.711,
-        lng: -74.002,
-        fuzzy_lat: 40.7115,
-        fuzzy_lng: -74.0025,
-        updated_at: "2026-04-28T12:00:00.000Z"
-      }]
+  it("rejects invalid message conversation ids before querying messages", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId: "not-a-uuid",
+        content: "nearby now"
+      }
     });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("returns nearby users from GET /api/users", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          year_of_birth: 1998,
+          pronouns: ["they/them"],
+          looking_for: ["Fun"],
+          vibes: ["Chill"],
+          position: ["Top"],
+          hosting_travel: ["Can Host"],
+          photos: ["https://example.com/alex.jpg"],
+          lat: 40.711,
+          lng: -74.002,
+          fuzzy_lat: 40.7115,
+          fuzzy_lng: -74.0025,
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      });
 
     const response = await app.inject({
       method: "GET",
@@ -1108,11 +1385,11 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0]?.[0]).toContain("from profiles");
-    expect(query.mock.calls[0]?.[0]).toContain("where id <> $1");
-    expect(query.mock.calls[0]?.[0]).toContain("and lat is not null");
-    expect(query.mock.calls[0]?.[1]).toEqual([userId]);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1]?.[0]).toContain("from profiles");
+    expect(query.mock.calls[1]?.[0]).toContain("where id <> $1");
+    expect(query.mock.calls[1]?.[0]).toContain("and lat is not null");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId]);
 
     const body = response.json();
     expect(Array.isArray(body.data)).toBe(true);
@@ -1133,10 +1410,156 @@ describe("server", () => {
     expect(body.data[0].lastActive).toMatch(/ago$/);
   });
 
-  it("returns an empty array when no nearby profiles have stored coordinates", async () => {
-    query.mockResolvedValueOnce({
-      rows: []
+  it("rejects unknown discovery query parameters before querying users", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?debug=true",
+      headers: {
+        "x-user-id": userId
+      }
     });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("filters discovery by the current user's active crowd modes", async () => {
+    const viewerVisibility = encryptProfileVisibility(app.config, {
+      ...emptyProfile.visibility_rules,
+      active_crowd_modes: ["T4T"]
+    });
+    const viewerSensitive = encryptSensitiveProfile(app.config, {
+      is_trans: true,
+      crowds: ["T4T"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+    const t4tSensitive = encryptSensitiveProfile(app.config, {
+      is_trans: true,
+      crowds: ["T4T"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+    const sapphicSensitive = encryptSensitiveProfile(app.config, {
+      is_trans: false,
+      crowds: ["Sapphic"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+
+    query.mockImplementation((sql: string) => {
+      if (sql.includes("profile_visibility_ciphertext") && sql.includes("where id = $1")) {
+        return Promise.resolve({
+          rows: [{
+            year_of_birth: 1994,
+            identities: [],
+            presentation: [],
+            sexuality: [],
+            body_type: [],
+            looking_for: [],
+            availability: [],
+            hosting_travel: [],
+            vibes: [],
+            scenes: [],
+            archetypes: [],
+            hobbies: [],
+            position: [],
+            role: [],
+            kinks: [],
+            substance_boundaries: [],
+            lat: 40.7128,
+            lng: -74.006,
+            fuzzy_lat: 40.7128,
+            fuzzy_lng: -74.006,
+            ...viewerSensitive,
+            ...viewerVisibility
+          }]
+        });
+      }
+
+      return Promise.resolve({
+        rows: [
+          {
+            id: "t4t-user",
+            display_name: "T4T Alex",
+            year_of_birth: 1998,
+            pronouns: ["they/them"],
+            looking_for: ["Fun"],
+            vibes: ["Chill"],
+            scenes: [],
+            archetypes: [],
+            position: ["Top"],
+            role: [],
+            hosting_travel: ["Can Host"],
+            photos: ["https://example.com/t4t.jpg"],
+            lat: 40.711,
+            lng: -74.002,
+            fuzzy_lat: 40.7115,
+            fuzzy_lng: -74.0025,
+            ...t4tSensitive,
+            profile_visibility_ciphertext: null,
+            profile_visibility_nonce: null,
+            profile_visibility_auth_tag: null,
+            profile_visibility_key_version: "v1",
+            updated_at: "2026-04-28T12:00:00.000Z"
+          },
+          {
+            id: "sapphic-user",
+            display_name: "Sapphic River",
+            year_of_birth: 1998,
+            pronouns: ["she/her"],
+            looking_for: ["Fun"],
+            vibes: ["Chill"],
+            scenes: [],
+            archetypes: [],
+            position: ["Top"],
+            role: [],
+            hosting_travel: ["Can Host"],
+            photos: ["https://example.com/sapphic.jpg"],
+            lat: 40.711,
+            lng: -74.002,
+            fuzzy_lat: 40.7115,
+            fuzzy_lng: -74.0025,
+            ...sapphicSensitive,
+            profile_visibility_ciphertext: null,
+            profile_visibility_nonce: null,
+            profile_visibility_auth_tag: null,
+            profile_visibility_key_version: "v1",
+            updated_at: "2026-04-28T12:00:00.000Z"
+          }
+        ]
+      });
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.map((user: { id: string }) => user.id)).toEqual(["t4t-user"]);
+  });
+
+  it("returns an empty array when no nearby profiles have stored coordinates", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "GET",
@@ -1154,6 +1577,7 @@ describe("server", () => {
 
   it("falls back to the legacy profile schema on GET /api/users", async () => {
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockRejectedValueOnce({
         code: "42703",
         message: 'column "year_of_birth" does not exist'
@@ -1184,8 +1608,8 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(2);
-    expect(query.mock.calls[1]?.[0]).toContain("tribes as legacy_vibe_tags");
+    expect(query).toHaveBeenCalledTimes(3);
+    expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
 
     expect(response.json()).toEqual({
       data: expect.arrayContaining([
@@ -1343,6 +1767,37 @@ describe("server", () => {
     });
   });
 
+  it("normalizes post text before storing it", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "post-1",
+        user_id: userId,
+        content: "Hosting now",
+        expires_in: "6h",
+        expires_at: "2026-04-28T18:00:00.000Z",
+        created_at: "2026-04-28T12:00:00.000Z",
+        display_name: "Cruusher",
+        pronouns: ["they/them"],
+        photos: []
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: " \u0000Hosting\u0007 now\u0000 ",
+        expiresIn: "6h"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "Hosting now", "6h"]);
+  });
+
   it("forbids reading another user's cruush activity", async () => {
     const response = await app.inject({
       method: "GET",
@@ -1358,6 +1813,25 @@ describe("server", () => {
         code: "FORBIDDEN",
         message: "You can only access your own cruush activity.",
         details: null
+      }
+    });
+  });
+
+  it("rejects invalid cruush activity user ids before authorization checks", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/cruush/not-a-uuid",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
       }
     });
   });
@@ -1442,7 +1916,7 @@ describe("server", () => {
       rows: [{
         id: "cruush-3",
         from_user_id: userId,
-        to_user_id: "user1",
+        to_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
         created_at: "2026-04-28T12:10:00.000Z",
         mutual: false
       }]
@@ -1455,7 +1929,7 @@ describe("server", () => {
         "x-user-id": userId
       },
       payload: {
-        toUserId: "user1",
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
         targetUser: {
           name: "Jordan",
           pronouns: "they/them",
@@ -1467,16 +1941,39 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     expect(query).toHaveBeenCalledTimes(1);
     expect(query.mock.calls[0]?.[0]).toContain("insert into cruushes");
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "user1", "Jordan", "they/them", null]);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97", "Jordan", "they/them", null]);
     expect(response.json()).toEqual({
       data: {
         id: "cruush-3",
         fromUserId: userId,
-        toUserId: "user1",
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
         createdAt: "2026-04-28T12:10:00.000Z",
         mutual: false
       }
     });
+  });
+
+  it("rejects invalid cruush target ids before querying", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/cruush",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        toUserId: "not-a-uuid"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("requires the temporary x-user-id header on GET /api/profiles/me", async () => {
@@ -1532,14 +2029,26 @@ describe("server", () => {
         height: "5'8\"",
         weight: "155 lbs",
         position: ["Vers"],
+        role: ["Switch"],
+        is_trans: null,
+        trans_status_visibility: "public",
+        crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
         kinks: ["Leather"],
+        kinks_visibility: "mutual_crowds",
+        kink_interests: [{
+          kink_id: "leather",
+          label: "Leather",
+        }],
         vibes: ["Playful"],
+        scenes: [],
+        archetypes: [],
         hobbies: ["Hiking"],
         custom_hobby: "",
         looking_for: ["Dates"],
         hiv_status: ["Negative"],
+        hiv_status_visibility: "mutual_cruushes",
         custom_hiv_status: "",
         condoms: ["Always"],
         custom_condoms: "",
@@ -1551,14 +2060,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
-        smoking: ["Never"],
-        custom_smoking: "",
-        drinking: ["Socially"],
-        custom_drinking: "",
-        drugs: ["No"],
-        custom_drugs: "",
-        weed: ["Occasionally"],
-        custom_weed: "",
+        substance_boundaries: ["No alcohol involved", "Let's discuss"],
         updated_at: "2026-04-28T12:00:00.000Z"
       }]
     });
@@ -1590,14 +2092,26 @@ describe("server", () => {
         height: "5'8\"",
         weight: "155 lbs",
         position: ["Vers"],
+        role: ["Switch"],
+        is_trans: null,
+        trans_status_visibility: "public",
+        crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
         kinks: ["Leather"],
+        kinks_visibility: "mutual_crowds",
+        kink_interests: [{
+          kink_id: "leather",
+          label: "Leather",
+        }],
         vibes: ["Playful"],
+        scenes: [],
+        archetypes: [],
         hobbies: ["Hiking"],
         custom_hobby: "",
         looking_for: ["Dates"],
         hiv_status: ["Negative"],
+        hiv_status_visibility: "mutual_cruushes",
         custom_hiv_status: "",
         condoms: ["Always"],
         custom_condoms: "",
@@ -1609,16 +2123,53 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
-        smoking: ["Never"],
-        custom_smoking: "",
-        drinking: ["Socially"],
-        custom_drinking: "",
-        drugs: ["No"],
-        custom_drugs: "",
-        weed: ["Occasionally"],
-        custom_weed: "",
+        substance_boundaries: ["No alcohol involved", "Let's discuss"],
+        visibility_rules: emptyProfile.visibility_rules,
         updated_at: "2026-04-28T12:00:00.000Z"
       }
+    });
+  });
+
+  it("returns kink and fetish interests with field-level visibility metadata", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          display_name: "Cruusher",
+          ethnicity: [],
+          kinks: [],
+          kinks_visibility: "mutual_crowds",
+          substance_boundaries: [],
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          kink_id: "leather",
+          label: "Leather",
+          category: "Gear"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        kinks: ["Leather"],
+        kinks_visibility: "mutual_crowds",
+        kink_interests: [{
+          kink_id: "leather",
+          label: "Leather",
+          category: "Gear"
+        }]
+      })
     });
   });
 
@@ -1659,14 +2210,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
-        smoking: ["Never"],
-        custom_smoking: "",
-        drinking: ["Socially"],
-        custom_drinking: "",
-        drugs: ["No"],
-        custom_drugs: "",
-        weed: ["Occasionally"],
-        custom_weed: "",
+        substance_boundaries: ["No alcohol involved", "Let's discuss"],
         updated_at: "2026-04-28T12:00:00.000Z"
       }]
     });
@@ -1688,6 +2232,138 @@ describe("server", () => {
         bio: "Nearby now",
         pronouns: ["they/them"],
         looking_for: ["Dates"]
+      })
+    });
+  });
+
+  it("rejects invalid profile ids before querying profiles", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/not-a-uuid",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when another user's visibility rules exclude the viewer profile fields", async () => {
+    const targetVisibility = encryptProfileVisibility(app.config, {
+      ...emptyProfile.visibility_rules,
+      crowds: ["T4T"]
+    });
+    const viewerSensitiveProfile = encryptSensitiveProfile(app.config, {
+      is_trans: true,
+      crowds: ["Sapphic"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          ethnicity: [],
+          position: [],
+          role: [],
+          kinks: [],
+          kinks_visibility: "public",
+          substance_boundaries: [],
+          ...targetVisibility,
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          year_of_birth: 1994,
+          identities: [],
+          presentation: [],
+          sexuality: [],
+          body_type: [],
+          looking_for: [],
+          availability: [],
+          hosting_travel: [],
+          vibes: [],
+          scenes: [],
+          archetypes: [],
+          hobbies: [],
+          position: [],
+          role: [],
+          substance_boundaries: [],
+          lat: 40.7128,
+          lng: -74.006,
+          ...viewerSensitiveProfile
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Profile not found",
+        details: null
+      }
+    });
+  });
+
+  it("hides another user's kinks when the field is not public", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          ethnicity: [],
+          position: ["top"],
+          role: [],
+          kinks: ["Leather"],
+          kinks_visibility: "mutual_cruushes",
+          substance_boundaries: [],
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          kink_id: "leather",
+          label: "Leather",
+          category: "Gear"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        kinks: [],
+        kink_interests: [],
+        kinks_visibility: "mutual_cruushes"
       })
     });
   });
@@ -1729,14 +2405,7 @@ describe("server", () => {
         custom_covid_vaccine: "",
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
-        smoking: ["Never"],
-        custom_smoking: "",
-        drinking: ["Socially"],
-        custom_drinking: "",
-        drugs: ["No"],
-        custom_drugs: "",
-        weed: ["Occasionally"],
-        custom_weed: "",
+        substance_boundaries: ["No alcohol involved", "Let's discuss"],
         updated_at: "2026-04-28T12:00:00.000Z"
       }]
     });
@@ -1860,53 +2529,51 @@ describe("server", () => {
   });
 
   it("upserts the authenticated profile on PUT /api/profiles/me", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: userId,
-        display_name: "Cruusher",
-        photos: [],
-        bio: "Updated bio",
-        pronouns: ["they/them"],
-        custom_pronouns: "",
-        year_of_birth: 1994,
-        ethnicity: ["Latinx"],
-        identities: ["Non-binary"],
-        presentation: [],
-        sexuality: [],
-        body_type: [],
-        height: "",
-        weight: "",
-        position: [],
-        availability: [],
-        hosting_travel: [],
-        kinks: [],
-        vibes: ["Playful"],
-        hobbies: [],
-        custom_hobby: "",
-        looking_for: ["Dates"],
-        hiv_status: [],
-        custom_hiv_status: "",
-        condoms: [],
-        custom_condoms: "",
-        prep: [],
-        custom_prep: "",
-        doxypep: [],
-        custom_doxypep: "",
-        covid_vaccine: [],
-        custom_covid_vaccine: "",
-        mpox_vaccine: [],
-        custom_mpox_vaccine: "",
-        smoking: [],
-        custom_smoking: "",
-        drinking: [],
-        custom_drinking: "",
-        drugs: [],
-        custom_drugs: "",
-        weed: [],
-        custom_weed: "",
-        updated_at: "2026-04-28T12:05:00.000Z"
-      }]
-    });
+    query
+      .mockResolvedValue({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          display_name: "Cruusher",
+          photos: [],
+          bio: "Updated bio",
+          pronouns: ["they/them"],
+          custom_pronouns: "",
+          year_of_birth: 1994,
+          ethnicity: ["Latinx"],
+          identities: ["Non-binary"],
+          presentation: [],
+          sexuality: [],
+          body_type: [],
+          height: "",
+          weight: "",
+          position: [],
+          role: ["submissive"],
+          availability: [],
+          hosting_travel: [],
+          kinks: [],
+          kinks_visibility: "public",
+          vibes: ["Playful"],
+          hobbies: [],
+          custom_hobby: "",
+          looking_for: ["Dates"],
+          hiv_status: [],
+          custom_hiv_status: "",
+          condoms: [],
+          custom_condoms: "",
+          prep: [],
+          custom_prep: "",
+          doxypep: [],
+          custom_doxypep: "",
+          covid_vaccine: [],
+          custom_covid_vaccine: "",
+          mpox_vaccine: [],
+          custom_mpox_vaccine: "",
+          substance_boundaries: [],
+          updated_at: "2026-04-28T12:05:00.000Z"
+        }]
+      });
 
     const payload = {
       display_name: "Cruusher",
@@ -1923,9 +2590,12 @@ describe("server", () => {
       height: "",
       weight: "",
       position: [],
+      role: ["submissive"],
       availability: [],
       hosting_travel: [],
       kinks: [],
+      kink_interests: [],
+      kinks_visibility: "public",
       vibes: ["Playful"],
       hobbies: [],
       custom_hobby: "",
@@ -1942,14 +2612,7 @@ describe("server", () => {
       custom_covid_vaccine: "",
       mpox_vaccine: [],
       custom_mpox_vaccine: "",
-      smoking: [],
-      custom_smoking: "",
-      drinking: [],
-      custom_drinking: "",
-      drugs: [],
-      custom_drugs: "",
-      weed: [],
-      custom_weed: ""
+      substance_boundaries: []
     };
 
     const response = await app.inject({
@@ -1962,17 +2625,465 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0]?.[0]).toContain("insert into profiles");
-    expect(query.mock.calls[0]?.[1]?.[0]).toBe(userId);
-    expect(query.mock.calls[0]?.[1]?.[7]).toEqual(["Latinx"]);
-    expect(query.mock.calls[0]?.[0]).not.toContain("updated_at)");
+    expect(query).toHaveBeenCalledTimes(4);
+    const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
+    expect(profileInsertCall?.[0]).toContain("insert into profiles");
+    expect(profileInsertCall?.[1]?.[0]).toBe(userId);
+    expect(profileInsertCall?.[1]?.[7]).toEqual(["Latinx"]);
+    expect(profileInsertCall?.[0]).not.toContain("updated_at)");
     expect(response.json()).toEqual({
       data: {
         id: userId,
         ...payload,
+        is_trans: null,
+        trans_status_visibility: "public",
+        crowds: [],
+        scenes: [],
+        archetypes: [],
+        hiv_status_visibility: "mutual_cruushes",
+        visibility_rules: emptyProfile.visibility_rules,
         updated_at: "2026-04-28T12:05:00.000Z"
       }
+    });
+  });
+
+  it("accepts field-level mutual crowd visibility for kinks and fetishes", async () => {
+    query
+      .mockResolvedValue({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          display_name: "Cruusher",
+          photos: [],
+          bio: "Updated bio",
+          pronouns: [],
+          custom_pronouns: "",
+          year_of_birth: 1994,
+          ethnicity: [],
+          identities: [],
+          presentation: [],
+          sexuality: [],
+          body_type: [],
+          height: "",
+          weight: "",
+          position: ["top"],
+          role: ["switch"],
+          availability: [],
+          hosting_travel: [],
+          kinks: ["leather"],
+          kinks_visibility: "mutual_crowds",
+          vibes: [],
+          hobbies: [],
+          custom_hobby: "",
+          looking_for: [],
+          hiv_status: [],
+          custom_hiv_status: "",
+          condoms: [],
+          custom_condoms: "",
+          prep: [],
+          custom_prep: "",
+          doxypep: [],
+          custom_doxypep: "",
+          covid_vaccine: [],
+          custom_covid_vaccine: "",
+          mpox_vaccine: [],
+          custom_mpox_vaccine: "",
+          substance_boundaries: [],
+          updated_at: "2026-04-28T12:05:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const payload = {
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994,
+      position: ["top"],
+      role: ["switch"],
+      kinks: ["leather"],
+      kinks_visibility: "mutual_crowds",
+      kink_interests: [{
+        kink_id: "leather",
+        label: "leather",
+        roles: ["give"],
+        is_seeking: true,
+        visibility: "public"
+      }]
+    };
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(200);
+    const tokenInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profile_sensitive_tokens"));
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("is_seeking");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("roles");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("visibility");
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        position: ["top"],
+        role: ["switch"],
+        kinks: ["leather"],
+        kinks_visibility: "mutual_crowds",
+        kink_interests: [expect.objectContaining({
+          kink_id: "leather"
+        })]
+      })
+    });
+  });
+
+  it("stores trans status, crowds, kinks, and HIV status through encrypted profile storage and blind tokens", async () => {
+    query.mockResolvedValue({
+      rows: [{
+        id: userId,
+        display_name: "Cruusher",
+        photos: [],
+        bio: "Updated bio",
+        pronouns: [],
+        custom_pronouns: "",
+        year_of_birth: 1994,
+        ethnicity: [],
+        identities: [],
+        presentation: [],
+        sexuality: [],
+        body_type: [],
+        height: "",
+        weight: "",
+        position: [],
+        role: [],
+        availability: [],
+        hosting_travel: [],
+        kinks: [],
+        kinks_visibility: "mutual_crowds",
+        trans_status_visibility: "mutual_crowds",
+        hiv_status: [],
+        hiv_status_visibility: "mutual_cruushes",
+        vibes: ["Goth"],
+        scenes: ["Bear"],
+        archetypes: ["Daddy"],
+        hobbies: [],
+        custom_hobby: "",
+        looking_for: [],
+        custom_hiv_status: "",
+        condoms: [],
+        custom_condoms: "",
+        prep: [],
+        custom_prep: "",
+        doxypep: [],
+        custom_doxypep: "",
+        covid_vaccine: [],
+        custom_covid_vaccine: "",
+        mpox_vaccine: [],
+        custom_mpox_vaccine: "",
+        substance_boundaries: [],
+        profile_sensitive_ciphertext: "encrypted",
+        profile_sensitive_nonce: "nonce",
+        profile_sensitive_auth_tag: "tag",
+        profile_sensitive_key_version: "v1",
+        profile_sensitive_token_key_version: "v1",
+        updated_at: "2026-04-28T12:05:00.000Z"
+      }]
+    });
+
+    const payload = {
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994,
+      is_trans: true,
+      trans_status_visibility: "mutual_crowds",
+      crowds: ["T4T", "Sapphic"],
+      kinks: ["leather"],
+      kink_interests: [{
+        kink_id: "leather",
+        label: "leather"
+      }],
+      kinks_visibility: "mutual_crowds",
+      hiv_status: ["undetectable"],
+      hiv_status_visibility: "mutual_cruushes",
+      vibes: ["Goth"],
+      scenes: ["Bear"],
+      archetypes: ["Daddy"]
+    };
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(200);
+    const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
+    expect(profileInsertCall?.[0]).toContain("profile_sensitive_ciphertext");
+    expect(profileInsertCall?.[0]).toContain("profile_sensitive_token_key_version");
+    expect(profileInsertCall?.[1]).not.toContain("leather");
+    expect(profileInsertCall?.[1]).not.toContain("undetectable");
+    expect(profileInsertCall?.[1]).not.toContain("T4T");
+    expect(profileInsertCall?.[1]).not.toContain("Sapphic");
+    expect(profileInsertCall?.[1]).not.toContain(true);
+
+    const tokenInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profile_sensitive_tokens"));
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("leather");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("undetectable");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("T4T");
+
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        is_trans: true,
+        trans_status_visibility: "mutual_crowds",
+        crowds: ["T4T", "Sapphic"],
+        kinks: ["leather"],
+        kinks_visibility: "mutual_crowds",
+        hiv_status: ["undetectable"],
+        hiv_status_visibility: "mutual_cruushes",
+        scenes: ["Bear"],
+        archetypes: ["Daddy"]
+      })
+    });
+  });
+
+  it("stores profile visibility rules and active crowd modes through encrypted storage and blind tokens", async () => {
+    query.mockResolvedValue({
+      rows: [{
+        id: userId,
+        display_name: "Cruusher",
+        photos: [],
+        bio: "Updated bio",
+        pronouns: [],
+        custom_pronouns: "",
+        year_of_birth: 1994,
+        ethnicity: [],
+        identities: [],
+        presentation: [],
+        sexuality: [],
+        body_type: [],
+        height: "",
+        weight: "",
+        position: [],
+        role: [],
+        availability: [],
+        hosting_travel: [],
+        kinks: [],
+        kinks_visibility: "public",
+        trans_status_visibility: "public",
+        hiv_status: [],
+        hiv_status_visibility: "mutual_cruushes",
+        vibes: [],
+        scenes: [],
+        archetypes: [],
+        hobbies: [],
+        custom_hobby: "",
+        looking_for: [],
+        custom_hiv_status: "",
+        condoms: [],
+        custom_condoms: "",
+        prep: [],
+        custom_prep: "",
+        doxypep: [],
+        custom_doxypep: "",
+        covid_vaccine: [],
+        custom_covid_vaccine: "",
+        mpox_vaccine: [],
+        custom_mpox_vaccine: "",
+        substance_boundaries: [],
+        profile_sensitive_ciphertext: "encrypted",
+        profile_sensitive_nonce: "nonce",
+        profile_sensitive_auth_tag: "tag",
+        profile_sensitive_key_version: "v1",
+        profile_sensitive_token_key_version: "v1",
+        profile_visibility_ciphertext: "encrypted-visibility",
+        profile_visibility_nonce: "visibility-nonce",
+        profile_visibility_auth_tag: "visibility-tag",
+        profile_visibility_key_version: "v1",
+        profile_visibility_token_key_version: "v1",
+        trans_crowds_changed_at: "2026-04-01T12:00:00.000Z",
+        updated_at: "2026-04-28T12:05:00.000Z"
+      }]
+    });
+
+    const payload = {
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994,
+      is_trans: true,
+      crowds: ["T4T", "Sapphic"],
+      visibility_rules: {
+        active_crowd_modes: ["T4T", "Sapphic"],
+        age_range: [25, 45],
+        distance: 25,
+        identities: ["nonbinary"],
+        presentations: [],
+        looking_for: [],
+        timing: [],
+        hosting: [],
+        vibes: ["Bear"],
+        crowds: ["Sapphic"],
+        hobbies: [],
+        positions: [],
+        roles: [],
+        kinks: ["leather"],
+        body_types: [],
+        sexuality: [],
+        substance_boundaries: []
+      }
+    };
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(200);
+    const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
+    expect(profileInsertCall?.[0]).toContain("profile_visibility_ciphertext");
+    expect(profileInsertCall?.[0]).toContain("profile_visibility_token_key_version");
+    expect(profileInsertCall?.[1]).not.toContain("T4T");
+    expect(profileInsertCall?.[1]).not.toContain("Sapphic");
+    expect(profileInsertCall?.[1]).not.toContain("leather");
+
+    const tokenInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profile_sensitive_tokens"));
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("T4T");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("Sapphic");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("crowd-mode");
+
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        visibility_rules: payload.visibility_rules
+      })
+    });
+  });
+
+  it("rejects trans status and crowd selection changes within the 14 day lock window", async () => {
+    const existingSensitiveProfile = encryptSensitiveProfile(app.config, {
+      is_trans: true,
+      crowds: ["T4T"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+
+    query.mockResolvedValueOnce({
+      rows: [{
+        ...existingSensitiveProfile,
+        trans_crowds_changed_at: new Date().toISOString()
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        year_of_birth: 1994,
+        is_trans: true,
+        crowds: ["T4T", "Sapphic"]
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Trans status and crowd selection can only be changed once every 14 days.",
+        details: null
+      }
+    });
+  });
+
+  it("accepts local data image profile photos on PUT /api/profiles/me", async () => {
+    const localPhoto = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E";
+
+    query.mockResolvedValue({
+      rows: [{
+        id: userId,
+        display_name: "Cruusher",
+        photos: [localPhoto],
+        bio: "Updated bio",
+        pronouns: [],
+        custom_pronouns: "",
+        year_of_birth: 1994,
+        ethnicity: [],
+        identities: [],
+        presentation: [],
+        sexuality: [],
+        body_type: [],
+        height: "",
+        weight: "",
+        position: [],
+        role: [],
+        availability: [],
+        hosting_travel: [],
+        kinks: [],
+        kinks_visibility: "public",
+        trans_status_visibility: "public",
+        hiv_status: [],
+        hiv_status_visibility: "mutual_cruushes",
+        vibes: [],
+        scenes: [],
+        archetypes: [],
+        hobbies: [],
+        custom_hobby: "",
+        looking_for: [],
+        custom_hiv_status: "",
+        condoms: [],
+        custom_condoms: "",
+        prep: [],
+        custom_prep: "",
+        doxypep: [],
+        custom_doxypep: "",
+        covid_vaccine: [],
+        custom_covid_vaccine: "",
+        mpox_vaccine: [],
+        custom_mpox_vaccine: "",
+        substance_boundaries: [],
+        profile_sensitive_ciphertext: "encrypted",
+        profile_sensitive_nonce: "nonce",
+        profile_sensitive_auth_tag: "tag",
+        profile_sensitive_key_version: "v1",
+        profile_sensitive_token_key_version: "v1",
+        updated_at: "2026-04-28T12:05:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        year_of_birth: 1994,
+        photos: [localPhoto]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        photos: [localPhoto]
+      })
     });
   });
 

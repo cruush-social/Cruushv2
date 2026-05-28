@@ -447,6 +447,8 @@ const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
   side: MoveHorizontal,
   oral: MessageCircle,
   service: HeartHandshake,
+  'vers bottom': Repeat2,
+  'vers top': Repeat2,
   none: MinusCircle,
   'stone top': Mountain,
   'pillow princess': Bed,

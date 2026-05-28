@@ -21,4 +21,19 @@ describe('BottomNav', () => {
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
+
+  it('uses a solid bottom surface without a progressive fade overlay', () => {
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const nav = screen.getByRole('navigation');
+
+    expect(nav).toHaveClass('bg-background');
+    expect(nav.className).not.toContain('bg-background/');
+    expect(nav.className).not.toContain('backdrop-blur');
+    expect(nav.querySelector('.bg-gradient-to-t')).toBeNull();
+  });
 });

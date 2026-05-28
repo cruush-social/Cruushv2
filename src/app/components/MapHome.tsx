@@ -3,15 +3,24 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './MapView';
-import { Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart, LocateFixed } from 'lucide-react';
+import { Eye, Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart, LocateFixed } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
 import HeartPhoto from './HeartPhoto';
 import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
+import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
-import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
+import {
+  emptyProfilePayload,
+  getMyProfile,
+  saveMyProfile,
+  type ProfilePayload,
+  type ProfileRecord,
+  type ProfileVisibilityRules,
+} from '../lib/profileApi';
+import { CROWDS } from '../lib/profileOptions';
 import {
   approximateDisplayCoordinates,
   type ApproximateCoordinates,
@@ -57,8 +66,9 @@ const DEMO_NYC_DISCOVERY_USER: DiscoveryUser = {
   lastActive: '3m ago',
   distance: 'Demo NYC pin',
   lookingFor: ['Cruising', 'Tonight', 'Consent first'],
-  vibes: ['Red heart pin', 'Photo fill', 'West Village'],
+  vibes: ['Red heart pin', 'Photo fill', 'West Village', 'Bear', 'Daddy'],
   position: ['Versatile'],
+  role: ['Switch'],
   hostingTravel: ['Can Host'],
   photo: DEMO_NYC_PROFILE_PHOTO,
 };
@@ -81,6 +91,123 @@ function getLastActiveMinutes(lastActive: string) {
   return value;
 }
 
+function uniqueValues(values: string[] = []) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibilityRules {
+  const defaults = emptyProfilePayload.visibility_rules;
+
+  return {
+    ...defaults,
+    ...(rules ?? {}),
+    active_crowd_modes: uniqueValues(rules?.active_crowd_modes ?? defaults.active_crowd_modes),
+    identities: uniqueValues(rules?.identities ?? defaults.identities),
+    presentations: uniqueValues(rules?.presentations ?? defaults.presentations),
+    looking_for: uniqueValues(rules?.looking_for ?? defaults.looking_for),
+    timing: uniqueValues(rules?.timing ?? defaults.timing),
+    hosting: uniqueValues(rules?.hosting ?? defaults.hosting),
+    vibes: uniqueValues(rules?.vibes ?? defaults.vibes),
+    crowds: uniqueValues(rules?.crowds ?? defaults.crowds),
+    hobbies: uniqueValues(rules?.hobbies ?? defaults.hobbies),
+    positions: uniqueValues(rules?.positions ?? defaults.positions),
+    roles: uniqueValues(rules?.roles ?? defaults.roles),
+    kinks: uniqueValues(rules?.kinks ?? defaults.kinks),
+    body_types: uniqueValues(rules?.body_types ?? defaults.body_types),
+    sexuality: uniqueValues(rules?.sexuality ?? defaults.sexuality),
+    substance_boundaries: uniqueValues(rules?.substance_boundaries ?? defaults.substance_boundaries),
+    age_range: rules?.age_range ?? null,
+    distance: rules?.distance ?? null,
+  };
+}
+
+function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityControlState {
+  const normalizedRules = normalizeVisibilityRules(rules);
+
+  return {
+    ...DEFAULT_VISIBILITY_STATE,
+    activeCrowdModes: normalizedRules.active_crowd_modes,
+    ageRange: normalizedRules.age_range ?? DEFAULT_FILTER_STATE.ageRange,
+    distance: normalizedRules.distance ?? DEFAULT_FILTER_STATE.distance,
+    restrictAge: Boolean(normalizedRules.age_range),
+    restrictDistance: typeof normalizedRules.distance === 'number',
+    identities: normalizedRules.identities,
+    presentations: normalizedRules.presentations,
+    lookingFor: normalizedRules.looking_for,
+    timing: normalizedRules.timing,
+    hosting: normalizedRules.hosting,
+    vibes: normalizedRules.vibes,
+    crowds: normalizedRules.crowds,
+    hobbies: normalizedRules.hobbies,
+    positions: normalizedRules.positions,
+    roles: normalizedRules.roles,
+    kinks: normalizedRules.kinks,
+    bodyTypes: normalizedRules.body_types,
+    sexuality: normalizedRules.sexuality,
+    substanceBoundaries: normalizedRules.substance_boundaries,
+  };
+}
+
+function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilityRules {
+  return {
+    active_crowd_modes: uniqueValues(state.activeCrowdModes),
+    age_range: state.restrictAge ? state.ageRange : null,
+    distance: state.restrictDistance ? state.distance : null,
+    identities: uniqueValues(state.identities),
+    presentations: uniqueValues(state.presentations),
+    looking_for: uniqueValues(state.lookingFor),
+    timing: uniqueValues(state.timing),
+    hosting: uniqueValues(state.hosting),
+    vibes: uniqueValues(state.vibes),
+    crowds: uniqueValues(state.crowds),
+    hobbies: uniqueValues(state.hobbies),
+    positions: uniqueValues(state.positions),
+    roles: uniqueValues(state.roles),
+    kinks: uniqueValues(state.kinks),
+    body_types: uniqueValues(state.bodyTypes),
+    sexuality: uniqueValues(state.sexuality),
+    substance_boundaries: uniqueValues(state.substanceBoundaries),
+  };
+}
+
+function profileRecordToPayload(profile: ProfileRecord): ProfilePayload {
+  const { id: _id, updated_at: _updatedAt, ...payload } = profile;
+
+  return {
+    ...emptyProfilePayload,
+    ...payload,
+    visibility_rules: normalizeVisibilityRules(payload.visibility_rules),
+  };
+}
+
+function getAvailableCrowdModes(profile: ProfileRecord | null) {
+  const profileCrowds = new Set(profile?.crowds ?? []);
+
+  return CROWDS.filter((crowd) => profileCrowds.has(crowd) && (crowd !== 'T4T' || profile?.is_trans === true));
+}
+
+function hasActiveVisibilityControls(visibility: VisibilityControlState) {
+  return visibility.restrictAge ||
+    visibility.restrictDistance ||
+    visibility.activeCrowdModes.length > 0 ||
+    [
+      visibility.identities,
+      visibility.presentations,
+      visibility.lookingFor,
+      visibility.timing,
+      visibility.hosting,
+      visibility.vibes,
+      visibility.crowds,
+      visibility.hobbies,
+      visibility.positions,
+      visibility.roles,
+      visibility.kinks,
+      visibility.bodyTypes,
+      visibility.sexuality,
+      visibility.substanceBoundaries,
+    ].some((items) => items.length > 0);
+}
+
 export default function MapHome() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -94,6 +221,10 @@ export default function MapHome() {
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
+  const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
+  const [visibility, setVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
+  const [savingVisibility, setSavingVisibility] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
 
   const openProfile = (user: DiscoveryUser) => {
@@ -131,6 +262,7 @@ export default function MapHome() {
       .then((profile) => {
         if (isMounted) {
           setCurrentProfile(profile);
+          setVisibility(visibilityRulesToState(profile.visibility_rules));
         }
       })
       .catch((profileError) => {
@@ -145,11 +277,13 @@ export default function MapHome() {
     };
   }, []);
 
-  const fetchUsers = async (coordinates: { lat: number; lng: number } | null) => {
+  const fetchUsers = async (coordinates: { lat: number; lng: number } | null, filterParams?: FilterState) => {
     setLoading(true);
     setError(null);
     try {
-      setUsers(await getNearbyUsers(coordinates));
+      setUsers(filterParams
+        ? await getNearbyUsers(coordinates, filterParams)
+        : await getNearbyUsers(coordinates));
     } catch (fetchError) {
       console.error('Error fetching users:', fetchError);
       setUsers([]);
@@ -204,17 +338,22 @@ export default function MapHome() {
       filters.timing,
       filters.hosting,
       filters.vibes,
+      filters.crowds,
       filters.hobbies,
       filters.positions,
+      filters.roles,
       filters.kinks,
       filters.bodyTypes,
       filters.sexuality,
-      filters.condoms,
-      filters.drugs,
-      filters.weed,
-      filters.smoking,
-      filters.drinking,
+      filters.substanceBoundaries,
     ].some((items) => items.length > 0);
+
+  const availableCrowdModes = getAvailableCrowdModes(currentProfile);
+  const safeVisibility: VisibilityControlState = {
+    ...visibility,
+    activeCrowdModes: visibility.activeCrowdModes.filter((crowd) => availableCrowdModes.includes(crowd)),
+  };
+  const hasActiveVisibility = hasActiveVisibilityControls(safeVisibility);
 
   const filteredUsers = users.filter((user) => {
     const distanceMiles = Number.parseFloat(user.distance);
@@ -236,7 +375,7 @@ export default function MapHome() {
     }
 
     if (filters.vibes.length > 0) {
-      const vibes = user.vibes.map((item) => item.toLowerCase());
+      const vibes = [...user.vibes, ...(user.scenes ?? []), ...(user.archetypes ?? [])].map((item) => item.toLowerCase());
       if (!filters.vibes.some((item) => vibes.includes(item.toLowerCase()))) {
         return false;
       }
@@ -244,6 +383,60 @@ export default function MapHome() {
 
     return true;
   });
+
+  const getCurrentFetchCoordinates = () => userApproximateLocation
+    ? {
+        lat: userApproximateLocation.approximateLatitude,
+        lng: userApproximateLocation.approximateLongitude,
+      }
+    : null;
+
+  const handleVisibilityChange = (nextVisibility: VisibilityControlState) => {
+    setVisibility({
+      ...nextVisibility,
+      activeCrowdModes: nextVisibility.activeCrowdModes.filter((crowd) => availableCrowdModes.includes(crowd)),
+    });
+  };
+
+  const handleClearVisibility = () => {
+    const clearedVisibility = {
+      ...DEFAULT_VISIBILITY_STATE,
+      activeCrowdModes: [],
+    };
+
+    setVisibility(clearedVisibility);
+    setVisibilityError(null);
+  };
+
+  const handleApplyVisibility = async () => {
+    if (!currentProfile) {
+      setVisibilityError('Create your profile before changing visibility.');
+      return;
+    }
+
+    const nextVisibility = {
+      ...safeVisibility,
+      activeCrowdModes: safeVisibility.activeCrowdModes.filter((crowd) => availableCrowdModes.includes(crowd)),
+    };
+    const visibilityRules = visibilityStateToRules(nextVisibility);
+
+    setSavingVisibility(true);
+    setVisibilityError(null);
+    try {
+      const savedProfile = await saveMyProfile({
+        ...profileRecordToPayload(currentProfile),
+        visibility_rules: visibilityRules,
+      });
+      setCurrentProfile(savedProfile);
+      setVisibility(visibilityRulesToState(savedProfile.visibility_rules));
+      setIsVisibilityOpen(false);
+      void fetchUsers(getCurrentFetchCoordinates(), filters);
+    } catch (saveError) {
+      setVisibilityError(saveError instanceof Error ? saveError.message : 'Failed to save visibility.');
+    } finally {
+      setSavingVisibility(false);
+    }
+  };
 
   const shouldShowDemoUser = !loading && !error && users.length === 0;
   const displayedUsers = shouldShowDemoUser ? [DEMO_NYC_DISCOVERY_USER] : filteredUsers;
@@ -352,7 +545,6 @@ export default function MapHome() {
           focusCoordinates={userApproximateLocation}
           onMapReady={setMapInstance}
         />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-80 bg-gradient-to-t from-background via-background/78 to-transparent" />
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
 
         {error ? (
@@ -398,9 +590,27 @@ export default function MapHome() {
             onClick={() => setIsFiltersOpen(true)}
           >
             <Filter className="w-4 h-4 mr-2" />
-            Filters
+            Seeking
             {hasActiveFilters ? (
               <span className="ml-2 rounded-full bg-black/20 px-2 py-0.5 text-[11px] font-semibold">
+                On
+              </span>
+            ) : null}
+          </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setVisibilityError(null);
+              setIsVisibilityOpen(true);
+            }}
+            className="h-auto rounded-full border border-white/10 bg-background/68 px-5 py-2.5 text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md hover:bg-white/10"
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Visibility
+            {hasActiveVisibility ? (
+              <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold">
                 On
               </span>
             ) : null}
@@ -491,10 +701,30 @@ export default function MapHome() {
           mode="sheet"
           open={isFiltersOpen}
           onOpenChange={setIsFiltersOpen}
+          title="Seeking"
+          description="Refine who appears nearby by distance, profile details, and vibe."
           value={filters}
           onChange={setFilters}
-          onClear={() => setFilters(DEFAULT_FILTER_STATE)}
-          onApply={() => setIsFiltersOpen(false)}
+          onClear={() => {
+            setFilters(DEFAULT_FILTER_STATE);
+            void fetchUsers(getCurrentFetchCoordinates(), DEFAULT_FILTER_STATE);
+          }}
+          onApply={() => {
+            setIsFiltersOpen(false);
+            void fetchUsers(getCurrentFetchCoordinates(), filters);
+          }}
+        />
+
+        <MapVisibilitySurface
+          open={isVisibilityOpen}
+          onOpenChange={setIsVisibilityOpen}
+          value={safeVisibility}
+          availableCrowdModes={availableCrowdModes}
+          saving={savingVisibility}
+          error={visibilityError}
+          onChange={handleVisibilityChange}
+          onClear={handleClearVisibility}
+          onApply={handleApplyVisibility}
         />
       </div>
     </div>

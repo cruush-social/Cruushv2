@@ -1,19 +1,62 @@
 import { z } from "zod";
+import { multilineTextSchema, optionalSingleLineTextSchema, singleLineTextSchema } from "./input-schema.js";
 
 const currentYear = new Date().getFullYear();
 
-const stringField = z.string().trim().max(500).optional().default("");
-const shortStringField = z.string().trim().max(120).optional().default("");
-const arrayField = z.array(z.string().trim().min(1).max(120)).max(25).optional().default([]);
+const shortStringField = optionalSingleLineTextSchema(120);
+const arrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(25).optional().default([]);
+const kinkArrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(50).optional().default([]);
+
+const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
+const transStatusSchema = z.boolean().nullable().optional().default(null);
+const crowdSchema = z.enum(["T4T", "Sapphic", "Gay"]);
+const visibilityArrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(50).optional().default([]);
+
+const profileVisibilityRulesSchema = z.object({
+  active_crowd_modes: z.array(crowdSchema).max(3).optional().default([]),
+  age_range: z.tuple([
+    z.number().int().min(18).max(99),
+    z.number().int().min(18).max(99)
+  ]).nullable().optional().default(null),
+  distance: z.number().int().min(1).max(100).nullable().optional().default(null),
+  identities: visibilityArrayField,
+  presentations: visibilityArrayField,
+  looking_for: visibilityArrayField,
+  timing: visibilityArrayField,
+  hosting: visibilityArrayField,
+  vibes: visibilityArrayField,
+  crowds: z.array(crowdSchema).max(3).optional().default([]),
+  hobbies: visibilityArrayField,
+  positions: visibilityArrayField,
+  roles: visibilityArrayField,
+  kinks: visibilityArrayField,
+  body_types: visibilityArrayField,
+  sexuality: visibilityArrayField,
+  substance_boundaries: visibilityArrayField
+}).strict().superRefine((rules, ctx) => {
+  if (rules.age_range && rules.age_range[0] > rules.age_range[1]) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Visibility age range minimum cannot be greater than maximum.",
+      path: ["age_range"]
+    });
+  }
+});
+
+export const profileKinkInterestSchema = z.object({
+  kink_id: singleLineTextSchema({ min: 1, max: 120 }),
+  label: singleLineTextSchema({ min: 1, max: 120 }).optional(),
+  category: singleLineTextSchema({ min: 1, max: 120 }).optional()
+}).strip();
 
 export const profilePayloadSchema = z.object({
-  display_name: z.string().trim().min(2).max(80),
+  display_name: singleLineTextSchema({ min: 2, max: 80 }),
   photos: z.array(z.string().trim().url().max(2048)).max(9).optional().default([]),
-  bio: z.string().trim().max(2000).optional().default(""),
+  bio: multilineTextSchema({ max: 2000 }).optional().default(""),
   pronouns: arrayField,
   custom_pronouns: shortStringField,
   year_of_birth: z.number().int().min(currentYear - 120).max(currentYear - 18).nullable().optional().default(null),
-  ethnicity: z.string().trim().max(120).optional().default(""),
+  ethnicity: optionalSingleLineTextSchema(120),
   identities: arrayField,
   presentation: arrayField,
   sexuality: arrayField,
@@ -21,14 +64,23 @@ export const profilePayloadSchema = z.object({
   height: shortStringField,
   weight: shortStringField,
   position: arrayField,
+  role: arrayField,
+  is_trans: transStatusSchema,
+  trans_status_visibility: profileVisibilitySchema.optional().default("public"),
+  crowds: z.array(crowdSchema).max(3).optional().default([]),
   availability: arrayField,
   hosting_travel: arrayField,
-  kinks: arrayField,
+  kinks: kinkArrayField,
+  kink_interests: z.array(profileKinkInterestSchema).max(50).optional().default([]),
+  kinks_visibility: profileVisibilitySchema.optional().default("public"),
   vibes: arrayField,
+  scenes: arrayField,
+  archetypes: arrayField,
   hobbies: arrayField,
   custom_hobby: shortStringField,
   looking_for: arrayField,
   hiv_status: arrayField,
+  hiv_status_visibility: profileVisibilitySchema.optional().default("mutual_cruushes"),
   custom_hiv_status: shortStringField,
   condoms: arrayField,
   custom_condoms: shortStringField,
@@ -40,15 +92,54 @@ export const profilePayloadSchema = z.object({
   custom_covid_vaccine: shortStringField,
   mpox_vaccine: arrayField,
   custom_mpox_vaccine: shortStringField,
-  smoking: arrayField,
-  custom_smoking: shortStringField,
-  drinking: arrayField,
-  custom_drinking: shortStringField,
-  drugs: arrayField,
-  custom_drugs: shortStringField,
-  weed: arrayField,
-  custom_weed: shortStringField
-}).strict();
+  substance_boundaries: arrayField,
+  visibility_rules: profileVisibilityRulesSchema.optional().default({
+    active_crowd_modes: [],
+    age_range: null,
+    distance: null,
+    identities: [],
+    presentations: [],
+    looking_for: [],
+    timing: [],
+    hosting: [],
+    vibes: [],
+    crowds: [],
+    hobbies: [],
+    positions: [],
+    roles: [],
+    kinks: [],
+    body_types: [],
+    sexuality: [],
+    substance_boundaries: []
+  })
+}).strict().superRefine((payload, ctx) => {
+  if (payload.crowds.includes("T4T") && payload.is_trans !== true) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "T4T crowd membership requires trans status.",
+      path: ["crowds"]
+    });
+  }
+
+  if (payload.visibility_rules.active_crowd_modes.includes("T4T") && (payload.is_trans !== true || !payload.crowds.includes("T4T"))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "T4T crowd mode requires trans status and T4T crowd membership.",
+      path: ["visibility_rules", "active_crowd_modes"]
+    });
+  }
+
+  for (const crowdMode of payload.visibility_rules.active_crowd_modes) {
+    if (!payload.crowds.includes(crowdMode)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Crowd mode requires matching crowd membership.",
+        path: ["visibility_rules", "active_crowd_modes"]
+      });
+      break;
+    }
+  }
+});
 
 export type ProfilePayload = z.infer<typeof profilePayloadSchema>;
 
@@ -75,14 +166,23 @@ export const emptyProfile = {
   height: "",
   weight: "",
   position: [],
+  role: [],
+  is_trans: null,
+  trans_status_visibility: "public",
+  crowds: [],
   availability: [],
   hosting_travel: [],
   kinks: [],
+  kink_interests: [],
+  kinks_visibility: "public",
   vibes: [],
+  scenes: [],
+  archetypes: [],
   hobbies: [],
   custom_hobby: "",
   looking_for: [],
   hiv_status: [],
+  hiv_status_visibility: "mutual_cruushes",
   custom_hiv_status: "",
   condoms: [],
   custom_condoms: "",
@@ -94,12 +194,24 @@ export const emptyProfile = {
   custom_covid_vaccine: "",
   mpox_vaccine: [],
   custom_mpox_vaccine: "",
-  smoking: [],
-  custom_smoking: "",
-  drinking: [],
-  custom_drinking: "",
-  drugs: [],
-  custom_drugs: "",
-  weed: [],
-  custom_weed: ""
+  substance_boundaries: [],
+  visibility_rules: {
+    active_crowd_modes: [],
+    age_range: null,
+    distance: null,
+    identities: [],
+    presentations: [],
+    looking_for: [],
+    timing: [],
+    hosting: [],
+    vibes: [],
+    crowds: [],
+    hobbies: [],
+    positions: [],
+    roles: [],
+    kinks: [],
+    body_types: [],
+    sexuality: [],
+    substance_boundaries: []
+  }
 } satisfies ProfilePayload;

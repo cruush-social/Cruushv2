@@ -72,7 +72,7 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
     };
   }
 
-  if (config.NODE_ENV === "production") {
+  if (!config.EMAIL_PREVIEW_ENABLED) {
     throw new ApiError(500, "INTERNAL_ERROR", "Email delivery is not configured.");
   }
 
@@ -102,7 +102,7 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
     };
   }
 
-  if (config.NODE_ENV === "production") {
+  if (!config.EMAIL_PREVIEW_ENABLED) {
     throw new ApiError(500, "INTERNAL_ERROR", "Email delivery is not configured.");
   }
 

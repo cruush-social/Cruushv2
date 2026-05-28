@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileView from './ProfileView';
@@ -39,9 +39,15 @@ describe('ProfileView', () => {
       height: "5'8\"",
       weight: '155 lbs',
       position: ['Vers'],
+      role: ['Switch'],
       availability: ['Now'],
       hosting_travel: ['Hosting'],
       kinks: ['Leather'],
+      kink_interests: [{
+        kink_id: 'leather',
+        label: 'Leather',
+      }],
+      kinks_visibility: 'public',
       vibes: ['Playful'],
       hobbies: ['Hiking'],
       custom_hobby: '',
@@ -58,14 +64,7 @@ describe('ProfileView', () => {
       custom_covid_vaccine: '',
       mpox_vaccine: ['Vaccinated'],
       custom_mpox_vaccine: '',
-      smoking: ['Never'],
-      custom_smoking: '',
-      drinking: ['Socially'],
-      custom_drinking: '',
-      drugs: ['No'],
-      custom_drugs: '',
-      weed: ['Occasionally'],
-      custom_weed: '',
+      substance_boundaries: ['No alcohol involved', "Let's discuss"],
       updated_at: '2026-04-29T12:00:00.000Z',
     });
   });
@@ -84,6 +83,12 @@ describe('ProfileView', () => {
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
     expect(screen.getByText('About')).toBeInTheDocument();
+    const intimacyTab = screen.getByRole('tab', { name: 'Intimacy' });
+    fireEvent.pointerDown(intimacyTab, { button: 0, ctrlKey: false });
+    fireEvent.click(intimacyTab);
+    await waitFor(() => expect(intimacyTab).toHaveAttribute('aria-selected', 'true'));
+    expect(screen.getByText('Role')).toBeInTheDocument();
+    expect(screen.getByText('Switch')).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
   });
 });
