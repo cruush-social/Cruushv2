@@ -1,7 +1,12 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { ApiError } from "../errors.js";
 import { createCruushPayloadSchema } from "../cruush-schema.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
+
+const cruushActivityParamsSchema = z.object({
+  userId: z.uuid()
+}).strict();
 
 type ReceivedCruushRow = {
   id: string;
@@ -72,9 +77,9 @@ function mapSentCruushRow(row: SentCruushRow) {
 export async function registerCruushRoutes(app: FastifyInstance) {
   app.get("/api/cruush/:userId", async (request, reply) => {
     const authenticatedUserId = await getAuthenticatedUserId(request);
-    const requestedUserId = (request.params as { userId?: string }).userId?.trim();
+    const { userId: requestedUserId } = cruushActivityParamsSchema.parse(request.params);
 
-    if (!requestedUserId || requestedUserId !== authenticatedUserId) {
+    if (requestedUserId !== authenticatedUserId) {
       throw new ApiError(403, "FORBIDDEN", "You can only access your own cruush activity.");
     }
 

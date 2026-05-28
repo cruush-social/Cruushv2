@@ -7,6 +7,12 @@ const rootDirectory = process.cwd();
 const certDirectory = path.join(rootDirectory, ".dev", "certs");
 const keyPath = path.join(certDirectory, "localhost-key.pem");
 const certPath = path.join(certDirectory, "localhost-cert.pem");
+const useHttps = process.env.VITE_DEV_HTTPS !== "0" && process.env.VITE_DEV_HTTPS !== "false";
+
+if (!useHttps) {
+  console.log("Skipping local HTTPS certificate generation because VITE_DEV_HTTPS is disabled.");
+  process.exit(0);
+}
 
 if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
   console.log(`Using existing local HTTPS certificate at ${certDirectory}`);
@@ -57,6 +63,12 @@ try {
 
   console.log(`Generated local HTTPS certificate at ${certDirectory}`);
 } catch (error) {
+  if (error?.code === "ENOENT") {
+    console.warn("OpenSSL was not found on PATH. Continuing without a local HTTPS certificate.");
+    console.warn("Vite will serve the app over HTTP for local development.");
+    process.exit(0);
+  }
+
   console.error("Failed to generate a local HTTPS certificate with openssl.");
   throw error;
 } finally {

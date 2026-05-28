@@ -14,14 +14,20 @@ create table if not exists profiles (
   height text,
   weight text,
   position text[] not null default '{}',
+  role text[] not null default '{}',
+  trans_status_visibility text not null default 'public' check (trans_status_visibility in ('public', 'mutual_cruushes', 'mutual_crowds')),
   availability text[] not null default '{}',
   hosting_travel text[] not null default '{}',
   kinks text[] not null default '{}',
+  kinks_visibility text not null default 'public' check (kinks_visibility in ('public', 'mutual_cruushes', 'mutual_crowds')),
   vibes text[] not null default '{}',
+  scenes text[] not null default '{}',
+  archetypes text[] not null default '{}',
   hobbies text[] not null default '{}',
   custom_hobby text not null default '',
   looking_for text[] not null default '{}',
   hiv_status text[] not null default '{}',
+  hiv_status_visibility text not null default 'mutual_cruushes' check (hiv_status_visibility in ('public', 'mutual_cruushes', 'mutual_crowds')),
   custom_hiv_status text not null default '',
   condoms text[] not null default '{}',
   custom_condoms text not null default '',
@@ -33,13 +39,28 @@ create table if not exists profiles (
   custom_covid_vaccine text not null default '',
   mpox_vaccine text[] not null default '{}',
   custom_mpox_vaccine text not null default '',
-  smoking text[] not null default '{}',
-  custom_smoking text not null default '',
-  drinking text[] not null default '{}',
-  custom_drinking text not null default '',
-  drugs text[] not null default '{}',
-  custom_drugs text not null default '',
-  weed text[] not null default '{}',
-  custom_weed text not null default '',
+  substance_boundaries text[] not null default '{}',
+  profile_sensitive_ciphertext text,
+  profile_sensitive_nonce text,
+  profile_sensitive_auth_tag text,
+  profile_sensitive_key_version text not null default 'v1',
+  profile_sensitive_token_key_version text not null default 'v1',
+  profile_visibility_ciphertext text,
+  profile_visibility_nonce text,
+  profile_visibility_auth_tag text,
+  profile_visibility_key_version text not null default 'v1',
+  profile_visibility_token_key_version text not null default 'v1',
+  trans_crowds_changed_at timestamptz,
   updated_at timestamptz not null default now()
 );
+
+create table if not exists profile_sensitive_tokens (
+  user_id uuid not null references app_users(id) on delete cascade,
+  token_hash text not null,
+  token_key_version text not null,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, token_hash, token_key_version)
+);
+
+create index if not exists idx_profile_sensitive_tokens_hash
+  on profile_sensitive_tokens (token_hash, token_key_version);

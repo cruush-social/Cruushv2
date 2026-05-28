@@ -9,9 +9,11 @@ import { registerMessageRoutes } from "./routes/messages.js";
 import { registerPostRoutes } from "./routes/posts.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerUserRoutes } from "./routes/users.js";
+import { createPostgresRateLimiter, type RateLimiter } from "./rate-limit.js";
 
 type BuildServerDeps = {
   db?: DbClient;
+  rateLimiter?: RateLimiter;
 };
 
 export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
@@ -41,6 +43,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
 
   app.decorate("config", config);
   app.decorate("db", db);
+  app.decorate("rateLimiter", deps.rateLimiter ?? createPostgresRateLimiter(db));
 
   app.setErrorHandler((error, _request, reply) => {
     const apiError = toApiError(error);

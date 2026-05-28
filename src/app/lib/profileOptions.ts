@@ -2,8 +2,8 @@ export const IDENTITIES = [
   'agender', 'androgynous', 'bakla', 'bigender', 'cis man', 'cis woman', 'crossdresser', 'demiboy', 'demigirl',
   'demi-nonbinary', "fa'afafine", 'femme', 'gender nonconforming', 'genderfluid',
   'genderpunk', 'genderqueer', 'hijra', 'intersex', 'kathoey', 'man', 'māhū', 'maverique', 'muxé',
-  'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'trans man',
-  'trans woman', 'transfeminine', 'transmasculine', 'transsexual', 'transsexual man', 'transsexual woman', 'travesti', 'two-spirit', 'woman', 'x-gender'
+  'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'travesti',
+  'two-spirit', 'woman', 'x-gender'
 ];
 
 export const PRESENTATIONS = [
@@ -22,11 +22,15 @@ export const BODY_TYPES = [
 ].sort();
 
 export const POSITIONS = [
-  'bottom', 'dominant', 'none', 'oral', 'service', 'side', 'submissive', 'switch', 'top', 'versatile'
+  'bottom', 'pillow princess', 'side', 'stone top', 'top', 'vers bottom', 'vers top', 'versatile'
+].sort();
+
+export const ROLES = [
+  'dominant', 'service', 'submissive', 'switch'
 ].sort();
 
 export const LOOKING_FOR = [
-  'chat', 'date', 'event', 'friends', 'group', 'hookup', 'other', 'relationship', 'third'
+  'chat', 'cruise', 'friends', 'group', 'hookup', 'right now'
 ].sort();
 
 export const AVAILABILITY = [
@@ -37,12 +41,31 @@ export const HOSTING = [
   'ask me', 'can host', 'can travel', "can't host", "can't travel", 'car', 'hotel', 'outdoors'
 ].sort();
 
-export const VIBES = [
-  'Alt', 'Artsy', 'Baddie', 'Bear', 'Bimbo', 'Chub', 'Clean-cut', 'Corporate', 'Cottagecore', 'Cub', 'Daddy',
-  'Doll', 'E-Girl/E-Boy', 'Goddess', 'Geek', 'Goth', 'Granola', 'Homebody', 'Hippie', 'Kitten', 'Leather',
-  'Mommy', 'Otter', 'Pixie', 'Pony', 'Princess', 'Pup', 'Punk', 'Raver', 'Rugged', 'Sober', 'Spiritual',
-  'Sporty', 'T4T', 'Twink', 'Wolf'
-].sort();
+export const VIBE_GROUPS = [
+  {
+    label: 'Style & Energy',
+    options: [
+      'Alt', 'Artsy', 'Chill', 'Clean-cut', 'Corporate', 'Cottagecore', 'E-Girl/E-Boy', 'Geek', 'Goth', 'Granola',
+      'Homebody', 'Hippie', 'Punk', 'Rugged', 'Sober', 'Spiritual', 'Sporty'
+    ].sort(),
+  },
+  {
+    label: 'Scenes',
+    options: [
+      'Ballroom', 'Bear', 'Chub', 'Cub', 'Drag', 'Furry', 'Leather', 'Otter', 'Rave', 'Twink', 'Wolf'
+    ].sort(),
+  },
+  {
+    label: 'Archetypes',
+    options: [
+      'Baddie', 'Bimbo', 'Brat', 'Daddy', 'Doll', 'Goddess', 'Kitten', 'Mommy', 'Pixie', 'Pony', 'Princess', 'Pup', 'Service'
+    ].sort(),
+  },
+];
+
+export const VIBES = VIBE_GROUPS.flatMap((group) => group.options).sort();
+
+export const CROWDS = ['Gay', 'Sapphic', 'T4T'].sort();
 
 export const HIV_STATUS = ['negative', 'positive', 'prefer not to say', 'undetectable', 'unknown'];
 export const CONDOMS = ['always', 'discuss', 'never', 'prefer not to say', 'sometimes'];
@@ -50,22 +73,86 @@ export const PREP = ['no', 'prefer not to say', 'yes'];
 export const DOXYPEP = ['no', 'prefer not to say', 'yes'];
 export const COVID_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
 export const MPOX_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
-export const SMOKING = ['never', 'often', 'prefer not to say', 'social', 'sometimes'];
-export const DRINKING = ['never', 'often', 'prefer not to say', 'sometimes'];
-export const DRUGS = ['never', 'often', 'prefer not to say', 'sometimes'];
-export const WEED = ['never', 'often', 'prefer not to say', 'sometimes'];
+export const SUBSTANCE_BOUNDARIES = [
+  'No alcohol involved',
+  'No cannabis involved',
+  'No tobacco or vaping involved',
+  'No poppers involved',
+  'No PnP',
+  'No other drugs involved',
+  "Let's discuss",
+];
 
-export const KINKS = [
-  'anal', 'bondage', 'breath play', 'chastity', 'cbt', 'costumes', 'dirty talk',
-  'edging', 'exhibitionism', 'feet', 'fisting', 'gooning', 'group', 'humiliation', 'impact', 'leather', 'lingerie', 'massage',
-  'mutual masturbation', 'nipple play', 'oral', 'pegging', 'pet play', 'pits', 'praise', 'public', 'roleplay',
-  'rimming', 'rough', 'sensation', 'spanking', 'toys', 'uniforms', 'voyeurism', 'wax', 'watersports'
-].sort();
+export const PROFILE_VISIBILITY_OPTIONS = [
+  { value: 'public', label: 'Public' },
+  { value: 'mutual_cruushes', label: 'Mutual Cruushes' },
+  { value: 'mutual_crowds', label: 'Mutual Crowds' },
+];
+
+export const KINK_CATALOG = [
+  { id: 'anal', label: 'anal', category: 'Body & Touch' },
+  { id: 'massage', label: 'massage', category: 'Body & Touch' },
+  { id: 'mutual-masturbation', label: 'mutual masturbation', category: 'Body & Touch' },
+  { id: 'nipple-play', label: 'nipple play', category: 'Body & Touch' },
+  { id: 'oral', label: 'oral', category: 'Body & Touch' },
+  { id: 'pegging', label: 'pegging', category: 'Body & Touch' },
+  { id: 'pits', label: 'pits', category: 'Body & Touch' },
+  { id: 'rimming', label: 'rimming', category: 'Body & Touch' },
+  { id: 'bondage', label: 'bondage', category: 'Power' },
+  { id: 'chastity', label: 'chastity', category: 'Power' },
+  { id: 'edging', label: 'edging', category: 'Power' },
+  { id: 'humiliation', label: 'humiliation', category: 'Power' },
+  { id: 'impact', label: 'impact', category: 'Power' },
+  { id: 'praise', label: 'praise', category: 'Power' },
+  { id: 'rough', label: 'rough', category: 'Power' },
+  { id: 'spanking', label: 'spanking', category: 'Power' },
+  { id: 'costumes', label: 'costumes', category: 'Gear' },
+  { id: 'leather', label: 'leather', category: 'Gear' },
+  { id: 'lingerie', label: 'lingerie', category: 'Gear' },
+  { id: 'uniforms', label: 'uniforms', category: 'Gear' },
+  { id: 'dirty-talk', label: 'dirty talk', category: 'Roleplay' },
+  { id: 'pet-play', label: 'pet play', category: 'Roleplay' },
+  { id: 'roleplay', label: 'roleplay', category: 'Roleplay' },
+  { id: 'group', label: 'group', category: 'Group' },
+  { id: 'exhibitionism', label: 'exhibitionism', category: 'Voyeur / Exhibition' },
+  { id: 'public', label: 'public', category: 'Voyeur / Exhibition' },
+  { id: 'voyeurism', label: 'voyeurism', category: 'Voyeur / Exhibition' },
+  { id: 'sensation', label: 'sensation', category: 'Sensory' },
+  { id: 'wax', label: 'wax', category: 'Sensory' },
+  { id: 'toys', label: 'toys', category: 'Toys' },
+  { id: 'breath-play', label: 'breath play', category: 'Edge / Discuss' },
+  { id: 'cbt', label: 'cbt', category: 'Edge / Discuss' },
+  { id: 'feet', label: 'feet', category: 'Other / Discuss' },
+  { id: 'fisting', label: 'fisting', category: 'Other / Discuss' },
+  { id: 'gooning', label: 'gooning', category: 'Other / Discuss' },
+  { id: 'watersports', label: 'watersports', category: 'Other / Discuss' },
+].sort((a, b) => a.label.localeCompare(b.label));
+
+export const KINKS = KINK_CATALOG.map((kink) => kink.label);
+
+export const KINK_GROUPS = [
+  'Body & Touch',
+  'Power',
+  'Gear',
+  'Roleplay',
+  'Group',
+  'Voyeur / Exhibition',
+  'Sensory',
+  'Toys',
+  'Edge / Discuss',
+  'Other / Discuss',
+].map((category) => ({
+  label: category,
+  options: KINK_CATALOG
+    .filter((kink) => kink.category === category)
+    .map((kink) => kink.label)
+    .sort((a, b) => a.localeCompare(b)),
+})).filter((group) => group.options.length > 0);
 
 export const HOBBIES = [
-  'activism', 'anime/manga', 'art', 'astrology', 'baking', 'board games', 'camping', 'clubbing', 'comedy', 'cooking',
-  'cosplay', 'crafts', 'cycling', 'dancing', 'diy', 'djing', 'fashion', 'film/tv', 'fitness', 'gardening', 'gaming',
+  'activism', 'anime/manga', 'art', 'astrology', 'baking', 'board games', 'camping', 'comedy', 'cooking',
+  'cosplay', 'crafts', 'cycling', 'dancing', 'diy', 'djing', 'film/tv', 'fitness', 'gardening', 'gaming',
   'hiking', 'journaling', 'karaoke', 'makeup', 'martial arts', 'meditation', 'music', 'painting', 'photography',
   'poetry', 'pottery', 'reading', 'roller skating', 'running', 'skateboarding', 'singing', 'streaming', 'swimming',
-  'tattoos', 'theater', 'thrifting', 'travel', 'vintage collecting', 'volunteering', 'writing', 'yoga'
+  'theater', 'thrifting', 'vintage collecting', 'volunteering', 'writing', 'yoga'
 ].sort();

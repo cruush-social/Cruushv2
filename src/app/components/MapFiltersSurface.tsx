@@ -3,24 +3,22 @@ import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import { Slider } from './ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import MultiSelect from './MultiSelect';
+import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
 import {
   AVAILABILITY,
   BODY_TYPES,
-  CONDOMS,
-  DRINKING,
-  DRUGS,
+  CROWDS,
   HOBBIES,
   HOSTING,
   IDENTITIES,
-  KINKS,
+  KINK_GROUPS,
   LOOKING_FOR,
   POSITIONS,
   PRESENTATIONS,
+  ROLES,
   SEXUALITY,
-  SMOKING,
-  VIBES,
-  WEED,
+  SUBSTANCE_BOUNDARIES,
+  VIBE_GROUPS,
 } from '../lib/profileOptions';
 
 export interface FilterState {
@@ -32,16 +30,14 @@ export interface FilterState {
   timing: string[];
   hosting: string[];
   vibes: string[];
+  crowds: string[];
   hobbies: string[];
   positions: string[];
+  roles: string[];
   kinks: string[];
   bodyTypes: string[];
   sexuality: string[];
-  condoms: string[];
-  drugs: string[];
-  weed: string[];
-  smoking: string[];
-  drinking: string[];
+  substanceBoundaries: string[];
 }
 
 export const DEFAULT_FILTER_STATE: FilterState = {
@@ -53,22 +49,22 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   timing: [],
   hosting: [],
   vibes: [],
+  crowds: [],
   hobbies: [],
   positions: [],
+  roles: [],
   kinks: [],
   bodyTypes: [],
   sexuality: [],
-  condoms: [],
-  drugs: [],
-  weed: [],
-  smoking: [],
-  drinking: [],
+  substanceBoundaries: [],
 };
 
 interface MapFiltersSurfaceProps {
   mode?: 'sheet';
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title?: string;
+  description?: string;
   value: FilterState;
   onChange: (value: FilterState) => void;
   onClear: () => void;
@@ -87,12 +83,14 @@ function updateList(value: FilterState, key: MultiSelectKey, items: string[]): F
 function FieldGroup({
   label,
   options,
+  optionGroups,
   stateKey,
   value,
   onChange,
 }: {
   label: string;
-  options: string[];
+  options?: string[];
+  optionGroups?: MultiSelectOptionGroup[];
   stateKey: MultiSelectKey;
   value: FilterState;
   onChange: (value: FilterState) => void;
@@ -101,7 +99,9 @@ function FieldGroup({
     <div className="space-y-2">
       <Label>{label}</Label>
       <MultiSelect
+        ariaLabel={label}
         options={options}
+        optionGroups={optionGroups}
         value={value[stateKey]}
         onChange={(items) => onChange(updateList(value, stateKey, items))}
       />
@@ -112,6 +112,8 @@ function FieldGroup({
 export default function MapFiltersSurface({
   open,
   onOpenChange,
+  title = 'Seeking',
+  description = 'Refine nearby people by distance, profile details, and vibe.',
   value,
   onChange,
   onClear,
@@ -121,8 +123,8 @@ export default function MapFiltersSurface({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full overflow-y-auto border-white/10 bg-background/95 p-0 sm:max-w-xl">
         <SheetHeader className="border-b border-white/10 px-5 py-4">
-          <SheetTitle>Filters</SheetTitle>
-          <SheetDescription>Refine nearby people by distance, profile details, and vibe.</SheetDescription>
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
 
         <div className="px-5 py-4">
@@ -165,6 +167,7 @@ export default function MapFiltersSurface({
 
               <FieldGroup label="Gender Identities" options={IDENTITIES} stateKey="identities" value={value} onChange={onChange} />
               <FieldGroup label="Presentation" options={PRESENTATIONS} stateKey="presentations" value={value} onChange={onChange} />
+              <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} onChange={onChange} />
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} onChange={onChange} />
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} onChange={onChange} />
             </TabsContent>
@@ -173,21 +176,24 @@ export default function MapFiltersSurface({
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} onChange={onChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} onChange={onChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} onChange={onChange} />
-              <FieldGroup label="Vibes" options={VIBES} stateKey="vibes" value={value} onChange={onChange} />
+              <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} onChange={onChange} />
             </TabsContent>
 
             <TabsContent value="intimacy" className="mt-6 space-y-6">
               <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
-              <FieldGroup label="Kinks" options={KINKS} stateKey="kinks" value={value} onChange={onChange} />
-              <FieldGroup label="Protection" options={CONDOMS} stateKey="condoms" value={value} onChange={onChange} />
+              <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
+              <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
             </TabsContent>
 
             <TabsContent value="lifestyle" className="mt-6 space-y-6">
-              <FieldGroup label="Drugs" options={DRUGS} stateKey="drugs" value={value} onChange={onChange} />
-              <FieldGroup label="420" options={WEED} stateKey="weed" value={value} onChange={onChange} />
-              <FieldGroup label="Smoking" options={SMOKING} stateKey="smoking" value={value} onChange={onChange} />
-              <FieldGroup label="Drinking" options={DRINKING} stateKey="drinking" value={value} onChange={onChange} />
+              <FieldGroup
+                label="Substance Boundaries"
+                options={SUBSTANCE_BOUNDARIES}
+                stateKey="substanceBoundaries"
+                value={value}
+                onChange={onChange}
+              />
             </TabsContent>
           </Tabs>
         </div>

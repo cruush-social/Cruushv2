@@ -59,16 +59,14 @@ Keep queryable:
 - sexuality
 - body type
 - position
+- role
 - looking for
 - availability
 - hosting/travel
 - vibes
-- kinks
+- public kink/fetish catalog IDs
 - hobbies
-- drugs
-- 420
-- smoking
-- drinking
+- substance boundaries
 - condoms
 
 Encrypt:
@@ -143,7 +141,8 @@ Use these mechanisms instead:
 
 Examples:
 
-- body type, identities, vibes, kinks, etc. stay queryable as normalized option values
+- body type, identities, vibes, kink/fetish catalog IDs, and public seeking metadata stay queryable as normalized option values
+- crowd-restricted profile fields should keep only access-control metadata queryable; the restricted value should not be exposed to discovery queries outside that audience
 - bio text is encrypted because it is not required for filtering
 - exact location stays separate from displayed location
 

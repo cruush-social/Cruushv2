@@ -3,7 +3,7 @@ import { IDENTITIES, LOOKING_FOR, PRONOUNS, VIBES } from '../lib/profileOptions'
 import { ArrowRight, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { saveMyProfile, type ProfilePayload } from '../lib/profileApi';
+import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload } from '../lib/profileApi';
 import { persistCurrentUser } from '../lib/sessionUser';
 
 interface ProfileOnboardingProps {
@@ -25,20 +25,25 @@ type OnboardingProfileState = {
   height: string;
   weight: string;
   position: string[];
+  role: string[];
+  is_trans: boolean | null;
+  trans_status_visibility: ProfilePayload['trans_status_visibility'];
+  crowds: string[];
   availability: string[];
   hosting_travel: string[];
   kinks: string[];
+  kinks_visibility: ProfilePayload['kinks_visibility'];
+  scenes: string[];
+  archetypes: string[];
   hobbies: string[];
   hiv_status: string[];
+  hiv_status_visibility: ProfilePayload['hiv_status_visibility'];
   condoms: string[];
   prep: string[];
   doxypep: string[];
   covid_vaccine: string[];
   mpox_vaccine: string[];
-  smoking: string[];
-  drinking: string[];
-  drugs: string[];
-  weed: string[];
+  substance_boundaries: string[];
   custom_pronouns: string;
   custom_hobby: string;
   custom_hiv_status: string;
@@ -47,10 +52,6 @@ type OnboardingProfileState = {
   custom_doxypep: string;
   custom_covid_vaccine: string;
   custom_mpox_vaccine: string;
-  custom_smoking: string;
-  custom_drinking: string;
-  custom_drugs: string;
-  custom_weed: string;
   sexuality: string[];
 };
 
@@ -81,20 +82,25 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
     height: '',
     weight: '',
     position: [],
+    role: [],
+    is_trans: null,
+    trans_status_visibility: 'public',
+    crowds: [],
     availability: [],
     hosting_travel: [],
     kinks: [],
+    kinks_visibility: 'public',
+    scenes: [],
+    archetypes: [],
     hobbies: [],
     hiv_status: [],
+    hiv_status_visibility: 'mutual_cruushes',
     condoms: [],
     prep: [],
     doxypep: [],
     covid_vaccine: [],
     mpox_vaccine: [],
-    smoking: [],
-    drinking: [],
-    drugs: [],
-    weed: [],
+    substance_boundaries: [],
     custom_pronouns: '',
     custom_hobby: '',
     custom_hiv_status: '',
@@ -103,10 +109,6 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
     custom_doxypep: '',
     custom_covid_vaccine: '',
     custom_mpox_vaccine: '',
-    custom_smoking: '',
-    custom_drinking: '',
-    custom_drugs: '',
-    custom_weed: '',
     sexuality: [],
   });
   const [ageError, setAgeError] = useState<string | null>(null);
@@ -162,10 +164,6 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
       const customDoxypep = profile.custom_doxypep.trim();
       const customCovidVaccine = profile.custom_covid_vaccine.trim();
       const customMpoxVaccine = profile.custom_mpox_vaccine.trim();
-      const customSmoking = profile.custom_smoking.trim();
-      const customDrinking = profile.custom_drinking.trim();
-      const customDrugs = profile.custom_drugs.trim();
-      const customWeed = profile.custom_weed.trim();
       const payload: ProfilePayload = {
         display_name: displayName,
         year_of_birth: profile.age ? parseInt(profile.age, 10) : null,
@@ -181,20 +179,26 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
         height: profile.height,
         weight: profile.weight,
         position: profile.position,
+        role: profile.role,
+        is_trans: profile.is_trans,
+        trans_status_visibility: profile.trans_status_visibility,
+        crowds: profile.crowds,
         availability: profile.availability,
         hosting_travel: profile.hosting_travel,
         kinks: profile.kinks,
+        kink_interests: profile.kinks.map(toDefaultKinkInterest),
+        kinks_visibility: profile.kinks_visibility,
+        scenes: profile.scenes,
+        archetypes: profile.archetypes,
         hobbies: profile.hobbies,
         hiv_status: profile.hiv_status,
+        hiv_status_visibility: profile.hiv_status_visibility,
         condoms: profile.condoms,
         prep: profile.prep,
         doxypep: profile.doxypep,
         covid_vaccine: profile.covid_vaccine,
         mpox_vaccine: profile.mpox_vaccine,
-        smoking: profile.smoking,
-        drinking: profile.drinking,
-        drugs: profile.drugs,
-        weed: profile.weed,
+        substance_boundaries: profile.substance_boundaries,
         custom_pronouns: customPronouns,
         custom_hobby: customHobby,
         custom_hiv_status: customHivStatus,
@@ -203,10 +207,6 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
         custom_doxypep: customDoxypep,
         custom_covid_vaccine: customCovidVaccine,
         custom_mpox_vaccine: customMpoxVaccine,
-        custom_smoking: customSmoking,
-        custom_drinking: customDrinking,
-        custom_drugs: customDrugs,
-        custom_weed: customWeed,
         sexuality: profile.sexuality,
       };
 

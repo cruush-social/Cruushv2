@@ -1,5 +1,24 @@
 import { z } from "zod";
 
+const booleanEnvSchema = z.union([
+  z.boolean(),
+  z.string().trim().toLowerCase().transform((value, ctx) => {
+    if (["1", "true", "yes", "on"].includes(value)) {
+      return true;
+    }
+
+    if (["0", "false", "no", "off", ""].includes(value)) {
+      return false;
+    }
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Expected a boolean-like value"
+    });
+    return z.NEVER;
+  })
+]).optional().default(false);
+
 const corsOriginSchema = z.string().min(1).transform((value, ctx) => {
   const origins = value
     .split(",")
@@ -43,7 +62,13 @@ const configSchema = z.object({
   APP_URL: z.string().url().default("http://localhost:5173"),
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default(""),
-  TURNSTILE_SECRET_KEY: z.string().optional().default("")
+  EMAIL_PREVIEW_ENABLED: booleanEnvSchema,
+  DEVELOPMENT_ADMIN_ENABLED: booleanEnvSchema,
+  DEVELOPMENT_ADMIN_PASSWORD: z.string().optional().default(""),
+  TURNSTILE_SECRET_KEY: z.string().optional().default(""),
+  PROFILE_ENCRYPTION_KEY: z.string().optional().default(""),
+  PROFILE_TOKEN_KEY: z.string().optional().default(""),
+  PROFILE_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
 });
 
 export type AppConfig = z.infer<typeof configSchema>;

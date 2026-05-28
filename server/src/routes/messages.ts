@@ -1,7 +1,12 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { ApiError } from "../errors.js";
 import { createMessagePayloadSchema, openDirectConversationPayloadSchema } from "../message-schema.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
+
+const conversationParamsSchema = z.object({
+  conversationId: z.uuid()
+}).strict();
 
 type ConversationRow = {
   id: string;
@@ -198,11 +203,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
   app.get("/api/messages/:conversationId", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
-    const conversationId = (request.params as { conversationId?: string }).conversationId?.trim();
-
-    if (!conversationId) {
-      throw new ApiError(400, "VALIDATION_ERROR", "Conversation id is required.");
-    }
+    const { conversationId } = conversationParamsSchema.parse(request.params);
 
     const conversationResult = await app.db.query<ConversationRow>(
       `${CONVERSATION_SELECT}
