@@ -2,13 +2,11 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
-RUN corepack enable
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY package.json ./
 COPY . .
 
-RUN pnpm install --frozen-lockfile
-RUN pnpm build
+RUN npm install
+RUN npm run build
 
 FROM nginx:1.27-alpine AS runner
 
