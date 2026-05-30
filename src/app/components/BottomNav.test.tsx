@@ -37,7 +37,7 @@ describe('BottomNav', () => {
     expect(screen.queryByText('Profile')).not.toBeInTheDocument();
   });
 
-  it('uses a solid bottom surface without a progressive fade overlay', () => {
+  it('keeps the bottom nav surface transparent without a progressive fade overlay', () => {
     render(
       <MemoryRouter initialEntries={['/feed']}>
         <BottomNav />
@@ -46,7 +46,8 @@ describe('BottomNav', () => {
 
     const nav = screen.getByRole('navigation');
 
-    expect(nav).toHaveClass('bg-background');
+    expect(nav.className).not.toContain('bg-background');
+    expect(nav.className).not.toContain('border-t');
     expect(nav.className).not.toContain('bg-background/');
     expect(nav.className).not.toContain('backdrop-blur');
     expect(nav.querySelector('.bg-gradient-to-t')).toBeNull();
@@ -62,7 +63,22 @@ describe('BottomNav', () => {
     const activeButton = screen.getByRole('button', { name: /feed/i });
     const activeIcon = activeButton.querySelector('img');
 
+    expect(activeButton).toHaveClass('bg-white/[0.055]');
     expect(activeButton.className).not.toContain('shadow-[0_0');
     expect(activeIcon?.className).not.toContain('drop-shadow');
+  });
+
+  it('renders 25 percent larger icons centered in each tab', () => {
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const activeButton = screen.getByRole('button', { name: /feed/i });
+    const activeIcon = activeButton.querySelector('img');
+
+    expect(activeButton).toHaveClass('items-center', 'justify-center', 'h-14');
+    expect(activeIcon).toHaveClass('h-[3.125rem]', 'w-[3.125rem]', 'object-contain');
   });
 });

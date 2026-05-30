@@ -6,7 +6,6 @@ import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './
 import { Eye, Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart, LocateFixed } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
-import HeartPhoto from './HeartPhoto';
 import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
@@ -497,7 +496,7 @@ export default function MapHome() {
             <img
               alt=""
               aria-hidden="true"
-              className="h-16 w-auto object-contain sm:h-[4.5rem]"
+              className="h-20 w-auto object-contain sm:h-[5.625rem]"
               draggable={false}
               src={cruushLogo}
             />
@@ -661,13 +660,10 @@ export default function MapHome() {
         {displayedUsers.length > 0 && (
           <div className="absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 px-4">
             <div className="mx-auto max-w-5xl rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-              <div className="mb-2 flex items-center justify-between px-1">
+              <div className="mb-2 px-1">
                 <p className="text-xs uppercase tracking-[0.18em] text-white/70">Recently Active</p>
-                <div className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] text-white/75">
-                  Last Active
-                </div>
               </div>
-              <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide" data-testid="recently-active-tray">
               {[...displayedUsers]
                 .sort((a, b) => {
                   const firstUserMinutes = getLastActiveMinutes(a.lastActive);
@@ -678,22 +674,30 @@ export default function MapHome() {
                 .map((user) => (
                   <button
                     key={user.id}
+                    aria-label={`Open ${user.name} profile`}
                     onClick={() => handleUserSelect(user)}
-                    className="group flex w-16 flex-shrink-0 flex-col items-center text-center"
+                    className="group block w-20 flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                    data-testid={`recently-active-tile-${user.id}`}
                   >
-                    <div className="relative">
-                      <HeartPhoto
-                        className="w-16 transition-transform group-hover:scale-105"
-                        label={`${user.name} preview`}
-                        photo={user.photo}
-                        fallback={<Heart className="w-6 h-6 text-white/22" />}
-                      />
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-black/80 px-2 py-0.5 font-mono text-[10px] text-white/90 shadow-lg backdrop-blur-sm">
-                        {user.lastActive}
-                      </div>
+                    <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">
+                      {user.photo ? (
+                        <img
+                          alt=""
+                          aria-hidden="true"
+                          className="h-full w-full object-cover"
+                          draggable={false}
+                          src={user.photo}
+                        />
+                      ) : (
+                        <div
+                          aria-hidden="true"
+                          className="flex h-full w-full items-center justify-center"
+                          style={{ background: 'var(--cruush-gradient)' }}
+                        >
+                          <Heart className="h-6 w-6 text-white/72" />
+                        </div>
+                      )}
                     </div>
-                    <p className="mt-1 w-full truncate text-xs text-white/90">{user.name}</p>
-                    <p className="text-[10px] text-white/45">{user.distance}</p>
                   </button>
                 ))}
               </div>

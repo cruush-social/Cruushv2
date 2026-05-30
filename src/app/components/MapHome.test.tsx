@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import MapHome from './MapHome';
@@ -108,7 +108,7 @@ describe('MapHome', () => {
   it('navigates directly to the full profile on mobile', async () => {
     useIsMobile.mockReturnValue(true);
 
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
@@ -118,8 +118,10 @@ describe('MapHome', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
+    expect(container.querySelector('img[src*="cruush-logo"]')?.className).toContain('h-20');
+    expect(container.querySelector('img[src*="cruush-logo"]')?.className).toContain('sm:h-[5.625rem]');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
   });
@@ -136,7 +138,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
 
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
@@ -186,7 +188,19 @@ describe('MapHome', () => {
     expect(await screen.findByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-last-active', '2m ago');
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-badge', 'top');
-    expect(screen.getByRole('img', { name: 'Jordan preview' })).not.toHaveAttribute('style');
+
+    const recentTray = screen.getByTestId('recently-active-tray');
+    const recentTile = screen.getByTestId('recently-active-tile-user-1');
+    const recentMedia = recentTile.firstElementChild;
+
+    expect(screen.getByText('Recently Active')).toBeInTheDocument();
+    expect(screen.queryByText('Last Active')).not.toBeInTheDocument();
+    expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
+    expect(screen.queryByText('Jordan')).not.toBeInTheDocument();
+    expect(screen.queryByText('0.2 mi')).not.toBeInTheDocument();
+    expect(recentTile).toHaveClass('w-20');
+    expect(recentMedia?.className).toContain('aspect-[4/5]');
+    expect(within(recentTray).queryByText(/./)).not.toBeInTheDocument();
   });
 
   it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {

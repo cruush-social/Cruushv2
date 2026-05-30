@@ -25,7 +25,7 @@ export default function BottomNav() {
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-background px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2">
       <div className="relative z-10 mx-auto flex max-w-lg items-center justify-around">
         {navItems.map((item) => {
           const active = isActive(item.path);
@@ -44,7 +44,7 @@ export default function BottomNav() {
               <img
                 alt=""
                 aria-hidden="true"
-                className="h-10 w-10 object-contain"
+                className="h-[3.125rem] w-[3.125rem] object-contain"
                 draggable={false}
                 src={active ? item.activeIcon : item.icon}
               />
