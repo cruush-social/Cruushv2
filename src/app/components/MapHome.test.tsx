@@ -186,6 +186,7 @@ describe('MapHome', () => {
     expect(await screen.findByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-last-active', '2m ago');
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-badge', 'top');
+    expect(screen.getByRole('img', { name: 'Jordan preview' })).not.toHaveAttribute('style');
   });
 
   it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {

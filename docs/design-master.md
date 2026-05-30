@@ -55,6 +55,7 @@ Do not replace this with generic copy such as `{displayName} liked you`, `Someon
 - Logo gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 53.27%, #004BFF 100%)
 - Button gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 43.11%, #3826FF 58.46%, #004BFF 73.81%, #1181FF 100%);
 - All gradient accents across the app should reuse the same pink-to-violet-to-blue progression as the logo mock, without extra glow.
+- No glow rule: do not use halo effects, neon shadows, drop-shadow glows, blurred light blooms, or radial glow overlays. Use flat colors, solid surfaces, borders, and approved gradients instead.
 - Heart fallback rules:
   - Map pins for other users without photos use the red-to-crimson heart gradient.
   - The signed-in user without a photo uses the blue heart gradient.
@@ -68,12 +69,12 @@ Do not replace this with generic copy such as `{displayName} liked you`, `Someon
 Primary design reference:
 
 - Figma Make reference: `https://www.figma.com/make/tcRqXasuzRNORtCLFyKUzZ/cruushv1--Copy-`
-- Use this reference for general vibe, color temperature, glow intensity, and dark cinematic surface language.
+- Use this reference for general vibe, color temperature, and dark cinematic surface language.
 - Do not treat it as a locked implementation. The website can improve layout, interaction quality, accessibility, and component consistency while preserving the mood.
 
 Logo and icon direction:
 
-- The current preferred logo direction is a gothic lowercase `cruush` wordmark with neon magenta, violet, and electric blue gradient lighting on a black field.
+- The current preferred logo direction is a gothic lowercase `cruush` wordmark with magenta, violet, and electric blue gradient styling on a black field.
 - A future human-designed SVG mark may wrap or sit around the wordmark using a heart-like flame, wing, horn, crown, or spark form.
 - The icon should feel sharp, romantic, nocturnal, queer, and a little dangerous, not soft or generic.
 - The heart shape should be recognizable but stylized enough to avoid generic dating-site branding.
@@ -147,18 +148,18 @@ All map pins must be heart-shaped.
 User pins:
 
 - Display the user's primary profile photo inside the heart shape when available.
-- Use a deep crimson glowing heart when no profile photo exists.
+- Use a red-to-crimson heart gradient when no profile photo exists.
 - May display a small intent badge underneath, such as looking now, hosting, or traveling.
 
 Groups, events, and places:
 
 - Also use heart-shaped pins.
-- Use accent gradients or deep crimson glow for visual consistency.
+- Use flat accent gradients or red-to-crimson heart gradients for visual consistency.
 - Must remain visually distinct through metadata, badges, icons, or layer controls.
 
 Privacy state:
 
-- Users with high location fuzziness enabled should show a soft pulsing glow ring around their pin to indicate approximate location.
+- Users with high location fuzziness enabled should show a flat pulsing outline or badge around their pin to indicate approximate location.
 
 ## Photo Rules
 
@@ -220,7 +221,7 @@ Rules:
 - 4-5 graduated steps.
 - Exact means the user's true GPS position.
 - Maximum fuzziness randomizes the visible pin within approximately 500m.
-- High fuzziness shows a soft pulsing glow ring around the user's pin.
+- High fuzziness shows a flat pulsing outline or badge around the user's pin.
 
 ## Profile Architecture
 
@@ -449,7 +450,7 @@ Account:
 
 ## Required Screens
 
-- Map home with last-active sort, bottom tray, heart pins, and fuzziness glow rings
+- Map home with last-active sort, bottom tray, heart pins, and fuzziness indicators
 - Unified local feed and composer
 - Filters panel
 - Profile preview and full profile
@@ -520,6 +521,7 @@ Tradeoff:
 - Use `Vibes`, not `Tribes`.
 - Preserve dense profile and filter architecture.
 - Do not reduce complexity; make it coherent and premium.
+- Do not use glow effects; use flat colors, solid surfaces, borders, and gradients for emphasis.
 - Use heart-shaped map pins.
 - Use `4:5` profile photo surfaces for primary people/media blocks except tiny avatars and pin crops.
 - Blur NSFW photos by default until users enable explicit photos.

@@ -497,7 +497,7 @@ export default function MapHome() {
             <img
               alt=""
               aria-hidden="true"
-              className="h-16 w-auto object-contain drop-shadow-[0_0_18px_rgba(255,7,114,0.24)] sm:h-[4.5rem]"
+              className="h-16 w-auto object-contain sm:h-[4.5rem]"
               draggable={false}
               src={cruushLogo}
             />
@@ -587,7 +587,7 @@ export default function MapHome() {
 
         <div className="absolute right-4 top-28 z-30 flex flex-col items-end gap-2">
           <Button
-            className="rounded-full border border-white/15 px-5 shadow-[0_12px_35px_rgba(255,7,114,0.25)]"
+            className="rounded-full border border-white/15 px-5"
             style={{
               background: 'var(--cruush-gradient)',
             }}

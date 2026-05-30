@@ -37,14 +37,14 @@ export default function BottomNav() {
               onClick={() => navigate(item.path)}
               className={`flex h-14 min-w-[64px] items-center justify-center rounded-2xl px-4 transition-colors ${
                 active
-                  ? 'bg-white/[0.055] text-primary shadow-[0_0_24px_rgba(255,7,114,0.14)]'
+                  ? 'bg-white/[0.055] text-primary'
                   : 'text-white/52 hover:bg-white/[0.035] hover:text-white/78'
               }`}
             >
               <img
                 alt=""
                 aria-hidden="true"
-                className={`h-10 w-10 object-contain ${active ? 'drop-shadow-[0_0_10px_rgba(255,7,114,0.55)]' : ''}`}
+                className="h-10 w-10 object-contain"
                 draggable={false}
                 src={active ? item.activeIcon : item.icon}
               />

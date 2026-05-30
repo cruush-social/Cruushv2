@@ -50,14 +50,6 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative overflow-hidden">
-      <div
-        className="absolute inset-0 opacity-20"
-        style={{
-          background:
-            'radial-gradient(circle at 20% 30%, rgba(255, 7, 114, 0.15), transparent 50%), radial-gradient(circle at 80% 70%, rgba(0, 75, 255, 0.1), transparent 50%)',
-        }}
-      />
-
       <div className="w-full max-w-md space-y-10 relative z-10">
         <div className="text-center space-y-6">
           <div className="flex justify-center">

@@ -51,4 +51,18 @@ describe('BottomNav', () => {
     expect(nav.className).not.toContain('backdrop-blur');
     expect(nav.querySelector('.bg-gradient-to-t')).toBeNull();
   });
+
+  it('does not add glow to the active tab', () => {
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const activeButton = screen.getByRole('button', { name: /feed/i });
+    const activeIcon = activeButton.querySelector('img');
+
+    expect(activeButton.className).not.toContain('shadow-[0_0');
+    expect(activeIcon?.className).not.toContain('drop-shadow');
+  });
 });

@@ -152,6 +152,10 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
     expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-16', 'w-16');
+    expect(markerInstances[0].element.className).not.toContain('drop-shadow');
+    expect(markerInstances[1].element.className).not.toContain('drop-shadow');
+    expect(screen.getByTestId('marker-heart-me').querySelector('filter')).toBeNull();
+    expect(screen.getByTestId('marker-heart-user-1').querySelector('filter')).toBeNull();
   });
 
   it('renders photo markers with current and nearby styling', async () => {
@@ -209,6 +213,8 @@ describe('MapView', () => {
 
     expect(await screen.findByRole('button', { name: 'Open Noor on map' })).toBeInTheDocument();
     expect(markerInstances[0].element.className).not.toContain('hover:scale');
+    expect(markerInstances[0].element.className).not.toContain('hover:drop-shadow');
+    expect(markerInstances[0].element.className).not.toContain('transition-[filter]');
   });
 
   it('uses hosting badges only when no known position badge exists', async () => {

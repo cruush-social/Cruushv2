@@ -444,11 +444,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const hasPhoto = Boolean(marker.photo);
   const gradientId = `marker-fill-${marker.id}`;
   const clipId = `marker-photo-clip-${marker.id}`;
-  const filterId = `marker-shadow-${marker.id}`;
   const borderColor = isCurrentUser ? '#0BA8FF' : '#FF0072';
-  const shadowMatrix = isCurrentUser
-    ? '0 0 0 0 0.039216 0 0 0 0 0.658824 0 0 0 0 1 0 0 0 0.68 0'
-    : '0 0 0 0 1 0 0 0 0 0 0 0 0 0 0.447059 0 0 0 0.68 0';
 
   return (
     <svg
@@ -471,33 +467,22 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
         <clipPath id={clipId}>
           <path d={HEART_PATH} />
         </clipPath>
-        <filter id={filterId} x="-8" y="-8" width="80" height="80" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-          <feFlood floodOpacity="0" result="BackgroundImageFix" />
-          <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-          <feOffset dx="1.5" dy="4" />
-          <feGaussianBlur stdDeviation="7" />
-          <feColorMatrix type="matrix" values={shadowMatrix} />
-          <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
-          <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape" />
-        </filter>
       </defs>
-      <g filter={`url(#${filterId})`}>
-        {hasPhoto ? (
-          <>
-            <image
-              clipPath={`url(#${clipId})`}
-              data-testid={`marker-photo-fill-${marker.id}`}
-              height="64"
-              href={marker.photo ?? ''}
-              preserveAspectRatio="xMidYMid slice"
-              width="64"
-            />
-            <path d={HEART_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
-          </>
-        ) : (
-          <path d={HEART_PATH} fill={`url(#${gradientId})`} />
-        )}
-      </g>
+      {hasPhoto ? (
+        <>
+          <image
+            clipPath={`url(#${clipId})`}
+            data-testid={`marker-photo-fill-${marker.id}`}
+            height="64"
+            href={marker.photo ?? ''}
+            preserveAspectRatio="xMidYMid slice"
+            width="64"
+          />
+          <path d={HEART_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
+        </>
+      ) : (
+        <path d={HEART_PATH} fill={`url(#${gradientId})`} />
+      )}
     </svg>
   );
 }
@@ -520,12 +505,7 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
   const element = document.createElement(isCurrentUser ? 'div' : 'button');
   const name = getDisplayName(marker);
 
-  element.className = [
-    'relative flex h-[70px] w-[82px] items-start justify-center overflow-visible border-0 bg-transparent p-0',
-    isCurrentUser
-      ? 'drop-shadow-[0_0_16px_#22B8FF]'
-      : 'drop-shadow-[0_0_16px_rgba(209,31,58,0.60)] transition-[filter] hover:drop-shadow-[0_0_22px_rgba(209,31,58,0.78)]',
-  ].join(' ');
+  element.className = 'relative flex h-[70px] w-[82px] items-start justify-center overflow-visible border-0 bg-transparent p-0';
 
   if (isCurrentUser) {
     element.setAttribute('aria-label', 'Your approximate area');
