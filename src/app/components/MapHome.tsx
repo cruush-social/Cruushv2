@@ -12,6 +12,7 @@ import MapProfilePopup from './MapProfilePopup';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import cruushLogo from '../assets/brand/cruush-logo.png';
 import {
   emptyProfilePayload,
   getMyProfile,
@@ -491,13 +492,16 @@ export default function MapHome() {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div className="absolute inset-x-0 top-0 z-30 px-5 pb-12 pt-5">
         <div className="flex items-center justify-between">
-          <div>
-            <h1
-              className="cruush-logo-text text-3xl tracking-tight"
-            >
-              cruush
-            </h1>
-            <div className="mt-2 inline-flex rounded-full border border-white/10 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72 backdrop-blur-md">
+          <div className="flex flex-col items-start">
+            <h1 className="sr-only">cruush</h1>
+            <img
+              alt=""
+              aria-hidden="true"
+              className="h-16 w-auto object-contain drop-shadow-[0_0_18px_rgba(255,7,114,0.24)] sm:h-[4.5rem]"
+              draggable={false}
+              src={cruushLogo}
+            />
+            <div className="mt-1 inline-flex rounded-full border border-white/10 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72 backdrop-blur-md">
               NYC beta
             </div>
           </div>

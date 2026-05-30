@@ -19,7 +19,8 @@ vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
 }));
 
-vi.mock('../lib/profileApi', () => ({
+vi.mock('../lib/profileApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/profileApi')>()),
   getMyProfile,
 }));
 
@@ -116,7 +117,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('cruush-logo-text');
+    expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
 

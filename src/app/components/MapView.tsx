@@ -55,6 +55,11 @@ interface MapViewProps {
 const DEFAULT_CENTER: LngLatLike = [-74.006, 40.7128];
 const DEFAULT_ZOOM = 12;
 const FOCUSED_ZOOM = 14;
+const MIN_DISCOVERY_ZOOM = 10.5;
+const NYC_METRO_MAX_BOUNDS: [[number, number], [number, number]] = [
+  [-74.65, 40.35],
+  [-73.45, 41.08],
+];
 const DEFAULT_TILE_URLS = [
   'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
   'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
@@ -150,37 +155,6 @@ export function createCruushVectorStyle(
         },
       },
       {
-        id: 'building-fill',
-        type: 'fill',
-        source: 'openmaptiles',
-        'source-layer': 'building',
-        minzoom: 13,
-        paint: {
-          'fill-color': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            13,
-            '#161616',
-            16,
-            '#181818',
-          ],
-          'fill-opacity': 0.88,
-        },
-      },
-      {
-        id: 'building-outline',
-        type: 'line',
-        source: 'openmaptiles',
-        'source-layer': 'building',
-        minzoom: 15,
-        paint: {
-          'line-color': '#1e1e1e',
-          'line-width': 0.6,
-          'line-opacity': 0.7,
-        },
-      },
-      {
         id: 'minor-roads',
         type: 'line',
         source: 'openmaptiles',
@@ -250,47 +224,6 @@ export function createCruushVectorStyle(
         },
       },
       {
-        id: 'poi-dots',
-        type: 'circle',
-        source: 'openmaptiles',
-        'source-layer': 'poi',
-        minzoom: 14,
-        paint: {
-          'circle-color': '#0d0d0d',
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2.5, 17, 4],
-          'circle-stroke-color': '#383838',
-          'circle-stroke-width': 1,
-          'circle-opacity': 0.8,
-        },
-      },
-      {
-        id: 'minor-road-labels',
-        type: 'symbol',
-        source: 'openmaptiles',
-        'source-layer': 'transportation_name',
-        minzoom: 15,
-        filter: [
-          'match',
-          ['get', 'class'],
-          ['minor', 'service'],
-          true,
-          false,
-        ],
-        layout: {
-          'symbol-placement': 'line',
-          'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 15, 10, 17, 12],
-          'text-letter-spacing': 0.02,
-          'text-padding': 2,
-        },
-        paint: {
-          'text-color': '#505050',
-          'text-halo-color': '#080808',
-          'text-halo-width': 1,
-        },
-      },
-      {
         id: 'secondary-road-labels',
         type: 'symbol',
         source: 'openmaptiles',
@@ -357,27 +290,6 @@ export function createCruushVectorStyle(
           'text-color': '#ffffff',
           'text-halo-color': '#080808',
           'text-halo-width': 1.5,
-        },
-      },
-      {
-        id: 'poi-labels',
-        type: 'symbol',
-        source: 'openmaptiles',
-        'source-layer': 'poi',
-        minzoom: 14,
-        layout: {
-          'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 14, 10, 17, 12],
-          'text-letter-spacing': 0.02,
-          'text-offset': [0, 0.75],
-          'text-anchor': 'top',
-          'text-padding': 2,
-        },
-        paint: {
-          'text-color': '#c0c0c0',
-          'text-halo-color': '#0d0d0d',
-          'text-halo-width': 1.4,
         },
       },
       {
@@ -679,6 +591,9 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
           style: mapStyle,
           center: DEFAULT_CENTER,
           zoom: DEFAULT_ZOOM,
+          minZoom: MIN_DISCOVERY_ZOOM,
+          maxBounds: NYC_METRO_MAX_BOUNDS,
+          renderWorldCopies: false,
           attributionControl: false,
         });
 

@@ -22,6 +22,21 @@ describe('BottomNav', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 
+  it('keeps bottom menu labels accessible without rendering visible text', () => {
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('button', { name: /map/i })).toBeInTheDocument();
+    expect(screen.queryByText('Map')).not.toBeInTheDocument();
+    expect(screen.queryByText('Feed')).not.toBeInTheDocument();
+    expect(screen.queryByText('cruush')).not.toBeInTheDocument();
+    expect(screen.queryByText('Messages')).not.toBeInTheDocument();
+    expect(screen.queryByText('Profile')).not.toBeInTheDocument();
+  });
+
   it('uses a solid bottom surface without a progressive fade overlay', () => {
     render(
       <MemoryRouter initialEntries={['/feed']}>
