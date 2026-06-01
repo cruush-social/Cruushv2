@@ -152,6 +152,14 @@ The next work is operational:
    - `server/sql/009_direct_messages.sql`
    - `server/sql/010_profile_locations.sql`
    - `server/sql/011_password_reset_tokens.sql`
+   - `server/sql/012_substance_boundaries.sql`
+   - `server/sql/013_kink_fetish_interests.sql`
+   - `server/sql/014_profile_role_and_kink_visibility.sql`
+   - `server/sql/015_profile_sensitive_tokens.sql`
+   - `server/sql/016_profile_visibility_rules.sql`
+   - `server/sql/017_rate_limit_buckets.sql`
+
+   The server Docker image runs `npm run migrate` before `npm run start`, so normal container deploys apply the checked-in idempotent migrations automatically. If staging is already running an older image or a custom start command, run `npm --prefix server run migrate` once with the staging `DATABASE_URL`.
 
 4. Point the frontend at the deployed API
    - either same-origin through the reverse proxy

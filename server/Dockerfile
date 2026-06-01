@@ -17,4 +17,4 @@ RUN npm install --omit=dev
 COPY --from=build /app/dist ./dist
 COPY sql ./sql
 EXPOSE 3001
-CMD ["npm", "run", "start"]
+CMD ["sh", "-c", "npm run migrate && npm run start"]
