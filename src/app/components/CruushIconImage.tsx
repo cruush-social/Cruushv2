@@ -1,5 +1,7 @@
 import cruushColored from '../assets/ui-icons/cruush-colored.png';
 import cruushWhite from '../assets/ui-icons/cruush-white.png';
+import cameraColored from '../assets/ui-icons/camera-colored.png';
+import cameraWhite from '../assets/ui-icons/camera-white.png';
 import feedColored from '../assets/ui-icons/feed-colored.png';
 import feedWhite from '../assets/ui-icons/feed-white.png';
 import luckyColored from '../assets/ui-icons/lucky-colored.png';
@@ -27,6 +29,7 @@ interface CruushIconImageProps {
 }
 
 export type CruushIconName =
+  | 'camera'
   | 'cruush'
   | 'feed'
   | 'lucky'
@@ -42,6 +45,10 @@ export type CruushIconName =
 export type CruushIconVariant = 'colored' | 'white';
 
 const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconVariant, string>> = {
+  camera: {
+    colored: cameraColored,
+    white: cameraWhite,
+  },
   cruush: {
     colored: cruushColored,
     white: cruushWhite,
@@ -88,7 +95,7 @@ const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconVariant, stri
   },
 };
 
-export default function CruushIconImage({ className = 'h-5 w-5', src }: CruushIconImageProps) {
+export default function CruushIconImage({ className = 'h-[1.5625rem] w-[1.5625rem]', src }: CruushIconImageProps) {
   return (
     <img
       alt=""
@@ -101,7 +108,7 @@ export default function CruushIconImage({ className = 'h-5 w-5', src }: CruushIc
 }
 
 export function CruushIcon({
-  className = 'h-5 w-5',
+  className = 'h-[1.5625rem] w-[1.5625rem]',
   name,
   variant = 'white',
 }: {

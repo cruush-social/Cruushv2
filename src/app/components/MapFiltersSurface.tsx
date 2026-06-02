@@ -60,6 +60,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
 };
 
 interface MapFiltersSurfaceProps {
+  mutualCruushesOnly?: boolean;
   mode?: 'sheet';
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -69,6 +70,7 @@ interface MapFiltersSurfaceProps {
   onChange: (value: FilterState) => void;
   onClear: () => void;
   onApply: () => void;
+  onMutualCruushesOnlyChange?: (enabled: boolean) => void;
 }
 
 type MultiSelectKey = Exclude<keyof FilterState, 'ageRange' | 'distance'>;
@@ -110,6 +112,7 @@ function FieldGroup({
 }
 
 export default function MapFiltersSurface({
+  mutualCruushesOnly = false,
   open,
   onOpenChange,
   title = 'Seeking',
@@ -118,6 +121,7 @@ export default function MapFiltersSurface({
   onChange,
   onClear,
   onApply,
+  onMutualCruushesOnlyChange,
 }: MapFiltersSurfaceProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -128,6 +132,29 @@ export default function MapFiltersSurface({
         </SheetHeader>
 
         <div className="px-5 py-4">
+          {onMutualCruushesOnlyChange ? (
+            <button
+              type="button"
+              aria-pressed={mutualCruushesOnly}
+              className={[
+                'mb-5 flex w-full items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-left shadow-[0_16px_38px_rgba(0,0,0,0.28)] transition-colors',
+                mutualCruushesOnly
+                  ? 'border-white/15 text-white'
+                  : 'border-white/10 bg-white/[0.035] text-white/76 hover:bg-white/[0.065]',
+              ].join(' ')}
+              onClick={() => onMutualCruushesOnlyChange(!mutualCruushesOnly)}
+              style={mutualCruushesOnly ? { background: 'var(--cruush-gradient)' } : undefined}
+            >
+              <span>
+                <span className="block text-sm font-semibold">Mutual cruushes</span>
+                <span className="mt-0.5 block text-xs text-white/68">Show mutual cruushes at the top of the map.</span>
+              </span>
+              <span className="shrink-0 rounded-full bg-black/24 px-3 py-1 text-xs font-semibold">
+                {mutualCruushesOnly ? 'On' : 'Off'}
+              </span>
+            </button>
+          ) : null}
+
           <Tabs defaultValue="basics" className="w-full">
             <TabsList className="grid h-auto w-full grid-cols-4">
               <TabsTrigger value="basics">Basics</TabsTrigger>

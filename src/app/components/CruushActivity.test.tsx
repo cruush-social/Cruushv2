@@ -27,23 +27,6 @@ vi.mock('../lib/openConversation', () => ({
   openConversationOrInbox,
 }));
 
-vi.mock('./MapView', () => ({
-  default: ({ markers, onPinClick }: { markers: any[]; onPinClick: (marker: any) => void }) => (
-    <div data-testid="activity-mutual-map">
-      {markers.map((marker) => (
-        <button
-          key={marker.id}
-          data-testid={`activity-map-marker-${marker.id}`}
-          data-precision={marker.relationship?.precision ?? ''}
-          onClick={() => onPinClick(marker)}
-        >
-          {`Map pin ${marker.displayName}`}
-        </button>
-      ))}
-    </div>
-  ),
-}));
-
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-probe">{`${location.pathname}${location.search}`}</div>;
@@ -155,8 +138,8 @@ describe('CruushActivity', () => {
     });
   });
 
-  it('renders locked free rows, mutual actions, and the mutual map CTA', async () => {
-    render(
+  it('renders locked free rows, mutual actions, and list-only mutual cruushes', async () => {
+    const { container } = render(
       <MemoryRouter initialEntries={['/cruush']}>
         <Routes>
           <Route path="/cruush" element={<><CruushActivity /><LocationProbe /></>} />
@@ -166,6 +149,7 @@ describe('CruushActivity', () => {
     );
 
     expect(await screen.findByText('luna')).toBeInTheDocument();
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveClass('h-[4.375rem]');
     expect(screen.getByRole('tab', { name: /incoming/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /sent/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /mutual/i })).toBeInTheDocument();
@@ -190,11 +174,11 @@ describe('CruushActivity', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Message river' }));
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river');
 
-    fireEvent.click(screen.getByRole('button', { name: /^Map$/i }));
-    expect(screen.getByTestId('activity-map-marker-user-river')).toHaveAttribute('data-precision', 'precise');
+    fireEvent.click(screen.getByRole('button', { name: 'Open river on map' }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map?mode=mutuals&focusUserId=user-river');
 
-    fireEvent.click(screen.getByRole('button', { name: /See mutual cruushes on the map/i }));
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map?mode=mutuals');
+    expect(screen.queryByRole('button', { name: /^Map$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /See mutual cruushes on the map/i })).not.toBeInTheDocument();
   }, 10000);
 
   it('shows locked profile views for free users', async () => {

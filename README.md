@@ -89,7 +89,30 @@
   - starts the local API
   - starts the frontend
 
-  ### 5. If you want auth emails to return to staging
+  ### 5. Optional: seed local development profiles
+
+  To add test profiles for the local map/feed experience, first enable the development admin in `server/.env.local`:
+
+  ```bash
+  DEVELOPMENT_ADMIN_ENABLED=true
+  DEVELOPMENT_ADMIN_PASSWORD=admin-password
+  ```
+
+  Then run:
+
+  ```bash
+  npm --prefix server run seed:dev-profiles
+  ```
+
+  Or run the local stack with migrations and profile seeding in one command:
+
+  ```bash
+  npm run dev:local:seeded
+  ```
+
+  The seed command refuses to run in production. It creates or updates the local development admin at `admin@cruush.local`, seeds test profiles, and creates cruush activity toward that admin account. Use the password from `DEVELOPMENT_ADMIN_PASSWORD` to sign in locally.
+
+  ### 6. If you want auth emails to return to staging
 
   Set this in `server/.env.local`:
 
@@ -99,12 +122,14 @@
 
   That changes the callback target only. It does not change the staging deployment itself.
 
-  ### 6. Useful manual commands
+  ### 7. Useful manual commands
 
   ```bash
   npm run dev
   npm --prefix server run dev
   npm --prefix server run migrate:dev
+  npm --prefix server run seed:dev-profiles
+  npm run dev:local:seeded
   ```
 
   If you are using the Homebrew Postgres path, make sure `DATABASE_URL` points at your local database before running `npm run dev:local`.

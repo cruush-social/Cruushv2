@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './MapView';
-import { Filter, ZoomIn, ZoomOut } from 'lucide-react';
+import { Filter, MapPin, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage from './CruushIconImage';
@@ -14,7 +14,7 @@ import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlS
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
-import cruushLogo from '../assets/brand/cruush-logo.png';
+import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
   emptyProfilePayload,
   getMyProfile,
@@ -30,13 +30,13 @@ import {
 } from '../lib/locationPrivacy';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
-import mapIconWhite from '../assets/ui-icons/map-white.png';
 import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
 import safetyIconWhite from '../assets/ui-icons/safety-white.png';
 import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 import visibilityIconWhite from '../assets/ui-icons/visibility-white.png';
 
 const DISCOVERY_MAP_LIMIT = 50;
+const LOCATION_PROMPT_SESSION_KEY = 'cruush-location-permission-prompted';
 
 const DEMO_NYC_PROFILE_PHOTO = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
@@ -214,6 +214,23 @@ function profileLocationToApproximateCoordinates(profile: ProfileRecord | null):
   };
 }
 
+function claimLocationPromptForSession() {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+
+  try {
+    if (window.sessionStorage.getItem(LOCATION_PROMPT_SESSION_KEY) === 'true') {
+      return false;
+    }
+
+    window.sessionStorage.setItem(LOCATION_PROMPT_SESSION_KEY, 'true');
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 function getAvailableCrowdModes(profile: ProfileRecord | null) {
   const profileCrowds = new Set(profile?.crowds ?? []);
 
@@ -289,7 +306,9 @@ export default function MapHome() {
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const isMutualMapMode = searchParams.get('mode') === 'mutuals';
+  const focusUserId = searchParams.get('focusUserId');
 
   const openProfile = (user: DiscoveryUser) => {
     navigate(`/profile/${user.id}`, {
@@ -333,6 +352,11 @@ export default function MapHome() {
         console.error('Error loading current profile for map marker:', profileError);
         if (isMounted) {
           setCurrentProfile(null);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setProfileLoaded(true);
         }
       });
 
@@ -383,7 +407,7 @@ export default function MapHome() {
     });
   }, [filters, isMutualMapMode, userApproximateLocation]);
 
-  const handleUseMyLocation = () => {
+  const requestUserLocation = (centerAfterUpdate = false) => {
     setLocationError(null);
 
     if (!navigator.geolocation) {
@@ -404,6 +428,13 @@ export default function MapHome() {
 
         setUserApproximateLocation(approximateLocation);
         setLocationStatus('ready');
+        if (centerAfterUpdate) {
+          mapInstance?.setCenter([
+            approximateLocation.approximateLongitude,
+            approximateLocation.approximateLatitude,
+          ]);
+          mapInstance?.setZoom(14);
+        }
         void fetchUsers({
           lat: approximateLocation.approximateLatitude,
           lng: approximateLocation.approximateLongitude,
@@ -417,7 +448,22 @@ export default function MapHome() {
     );
   };
 
+  useEffect(() => {
+    if (
+      !profileLoaded ||
+      isMutualMapMode ||
+      userApproximateLocation ||
+      locationStatus !== 'idle' ||
+      !claimLocationPromptForSession()
+    ) {
+      return;
+    }
+
+    requestUserLocation();
+  }, [isMutualMapMode, locationStatus, profileLoaded, userApproximateLocation]);
+
   const hasActiveFilters =
+    isMutualMapMode ||
     filters.ageRange[0] !== DEFAULT_FILTER_STATE.ageRange[0] ||
     filters.ageRange[1] !== DEFAULT_FILTER_STATE.ageRange[1] ||
     filters.distance !== DEFAULT_FILTER_STATE.distance ||
@@ -535,6 +581,20 @@ export default function MapHome() {
     [currentProfile, userApproximateLocation],
   );
 
+  const handleCenterMyLocation = () => {
+    if (currentUserMapLocation) {
+      setLocationError(null);
+      mapInstance?.setCenter([
+        currentUserMapLocation.approximateLongitude,
+        currentUserMapLocation.approximateLatitude,
+      ]);
+      mapInstance?.setZoom(14);
+      return;
+    }
+
+    requestUserLocation(true);
+  };
+
   const mapMarkers = useMemo<MapMarker[]>(() => {
     const nearbyMarkers = displayedUsers.map((user) => {
       const approximateCoordinates = approximateDisplayCoordinates({
@@ -579,6 +639,23 @@ export default function MapHome() {
     ];
   }, [currentProfile, currentUserMapLocation, displayedUsers, userApproximateLocation]);
 
+  const focusedMutualMapLocation = useMemo(() => {
+    if (!isMutualMapMode || !focusUserId) {
+      return null;
+    }
+
+    const focusedUser = displayedUsers.find((user) => user.id === focusUserId);
+
+    if (!focusedUser) {
+      return null;
+    }
+
+    return approximateDisplayCoordinates({
+      latitude: focusedUser.lat,
+      longitude: focusedUser.lng,
+    });
+  }, [displayedUsers, focusUserId, isMutualMapMode]);
+
   const handleMarkerSelect = (marker: MapMarker) => {
     const selectedMarkerUser = displayedUsers.find((user) => user.id === marker.id);
 
@@ -590,14 +667,14 @@ export default function MapHome() {
   return (
     <div className="relative h-screen overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
-      <div className="absolute inset-x-0 top-0 z-30 px-5 pb-12 pt-5">
-        <div className="flex items-center justify-between">
+      <div className="absolute inset-x-0 top-0 z-30 px-3 pb-12 pt-3">
+        <div className="flex items-start justify-between">
           <div className="flex flex-col items-start">
             <h1 className="sr-only">cruush</h1>
             <img
               alt=""
               aria-hidden="true"
-              className="h-20 w-auto object-contain sm:h-[5.625rem]"
+              className="h-[6.25rem] w-auto object-contain sm:h-[7.03125rem]"
               draggable={false}
               src={cruushLogo}
             />
@@ -606,7 +683,7 @@ export default function MapHome() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md">
+          <div className="mt-11 flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md">
             <Button
               variant="ghost"
               size="icon"
@@ -655,7 +732,7 @@ export default function MapHome() {
           onPinClick={handleMarkerSelect}
           onMapClick={() => setSelectedUser(null)}
           markers={mapMarkers}
-          focusCoordinates={currentUserMapLocation}
+          focusCoordinates={focusedMutualMapLocation ?? currentUserMapLocation}
           onMapReady={setMapInstance}
         />
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
@@ -696,56 +773,47 @@ export default function MapHome() {
 
         <div className="absolute right-4 top-28 z-30 flex flex-col items-end gap-2">
           <Button
-            className="rounded-full border border-white/15 px-5"
-            style={{
-              background: 'var(--cruush-gradient)',
-            }}
+            className={`rounded-full border px-5 shadow-[0_12px_35px_rgba(0,0,0,0.25)] ${
+              hasActiveFilters
+                ? 'border-white/15 text-white'
+                : 'border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
+            }`}
+            style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
             onClick={() => setIsFiltersOpen(true)}
           >
             <Filter className="w-4 h-4 mr-2" />
             {isMutualMapMode ? 'Mutuals' : 'Seeking'}
-            {hasActiveFilters ? (
-              <span className="ml-2 rounded-full bg-black/20 px-2 py-0.5 text-[11px] font-semibold">
-                On
-              </span>
-            ) : null}
           </Button>
 
           <Button
             type="button"
-            variant="secondary"
             onClick={() => {
               setVisibilityError(null);
               setIsVisibilityOpen(true);
             }}
-            className="h-auto rounded-full border border-white/10 bg-background/68 px-5 py-2.5 text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md hover:bg-white/10"
+            className={`rounded-full border px-5 text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] has-[>img]:px-3 ${
+              hasActiveVisibility
+                ? 'border-white/15'
+                : 'border-white/10 bg-background/68 backdrop-blur-md hover:bg-white/10'
+            }`}
+            style={hasActiveVisibility ? { background: 'var(--cruush-gradient)' } : undefined}
           >
             <CruushIconImage src={visibilityIconWhite} className="mr-2 h-4 w-4" />
             Visibility
-            {hasActiveVisibility ? (
-              <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold">
-                On
-              </span>
-            ) : null}
-          </Button>
-
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleUseMyLocation}
-            disabled={locationStatus === 'locating'}
-            className="h-auto rounded-2xl border border-white/10 bg-background/62 px-4 py-3 text-left text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md hover:bg-white/10"
-          >
-            <CruushIconImage src={mapIconWhite} className="mr-2 h-4 w-4" />
-            <span className="flex flex-col leading-tight">
-              <span>{locationStatus === 'locating' ? 'Finding area...' : 'Use my location'}</span>
-              <span className="text-[11px] font-normal text-white/58">
-                Improves nearby discovery, approximate only
-              </span>
-            </span>
           </Button>
 
           <div className="flex flex-col gap-2">
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={handleCenterMyLocation}
+              disabled={locationStatus === 'locating' || !mapInstance}
+              aria-label={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
+              title={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
+              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+            >
+              <MapPin className="h-4 w-4" />
+            </Button>
             <Button
               size="icon"
               variant="secondary"
@@ -818,7 +886,7 @@ export default function MapHome() {
                             className="flex h-full w-full items-center justify-center"
                             style={{ background: 'var(--cruush-gradient)' }}
                           >
-                            <CruushIconImage src={cruushIconWhite} className="h-8 w-8 opacity-75" />
+                            <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />
                           </div>
                         )}
                       </div>
@@ -832,12 +900,16 @@ export default function MapHome() {
 
         <MapFiltersSurface
           mode="sheet"
+          mutualCruushesOnly={isMutualMapMode}
           open={isFiltersOpen}
           onOpenChange={setIsFiltersOpen}
           title="Seeking"
             description="Refine who appears nearby by distance, profile details, and vibe."
           value={filters}
           onChange={setFilters}
+          onMutualCruushesOnlyChange={(enabled) => {
+            navigate(enabled ? '/map?mode=mutuals' : '/map');
+          }}
           onClear={() => {
             setFilters(DEFAULT_FILTER_STATE);
             void fetchUsers(getCurrentFetchCoordinates(), DEFAULT_FILTER_STATE);

@@ -149,6 +149,8 @@ describe('MapView', () => {
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
     expect(screen.getByLabelText('bottom')).toBeInTheDocument();
     expect(screen.getByLabelText('top')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]/80');
+    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('border-[#FF0072]/80');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
     expect(screen.getByTestId('marker-current-fallback-me')).toBeInTheDocument();
@@ -210,6 +212,7 @@ describe('MapView', () => {
             approximateLatitude: 40.72,
             approximateLongitude: -74.01,
             photo: 'https://example.com/river.jpg',
+            badge: createMapMarkerBadge(['Bottom'], []),
             relationship: {
               kind: 'mutual_cruush',
               canMessage: true,
@@ -223,7 +226,9 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveAttribute('data-marker-theme', 'mutual');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('h-20', 'w-20');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
+    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('border-[#6f00ff]/80');
     expect(screen.getByLabelText('mutual cruush')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-relationship-user-mutual').querySelector('img')?.getAttribute('src')).toContain('safety-white');
   });
 
   it('keeps the positioned marker element stable on hover', async () => {

@@ -25,8 +25,11 @@ export default function BottomNav() {
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2">
-      <div className="relative z-10 mx-auto flex max-w-lg items-center justify-around">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2">
+      <div
+        data-testid="bottom-nav-pill"
+        className="relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 p-1.5 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
+      >
         {navItems.map((item) => {
           const active = isActive(item.path);
           return (
@@ -35,16 +38,16 @@ export default function BottomNav() {
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
               onClick={() => navigate(item.path)}
-              className={`flex h-14 min-w-[64px] items-center justify-center rounded-2xl px-4 transition-colors ${
+              className={`flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full transition-colors ${
                 active
-                  ? 'bg-white/[0.055] text-primary'
-                  : 'text-white/52 hover:bg-white/[0.035] hover:text-white/78'
+                  ? 'bg-white/[0.10] text-primary hover:bg-white/[0.12]'
+                  : 'text-white/52 hover:bg-white/[0.08] hover:text-white/78'
               }`}
             >
               <img
                 alt=""
                 aria-hidden="true"
-                className="h-[3.125rem] w-[3.125rem] object-contain"
+                className="h-12 w-12 object-contain"
                 draggable={false}
                 src={active ? item.activeIcon : item.icon}
               />

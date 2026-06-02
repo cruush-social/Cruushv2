@@ -86,6 +86,17 @@ function FieldGroup({
   );
 }
 
+function toggleCrowdMode(value: VisibilityControlState, crowdMode: string): VisibilityControlState {
+  const isActive = value.activeCrowdModes.includes(crowdMode);
+
+  return {
+    ...value,
+    activeCrowdModes: isActive
+      ? value.activeCrowdModes.filter((item) => item !== crowdMode)
+      : [...value.activeCrowdModes, crowdMode],
+  };
+}
+
 export default function MapVisibilitySurface({
   open,
   onOpenChange,
@@ -116,13 +127,34 @@ export default function MapVisibilitySurface({
 
           <div className="space-y-2">
             <Label>Crowd Mode</Label>
-            <MultiSelect
-              ariaLabel="Crowd Mode"
-              options={visibleCrowdModes}
-              value={value.activeCrowdModes}
-              onChange={(activeCrowdModes) => onChange({ ...value, activeCrowdModes })}
-              placeholder={visibleCrowdModes.length > 0 ? 'Select crowd modes...' : 'Join a crowd from your profile first'}
-            />
+            {visibleCrowdModes.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-3">
+                {visibleCrowdModes.map((crowdMode) => {
+                  const selected = value.activeCrowdModes.includes(crowdMode);
+
+                  return (
+                    <button
+                      key={crowdMode}
+                      type="button"
+                      aria-pressed={selected}
+                      className={[
+                        'flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold shadow-[0_16px_38px_rgba(0,0,0,0.22)] transition-colors',
+                        selected
+                          ? 'border-white/15 text-white'
+                          : 'border-white/10 bg-white/[0.035] text-white/76 hover:bg-white/[0.065]',
+                      ].join(' ')}
+                      onClick={() => onChange(toggleCrowdMode(value, crowdMode))}
+                      style={selected ? { background: 'var(--cruush-gradient)' } : undefined}
+                    >
+                      <span>{crowdMode}</span>
+                      <span className="rounded-full bg-black/24 px-2.5 py-1 text-[11px]">
+                        {selected ? 'On' : 'Off'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
             {visibleCrowdModes.length === 0 ? (
               <p className="text-sm text-muted-foreground">Crowd modes unlock after your profile has crowd membership.</p>
             ) : null}

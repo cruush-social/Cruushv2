@@ -12,14 +12,10 @@ import {
   ArrowUp,
   Bed,
   CircleDot,
-  Crown,
-  HandHeart,
-  HeartHandshake,
   MessageCircle,
   MinusCircle,
   Mountain,
   MoveHorizontal,
-  RefreshCw,
   Repeat2,
   type LucideIcon,
 } from 'lucide-react';
@@ -370,29 +366,27 @@ const HEART_PATH =
   'M32 56C30.55 54.67 8 39.75 8 23.75C8 14.95 13.95 8 22 8C27.05 8 30.2 10.78 32 14.05C33.8 10.78 36.95 8 42 8C50.05 8 56 14.95 56 23.75C56 39.75 33.45 54.67 32 56Z';
 
 const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
-  top: ArrowUp,
   bottom: ArrowDown,
-  versatile: Repeat2,
-  switch: RefreshCw,
-  dominant: Crown,
-  submissive: HandHeart,
   side: MoveHorizontal,
-  oral: MessageCircle,
-  service: HeartHandshake,
-  'vers bottom': Repeat2,
-  'vers top': Repeat2,
-  none: MinusCircle,
-  'stone top': Mountain,
   'pillow princess': Bed,
+  'stone top': Mountain,
+  top: ArrowUp,
+  'vers bottom': ArrowDown,
+  'vers top': ArrowUp,
+  versatile: Repeat2,
+  none: MinusCircle,
+  oral: MessageCircle,
   gooner: CircleDot,
 };
 
 const POSITION_BADGE_ALIASES: Record<string, string> = {
   vers: 'versatile',
+  'versatile bottom': 'vers bottom',
+  'versatile top': 'vers top',
 };
 
 function normalizeBadgeValue(value: string) {
-  const normalizedValue = value.trim().toLowerCase().replace(/\s+/g, ' ');
+  const normalizedValue = value.trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
   return POSITION_BADGE_ALIASES[normalizedValue] ?? normalizedValue;
 }
 
@@ -437,25 +431,32 @@ function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
   return POSITION_BADGE_ICONS[badge.iconName] ?? null;
 }
 
-function MarkerBadge({ badge, isCurrentUser, markerId }: { badge?: MapMarkerBadge | null; isCurrentUser: boolean; markerId: string }) {
+function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
+  const badge = marker.badge;
   const Icon = getBadgeIcon(badge);
 
   if (!badge || !Icon) {
     return null;
   }
 
+  const borderClass = marker.relationship?.kind === 'mutual_cruush'
+    ? 'border-[#6f00ff]/80'
+    : isCurrentUser
+      ? 'border-[#0BA8FF]/80'
+      : 'border-[#FF0072]/80';
+
   return (
     <span
       aria-label={badge.label}
       className={[
-        'absolute right-2 top-9 flex h-5 w-5 items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
-        isCurrentUser ? 'border-[#0BA8FF]/80' : 'border-[#FF0072]/80',
+        'absolute right-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        borderClass,
       ].join(' ')}
-      data-testid={`marker-badge-${markerId}`}
+      data-testid={`marker-badge-${marker.id}`}
       role="img"
       title={badge.label}
     >
-      <Icon aria-hidden="true" className="h-3 w-3" strokeWidth={2.6} />
+      <Icon aria-hidden="true" className="h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.6} />
     </span>
   );
 }
@@ -479,12 +480,12 @@ function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
   return (
     <span
       aria-label={precisionLabel}
-      className="absolute left-2 top-9 flex h-5 w-5 items-center justify-center rounded-full border border-white/35 bg-black/85 text-white/70 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
+      className="absolute left-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border border-[#6f00ff]/80 bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
       data-testid={`marker-relationship-${marker.id}`}
       role="img"
       title={title}
     >
-      <CruushIcon name="cruush" className="h-3 w-3 opacity-70 grayscale" variant="white" />
+      <CruushIcon name="safety" className="h-[1.171875rem] w-[1.171875rem] opacity-85" variant="white" />
     </span>
   );
 }
@@ -494,7 +495,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const gradientId = `marker-fill-${marker.id}`;
   const clipId = `marker-photo-clip-${marker.id}`;
   const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
-  const borderColor = isMutualCruush ? '#8A8A92' : isCurrentUser ? '#0BA8FF' : '#FF0072';
+  const borderColor = isMutualCruush ? '#6f00ff' : isCurrentUser ? '#0BA8FF' : '#FF0072';
   const theme = isMutualCruush ? 'mutual' : isCurrentUser ? 'current' : 'nearby';
 
   return (
@@ -511,9 +512,9 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     >
       <defs>
         <linearGradient id={gradientId} x1="10" x2="55" y1="9" y2="56" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={isMutualCruush ? '#A2A2AA' : isCurrentUser ? '#00B8FF' : '#FF0072'} />
-          <stop offset="52%" stopColor={isMutualCruush ? '#73737C' : isCurrentUser ? '#0A7DF4' : '#E00062'} />
-          <stop offset="100%" stopColor={isMutualCruush ? '#4A4A52' : isCurrentUser ? '#3236D4' : '#B00045'} />
+          <stop offset="0%" stopColor={isMutualCruush ? '#A64DFF' : isCurrentUser ? '#00B8FF' : '#FF0072'} />
+          <stop offset="52%" stopColor={isMutualCruush ? '#6f00ff' : isCurrentUser ? '#0A7DF4' : '#E00062'} />
+          <stop offset="100%" stopColor={isMutualCruush ? '#3B00A8' : isCurrentUser ? '#3236D4' : '#B00045'} />
         </linearGradient>
         <clipPath id={clipId}>
           <path d={HEART_PATH} />
@@ -541,7 +542,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           </foreignObject>
         </>
       ) : (
-        <path d={HEART_PATH} fill={`url(#${gradientId})`} />
+        <path d={HEART_PATH} fill={`url(#${gradientId})`} stroke={isMutualCruush ? borderColor : undefined} strokeWidth={isMutualCruush ? '3.2' : undefined} />
       )}
     </svg>
   );
@@ -554,7 +555,7 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
     <span className="pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
       <span className="relative flex h-20 w-[103px] items-center justify-center">
         <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
-        <MarkerBadge badge={marker.badge} isCurrentUser={isCurrentUser} markerId={marker.id} />
+        <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
         <MarkerRelationshipBadge marker={marker} />
       </span>
     </span>

@@ -89,6 +89,7 @@ function isDisabled(value) {
 
 const rootDir = process.cwd();
 const serverDir = path.join(rootDir, 'server');
+const shouldSeedDevProfiles = process.argv.includes('--seed-dev-profiles');
 const localFrontendOrigins = [
   'http://localhost:5173',
   'https://localhost:5173',
@@ -140,13 +141,7 @@ if (!serverEnv.APP_URL) {
   serverEnv.APP_URL = localFrontendUrl;
 }
 
-const migration = spawnProcess('npm', ['--prefix', 'server', 'run', 'migrate:dev'], serverEnv, 'migrate');
-
-migration.on('exit', (code) => {
-  if (code !== 0) {
-    process.exit(code ?? 1);
-  }
-
+function startLocalStack() {
   const server = spawnProcess('npm', ['--prefix', 'server', 'run', 'dev'], serverEnv, 'server');
   const frontend = spawnProcess('npm', ['run', 'dev'], frontendEnv, 'frontend');
 
@@ -166,5 +161,28 @@ migration.on('exit', (code) => {
   frontend.on('exit', (frontendCode) => {
     server.kill('SIGINT');
     process.exit(frontendCode ?? 0);
+  });
+}
+
+const migration = spawnProcess('npm', ['--prefix', 'server', 'run', 'migrate:dev'], serverEnv, 'migrate');
+
+migration.on('exit', (code) => {
+  if (code !== 0) {
+    process.exit(code ?? 1);
+  }
+
+  if (!shouldSeedDevProfiles) {
+    startLocalStack();
+    return;
+  }
+
+  const seed = spawnProcess('npm', ['--prefix', 'server', 'run', 'seed:dev-profiles'], serverEnv, 'seed');
+
+  seed.on('exit', (seedCode) => {
+    if (seedCode !== 0) {
+      process.exit(seedCode ?? 1);
+    }
+
+    startLocalStack();
   });
 });

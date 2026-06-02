@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  ArrowRight,
   Lock,
 } from 'lucide-react';
 import HeartPhoto from './HeartPhoto';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
-import MapView, { type MapMarker } from './MapView';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { getMyCruushActivity, sendCruush, type CruushActivity, type CruushLockableActivityItem, type MutualCruushActivityItem, type ProfileViewActivityItem } from '../lib/cruushApi';
@@ -14,10 +12,9 @@ import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
-import cruushLogo from '../assets/brand/cruush-logo.png';
+import cruushLogo from '../assets/brand/cruush-logo.svg';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
-type MutualMode = 'list' | 'map';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -51,6 +48,7 @@ function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
       <HeartPhoto
         className="w-20 blur-[2px]"
         label={label}
+        theme="mutual"
         fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-20" />}
       />
       <div className="absolute inset-0 flex items-center justify-center">
@@ -72,6 +70,7 @@ function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem
       className="w-20 shrink-0"
       label={`${item.user.name} preview`}
       photo={item.user.photo}
+      theme={'mutual' in item && item.mutual ? 'mutual' : 'nearby'}
       fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-25" />}
     />
   );
@@ -185,6 +184,7 @@ function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; on
         className="w-16 shrink-0"
         label={`${item.user.name} preview`}
         photo={item.user.photo}
+        theme={item.mutual ? 'mutual' : 'nearby'}
         fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-25" />}
       />
       <div className="min-w-0 flex-1">
@@ -203,10 +203,12 @@ function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; on
 
 function MutualRow({
   item,
+  onOpenMap,
   onMessage,
   onOpenProfile,
 }: {
   item: MutualCruushActivityItem;
+  onOpenMap: (userId: string) => void;
   onMessage: (userId: string) => void;
   onOpenProfile: (userId: string) => void;
 }) {
@@ -217,6 +219,7 @@ function MutualRow({
           className="w-20"
           label={`${item.user.name} preview`}
           photo={item.user.photo}
+          theme="mutual"
           fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-30" />}
         />
       </button>
@@ -256,7 +259,7 @@ function MutualRow({
           variant="secondary"
           className="h-11 w-11 rounded-full bg-primary/18 text-primary hover:bg-primary/24"
           aria-label={`Open ${item.user.name} on map`}
-          onClick={() => onOpenProfile(item.user.id)}
+          onClick={() => onOpenMap(item.user.id)}
         >
           <CruushIcon name="map" className="h-5 w-5" variant="colored" />
         </Button>
@@ -303,7 +306,6 @@ export default function CruushActivity() {
   const navigate = useNavigate();
   const [activity, setActivity] = useState<CruushActivity | null>(null);
   const [activeTab, setActiveTab] = useState<ActivityTab>('incoming');
-  const [mutualMode, setMutualMode] = useState<MutualMode>('list');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -365,66 +367,51 @@ export default function CruushActivity() {
   };
 
   const openProfile = (userId: string) => navigate(`/profile/${userId}`);
+  const openMutualOnMap = (userId: string) => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(userId)}`);
   const openMessage = (userId: string) => {
     void openConversationOrInbox(navigate, userId);
   };
-
-  const mutualMarkers = useMemo<MapMarker[]>(() => {
-    return (activity?.mutual ?? [])
-      .filter((item) => item.coordinates)
-      .map((item) => ({
-        id: item.user.id,
-        displayName: item.user.name,
-        approximateLatitude: item.coordinates!.lat,
-        approximateLongitude: item.coordinates!.lng,
-        lastActiveLabel: item.lastActive,
-        photo: item.user.photo,
-        relationship: {
-          kind: 'mutual_cruush',
-          precision: item.coordinates!.precision,
-          canMessage: item.canMessage,
-        },
-      }));
-  }, [activity?.mutual]);
 
   const lockedIncomingCount = Math.max(0, (activity?.counts.incoming ?? 0) - (activity?.incoming.filter((item) => !item.locked).length ?? 0));
   const lockedViewsCount = Math.max(0, (activity?.counts.views ?? 0) - (activity?.views.filter((item) => !item.locked).length ?? 0));
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-background/92 px-4 pb-3 pt-4 backdrop-blur-md">
-        <div className="mx-auto max-w-3xl">
-          <div className="grid grid-cols-[44px_1fr_44px] items-center">
-            <div />
-            <div className="flex justify-center">
-              <img alt="cruush" className="h-14 w-auto object-contain" src={cruushLogo} draggable={false} />
+    <div className="min-h-screen bg-background pb-[calc(7rem+env(safe-area-inset-bottom))]">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
+        <header className="sticky top-0 z-20 border-b border-white/10 bg-background/72 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+          <div className="mx-auto max-w-3xl">
+            <div className="grid grid-cols-[44px_1fr_44px] items-center">
+              <div />
+              <div className="flex justify-center">
+                <img alt="cruush" className="h-[4.375rem] w-auto object-contain" src={cruushLogo} draggable={false} />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-full text-white/78 hover:bg-white/10"
+                aria-label="Open settings"
+                onClick={() => navigate('/settings')}
+              >
+                <CruushIcon name="settings" className="h-5 w-5" />
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="rounded-full text-white/78 hover:bg-white/10"
-              aria-label="Open settings"
-              onClick={() => navigate('/settings')}
-            >
-              <CruushIcon name="settings" className="h-5 w-5" />
-            </Button>
-          </div>
 
-          <div className="mt-2">
-            <h1 className="text-xl text-white">your cruushes</h1>
-            <p className="text-xs text-white/58">relationships, interest & activity</p>
-          </div>
+            <div className="mt-2">
+              <h1 className="text-xl text-white">your cruushes</h1>
+              <p className="text-xs text-white/58">relationships, interest & activity</p>
+            </div>
 
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)} className="mt-4">
-            <TabsList className="grid h-auto w-full grid-cols-4 rounded-none border-b border-white/10 bg-transparent p-0">
+            <TabsList className="mt-4 grid h-auto w-full grid-cols-4 rounded-full border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl">
               <ActivityTabButton value="incoming" iconName="cruush" label="incoming" count={activity?.counts.incoming ?? 0} />
               <ActivityTabButton value="sent" iconName="send" label="sent" count={activity?.counts.sent ?? 0} />
               <ActivityTabButton value="mutual" iconName="cruush" label="mutual" count={activity?.counts.mutual ?? 0} />
               <ActivityTabButton value="views" iconName="visibility" label="views" count={activity?.counts.views ?? 0} />
             </TabsList>
+          </div>
+        </header>
 
-            <div className="mx-auto max-w-3xl pt-4">
+        <main className="mx-auto max-w-3xl px-4 pt-4">
               {error ? (
                 <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                   {error}
@@ -455,69 +442,18 @@ export default function CruushActivity() {
                   </TabsContent>
 
                   <TabsContent value="mutual" className="mt-0 space-y-4">
-                    <div className="flex items-center justify-between gap-3">
+                    <div>
                       <div>
                         <h2 className="text-lg text-white">your mutual cruushes</h2>
                         <p className="text-sm text-white/58">People you are mutually into.</p>
                       </div>
-                      <div className="flex rounded-xl border border-white/10 bg-white/[0.035] p-1">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={mutualMode === 'list' ? 'secondary' : 'ghost'}
-                          className="h-9 rounded-lg px-3"
-                          onClick={() => setMutualMode('list')}
-                        >
-                          <CruushIcon name="feed" className="mr-2 h-4 w-4" variant={mutualMode === 'list' ? 'colored' : 'white'} />
-                          List
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={mutualMode === 'map' ? 'secondary' : 'ghost'}
-                          className="h-9 rounded-lg px-3"
-                          onClick={() => setMutualMode('map')}
-                        >
-                          <CruushIcon name="map" className="mr-2 h-4 w-4" variant={mutualMode === 'map' ? 'colored' : 'white'} />
-                          Map
-                        </Button>
-                      </div>
                     </div>
 
-                    {mutualMode === 'list' ? (
-                      <ActivitySurface empty={activity.mutual.length === 0} emptyText="No mutual cruushes yet.">
-                        {activity.mutual.map((item) => (
-                          <MutualRow key={item.id} item={item} onMessage={openMessage} onOpenProfile={openProfile} />
-                        ))}
-                      </ActivitySurface>
-                    ) : (
-                      <div className="overflow-hidden rounded-2xl border border-white/10 bg-card">
-                        <div className="h-[430px] min-h-[430px]">
-                          <MapView
-                            markers={mutualMarkers}
-                            onPinClick={(marker) => openProfile(marker.id)}
-                            onMapClick={() => {}}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between rounded-2xl border border-primary/14 bg-primary/12 px-4 py-4 text-left"
-                      onClick={() => navigate('/map?mode=mutuals')}
-                    >
-                      <span className="flex items-center gap-3">
-                        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/22 text-primary">
-                          <CruushIcon name="map" className="h-5 w-5" variant="colored" />
-                        </span>
-                        <span>
-                          <span className="block text-base text-primary">See mutual cruushes on the map</span>
-                          <span className="mt-1 block text-sm text-white/64">Opens map with mutual cruushes only.</span>
-                        </span>
-                      </span>
-                      <ArrowRight className="h-5 w-5 text-primary" />
-                    </button>
+                    <ActivitySurface empty={activity.mutual.length === 0} emptyText="No mutual cruushes yet.">
+                      {activity.mutual.map((item) => (
+                        <MutualRow key={item.id} item={item} onOpenMap={openMutualOnMap} onMessage={openMessage} onOpenProfile={openProfile} />
+                      ))}
+                    </ActivitySurface>
                   </TabsContent>
 
                   <TabsContent value="views" className="mt-0 space-y-4">
@@ -530,10 +466,8 @@ export default function CruushActivity() {
                   </TabsContent>
                 </>
               ) : null}
-            </div>
-          </Tabs>
-        </div>
-      </header>
+        </main>
+      </Tabs>
     </div>
   );
 }
@@ -552,7 +486,7 @@ function ActivityTabButton({
   return (
     <TabsTrigger
       value={value}
-      className="group relative min-h-[4.5rem] rounded-none border-b-2 border-transparent bg-transparent text-white/64 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
+      className="group relative min-h-[4.25rem] rounded-full border border-transparent bg-transparent text-white/64 transition-colors hover:border-white/10 hover:bg-white/8 data-[state=active]:border-white/12 data-[state=active]:bg-white/10 data-[state=active]:text-primary"
     >
       <span className="flex flex-col items-center gap-1">
         <span className="relative">
@@ -588,7 +522,7 @@ function ActivitySurface({
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-card/70 px-4">
+    <div className="rounded-2xl border border-white/10 bg-background/40 px-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
       {children}
     </div>
   );

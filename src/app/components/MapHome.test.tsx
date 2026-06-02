@@ -23,6 +23,15 @@ const { useIsMobile } = vi.hoisted(() => ({
   useIsMobile: vi.fn(),
 }));
 
+const { mapControls } = vi.hoisted(() => ({
+  mapControls: {
+    setCenter: vi.fn(),
+    setZoom: vi.fn(),
+    zoomIn: vi.fn(),
+    zoomOut: vi.fn(),
+  },
+}));
+
 vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
 }));
@@ -44,38 +53,65 @@ vi.mock('./ui/use-mobile', () => ({
   useIsMobile,
 }));
 
-vi.mock('./MapView', () => ({
-  createMapMarkerBadge: (position: string[] = [], hostingTravel: string[] = []) => {
-    const knownPosition = position.map((value) => value.trim().toLowerCase()).find((value) => ['top', 'bottom', 'versatile'].includes(value));
-    return knownPosition ? { kind: 'position', label: knownPosition, iconName: knownPosition } : null;
-  },
-  default: ({ markers, onPinClick, onMapClick }: { markers: any[]; onPinClick: (marker: any) => void; onMapClick?: () => void }) => (
-    <div>
-      <button onClick={() => onMapClick?.()}>Map background</button>
-      {markers.map((marker) => (
-        <div
-          data-testid={`marker-${marker.id}`}
-          data-badge={marker.badge?.label ?? ''}
-          data-lat={String(marker.approximateLatitude)}
-          data-lng={String(marker.approximateLongitude)}
-          data-last-active={marker.lastActiveLabel ?? ''}
-          data-photo={marker.photo ?? ''}
-          data-relationship={marker.relationship?.kind ?? ''}
-          data-can-message={String(marker.relationship?.canMessage ?? '')}
-          data-precision={marker.relationship?.precision ?? ''}
-          key={`marker-data-${marker.id}`}
-        />
-      ))}
-      {markers
-        .filter((marker) => marker.id !== 'me')
-        .map((marker) => (
-          <button key={marker.id} onClick={() => onPinClick(marker)}>
-            {`Pin ${marker.displayName}`}
-          </button>
-        ))}
-    </div>
-  ),
-}));
+vi.mock('./MapView', async () => {
+  const React = await vi.importActual<typeof import('react')>('react');
+
+  return {
+    createMapMarkerBadge: (position: string[] = [], hostingTravel: string[] = []) => {
+      const knownPosition = position.map((value) => value.trim().toLowerCase()).find((value) => ['top', 'bottom', 'versatile'].includes(value));
+      return knownPosition ? { kind: 'position', label: knownPosition, iconName: knownPosition } : null;
+    },
+    default: ({
+      markers,
+      focusCoordinates,
+      onPinClick,
+      onMapClick,
+      onMapReady,
+    }: {
+      markers: any[];
+      focusCoordinates?: { approximateLatitude: number; approximateLongitude: number } | null;
+      onPinClick: (marker: any) => void;
+      onMapClick?: () => void;
+      onMapReady?: (map: typeof mapControls) => void;
+    }) => {
+      React.useEffect(() => {
+        onMapReady?.(mapControls);
+      }, [onMapReady]);
+
+      return (
+        <div>
+          <div
+            data-testid="map-focus"
+            data-lat={focusCoordinates ? String(focusCoordinates.approximateLatitude) : ''}
+            data-lng={focusCoordinates ? String(focusCoordinates.approximateLongitude) : ''}
+          />
+          <button onClick={() => onMapClick?.()}>Map background</button>
+          {markers.map((marker) => (
+            <div
+              data-testid={`marker-${marker.id}`}
+              data-badge={marker.badge?.label ?? ''}
+              data-lat={String(marker.approximateLatitude)}
+              data-lng={String(marker.approximateLongitude)}
+              data-last-active={marker.lastActiveLabel ?? ''}
+              data-photo={marker.photo ?? ''}
+              data-relationship={marker.relationship?.kind ?? ''}
+              data-can-message={String(marker.relationship?.canMessage ?? '')}
+              data-precision={marker.relationship?.precision ?? ''}
+              key={`marker-data-${marker.id}`}
+            />
+          ))}
+          {markers
+            .filter((marker) => marker.id !== 'me')
+            .map((marker) => (
+              <button key={marker.id} onClick={() => onPinClick(marker)}>
+                {`Pin ${marker.displayName}`}
+              </button>
+            ))}
+        </div>
+      );
+    },
+  };
+});
 
 function LocationProbe() {
   const location = useLocation();
@@ -89,6 +125,11 @@ describe('MapHome', () => {
     sendCruush.mockReset();
     getMyProfile.mockReset();
     useIsMobile.mockReset();
+    mapControls.setCenter.mockReset();
+    mapControls.setZoom.mockReset();
+    mapControls.zoomIn.mockReset();
+    mapControls.zoomOut.mockReset();
+    window.sessionStorage.clear();
 
     getMyProfile.mockResolvedValue({
       photos: ['https://example.com/me.jpg'],
@@ -149,12 +190,82 @@ describe('MapHome', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
-    expect(container.querySelector('img[src*="cruush-logo"]')?.className).toContain('h-20');
-    expect(container.querySelector('img[src*="cruush-logo"]')?.className).toContain('sm:h-[5.625rem]');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-[6.25rem]');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-[7.03125rem]');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
+  });
+
+  it('renders 25 percent larger Cruush icons on the map controls', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const luckyIcon = screen.getByRole('button', { name: "I'm Feeling Lucky" }).querySelector('img');
+    const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
+    const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
+
+    expect(luckyIcon).toHaveClass('h-[1.5625rem]', 'w-[1.5625rem]');
+    expect(visibilityIcon).toHaveClass('h-4', 'w-4');
+    expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
+    expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+  });
+
+  it('only shows the Cruush gradient on active seeking and visibility controls', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const inactiveSeekingButton = screen.getByRole('button', { name: /^seeking$/i });
+    const inactiveVisibilityButton = screen.getByRole('button', { name: /^visibility$/i });
+
+    expect(inactiveSeekingButton.style.background).toBe('');
+    expect(inactiveVisibilityButton.style.background).toBe('');
+
+    fireEvent.click(inactiveSeekingButton);
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+    fireEvent.click(screen.getByRole('option', { name: 'man' }));
+    fireEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    expect(screen.getByRole('button', { name: /^seeking$/i }).style.background).toBe('var(--cruush-gradient)');
+
+    unmount();
+
+    getMyProfile.mockResolvedValue({
+      photos: ['https://example.com/me.jpg'],
+      position: ['Bottom'],
+      visibility_rules: {
+        distance: 25,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^visibility$/i }).style.background).toBe('var(--cruush-gradient)');
+    });
   });
 
   it('opens the desktop popup instead of navigating immediately', async () => {
@@ -194,13 +305,13 @@ describe('MapHome', () => {
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-1', expect.objectContaining({
       name: 'Jordan',
     })));
-    await waitFor(() => expect(getNearbyUsers).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getNearbyUsers).toHaveBeenCalledTimes(3));
     expect(alertSpy).not.toHaveBeenCalled();
 
     alertSpy.mockRestore();
   });
 
-  it('requests geolocation only after the user opts in and uses approximate coordinates', async () => {
+  it('requests geolocation on map entry after sign-in and uses approximate coordinates', async () => {
     useIsMobile.mockReturnValue(false);
 
     render(
@@ -210,11 +321,6 @@ describe('MapHome', () => {
         </Routes>
       </MemoryRouter>
     );
-
-    await screen.findByRole('button', { name: 'Pin Jordan' });
-    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole('button', { name: /use my location/i }));
 
     await waitFor(() => {
       expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
@@ -229,8 +335,43 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
   });
 
+  it('centers the current approximate location from the compact pin button', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+    getMyProfile.mockResolvedValue({
+      photos: ['https://example.com/me.jpg'],
+      position: ['Bottom'],
+      location: {
+        id: 'me',
+        lat: 40.7128,
+        lng: -74.006,
+        fuzzy_lat: 40.713,
+        fuzzy_lng: -74.005,
+        fuzz_radius_meters: 250,
+        location_updated_at: '2026-06-02T12:00:00.000Z',
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /center your location/i })).not.toBeDisabled());
+
+    fireEvent.click(screen.getByRole('button', { name: /center your location/i }));
+
+    expect(mapControls.setCenter).toHaveBeenCalledWith([-74.005, 40.713]);
+    expect(mapControls.setZoom).toHaveBeenCalledWith(14);
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+  });
+
   it('shows the signed-in user marker from their saved profile location', async () => {
     useIsMobile.mockReturnValue(false);
+    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
     getMyProfile.mockResolvedValue({
       photos: ['https://example.com/me.jpg'],
       position: ['Bottom'],
@@ -393,6 +534,45 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-precision', 'precise');
     expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
+  });
+
+  it('focuses the requested mutual cruush pin from the map query', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMutualCruushMap.mockResolvedValue([{
+      id: 'match-1',
+      matchId: 'match-1',
+      createdAt: '2026-04-29T12:00:00.000Z',
+      locked: false,
+      user: {
+        id: 'user-mutual',
+        name: 'River',
+        pronouns: 'they/them',
+        photo: 'https://example.com/river.jpg',
+      },
+      mutualCrowds: ['T4T'],
+      vibes: ['Goth'],
+      distance: '0.4 mi away',
+      lastActive: 'Active now',
+      canMessage: true,
+      canRevealPreciseLocation: true,
+      coordinates: {
+        lat: 40.731,
+        lng: -73.991,
+        precision: 'precise',
+      },
+    }]);
+
+    render(
+      <MemoryRouter initialEntries={['/map?mode=mutuals&focusUserId=user-mutual']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'Pin River' })).toBeInTheDocument();
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.731674');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-73.989796');
   });
 
   it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {
