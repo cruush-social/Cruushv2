@@ -128,6 +128,12 @@ describe('MapView', () => {
           }),
         }),
       }),
+      minZoom: 10.5,
+      maxBounds: [
+        [-74.65, 40.35],
+        [-73.45, 41.08],
+      ],
+      renderWorldCopies: false,
     }));
     expect(onMapReady).toHaveBeenCalledWith(mapInstances[0]);
 
@@ -145,7 +151,12 @@ describe('MapView', () => {
     expect(screen.getByLabelText('top')).toBeInTheDocument();
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
-    expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-16', 'w-16');
+    expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-20', 'w-20');
+    expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
+    expect(markerInstances[0].element.className).not.toContain('drop-shadow');
+    expect(markerInstances[1].element.className).not.toContain('drop-shadow');
+    expect(screen.getByTestId('marker-heart-me').querySelector('filter')).toBeNull();
+    expect(screen.getByTestId('marker-heart-user-1').querySelector('filter')).toBeNull();
   });
 
   it('renders photo markers with current and nearby styling', async () => {
@@ -203,6 +214,8 @@ describe('MapView', () => {
 
     expect(await screen.findByRole('button', { name: 'Open Noor on map' })).toBeInTheDocument();
     expect(markerInstances[0].element.className).not.toContain('hover:scale');
+    expect(markerInstances[0].element.className).not.toContain('hover:drop-shadow');
+    expect(markerInstances[0].element.className).not.toContain('transition-[filter]');
   });
 
   it('uses hosting badges only when no known position badge exists', async () => {
@@ -259,25 +272,22 @@ describe('MapView', () => {
     expect(style.glyphs).toBeUndefined();
     expect(layerById.get('background')?.paint['background-color']).toBe('#080808');
     expect(layerById.get('major-roads')?.paint['line-color']).toBe('#242424');
-    expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#505050');
+    expect(layerById.has('building-fill')).toBe(false);
+    expect(layerById.has('building-outline')).toBe(false);
+    expect(layerById.has('minor-road-labels')).toBe(false);
+    expect(layerById.has('poi-dots')).toBe(false);
+    expect(layerById.has('poi-labels')).toBe(false);
     expect(layerById.get('secondary-road-labels')?.paint['text-color']).toBe('#a0a0a0');
     expect(layerById.get('primary-road-labels')?.paint['text-color']).toBe('#d0d0d0');
     expect(layerById.get('prominent-road-labels')?.paint['text-color']).toBe('#ffffff');
-    expect(layerById.get('poi-labels')?.paint['text-color']).toBe('#c0c0c0');
-    expect(layerById.get('poi-dots')?.paint['circle-stroke-color']).toBe('#383838');
-    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
     expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
     expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
     expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
-    expect(layerById.get('poi-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
     expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
-    expect(layerById.get('minor-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('secondary-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('primary-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('prominent-road-labels')?.layout['text-transform']).toBeUndefined();
-    expect(layerById.get('poi-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('place-labels')?.layout['text-transform']).toBeUndefined();
-    expect(layerById.get('minor-road-labels')?.layout['text-letter-spacing']).toBe(0.02);
     expect(layerById.get('place-labels')?.layout['text-letter-spacing']).toBe(0.035);
   });
 

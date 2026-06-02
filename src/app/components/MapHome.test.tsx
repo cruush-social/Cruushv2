@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import MapHome from './MapHome';
@@ -111,7 +111,7 @@ describe('MapHome', () => {
   it('navigates directly to the full profile on mobile', async () => {
     useIsMobile.mockReturnValue(true);
 
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
@@ -120,9 +120,11 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('cruush-logo-text');
+    expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
+    expect(container.querySelector('img[src*="cruush-logo"]')?.className).toContain('h-20');
+    expect(container.querySelector('img[src*="cruush-logo"]')?.className).toContain('sm:h-[5.625rem]');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
   });
@@ -139,7 +141,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
 
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
@@ -189,6 +191,37 @@ describe('MapHome', () => {
     expect(await screen.findByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-last-active', '2m ago');
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-badge', 'top');
+
+    const recentTray = screen.getByTestId('recently-active-tray');
+    const recentTile = screen.getByTestId('recently-active-tile-user-1');
+    const recentMedia = recentTile.firstElementChild;
+    const recentToggle = screen.getByRole('button', { name: 'Recently Active' });
+    const recentPanel = screen.getByTestId('recently-active-panel');
+
+    expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(recentPanel).toHaveClass('max-w-5xl', 'p-3');
+    expect(screen.queryByText('Last Active')).not.toBeInTheDocument();
+    expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
+    expect(screen.queryByText('Jordan')).not.toBeInTheDocument();
+    expect(screen.queryByText('0.2 mi')).not.toBeInTheDocument();
+    expect(recentTile).toHaveClass('w-20');
+    expect(recentMedia?.className).toContain('aspect-[4/5]');
+    expect(within(recentTray).queryByText(/./)).not.toBeInTheDocument();
+
+    fireEvent.click(recentToggle);
+
+    expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(recentPanel).toHaveClass('w-fit', 'max-w-[calc(100vw-2rem)]', 'px-4', 'py-2');
+    expect(recentPanel).not.toHaveClass('max-w-5xl', 'p-3');
+    expect(recentToggle).toHaveClass('mb-0');
+    expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
+
+    fireEvent.click(recentToggle);
+
+    expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(recentPanel).toHaveClass('max-w-5xl', 'p-3');
+    expect(recentToggle).toHaveClass('mb-2');
+    expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 
   it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {

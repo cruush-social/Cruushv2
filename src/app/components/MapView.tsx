@@ -55,6 +55,11 @@ interface MapViewProps {
 const DEFAULT_CENTER: LngLatLike = [-74.006, 40.7128];
 const DEFAULT_ZOOM = 12;
 const FOCUSED_ZOOM = 14;
+const MIN_DISCOVERY_ZOOM = 10.5;
+const NYC_METRO_MAX_BOUNDS: [[number, number], [number, number]] = [
+  [-74.65, 40.35],
+  [-73.45, 41.08],
+];
 const DEFAULT_TILE_URLS = [
   'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
   'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
@@ -150,37 +155,6 @@ export function createCruushVectorStyle(
         },
       },
       {
-        id: 'building-fill',
-        type: 'fill',
-        source: 'openmaptiles',
-        'source-layer': 'building',
-        minzoom: 13,
-        paint: {
-          'fill-color': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            13,
-            '#161616',
-            16,
-            '#181818',
-          ],
-          'fill-opacity': 0.88,
-        },
-      },
-      {
-        id: 'building-outline',
-        type: 'line',
-        source: 'openmaptiles',
-        'source-layer': 'building',
-        minzoom: 15,
-        paint: {
-          'line-color': '#1e1e1e',
-          'line-width': 0.6,
-          'line-opacity': 0.7,
-        },
-      },
-      {
         id: 'minor-roads',
         type: 'line',
         source: 'openmaptiles',
@@ -250,47 +224,6 @@ export function createCruushVectorStyle(
         },
       },
       {
-        id: 'poi-dots',
-        type: 'circle',
-        source: 'openmaptiles',
-        'source-layer': 'poi',
-        minzoom: 14,
-        paint: {
-          'circle-color': '#0d0d0d',
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2.5, 17, 4],
-          'circle-stroke-color': '#383838',
-          'circle-stroke-width': 1,
-          'circle-opacity': 0.8,
-        },
-      },
-      {
-        id: 'minor-road-labels',
-        type: 'symbol',
-        source: 'openmaptiles',
-        'source-layer': 'transportation_name',
-        minzoom: 15,
-        filter: [
-          'match',
-          ['get', 'class'],
-          ['minor', 'service'],
-          true,
-          false,
-        ],
-        layout: {
-          'symbol-placement': 'line',
-          'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 15, 10, 17, 12],
-          'text-letter-spacing': 0.02,
-          'text-padding': 2,
-        },
-        paint: {
-          'text-color': '#505050',
-          'text-halo-color': '#080808',
-          'text-halo-width': 1,
-        },
-      },
-      {
         id: 'secondary-road-labels',
         type: 'symbol',
         source: 'openmaptiles',
@@ -357,27 +290,6 @@ export function createCruushVectorStyle(
           'text-color': '#ffffff',
           'text-halo-color': '#080808',
           'text-halo-width': 1.5,
-        },
-      },
-      {
-        id: 'poi-labels',
-        type: 'symbol',
-        source: 'openmaptiles',
-        'source-layer': 'poi',
-        minzoom: 14,
-        layout: {
-          'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 14, 10, 17, 12],
-          'text-letter-spacing': 0.02,
-          'text-offset': [0, 0.75],
-          'text-anchor': 'top',
-          'text-padding': 2,
-        },
-        paint: {
-          'text-color': '#c0c0c0',
-          'text-halo-color': '#0d0d0d',
-          'text-halo-width': 1.4,
         },
       },
       {
@@ -516,7 +428,7 @@ function MarkerBadge({ badge, isCurrentUser, markerId }: { badge?: MapMarkerBadg
     <span
       aria-label={badge.label}
       className={[
-        'absolute right-1 top-7 flex h-5 w-5 items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'absolute right-2 top-9 flex h-5 w-5 items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
         isCurrentUser ? 'border-[#0BA8FF]/80' : 'border-[#FF0072]/80',
       ].join(' ')}
       data-testid={`marker-badge-${markerId}`}
@@ -532,22 +444,18 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const hasPhoto = Boolean(marker.photo);
   const gradientId = `marker-fill-${marker.id}`;
   const clipId = `marker-photo-clip-${marker.id}`;
-  const filterId = `marker-shadow-${marker.id}`;
   const borderColor = isCurrentUser ? '#0BA8FF' : '#FF0072';
-  const shadowMatrix = isCurrentUser
-    ? '0 0 0 0 0.039216 0 0 0 0 0.658824 0 0 0 0 1 0 0 0 0.68 0'
-    : '0 0 0 0 1 0 0 0 0 0 0 0 0 0 0.447059 0 0 0 0.68 0';
 
   return (
     <svg
       aria-hidden="true"
-      className="h-16 w-16"
+      className="h-20 w-20"
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isCurrentUser ? 'current' : 'nearby'}
-      height="64"
+      height="80"
       viewBox="0 0 64 64"
-      width="64"
+      width="80"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
@@ -559,33 +467,22 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
         <clipPath id={clipId}>
           <path d={HEART_PATH} />
         </clipPath>
-        <filter id={filterId} x="-8" y="-8" width="80" height="80" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-          <feFlood floodOpacity="0" result="BackgroundImageFix" />
-          <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-          <feOffset dx="1.5" dy="4" />
-          <feGaussianBlur stdDeviation="7" />
-          <feColorMatrix type="matrix" values={shadowMatrix} />
-          <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
-          <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape" />
-        </filter>
       </defs>
-      <g filter={`url(#${filterId})`}>
-        {hasPhoto ? (
-          <>
-            <image
-              clipPath={`url(#${clipId})`}
-              data-testid={`marker-photo-fill-${marker.id}`}
-              height="64"
-              href={marker.photo ?? ''}
-              preserveAspectRatio="xMidYMid slice"
-              width="64"
-            />
-            <path d={HEART_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
-          </>
-        ) : (
-          <path d={HEART_PATH} fill={`url(#${gradientId})`} />
-        )}
-      </g>
+      {hasPhoto ? (
+        <>
+          <image
+            clipPath={`url(#${clipId})`}
+            data-testid={`marker-photo-fill-${marker.id}`}
+            height="64"
+            href={marker.photo ?? ''}
+            preserveAspectRatio="xMidYMid slice"
+            width="64"
+          />
+          <path d={HEART_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
+        </>
+      ) : (
+        <path d={HEART_PATH} fill={`url(#${gradientId})`} />
+      )}
     </svg>
   );
 }
@@ -594,8 +491,8 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser === true;
 
   return (
-    <span className="pointer-events-none relative flex h-[70px] w-[82px] items-start justify-center overflow-visible">
-      <span className="relative flex h-16 w-[82px] items-center justify-center">
+    <span className="pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
+      <span className="relative flex h-20 w-[103px] items-center justify-center">
         <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
         <MarkerBadge badge={marker.badge} isCurrentUser={isCurrentUser} markerId={marker.id} />
       </span>
@@ -608,12 +505,7 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
   const element = document.createElement(isCurrentUser ? 'div' : 'button');
   const name = getDisplayName(marker);
 
-  element.className = [
-    'relative flex h-[70px] w-[82px] items-start justify-center overflow-visible border-0 bg-transparent p-0',
-    isCurrentUser
-      ? 'drop-shadow-[0_0_16px_#22B8FF]'
-      : 'drop-shadow-[0_0_16px_rgba(209,31,58,0.60)] transition-[filter] hover:drop-shadow-[0_0_22px_rgba(209,31,58,0.78)]',
-  ].join(' ');
+  element.className = 'relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0';
 
   if (isCurrentUser) {
     element.setAttribute('aria-label', 'Your approximate area');
@@ -679,6 +571,9 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
           style: mapStyle,
           center: DEFAULT_CENTER,
           zoom: DEFAULT_ZOOM,
+          minZoom: MIN_DISCOVERY_ZOOM,
+          maxBounds: NYC_METRO_MAX_BOUNDS,
+          renderWorldCopies: false,
           attributionControl: false,
         });
 

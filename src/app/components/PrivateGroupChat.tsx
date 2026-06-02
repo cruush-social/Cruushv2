@@ -125,8 +125,6 @@ export default function PrivateGroupChat() {
 
   return (
     <div className="relative min-h-screen bg-background pb-20">
-      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: 'radial-gradient(circle at top, rgba(255, 7, 114, 0.12), transparent 32%), radial-gradient(circle at 80% 18%, rgba(111, 0, 255, 0.12), transparent 30%)' }} />
-
       <header className="sticky top-0 z-10 border-b border-border bg-background/88 px-4 py-4 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">

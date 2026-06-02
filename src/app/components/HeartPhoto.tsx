@@ -23,7 +23,6 @@ export default function HeartPhoto({ className = '', fallback = null, label, pho
         height="71"
         viewBox="0 0 71 71"
         className="h-full w-full"
-        style={{ filter: 'drop-shadow(0 0 16px rgba(255, 0, 114, 0.55))' }}
       >
         <defs>
           {photo ? (

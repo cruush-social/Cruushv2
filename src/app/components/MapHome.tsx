@@ -6,12 +6,12 @@ import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './
 import { Eye, Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart, LocateFixed } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
-import HeartPhoto from './HeartPhoto';
 import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import cruushLogo from '../assets/brand/cruush-logo.png';
 import {
   emptyProfilePayload,
   getMyProfile,
@@ -220,6 +220,7 @@ export default function MapHome() {
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(true);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
   const [visibility, setVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
@@ -491,13 +492,16 @@ export default function MapHome() {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div className="absolute inset-x-0 top-0 z-30 px-5 pb-12 pt-5">
         <div className="flex items-center justify-between">
-          <div>
-            <h1
-              className="cruush-logo-text text-3xl tracking-tight"
-            >
-              cruush
-            </h1>
-            <div className="mt-2 inline-flex rounded-full border border-white/10 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72 backdrop-blur-md">
+          <div className="flex flex-col items-start">
+            <h1 className="sr-only">cruush</h1>
+            <img
+              alt=""
+              aria-hidden="true"
+              className="h-20 w-auto object-contain sm:h-[5.625rem]"
+              draggable={false}
+              src={cruushLogo}
+            />
+            <div className="mt-1 inline-flex rounded-full border border-white/10 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72 backdrop-blur-md">
               NYC beta
             </div>
           </div>
@@ -583,7 +587,7 @@ export default function MapHome() {
 
         <div className="absolute right-4 top-28 z-30 flex flex-col items-end gap-2">
           <Button
-            className="rounded-full border border-white/15 px-5 shadow-[0_12px_35px_rgba(255,7,114,0.25)]"
+            className="rounded-full border border-white/15 px-5"
             style={{
               background: 'var(--cruush-gradient)',
             }}
@@ -656,43 +660,63 @@ export default function MapHome() {
 
         {displayedUsers.length > 0 && (
           <div className="absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 px-4">
-            <div className="mx-auto max-w-5xl rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-              <div className="mb-2 flex items-center justify-between px-1">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/70">Recently Active</p>
-                <div className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] text-white/75">
-                  Last Active
-                </div>
-              </div>
-              <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
-              {[...displayedUsers]
-                .sort((a, b) => {
-                  const firstUserMinutes = getLastActiveMinutes(a.lastActive);
-                  const secondUserMinutes = getLastActiveMinutes(b.lastActive);
-                  return firstUserMinutes - secondUserMinutes;
-                })
-                .slice(0, 10)
-                .map((user) => (
-                  <button
-                    key={user.id}
-                    onClick={() => handleUserSelect(user)}
-                    className="group flex w-16 flex-shrink-0 flex-col items-center text-center"
-                  >
-                    <div className="relative">
-                      <HeartPhoto
-                        className="w-16 transition-transform group-hover:scale-105"
-                        label={`${user.name} preview`}
-                        photo={user.photo}
-                        fallback={<Heart className="w-6 h-6 text-white/22" />}
-                      />
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-black/80 px-2 py-0.5 font-mono text-[10px] text-white/90 shadow-lg backdrop-blur-sm">
-                        {user.lastActive}
+            <div
+              className={`mx-auto rounded-2xl border border-white/10 bg-background/40 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl ${
+                isRecentlyActiveOpen ? 'max-w-5xl p-3' : 'w-fit max-w-[calc(100vw-2rem)] px-4 py-2'
+              }`}
+              data-testid="recently-active-panel"
+            >
+              <button
+                type="button"
+                aria-controls="recently-active-tray"
+                aria-expanded={isRecentlyActiveOpen}
+                className={`block rounded px-1 text-left text-xs uppercase tracking-[0.18em] text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65 ${
+                  isRecentlyActiveOpen ? 'mb-2' : 'mb-0'
+                }`}
+                onClick={() => setIsRecentlyActiveOpen((open) => !open)}
+              >
+                Recently Active
+              </button>
+              {isRecentlyActiveOpen ? (
+                <div id="recently-active-tray" className="flex gap-3 overflow-x-auto scrollbar-hide" data-testid="recently-active-tray">
+                {[...displayedUsers]
+                  .sort((a, b) => {
+                    const firstUserMinutes = getLastActiveMinutes(a.lastActive);
+                    const secondUserMinutes = getLastActiveMinutes(b.lastActive);
+                    return firstUserMinutes - secondUserMinutes;
+                  })
+                  .slice(0, 10)
+                  .map((user) => (
+                    <button
+                      key={user.id}
+                      aria-label={`Open ${user.name} profile`}
+                      onClick={() => handleUserSelect(user)}
+                      className="group block w-20 flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                      data-testid={`recently-active-tile-${user.id}`}
+                    >
+                      <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">
+                        {user.photo ? (
+                          <img
+                            alt=""
+                            aria-hidden="true"
+                            className="h-full w-full object-cover"
+                            draggable={false}
+                            src={user.photo}
+                          />
+                        ) : (
+                          <div
+                            aria-hidden="true"
+                            className="flex h-full w-full items-center justify-center"
+                            style={{ background: 'var(--cruush-gradient)' }}
+                          >
+                            <Heart className="h-6 w-6 text-white/72" />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <p className="mt-1 w-full truncate text-xs text-white/90">{user.name}</p>
-                    <p className="text-[10px] text-white/45">{user.distance}</p>
-                  </button>
-                ))}
-              </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         )}
