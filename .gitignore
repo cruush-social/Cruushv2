@@ -52,11 +52,6 @@ coverage/
 *.backup
 *.sql.gz
 
-# Ignore lock files
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
 # Ignore output
 out/
 

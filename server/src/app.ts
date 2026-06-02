@@ -4,7 +4,7 @@ import { createPool, type DbClient } from "./db.js";
 import type { AppConfig } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
-import { formatError, toApiError } from "./errors.js";
+import { ApiError, formatError, toApiError } from "./errors.js";
 import { registerMessageRoutes } from "./routes/messages.js";
 import { registerPostRoutes } from "./routes/posts.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
@@ -15,6 +15,8 @@ type BuildServerDeps = {
   db?: DbClient;
   rateLimiter?: RateLimiter;
 };
+
+const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   const app = Fastify({
@@ -44,6 +46,28 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   app.decorate("config", config);
   app.decorate("db", db);
   app.decorate("rateLimiter", deps.rateLimiter ?? createPostgresRateLimiter(db));
+
+  app.addHook("onRequest", async (request, reply) => {
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("x-frame-options", "DENY");
+    reply.header("referrer-policy", "no-referrer");
+    reply.header("permissions-policy", "camera=(), microphone=(), geolocation=()");
+    reply.header("cross-origin-resource-policy", "same-site");
+
+    if (config.NODE_ENV === "production") {
+      reply.header("strict-transport-security", "max-age=31536000; includeSubDomains");
+    }
+
+    if (!stateChangingMethods.has(request.method)) {
+      return;
+    }
+
+    const origin = typeof request.headers.origin === "string" ? request.headers.origin : "";
+
+    if (origin && !allowedCorsOrigins.has(origin)) {
+      throw new ApiError(403, "FORBIDDEN", "Request origin is not allowed.");
+    }
+  });
 
   app.setErrorHandler((error, _request, reply) => {
     const apiError = toApiError(error);

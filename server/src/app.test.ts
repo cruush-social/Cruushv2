@@ -211,6 +211,9 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(response.headers["x-content-type-options"]).toBe("nosniff");
+    expect(response.headers["x-frame-options"]).toBe("DENY");
+    expect(response.headers["referrer-policy"]).toBe("no-referrer");
     expect(response.json()).toEqual({
       service: "cruush-server",
       auth: "session-cookie",
@@ -296,6 +299,31 @@ describe("server", () => {
     });
 
     expect(blockedResponse.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  it("rejects state-changing requests from untrusted origins before route handling", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/signup",
+      headers: {
+        origin: "https://evil.example"
+      },
+      payload: {
+        email: "river@example.com",
+        password: "password-123",
+        displayName: "River"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Request origin is not allowed.",
+        details: null
+      }
+    });
   });
 
   it("creates a verification token on POST /api/auth/signup without signing in", async () => {
@@ -3010,60 +3038,8 @@ describe("server", () => {
     });
   });
 
-  it("accepts local data image profile photos on PUT /api/profiles/me", async () => {
+  it("rejects local data image profile photos on PUT /api/profiles/me", async () => {
     const localPhoto = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E";
-
-    query.mockResolvedValue({
-      rows: [{
-        id: userId,
-        display_name: "Cruusher",
-        photos: [localPhoto],
-        bio: "Updated bio",
-        pronouns: [],
-        custom_pronouns: "",
-        year_of_birth: 1994,
-        ethnicity: [],
-        identities: [],
-        presentation: [],
-        sexuality: [],
-        body_type: [],
-        height: "",
-        weight: "",
-        position: [],
-        role: [],
-        availability: [],
-        hosting_travel: [],
-        kinks: [],
-        kinks_visibility: "public",
-        trans_status_visibility: "public",
-        hiv_status: [],
-        hiv_status_visibility: "mutual_cruushes",
-        vibes: [],
-        scenes: [],
-        archetypes: [],
-        hobbies: [],
-        custom_hobby: "",
-        looking_for: [],
-        custom_hiv_status: "",
-        condoms: [],
-        custom_condoms: "",
-        prep: [],
-        custom_prep: "",
-        doxypep: [],
-        custom_doxypep: "",
-        covid_vaccine: [],
-        custom_covid_vaccine: "",
-        mpox_vaccine: [],
-        custom_mpox_vaccine: "",
-        substance_boundaries: [],
-        profile_sensitive_ciphertext: "encrypted",
-        profile_sensitive_nonce: "nonce",
-        profile_sensitive_auth_tag: "tag",
-        profile_sensitive_key_version: "v1",
-        profile_sensitive_token_key_version: "v1",
-        updated_at: "2026-04-28T12:05:00.000Z"
-      }]
-    });
 
     const response = await app.inject({
       method: "PUT",
@@ -3079,11 +3055,13 @@ describe("server", () => {
       }
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      data: expect.objectContaining({
-        photos: [localPhoto]
-      })
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed"
+      }
     });
   });
 

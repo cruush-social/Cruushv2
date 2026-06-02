@@ -19,9 +19,13 @@ vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
 }));
 
-vi.mock('../lib/profileApi', () => ({
-  getMyProfile,
-}));
+vi.mock('../lib/profileApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi');
+  return {
+    ...actual,
+    getMyProfile,
+  };
+});
 
 vi.mock('./ui/use-mobile', () => ({
   useIsMobile,

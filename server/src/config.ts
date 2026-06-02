@@ -69,6 +69,42 @@ const configSchema = z.object({
   PROFILE_ENCRYPTION_KEY: z.string().optional().default(""),
   PROFILE_TOKEN_KEY: z.string().optional().default(""),
   PROFILE_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
+}).superRefine((config, ctx) => {
+  if (config.NODE_ENV !== "production") {
+    return;
+  }
+
+  if (config.SESSION_SECRET.length < 32 || config.SESSION_SECRET === "change-me") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "SESSION_SECRET must be a strong production secret.",
+      path: ["SESSION_SECRET"]
+    });
+  }
+
+  if (config.EMAIL_PREVIEW_ENABLED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "EMAIL_PREVIEW_ENABLED must be disabled in production.",
+      path: ["EMAIL_PREVIEW_ENABLED"]
+    });
+  }
+
+  if (!config.PROFILE_ENCRYPTION_KEY || config.PROFILE_ENCRYPTION_KEY.length < 32) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "PROFILE_ENCRYPTION_KEY is required in production.",
+      path: ["PROFILE_ENCRYPTION_KEY"]
+    });
+  }
+
+  if (!config.PROFILE_TOKEN_KEY || config.PROFILE_TOKEN_KEY.length < 32) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "PROFILE_TOKEN_KEY is required in production.",
+      path: ["PROFILE_TOKEN_KEY"]
+    });
+  }
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
