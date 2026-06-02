@@ -1,11 +1,15 @@
-import {
-  createCipheriv,
-  createHash,
-  createHmac,
-  randomBytes
-} from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import type { AppConfig } from "./config.js";
+import {
+  buildEncryptedRelationshipPayload,
+  findEncryptedRelationshipRecord,
+  getOrderedRelationshipUserIds,
+  getProfileViewDedupeBucket,
+  hasActiveEncryptedRelationshipToken,
+  issueEncryptedRelationshipToken,
+  revokeEncryptedRelationshipTokens,
+  updateEncryptedRelationshipRecordStatus,
+  upsertEncryptedRelationshipRecord
+} from "./encrypted-relationships.js";
 
 export type PreciseLocationVisibility = "none" | "mutual_cruushes";
 
@@ -31,14 +35,6 @@ export type RelationshipPermissions = {
   targetPreciseLocationVisibility: PreciseLocationVisibility;
 };
 
-type RelationshipRow = {
-  match_id: string | null;
-  has_active_match_token: boolean | null;
-  viewer_ghost_mode_enabled: boolean | null;
-  target_ghost_mode_enabled: boolean | null;
-  target_precise_location_visibility: PreciseLocationVisibility | null;
-};
-
 type PrivacySettingsRow = {
   ghost_mode_enabled: boolean | null;
   precise_location_visibility: PreciseLocationVisibility | null;
@@ -47,12 +43,6 @@ type PrivacySettingsRow = {
 type EntitlementRow = {
   cruush_plus_enabled: boolean | null;
   cruush_plus_expires_at: string | Date | null;
-};
-
-type MatchRow = {
-  id: string;
-  user_one_id: string;
-  user_two_id: string;
 };
 
 export const MATCH_PERMISSION_PURPOSE = "permissions";
@@ -93,70 +83,12 @@ async function safeRows<T>(
   }
 }
 
-function deriveKey(secret: string, purpose: string, keyVersion: string) {
-  return createHash("sha256")
-    .update(`${purpose}:${keyVersion}:${secret}`)
-    .digest();
-}
-
-function getMatchEncryptionSecret(config: AppConfig) {
-  return config.MATCH_TOKEN_ENCRYPTION_KEY || config.SESSION_SECRET;
-}
-
-function getMatchSigningSecret(config: AppConfig) {
-  return config.MATCH_TOKEN_SIGNING_KEY || config.SESSION_SECRET;
-}
-
-function getMatchTokenKeyVersion(config: AppConfig) {
-  return config.MATCH_TOKEN_KEY_VERSION || "v1";
-}
-
 function toIsoDate(value: string | Date | null | undefined) {
   return value ? new Date(value).toISOString() : null;
 }
 
 export function getOrderedMatchUserIds(firstUserId: string, secondUserId: string) {
-  return [firstUserId, secondUserId].sort() as [string, string];
-}
-
-function createServerManagedMatchToken(
-  config: AppConfig,
-  payload: {
-    matchId: string;
-    userOneId: string;
-    userTwoId: string;
-    purpose: string;
-    expiresAt: Date;
-  }
-) {
-  const keyVersion = getMatchTokenKeyVersion(config);
-  const encryptionKey = deriveKey(getMatchEncryptionSecret(config), "cruush-match-token-encryption", keyVersion);
-  const signingKey = deriveKey(getMatchSigningSecret(config), "cruush-match-token-signing", keyVersion);
-  const nonce = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey, nonce);
-  const plaintext = JSON.stringify({
-    match_id: payload.matchId,
-    user_one_id: payload.userOneId,
-    user_two_id: payload.userTwoId,
-    purpose: payload.purpose,
-    expires_at: payload.expiresAt.toISOString(),
-    key_version: keyVersion
-  });
-  const ciphertext = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final()
-  ]).toString("base64");
-  const tokenNonce = nonce.toString("base64");
-  const authTag = cipher.getAuthTag().toString("base64");
-  const signaturePayload = `${keyVersion}.${payload.matchId}.${payload.userOneId}.${payload.userTwoId}.${payload.purpose}.${payload.expiresAt.toISOString()}.${tokenNonce}.${authTag}.${ciphertext}`;
-
-  return {
-    token_ciphertext: ciphertext,
-    token_nonce: tokenNonce,
-    token_auth_tag: authTag,
-    token_signature: createHmac("sha256", signingKey).update(signaturePayload).digest("hex"),
-    token_key_version: keyVersion
-  };
+  return getOrderedRelationshipUserIds(firstUserId, secondUserId);
 }
 
 export async function getPrivacySettings(app: FastifyInstance, userId: string): Promise<PrivacySettings> {
@@ -260,57 +192,25 @@ export async function setCruushEntitlement(
 
 export async function ensureMutualCruushMatch(app: FastifyInstance, firstUserId: string, secondUserId: string) {
   const [userOneId, userTwoId] = getOrderedMatchUserIds(firstUserId, secondUserId);
-  const match = (await safeRows<MatchRow>(
-    app,
-    `insert into cruush_matches (user_one_id, user_two_id)
-     values ($1, $2)
-     on conflict (user_one_id, user_two_id) do update
-     set revoked_at = null
-     returning id::text as id, user_one_id::text as user_one_id, user_two_id::text as user_two_id`,
-    [userOneId, userTwoId]
-  ))[0];
+  const match = await upsertEncryptedRelationshipRecord(app, buildEncryptedRelationshipPayload({
+    type: "mutual_cruush",
+    actorUserId: userOneId,
+    targetUserId: userTwoId,
+    createdAt: new Date()
+  }));
 
   if (!match) {
     return null;
   }
 
   const expiresAt = new Date(Date.now() + MATCH_TOKEN_TTL_MS);
-  const token = createServerManagedMatchToken(app.config, {
-    matchId: match.id,
+  await issueEncryptedRelationshipToken(app, {
+    relationshipRecordId: match.id,
     userOneId,
     userTwoId,
     purpose: MATCH_PERMISSION_PURPOSE,
     expiresAt
   });
-
-  await safeRows(
-    app,
-    `insert into cruush_match_tokens (
-       match_id,
-       purpose,
-       user_one_id,
-       user_two_id,
-       token_ciphertext,
-       token_nonce,
-       token_auth_tag,
-       token_signature,
-       token_key_version,
-       expires_at
-     )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-    [
-      match.id,
-      MATCH_PERMISSION_PURPOSE,
-      userOneId,
-      userTwoId,
-      token.token_ciphertext,
-      token.token_nonce,
-      token.token_auth_tag,
-      token.token_signature,
-      token.token_key_version,
-      expiresAt.toISOString()
-    ]
-  );
 
   return {
     id: match.id,
@@ -322,24 +222,27 @@ export async function ensureMutualCruushMatch(app: FastifyInstance, firstUserId:
 
 export async function revokeMutualCruushMatch(app: FastifyInstance, userId: string, otherUserId: string) {
   const [userOneId, userTwoId] = getOrderedMatchUserIds(userId, otherUserId);
-  await safeRows(
-    app,
-    `update cruush_matches
-     set revoked_at = now()
-     where user_one_id = $1
-       and user_two_id = $2
-       and revoked_at is null`,
-    [userOneId, userTwoId]
-  );
-  await safeRows(
-    app,
-    `update cruush_match_tokens
-     set revoked_at = now()
-     where user_one_id = $1
-       and user_two_id = $2
-       and revoked_at is null`,
-    [userOneId, userTwoId]
-  );
+  const activeMatch = await findEncryptedRelationshipRecord(app, {
+    type: "mutual_cruush",
+    actorUserId: userOneId,
+    targetUserId: userTwoId
+  });
+
+  if (activeMatch) {
+    await updateEncryptedRelationshipRecordStatus(app, activeMatch, "removed", {
+      revokedAt: new Date()
+    });
+    await revokeEncryptedRelationshipTokens(app, activeMatch.id);
+  }
+
+  await upsertEncryptedRelationshipRecord(app, buildEncryptedRelationshipPayload({
+    type: "removed_cruush",
+    status: "removed",
+    actorUserId: userId,
+    targetUserId: otherUserId,
+    createdAt: new Date(),
+    revokedAt: new Date()
+  }));
 }
 
 export async function getRelationshipPermissions(
@@ -364,40 +267,27 @@ export async function getRelationshipPermissions(
   }
 
   const [userOneId, userTwoId] = getOrderedMatchUserIds(viewerUserId, targetUserId);
-  const row = (await safeRows<RelationshipRow>(
-    app,
-    `select
-       m.id::text as match_id,
-       exists (
-         select 1
-         from cruush_match_tokens token
-         where token.match_id = m.id
-           and token.purpose = $4
-           and token.revoked_at is null
-           and token.expires_at > now()
-       ) as has_active_match_token,
-       viewer_settings.ghost_mode_enabled as viewer_ghost_mode_enabled,
-       target_settings.ghost_mode_enabled as target_ghost_mode_enabled,
-       target_settings.precise_location_visibility as target_precise_location_visibility
-     from (select $1::uuid as user_one_id, $2::uuid as user_two_id) ids
-     left join cruush_matches m
-       on m.user_one_id = ids.user_one_id
-      and m.user_two_id = ids.user_two_id
-      and m.revoked_at is null
-     left join user_privacy_settings viewer_settings
-       on viewer_settings.user_id = $3::uuid
-     left join user_privacy_settings target_settings
-       on target_settings.user_id = case when $3::uuid = ids.user_one_id then ids.user_two_id else ids.user_one_id end
-     limit 1`,
-    [userOneId, userTwoId, viewerUserId, MATCH_PERMISSION_PURPOSE]
-  ))[0];
-  const isMutualCruush = Boolean(row?.match_id);
-  const hasActiveMatchToken = row?.has_active_match_token === true;
-  const targetPreciseLocationVisibility = row?.target_precise_location_visibility === "mutual_cruushes"
-    ? "mutual_cruushes"
-    : "none";
-  const viewerGhostMode = row?.viewer_ghost_mode_enabled === true;
-  const targetGhostMode = row?.target_ghost_mode_enabled === true;
+  const [match, viewerSettings, targetSettings] = await Promise.all([
+    findEncryptedRelationshipRecord(app, {
+      type: "mutual_cruush",
+      actorUserId: userOneId,
+      targetUserId: userTwoId
+    }),
+    getPrivacySettings(app, viewerUserId),
+    getPrivacySettings(app, targetUserId)
+  ]);
+  const isMutualCruush = Boolean(match);
+  const hasActiveMatchToken = match
+    ? await hasActiveEncryptedRelationshipToken(app, {
+        relationshipRecordId: match.id,
+        userOneId,
+        userTwoId,
+        purpose: MATCH_PERMISSION_PURPOSE
+      })
+    : false;
+  const targetPreciseLocationVisibility = targetSettings.preciseLocationVisibility;
+  const viewerGhostMode = viewerSettings.ghostModeEnabled;
+  const targetGhostMode = targetSettings.ghostModeEnabled;
   const canRevealPreciseLocation = isMutualCruush &&
     hasActiveMatchToken &&
     !viewerGhostMode &&
@@ -405,7 +295,7 @@ export async function getRelationshipPermissions(
     targetPreciseLocationVisibility === "mutual_cruushes";
 
   return {
-    matchId: row?.match_id ?? null,
+    matchId: match?.id ?? null,
     isMutualCruush,
     canMessage: isMutualCruush && hasActiveMatchToken,
     canRevealMutualProtectedFields: isMutualCruush,
@@ -441,16 +331,12 @@ export async function recordProfileView(
     return;
   }
 
-  await safeRows(
-    app,
-    `insert into profile_view_events (
-       target_user_id,
-       viewer_user_id,
-       dedupe_bucket
-     )
-     values ($1, $2, date_trunc('hour', now()))
-     on conflict (target_user_id, viewer_user_id, dedupe_bucket) do update
-     set viewed_at = now()`,
-    [targetUserId, viewerUserId]
-  );
+  await upsertEncryptedRelationshipRecord(app, buildEncryptedRelationshipPayload({
+    type: "profile_view",
+    actorUserId: viewerUserId,
+    targetUserId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    dedupeBucket: getProfileViewDedupeBucket()
+  }));
 }

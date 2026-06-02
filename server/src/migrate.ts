@@ -23,7 +23,8 @@ const migrationFiles = [
   "015_profile_sensitive_tokens.sql",
   "016_profile_visibility_rules.sql",
   "017_rate_limit_buckets.sql",
-  "018_match_visibility_relationships.sql"
+  "018_match_visibility_relationships.sql",
+  "019_encrypted_relationship_storage.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

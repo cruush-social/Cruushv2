@@ -9,6 +9,15 @@ import {
   getRelationshipPermissions,
   revokeMutualCruushMatch
 } from "../match-relationships.js";
+import {
+  buildEncryptedRelationshipPayload,
+  findEncryptedRelationshipRecord,
+  listEncryptedRelationshipRecordsByActor,
+  listEncryptedRelationshipRecordsByParticipant,
+  listEncryptedRelationshipRecordsByTarget,
+  upsertEncryptedRelationshipRecord,
+  type EncryptedRelationshipRecord
+} from "../encrypted-relationships.js";
 import { formatDistanceMiles, formatLastActiveFromDate } from "../discovery-users.js";
 import { decryptSensitiveProfile } from "../profile-sensitive.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
@@ -115,6 +124,27 @@ type CurrentProfileLocationRow = {
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
   profile_sensitive_key_version: string | null;
+};
+
+type ActivityProfileRow = {
+  id: string;
+  display_name: string | null;
+  pronouns: string[] | null;
+  photos: string[] | null;
+  updated_at: string | Date;
+  lat: number | null;
+  lng: number | null;
+  fuzzy_lat: number | null;
+  fuzzy_lng: number | null;
+  vibes: string[] | null;
+  scenes: string[] | null;
+  archetypes: string[] | null;
+  profile_sensitive_ciphertext: string | null;
+  profile_sensitive_nonce: string | null;
+  profile_sensitive_auth_tag: string | null;
+  profile_sensitive_key_version: string | null;
+  ghost_mode_enabled: boolean | null;
+  precise_location_visibility: "none" | "mutual_cruushes" | null;
 };
 
 function isSchemaCompatibilityError(error: unknown) {
@@ -259,51 +289,104 @@ async function loadCurrentProfileLocation(app: FastifyInstance, userId: string) 
   ))[0] ?? null;
 }
 
-async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
-  return safeQueryRows<MutualCruushRow>(
+async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
+  const uniqueUserIds = [...new Set(userIds.filter(Boolean))];
+
+  if (uniqueUserIds.length === 0) {
+    return new Map<string, ActivityProfileRow>();
+  }
+
+  const rows = await safeQueryRows<ActivityProfileRow>(
     app,
     `select
-       m.id::text as match_id,
-       other_profile.id::text as other_user_id,
-       other_profile.display_name,
-       other_profile.pronouns,
-       other_profile.photos,
-       other_profile.updated_at,
-       other_profile.lat,
-       other_profile.lng,
-       other_profile.fuzzy_lat,
-       other_profile.fuzzy_lng,
-       other_profile.vibes,
-       other_profile.scenes,
-       other_profile.archetypes,
-       other_profile.profile_sensitive_ciphertext,
-       other_profile.profile_sensitive_nonce,
-       other_profile.profile_sensitive_auth_tag,
-       other_profile.profile_sensitive_key_version,
-       other_settings.ghost_mode_enabled,
-       other_settings.precise_location_visibility,
-       exists (
-         select 1
-         from cruush_match_tokens token
-         where token.match_id = m.id
-           and token.purpose = 'permissions'
-           and token.revoked_at is null
-           and token.expires_at > now()
-       ) as can_message
-     from cruush_matches m
-     join profiles other_profile
-       on other_profile.id = case
-         when m.user_one_id = $1::uuid then m.user_two_id
-         else m.user_one_id
-       end
-     left join user_privacy_settings other_settings
-       on other_settings.user_id = other_profile.id
-     where (m.user_one_id = $1::uuid or m.user_two_id = $1::uuid)
-       and m.revoked_at is null
-       and coalesce(other_settings.ghost_mode_enabled, false) = false
-     order by other_profile.updated_at desc`,
-    [userId]
+       profiles.id::text as id,
+       profiles.display_name,
+       profiles.pronouns,
+       profiles.photos,
+       profiles.updated_at,
+       profiles.lat,
+       profiles.lng,
+       profiles.fuzzy_lat,
+       profiles.fuzzy_lng,
+       profiles.vibes,
+       profiles.scenes,
+       profiles.archetypes,
+       profiles.profile_sensitive_ciphertext,
+       profiles.profile_sensitive_nonce,
+       profiles.profile_sensitive_auth_tag,
+       profiles.profile_sensitive_key_version,
+       user_privacy_settings.ghost_mode_enabled,
+       user_privacy_settings.precise_location_visibility
+     from profiles
+     left join user_privacy_settings
+       on user_privacy_settings.user_id = profiles.id
+     where profiles.id = any($1::uuid[])`,
+    [uniqueUserIds]
   );
+
+  return new Map(rows.map((row) => [row.id, row]));
+}
+
+function isGhostProfile(profile: Pick<ActivityProfileRow, "ghost_mode_enabled"> | null | undefined) {
+  return profile?.ghost_mode_enabled === true;
+}
+
+function otherUserIdForRecord(record: EncryptedRelationshipRecord, currentUserId: string) {
+  return record.payload.actorUserId === currentUserId
+    ? record.payload.targetUserId
+    : record.payload.actorUserId;
+}
+
+async function hasActiveMutualCruush(app: FastifyInstance, firstUserId: string, secondUserId: string) {
+  return Boolean(await findEncryptedRelationshipRecord(app, {
+    type: "mutual_cruush",
+    actorUserId: firstUserId,
+    targetUserId: secondUserId
+  }));
+}
+
+async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
+  const records = await listEncryptedRelationshipRecordsByParticipant(app, {
+    participantUserId: userId,
+    type: "mutual_cruush"
+  });
+  const otherUserIds = records.map((record) => otherUserIdForRecord(record, userId));
+  const profilesById = await loadActivityProfiles(app, otherUserIds);
+  const rows = await Promise.all(records.map(async (record): Promise<MutualCruushRow | null> => {
+    const otherUserId = otherUserIdForRecord(record, userId);
+    const profile = profilesById.get(otherUserId);
+
+    if (!profile || isGhostProfile(profile)) {
+      return null;
+    }
+
+    const relationship = await getRelationshipPermissions(app, userId, otherUserId);
+
+    return {
+      match_id: record.id,
+      other_user_id: otherUserId,
+      display_name: profile.display_name,
+      pronouns: profile.pronouns,
+      photos: profile.photos,
+      updated_at: profile.updated_at,
+      lat: profile.lat,
+      lng: profile.lng,
+      fuzzy_lat: profile.fuzzy_lat,
+      fuzzy_lng: profile.fuzzy_lng,
+      vibes: profile.vibes,
+      scenes: profile.scenes,
+      archetypes: profile.archetypes,
+      profile_sensitive_ciphertext: profile.profile_sensitive_ciphertext,
+      profile_sensitive_nonce: profile.profile_sensitive_nonce,
+      profile_sensitive_auth_tag: profile.profile_sensitive_auth_tag,
+      profile_sensitive_key_version: profile.profile_sensitive_key_version,
+      ghost_mode_enabled: profile.ghost_mode_enabled,
+      precise_location_visibility: profile.precise_location_visibility,
+      can_message: relationship.canMessage
+    };
+  }));
+
+  return rows.filter((row): row is MutualCruushRow => row !== null);
 }
 
 function mapMutualCruushRow(
@@ -357,6 +440,125 @@ function mapMutualCruushRow(
   };
 }
 
+async function loadCruushActivityRecords(app: FastifyInstance, userId: string) {
+  const [incomingRecords, sentRecords, viewRecords] = await Promise.all([
+    listEncryptedRelationshipRecordsByTarget(app, {
+      targetUserId: userId,
+      type: "cruush"
+    }),
+    listEncryptedRelationshipRecordsByActor(app, {
+      actorUserId: userId,
+      type: "cruush"
+    }),
+    listEncryptedRelationshipRecordsByTarget(app, {
+      targetUserId: userId,
+      type: "profile_view"
+    })
+  ]);
+  const profileIds = [
+    ...incomingRecords.map((record) => record.payload.actorUserId),
+    ...sentRecords.map((record) => record.payload.targetUserId),
+    ...viewRecords.map((record) => record.payload.actorUserId)
+  ];
+  const profilesById = await loadActivityProfiles(app, profileIds);
+
+  return {
+    incomingRecords,
+    sentRecords,
+    viewRecords,
+    profilesById
+  };
+}
+
+async function mapIncomingCruushRecords(
+  app: FastifyInstance,
+  userId: string,
+  records: EncryptedRelationshipRecord[],
+  profilesById: Map<string, ActivityProfileRow>
+) {
+  const rows = await Promise.all(records.map(async (record) => {
+    const senderUserId = record.payload.actorUserId;
+    const senderProfile = profilesById.get(senderUserId);
+
+    if (isGhostProfile(senderProfile)) {
+      return null;
+    }
+
+    return {
+      id: record.id,
+      createdAt: new Date(record.payload.createdAt).toISOString(),
+      mutual: await hasActiveMutualCruush(app, userId, senderUserId),
+      locked: false,
+      user: mapActivityPerson({
+        userId: senderUserId,
+        displayName: senderProfile?.display_name ?? null,
+        pronouns: senderProfile?.pronouns ?? null,
+        photos: senderProfile?.photos ?? null
+      })
+    };
+  }));
+
+  return rows.filter((row): row is NonNullable<typeof row> => row !== null);
+}
+
+async function mapSentCruushRecords(
+  app: FastifyInstance,
+  userId: string,
+  records: EncryptedRelationshipRecord[],
+  profilesById: Map<string, ActivityProfileRow>
+) {
+  return Promise.all(records.map(async (record) => {
+    const targetUserId = record.payload.targetUserId;
+    const targetProfile = profilesById.get(targetUserId);
+    const snapshot = record.payload.targetSnapshot;
+
+    return {
+      id: record.id,
+      createdAt: new Date(record.payload.createdAt).toISOString(),
+      mutual: await hasActiveMutualCruush(app, userId, targetUserId),
+      locked: false,
+      user: mapActivityPerson({
+        userId: targetUserId,
+        displayName: targetProfile?.display_name ?? null,
+        pronouns: targetProfile?.pronouns ?? null,
+        photos: targetProfile?.photos ?? null,
+        fallbackName: snapshot?.name ?? null,
+        fallbackPronouns: snapshot?.pronouns ?? null,
+        fallbackPhoto: snapshot?.photo ?? null
+      })
+    };
+  }));
+}
+
+function mapProfileViewRecords(
+  records: EncryptedRelationshipRecord[],
+  profilesById: Map<string, ActivityProfileRow>
+) {
+  return records
+    .map((record) => {
+      const viewerUserId = record.payload.actorUserId;
+      const viewerProfile = profilesById.get(viewerUserId);
+
+      if (isGhostProfile(viewerProfile)) {
+        return null;
+      }
+
+      return {
+        id: record.id,
+        createdAt: new Date(record.payload.createdAt).toISOString(),
+        viewedAt: new Date(record.payload.createdAt).toISOString(),
+        locked: false,
+        user: mapActivityPerson({
+          userId: viewerUserId,
+          displayName: viewerProfile?.display_name ?? null,
+          pronouns: viewerProfile?.pronouns ?? null,
+          photos: viewerProfile?.photos ?? null
+        })
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
+}
+
 export async function registerCruushRoutes(app: FastifyInstance) {
   app.get("/api/cruush/me", async (request, reply) => {
     const authenticatedUserId = await getAuthenticatedUserId(request);
@@ -371,127 +573,23 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       ? getRowCoordinates(currentProfile, false)
       : null;
 
-    const [incomingRows, sentRows, mutualRows, viewRows] = await Promise.all([
-      safeQueryRows<ReceivedCruushRow>(
-        app,
-        `select
-           c.id,
-           c.from_user_id,
-           c.to_user_id,
-           c.created_at,
-           exists(
-             select 1
-             from cruushes back
-             where back.from_user_id = $1
-               and back.to_user_id = c.from_user_id::text
-           ) as mutual,
-           sender.display_name,
-           sender.pronouns,
-           sender.photos
-         from cruushes c
-         left join profiles sender on sender.id = c.from_user_id
-         left join user_privacy_settings sender_settings on sender_settings.user_id = sender.id
-         where c.to_user_id = $1::text
-           and coalesce(sender_settings.ghost_mode_enabled, false) = false
-         order by c.created_at desc`,
-        [authenticatedUserId]
-      ),
-      safeQueryRows<SentCruushRow>(
-        app,
-        `select
-           c.id,
-           c.from_user_id,
-           c.to_user_id,
-           c.created_at,
-           exists(
-             select 1
-             from cruushes back
-             where back.from_user_id::text = c.to_user_id
-               and back.to_user_id = $1::text
-           ) as mutual,
-           target.id::text as profile_user_id,
-           target.display_name,
-           target.pronouns,
-           target.photos,
-           c.to_user_name,
-           c.to_user_pronouns,
-           c.to_user_photo
-         from cruushes c
-         left join profiles target on target.id::text = c.to_user_id
-         where c.from_user_id = $1
-         order by c.created_at desc`,
-        [authenticatedUserId]
-      ),
-      loadMutualCruushRows(app, authenticatedUserId),
-      safeQueryRows<ProfileViewRow>(
-        app,
-        `select
-           pve.id::text as id,
-           pve.viewed_at,
-           viewer.id::text as viewer_user_id,
-           viewer.display_name,
-           viewer.pronouns,
-           viewer.photos
-         from profile_view_events pve
-         join profiles viewer on viewer.id = pve.viewer_user_id
-         left join user_privacy_settings viewer_settings on viewer_settings.user_id = viewer.id
-         where pve.target_user_id = $1
-           and coalesce(viewer_settings.ghost_mode_enabled, false) = false
-         order by pve.viewed_at desc`,
-        [authenticatedUserId]
-      )
+    const [{ incomingRecords, sentRecords, viewRecords, profilesById }, mutualRows] = await Promise.all([
+      loadCruushActivityRecords(app, authenticatedUserId),
+      loadMutualCruushRows(app, authenticatedUserId)
     ]);
-
-    const incoming = lockable(
-      incomingRows.map((row) => ({
-        id: row.id,
-        createdAt: new Date(row.created_at).toISOString(),
-        mutual: row.mutual,
-        locked: false,
-        user: mapActivityPerson({
-          userId: row.from_user_id,
-          displayName: row.display_name,
-          pronouns: row.pronouns,
-          photos: row.photos
-        })
-      })),
-      isCruushPlus
-    );
-    const sent = sentRows.map((row) => ({
-      id: row.id,
-      createdAt: new Date(row.created_at).toISOString(),
-      mutual: row.mutual,
-      locked: false,
-      user: mapActivityPerson({
-        userId: row.profile_user_id ?? row.to_user_id,
-        displayName: row.display_name,
-        pronouns: row.pronouns,
-        photos: row.photos,
-        fallbackName: row.to_user_name,
-        fallbackPronouns: row.to_user_pronouns,
-        fallbackPhoto: row.to_user_photo
-      })
-    }));
+    const [incomingRows, sentRows] = await Promise.all([
+      mapIncomingCruushRecords(app, authenticatedUserId, incomingRecords, profilesById),
+      mapSentCruushRecords(app, authenticatedUserId, sentRecords, profilesById)
+    ]);
+    const viewRows = mapProfileViewRecords(viewRecords, profilesById);
+    const incoming = lockable(incomingRows, isCruushPlus);
+    const sent = sentRows;
     const mutual = mutualRows.map((row) => mapMutualCruushRow(app, row, {
       currentCoordinates,
       currentCrowds: currentSensitiveProfile?.crowds ?? [],
       viewerGhostMode: viewerPrivacy.ghostModeEnabled
     }));
-    const views = lockable(
-      viewRows.map((row) => ({
-        id: row.id,
-        createdAt: new Date(row.viewed_at).toISOString(),
-        viewedAt: new Date(row.viewed_at).toISOString(),
-        locked: false,
-        user: mapActivityPerson({
-          userId: row.viewer_user_id,
-          displayName: row.display_name,
-          pronouns: row.pronouns,
-          photos: row.photos
-        })
-      })),
-      isCruushPlus
-    );
+    const views = lockable(viewRows, isCruushPlus);
 
     return reply.send({
       data: {
@@ -559,59 +657,30 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       throw new ApiError(403, "FORBIDDEN", "You can only access your own cruush activity.");
     }
 
-    const [receivedResult, sentResult] = await Promise.all([
-      app.db.query<ReceivedCruushRow>(
-        `select
-           c.id,
-           c.from_user_id,
-           c.to_user_id,
-           c.created_at,
-           exists(
-             select 1
-             from cruushes back
-             where back.from_user_id = $1
-               and back.to_user_id = c.from_user_id::text
-           ) as mutual,
-           sender.display_name,
-           sender.pronouns,
-           sender.photos
-         from cruushes c
-         left join profiles sender on sender.id = c.from_user_id
-         where c.to_user_id = $1::text
-         order by c.created_at desc`,
-        [authenticatedUserId]
-      ),
-      app.db.query<SentCruushRow>(
-        `select
-           c.id,
-           c.from_user_id,
-           c.to_user_id,
-           c.created_at,
-           exists(
-             select 1
-             from cruushes back
-             where back.from_user_id::text = c.to_user_id
-               and back.to_user_id = $1::text
-           ) as mutual,
-           target.id::text as profile_user_id,
-           target.display_name,
-           target.pronouns,
-           target.photos,
-           c.to_user_name,
-           c.to_user_pronouns,
-           c.to_user_photo
-         from cruushes c
-         left join profiles target on target.id::text = c.to_user_id
-         where c.from_user_id = $1
-         order by c.created_at desc`,
-        [authenticatedUserId]
-      )
+    const { incomingRecords, sentRecords, profilesById } = await loadCruushActivityRecords(app, authenticatedUserId);
+    const [receivedRows, sentRows] = await Promise.all([
+      mapIncomingCruushRecords(app, authenticatedUserId, incomingRecords, profilesById),
+      mapSentCruushRecords(app, authenticatedUserId, sentRecords, profilesById)
     ]);
 
     return reply.send({
       data: {
-        received: receivedResult.rows.map(mapReceivedCruushRow),
-        sent: sentResult.rows.map(mapSentCruushRow)
+        received: receivedRows.map((row) => ({
+          id: row.id,
+          fromUserId: row.user?.id ?? authenticatedUserId,
+          toUserId: authenticatedUserId,
+          createdAt: row.createdAt,
+          mutual: row.mutual,
+          user: row.user
+        })),
+        sent: sentRows.map((row) => ({
+          id: row.id,
+          fromUserId: authenticatedUserId,
+          toUserId: row.user.id,
+          createdAt: row.createdAt,
+          mutual: row.mutual,
+          user: row.user
+        }))
       }
     });
   });
@@ -624,38 +693,30 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "You cannot send a cruush to yourself.");
     }
 
-    const [userOneId, userTwoId] = [authenticatedUserId, payload.toUserId].sort();
-    const existingMutual = (await app.db.query<ExistingMutualCruushRow>(
-      `select
-         coalesce(c.id::text, m.id::text) as id,
-         $1::text as from_user_id,
-         $2::text as to_user_id,
-         coalesce(c.created_at, m.created_at) as created_at,
-         true as mutual,
-         m.id::text as match_id
-       from cruush_matches m
-       left join cruushes c
-         on c.from_user_id = $1::uuid
-        and c.to_user_id = $2::text
-       where m.user_one_id = $3::uuid
-         and m.user_two_id = $4::uuid
-         and m.revoked_at is null
-       limit 1`,
-      [authenticatedUserId, payload.toUserId, userOneId, userTwoId]
-    )).rows[0];
+    const existingMutual = await findEncryptedRelationshipRecord(app, {
+      type: "mutual_cruush",
+      actorUserId: authenticatedUserId,
+      targetUserId: payload.toUserId
+    });
 
     if (existingMutual) {
+      const existingCruush = await findEncryptedRelationshipRecord(app, {
+        type: "cruush",
+        actorUserId: authenticatedUserId,
+        targetUserId: payload.toUserId
+      });
       const relationship = await getRelationshipPermissions(app, authenticatedUserId, payload.toUserId);
+      const createdAt = existingCruush?.payload.createdAt ?? existingMutual.payload.createdAt;
 
       return reply.code(200).send({
         data: {
-          id: existingMutual.id,
-          fromUserId: existingMutual.from_user_id,
-          toUserId: existingMutual.to_user_id,
-          createdAt: new Date(existingMutual.created_at).toISOString(),
+          id: existingCruush?.id ?? existingMutual.id,
+          fromUserId: authenticatedUserId,
+          toUserId: payload.toUserId,
+          createdAt: new Date(createdAt).toISOString(),
           mutual: true,
           permissions: {
-            matchId: relationship.matchId ?? existingMutual.match_id,
+            matchId: relationship.matchId ?? existingMutual.id,
             canMessage: relationship.canMessage,
             canRevealPreciseLocation: relationship.canRevealPreciseLocation
           }
@@ -663,61 +724,43 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       });
     }
 
-    const result = await app.db.query<CreatedCruushRow>(
-      `with upserted as (
-         insert into cruushes (
-           from_user_id,
-           to_user_id,
-           to_user_name,
-           to_user_pronouns,
-           to_user_photo
-         )
-         values ($1, $2, $3, $4, $5)
-         on conflict (from_user_id, to_user_id) do update
-         set
-           to_user_name = excluded.to_user_name,
-           to_user_pronouns = excluded.to_user_pronouns,
-           to_user_photo = excluded.to_user_photo,
-           created_at = now()
-         returning id, from_user_id, to_user_id, created_at
-       )
-       select
-         u.id,
-         u.from_user_id,
-         u.to_user_id,
-         u.created_at,
-         exists(
-           select 1
-           from cruushes back
-           where back.from_user_id::text = u.to_user_id
-             and back.to_user_id = u.from_user_id::text
-         ) as mutual
-       from upserted u`,
-      [
-        authenticatedUserId,
-        payload.toUserId,
-        payload.targetUser?.name ?? "",
-        payload.targetUser?.pronouns ?? "",
-        payload.targetUser?.photo ?? null
-      ]
-    );
+    const created = await upsertEncryptedRelationshipRecord(app, buildEncryptedRelationshipPayload({
+      type: "cruush",
+      actorUserId: authenticatedUserId,
+      targetUserId: payload.toUserId,
+      createdAt: new Date(),
+      targetSnapshot: {
+        name: payload.targetUser?.name ?? "",
+        pronouns: payload.targetUser?.pronouns ?? "",
+        photo: payload.targetUser?.photo ?? null
+      }
+    }));
 
-    const created = result.rows[0];
-    const match = created.mutual
+    if (!created) {
+      throw new ApiError(500, "INTERNAL_ERROR", "Failed to create cruush.");
+    }
+
+    const reciprocalCruush = await findEncryptedRelationshipRecord(app, {
+      type: "cruush",
+      actorUserId: payload.toUserId,
+      targetUserId: authenticatedUserId
+    });
+    const isMutual = Boolean(reciprocalCruush);
+    const match = isMutual
       ? await ensureMutualCruushMatch(app, authenticatedUserId, payload.toUserId)
       : null;
-    const relationship = created.mutual
+    const relationship = isMutual
       ? await getRelationshipPermissions(app, authenticatedUserId, payload.toUserId)
       : null;
 
     return reply.code(201).send({
       data: {
         id: created.id,
-        fromUserId: created.from_user_id,
-        toUserId: created.to_user_id,
-        createdAt: new Date(created.created_at).toISOString(),
-        mutual: created.mutual,
-        ...(created.mutual ? {
+        fromUserId: created.payload.actorUserId,
+        toUserId: created.payload.targetUserId,
+        createdAt: new Date(created.payload.createdAt).toISOString(),
+        mutual: isMutual,
+        ...(isMutual ? {
           permissions: {
             matchId: match?.id ?? relationship?.matchId ?? null,
             canMessage: relationship?.canMessage ?? Boolean(match),

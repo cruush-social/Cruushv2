@@ -84,6 +84,7 @@ describe('Settings', () => {
       name: 'Toggle Ghost Mode',
     });
 
+    await waitFor(() => expect(preciseSwitch).not.toBeDisabled());
     fireEvent.click(preciseSwitch);
 
     await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenCalledWith({
@@ -91,6 +92,7 @@ describe('Settings', () => {
       preciseLocationVisibility: 'mutual_cruushes',
     }));
 
+    await waitFor(() => expect(ghostSwitch).not.toBeDisabled());
     fireEvent.click(ghostSwitch);
 
     await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenLastCalledWith({

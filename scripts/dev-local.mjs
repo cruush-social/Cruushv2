@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 
 function parseEnvFile(contents) {
   const result = {};
@@ -46,10 +47,17 @@ async function readEnvFile(filePath) {
 }
 
 function spawnProcess(command, args, env, label) {
-  const child = spawn(command, args, {
+  const windowsCommand = /\.(cmd|bat|exe)$/i.test(command) ? command : `${command}.cmd`;
+  const resolvedCommand = process.platform === 'win32'
+    ? process.env.ComSpec ?? 'cmd.exe'
+    : command;
+  const resolvedArgs = process.platform === 'win32'
+    ? ['/d', '/s', '/c', windowsCommand, ...args]
+    : args;
+  const child = spawn(resolvedCommand, resolvedArgs, {
     stdio: 'inherit',
     env,
-    shell: process.platform === 'win32',
+    shell: false,
   });
 
   child.on('exit', (code, signal) => {
@@ -61,6 +69,72 @@ function spawnProcess(command, args, env, label) {
   });
 
   return child;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function verifyDatabaseConnection(serverEnv, serverDir) {
+  let databaseUrl;
+
+  try {
+    databaseUrl = new URL(serverEnv.DATABASE_URL);
+  } catch {
+    console.error('DATABASE_URL is not a valid Postgres connection URL.');
+    process.exit(1);
+  }
+
+  const requireFromServer = createRequire(path.join(serverDir, 'package.json'));
+  const { Pool } = requireFromServer('pg');
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    const pool = new Pool({
+      connectionString: serverEnv.DATABASE_URL,
+      connectionTimeoutMillis: 3000,
+      max: 1,
+    });
+
+    try {
+      await pool.query('select 1');
+      await pool.end();
+      return;
+    } catch (error) {
+      lastError = error;
+      await pool.end().catch(() => undefined);
+
+      if (!['ECONNREFUSED', '57P03'].includes(error?.code) || attempt === 5) {
+        break;
+      }
+
+      await sleep(1000);
+    }
+  }
+
+  const host = databaseUrl.hostname || 'localhost';
+  const port = databaseUrl.port || '5432';
+  const database = databaseUrl.pathname.replace(/^\//, '') || '(default)';
+
+  console.error(`Cannot connect to local Postgres at ${host}:${port}/${database}.`);
+
+  if (lastError?.code === 'ECONNREFUSED') {
+    console.error('No database service is listening on that host and port.');
+    console.error('Start the bundled database with: docker compose -f docker-compose.selfhost.yml up -d postgres');
+    console.error('Or update server/.env.local DATABASE_URL to the Postgres instance you are actually running.');
+  } else if (lastError?.code === '28P01') {
+    console.error('Postgres rejected the username/password in server/.env.local.');
+    console.error('For the repo default credentials, reset the local Docker volume and start the bundled Postgres service:');
+    console.error('  docker compose -f docker-compose.selfhost.yml down -v --remove-orphans');
+    console.error('  docker compose -f docker-compose.selfhost.yml up -d postgres');
+  } else if (lastError?.code === '3D000') {
+    console.error(`The database "${database}" does not exist on that Postgres server.`);
+    console.error('Create it first, or reset/start the bundled Docker Postgres service.');
+  } else {
+    console.error(lastError?.message ?? lastError);
+  }
+
+  process.exit(1);
 }
 
 function mergeOrigins(...values) {
@@ -85,6 +159,10 @@ function mergeOrigins(...values) {
 
 function isDisabled(value) {
   return typeof value === 'string' && ['0', 'false'].includes(value.trim().toLowerCase());
+}
+
+function isEnabled(value) {
+  return typeof value === 'string' && ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
 }
 
 const rootDir = process.cwd();
@@ -141,7 +219,15 @@ if (!serverEnv.APP_URL) {
   serverEnv.APP_URL = localFrontendUrl;
 }
 
+<<<<<<< Updated upstream
 function startLocalStack() {
+=======
+await verifyDatabaseConnection(serverEnv, serverDir);
+
+const migration = spawnProcess('npm', ['--prefix', 'server', 'run', 'migrate:dev'], serverEnv, 'migrate');
+
+function startLocalApps() {
+>>>>>>> Stashed changes
   const server = spawnProcess('npm', ['--prefix', 'server', 'run', 'dev'], serverEnv, 'server');
   const frontend = spawnProcess('npm', ['run', 'dev'], frontendEnv, 'frontend');
 
@@ -164,13 +250,17 @@ function startLocalStack() {
   });
 }
 
+<<<<<<< Updated upstream
 const migration = spawnProcess('npm', ['--prefix', 'server', 'run', 'migrate:dev'], serverEnv, 'migrate');
 
+=======
+>>>>>>> Stashed changes
 migration.on('exit', (code) => {
   if (code !== 0) {
     process.exit(code ?? 1);
   }
 
+<<<<<<< Updated upstream
   if (!shouldSeedDevProfiles) {
     startLocalStack();
     return;
@@ -185,4 +275,20 @@ migration.on('exit', (code) => {
 
     startLocalStack();
   });
+=======
+  if (isEnabled(serverEnv.DEVELOPMENT_ADMIN_ENABLED) && serverEnv.DEVELOPMENT_ADMIN_PASSWORD) {
+    const seed = spawnProcess('npm', ['--prefix', 'server', 'run', 'seed:dev-profiles'], serverEnv, 'seed');
+
+    seed.on('exit', (seedCode) => {
+      if (seedCode !== 0) {
+        process.exit(seedCode ?? 1);
+      }
+
+      startLocalApps();
+    });
+    return;
+  }
+
+  startLocalApps();
+>>>>>>> Stashed changes
 });

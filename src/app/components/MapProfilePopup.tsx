@@ -21,11 +21,12 @@ interface MapProfilePopupProps {
 export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps) {
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
+  const isDemo = user.isDemo === true;
   const isAlreadyMutual = user.relationship?.mutualCruush === true;
-  const cruushDisabled = cruushed || isAlreadyMutual;
+  const cruushDisabled = isDemo || cruushed || isAlreadyMutual;
 
   const handleCruush = async () => {
-    if (isAlreadyMutual) {
+    if (isDemo || isAlreadyMutual) {
       return;
     }
 
@@ -150,7 +151,7 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
             <div className="text-xs uppercase tracking-[0.18em] text-white/55">Map status</div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <MiniStat label="Last Active" value={user.lastActive || 'Just now'} />
-              <MiniStat label="Cruush" value={isAlreadyMutual ? 'Mutual' : cruushed ? 'Sent' : 'Ready'} />
+              <MiniStat label="Cruush" value={isDemo ? 'Demo' : isAlreadyMutual ? 'Mutual' : cruushed ? 'Sent' : 'Ready'} />
             </div>
           </section>
 
@@ -173,7 +174,7 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
                   ? 'rgba(255,255,255,0.16)'
                   : 'var(--cruush-gradient)',
               }}
-              aria-label={isAlreadyMutual ? 'Already mutual' : cruushed ? 'Cruush sent' : 'Send cruush'}
+              aria-label={isDemo ? 'Demo profile' : isAlreadyMutual ? 'Already mutual' : cruushed ? 'Cruush sent' : 'Send cruush'}
             >
               <CruushIconImage src={cruushIconWhite} className={`h-6 w-6 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} />
             </Button>
@@ -181,14 +182,20 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
             <Button
               className="h-12 justify-center rounded-2xl border-0 text-base text-white"
               style={{
-                background: 'var(--cruush-gradient)',
+                background: isDemo ? 'rgba(255,255,255,0.16)' : 'var(--cruush-gradient)',
               }}
+              disabled={isDemo}
+              aria-label={isDemo ? 'Demo message unavailable' : 'Message now'}
               onClick={() => {
+                if (isDemo) {
+                  return;
+                }
+
                 void openConversationOrInbox(navigate, user.id);
               }}
             >
               <CruushIconImage src={sendIconWhite} className="mr-2 h-4 w-4" />
-              Message now
+              {isDemo ? 'Demo only' : 'Message now'}
             </Button>
           </div>
         </div>

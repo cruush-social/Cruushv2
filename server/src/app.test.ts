@@ -1,7 +1,14 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
 import { hashPassword, hashSessionToken } from "./auth.js";
+import type { DbClient } from "./db.js";
 import { DEVELOPMENT_ADMIN_LOCATION } from "./development-admin.js";
+import {
+  buildEncryptedRelationshipPayload,
+  issueEncryptedRelationshipToken,
+  upsertEncryptedRelationshipRecord,
+  type EncryptedRelationshipRecordRow
+} from "./encrypted-relationships.js";
 import { emptyProfile } from "./profile-schema.js";
 import { encryptProfileVisibility, encryptSensitiveProfile } from "./profile-sensitive.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
@@ -27,6 +34,10 @@ const app = buildServer({
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
   PROFILE_TOKEN_KEY_VERSION: "v1",
+  RELATIONSHIP_ENCRYPTION_KEY: "",
+  RELATIONSHIP_INDEX_KEY: "",
+  RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v1",
+  RELATIONSHIP_INDEX_KEY_VERSION: "v1",
   MATCH_TOKEN_ENCRYPTION_KEY: "",
   MATCH_TOKEN_SIGNING_KEY: "",
   MATCH_TOKEN_KEY_VERSION: "v1"
@@ -55,6 +66,10 @@ const developmentApp = buildServer({
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
   PROFILE_TOKEN_KEY_VERSION: "v1",
+  RELATIONSHIP_ENCRYPTION_KEY: "",
+  RELATIONSHIP_INDEX_KEY: "",
+  RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v1",
+  RELATIONSHIP_INDEX_KEY_VERSION: "v1",
   MATCH_TOKEN_ENCRYPTION_KEY: "",
   MATCH_TOKEN_SIGNING_KEY: "",
   MATCH_TOKEN_KEY_VERSION: "v1"
@@ -83,6 +98,10 @@ const lockedDevelopmentApp = buildServer({
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
   PROFILE_TOKEN_KEY_VERSION: "v1",
+  RELATIONSHIP_ENCRYPTION_KEY: "",
+  RELATIONSHIP_INDEX_KEY: "",
+  RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v1",
+  RELATIONSHIP_INDEX_KEY_VERSION: "v1",
   MATCH_TOKEN_ENCRYPTION_KEY: "",
   MATCH_TOKEN_SIGNING_KEY: "",
   MATCH_TOKEN_KEY_VERSION: "v1"
@@ -111,6 +130,10 @@ const productionApp = buildServer({
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
   PROFILE_TOKEN_KEY_VERSION: "v1",
+  RELATIONSHIP_ENCRYPTION_KEY: "",
+  RELATIONSHIP_INDEX_KEY: "",
+  RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v1",
+  RELATIONSHIP_INDEX_KEY_VERSION: "v1",
   MATCH_TOKEN_ENCRYPTION_KEY: "",
   MATCH_TOKEN_SIGNING_KEY: "",
   MATCH_TOKEN_KEY_VERSION: "v1"
@@ -139,6 +162,10 @@ const corsApp = buildServer({
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
   PROFILE_TOKEN_KEY_VERSION: "v1",
+  RELATIONSHIP_ENCRYPTION_KEY: "",
+  RELATIONSHIP_INDEX_KEY: "",
+  RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v1",
+  RELATIONSHIP_INDEX_KEY_VERSION: "v1",
   MATCH_TOKEN_ENCRYPTION_KEY: "",
   MATCH_TOKEN_SIGNING_KEY: "",
   MATCH_TOKEN_KEY_VERSION: "v1"
@@ -167,6 +194,10 @@ const emailLinkApp = buildServer({
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
   PROFILE_TOKEN_KEY_VERSION: "v1",
+  RELATIONSHIP_ENCRYPTION_KEY: "",
+  RELATIONSHIP_INDEX_KEY: "",
+  RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v1",
+  RELATIONSHIP_INDEX_KEY_VERSION: "v1",
   MATCH_TOKEN_ENCRYPTION_KEY: "",
   MATCH_TOKEN_SIGNING_KEY: "",
   MATCH_TOKEN_KEY_VERSION: "v1"
@@ -195,6 +226,10 @@ const turnstileApp = buildServer({
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
   PROFILE_TOKEN_KEY_VERSION: "v1",
+  RELATIONSHIP_ENCRYPTION_KEY: "",
+  RELATIONSHIP_INDEX_KEY: "",
+  RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v1",
+  RELATIONSHIP_INDEX_KEY_VERSION: "v1",
   MATCH_TOKEN_ENCRYPTION_KEY: "",
   MATCH_TOKEN_SIGNING_KEY: "",
   MATCH_TOKEN_KEY_VERSION: "v1"
@@ -221,6 +256,91 @@ beforeEach(() => {
   end.mockClear();
   rateLimiter.reset?.();
 });
+
+async function encryptedRelationshipRecordRow(input: {
+  id: string;
+  type: Parameters<typeof buildEncryptedRelationshipPayload>[0]["type"];
+  actorUserId: string;
+  targetUserId: string;
+  createdAt?: string;
+  dedupeBucket?: string | null;
+  targetSnapshot?: Parameters<typeof buildEncryptedRelationshipPayload>[0]["targetSnapshot"];
+}) {
+  const recordQuery = vi.fn(async (_sql: string, params: unknown[] = []) => ({
+      rows: [{
+        id: input.id,
+        record_lookup_index: params[0],
+        actor_user_index: params[1],
+        target_user_index: params[2],
+        ordered_pair_index: params[3],
+        participant_one_index: params[4],
+        participant_two_index: params[5],
+        relationship_type_index: params[6],
+        relationship_status_index: params[7],
+        dedupe_bucket_index: params[8],
+        record_ciphertext: params[9],
+        record_nonce: params[10],
+        record_auth_tag: params[11],
+        encryption_key_version: params[12],
+        index_key_version: params[13],
+        expires_at: params[14],
+        created_at: params[15],
+        updated_at: input.createdAt ?? "2026-04-28T12:00:00.000Z"
+      }]
+    }));
+  const recordDb = { query: recordQuery } as unknown as Pick<DbClient, "query">;
+  const record = await upsertEncryptedRelationshipRecord({
+    config: app.config,
+    db: recordDb
+  }, buildEncryptedRelationshipPayload({
+    type: input.type,
+    actorUserId: input.actorUserId,
+    targetUserId: input.targetUserId,
+    createdAt: input.createdAt ?? "2026-04-28T12:00:00.000Z",
+    dedupeBucket: input.dedupeBucket ?? null,
+    targetSnapshot: input.targetSnapshot ?? null
+  }));
+
+  return record as EncryptedRelationshipRecordRow;
+}
+
+async function encryptedMatchTokenRow(input: {
+  relationshipRecordId: string;
+  userOneId: string;
+  userTwoId: string;
+  expiresAt?: string;
+}) {
+  const tokenQuery = vi.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [] }));
+  const tokenDb = { query: tokenQuery } as unknown as Pick<DbClient, "query">;
+
+  await issueEncryptedRelationshipToken({
+    config: app.config,
+    db: tokenDb
+  }, {
+    relationshipRecordId: input.relationshipRecordId,
+    userOneId: input.userOneId,
+    userTwoId: input.userTwoId,
+    purpose: "permissions",
+    expiresAt: input.expiresAt ? new Date(input.expiresAt) : new Date(Date.now() + 60_000)
+  });
+
+  const params = (tokenQuery.mock.calls[0]?.[1] ?? []) as unknown[];
+
+  return {
+    id: "token-1",
+    relationship_record_id: params[0],
+    purpose_index: params[1],
+    token_lookup_index: params[2],
+    token_ciphertext: params[3],
+    token_nonce: params[4],
+    token_auth_tag: params[5],
+    token_signature: params[6],
+    token_key_version: params[7],
+    expires_at: params[8],
+    created_at: "2026-04-28T12:00:00.000Z",
+    revoked_at: null
+  };
+}
 
 describe("server", () => {
   const userId = "d271f6da-c51d-4d73-a322-d9c56f45d4fa";
@@ -1188,16 +1308,25 @@ describe("server", () => {
   });
 
   it("opens or creates a dm conversation on POST /api/conversations/dm", async () => {
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-1",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-1",
+      userOneId: userId,
+      userTwoId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+
     query
       .mockResolvedValueOnce({
-        rows: [{
-          match_id: "match-1",
-          has_active_match_token: true,
-          viewer_ghost_mode_enabled: false,
-          target_ghost_mode_enabled: false,
-          target_precise_location_visibility: "none"
-        }]
+        rows: [matchRecord]
       })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
@@ -1242,9 +1371,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[0]?.[0]).toContain("cruush_matches");
-    expect(query.mock.calls[2]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[3]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
+    expect(query.mock.calls[3]?.[0]).toContain("encrypted_relationship_tokens");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[6]?.[0]).toContain("insert into conversation_members");
     expect(response.json()).toEqual({
       data: {
         id: conversationId,
@@ -1269,15 +1399,10 @@ describe("server", () => {
   });
 
   it("requires a mutual cruush before opening a new dm conversation", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        match_id: null,
-        has_active_match_token: false,
-        viewer_ghost_mode_enabled: false,
-        target_ghost_mode_enabled: false,
-        target_precise_location_visibility: "none"
-      }]
-    });
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -1400,6 +1525,18 @@ describe("server", () => {
   });
 
   it("creates a message on POST /api/messages", async () => {
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-1",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-1",
+      userOneId: userId,
+      userTwoId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -1420,14 +1557,11 @@ describe("server", () => {
         }]
       })
       .mockResolvedValueOnce({
-        rows: [{
-          match_id: "match-1",
-          has_active_match_token: true,
-          viewer_ghost_mode_enabled: false,
-          target_ghost_mode_enabled: false,
-          target_precise_location_visibility: "none"
-        }]
+        rows: [matchRecord]
       })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
       .mockResolvedValueOnce({
         rows: [{
           id: "msg-3",
@@ -1451,8 +1585,9 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
-    expect(query.mock.calls[1]?.[0]).toContain("cruush_matches");
-    expect(query.mock.calls[2]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
+    expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into messages");
     expect(response.json()).toEqual({
       data: {
         id: "msg-3",
@@ -1483,15 +1618,9 @@ describe("server", () => {
           member_count: 2
         }]
       })
-      .mockResolvedValueOnce({
-        rows: [{
-          match_id: "match-1",
-          has_active_match_token: false,
-          viewer_ghost_mode_enabled: false,
-          target_ghost_mode_enabled: false,
-          target_precise_location_visibility: "none"
-        }]
-      });
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -1570,14 +1699,14 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledTimes(5);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
     expect(query.mock.calls[1]?.[0]).toContain("and lat is not null");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.updated_at");
-    expect(query.mock.calls[1]?.[0]).toContain("discovery_match");
-    expect(query.mock.calls[1]?.[0]).toContain("limit $3");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, "permissions", 50]);
+    expect(query.mock.calls[1]?.[0]).not.toContain("discovery_match");
+    expect(query.mock.calls[1]?.[0]).toContain("limit $2");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, 50]);
 
     const body = response.json();
     expect(Array.isArray(body.data)).toBe(true);
@@ -1630,12 +1759,24 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[1]?.[0]).toContain("limit $3");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, "permissions", 20]);
+    expect(query.mock.calls[1]?.[0]).toContain("limit $2");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, 20]);
     expect(response.json().data).toHaveLength(20);
   });
 
   it("marks active mutual cruushes in discovery results", async () => {
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-1",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-1",
+      userOneId: userId,
+      userTwoId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+
     query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
@@ -1653,9 +1794,7 @@ describe("server", () => {
           lng: -74.002,
           fuzzy_lat: 40.7115,
           fuzzy_lng: -74.0025,
-          updated_at: "2026-04-28T12:00:00.000Z",
-          mutual_match_id: "match-1",
-          can_message: true
+          updated_at: "2026-04-28T12:00:00.000Z"
         }, {
           id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
           display_name: "River",
@@ -1670,11 +1809,16 @@ describe("server", () => {
           lng: -74.003,
           fuzzy_lat: 40.7125,
           fuzzy_lng: -74.0035,
-          updated_at: "2026-04-28T11:00:00.000Z",
-          mutual_match_id: null,
-          can_message: false
+          updated_at: "2026-04-28T11:00:00.000Z"
         }]
-      });
+      })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] });
 
     const response = await app.inject({
       method: "GET",
@@ -2147,35 +2291,42 @@ describe("server", () => {
   });
 
   it("returns cruush activity from GET /api/cruush/:userId", async () => {
+    const incomingRecord = await encryptedRelationshipRecordRow({
+      id: "cruush-1",
+      type: "cruush",
+      actorUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      targetUserId: userId,
+      createdAt: "2026-04-28T12:00:00.000Z"
+    });
+    const sentTargetUserId = "8f707f0b-81aa-470d-b0e1-321d493d04d2";
+    const sentRecord = await encryptedRelationshipRecordRow({
+      id: "cruush-2",
+      type: "cruush",
+      actorUserId: userId,
+      targetUserId: sentTargetUserId,
+      createdAt: "2026-04-28T12:05:00.000Z",
+      targetSnapshot: {
+        name: "Jordan",
+        pronouns: "they/them",
+        photo: null
+      }
+    });
+
     query
+      .mockResolvedValueOnce({ rows: [incomingRecord] })
+      .mockResolvedValueOnce({ rows: [sentRecord] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
-          id: "cruush-1",
-          from_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          to_user_id: userId,
-          created_at: "2026-04-28T12:00:00.000Z",
-          mutual: true,
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
           display_name: "Alex",
           pronouns: ["they/them"],
-          photos: ["https://example.com/alex.jpg"]
+          photos: ["https://example.com/alex.jpg"],
+          ghost_mode_enabled: false
         }]
       })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "cruush-2",
-          from_user_id: userId,
-          to_user_id: "user1",
-          created_at: "2026-04-28T12:05:00.000Z",
-          mutual: false,
-          profile_user_id: null,
-          display_name: null,
-          pronouns: null,
-          photos: null,
-          to_user_name: "Jordan",
-          to_user_pronouns: "they/them",
-          to_user_photo: null
-        }]
-      });
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "GET",
@@ -2186,9 +2337,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(2);
-    expect(query.mock.calls[0]?.[0]).toContain("from cruushes c");
-    expect(query.mock.calls[1]?.[0]).toContain("left join profiles target");
+    expect(query).toHaveBeenCalledTimes(6);
+    expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
+    expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
+    expect(query.mock.calls[3]?.[0]).toContain("from profiles");
     expect(response.json()).toEqual({
       data: {
         received: [{
@@ -2196,7 +2348,7 @@ describe("server", () => {
           fromUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
           toUserId: userId,
           createdAt: "2026-04-28T12:00:00.000Z",
-          mutual: true,
+          mutual: false,
           user: {
             id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
             name: "Alex",
@@ -2207,11 +2359,11 @@ describe("server", () => {
         sent: [{
           id: "cruush-2",
           fromUserId: userId,
-          toUserId: "user1",
+          toUserId: sentTargetUserId,
           createdAt: "2026-04-28T12:05:00.000Z",
           mutual: false,
           user: {
-            id: "user1",
+            id: sentTargetUserId,
             name: "Jordan",
             pronouns: "they/them",
             photo: null
@@ -2222,6 +2374,44 @@ describe("server", () => {
   });
 
   it("returns locked free activity from GET /api/cruush/me", async () => {
+    const incomingOne = await encryptedRelationshipRecordRow({
+      id: "incoming-1",
+      type: "cruush",
+      actorUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      targetUserId: userId,
+      createdAt: "2026-04-28T12:00:00.000Z"
+    });
+    const incomingTwo = await encryptedRelationshipRecordRow({
+      id: "incoming-2",
+      type: "cruush",
+      actorUserId: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+      targetUserId: userId,
+      createdAt: "2026-04-28T11:00:00.000Z"
+    });
+    const sentOne = await encryptedRelationshipRecordRow({
+      id: "sent-1",
+      type: "cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      createdAt: "2026-04-28T12:05:00.000Z"
+    });
+    const viewOne = await encryptedRelationshipRecordRow({
+      id: "view-1",
+      type: "profile_view",
+      actorUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      targetUserId: userId,
+      createdAt: "2026-04-28T12:10:00.000Z",
+      dedupeBucket: "2026-04-28T12:00:00.000Z"
+    });
+    const viewTwo = await encryptedRelationshipRecordRow({
+      id: "view-2",
+      type: "profile_view",
+      actorUserId: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+      targetUserId: userId,
+      createdAt: "2026-04-28T11:10:00.000Z",
+      dedupeBucket: "2026-04-28T11:00:00.000Z"
+    });
+
     query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
@@ -2237,61 +2427,28 @@ describe("server", () => {
           profile_sensitive_key_version: null
         }]
       })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "incoming-1",
-          from_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          to_user_id: userId,
-          created_at: "2026-04-28T12:00:00.000Z",
-          mutual: false,
-          display_name: "Alex",
-          pronouns: ["they/them"],
-          photos: ["https://example.com/alex.jpg"]
-        }, {
-          id: "incoming-2",
-          from_user_id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
-          to_user_id: userId,
-          created_at: "2026-04-28T11:00:00.000Z",
-          mutual: false,
-          display_name: "Sam",
-          pronouns: ["she/they"],
-          photos: []
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "sent-1",
-          from_user_id: userId,
-          to_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          created_at: "2026-04-28T12:05:00.000Z",
-          mutual: false,
-          profile_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          display_name: "Alex",
-          pronouns: ["they/them"],
-          photos: ["https://example.com/alex.jpg"],
-          to_user_name: null,
-          to_user_pronouns: null,
-          to_user_photo: null
-        }]
-      })
+      .mockResolvedValueOnce({ rows: [incomingOne, incomingTwo] })
+      .mockResolvedValueOnce({ rows: [sentOne] })
+      .mockResolvedValueOnce({ rows: [viewOne, viewTwo] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
-          id: "view-1",
-          viewed_at: "2026-04-28T12:10:00.000Z",
-          viewer_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
           display_name: "Alex",
           pronouns: ["they/them"],
-          photos: ["https://example.com/alex.jpg"]
+          photos: ["https://example.com/alex.jpg"],
+          ghost_mode_enabled: false
         }, {
-          id: "view-2",
-          viewed_at: "2026-04-28T11:10:00.000Z",
-          viewer_user_id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+          id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
           display_name: "Sam",
           pronouns: ["she/they"],
-          photos: []
+          photos: [],
+          ghost_mode_enabled: false
         }]
-      });
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "GET",
@@ -2420,16 +2577,17 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query).toHaveBeenCalledTimes(2);
-    expect(query.mock.calls[0]?.[0]).toContain("from cruush_matches");
-    expect(query.mock.calls[1]?.[0]).toContain("insert into cruushes");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97", "Jordan", "they/them", null]);
+    expect(query).toHaveBeenCalledTimes(3);
+    expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
+    expect(query.mock.calls[1]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(JSON.stringify(query.mock.calls[1]?.[1])).not.toContain("Jordan");
+    expect(JSON.stringify(query.mock.calls[1]?.[1])).not.toContain("53fd68d7-24fc-4cff-8cd7-a97ec0cadf97");
     expect(response.json()).toEqual({
       data: {
         id: "cruush-3",
         fromUserId: userId,
         toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-        createdAt: "2026-04-28T12:10:00.000Z",
+        createdAt: expect.any(String),
         mutual: false
       }
     });
@@ -2467,6 +2625,25 @@ describe("server", () => {
   });
 
   it("creates a mutual match and server-managed token for reciprocal cruushes", async () => {
+    const reciprocalCruush = await encryptedRelationshipRecordRow({
+      id: "reciprocal-cruush",
+      type: "cruush",
+      actorUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      targetUserId: userId,
+      createdAt: "2026-04-28T12:00:00.000Z"
+    });
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-1",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-1",
+      userOneId: userId,
+      userTwoId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+
     query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
@@ -2478,22 +2655,18 @@ describe("server", () => {
           mutual: true
         }]
       })
+      .mockResolvedValueOnce({ rows: [reciprocalCruush] })
       .mockResolvedValueOnce({
         rows: [{
-          id: "match-1",
-          user_one_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          user_two_id: userId
+          id: "match-1"
         }]
       })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
-        rows: [{
-          match_id: "match-1",
-          has_active_match_token: true,
-          viewer_ghost_mode_enabled: false,
-          target_ghost_mode_enabled: false,
-          target_precise_location_visibility: "none"
-        }]
+        rows: [matchToken]
       });
 
     const response = await app.inject({
@@ -2513,15 +2686,15 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[2]?.[0]).toContain("insert into cruush_matches");
-    expect(query.mock.calls[3]?.[0]).toContain("insert into cruush_match_tokens");
-    expect(query.mock.calls[4]?.[0]).toContain("cruush_match_tokens");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(query.mock.calls[4]?.[0]).toContain("insert into encrypted_relationship_tokens");
+    expect(query.mock.calls[8]?.[0]).toContain("encrypted_relationship_tokens");
     expect(response.json()).toEqual({
       data: {
         id: "cruush-4",
         fromUserId: userId,
         toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-        createdAt: "2026-04-28T12:15:00.000Z",
+        createdAt: expect.any(String),
         mutual: true,
         permissions: {
           matchId: "match-1",
@@ -2533,26 +2706,33 @@ describe("server", () => {
   });
 
   it("returns existing mutual state without refreshing cruushes or reissuing tokens", async () => {
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-existing",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      createdAt: "2026-04-28T12:15:00.000Z"
+    });
+    const existingCruush = await encryptedRelationshipRecordRow({
+      id: "cruush-existing",
+      type: "cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      createdAt: "2026-04-28T12:15:00.000Z"
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-existing",
+      userOneId: userId,
+      userTwoId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+
     query
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "cruush-existing",
-          from_user_id: userId,
-          to_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          created_at: "2026-04-28T12:15:00.000Z",
-          mutual: true,
-          match_id: "match-existing"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          match_id: "match-existing",
-          has_active_match_token: true,
-          viewer_ghost_mode_enabled: false,
-          target_ghost_mode_enabled: false,
-          target_precise_location_visibility: "none"
-        }]
-      });
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [existingCruush] })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] });
 
     const response = await app.inject({
       method: "POST",
@@ -2571,11 +2751,9 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(2);
-    expect(query.mock.calls[0]?.[0]).toContain("from cruush_matches");
-    expect(query.mock.calls[0]?.[0]).not.toContain("insert into cruushes");
-    expect(query.mock.calls[1]?.[0]).toContain("cruush_match_tokens");
-    expect(query.mock.calls.map((call) => call[0]).join("\n")).not.toContain("insert into cruush_match_tokens");
+    expect(query).toHaveBeenCalledTimes(6);
+    expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
+    expect(query.mock.calls.map((call) => call[0]).join("\n")).not.toContain("insert into encrypted_relationship_tokens");
     expect(response.json()).toEqual({
       data: {
         id: "cruush-existing",
@@ -3023,6 +3201,18 @@ describe("server", () => {
   });
 
   it("reveals mutual-cruush protected kinks only when the viewer has an active match", async () => {
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-1",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-1",
+      userOneId: userId,
+      userTwoId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -3038,14 +3228,11 @@ describe("server", () => {
         }]
       })
       .mockResolvedValueOnce({
-        rows: [{
-          match_id: "match-1",
-          has_active_match_token: true,
-          viewer_ghost_mode_enabled: false,
-          target_ghost_mode_enabled: false,
-          target_precise_location_visibility: "none"
-        }]
+        rows: [matchRecord]
       })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -3064,7 +3251,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[2]?.[0]).toContain("insert into profile_view_events");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into encrypted_relationship_records");
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         kinks: ["Leather"],

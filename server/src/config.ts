@@ -69,6 +69,10 @@ const configSchema = z.object({
   PROFILE_ENCRYPTION_KEY: z.string().optional().default(""),
   PROFILE_TOKEN_KEY: z.string().optional().default(""),
   PROFILE_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  RELATIONSHIP_ENCRYPTION_KEY: z.string().optional().default(""),
+  RELATIONSHIP_INDEX_KEY: z.string().optional().default(""),
+  RELATIONSHIP_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  RELATIONSHIP_INDEX_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   MATCH_TOKEN_ENCRYPTION_KEY: z.string().optional().default(""),
   MATCH_TOKEN_SIGNING_KEY: z.string().optional().default(""),
   MATCH_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
@@ -106,6 +110,22 @@ const configSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "PROFILE_TOKEN_KEY is required in production.",
       path: ["PROFILE_TOKEN_KEY"]
+    });
+  }
+
+  if (!config.RELATIONSHIP_ENCRYPTION_KEY || config.RELATIONSHIP_ENCRYPTION_KEY.length < 32) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "RELATIONSHIP_ENCRYPTION_KEY is required in production.",
+      path: ["RELATIONSHIP_ENCRYPTION_KEY"]
+    });
+  }
+
+  if (!config.RELATIONSHIP_INDEX_KEY || config.RELATIONSHIP_INDEX_KEY.length < 32) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "RELATIONSHIP_INDEX_KEY is required in production.",
+      path: ["RELATIONSHIP_INDEX_KEY"]
     });
   }
 

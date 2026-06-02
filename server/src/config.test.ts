@@ -39,6 +39,8 @@ describe("loadConfig", () => {
       EMAIL_PREVIEW_ENABLED: "true",
       PROFILE_ENCRYPTION_KEY: strongSecret,
       PROFILE_TOKEN_KEY: strongSecret,
+      RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
+      RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
       MATCH_TOKEN_SIGNING_KEY: strongSecret
     })).toThrow();
@@ -54,6 +56,8 @@ describe("loadConfig", () => {
       EMAIL_PREVIEW_ENABLED: "false",
       PROFILE_ENCRYPTION_KEY: strongSecret,
       PROFILE_TOKEN_KEY: strongSecret,
+      RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
+      RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
       MATCH_TOKEN_SIGNING_KEY: strongSecret
     })).toMatchObject({
@@ -61,6 +65,8 @@ describe("loadConfig", () => {
       EMAIL_PREVIEW_ENABLED: false,
       PROFILE_ENCRYPTION_KEY: strongSecret,
       PROFILE_TOKEN_KEY: strongSecret,
+      RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
+      RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
       MATCH_TOKEN_SIGNING_KEY: strongSecret
     });

@@ -12,6 +12,7 @@
     "seed:dev-profiles": "tsx src/dev-seed-profiles.ts",
     "start": "node --enable-source-maps dist/index.js",
     "migrate": "node --enable-source-maps dist/migrate.js",
+    "relationships:backfill": "tsx src/backfill-encrypted-relationships.ts",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run"
   },

@@ -9,6 +9,10 @@ import {
   ensureDevelopmentAdminUser
 } from "./development-admin.js";
 import {
+  buildEncryptedRelationshipPayload,
+  upsertEncryptedRelationshipRecord
+} from "./encrypted-relationships.js";
+import {
   createSensitiveProfileTokens,
   encryptSensitiveProfile,
   type SensitiveProfileData
@@ -415,30 +419,20 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
     for (const profile of profiles) {
       const profileUserId = await upsertDevelopmentProfile(context, profile);
 
-      await context.db.query(
-        `insert into cruushes (
-           from_user_id,
-           to_user_id,
-           to_user_name,
-           to_user_pronouns,
-           to_user_photo,
-           created_at
-         )
-         values ($1, $2, $3, $4, $5, $6)
-         on conflict (from_user_id, to_user_id) do update
-         set to_user_name = excluded.to_user_name,
-             to_user_pronouns = excluded.to_user_pronouns,
-             to_user_photo = excluded.to_user_photo,
-             created_at = excluded.created_at`,
-        [
-          profileUserId,
-          adminUserId,
-          DEVELOPMENT_ADMIN_DISPLAY_NAME,
-          "",
-          null,
-          profile.updatedAt
-        ]
-      );
+      await upsertEncryptedRelationshipRecord(context, buildEncryptedRelationshipPayload({
+        type: "cruush",
+        actorUserId: profileUserId,
+        targetUserId: adminUserId,
+        createdAt: profile.updatedAt,
+        targetSnapshot: {
+          name: DEVELOPMENT_ADMIN_DISPLAY_NAME,
+          pronouns: "",
+          photo: null
+        },
+        metadata: {
+          source: "development-seed"
+        }
+      }));
     }
 
     await context.db.query("commit");

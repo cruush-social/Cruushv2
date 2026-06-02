@@ -592,6 +592,10 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-demo-nyc-connected-pin')).toHaveAttribute('data-badge', 'versatile');
     expect(screen.getByTestId('marker-demo-nyc-connected-pin')).toHaveAttribute('data-last-active', '3m ago');
     expect(screen.getByTestId('marker-demo-nyc-connected-pin').getAttribute('data-photo')).toContain('data:image/svg+xml');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pin Mika Demo' }));
+    expect(screen.getByRole('button', { name: 'Demo profile' })).toBeDisabled();
+    expect(sendCruush).not.toHaveBeenCalled();
   });
 
   it('shows an error instead of fake nearby users when discovery fails', async () => {

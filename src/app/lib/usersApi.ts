@@ -18,6 +18,7 @@ export type DiscoveryUser = {
   role: string[];
   hostingTravel: string[];
   photo: string | null;
+  isDemo?: boolean;
   relationship?: {
     mutualCruush: boolean;
     canMessage: boolean;

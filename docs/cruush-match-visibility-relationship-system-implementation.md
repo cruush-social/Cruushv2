@@ -2,6 +2,8 @@
 
 This document explains the v1.1 match, visibility, and relationship-system implementation: what changed, why the system was shaped this way, and how the new behavior is verified.
 
+Note: the v1.1 plaintext relationship storage described here has been superseded by `docs/encrypted-relationship-activity-storage-implementation.md`, which moves cruushes, mutual cruushes, removals, and profile views to encrypted relationship records with blind indexes.
+
 ## Scope
 
 The work implemented a privacy-first relationship and access-control slice for cruush. The core product idea is that a mutual cruush is not just a social state. It is a server-verifiable relationship that controls messaging, protected profile fields, profile-view history, and location precision.

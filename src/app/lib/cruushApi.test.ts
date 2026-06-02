@@ -36,4 +36,12 @@ describe('cruushApi', () => {
       }),
     }));
   });
+
+  it('rejects non-profile ids before sending a cruush request', async () => {
+    await expect(sendCruush('demo-nyc-connected-pin', {
+      name: 'Mika Demo',
+    })).rejects.toThrow('This profile cannot receive cruushes.');
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });

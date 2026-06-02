@@ -83,6 +83,7 @@ const DEMO_NYC_DISCOVERY_USER: DiscoveryUser = {
   role: ['Switch'],
   hostingTravel: ['Can Host'],
   photo: DEMO_NYC_PROFILE_PHOTO,
+  isDemo: true,
 };
 
 function getLastActiveMinutes(lastActive: string) {
@@ -311,6 +312,10 @@ export default function MapHome() {
   const focusUserId = searchParams.get('focusUserId');
 
   const openProfile = (user: DiscoveryUser) => {
+    if (user.isDemo) {
+      return;
+    }
+
     navigate(`/profile/${user.id}`, {
       state: {
         distance: user.distance,
@@ -320,6 +325,11 @@ export default function MapHome() {
   };
 
   const handleUserSelect = (user: DiscoveryUser) => {
+    if (user.isDemo) {
+      setSelectedUser(user);
+      return;
+    }
+
     if (isMobile) {
       openProfile(user);
       return;
