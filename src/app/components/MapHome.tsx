@@ -220,6 +220,7 @@ export default function MapHome() {
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(true);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
   const [visibility, setVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
@@ -659,48 +660,63 @@ export default function MapHome() {
 
         {displayedUsers.length > 0 && (
           <div className="absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 px-4">
-            <div className="mx-auto max-w-5xl rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-              <div className="mb-2 px-1">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/70">Recently Active</p>
-              </div>
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide" data-testid="recently-active-tray">
-              {[...displayedUsers]
-                .sort((a, b) => {
-                  const firstUserMinutes = getLastActiveMinutes(a.lastActive);
-                  const secondUserMinutes = getLastActiveMinutes(b.lastActive);
-                  return firstUserMinutes - secondUserMinutes;
-                })
-                .slice(0, 10)
-                .map((user) => (
-                  <button
-                    key={user.id}
-                    aria-label={`Open ${user.name} profile`}
-                    onClick={() => handleUserSelect(user)}
-                    className="group block w-20 flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
-                    data-testid={`recently-active-tile-${user.id}`}
-                  >
-                    <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">
-                      {user.photo ? (
-                        <img
-                          alt=""
-                          aria-hidden="true"
-                          className="h-full w-full object-cover"
-                          draggable={false}
-                          src={user.photo}
-                        />
-                      ) : (
-                        <div
-                          aria-hidden="true"
-                          className="flex h-full w-full items-center justify-center"
-                          style={{ background: 'var(--cruush-gradient)' }}
-                        >
-                          <Heart className="h-6 w-6 text-white/72" />
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
+            <div
+              className={`mx-auto rounded-2xl border border-white/10 bg-background/40 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl ${
+                isRecentlyActiveOpen ? 'max-w-5xl p-3' : 'w-fit max-w-[calc(100vw-2rem)] px-4 py-2'
+              }`}
+              data-testid="recently-active-panel"
+            >
+              <button
+                type="button"
+                aria-controls="recently-active-tray"
+                aria-expanded={isRecentlyActiveOpen}
+                className={`block rounded px-1 text-left text-xs uppercase tracking-[0.18em] text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65 ${
+                  isRecentlyActiveOpen ? 'mb-2' : 'mb-0'
+                }`}
+                onClick={() => setIsRecentlyActiveOpen((open) => !open)}
+              >
+                Recently Active
+              </button>
+              {isRecentlyActiveOpen ? (
+                <div id="recently-active-tray" className="flex gap-3 overflow-x-auto scrollbar-hide" data-testid="recently-active-tray">
+                {[...displayedUsers]
+                  .sort((a, b) => {
+                    const firstUserMinutes = getLastActiveMinutes(a.lastActive);
+                    const secondUserMinutes = getLastActiveMinutes(b.lastActive);
+                    return firstUserMinutes - secondUserMinutes;
+                  })
+                  .slice(0, 10)
+                  .map((user) => (
+                    <button
+                      key={user.id}
+                      aria-label={`Open ${user.name} profile`}
+                      onClick={() => handleUserSelect(user)}
+                      className="group block w-20 flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                      data-testid={`recently-active-tile-${user.id}`}
+                    >
+                      <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">
+                        {user.photo ? (
+                          <img
+                            alt=""
+                            aria-hidden="true"
+                            className="h-full w-full object-cover"
+                            draggable={false}
+                            src={user.photo}
+                          />
+                        ) : (
+                          <div
+                            aria-hidden="true"
+                            className="flex h-full w-full items-center justify-center"
+                            style={{ background: 'var(--cruush-gradient)' }}
+                          >
+                            <Heart className="h-6 w-6 text-white/72" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         )}

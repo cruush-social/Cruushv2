@@ -151,7 +151,8 @@ describe('MapView', () => {
     expect(screen.getByLabelText('top')).toBeInTheDocument();
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
-    expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-16', 'w-16');
+    expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-20', 'w-20');
+    expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(markerInstances[0].element.className).not.toContain('drop-shadow');
     expect(markerInstances[1].element.className).not.toContain('drop-shadow');
     expect(screen.getByTestId('marker-heart-me').querySelector('filter')).toBeNull();

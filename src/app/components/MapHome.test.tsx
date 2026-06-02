@@ -192,8 +192,11 @@ describe('MapHome', () => {
     const recentTray = screen.getByTestId('recently-active-tray');
     const recentTile = screen.getByTestId('recently-active-tile-user-1');
     const recentMedia = recentTile.firstElementChild;
+    const recentToggle = screen.getByRole('button', { name: 'Recently Active' });
+    const recentPanel = screen.getByTestId('recently-active-panel');
 
-    expect(screen.getByText('Recently Active')).toBeInTheDocument();
+    expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(recentPanel).toHaveClass('max-w-5xl', 'p-3');
     expect(screen.queryByText('Last Active')).not.toBeInTheDocument();
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
     expect(screen.queryByText('Jordan')).not.toBeInTheDocument();
@@ -201,6 +204,21 @@ describe('MapHome', () => {
     expect(recentTile).toHaveClass('w-20');
     expect(recentMedia?.className).toContain('aspect-[4/5]');
     expect(within(recentTray).queryByText(/./)).not.toBeInTheDocument();
+
+    fireEvent.click(recentToggle);
+
+    expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(recentPanel).toHaveClass('w-fit', 'max-w-[calc(100vw-2rem)]', 'px-4', 'py-2');
+    expect(recentPanel).not.toHaveClass('max-w-5xl', 'p-3');
+    expect(recentToggle).toHaveClass('mb-0');
+    expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
+
+    fireEvent.click(recentToggle);
+
+    expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(recentPanel).toHaveClass('max-w-5xl', 'p-3');
+    expect(recentToggle).toHaveClass('mb-2');
+    expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 
   it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {

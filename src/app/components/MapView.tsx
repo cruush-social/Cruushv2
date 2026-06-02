@@ -428,7 +428,7 @@ function MarkerBadge({ badge, isCurrentUser, markerId }: { badge?: MapMarkerBadg
     <span
       aria-label={badge.label}
       className={[
-        'absolute right-1 top-7 flex h-5 w-5 items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'absolute right-2 top-9 flex h-5 w-5 items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
         isCurrentUser ? 'border-[#0BA8FF]/80' : 'border-[#FF0072]/80',
       ].join(' ')}
       data-testid={`marker-badge-${markerId}`}
@@ -449,13 +449,13 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   return (
     <svg
       aria-hidden="true"
-      className="h-16 w-16"
+      className="h-20 w-20"
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isCurrentUser ? 'current' : 'nearby'}
-      height="64"
+      height="80"
       viewBox="0 0 64 64"
-      width="64"
+      width="80"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
@@ -491,8 +491,8 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser === true;
 
   return (
-    <span className="pointer-events-none relative flex h-[70px] w-[82px] items-start justify-center overflow-visible">
-      <span className="relative flex h-16 w-[82px] items-center justify-center">
+    <span className="pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
+      <span className="relative flex h-20 w-[103px] items-center justify-center">
         <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
         <MarkerBadge badge={marker.badge} isCurrentUser={isCurrentUser} markerId={marker.id} />
       </span>
@@ -505,7 +505,7 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
   const element = document.createElement(isCurrentUser ? 'div' : 'button');
   const name = getDisplayName(marker);
 
-  element.className = 'relative flex h-[70px] w-[82px] items-start justify-center overflow-visible border-0 bg-transparent p-0';
+  element.className = 'relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0';
 
   if (isCurrentUser) {
     element.setAttribute('aria-label', 'Your approximate area');
