@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, User, Bell, Shield, HelpCircle, LogOut, ChevronRight, MailCheck, MailWarning, ExternalLink, EyeOff, MapPin } from 'lucide-react';
+import { ArrowLeft, HelpCircle, LogOut, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
+import { CruushIcon, type CruushIconName } from './CruushIconImage';
 import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, saveMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
 import { sendVerificationEmail, signOut } from '../lib/authApi';
 import {
@@ -31,9 +32,9 @@ export default function Settings() {
     {
       title: 'Account',
       items: [
-        { icon: User, label: 'Edit Profile', action: () => navigate('/profile/edit') },
-        { icon: Bell, label: 'Notifications', action: () => {} },
-        { icon: Shield, label: 'Privacy & Safety', action: () => navigate('/safety') },
+        { iconName: 'profile' as const, label: 'Edit Profile', action: () => navigate('/profile/edit') },
+        { iconName: 'notifications' as const, label: 'Notifications', action: () => {} },
+        { iconName: 'safety' as const, label: 'Privacy & Safety', action: () => navigate('/safety') },
       ],
     },
     {
@@ -118,9 +119,9 @@ export default function Settings() {
           <div className="bg-card rounded-2xl border border-border p-4 space-y-4">
             <div className="flex items-start gap-3">
               {isEmailVerified ? (
-                <MailCheck className="w-5 h-5 text-emerald-400 mt-0.5" />
+                <CruushIcon name="notifications" className="mt-0.5 h-5 w-5" variant="colored" />
               ) : (
-                <MailWarning className="w-5 h-5 text-amber-400 mt-0.5" />
+                <CruushIcon name="notifications" className="mt-0.5 h-5 w-5 opacity-75" />
               )}
               <div className="flex-1 space-y-1">
                 <p>{isEmailVerified ? 'Email verified' : 'Email verification pending'}</p>
@@ -196,7 +197,7 @@ export default function Settings() {
             <h3 className="text-sm text-muted-foreground px-2">{section.title}</h3>
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
               {section.items.map((item, index) => {
-                const Icon = item.icon;
+                const Icon = 'icon' in item ? item.icon : null;
                 return (
                   <button
                     key={item.label}
@@ -205,7 +206,11 @@ export default function Settings() {
                       index !== section.items.length - 1 ? 'border-b border-border' : ''
                     }`}
                   >
-                    <Icon className="w-5 h-5 text-muted-foreground" />
+                    {'iconName' in item ? (
+                      <CruushIcon name={item.iconName as CruushIconName} className="h-5 w-5 opacity-65" />
+                    ) : Icon ? (
+                      <Icon className="w-5 h-5 text-muted-foreground" />
+                    ) : null}
                     <span className="flex-1 text-left">{item.label}</span>
                     <ChevronRight className="w-5 h-5 text-muted-foreground" />
                   </button>
@@ -225,7 +230,7 @@ export default function Settings() {
             ) : null}
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-3">
-                <EyeOff className="mt-1 h-5 w-5 text-muted-foreground" />
+                <CruushIcon name="visibility" className="mt-1 h-5 w-5 opacity-65" />
                 <div>
                   <p>Ghost Mode</p>
                   <p className="text-sm text-muted-foreground">Hide from discovery, mutual maps, profile-view history, and precise reveals.</p>
@@ -245,7 +250,7 @@ export default function Settings() {
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-3">
-                <MapPin className="mt-1 h-5 w-5 text-muted-foreground" />
+                <CruushIcon name="map" className="mt-1 h-5 w-5 opacity-65" />
                 <div>
                   <p>Precise location for mutual cruushes</p>
                   <p className="text-sm text-muted-foreground">Off by default. When off, mutual cruushes only see your fuzzy map area.</p>

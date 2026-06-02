@@ -1,10 +1,13 @@
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Flag, Heart, MapPin, MessageCircle, Share2 } from 'lucide-react';
+import { ArrowLeft, Flag } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { CruushIcon } from './CruushIconImage';
 import { sendCruush } from '../lib/cruushApi';
+import { addCruushChangedListener } from '../lib/cruushEvents';
+import { handleCruushSendSuccess, notifyCruushSendError, notifyMutualCruushRequired } from '../lib/cruushNotifications';
 import { emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
@@ -78,6 +81,42 @@ export default function ProfileView() {
     };
   }, [isOwnProfile, userId]);
 
+  useEffect(() => {
+    if (isOwnProfile || !userId) {
+      return undefined;
+    }
+
+    let active = true;
+
+    const unsubscribe = addCruushChangedListener((payload) => {
+      if (payload.targetUserId !== userId) {
+        return;
+      }
+
+      setCruushed(true);
+
+      void getProfileById(userId)
+        .then((data) => {
+          if (!active) {
+            return;
+          }
+
+          setProfile({
+            ...emptyProfilePayload,
+            ...data,
+          });
+        })
+        .catch((refreshError) => {
+          console.error('Error refreshing profile after cruush:', refreshError);
+        });
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [isOwnProfile, userId]);
+
   const profileView = useMemo(() => {
     if (!profile) {
       return null;
@@ -117,8 +156,15 @@ export default function ProfileView() {
     };
   }, [previewState?.distance, previewState?.lastActive, profile]);
 
+  const isAlreadyMutual = profileView?.relationship?.mutual_cruush === true;
+  const cruushDisabled = cruushed || isAlreadyMutual;
+
   const handleCruush = async () => {
     if (!userId || !profileView) {
+      return;
+    }
+
+    if (isAlreadyMutual) {
       return;
     }
 
@@ -129,12 +175,10 @@ export default function ProfileView() {
         photo: profileView.photos[0] ?? null,
       });
       setCruushed(true);
-
-      if (data.mutual) {
-        alert(`It's mutual. You and ${profileView.name} have a cruush on each other.`);
-      }
+      handleCruushSendSuccess(userId, profileView.name, data);
     } catch (cruushError) {
       console.error('Error sending cruush:', cruushError);
+      notifyCruushSendError(cruushError);
     }
   };
 
@@ -145,7 +189,7 @@ export default function ProfileView() {
     }
 
     if (profileView?.relationship && !profileView.relationship.can_message) {
-      alert('You can message after a mutual cruush.');
+      notifyMutualCruushRequired();
       return;
     }
 
@@ -200,9 +244,6 @@ export default function ProfileView() {
               </Button>
             ) : (
               <>
-                <Button variant="ghost" size="icon" aria-label="Share profile">
-                  <Share2 className="w-5 h-5" />
-                </Button>
                 <Button variant="ghost" size="icon" aria-label="Report profile">
                   <Flag className="w-5 h-5" />
                 </Button>
@@ -227,7 +268,7 @@ export default function ProfileView() {
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
-              <Heart className="w-32 h-32 text-white/20" />
+              <CruushIcon name="cruush" className="h-32 w-32 opacity-20" />
             </div>
           )}
         </div>
@@ -244,7 +285,7 @@ export default function ProfileView() {
               <p className="text-muted-foreground">{profileView.pronouns}</p>
               {profileView.distance ? (
                 <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4" />
+                  <CruushIcon name="map" className="h-4 w-4 opacity-70" />
                   <span>{profileView.distance} away</span>
                   {profileView.lastActive ? <span>• {profileView.lastActive}</span> : null}
                 </div>
@@ -258,15 +299,16 @@ export default function ProfileView() {
                   onClick={() => {
                     void handleCruush();
                   }}
-                  disabled={cruushed}
+                  disabled={cruushDisabled}
+                  aria-label={isAlreadyMutual ? 'Mutual cruush' : cruushed ? 'Cruush sent' : 'Send cruush'}
                   style={{
-                    background: cruushed
+                    background: cruushDisabled
                       ? '#666'
                       : 'var(--cruush-gradient)',
                   }}
                 >
-                  <Heart className={`w-4 h-4 mr-2 ${cruushed ? 'fill-current' : ''}`} />
-                  {cruushed ? 'cruushed!' : 'cruush'}
+                  <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={cruushDisabled ? 'white' : 'colored'} />
+                  {isAlreadyMutual ? 'mutual cruush' : cruushed ? 'cruushed!' : 'cruush'}
                 </Button>
                 <Button
                   variant="outline"
@@ -280,7 +322,7 @@ export default function ProfileView() {
                     color: 'var(--cruush-purple)',
                   }}
                 >
-                  <MessageCircle className="w-4 h-4 mr-2" />
+                  <CruushIcon name="send" className="mr-2 h-4 w-4" variant="colored" />
                   Message
                 </Button>
               </div>

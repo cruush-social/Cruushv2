@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { Heart, KeyRound } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
+import { CruushIcon } from './CruushIconImage';
 import { resetPassword } from '../lib/authApi';
 
 export default function ResetPassword() {
@@ -53,7 +54,7 @@ export default function ResetPassword() {
       <div className="w-full max-w-md space-y-10 relative z-10">
         <div className="text-center space-y-6">
           <div className="flex justify-center">
-            <Heart className="w-14 h-14 text-white/10" />
+            <CruushIcon name="cruush" className="h-14 w-14 opacity-15" />
           </div>
           <div>
             <h1

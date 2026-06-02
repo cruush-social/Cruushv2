@@ -3,15 +3,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './MapView';
-import { Eye, Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart, LocateFixed } from 'lucide-react';
+import { Filter, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
+import CruushIconImage from './CruushIconImage';
 import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
+import { addCruushChangedListener } from '../lib/cruushEvents';
 import cruushLogo from '../assets/brand/cruush-logo.png';
 import {
   emptyProfilePayload,
@@ -26,6 +28,13 @@ import {
   approximateDisplayCoordinates,
   type ApproximateCoordinates,
 } from '../lib/locationPrivacy';
+import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
+import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
+import mapIconWhite from '../assets/ui-icons/map-white.png';
+import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
+import safetyIconWhite from '../assets/ui-icons/safety-white.png';
+import settingsIconWhite from '../assets/ui-icons/settings-white.png';
+import visibilityIconWhite from '../assets/ui-icons/visibility-white.png';
 
 const DISCOVERY_MAP_LIMIT = 50;
 
@@ -174,12 +183,34 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
 }
 
 function profileRecordToPayload(profile: ProfileRecord): ProfilePayload {
-  const { id: _id, updated_at: _updatedAt, ...payload } = profile;
+  const {
+    id: _id,
+    updated_at: _updatedAt,
+    location: _location,
+    viewer_relationship: _viewerRelationship,
+    ...payload
+  } = profile;
 
   return {
     ...emptyProfilePayload,
     ...payload,
     visibility_rules: normalizeVisibilityRules(payload.visibility_rules),
+  };
+}
+
+function profileLocationToApproximateCoordinates(profile: ProfileRecord | null): ApproximateCoordinates | null {
+  const location = profile?.location;
+  const latitude = location?.fuzzy_lat ?? location?.lat ?? null;
+  const longitude = location?.fuzzy_lng ?? location?.lng ?? null;
+
+  if (latitude == null || longitude == null) {
+    return null;
+  }
+
+  return {
+    approximateLatitude: latitude,
+    approximateLongitude: longitude,
+    privacyRadiusMeters: location?.fuzz_radius_meters ?? 250,
   };
 }
 
@@ -211,7 +242,7 @@ function hasActiveVisibilityControls(visibility: VisibilityControlState) {
     ].some((items) => items.length > 0);
 }
 
-function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): DiscoveryUser & { relationship: MapMarker['relationship'] } {
+function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): DiscoveryUser {
   return {
     id: item.user.id,
     name: item.user.name,
@@ -230,13 +261,11 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
     role: [],
     hostingTravel: [],
     photo: item.user.photo,
-    relationship: item.coordinates
-      ? {
-          kind: 'mutual_cruush',
-          precision: item.coordinates.precision,
-          canMessage: item.canMessage,
-        }
-      : null,
+    relationship: {
+      mutualCruush: true,
+      canMessage: item.canMessage,
+      ...(item.coordinates ? { precision: item.coordinates.precision } : {}),
+    },
   };
 }
 
@@ -244,7 +273,7 @@ export default function MapHome() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
-  const [users, setUsers] = useState<Array<DiscoveryUser & { relationship?: MapMarker['relationship'] }>>([]);
+  const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'ready' | 'error'>('idle');
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -334,6 +363,25 @@ export default function MapHome() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    return addCruushChangedListener((payload) => {
+      if (payload.mutual) {
+        setUsers((currentUsers) => currentUsers.map((user) => user.id === payload.targetUserId
+          ? {
+              ...user,
+              relationship: {
+                mutualCruush: true,
+                canMessage: payload.permissions?.canMessage ?? user.relationship?.canMessage ?? true,
+                precision: user.relationship?.precision,
+              },
+            }
+          : user));
+      }
+      setSelectedUser((currentUser) => currentUser?.id === payload.targetUserId ? null : currentUser);
+      void fetchUsers(getCurrentFetchCoordinates(), filters);
+    });
+  }, [filters, isMutualMapMode, userApproximateLocation]);
 
   const handleUseMyLocation = () => {
     setLocationError(null);
@@ -482,6 +530,10 @@ export default function MapHome() {
 
   const shouldShowDemoUser = !isMutualMapMode && !loading && !error && users.length === 0;
   const displayedUsers = shouldShowDemoUser ? [DEMO_NYC_DISCOVERY_USER] : filteredUsers;
+  const currentUserMapLocation = useMemo(
+    () => userApproximateLocation ?? profileLocationToApproximateCoordinates(currentProfile),
+    [currentProfile, userApproximateLocation],
+  );
 
   const mapMarkers = useMemo<MapMarker[]>(() => {
     const nearbyMarkers = displayedUsers.map((user) => {
@@ -498,11 +550,17 @@ export default function MapHome() {
         lastActiveLabel: user.lastActive,
         photo: user.photo,
         badge: createMapMarkerBadge(user.position, user.hostingTravel),
-        relationship: user.relationship ?? null,
+        relationship: user.relationship?.mutualCruush
+          ? {
+              kind: 'mutual_cruush',
+              precision: user.relationship.precision,
+              canMessage: user.relationship.canMessage,
+            }
+          : null,
       };
     });
 
-    if (!userApproximateLocation) {
+    if (!currentUserMapLocation) {
       return nearbyMarkers;
     }
 
@@ -510,16 +568,16 @@ export default function MapHome() {
       {
         id: 'me',
         displayName: 'You',
-        approximateLatitude: userApproximateLocation.approximateLatitude,
-        approximateLongitude: userApproximateLocation.approximateLongitude,
-        lastActiveLabel: 'Now',
+        approximateLatitude: currentUserMapLocation.approximateLatitude,
+        approximateLongitude: currentUserMapLocation.approximateLongitude,
+        lastActiveLabel: userApproximateLocation ? 'Now' : 'Saved area',
         photo: currentProfile?.photos[0] ?? null,
         isCurrentUser: true,
         badge: createMapMarkerBadge(currentProfile?.position ?? []),
       },
       ...nearbyMarkers,
     ];
-  }, [currentProfile, displayedUsers, userApproximateLocation]);
+  }, [currentProfile, currentUserMapLocation, displayedUsers, userApproximateLocation]);
 
   const handleMarkerSelect = (marker: MapMarker) => {
     const selectedMarkerUser = displayedUsers.find((user) => user.id === marker.id);
@@ -553,31 +611,40 @@ export default function MapHome() {
               variant="ghost"
               size="icon"
               onClick={() => navigate('/lucky')}
+              aria-label="I'm Feeling Lucky"
               title="I'm Feeling Lucky"
               className="rounded-full text-white/90 hover:bg-white/10"
             >
-              <Sparkles className="w-5 h-5" />
+              <CruushIconImage src={luckyIconWhite} />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate('/safety')}
+              aria-label="Safety Center"
               title="Safety Center"
               className="rounded-full text-white/90 hover:bg-white/10"
             >
-              <Shield className="w-5 h-5" />
+              <CruushIconImage src={safetyIconWhite} />
             </Button>
-            <Button variant="ghost" size="icon" title="Notifications" className="rounded-full text-white/90 hover:bg-white/10">
-              <Bell className="w-5 h-5" />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Notifications"
+              title="Notifications"
+              className="rounded-full text-white/90 hover:bg-white/10"
+            >
+              <CruushIconImage src={notificationsIconWhite} />
             </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/settings')}
+                aria-label="Settings"
                 title="Settings"
                 className="rounded-full text-white/90 hover:bg-white/10"
               >
-                <SettingsIcon className="w-5 h-5" />
+                <CruushIconImage src={settingsIconWhite} />
               </Button>
             </div>
           </div>
@@ -588,7 +655,7 @@ export default function MapHome() {
           onPinClick={handleMarkerSelect}
           onMapClick={() => setSelectedUser(null)}
           markers={mapMarkers}
-          focusCoordinates={userApproximateLocation}
+          focusCoordinates={currentUserMapLocation}
           onMapReady={setMapInstance}
         />
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
@@ -653,7 +720,7 @@ export default function MapHome() {
             }}
             className="h-auto rounded-full border border-white/10 bg-background/68 px-5 py-2.5 text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md hover:bg-white/10"
           >
-            <Eye className="mr-2 h-4 w-4" />
+            <CruushIconImage src={visibilityIconWhite} className="mr-2 h-4 w-4" />
             Visibility
             {hasActiveVisibility ? (
               <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold">
@@ -669,7 +736,7 @@ export default function MapHome() {
             disabled={locationStatus === 'locating'}
             className="h-auto rounded-2xl border border-white/10 bg-background/62 px-4 py-3 text-left text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md hover:bg-white/10"
           >
-            <LocateFixed className="mr-2 h-4 w-4 shrink-0" />
+            <CruushIconImage src={mapIconWhite} className="mr-2 h-4 w-4" />
             <span className="flex flex-col leading-tight">
               <span>{locationStatus === 'locating' ? 'Finding area...' : 'Use my location'}</span>
               <span className="text-[11px] font-normal text-white/58">
@@ -751,7 +818,7 @@ export default function MapHome() {
                             className="flex h-full w-full items-center justify-center"
                             style={{ background: 'var(--cruush-gradient)' }}
                           >
-                            <Heart className="h-6 w-6 text-white/72" />
+                            <CruushIconImage src={cruushIconWhite} className="h-8 w-8 opacity-75" />
                           </div>
                         )}
                       </div>

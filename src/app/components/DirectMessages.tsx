@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ChevronRight, MapPin, MessageCircle, Pin, Search, Users } from 'lucide-react';
+import { ChevronRight, Pin, Search } from 'lucide-react';
+import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
@@ -232,7 +233,7 @@ export default function DirectMessages() {
                   photo={conversation.user.photo}
                   fallback={
                     conversation.kind === 'group'
-                      ? <Users className="size-6 text-white/80" />
+                      ? <CruushIcon name="profile" className="size-6 opacity-80" />
                       : <div className="text-lg text-white/80">{getConversationInitials(conversation.user.name)}</div>
                   }
                 />
@@ -264,7 +265,7 @@ export default function DirectMessages() {
                         {conversation.user.pronouns ? <span>{conversation.user.pronouns}</span> : null}
                         {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
                         <span className="inline-flex items-center gap-1">
-                          <MapPin className="size-3" />
+                          <CruushIcon name="map" className="size-3 opacity-70" />
                           {conversation.distance}
                         </span>
                       </div>
@@ -300,7 +301,7 @@ export default function DirectMessages() {
 
           {!loading && filteredConversations.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center">
-              <MessageCircle className="mx-auto mb-4 size-14 text-muted-foreground" />
+              <CruushIcon name="messages" className="mx-auto mb-4 size-14 opacity-55" />
               <p className="text-muted-foreground">No threads match that search.</p>
               <p className="mt-2 text-sm text-muted-foreground">
                 Try a name, a vibe, or jump back into `All`.

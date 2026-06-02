@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Calendar, MapPin, Users } from 'lucide-react';
+import { ArrowLeft, Calendar } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { CruushIcon } from './CruushIconImage';
 
 export default function EventDetail() {
   const { eventId } = useParams();
@@ -43,13 +44,13 @@ export default function EventDetail() {
             <span>{mockEvent.date} • {mockEvent.time}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MapPin className="w-4 h-4" />
+            <CruushIcon name="map" className="h-4 w-4 opacity-70" />
             <span>{mockEvent.location} ({mockEvent.distance})</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-sm">
-          <Users className="w-4 h-4" />
+          <CruushIcon name="profile" className="h-4 w-4 opacity-70" />
           <span>{mockEvent.attendees} attending</span>
         </div>
 

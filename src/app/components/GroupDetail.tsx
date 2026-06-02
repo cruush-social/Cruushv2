@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Users, Heart } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
+import { CruushIcon } from './CruushIconImage';
 
 export default function GroupDetail() {
   const { groupId } = useParams();
@@ -34,7 +35,7 @@ export default function GroupDetail() {
           className="h-48 rounded-2xl flex items-center justify-center"
           style={{ background: 'var(--cruush-gradient)' }}
         >
-          <Heart className="w-24 h-24 text-white/20" />
+          <CruushIcon name="cruush" className="h-24 w-24 opacity-20" />
         </div>
 
         <div>
@@ -85,7 +86,7 @@ export default function GroupDetail() {
             background: 'var(--cruush-gradient)',
           }}
         >
-          <Users className="w-4 h-4 mr-2" />
+          <CruushIcon name="profile" className="mr-2 h-4 w-4" />
           Request to Join
         </Button>
       </div>

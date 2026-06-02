@@ -151,6 +151,8 @@ describe('MapView', () => {
     expect(screen.getByLabelText('top')).toBeInTheDocument();
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
+    expect(screen.getByTestId('marker-current-fallback-me')).toBeInTheDocument();
+    expect(screen.queryByTestId('marker-current-fallback-user-1')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-20', 'w-20');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(markerInstances[0].element.className).not.toContain('drop-shadow');
@@ -189,11 +191,39 @@ describe('MapView', () => {
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
+    expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-photo-fill-user-photo')).toHaveAttribute('href', 'https://example.com/kai.jpg');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-marker-theme', 'nearby');
     expect(screen.getByLabelText('versatile')).toBeInTheDocument();
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
+  });
+
+  it('renders mutual markers with the stable grey heart state', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'user-mutual',
+            displayName: 'River',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            photo: 'https://example.com/river.jpg',
+            relationship: {
+              kind: 'mutual_cruush',
+              canMessage: true,
+            },
+          },
+        ]}
+      />
+    );
+
+    expect(await screen.findByTestId('marker-photo-fill-user-mutual')).toHaveAttribute('href', 'https://example.com/river.jpg');
+    expect(screen.getByTestId('marker-heart-user-mutual')).toHaveAttribute('data-marker-theme', 'mutual');
+    expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('h-20', 'w-20');
+    expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
+    expect(screen.getByLabelText('mutual cruush')).toBeInTheDocument();
   });
 
   it('keeps the positioned marker element stable on hover', async () => {

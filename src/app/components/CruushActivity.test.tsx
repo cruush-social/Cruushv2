@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import CruushActivity from './CruushActivity';
+import { emitCruushChanged } from '../lib/cruushEvents';
 
 const { getMyCruushActivity, sendCruush } = vi.hoisted(() => ({
   getMyCruushActivity: vi.fn(),
@@ -210,5 +211,50 @@ describe('CruushActivity', () => {
     expect(screen.getByText(/Viewed your profile/)).toBeInTheDocument();
     expect(screen.getByText('Someone new')).toBeInTheDocument();
     expect(screen.getByText('Upgrade to view')).toBeInTheDocument();
+  });
+
+  it('refreshes activity when cruush state changes elsewhere', async () => {
+    render(
+      <MemoryRouter>
+        <CruushActivity />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('luna')).toBeInTheDocument();
+    expect(getMyCruushActivity).toHaveBeenCalledTimes(1);
+
+    emitCruushChanged({
+      targetUserId: 'user-jay',
+      mutual: true,
+    });
+
+    await waitFor(() => expect(getMyCruushActivity).toHaveBeenCalledTimes(2));
+  });
+
+  it('does not offer a repeat cruush action for mutual incoming rows', async () => {
+    getMyCruushActivity.mockResolvedValue({
+      ...activityFixture,
+      incoming: [{
+        ...activityFixture.incoming[0],
+        mutual: true,
+      }],
+      counts: {
+        ...activityFixture.counts,
+        incoming: 1,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <CruushActivity />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('luna')).toBeInTheDocument();
+    const mutualButton = screen.getByRole('button', { name: 'Already mutual with luna' });
+    expect(mutualButton).toBeDisabled();
+
+    fireEvent.click(mutualButton);
+    expect(sendCruush).not.toHaveBeenCalled();
   });
 });

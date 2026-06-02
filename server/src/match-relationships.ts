@@ -55,7 +55,7 @@ type MatchRow = {
   user_two_id: string;
 };
 
-const MATCH_PERMISSION_PURPOSE = "permissions";
+export const MATCH_PERMISSION_PURPOSE = "permissions";
 const MATCH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 function isSchemaCompatibilityError(error: unknown) {
@@ -219,6 +219,36 @@ export async function getCruushEntitlement(app: FastifyInstance, userId: string)
      limit 1`,
     [userId]
   ))[0];
+  const expiresAt = toIsoDate(row?.cruush_plus_expires_at);
+  const isExpired = expiresAt ? new Date(expiresAt).getTime() <= Date.now() : false;
+
+  return {
+    cruushPlus: row?.cruush_plus_enabled === true && !isExpired,
+    expiresAt
+  };
+}
+
+export async function setCruushEntitlement(
+  app: FastifyInstance,
+  userId: string,
+  cruushPlusEnabled: boolean
+): Promise<CruushEntitlement> {
+  const row = (await safeRows<EntitlementRow>(
+    app,
+    `insert into user_entitlements (
+       user_id,
+       cruush_plus_enabled,
+       cruush_plus_expires_at
+     )
+     values ($1, $2, null)
+     on conflict (user_id) do update
+     set cruush_plus_enabled = excluded.cruush_plus_enabled,
+         cruush_plus_expires_at = null,
+         updated_at = now()
+     returning cruush_plus_enabled, cruush_plus_expires_at`,
+    [userId, cruushPlusEnabled]
+  ))[0];
+
   const expiresAt = toIsoDate(row?.cruush_plus_expires_at);
   const isExpired = expiresAt ? new Date(expiresAt).getTime() <= Date.now() : false;
 

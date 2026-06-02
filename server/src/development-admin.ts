@@ -6,6 +6,13 @@ import { ApiError } from "./errors.js";
 export const DEVELOPMENT_ADMIN_EMAIL = "admin@cruush.local";
 export const DEVELOPMENT_ADMIN_DISPLAY_NAME = "Admin";
 export const DEVELOPMENT_ADMIN_YEAR_OF_BIRTH = 1990;
+export const DEVELOPMENT_ADMIN_LOCATION = {
+  lat: 40.7128,
+  lng: -74.006,
+  fuzzyLat: 40.7128,
+  fuzzyLng: -74.006,
+  fuzzRadiusMeters: 250
+} as const;
 
 type DevelopmentAdminContext = {
   config: Pick<AppConfig, "NODE_ENV" | "DEVELOPMENT_ADMIN_ENABLED" | "DEVELOPMENT_ADMIN_PASSWORD">;
@@ -61,13 +68,38 @@ export async function ensureDevelopmentAdminUser(context: DevelopmentAdminContex
   }
 
   await context.db.query(
-    `insert into profiles (id, display_name, year_of_birth)
-     values ($1, $2, $3)
+    `insert into profiles (
+       id,
+       display_name,
+       year_of_birth,
+       lat,
+       lng,
+       fuzzy_lat,
+       fuzzy_lng,
+       location_fuzz_radius_meters,
+       location_updated_at
+     )
+     values ($1, $2, $3, $4, $5, $6, $7, $8, now())
      on conflict (id) do update
      set display_name = excluded.display_name,
          year_of_birth = coalesce(profiles.year_of_birth, excluded.year_of_birth),
+         lat = excluded.lat,
+         lng = excluded.lng,
+         fuzzy_lat = excluded.fuzzy_lat,
+         fuzzy_lng = excluded.fuzzy_lng,
+         location_fuzz_radius_meters = excluded.location_fuzz_radius_meters,
+         location_updated_at = excluded.location_updated_at,
          updated_at = now()`,
-    [user.id, DEVELOPMENT_ADMIN_DISPLAY_NAME, DEVELOPMENT_ADMIN_YEAR_OF_BIRTH]
+    [
+      user.id,
+      DEVELOPMENT_ADMIN_DISPLAY_NAME,
+      DEVELOPMENT_ADMIN_YEAR_OF_BIRTH,
+      DEVELOPMENT_ADMIN_LOCATION.lat,
+      DEVELOPMENT_ADMIN_LOCATION.lng,
+      DEVELOPMENT_ADMIN_LOCATION.fuzzyLat,
+      DEVELOPMENT_ADMIN_LOCATION.fuzzyLng,
+      DEVELOPMENT_ADMIN_LOCATION.fuzzRadiusMeters
+    ]
   );
 
   return user.id;

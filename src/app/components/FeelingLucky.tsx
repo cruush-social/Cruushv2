@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Sparkles, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
+import { CruushIcon } from './CruushIconImage';
 import ProfileCard from './ProfileCard';
 
 export default function FeelingLucky() {
@@ -50,7 +51,7 @@ export default function FeelingLucky() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
+          <CruushIcon name="lucky" className="h-5 w-5" variant="colored" />
           <h2 className="text-xl">I'm Feeling Lucky</h2>
         </div>
       </header>

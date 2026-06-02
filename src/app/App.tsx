@@ -22,6 +22,8 @@ import EmailVerificationGate from './components/EmailVerificationGate';
 import ResetPassword from './components/ResetPassword';
 import BottomNav from './components/BottomNav';
 import AppErrorBoundary from './components/AppErrorBoundary';
+import DebugCruushPlusToggle from './components/DebugCruushPlusToggle';
+import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import type { AuthSessionPayload } from './lib/authApi';
 
@@ -216,6 +218,8 @@ export default function App() {
             <Route path="*" element={<Navigate to="/map" replace />} />
           </Routes>
           <BottomNav />
+          <DebugCruushPlusToggle />
+          <Toaster closeButton position="top-center" richColors />
         </div>
       </AppErrorBoundary>
     </BrowserRouter>

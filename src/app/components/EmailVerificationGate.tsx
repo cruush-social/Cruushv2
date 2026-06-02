@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { MailCheck } from 'lucide-react';
 import {
   getAuthSession,
   sendVerificationEmail,
@@ -13,6 +12,7 @@ import {
   setVerificationPreviewUrl,
 } from '../lib/sessionUser';
 import { Button } from './ui/button';
+import { CruushIcon } from './CruushIconImage';
 
 type EmailVerificationGateProps = {
   email: string;
@@ -83,7 +83,7 @@ export default function EmailVerificationGate({ email, onSignedOut, onVerified }
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6">
       <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 text-center space-y-5">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <MailCheck className="h-6 w-6" />
+          <CruushIcon name="notifications" className="h-6 w-6" variant="colored" />
         </div>
 
         <div className="space-y-2">

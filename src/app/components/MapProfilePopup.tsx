@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Heart, MapPin, MessageCircle, Sparkles, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import CruushIconImage from './CruushIconImage';
 import { sendCruush } from '../lib/cruushApi';
+import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
+import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
+import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
+import mapIconWhite from '../assets/ui-icons/map-white.png';
+import sendIconWhite from '../assets/ui-icons/send-white.png';
 
 interface MapProfilePopupProps {
   user: any;
@@ -15,8 +21,14 @@ interface MapProfilePopupProps {
 export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps) {
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
+  const isAlreadyMutual = user.relationship?.mutualCruush === true;
+  const cruushDisabled = cruushed || isAlreadyMutual;
 
   const handleCruush = async () => {
+    if (isAlreadyMutual) {
+      return;
+    }
+
     try {
       const data = await sendCruush(user.id, {
         name: user.name,
@@ -24,12 +36,10 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
         photo: user.photo ?? null,
       });
       setCruushed(true);
-
-      if (data.mutual) {
-        alert(`It's mutual. You and ${user.name} have a cruush on each other.`);
-      }
+      handleCruushSendSuccess(user.id, user.name, data);
     } catch (error) {
       console.error('Error sending cruush:', error);
+      notifyCruushSendError(error);
     }
   };
 
@@ -52,7 +62,7 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
-              <Heart className="h-24 w-24 text-white/15" />
+              <CruushIconImage src={cruushIconWhite} className="h-24 w-24 opacity-15" />
             </div>
           )}
 
@@ -87,7 +97,7 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
             </div>
 
             <div className="mt-3 flex items-center gap-2 text-sm text-white/80">
-              <MapPin className="h-4 w-4" />
+              <CruushIconImage src={mapIconWhite} className="h-4 w-4" />
               <span>{user.distance || 'Nearby'}</span>
             </div>
           </div>
@@ -101,7 +111,7 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
 
           <section className="space-y-2">
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/55">
-              <Sparkles className="h-3.5 w-3.5" />
+              <CruushIconImage src={luckyIconWhite} className="h-3.5 w-3.5 opacity-70" />
               Looking for
             </div>
             <div className="flex flex-wrap gap-2">
@@ -140,7 +150,7 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
             <div className="text-xs uppercase tracking-[0.18em] text-white/55">Map status</div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <MiniStat label="Last Active" value={user.lastActive || 'Just now'} />
-              <MiniStat label="Cruush" value={cruushed ? 'Sent' : 'Ready'} />
+              <MiniStat label="Cruush" value={isAlreadyMutual ? 'Mutual' : cruushed ? 'Sent' : 'Ready'} />
             </div>
           </section>
 
@@ -156,16 +166,16 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
           <div className="grid grid-cols-[auto_1fr] gap-3">
             <Button
               onClick={handleCruush}
-              disabled={cruushed}
+              disabled={cruushDisabled}
               className="h-12 w-12 rounded-2xl border-0 px-0 text-white"
               style={{
-                background: cruushed
+                background: cruushDisabled
                   ? 'rgba(255,255,255,0.16)'
                   : 'var(--cruush-gradient)',
               }}
-              aria-label={cruushed ? 'Cruush sent' : 'Send cruush'}
+              aria-label={isAlreadyMutual ? 'Already mutual' : cruushed ? 'Cruush sent' : 'Send cruush'}
             >
-              <Heart className={`h-5 w-5 ${cruushed ? 'fill-current' : ''}`} />
+              <CruushIconImage src={cruushIconWhite} className={`h-6 w-6 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} />
             </Button>
 
             <Button
@@ -177,7 +187,7 @@ export default function MapProfilePopup({ user, onClose }: MapProfilePopupProps)
                 void openConversationOrInbox(navigate, user.id);
               }}
             >
-              <MessageCircle className="mr-2 h-4 w-4" />
+              <CruushIconImage src={sendIconWhite} className="mr-2 h-4 w-4" />
               Message now
             </Button>
           </div>

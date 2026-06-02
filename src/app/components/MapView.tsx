@@ -24,6 +24,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { CruushIcon } from './CruushIconImage';
 
 export type MapMarkerBadge = {
   kind: 'position';
@@ -42,7 +43,7 @@ export type MapMarker = {
   badge?: MapMarkerBadge | null;
   relationship?: {
     kind: 'mutual_cruush';
-    precision: 'fuzzy' | 'precise';
+    precision?: 'fuzzy' | 'precise';
     canMessage: boolean;
   } | null;
 };
@@ -464,15 +465,26 @@ function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
     return null;
   }
 
+  const precisionLabel = marker.relationship.precision === 'precise'
+    ? 'precise mutual cruush location'
+    : marker.relationship.precision === 'fuzzy'
+      ? 'fuzzy mutual cruush location'
+      : 'mutual cruush';
+  const title = marker.relationship.precision === 'precise'
+    ? 'precise mutual location'
+    : marker.relationship.precision === 'fuzzy'
+      ? 'fuzzy mutual location'
+      : 'mutual cruush';
+
   return (
     <span
-      aria-label={marker.relationship.precision === 'precise' ? 'precise mutual cruush location' : 'fuzzy mutual cruush location'}
-      className="absolute left-2 top-9 flex h-5 w-5 items-center justify-center rounded-full border border-[#FF0072]/80 bg-black/85 text-[#FF0072] shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
+      aria-label={precisionLabel}
+      className="absolute left-2 top-9 flex h-5 w-5 items-center justify-center rounded-full border border-white/35 bg-black/85 text-white/70 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
       data-testid={`marker-relationship-${marker.id}`}
       role="img"
-      title={marker.relationship.precision === 'precise' ? 'precise mutual location' : 'fuzzy mutual location'}
+      title={title}
     >
-      <HeartHandshake aria-hidden="true" className="h-3 w-3" strokeWidth={2.6} />
+      <CruushIcon name="cruush" className="h-3 w-3 opacity-70 grayscale" variant="white" />
     </span>
   );
 }
@@ -481,7 +493,9 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const hasPhoto = Boolean(marker.photo);
   const gradientId = `marker-fill-${marker.id}`;
   const clipId = `marker-photo-clip-${marker.id}`;
-  const borderColor = isCurrentUser ? '#0BA8FF' : '#FF0072';
+  const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
+  const borderColor = isMutualCruush ? '#8A8A92' : isCurrentUser ? '#0BA8FF' : '#FF0072';
+  const theme = isMutualCruush ? 'mutual' : isCurrentUser ? 'current' : 'nearby';
 
   return (
     <svg
@@ -489,7 +503,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       className="h-20 w-20"
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
-      data-marker-theme={isCurrentUser ? 'current' : 'nearby'}
+      data-marker-theme={theme}
       height="80"
       viewBox="0 0 64 64"
       width="80"
@@ -497,9 +511,9 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     >
       <defs>
         <linearGradient id={gradientId} x1="10" x2="55" y1="9" y2="56" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={isCurrentUser ? '#00B8FF' : '#FF0072'} />
-          <stop offset="52%" stopColor={isCurrentUser ? '#0A7DF4' : '#E00062'} />
-          <stop offset="100%" stopColor={isCurrentUser ? '#3236D4' : '#B00045'} />
+          <stop offset="0%" stopColor={isMutualCruush ? '#A2A2AA' : isCurrentUser ? '#00B8FF' : '#FF0072'} />
+          <stop offset="52%" stopColor={isMutualCruush ? '#73737C' : isCurrentUser ? '#0A7DF4' : '#E00062'} />
+          <stop offset="100%" stopColor={isMutualCruush ? '#4A4A52' : isCurrentUser ? '#3236D4' : '#B00045'} />
         </linearGradient>
         <clipPath id={clipId}>
           <path d={HEART_PATH} />
@@ -516,6 +530,15 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             width="64"
           />
           <path d={HEART_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
+        </>
+      ) : isCurrentUser && !isMutualCruush ? (
+        <>
+          <path d={HEART_PATH} fill="#050505" stroke="#0BA8FF" strokeWidth="3.2" />
+          <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70">
+              <CruushIcon name="profile" className="h-7 w-7" variant="colored" />
+            </div>
+          </foreignObject>
         </>
       ) : (
         <path d={HEART_PATH} fill={`url(#${gradientId})`} />

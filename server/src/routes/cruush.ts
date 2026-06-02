@@ -55,6 +55,10 @@ type CreatedCruushRow = {
   mutual: boolean;
 };
 
+type ExistingMutualCruushRow = CreatedCruushRow & {
+  match_id: string;
+};
+
 type ActivityPersonRow = {
   id: string;
   from_user_id?: string;
@@ -618,6 +622,45 @@ export async function registerCruushRoutes(app: FastifyInstance) {
 
     if (payload.toUserId === authenticatedUserId) {
       throw new ApiError(400, "VALIDATION_ERROR", "You cannot send a cruush to yourself.");
+    }
+
+    const [userOneId, userTwoId] = [authenticatedUserId, payload.toUserId].sort();
+    const existingMutual = (await app.db.query<ExistingMutualCruushRow>(
+      `select
+         coalesce(c.id::text, m.id::text) as id,
+         $1::text as from_user_id,
+         $2::text as to_user_id,
+         coalesce(c.created_at, m.created_at) as created_at,
+         true as mutual,
+         m.id::text as match_id
+       from cruush_matches m
+       left join cruushes c
+         on c.from_user_id = $1::uuid
+        and c.to_user_id = $2::text
+       where m.user_one_id = $3::uuid
+         and m.user_two_id = $4::uuid
+         and m.revoked_at is null
+       limit 1`,
+      [authenticatedUserId, payload.toUserId, userOneId, userTwoId]
+    )).rows[0];
+
+    if (existingMutual) {
+      const relationship = await getRelationshipPermissions(app, authenticatedUserId, payload.toUserId);
+
+      return reply.code(200).send({
+        data: {
+          id: existingMutual.id,
+          fromUserId: existingMutual.from_user_id,
+          toUserId: existingMutual.to_user_id,
+          createdAt: new Date(existingMutual.created_at).toISOString(),
+          mutual: true,
+          permissions: {
+            matchId: relationship.matchId ?? existingMutual.match_id,
+            canMessage: relationship.canMessage,
+            canRevealPreciseLocation: relationship.canRevealPreciseLocation
+          }
+        }
+      });
     }
 
     const result = await app.db.query<CreatedCruushRow>(

@@ -2,23 +2,17 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ArrowRight,
-  Eye,
-  Heart,
-  HeartHandshake,
-  List,
   Lock,
-  Map,
-  MapPin,
-  MessageCircle,
-  Send,
-  Settings,
-  Sparkles,
 } from 'lucide-react';
 import HeartPhoto from './HeartPhoto';
+import { CruushIcon, type CruushIconName } from './CruushIconImage';
 import MapView, { type MapMarker } from './MapView';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { getMyCruushActivity, sendCruush, type CruushActivity, type CruushLockableActivityItem, type MutualCruushActivityItem, type ProfileViewActivityItem } from '../lib/cruushApi';
+import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
+import { addCruushChangedListener } from '../lib/cruushEvents';
+import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import cruushLogo from '../assets/brand/cruush-logo.png';
 
@@ -57,7 +51,7 @@ function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
       <HeartPhoto
         className="w-20 blur-[2px]"
         label={label}
-        fallback={<Heart className="h-7 w-7 text-white/18" />}
+        fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-20" />}
       />
       <div className="absolute inset-0 flex items-center justify-center">
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/58 text-white">
@@ -78,7 +72,7 @@ function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem
       className="w-20 shrink-0"
       label={`${item.user.name} preview`}
       photo={item.user.photo}
-      fallback={<Heart className="h-7 w-7 text-white/22" />}
+      fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-25" />}
     />
   );
 }
@@ -103,7 +97,7 @@ function UpgradeBanner({
       <div className="absolute inset-0 opacity-40" style={{ background: 'var(--cruush-gradient-soft-28)' }} />
       <div className="relative flex items-center justify-between gap-4">
         <div className="flex items-start gap-3">
-          <Sparkles className="mt-0.5 h-5 w-5 text-primary" />
+          <CruushIcon name="lucky" className="mt-0.5 h-5 w-5" variant="colored" />
           <div>
             <p className="text-sm text-white">{pluralize(count, 'more person', 'more people')} {resolvedLabel}</p>
             <p className="mt-1 text-xs text-white/68">Upgrade to cruush+ to see them.</p>
@@ -158,11 +152,17 @@ function IncomingRow({
             type="button"
             size="icon"
             variant="secondary"
-            className="h-11 w-11 rounded-full bg-white/10 text-white hover:bg-white/14"
-            aria-label={`Cruush ${item.user.name} back`}
+            className={[
+              'h-11 w-11 rounded-full text-white',
+              item.mutual
+                ? 'bg-white/8 opacity-65 grayscale hover:bg-white/8'
+                : 'bg-white/10 hover:bg-white/14',
+            ].join(' ')}
+            aria-label={item.mutual ? `Already mutual with ${item.user.name}` : `Cruush ${item.user.name} back`}
+            disabled={item.mutual}
             onClick={() => onCruushBack(item)}
           >
-            <Heart className="h-5 w-5 fill-current text-primary" />
+            <CruushIcon name="cruush" className={`h-6 w-6 ${item.mutual ? 'opacity-45' : ''}`} variant={item.mutual ? 'white' : 'colored'} />
           </Button>
         </div>
       ) : null}
@@ -185,7 +185,7 @@ function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; on
         className="w-16 shrink-0"
         label={`${item.user.name} preview`}
         photo={item.user.photo}
-        fallback={<Heart className="h-6 w-6 text-white/22" />}
+        fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-25" />}
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -217,7 +217,7 @@ function MutualRow({
           className="w-20"
           label={`${item.user.name} preview`}
           photo={item.user.photo}
-          fallback={<HeartHandshake className="h-7 w-7 text-white/24" />}
+          fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-30" />}
         />
       </button>
       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpenProfile(item.user.id)}>
@@ -248,7 +248,7 @@ function MutualRow({
           aria-label={`Message ${item.user.name}`}
           onClick={() => onMessage(item.user.id)}
         >
-          <MessageCircle className="h-5 w-5" />
+          <CruushIcon name="messages" className="h-5 w-5" variant="colored" />
         </Button>
         <Button
           type="button"
@@ -258,7 +258,7 @@ function MutualRow({
           aria-label={`Open ${item.user.name} on map`}
           onClick={() => onOpenProfile(item.user.id)}
         >
-          <MapPin className="h-5 w-5" />
+          <CruushIcon name="map" className="h-5 w-5" variant="colored" />
         </Button>
       </div>
     </div>
@@ -292,7 +292,7 @@ function ViewRow({ item, onOpenProfile }: { item: ProfileViewActivityItem; onOpe
           aria-label={`Open ${item.user.name} profile`}
           onClick={() => onOpenProfile(item.user!.id)}
         >
-          <Eye className="h-5 w-5" />
+          <CruushIcon name="visibility" className="h-5 w-5" variant="white" />
         </Button>
       ) : null}
     </div>
@@ -323,20 +323,43 @@ export default function CruushActivity() {
     void fetchCruushActivity();
   }, []);
 
+  useEffect(() => {
+    const handleDebugCruushPlusChange = () => {
+      void fetchCruushActivity();
+    };
+
+    window.addEventListener(DEBUG_CRUUSH_PLUS_EVENT, handleDebugCruushPlusChange);
+
+    return () => {
+      window.removeEventListener(DEBUG_CRUUSH_PLUS_EVENT, handleDebugCruushPlusChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    return addCruushChangedListener(() => {
+      void fetchCruushActivity();
+    });
+  }, []);
+
   const handleCruushBack = async (item: CruushLockableActivityItem) => {
     if (!item.user) {
       return;
     }
 
+    if (item.mutual) {
+      return;
+    }
+
     try {
-      await sendCruush(item.user.id, {
+      const cruush = await sendCruush(item.user.id, {
         name: item.user.name,
         pronouns: item.user.pronouns,
         photo: item.user.photo,
       });
-      await fetchCruushActivity();
+      handleCruushSendSuccess(item.user.id, item.user.name, cruush);
     } catch (cruushError) {
       console.error('Error sending cruush:', cruushError);
+      notifyCruushSendError(cruushError);
       setError(cruushError instanceof Error ? cruushError.message : 'Failed to send cruush.');
     }
   };
@@ -384,7 +407,7 @@ export default function CruushActivity() {
               aria-label="Open settings"
               onClick={() => navigate('/settings')}
             >
-              <Settings className="h-5 w-5" />
+              <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
           </div>
 
@@ -395,10 +418,10 @@ export default function CruushActivity() {
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)} className="mt-4">
             <TabsList className="grid h-auto w-full grid-cols-4 rounded-none border-b border-white/10 bg-transparent p-0">
-              <ActivityTabButton value="incoming" icon={Heart} label="incoming" count={activity?.counts.incoming ?? 0} />
-              <ActivityTabButton value="sent" icon={Send} label="sent" count={activity?.counts.sent ?? 0} />
-              <ActivityTabButton value="mutual" icon={HeartHandshake} label="mutual" count={activity?.counts.mutual ?? 0} />
-              <ActivityTabButton value="views" icon={Eye} label="views" count={activity?.counts.views ?? 0} />
+              <ActivityTabButton value="incoming" iconName="cruush" label="incoming" count={activity?.counts.incoming ?? 0} />
+              <ActivityTabButton value="sent" iconName="send" label="sent" count={activity?.counts.sent ?? 0} />
+              <ActivityTabButton value="mutual" iconName="cruush" label="mutual" count={activity?.counts.mutual ?? 0} />
+              <ActivityTabButton value="views" iconName="visibility" label="views" count={activity?.counts.views ?? 0} />
             </TabsList>
 
             <div className="mx-auto max-w-3xl pt-4">
@@ -445,7 +468,7 @@ export default function CruushActivity() {
                           className="h-9 rounded-lg px-3"
                           onClick={() => setMutualMode('list')}
                         >
-                          <List className="mr-2 h-4 w-4" />
+                          <CruushIcon name="feed" className="mr-2 h-4 w-4" variant={mutualMode === 'list' ? 'colored' : 'white'} />
                           List
                         </Button>
                         <Button
@@ -455,7 +478,7 @@ export default function CruushActivity() {
                           className="h-9 rounded-lg px-3"
                           onClick={() => setMutualMode('map')}
                         >
-                          <Map className="mr-2 h-4 w-4" />
+                          <CruushIcon name="map" className="mr-2 h-4 w-4" variant={mutualMode === 'map' ? 'colored' : 'white'} />
                           Map
                         </Button>
                       </div>
@@ -486,7 +509,7 @@ export default function CruushActivity() {
                     >
                       <span className="flex items-center gap-3">
                         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/22 text-primary">
-                          <MapPin className="h-5 w-5" />
+                          <CruushIcon name="map" className="h-5 w-5" variant="colored" />
                         </span>
                         <span>
                           <span className="block text-base text-primary">See mutual cruushes on the map</span>
@@ -517,23 +540,24 @@ export default function CruushActivity() {
 
 function ActivityTabButton({
   value,
-  icon: Icon,
+  iconName,
   label,
   count,
 }: {
   value: ActivityTab;
-  icon: typeof Heart;
+  iconName: CruushIconName;
   label: string;
   count: number;
 }) {
   return (
     <TabsTrigger
       value={value}
-      className="relative min-h-[4.5rem] rounded-none border-b-2 border-transparent bg-transparent text-white/64 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
+      className="group relative min-h-[4.5rem] rounded-none border-b-2 border-transparent bg-transparent text-white/64 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
     >
       <span className="flex flex-col items-center gap-1">
         <span className="relative">
-          <Icon className="h-6 w-6" />
+          <CruushIcon name={iconName} className="h-6 w-6 opacity-55 group-data-[state=active]:hidden" />
+          <CruushIcon name={iconName} className="hidden h-6 w-6 group-data-[state=active]:block" variant="colored" />
           {count > 0 ? (
             <span className="absolute -right-3 -top-2 rounded-full bg-primary px-1.5 py-0.5 text-[10px] leading-none text-white">
               {count}

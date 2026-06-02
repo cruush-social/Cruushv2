@@ -3,10 +3,37 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileView from './ProfileView';
 
+const { sendCruush } = vi.hoisted(() => ({
+  sendCruush: vi.fn(),
+}));
+
 const { getMyProfile, getProfileById } = vi.hoisted(() => ({
   getMyProfile: vi.fn(),
   getProfileById: vi.fn(),
 }));
+
+const { toastSuccess, toastError, toastInfo } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+  toastInfo: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: toastSuccess,
+    error: toastError,
+    info: toastInfo,
+  },
+}));
+
+vi.mock('../lib/cruushApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/cruushApi')>('../lib/cruushApi');
+
+  return {
+    ...actual,
+    sendCruush,
+  };
+});
 
 vi.mock('../lib/profileApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi');
@@ -18,54 +45,75 @@ vi.mock('../lib/profileApi', async () => {
   };
 });
 
+function createProfileFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'user-1',
+    display_name: 'Jordan',
+    photos: [],
+    bio: 'Out and about tonight.',
+    pronouns: ['they/them'],
+    custom_pronouns: '',
+    year_of_birth: 1998,
+    ethnicity: 'Latinx',
+    identities: ['Non-binary'],
+    presentation: ['Femme'],
+    sexuality: ['Queer'],
+    body_type: ['Athletic'],
+    height: "5'8\"",
+    weight: '155 lbs',
+    position: ['Vers'],
+    role: ['Switch'],
+    availability: ['Now'],
+    hosting_travel: ['Hosting'],
+    kinks: ['Leather'],
+    kink_interests: [{
+      kink_id: 'leather',
+      label: 'Leather',
+    }],
+    kinks_visibility: 'public',
+    vibes: ['Playful'],
+    hobbies: ['Hiking'],
+    custom_hobby: '',
+    looking_for: ['Dates'],
+    hiv_status: ['Negative'],
+    custom_hiv_status: '',
+    condoms: ['Always'],
+    custom_condoms: '',
+    prep: ['Daily'],
+    custom_prep: '',
+    doxypep: [],
+    custom_doxypep: '',
+    covid_vaccine: [],
+    custom_covid_vaccine: '',
+    mpox_vaccine: ['Vaccinated'],
+    custom_mpox_vaccine: '',
+    substance_boundaries: ['No alcohol involved', "Let's discuss"],
+    updated_at: '2026-04-29T12:00:00.000Z',
+    ...overrides,
+  };
+}
+
 describe('ProfileView', () => {
   beforeEach(() => {
+    sendCruush.mockReset();
     getMyProfile.mockReset();
     getProfileById.mockReset();
+    toastSuccess.mockReset();
+    toastError.mockReset();
+    toastInfo.mockReset();
 
-    getProfileById.mockResolvedValue({
-      id: 'user-1',
-      display_name: 'Jordan',
-      photos: [],
-      bio: 'Out and about tonight.',
-      pronouns: ['they/them'],
-      custom_pronouns: '',
-      year_of_birth: 1998,
-      ethnicity: 'Latinx',
-      identities: ['Non-binary'],
-      presentation: ['Femme'],
-      sexuality: ['Queer'],
-      body_type: ['Athletic'],
-      height: "5'8\"",
-      weight: '155 lbs',
-      position: ['Vers'],
-      role: ['Switch'],
-      availability: ['Now'],
-      hosting_travel: ['Hosting'],
-      kinks: ['Leather'],
-      kink_interests: [{
-        kink_id: 'leather',
-        label: 'Leather',
-      }],
-      kinks_visibility: 'public',
-      vibes: ['Playful'],
-      hobbies: ['Hiking'],
-      custom_hobby: '',
-      looking_for: ['Dates'],
-      hiv_status: ['Negative'],
-      custom_hiv_status: '',
-      condoms: ['Always'],
-      custom_condoms: '',
-      prep: ['Daily'],
-      custom_prep: '',
-      doxypep: [],
-      custom_doxypep: '',
-      covid_vaccine: [],
-      custom_covid_vaccine: '',
-      mpox_vaccine: ['Vaccinated'],
-      custom_mpox_vaccine: '',
-      substance_boundaries: ['No alcohol involved', "Let's discuss"],
-      updated_at: '2026-04-29T12:00:00.000Z',
+    getProfileById.mockResolvedValue(createProfileFixture());
+    sendCruush.mockResolvedValue({
+      id: 'cruush-1',
+      fromUserId: 'me',
+      toUserId: 'user-1',
+      createdAt: '2026-04-29T12:00:00.000Z',
+      mutual: true,
+      permissions: {
+        matchId: 'match-1',
+        canMessage: true,
+        canRevealPreciseLocation: false,
+      },
     });
   });
 
@@ -90,5 +138,68 @@ describe('ProfileView', () => {
     expect(screen.getByText('Role')).toBeInTheDocument();
     expect(screen.getByText('Switch')).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
+  });
+
+  it('emits cruush changes, refreshes the profile, and avoids browser alerts', async () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const eventListener = vi.fn();
+    window.addEventListener('cruush:changed', eventListener);
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Send cruush' }));
+
+    await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-1', expect.objectContaining({
+      name: 'Jordan',
+    })));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cruush sent' })).toBeDisabled());
+    await waitFor(() => expect(getProfileById).toHaveBeenCalledTimes(2));
+
+    expect(eventListener).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        targetUserId: 'user-1',
+        mutual: true,
+      }),
+    }));
+    expect(toastSuccess).toHaveBeenCalledWith("It's mutual. You and Jordan have a cruush on each other.");
+    expect(alertSpy).not.toHaveBeenCalled();
+
+    window.removeEventListener('cruush:changed', eventListener);
+    alertSpy.mockRestore();
+  });
+
+  it('removes profile sharing and disables cruushing an existing mutual', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      viewer_relationship: {
+        match_id: 'match-1',
+        mutual_cruush: true,
+        can_message: true,
+        can_reveal_precise_location: false,
+      },
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('profile-hero-media')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Share profile' })).not.toBeInTheDocument();
+    const cruushButton = screen.getByRole('button', { name: 'Mutual cruush' });
+
+    expect(cruushButton).toBeDisabled();
+    expect(cruushButton).toHaveTextContent('mutual cruush');
+
+    fireEvent.click(cruushButton);
+    expect(sendCruush).not.toHaveBeenCalled();
   });
 });

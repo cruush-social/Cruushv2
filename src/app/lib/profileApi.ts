@@ -78,6 +78,15 @@ export type ProfilePayload = {
 export type ProfileRecord = ProfilePayload & {
   id: string;
   updated_at: string;
+  location?: {
+    id: string;
+    lat: number | null;
+    lng: number | null;
+    fuzzy_lat: number | null;
+    fuzzy_lng: number | null;
+    fuzz_radius_meters: number;
+    location_updated_at: string | null;
+  } | null;
   viewer_relationship?: {
     match_id: string | null;
     mutual_cruush: boolean;

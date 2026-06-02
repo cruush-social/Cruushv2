@@ -1,5 +1,4 @@
 import { useCallback, useState } from 'react';
-import { Heart, MailCheck } from 'lucide-react';
 import {
   requestPasswordReset,
   resendVerificationEmail,
@@ -8,6 +7,7 @@ import {
   type AuthSessionPayload
 } from '../lib/authApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
+import { CruushIcon } from './CruushIconImage';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 
 interface AuthProps {
@@ -191,7 +191,7 @@ export default function Auth({ onAuth }: AuthProps) {
         {/* Logo and tagline */}
         <div className="text-center space-y-6">
           <div className="flex justify-center mb-6">
-            <Heart className="w-16 h-16 text-white/10" />
+            <CruushIcon name="cruush" className="h-16 w-16 opacity-15" />
           </div>
           <div>
             <h1
@@ -220,7 +220,7 @@ export default function Auth({ onAuth }: AuthProps) {
           {notice && (
             <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-2">
               <div className="flex items-start gap-2">
-                <MailCheck className="mt-0.5 h-4 w-4 text-[#004bff]" />
+                <CruushIcon name="notifications" className="mt-0.5 h-4 w-4" variant="colored" />
                 <span>{notice}</span>
               </div>
               {verificationPreviewUrl ? (

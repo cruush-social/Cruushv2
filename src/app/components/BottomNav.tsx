@@ -1,14 +1,14 @@
 import { useNavigate, useLocation } from 'react-router';
-import cruushIconColored from '../assets/nav-icons/cruush-colored.png';
-import cruushIconWhite from '../assets/nav-icons/cruush-white.png';
-import feedIconColored from '../assets/nav-icons/feed-colored.png';
-import feedIconWhite from '../assets/nav-icons/feed-white.png';
-import mapIconColored from '../assets/nav-icons/map-colored.png';
-import mapIconWhite from '../assets/nav-icons/map-white.png';
-import messagesIconColored from '../assets/nav-icons/messages-colored.png';
-import messagesIconWhite from '../assets/nav-icons/messages-white.png';
-import profileIconColored from '../assets/nav-icons/profile-colored.png';
-import profileIconWhite from '../assets/nav-icons/profile-white.png';
+import cruushIconColored from '../assets/ui-icons/cruush-colored.png';
+import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
+import feedIconColored from '../assets/ui-icons/feed-colored.png';
+import feedIconWhite from '../assets/ui-icons/feed-white.png';
+import mapIconColored from '../assets/ui-icons/map-colored.png';
+import mapIconWhite from '../assets/ui-icons/map-white.png';
+import messagesIconColored from '../assets/ui-icons/messages-colored.png';
+import messagesIconWhite from '../assets/ui-icons/messages-white.png';
+import profileIconColored from '../assets/ui-icons/profile-colored.png';
+import profileIconWhite from '../assets/ui-icons/profile-white.png';
 
 const navItems = [
   { path: '/map', icon: mapIconWhite, activeIcon: mapIconColored, label: 'Map' },

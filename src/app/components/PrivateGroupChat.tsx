@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, CornerDownLeft, Heart, Image as ImageIcon, MapPin, MoreHorizontal, Send, Shield, Users } from 'lucide-react';
+import { ArrowLeft, CornerDownLeft, Image as ImageIcon, MoreHorizontal } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
 import { fallbackConversations, fallbackMessagesByConversationId, type ChatMessageRecord, type ConversationThread } from '../lib/messageFixtures';
@@ -138,7 +139,7 @@ export default function PrivateGroupChat() {
               photo={conversation.user.photo}
               fallback={
                 conversation.kind === 'group'
-                  ? <Users className="size-5 text-white/80" />
+                  ? <CruushIcon name="profile" className="size-5 opacity-80" />
                   : <div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>
               }
             />
@@ -161,7 +162,7 @@ export default function PrivateGroupChat() {
                 {conversation.user.pronouns ? <span>{conversation.user.pronouns}</span> : null}
                 {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
                 <span className="inline-flex items-center gap-1">
-                  <MapPin className="size-3" />
+                  <CruushIcon name="map" className="size-3 opacity-70" />
                   {conversation.distance}
                 </span>
                 {usingSampleData ? <span>Preview thread</span> : null}
@@ -174,7 +175,7 @@ export default function PrivateGroupChat() {
               <ImageIcon className="w-5 h-5" />
             </Button>
             <Button variant="ghost" size="icon" title="Safety tools" aria-label="Open safety options">
-              <Shield className="w-5 h-5" />
+              <CruushIcon name="safety" className="h-5 w-5" />
             </Button>
             <Button variant="ghost" size="icon" aria-label="More conversation options">
               <MoreHorizontal className="w-5 h-5" />
@@ -216,7 +217,7 @@ export default function PrivateGroupChat() {
           {!loading && messages.length === 0 ? (
             <div className="flex min-h-[40vh] items-center justify-center">
               <div className="rounded-3xl border border-dashed border-border bg-card/60 p-10 text-center">
-                <Heart className="mx-auto mb-4 size-12 text-muted-foreground" />
+                <CruushIcon name="cruush" className="mx-auto mb-4 size-12 opacity-55" />
                 <p className="text-muted-foreground">No messages yet.</p>
                 <p className="mt-2 text-sm text-muted-foreground">Break the ice when the vibe is right.</p>
               </div>
@@ -313,7 +314,7 @@ export default function PrivateGroupChat() {
                         : undefined,
                     }}
                   >
-                    <Send className="w-4 h-4" />
+                    <CruushIcon name="send" className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

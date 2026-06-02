@@ -18,6 +18,11 @@ export type DiscoveryUser = {
   role: string[];
   hostingTravel: string[];
   photo: string | null;
+  relationship?: {
+    mutualCruush: boolean;
+    canMessage: boolean;
+    precision?: 'fuzzy' | 'precise';
+  } | null;
 };
 
 type Coordinates = {

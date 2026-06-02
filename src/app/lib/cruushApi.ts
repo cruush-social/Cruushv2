@@ -89,12 +89,37 @@ export type CruushActivity = {
   received?: CruushActivityItem[];
 };
 
+function normalizeCruushSnapshotPhoto(photo: string | null | undefined) {
+  if (!photo) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(photo);
+
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return null;
+    }
+
+    return photo.length <= 2048 ? photo : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function sendCruush(toUserId: string, targetUser?: CruushTargetUser) {
+  const normalizedTargetUser = targetUser
+    ? {
+        ...targetUser,
+        photo: normalizeCruushSnapshotPhoto(targetUser.photo),
+      }
+    : undefined;
+
   return requestApi<CruushRecord>('/api/cruush', {
     method: 'POST',
     body: JSON.stringify({
       toUserId,
-      targetUser,
+      targetUser: normalizedTargetUser,
     }),
   });
 }

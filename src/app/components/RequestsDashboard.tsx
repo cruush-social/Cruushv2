@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Users, Calendar, Check, X } from 'lucide-react';
+import { ArrowLeft, Calendar, Check, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
+import { CruushIcon } from './CruushIconImage';
 
 export default function RequestsDashboard() {
   const navigate = useNavigate();
@@ -76,7 +77,7 @@ export default function RequestsDashboard() {
 
               {groupRequests.length === 0 && (
                 <div className="p-12 text-center">
-                  <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <CruushIcon name="profile" className="mx-auto mb-4 h-16 w-16 opacity-55" />
                   <p className="text-muted-foreground">No pending group requests</p>
                 </div>
               )}

@@ -103,6 +103,8 @@ type ProfileRow = {
   lng?: number | null;
   fuzzy_lat?: number | null;
   fuzzy_lng?: number | null;
+  location_fuzz_radius_meters?: number | null;
+  location_updated_at?: string | Date | null;
   updated_at: string | Date;
 };
 
@@ -331,9 +333,10 @@ function mapProfileRow(
     ? sensitiveKinkInterests
     : kinkInterests.length > 0
       ? kinkInterests
-    : legacyKinks
+      : legacyKinks
       .map((kink) => legacyKinkToInterest(kink))
       .filter((interest): interest is ProfileKinkInterest => Boolean(interest));
+  const ownLocation = includePrivateSensitive ? mapOwnProfileLocation(row) : null;
 
   return {
     id: row.id,
@@ -387,6 +390,7 @@ function mapProfileRow(
     substance_boundaries: row.substance_boundaries ?? [],
     visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
     updated_at: new Date(row.updated_at).toISOString(),
+    ...(ownLocation ? { location: ownLocation } : {}),
     ...(options.relationship ? {
       viewer_relationship: {
         match_id: options.relationship.matchId,
@@ -410,6 +414,22 @@ function mapProfileLocationRow(row: ProfileLocationRow) {
       ? new Date(row.location_updated_at).toISOString()
       : null
   };
+}
+
+function mapOwnProfileLocation(row: ProfileRow) {
+  if (row.lat == null && row.lng == null && row.fuzzy_lat == null && row.fuzzy_lng == null) {
+    return null;
+  }
+
+  return mapProfileLocationRow({
+    id: row.id,
+    lat: row.lat ?? null,
+    lng: row.lng ?? null,
+    fuzzy_lat: row.fuzzy_lat ?? null,
+    fuzzy_lng: row.fuzzy_lng ?? null,
+    location_fuzz_radius_meters: row.location_fuzz_radius_meters ?? null,
+    location_updated_at: row.location_updated_at ?? null
+  });
 }
 
 function getProfileCoordinates(row: Pick<ProfileRow | VisibilitySubjectRow, "lat" | "lng" | "fuzzy_lat" | "fuzzy_lng">): VisibilityCoordinates {
@@ -781,7 +801,14 @@ async function loadProfileData(
   options: { includePrivateSensitive: boolean; viewerUserId?: string }
 ) {
   const result = await app.db.query<ProfileRow>(
-    `select ${PROFILE_COLUMNS.join(", ")}, lat, lng, fuzzy_lat, fuzzy_lng, updated_at
+    `select ${PROFILE_COLUMNS.join(", ")},
+            lat,
+            lng,
+            fuzzy_lat,
+            fuzzy_lng,
+            location_fuzz_radius_meters,
+            location_updated_at,
+            updated_at
      from profiles
      where id = $1`,
     [userId]

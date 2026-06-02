@@ -122,6 +122,14 @@ vi.mock('./components/BottomNav', () => ({
   default: () => <nav aria-label="Bottom Navigation">Mock Bottom Nav</nav>
 }));
 
+vi.mock('./components/DebugCruushPlusToggle', () => ({
+  default: () => <div data-testid="debug-cruush-plus-toggle" />
+}));
+
+vi.mock('./components/ui/sonner', () => ({
+  Toaster: () => <div data-testid="toaster" />
+}));
+
 describe('App', () => {
   beforeEach(() => {
     localStorage.clear();

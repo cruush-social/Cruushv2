@@ -19,6 +19,7 @@ import {
 } from "../profile-visibility.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { normalizeSingleLineText } from "../input-schema.js";
+import { MATCH_PERMISSION_PURPOSE } from "../match-relationships.js";
 
 type DiscoveryProfileRow = {
   id: string;
@@ -53,6 +54,8 @@ type DiscoveryProfileRow = {
   fuzzy_lat: number | null;
   fuzzy_lng: number | null;
   updated_at: string | Date;
+  mutual_match_id: string | null;
+  can_message: boolean | null;
 };
 
 type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "display_name" | "photos" | "updated_at">;
@@ -136,7 +139,6 @@ function isSchemaCompatibilityError(error: unknown) {
 
   const message = error instanceof Error ? error.message.toLowerCase() : "";
   return (
-    message.includes("column") ||
     message.includes("relation") ||
     message.includes("operator does not exist") ||
     message.includes("does not exist")
@@ -401,9 +403,9 @@ function discoveryRowIsVisibleToViewer(
 
 async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, filters: DiscoveryQuery) {
   try {
-    const values: unknown[] = [currentUserId];
+    const values: unknown[] = [currentUserId, MATCH_PERMISSION_PURPOSE];
     const where = [
-      "id <> $1",
+      "profiles.id <> $1",
       "lat is not null",
       "lng is not null",
       "coalesce(profile_privacy.ghost_mode_enabled, false) = false"
@@ -430,7 +432,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
 
     const modernRows = await app.db.query<DiscoveryProfileRow>(
       `select
-         id::text as id,
+         profiles.id::text as id,
          display_name,
          year_of_birth,
          pronouns,
@@ -461,10 +463,26 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          lng,
          fuzzy_lat,
          fuzzy_lng,
-         updated_at
+         profiles.updated_at,
+         discovery_match.id::text as mutual_match_id,
+         exists (
+           select 1
+           from cruush_match_tokens token
+           where token.match_id = discovery_match.id
+             and token.purpose = $2
+             and token.revoked_at is null
+             and token.expires_at > now()
+         ) as can_message
        from profiles
        left join user_privacy_settings profile_privacy
          on profile_privacy.user_id = profiles.id
+       left join cruush_matches discovery_match
+         on discovery_match.revoked_at is null
+        and (
+          (discovery_match.user_one_id = $1::uuid and discovery_match.user_two_id = profiles.id)
+          or
+          (discovery_match.user_two_id = $1::uuid and discovery_match.user_one_id = profiles.id)
+        )
        where ${where.join("\n         and ")}
        order by profiles.updated_at desc
        limit ${limitPlaceholder}`,
@@ -542,7 +560,13 @@ function mapModernDiscoveryRow(
     position: coerceStringArray(row.position),
     role: coerceStringArray(row.role),
     hostingTravel: coerceStringArray(row.hosting_travel),
-    photo: row.photos?.[0] ?? null
+    photo: row.photos?.[0] ?? null,
+    relationship: row.mutual_match_id
+      ? {
+          mutualCruush: true,
+          canMessage: row.can_message === true
+        }
+      : null
   };
 }
 

@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
 import { hashPassword, hashSessionToken } from "./auth.js";
+import { DEVELOPMENT_ADMIN_LOCATION } from "./development-admin.js";
 import { emptyProfile } from "./profile-schema.js";
 import { encryptProfileVisibility, encryptSensitiveProfile } from "./profile-sensitive.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
@@ -622,6 +623,17 @@ describe("server", () => {
     expect(response.headers["set-cookie"]).toContain("cruush_session=");
     expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
     expect(query.mock.calls[1]?.[0]).toContain("insert into profiles");
+    expect(query.mock.calls[1]?.[0]).toContain("location_updated_at");
+    expect(query.mock.calls[1]?.[1]).toEqual([
+      userId,
+      "Admin",
+      1990,
+      DEVELOPMENT_ADMIN_LOCATION.lat,
+      DEVELOPMENT_ADMIN_LOCATION.lng,
+      DEVELOPMENT_ADMIN_LOCATION.fuzzyLat,
+      DEVELOPMENT_ADMIN_LOCATION.fuzzyLng,
+      DEVELOPMENT_ADMIN_LOCATION.fuzzRadiusMeters
+    ]);
     expect(query.mock.calls[2]?.[0]).toContain("insert into app_sessions");
     expect(response.json()).toEqual({
       data: {
@@ -1560,10 +1572,12 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(2);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
-    expect(query.mock.calls[1]?.[0]).toContain("where id <> $1");
+    expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
     expect(query.mock.calls[1]?.[0]).toContain("and lat is not null");
-    expect(query.mock.calls[1]?.[0]).toContain("limit $2");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, 50]);
+    expect(query.mock.calls[1]?.[0]).toContain("profiles.updated_at");
+    expect(query.mock.calls[1]?.[0]).toContain("discovery_match");
+    expect(query.mock.calls[1]?.[0]).toContain("limit $3");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "permissions", 50]);
 
     const body = response.json();
     expect(Array.isArray(body.data)).toBe(true);
@@ -1578,7 +1592,8 @@ describe("server", () => {
       vibes: ["Chill"],
       position: ["Top"],
       hostingTravel: ["Can Host"],
-      photo: "https://example.com/alex.jpg"
+      photo: "https://example.com/alex.jpg",
+      relationship: null
     });
     expect(body.data[0].distance).toMatch(/ mi$/);
     expect(body.data[0].lastActive).toMatch(/ago$/);
@@ -1615,9 +1630,74 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[1]?.[0]).toContain("limit $2");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, 20]);
+    expect(query.mock.calls[1]?.[0]).toContain("limit $3");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "permissions", 20]);
     expect(response.json().data).toHaveLength(20);
+  });
+
+  it("marks active mutual cruushes in discovery results", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          year_of_birth: 1998,
+          pronouns: ["they/them"],
+          looking_for: ["Fun"],
+          vibes: ["Chill"],
+          position: ["Top"],
+          hosting_travel: ["Can Host"],
+          photos: ["https://example.com/alex.jpg"],
+          lat: 40.711,
+          lng: -74.002,
+          fuzzy_lat: 40.7115,
+          fuzzy_lng: -74.0025,
+          updated_at: "2026-04-28T12:00:00.000Z",
+          mutual_match_id: "match-1",
+          can_message: true
+        }, {
+          id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+          display_name: "River",
+          year_of_birth: 1997,
+          pronouns: ["he/him"],
+          looking_for: ["Dates"],
+          vibes: ["Soft"],
+          position: ["Bottom"],
+          hosting_travel: [],
+          photos: [],
+          lat: 40.712,
+          lng: -74.003,
+          fuzzy_lat: 40.7125,
+          fuzzy_lng: -74.0035,
+          updated_at: "2026-04-28T11:00:00.000Z",
+          mutual_match_id: null,
+          can_message: false
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual([
+      expect.objectContaining({
+        id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        relationship: {
+          mutualCruush: true,
+          canMessage: true
+        }
+      }),
+      expect.objectContaining({
+        id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+        relationship: null
+      })
+    ]);
   });
 
   it("rejects discovery limits above the backend cap", async () => {
@@ -2311,15 +2391,17 @@ describe("server", () => {
   });
 
   it("creates or updates a cruush on POST /api/cruush", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "cruush-3",
-        from_user_id: userId,
-        to_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-        created_at: "2026-04-28T12:10:00.000Z",
-        mutual: false
-      }]
-    });
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "cruush-3",
+          from_user_id: userId,
+          to_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          created_at: "2026-04-28T12:10:00.000Z",
+          mutual: false
+        }]
+      });
 
     const response = await app.inject({
       method: "POST",
@@ -2338,9 +2420,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0]?.[0]).toContain("insert into cruushes");
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97", "Jordan", "they/them", null]);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[0]?.[0]).toContain("from cruush_matches");
+    expect(query.mock.calls[1]?.[0]).toContain("insert into cruushes");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97", "Jordan", "they/them", null]);
     expect(response.json()).toEqual({
       data: {
         id: "cruush-3",
@@ -2352,8 +2435,40 @@ describe("server", () => {
     });
   });
 
+  it("toggles cruush+ through the development debug endpoint", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: true,
+        cruush_plus_expires_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/dev/cruush-plus",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        enabled: true
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("insert into user_entitlements");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, true]);
+    expect(response.json()).toEqual({
+      data: {
+        cruushPlus: true,
+        expiresAt: null
+      }
+    });
+  });
+
   it("creates a mutual match and server-managed token for reciprocal cruushes", async () => {
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "cruush-4",
@@ -2398,9 +2513,9 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[1]?.[0]).toContain("insert into cruush_matches");
-    expect(query.mock.calls[2]?.[0]).toContain("insert into cruush_match_tokens");
-    expect(query.mock.calls[3]?.[0]).toContain("cruush_match_tokens");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into cruush_matches");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into cruush_match_tokens");
+    expect(query.mock.calls[4]?.[0]).toContain("cruush_match_tokens");
     expect(response.json()).toEqual({
       data: {
         id: "cruush-4",
@@ -2410,6 +2525,66 @@ describe("server", () => {
         mutual: true,
         permissions: {
           matchId: "match-1",
+          canMessage: true,
+          canRevealPreciseLocation: false
+        }
+      }
+    });
+  });
+
+  it("returns existing mutual state without refreshing cruushes or reissuing tokens", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "cruush-existing",
+          from_user_id: userId,
+          to_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          created_at: "2026-04-28T12:15:00.000Z",
+          mutual: true,
+          match_id: "match-existing"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          match_id: "match-existing",
+          has_active_match_token: true,
+          viewer_ghost_mode_enabled: false,
+          target_ghost_mode_enabled: false,
+          target_precise_location_visibility: "none"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/cruush",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        targetUser: {
+          name: "Jordan",
+          pronouns: "they/them",
+          photo: null
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[0]?.[0]).toContain("from cruush_matches");
+    expect(query.mock.calls[0]?.[0]).not.toContain("insert into cruushes");
+    expect(query.mock.calls[1]?.[0]).toContain("cruush_match_tokens");
+    expect(query.mock.calls.map((call) => call[0]).join("\n")).not.toContain("insert into cruush_match_tokens");
+    expect(response.json()).toEqual({
+      data: {
+        id: "cruush-existing",
+        fromUserId: userId,
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        createdAt: "2026-04-28T12:15:00.000Z",
+        mutual: true,
+        permissions: {
+          matchId: "match-existing",
           canMessage: true,
           canRevealPreciseLocation: false
         }
@@ -2525,6 +2700,12 @@ describe("server", () => {
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
+        lat: 40.7128,
+        lng: -74.006,
+        fuzzy_lat: 40.713,
+        fuzzy_lng: -74.005,
+        location_fuzz_radius_meters: 250,
+        location_updated_at: "2026-06-02T12:00:00.000Z",
         updated_at: "2026-04-28T12:00:00.000Z"
       }]
     });
@@ -2589,6 +2770,15 @@ describe("server", () => {
         custom_mpox_vaccine: "",
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
         visibility_rules: emptyProfile.visibility_rules,
+        location: {
+          id: userId,
+          lat: 40.7128,
+          lng: -74.006,
+          fuzzy_lat: 40.713,
+          fuzzy_lng: -74.005,
+          fuzz_radius_meters: 250,
+          location_updated_at: "2026-06-02T12:00:00.000Z"
+        },
         updated_at: "2026-04-28T12:00:00.000Z"
       }
     });

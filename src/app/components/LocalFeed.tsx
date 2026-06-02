@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Send, MapPin, Clock, Heart } from 'lucide-react';
+import { ArrowLeft, Clock } from 'lucide-react';
 import { Button } from './ui/button';
+import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
 import { createFeedPost, getFeedPosts, type FeedPost, type FeedPostExpiry } from '../lib/postApi';
@@ -132,7 +133,7 @@ export default function LocalFeed() {
                   : undefined,
               }}
             >
-              <Send className="w-4 h-4 mr-2" />
+              <CruushIcon name="send" className="mr-2 h-4 w-4" />
               {posting ? 'Posting...' : 'Post'}
             </Button>
           </div>
@@ -153,7 +154,7 @@ export default function LocalFeed() {
                   className="w-14 flex-shrink-0"
                   label={`${post.user.name} preview`}
                   photo={post.user?.photo}
-                  fallback={<Heart className="w-5 h-5 text-white/20" />}
+                  fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
                 />
 
                 <div className="flex-1 space-y-2">
@@ -165,7 +166,7 @@ export default function LocalFeed() {
                       </p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
+                          <CruushIcon name="map" className="h-3 w-3 opacity-70" />
                           {post.distance}
                         </span>
                         <span>{formatRelativeTime(post.createdAt)}</span>

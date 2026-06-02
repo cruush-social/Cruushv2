@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { X, Heart, MessageCircle, MapPin } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { CruushIcon } from './CruushIconImage';
 import { sendCruush } from '../lib/cruushApi';
+import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
 
@@ -16,8 +18,14 @@ interface ProfileCardProps {
 export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCardProps) {
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
+  const isAlreadyMutual = user.relationship?.mutualCruush === true;
+  const cruushDisabled = cruushed || isAlreadyMutual;
 
   const handleCruush = async () => {
+    if (isAlreadyMutual) {
+      return;
+    }
+
     try {
       const data = await sendCruush(user.id, {
         name: user.name,
@@ -25,12 +33,10 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
         photo: user.photo ?? null,
       });
       setCruushed(true);
-
-      if (data.mutual) {
-        alert(`It's mutual. You and ${user.name} have a cruush on each other.`);
-      }
+      handleCruushSendSuccess(user.id, user.name, data);
     } catch (error) {
       console.error('Error sending cruush:', error);
+      notifyCruushSendError(error);
     }
   };
 
@@ -47,7 +53,7 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
           <img src={user.photo} alt={user.name} className="w-full h-full object-cover" style={PROFILE_CARD_MEDIA_ASPECT_STYLE} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Heart className="w-24 h-24 text-white/20" />
+            <CruushIcon name="cruush" className="h-24 w-24 opacity-20" />
           </div>
         )}
 
@@ -68,7 +74,7 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
 
       <div className="p-4 space-y-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="w-4 h-4" />
+          <CruushIcon name="map" className="h-4 w-4 opacity-70" />
           <span>{user.distance} away</span>
         </div>
 
@@ -105,14 +111,15 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
             variant="outline"
             className="flex-1"
             onClick={handleCruush}
-            disabled={cruushed}
+            disabled={cruushDisabled}
+            aria-label={isAlreadyMutual ? 'Already mutual' : cruushed ? 'Cruush sent' : 'Send cruush'}
             style={{
-              borderColor: 'var(--cruush-pink)',
-              color: 'var(--cruush-pink)',
+              borderColor: cruushDisabled ? '#73737C' : 'var(--cruush-pink)',
+              color: cruushDisabled ? '#A2A2AA' : 'var(--cruush-pink)',
             }}
           >
-            <Heart className={`w-4 h-4 mr-2 ${cruushed ? 'fill-current' : ''}`} />
-            {cruushed ? 'cruushed!' : 'cruush'}
+            <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={cruushDisabled ? 'white' : 'colored'} />
+            {isAlreadyMutual ? 'mutual' : cruushed ? 'cruushed!' : 'cruush'}
           </Button>
           <Button
             variant="outline"
@@ -125,7 +132,7 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
               color: 'var(--cruush-purple)',
             }}
           >
-            <MessageCircle className="w-4 h-4 mr-2" />
+            <CruushIcon name="send" className="mr-2 h-4 w-4" variant="colored" />
             Message
           </Button>
         </div>

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, AlertTriangle, Clock, Users, Phone, Mail } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Clock, Phone } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { CruushIcon } from './CruushIconImage';
 
 export default function SafetyCenter() {
   const navigate = useNavigate();
@@ -153,7 +154,7 @@ export default function SafetyCenter() {
           <TabsContent value="contacts" className="space-y-6 mt-6">
             <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <Users className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+                <CruushIcon name="profile" className="mt-1 h-6 w-6 flex-shrink-0" variant="colored" />
                 <div className="space-y-2">
                   <h3 className="text-lg">Emergency Contacts</h3>
                   <p className="text-sm text-muted-foreground">
@@ -201,7 +202,7 @@ export default function SafetyCenter() {
                   <div className="space-y-2">
                     <Label htmlFor={`email-${index}`}>Email</Label>
                     <div className="flex gap-2">
-                      <Mail className="w-5 h-5 text-muted-foreground mt-2" />
+                      <CruushIcon name="notifications" className="mt-2 h-5 w-5 opacity-65" />
                       <Input
                         id={`email-${index}`}
                         type="email"

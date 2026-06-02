@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, MapPin, Users, Clock } from 'lucide-react';
+import { ArrowLeft, Clock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Avatar, AvatarFallback } from './ui/avatar';
+import { CruushIcon } from './CruushIconImage';
 
 export default function PlaceDetail() {
   const { placeId } = useParams();
@@ -36,7 +37,7 @@ export default function PlaceDetail() {
           className="h-48 rounded-2xl flex items-center justify-center"
           style={{ background: 'var(--cruush-gradient)' }}
         >
-          <MapPin className="w-24 h-24 text-white/20" />
+          <CruushIcon name="map" className="h-24 w-24 opacity-20" />
         </div>
 
         <div>
@@ -48,7 +49,7 @@ export default function PlaceDetail() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-card border border-border rounded-lg p-4 text-center">
-            <Users className="w-6 h-6 mx-auto mb-2 text-primary" />
+            <CruushIcon name="profile" className="mx-auto mb-2 h-6 w-6" variant="colored" />
             <p className="text-2xl">{mockPlace.currentlyHere}</p>
             <p className="text-sm text-muted-foreground">Currently Here</p>
           </div>
@@ -65,7 +66,7 @@ export default function PlaceDetail() {
             background: 'var(--cruush-gradient)',
           }}
         >
-          <MapPin className="w-4 h-4 mr-2" />
+          <CruushIcon name="map" className="mr-2 h-4 w-4" />
           Check In Here
         </Button>
 
