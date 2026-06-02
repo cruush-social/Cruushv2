@@ -63,8 +63,38 @@ function spawnProcess(command, args, env, label) {
   return child;
 }
 
+function mergeOrigins(...values) {
+  const origins = new Set();
+
+  for (const value of values) {
+    if (!value) {
+      continue;
+    }
+
+    for (const origin of value.split(',')) {
+      const trimmed = origin.trim();
+
+      if (trimmed) {
+        origins.add(trimmed);
+      }
+    }
+  }
+
+  return Array.from(origins).join(',');
+}
+
+function isDisabled(value) {
+  return typeof value === 'string' && ['0', 'false'].includes(value.trim().toLowerCase());
+}
+
 const rootDir = process.cwd();
 const serverDir = path.join(rootDir, 'server');
+const localFrontendOrigins = [
+  'http://localhost:5173',
+  'https://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://127.0.0.1:5173',
+].join(',');
 
 const rootEnv = {
   ...(await readEnvFile(path.join(rootDir, '.env'))),
@@ -82,13 +112,16 @@ const frontendEnv = {
   ...rootEnv,
   VITE_API_BASE_URL: rootEnv.VITE_API_BASE_URL ?? '',
 };
+const localFrontendUrl = isDisabled(frontendEnv.VITE_DEV_HTTPS)
+  ? 'http://localhost:5173'
+  : 'https://localhost:5173';
 
 const serverEnv = {
   ...process.env,
   ...serverEnvFromFiles,
   PORT: serverEnvFromFiles.PORT ?? '3001',
   HOST: serverEnvFromFiles.HOST ?? '0.0.0.0',
-  CORS_ORIGIN: serverEnvFromFiles.CORS_ORIGIN ?? 'http://localhost:5173',
+  CORS_ORIGIN: mergeOrigins(serverEnvFromFiles.CORS_ORIGIN, localFrontendOrigins),
 };
 
 if (!serverEnv.DATABASE_URL) {
@@ -104,7 +137,7 @@ if (!serverEnv.SESSION_SECRET) {
 }
 
 if (!serverEnv.APP_URL) {
-  serverEnv.APP_URL = 'http://localhost:5173';
+  serverEnv.APP_URL = localFrontendUrl;
 }
 
 const migration = spawnProcess('npm', ['--prefix', 'server', 'run', 'migrate:dev'], serverEnv, 'migrate');
