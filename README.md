@@ -17,7 +17,7 @@
 
   - frontend on `https://localhost:5173` by default, or `http://localhost:5173` when `VITE_DEV_HTTPS=0`
   - API on `http://localhost:3001`
-  - Postgres on `localhost:5432`
+  - Postgres on `localhost:5433`
 
   ### 1. Start local Postgres
 
@@ -52,9 +52,9 @@
 
   Default local values are:
 
-  - `DATABASE_URL=postgres://postgres:postgres@localhost:5432/cruush`
+  - `DATABASE_URL=postgres://postgres:postgres@localhost:5433/cruush`
   - `PORT=3001`
-  - `HOST=0.0.0.0`
+  - `HOST=127.0.0.1`
   - `CORS_ORIGIN=http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,https://127.0.0.1:5173`
   - `APP_URL=https://localhost:5173`
   - `VITE_API_BASE_URL=` (blank; the Vite `/api` proxy reaches `http://localhost:3001`)
@@ -70,8 +70,8 @@
 
   ```bash
   PORT=3001
-  HOST=0.0.0.0
-  DATABASE_URL=postgres://postgres:postgres@localhost:5432/cruush
+  HOST=127.0.0.1
+  DATABASE_URL=postgres://postgres:postgres@localhost:5433/cruush
   CORS_ORIGIN=http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,https://127.0.0.1:5173
   SESSION_SECRET=change-me-in-local-dev
   APP_URL=https://localhost:5173

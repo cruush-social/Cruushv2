@@ -191,6 +191,7 @@ const frontendEnv = {
   ...rootEnv,
   VITE_API_BASE_URL: rootEnv.VITE_API_BASE_URL ?? '',
 };
+
 const localFrontendUrl = isDisabled(frontendEnv.VITE_DEV_HTTPS)
   ? 'http://localhost:5173'
   : 'https://localhost:5173';
@@ -199,7 +200,7 @@ const serverEnv = {
   ...process.env,
   ...serverEnvFromFiles,
   PORT: serverEnvFromFiles.PORT ?? '3001',
-  HOST: serverEnvFromFiles.HOST ?? '0.0.0.0',
+  HOST: serverEnvFromFiles.HOST ?? '127.0.0.1',
   CORS_ORIGIN: mergeOrigins(serverEnvFromFiles.CORS_ORIGIN, localFrontendOrigins),
 };
 
@@ -219,15 +220,11 @@ if (!serverEnv.APP_URL) {
   serverEnv.APP_URL = localFrontendUrl;
 }
 
-<<<<<<< Updated upstream
-function startLocalStack() {
-=======
 await verifyDatabaseConnection(serverEnv, serverDir);
 
 const migration = spawnProcess('npm', ['--prefix', 'server', 'run', 'migrate:dev'], serverEnv, 'migrate');
 
-function startLocalApps() {
->>>>>>> Stashed changes
+function startLocalStack() {
   const server = spawnProcess('npm', ['--prefix', 'server', 'run', 'dev'], serverEnv, 'server');
   const frontend = spawnProcess('npm', ['run', 'dev'], frontendEnv, 'frontend');
 
@@ -250,17 +247,11 @@ function startLocalApps() {
   });
 }
 
-<<<<<<< Updated upstream
-const migration = spawnProcess('npm', ['--prefix', 'server', 'run', 'migrate:dev'], serverEnv, 'migrate');
-
-=======
->>>>>>> Stashed changes
 migration.on('exit', (code) => {
   if (code !== 0) {
     process.exit(code ?? 1);
   }
 
-<<<<<<< Updated upstream
   if (!shouldSeedDevProfiles) {
     startLocalStack();
     return;
@@ -275,20 +266,4 @@ migration.on('exit', (code) => {
 
     startLocalStack();
   });
-=======
-  if (isEnabled(serverEnv.DEVELOPMENT_ADMIN_ENABLED) && serverEnv.DEVELOPMENT_ADMIN_PASSWORD) {
-    const seed = spawnProcess('npm', ['--prefix', 'server', 'run', 'seed:dev-profiles'], serverEnv, 'seed');
-
-    seed.on('exit', (seedCode) => {
-      if (seedCode !== 0) {
-        process.exit(seedCode ?? 1);
-      }
-
-      startLocalApps();
-    });
-    return;
-  }
-
-  startLocalApps();
->>>>>>> Stashed changes
 });
