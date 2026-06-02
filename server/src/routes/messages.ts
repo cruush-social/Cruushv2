@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
+import { hasActiveMutualMessagePermission } from "../match-relationships.js";
 import { createMessagePayloadSchema, openDirectConversationPayloadSchema } from "../message-schema.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 
@@ -132,6 +133,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "You cannot create a direct conversation with yourself.");
     }
 
+    if (!await hasActiveMutualMessagePermission(app, userId, payload.otherUserId)) {
+      throw new ApiError(
+        403,
+        "MUTUAL_CRUUSH_REQUIRED",
+        "You can message after a mutual cruush."
+      );
+    }
+
     const existingUser = await app.db.query<ExistingUserRow>(
       `select id::text as id
        from app_users
@@ -246,6 +255,31 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   app.post("/api/messages", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = createMessagePayloadSchema.parse(request.body);
+
+    const conversationResult = await app.db.query<ConversationRow>(
+      `${CONVERSATION_SELECT}
+       where cm.user_id = $1
+         and c.id::text = $2
+       limit 1`,
+      [userId, payload.conversationId]
+    );
+    const conversation = conversationResult.rows[0];
+
+    if (!conversation) {
+      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+    }
+
+    if (
+      conversation.kind === "dm" &&
+      conversation.other_user_id &&
+      !await hasActiveMutualMessagePermission(app, userId, conversation.other_user_id)
+    ) {
+      throw new ApiError(
+        403,
+        "MUTUAL_CRUUSH_REQUIRED",
+        "You can message after a mutual cruush."
+      );
+    }
 
     const result = await app.db.query<MessageRow>(
       `with membership as (

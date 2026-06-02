@@ -1,7 +1,7 @@
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './MapView';
 import { Eye, Filter, Bell, Shield, Sparkles, Settings as SettingsIcon, ZoomIn, ZoomOut, Heart, LocateFixed } from 'lucide-react';
 import { Button } from './ui/button';
@@ -11,6 +11,7 @@ import MapProfilePopup from './MapProfilePopup';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
 import cruushLogo from '../assets/brand/cruush-logo.png';
 import {
   emptyProfilePayload,
@@ -25,6 +26,8 @@ import {
   approximateDisplayCoordinates,
   type ApproximateCoordinates,
 } from '../lib/locationPrivacy';
+
+const DISCOVERY_MAP_LIMIT = 50;
 
 const DEMO_NYC_PROFILE_PHOTO = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
@@ -208,10 +211,40 @@ function hasActiveVisibilityControls(visibility: VisibilityControlState) {
     ].some((items) => items.length > 0);
 }
 
+function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): DiscoveryUser & { relationship: MapMarker['relationship'] } {
+  return {
+    id: item.user.id,
+    name: item.user.name,
+    display_name: item.user.name,
+    age: null,
+    pronouns: item.user.pronouns,
+    lat: item.coordinates?.lat ?? 40.7128,
+    lng: item.coordinates?.lng ?? -74.006,
+    lastActive: item.lastActive,
+    distance: item.distance,
+    lookingFor: ['Mutual cruush'],
+    vibes: item.vibes,
+    scenes: [],
+    archetypes: [],
+    position: [],
+    role: [],
+    hostingTravel: [],
+    photo: item.user.photo,
+    relationship: item.coordinates
+      ? {
+          kind: 'mutual_cruush',
+          precision: item.coordinates.precision,
+          canMessage: item.canMessage,
+        }
+      : null,
+  };
+}
+
 export default function MapHome() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
-  const [users, setUsers] = useState<DiscoveryUser[]>([]);
+  const [users, setUsers] = useState<Array<DiscoveryUser & { relationship?: MapMarker['relationship'] }>>([]);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'ready' | 'error'>('idle');
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -227,6 +260,7 @@ export default function MapHome() {
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
+  const isMutualMapMode = searchParams.get('mode') === 'mutuals';
 
   const openProfile = (user: DiscoveryUser) => {
     navigate(`/profile/${user.id}`, {
@@ -254,7 +288,7 @@ export default function MapHome() {
 
   useEffect(() => {
     void fetchUsers(null);
-  }, []);
+  }, [isMutualMapMode]);
 
   useEffect(() => {
     let isMounted = true;
@@ -282,13 +316,20 @@ export default function MapHome() {
     setLoading(true);
     setError(null);
     try {
-      setUsers(filterParams
-        ? await getNearbyUsers(coordinates, filterParams)
-        : await getNearbyUsers(coordinates));
+      if (isMutualMapMode) {
+        const mutualMapItems = await getMutualCruushMap();
+        setUsers(mutualMapItems
+          .filter((item) => item.coordinates)
+          .map(mutualMapItemToDiscoveryUser));
+      } else {
+        setUsers(filterParams
+          ? await getNearbyUsers(coordinates, filterParams, { limit: DISCOVERY_MAP_LIMIT })
+          : await getNearbyUsers(coordinates, undefined, { limit: DISCOVERY_MAP_LIMIT }));
+      }
     } catch (fetchError) {
       console.error('Error fetching users:', fetchError);
       setUsers([]);
-      setError(fetchError instanceof Error ? fetchError.message : 'Failed to load nearby people.');
+      setError(fetchError instanceof Error ? fetchError.message : isMutualMapMode ? 'Failed to load mutual cruushes.' : 'Failed to load nearby people.');
     } finally {
       setLoading(false);
     }
@@ -439,7 +480,7 @@ export default function MapHome() {
     }
   };
 
-  const shouldShowDemoUser = !loading && !error && users.length === 0;
+  const shouldShowDemoUser = !isMutualMapMode && !loading && !error && users.length === 0;
   const displayedUsers = shouldShowDemoUser ? [DEMO_NYC_DISCOVERY_USER] : filteredUsers;
 
   const mapMarkers = useMemo<MapMarker[]>(() => {
@@ -457,6 +498,7 @@ export default function MapHome() {
         lastActiveLabel: user.lastActive,
         photo: user.photo,
         badge: createMapMarkerBadge(user.position, user.hostingTravel),
+        relationship: user.relationship ?? null,
       };
     });
 
@@ -502,7 +544,7 @@ export default function MapHome() {
               src={cruushLogo}
             />
             <div className="mt-1 inline-flex rounded-full border border-white/10 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72 backdrop-blur-md">
-              NYC beta
+              {isMutualMapMode ? 'Mutual cruushes' : 'NYC beta'}
             </div>
           </div>
 
@@ -594,7 +636,7 @@ export default function MapHome() {
             onClick={() => setIsFiltersOpen(true)}
           >
             <Filter className="w-4 h-4 mr-2" />
-            Seeking
+            {isMutualMapMode ? 'Mutuals' : 'Seeking'}
             {hasActiveFilters ? (
               <span className="ml-2 rounded-full bg-black/20 px-2 py-0.5 text-[11px] font-semibold">
                 On
@@ -726,7 +768,7 @@ export default function MapHome() {
           open={isFiltersOpen}
           onOpenChange={setIsFiltersOpen}
           title="Seeking"
-          description="Refine who appears nearby by distance, profile details, and vibe."
+            description="Refine who appears nearby by distance, profile details, and vibe."
           value={filters}
           onChange={setFilters}
           onClear={() => {

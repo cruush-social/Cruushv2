@@ -99,6 +99,7 @@ const crowdQueryArrayField = z.preprocess((value) => {
 const discoveryQuerySchema = z.object({
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(50),
   identities: queryArrayField,
   presentations: queryArrayField,
   lookingFor: queryArrayField,
@@ -404,7 +405,8 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     const where = [
       "id <> $1",
       "lat is not null",
-      "lng is not null"
+      "lng is not null",
+      "coalesce(profile_privacy.ghost_mode_enabled, false) = false"
     ];
 
     addTextArrayFilter(where, values, "identities", filters.identities);
@@ -423,6 +425,8 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     addTextArrayFilter(where, values, "substance_boundaries", filters.substanceBoundaries);
     addSensitiveTokenFilter(app, where, values, "crowd", filters.crowds);
     addSensitiveTokenFilter(app, where, values, "kink", filters.kinks);
+    values.push(filters.limit);
+    const limitPlaceholder = `$${values.length}`;
 
     const modernRows = await app.db.query<DiscoveryProfileRow>(
       `select
@@ -459,9 +463,11 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lng,
          updated_at
        from profiles
+       left join user_privacy_settings profile_privacy
+         on profile_privacy.user_id = profiles.id
        where ${where.join("\n         and ")}
-       order by updated_at desc
-       limit 12`,
+       order by profiles.updated_at desc
+       limit ${limitPlaceholder}`,
       values
     );
 
@@ -490,7 +496,8 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lng
        from profiles
        order by last_active desc nulls last
-       limit 12`
+       limit $1`,
+      [filters.limit]
     );
 
     return {
@@ -600,7 +607,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
           });
 
     return reply.send({
-      data: realUsers.slice(0, 12)
+      data: realUsers.slice(0, parsedQuery.limit)
     });
   });
 }

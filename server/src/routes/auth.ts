@@ -20,6 +20,7 @@ import {
   signUpPayloadSchema,
   verifyEmailPayloadSchema
 } from "../auth-schema.js";
+import { ensureDevelopmentAdminUser, isDevelopmentAdminLogin } from "../development-admin.js";
 import { verifyTurnstileToken } from "../turnstile.js";
 
 type SessionLookupRow = {
@@ -75,9 +76,6 @@ type PasswordResetLookupRow = {
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const AUTH_ATTEMPT_MAX = 5;
 const AUTH_ATTEMPT_WINDOW_MS = FIFTEEN_MINUTES_MS;
-const DEVELOPMENT_ADMIN_EMAIL = "admin@cruush.local";
-const DEVELOPMENT_ADMIN_DISPLAY_NAME = "Admin";
-const DEVELOPMENT_ADMIN_YEAR_OF_BIRTH = 1990;
 
 function mapSessionRow(row: AuthUserRow) {
   const displayName = row.app_display_name?.trim() || row.profile_display_name?.trim() || row.email;
@@ -186,47 +184,6 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
   }
 
   return mapSessionRow(row);
-}
-
-function isDevelopmentAdminLogin(app: FastifyInstance, email: string, password: string) {
-  return (
-    app.config.DEVELOPMENT_ADMIN_ENABLED &&
-    app.config.NODE_ENV !== "production" &&
-    app.config.DEVELOPMENT_ADMIN_PASSWORD.length > 0 &&
-    email === DEVELOPMENT_ADMIN_EMAIL &&
-    password === app.config.DEVELOPMENT_ADMIN_PASSWORD
-  );
-}
-
-async function ensureDevelopmentAdminUser(app: FastifyInstance) {
-  const passwordHash = await hashPassword(app.config.DEVELOPMENT_ADMIN_PASSWORD);
-  const userResult = await app.db.query<CreatedUserRow>(
-    `insert into app_users (email, password_hash, display_name, email_verified_at)
-     values ($1, $2, $3, now())
-     on conflict (email) do update
-     set password_hash = excluded.password_hash,
-         display_name = excluded.display_name,
-         email_verified_at = coalesce(app_users.email_verified_at, now())
-     returning id, email, display_name, email_verified_at, created_at`,
-    [DEVELOPMENT_ADMIN_EMAIL, passwordHash, DEVELOPMENT_ADMIN_DISPLAY_NAME]
-  );
-  const user = userResult.rows[0];
-
-  if (!user) {
-    throw new ApiError(500, "INTERNAL_ERROR", "Unable to create development admin.");
-  }
-
-  await app.db.query(
-    `insert into profiles (id, display_name, year_of_birth)
-     values ($1, $2, $3)
-     on conflict (id) do update
-     set display_name = excluded.display_name,
-         year_of_birth = coalesce(profiles.year_of_birth, excluded.year_of_birth),
-         updated_at = now()`,
-    [user.id, DEVELOPMENT_ADMIN_DISPLAY_NAME, DEVELOPMENT_ADMIN_YEAR_OF_BIRTH]
-  );
-
-  return user.id;
 }
 
 async function resolveSessionUserId(request: FastifyRequest) {

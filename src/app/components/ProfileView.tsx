@@ -113,6 +113,7 @@ export default function ProfileView() {
       hivStatus: formatJoined(profile.hiv_status),
       mpoxStatus: formatJoined(profile.mpox_vaccine),
       substanceBoundaries: formatJoined(profile.substance_boundaries),
+      relationship: profile.viewer_relationship ?? null,
     };
   }, [previewState?.distance, previewState?.lastActive, profile]);
 
@@ -140,6 +141,11 @@ export default function ProfileView() {
   const handleMessage = async () => {
     if (!userId) {
       navigate('/messages');
+      return;
+    }
+
+    if (profileView?.relationship && !profileView.relationship.can_message) {
+      alert('You can message after a mutual cruush.');
       return;
     }
 
@@ -268,6 +274,7 @@ export default function ProfileView() {
                   onClick={() => {
                     void handleMessage();
                   }}
+                  disabled={Boolean(profileView.relationship && !profileView.relationship.can_message)}
                   style={{
                     borderColor: 'var(--cruush-purple)',
                     color: 'var(--cruush-purple)',

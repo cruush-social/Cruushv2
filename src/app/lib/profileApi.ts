@@ -78,6 +78,12 @@ export type ProfilePayload = {
 export type ProfileRecord = ProfilePayload & {
   id: string;
   updated_at: string;
+  viewer_relationship?: {
+    match_id: string | null;
+    mutual_cruush: boolean;
+    can_message: boolean;
+    can_reveal_precise_location: boolean;
+  };
 };
 
 export const emptyProfilePayload: ProfilePayload = {

@@ -25,7 +25,10 @@ const app = buildServer({
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
-  PROFILE_TOKEN_KEY_VERSION: "v1"
+  PROFILE_TOKEN_KEY_VERSION: "v1",
+  MATCH_TOKEN_ENCRYPTION_KEY: "",
+  MATCH_TOKEN_SIGNING_KEY: "",
+  MATCH_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -50,7 +53,10 @@ const developmentApp = buildServer({
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
-  PROFILE_TOKEN_KEY_VERSION: "v1"
+  PROFILE_TOKEN_KEY_VERSION: "v1",
+  MATCH_TOKEN_ENCRYPTION_KEY: "",
+  MATCH_TOKEN_SIGNING_KEY: "",
+  MATCH_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -75,7 +81,10 @@ const lockedDevelopmentApp = buildServer({
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
-  PROFILE_TOKEN_KEY_VERSION: "v1"
+  PROFILE_TOKEN_KEY_VERSION: "v1",
+  MATCH_TOKEN_ENCRYPTION_KEY: "",
+  MATCH_TOKEN_SIGNING_KEY: "",
+  MATCH_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -100,7 +109,10 @@ const productionApp = buildServer({
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
-  PROFILE_TOKEN_KEY_VERSION: "v1"
+  PROFILE_TOKEN_KEY_VERSION: "v1",
+  MATCH_TOKEN_ENCRYPTION_KEY: "",
+  MATCH_TOKEN_SIGNING_KEY: "",
+  MATCH_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -125,7 +137,10 @@ const corsApp = buildServer({
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
-  PROFILE_TOKEN_KEY_VERSION: "v1"
+  PROFILE_TOKEN_KEY_VERSION: "v1",
+  MATCH_TOKEN_ENCRYPTION_KEY: "",
+  MATCH_TOKEN_SIGNING_KEY: "",
+  MATCH_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -150,7 +165,10 @@ const emailLinkApp = buildServer({
   TURNSTILE_SECRET_KEY: "",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
-  PROFILE_TOKEN_KEY_VERSION: "v1"
+  PROFILE_TOKEN_KEY_VERSION: "v1",
+  MATCH_TOKEN_ENCRYPTION_KEY: "",
+  MATCH_TOKEN_SIGNING_KEY: "",
+  MATCH_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -175,7 +193,10 @@ const turnstileApp = buildServer({
   TURNSTILE_SECRET_KEY: "turnstile-secret",
   PROFILE_ENCRYPTION_KEY: "",
   PROFILE_TOKEN_KEY: "",
-  PROFILE_TOKEN_KEY_VERSION: "v1"
+  PROFILE_TOKEN_KEY_VERSION: "v1",
+  MATCH_TOKEN_ENCRYPTION_KEY: "",
+  MATCH_TOKEN_SIGNING_KEY: "",
+  MATCH_TOKEN_KEY_VERSION: "v1"
 }, {
   db: {
     query,
@@ -1158,6 +1179,15 @@ describe("server", () => {
     query
       .mockResolvedValueOnce({
         rows: [{
+          match_id: "match-1",
+          has_active_match_token: true,
+          viewer_ghost_mode_enabled: false,
+          target_ghost_mode_enabled: false,
+          target_precise_location_visibility: "none"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
         }]
       })
@@ -1200,8 +1230,9 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[1]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[2]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[0]?.[0]).toContain("cruush_matches");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into conversation_members");
     expect(response.json()).toEqual({
       data: {
         id: conversationId,
@@ -1221,6 +1252,38 @@ describe("server", () => {
         mutual: false,
         membersLabel: undefined,
         tags: []
+      }
+    });
+  });
+
+  it("requires a mutual cruush before opening a new dm conversation", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        match_id: null,
+        has_active_match_token: false,
+        viewer_ghost_mode_enabled: false,
+        target_ghost_mode_enabled: false,
+        target_precise_location_visibility: "none"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/conversations/dm",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        otherUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "MUTUAL_CRUUSH_REQUIRED",
+        message: "You can message after a mutual cruush.",
+        details: null
       }
     });
   });
@@ -1325,14 +1388,42 @@ describe("server", () => {
   });
 
   it("creates a message on POST /api/messages", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "msg-3",
-        user_id: userId,
-        content: "on my way",
-        created_at: "2026-04-29T12:10:00.000Z"
-      }]
-    });
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: "https://example.com/alex.jpg",
+          member_count: 2
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          match_id: "match-1",
+          has_active_match_token: true,
+          viewer_ghost_mode_enabled: false,
+          target_ghost_mode_enabled: false,
+          target_precise_location_visibility: "none"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "msg-3",
+          user_id: userId,
+          content: "on my way",
+          created_at: "2026-04-29T12:10:00.000Z"
+        }]
+      });
 
     const response = await app.inject({
       method: "POST",
@@ -1347,13 +1438,67 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[0]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
+    expect(query.mock.calls[1]?.[0]).toContain("cruush_matches");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into messages");
     expect(response.json()).toEqual({
       data: {
         id: "msg-3",
         userId: userId,
         content: "on my way",
         timestamp: "2026-04-29T12:10:00.000Z"
+      }
+    });
+  });
+
+  it("requires a mutual cruush before sending a dm message", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          match_id: "match-1",
+          has_active_match_token: false,
+          viewer_ghost_mode_enabled: false,
+          target_ghost_mode_enabled: false,
+          target_precise_location_visibility: "none"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "on my way"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "MUTUAL_CRUUSH_REQUIRED",
+        message: "You can message after a mutual cruush.",
+        details: null
       }
     });
   });
@@ -1417,7 +1562,8 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("where id <> $1");
     expect(query.mock.calls[1]?.[0]).toContain("and lat is not null");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId]);
+    expect(query.mock.calls[1]?.[0]).toContain("limit $2");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, 50]);
 
     const body = response.json();
     expect(Array.isArray(body.data)).toBe(true);
@@ -1436,6 +1582,62 @@ describe("server", () => {
     });
     expect(body.data[0].distance).toMatch(/ mi$/);
     expect(body.data[0].lastActive).toMatch(/ago$/);
+  });
+
+  it("honors a bounded discovery limit on GET /api/users", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: Array.from({ length: 25 }, (_, index) => ({
+          id: `seeded-user-${index + 1}`,
+          display_name: `Seeded ${index + 1}`,
+          year_of_birth: 1998,
+          pronouns: ["they/them"],
+          looking_for: ["Testing"],
+          vibes: ["Map pin"],
+          position: ["Top"],
+          hosting_travel: [],
+          photos: [],
+          lat: 40.711 + index / 1000,
+          lng: -74.002 - index / 1000,
+          fuzzy_lat: 40.7115 + index / 1000,
+          fuzzy_lng: -74.0025 - index / 1000,
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }))
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006&limit=20",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("limit $2");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, 20]);
+    expect(response.json().data).toHaveLength(20);
+  });
+
+  it("rejects discovery limits above the backend cap", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?limit=51",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("rejects unknown discovery query parameters before querying users", async () => {
@@ -1939,6 +2141,175 @@ describe("server", () => {
     });
   });
 
+  it("returns locked free activity from GET /api/cruush/me", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          lat: 40.7128,
+          lng: -74.006,
+          fuzzy_lat: 40.713,
+          fuzzy_lng: -74.005,
+          profile_sensitive_ciphertext: null,
+          profile_sensitive_nonce: null,
+          profile_sensitive_auth_tag: null,
+          profile_sensitive_key_version: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "incoming-1",
+          from_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          to_user_id: userId,
+          created_at: "2026-04-28T12:00:00.000Z",
+          mutual: false,
+          display_name: "Alex",
+          pronouns: ["they/them"],
+          photos: ["https://example.com/alex.jpg"]
+        }, {
+          id: "incoming-2",
+          from_user_id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+          to_user_id: userId,
+          created_at: "2026-04-28T11:00:00.000Z",
+          mutual: false,
+          display_name: "Sam",
+          pronouns: ["she/they"],
+          photos: []
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "sent-1",
+          from_user_id: userId,
+          to_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          created_at: "2026-04-28T12:05:00.000Z",
+          mutual: false,
+          profile_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          pronouns: ["they/them"],
+          photos: ["https://example.com/alex.jpg"],
+          to_user_name: null,
+          to_user_pronouns: null,
+          to_user_photo: null
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "view-1",
+          viewed_at: "2026-04-28T12:10:00.000Z",
+          viewer_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          pronouns: ["they/them"],
+          photos: ["https://example.com/alex.jpg"]
+        }, {
+          id: "view-2",
+          viewed_at: "2026-04-28T11:10:00.000Z",
+          viewer_user_id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+          display_name: "Sam",
+          pronouns: ["she/they"],
+          photos: []
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/cruush/me",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        entitlement: {
+          cruushPlus: false,
+          expiresAt: null
+        },
+        counts: {
+          incoming: 2,
+          sent: 1,
+          mutual: 0,
+          views: 2
+        },
+        incoming: [{
+          id: "incoming-1",
+          createdAt: "2026-04-28T12:00:00.000Z",
+          mutual: false,
+          locked: false,
+          user: {
+            id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            name: "Alex",
+            pronouns: "they/them",
+            photo: "https://example.com/alex.jpg"
+          }
+        }, {
+          id: "incoming-2",
+          createdAt: "2026-04-28T11:00:00.000Z",
+          mutual: false,
+          locked: true,
+          user: null
+        }],
+        sent: [{
+          id: "sent-1",
+          createdAt: "2026-04-28T12:05:00.000Z",
+          mutual: false,
+          locked: false,
+          user: {
+            id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            name: "Alex",
+            pronouns: "they/them",
+            photo: "https://example.com/alex.jpg"
+          }
+        }],
+        mutual: [],
+        views: [{
+          id: "view-1",
+          createdAt: "2026-04-28T12:10:00.000Z",
+          viewedAt: "2026-04-28T12:10:00.000Z",
+          locked: false,
+          user: {
+            id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            name: "Alex",
+            pronouns: "they/them",
+            photo: "https://example.com/alex.jpg"
+          }
+        }, {
+          id: "view-2",
+          createdAt: "2026-04-28T11:10:00.000Z",
+          viewedAt: "2026-04-28T11:10:00.000Z",
+          locked: true,
+          user: null
+        }]
+      }
+    });
+  });
+
+  it("returns no mutual map pins while the viewer has Ghost Mode enabled", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        ghost_mode_enabled: true,
+        precise_location_visibility: "mutual_cruushes"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/cruush/mutual-map",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(response.json()).toEqual({
+      data: []
+    });
+  });
+
   it("creates or updates a cruush on POST /api/cruush", async () => {
     query.mockResolvedValueOnce({
       rows: [{
@@ -1977,6 +2348,71 @@ describe("server", () => {
         toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
         createdAt: "2026-04-28T12:10:00.000Z",
         mutual: false
+      }
+    });
+  });
+
+  it("creates a mutual match and server-managed token for reciprocal cruushes", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "cruush-4",
+          from_user_id: userId,
+          to_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          created_at: "2026-04-28T12:15:00.000Z",
+          mutual: true
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "match-1",
+          user_one_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          user_two_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          match_id: "match-1",
+          has_active_match_token: true,
+          viewer_ghost_mode_enabled: false,
+          target_ghost_mode_enabled: false,
+          target_precise_location_visibility: "none"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/cruush",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        targetUser: {
+          name: "Jordan",
+          pronouns: "they/them",
+          photo: null
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[1]?.[0]).toContain("insert into cruush_matches");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into cruush_match_tokens");
+    expect(query.mock.calls[3]?.[0]).toContain("cruush_match_tokens");
+    expect(response.json()).toEqual({
+      data: {
+        id: "cruush-4",
+        fromUserId: userId,
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        createdAt: "2026-04-28T12:15:00.000Z",
+        mutual: true,
+        permissions: {
+          matchId: "match-1",
+          canMessage: true,
+          canRevealPreciseLocation: false
+        }
       }
     });
   });
@@ -2392,6 +2828,114 @@ describe("server", () => {
         kinks: [],
         kink_interests: [],
         kinks_visibility: "mutual_cruushes"
+      })
+    });
+  });
+
+  it("reveals mutual-cruush protected kinks only when the viewer has an active match", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          ethnicity: [],
+          position: ["top"],
+          role: [],
+          kinks: ["Leather"],
+          kinks_visibility: "mutual_cruushes",
+          substance_boundaries: [],
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          match_id: "match-1",
+          has_active_match_token: true,
+          viewer_ghost_mode_enabled: false,
+          target_ghost_mode_enabled: false,
+          target_precise_location_visibility: "none"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          kink_id: "leather",
+          label: "Leather",
+          category: "Gear"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("insert into profile_view_events");
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        kinks: ["Leather"],
+        kink_interests: [{
+          kink_id: "leather",
+          label: "Leather",
+          category: "Gear"
+        }],
+        kinks_visibility: "mutual_cruushes",
+        viewer_relationship: {
+          match_id: "match-1",
+          mutual_cruush: true,
+          can_message: true,
+          can_reveal_precise_location: false
+        }
+      })
+    });
+  });
+
+  it("does not log profile views when the viewer has Ghost Mode enabled", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          ethnicity: [],
+          position: [],
+          role: [],
+          kinks: [],
+          kinks_visibility: "public",
+          substance_boundaries: [],
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          match_id: null,
+          has_active_match_token: false,
+          viewer_ghost_mode_enabled: true,
+          target_ghost_mode_enabled: false,
+          target_precise_location_visibility: "none"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls.map((call) => call[0]).join("\n")).not.toContain("profile_view_events");
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        viewer_relationship: expect.objectContaining({
+          mutual_cruush: false,
+          can_message: false
+        })
       })
     });
   });

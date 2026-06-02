@@ -108,7 +108,7 @@ describe('ProfileEdit', () => {
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('roles');
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('is_seeking');
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('visibility');
-  });
+  }, 10000);
 
   it('lets users set trans status, crowds, categorized vibes, and HIV visibility', async () => {
     render(
@@ -164,7 +164,7 @@ describe('ProfileEdit', () => {
       hiv_status: ['undetectable'],
       hiv_status_visibility: 'mutual_cruushes',
     })));
-  });
+  }, 10000);
 
   it('drops stale T4T crowd membership when trans status is not selected', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');

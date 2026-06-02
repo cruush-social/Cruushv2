@@ -38,7 +38,9 @@ describe("loadConfig", () => {
       APP_URL: "https://staging.cruush.app",
       EMAIL_PREVIEW_ENABLED: "true",
       PROFILE_ENCRYPTION_KEY: strongSecret,
-      PROFILE_TOKEN_KEY: strongSecret
+      PROFILE_TOKEN_KEY: strongSecret,
+      MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
+      MATCH_TOKEN_SIGNING_KEY: strongSecret
     })).toThrow();
   });
 
@@ -51,12 +53,16 @@ describe("loadConfig", () => {
       APP_URL: "https://staging.cruush.app",
       EMAIL_PREVIEW_ENABLED: "false",
       PROFILE_ENCRYPTION_KEY: strongSecret,
-      PROFILE_TOKEN_KEY: strongSecret
+      PROFILE_TOKEN_KEY: strongSecret,
+      MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
+      MATCH_TOKEN_SIGNING_KEY: strongSecret
     })).toMatchObject({
       NODE_ENV: "production",
       EMAIL_PREVIEW_ENABLED: false,
       PROFILE_ENCRYPTION_KEY: strongSecret,
-      PROFILE_TOKEN_KEY: strongSecret
+      PROFILE_TOKEN_KEY: strongSecret,
+      MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
+      MATCH_TOKEN_SIGNING_KEY: strongSecret
     });
   });
 });

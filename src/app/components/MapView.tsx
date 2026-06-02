@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import maplibregl, {
   type LngLatLike,
@@ -39,6 +40,11 @@ export type MapMarker = {
   photo?: string | null;
   isCurrentUser?: boolean;
   badge?: MapMarkerBadge | null;
+  relationship?: {
+    kind: 'mutual_cruush';
+    precision: 'fuzzy' | 'precise';
+    canMessage: boolean;
+  } | null;
 };
 
 interface MapViewProps {
@@ -68,11 +74,12 @@ const DEFAULT_TILE_URLS = [
 ];
 const DEFAULT_ATTRIBUTION = '&copy; CARTO &copy; OpenStreetMap contributors';
 const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
+const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
 const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 
-function createRasterStyle(tileUrls: string[], attribution: string): StyleSpecification {
+export function createRasterStyle(tileUrls: string[], attribution: string): StyleSpecification {
   return {
     version: 8,
     sources: {
@@ -91,6 +98,18 @@ function createRasterStyle(tileUrls: string[], attribution: string): StyleSpecif
       },
     ],
   };
+}
+
+function createDefaultRasterStyle() {
+  return createRasterStyle(DEFAULT_TILE_URLS, DEFAULT_ATTRIBUTION);
+}
+
+function canFallbackToDefaultRasterStyle(style: ReturnType<typeof getMapStyle>) {
+  if (typeof style === 'string') {
+    return false;
+  }
+
+  return Boolean(style.sources?.openmaptiles) && !style.sources?.osmRasterTiles;
 }
 
 async function loadMapLabelFonts() {
@@ -440,6 +459,24 @@ function MarkerBadge({ badge, isCurrentUser, markerId }: { badge?: MapMarkerBadg
   );
 }
 
+function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
+  if (marker.relationship?.kind !== 'mutual_cruush') {
+    return null;
+  }
+
+  return (
+    <span
+      aria-label={marker.relationship.precision === 'precise' ? 'precise mutual cruush location' : 'fuzzy mutual cruush location'}
+      className="absolute left-2 top-9 flex h-5 w-5 items-center justify-center rounded-full border border-[#FF0072]/80 bg-black/85 text-[#FF0072] shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
+      data-testid={`marker-relationship-${marker.id}`}
+      role="img"
+      title={marker.relationship.precision === 'precise' ? 'precise mutual location' : 'fuzzy mutual location'}
+    >
+      <HeartHandshake aria-hidden="true" className="h-3 w-3" strokeWidth={2.6} />
+    </span>
+  );
+}
+
 function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
   const hasPhoto = Boolean(marker.photo);
   const gradientId = `marker-fill-${marker.id}`;
@@ -495,6 +532,7 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
       <span className="relative flex h-20 w-[103px] items-center justify-center">
         <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
         <MarkerBadge badge={marker.badge} isCurrentUser={isCurrentUser} markerId={marker.id} />
+        <MarkerRelationshipBadge marker={marker} />
       </span>
     </span>
   );
@@ -520,7 +558,9 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
   }
 
   const root = createRoot(element);
-  root.render(<MapMarkerPin marker={marker} />);
+  flushSync(() => {
+    root.render(<MapMarkerPin marker={marker} />);
+  });
 
   return { element, root };
 }
@@ -557,6 +597,8 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
     }
 
     let isMounted = true;
+    let attemptedRasterFallback = false;
+    const shouldFallbackToRaster = canFallbackToDefaultRasterStyle(mapStyle);
 
     const initializeMap = async () => {
       await loadMapLabelFonts();
@@ -565,10 +607,15 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
         return;
       }
 
-      try {
+      const startMap = (style: ReturnType<typeof getMapStyle>, isFallbackAttempt = false) => {
+        if (!isMounted || !containerRef.current) {
+          return;
+        }
+
+        let didLoad = false;
         const map = new maplibregl.Map({
           container: containerRef.current,
-          style: mapStyle,
+          style,
           center: DEFAULT_CENTER,
           zoom: DEFAULT_ZOOM,
           minZoom: MIN_DISCOVERY_ZOOM,
@@ -579,17 +626,52 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
 
         map.on('click', () => onMapClickRef.current?.());
         map.on('load', () => {
+          didLoad = true;
           setMapLoadStatus('ready');
           setMapError(null);
         });
-        map.on('error', () => {
+        map.on('error', (event) => {
+          if (!isMounted || mapRef.current !== map) {
+            return;
+          }
+
+          if (didLoad) {
+            console.warn('Nonfatal map tile error after load:', event);
+            return;
+          }
+
+          if (shouldFallbackToRaster && !isFallbackAttempt && !attemptedRasterFallback) {
+            attemptedRasterFallback = true;
+            setMapLoadStatus('loading');
+            setMapError(null);
+            map.remove();
+            mapRef.current = null;
+            setMapInstance(null);
+            startMap(createDefaultRasterStyle(), true);
+            return;
+          }
+
           setMapLoadStatus('error');
-          setMapError('Map tiles could not load. Check the map style or tile URL configuration.');
+          setMapError(MAP_ERROR_MESSAGE);
         });
         mapRef.current = map;
         setMapInstance(map);
         onMapReady?.(map);
+      };
+
+      try {
+        startMap(mapStyle);
       } catch (error) {
+        if (shouldFallbackToRaster && !attemptedRasterFallback) {
+          attemptedRasterFallback = true;
+          try {
+            startMap(createDefaultRasterStyle(), true);
+            return;
+          } catch (fallbackError) {
+            console.error('Error initializing fallback map:', fallbackError);
+          }
+        }
+
         console.error('Error initializing map:', error);
         setMapLoadStatus('error');
         setMapError('Map could not start. Check the map style or tile URL configuration.');
@@ -630,17 +712,28 @@ function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates
     markersRef.current = [];
 
     const visibleMarkers = markers.filter(isMapMarker);
+    let cancelled = false;
 
-    markersRef.current = visibleMarkers.map((marker) => {
-      const { element, root } = createMarkerElement(marker, (selectedMarker) => onPinClickRef.current(selectedMarker));
-      const mapMarker = new maplibregl.Marker({ element })
-        .setLngLat([marker.approximateLongitude, marker.approximateLatitude])
-        .addTo(map);
-      return {
-        marker: mapMarker,
-        root,
-      };
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+
+      markersRef.current = visibleMarkers.map((marker) => {
+        const { element, root } = createMarkerElement(marker, (selectedMarker) => onPinClickRef.current(selectedMarker));
+        const mapMarker = new maplibregl.Marker({ element })
+          .setLngLat([marker.approximateLongitude, marker.approximateLatitude])
+          .addTo(map);
+        return {
+          marker: mapMarker,
+          root,
+        };
+      });
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, [markers, mapInstance]);
 
   return (

@@ -2,6 +2,13 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
 import {
+  getRelationshipPermissions,
+  getPrivacySettings,
+  recordProfileView,
+  savePrivacySettings,
+  type RelationshipPermissions
+} from "../match-relationships.js";
+import {
   emptyProfile,
   profileLocationPayloadSchema,
   profilePayloadSchema,
@@ -32,6 +39,11 @@ import { getAuthenticatedUserId } from "../request-auth.js";
 
 const profileParamsSchema = z.object({
   userId: z.uuid()
+}).strict();
+
+const privacySettingsPayloadSchema = z.object({
+  ghostModeEnabled: z.boolean(),
+  preciseLocationVisibility: z.enum(["none", "mutual_cruushes"])
 }).strict();
 
 type ProfileRow = {
@@ -281,7 +293,9 @@ function mapProfileRow(
   kinkInterests: ProfileKinkInterest[] = [],
   options: {
     includePrivateSensitive?: boolean;
+    relationship?: RelationshipPermissions | null;
     hasMutualCrowd?: boolean;
+    hasMutualCruush?: boolean;
     sensitiveProfile?: SensitiveProfileData | null;
     visibilityRules?: ProfileVisibilityRules | null;
     showKinks?: boolean;
@@ -289,6 +303,7 @@ function mapProfileRow(
 ) {
   const includePrivateSensitive = options.includePrivateSensitive ?? true;
   const hasMutualCrowd = options.hasMutualCrowd ?? false;
+  const hasMutualCruush = options.hasMutualCruush ?? false;
   const canShowByVisibility = (visibility: ProfileVisibility | null | undefined) => {
     if (includePrivateSensitive) {
       return true;
@@ -302,7 +317,7 @@ function mapProfileRow(
       return hasMutualCrowd;
     }
 
-    return false;
+    return hasMutualCruush;
   };
   const sensitiveProfile = options.sensitiveProfile ?? null;
   const visibilityRules = options.visibilityRules ?? null;
@@ -371,7 +386,15 @@ function mapProfileRow(
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
     substance_boundaries: row.substance_boundaries ?? [],
     visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
-    updated_at: new Date(row.updated_at).toISOString()
+    updated_at: new Date(row.updated_at).toISOString(),
+    ...(options.relationship ? {
+      viewer_relationship: {
+        match_id: options.relationship.matchId,
+        mutual_cruush: options.relationship.isMutualCruush,
+        can_message: options.relationship.canMessage,
+        can_reveal_precise_location: options.relationship.canRevealPreciseLocation
+      }
+    } : {})
   };
 }
 
@@ -440,7 +463,7 @@ async function loadVisibilitySubjectProfile(app: FastifyInstance, userId: string
        where id = $1`,
       [userId]
     );
-    const row = result.rows[0];
+    const row = result?.rows?.[0];
 
     if (!row) {
       return null;
@@ -769,12 +792,22 @@ async function loadProfileData(
   }
 
   const row = result.rows[0];
+  const relationship = !options.includePrivateSensitive && options.viewerUserId
+    ? await getRelationshipPermissions(app, options.viewerUserId, userId)
+    : null;
   const needsMutualCrowd =
     row.kinks_visibility === "mutual_crowds" ||
     row.trans_status_visibility === "mutual_crowds" ||
     row.hiv_status_visibility === "mutual_crowds";
+  const needsMutualCruush =
+    row.kinks_visibility === "mutual_cruushes" ||
+    row.trans_status_visibility === "mutual_cruushes" ||
+    row.hiv_status_visibility === "mutual_cruushes";
   const hasMutualCrowd = options.viewerUserId && needsMutualCrowd
     ? await profilesShareCrowd(app, options.viewerUserId, userId)
+    : false;
+  const hasMutualCruush = options.viewerUserId && needsMutualCruush
+    ? relationship?.isMutualCruush === true
     : false;
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
   const visibilityRules = decryptProfileVisibility(app.config, row);
@@ -789,14 +822,24 @@ async function loadProfileData(
     }
   }
 
-  const showKinks = options.includePrivateSensitive || (row.kinks_visibility ?? "public") === "public" || ((row.kinks_visibility ?? "public") === "mutual_crowds" && hasMutualCrowd);
+  if (relationship && options.viewerUserId) {
+    await recordProfileView(app, options.viewerUserId, userId, relationship);
+  }
+
+  const showKinks =
+    options.includePrivateSensitive ||
+    (row.kinks_visibility ?? "public") === "public" ||
+    ((row.kinks_visibility ?? "public") === "mutual_crowds" && hasMutualCrowd) ||
+    ((row.kinks_visibility ?? "public") === "mutual_cruushes" && hasMutualCruush);
   const kinkInterests = showKinks
     ? await loadProfileKinkInterests(app, userId)
     : [];
 
   return mapProfileRow(row, kinkInterests, {
     includePrivateSensitive: options.includePrivateSensitive,
+    relationship,
     hasMutualCrowd,
+    hasMutualCruush,
     sensitiveProfile,
     visibilityRules,
     showKinks
@@ -807,6 +850,26 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.get("/api/profiles/me", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     return loadProfile(app, userId, reply);
+  });
+
+  app.get("/api/profiles/me/privacy-settings", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+
+    return reply.send({
+      data: await getPrivacySettings(app, userId)
+    });
+  });
+
+  app.put("/api/profiles/me/privacy-settings", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const payload = privacySettingsPayloadSchema.parse(request.body);
+
+    return reply.send({
+      data: await savePrivacySettings(app, userId, {
+        ghostModeEnabled: payload.ghostModeEnabled,
+        preciseLocationVisibility: payload.preciseLocationVisibility
+      })
+    });
   });
 
   app.get("/api/profiles/:userId", async (request, reply) => {

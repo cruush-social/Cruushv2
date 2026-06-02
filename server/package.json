@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "migrate:dev": "tsx src/migrate.ts",
+    "seed:dev-profiles": "tsx src/dev-seed-profiles.ts",
     "start": "node --enable-source-maps dist/index.js",
     "migrate": "node --enable-source-maps dist/migrate.js",
     "build": "tsc -p tsconfig.json",

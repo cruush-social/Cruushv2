@@ -42,6 +42,10 @@ export type DiscoveryFilterParams = {
   substanceBoundaries?: string[];
 };
 
+type DiscoveryRequestOptions = {
+  limit?: number;
+};
+
 function appendListParams(params: URLSearchParams, key: string, values?: string[]) {
   for (const value of values ?? []) {
     if (value.trim()) {
@@ -50,12 +54,20 @@ function appendListParams(params: URLSearchParams, key: string, values?: string[
   }
 }
 
-export async function getNearbyUsers(coordinates?: Coordinates | null, filters?: DiscoveryFilterParams) {
+export async function getNearbyUsers(
+  coordinates?: Coordinates | null,
+  filters?: DiscoveryFilterParams,
+  options?: DiscoveryRequestOptions,
+) {
   const params = new URLSearchParams();
 
   if (coordinates) {
     params.set('lat', String(coordinates.lat));
     params.set('lng', String(coordinates.lng));
+  }
+
+  if (options?.limit) {
+    params.set('limit', String(options.limit));
   }
 
   appendListParams(params, 'identities', filters?.identities);

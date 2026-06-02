@@ -7,6 +7,10 @@ const { getNearbyUsers } = vi.hoisted(() => ({
   getNearbyUsers: vi.fn(),
 }));
 
+const { getMutualCruushMap } = vi.hoisted(() => ({
+  getMutualCruushMap: vi.fn(),
+}));
+
 const { getMyProfile } = vi.hoisted(() => ({
   getMyProfile: vi.fn(),
 }));
@@ -17,6 +21,10 @@ const { useIsMobile } = vi.hoisted(() => ({
 
 vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
+}));
+
+vi.mock('../lib/cruushApi', () => ({
+  getMutualCruushMap,
 }));
 
 vi.mock('../lib/profileApi', async () => {
@@ -45,6 +53,8 @@ vi.mock('./MapView', () => ({
           data-badge={marker.badge?.label ?? ''}
           data-last-active={marker.lastActiveLabel ?? ''}
           data-photo={marker.photo ?? ''}
+          data-relationship={marker.relationship?.kind ?? ''}
+          data-precision={marker.relationship?.precision ?? ''}
           key={`marker-data-${marker.id}`}
         />
       ))}
@@ -67,6 +77,7 @@ function LocationProbe() {
 describe('MapHome', () => {
   beforeEach(() => {
     getNearbyUsers.mockReset();
+    getMutualCruushMap.mockReset();
     getMyProfile.mockReset();
     useIsMobile.mockReset();
 
@@ -93,6 +104,7 @@ describe('MapHome', () => {
         photo: null,
       },
     ]);
+    getMutualCruushMap.mockResolvedValue([]);
     Object.defineProperty(global.navigator, 'geolocation', {
       configurable: true,
       value: {
@@ -169,7 +181,7 @@ describe('MapHome', () => {
       expect(getNearbyUsers).toHaveBeenLastCalledWith({
         lat: expect.any(Number),
         lng: expect.any(Number),
-      });
+      }, undefined, { limit: 50 });
       expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
       expect(screen.getByTestId('marker-me')).toHaveAttribute('data-badge', 'bottom');
     });
@@ -222,6 +234,50 @@ describe('MapHome', () => {
     expect(recentPanel).toHaveClass('max-w-5xl', 'p-3');
     expect(recentToggle).toHaveClass('mb-2');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
+  });
+
+  it('loads mutual-only map pins from the mutuals query mode', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMutualCruushMap.mockResolvedValue([{
+      id: 'match-1',
+      matchId: 'match-1',
+      createdAt: '2026-04-29T12:00:00.000Z',
+      locked: false,
+      user: {
+        id: 'user-mutual',
+        name: 'River',
+        pronouns: 'they/them',
+        photo: 'https://example.com/river.jpg',
+      },
+      mutualCrowds: ['T4T'],
+      vibes: ['Goth'],
+      distance: '0.4 mi away',
+      lastActive: 'Active now',
+      canMessage: true,
+      canRevealPreciseLocation: true,
+      coordinates: {
+        lat: 40.731,
+        lng: -73.991,
+        precision: 'precise',
+      },
+    }]);
+
+    render(
+      <MemoryRouter initialEntries={['/map?mode=mutuals']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'Pin River' })).toBeInTheDocument();
+    expect(getMutualCruushMap).toHaveBeenCalledTimes(1);
+    expect(getNearbyUsers).not.toHaveBeenCalled();
+    expect(screen.getByText('Mutual cruushes')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Mutuals/ })).toBeInTheDocument();
+    expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-relationship', 'mutual_cruush');
+    expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-precision', 'precise');
+    expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
   });
 
   it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {

@@ -68,7 +68,10 @@ const configSchema = z.object({
   TURNSTILE_SECRET_KEY: z.string().optional().default(""),
   PROFILE_ENCRYPTION_KEY: z.string().optional().default(""),
   PROFILE_TOKEN_KEY: z.string().optional().default(""),
-  PROFILE_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
+  PROFILE_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  MATCH_TOKEN_ENCRYPTION_KEY: z.string().optional().default(""),
+  MATCH_TOKEN_SIGNING_KEY: z.string().optional().default(""),
+  MATCH_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
 }).superRefine((config, ctx) => {
   if (config.NODE_ENV !== "production") {
     return;
@@ -103,6 +106,22 @@ const configSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "PROFILE_TOKEN_KEY is required in production.",
       path: ["PROFILE_TOKEN_KEY"]
+    });
+  }
+
+  if (!config.MATCH_TOKEN_ENCRYPTION_KEY || config.MATCH_TOKEN_ENCRYPTION_KEY.length < 32) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "MATCH_TOKEN_ENCRYPTION_KEY is required in production.",
+      path: ["MATCH_TOKEN_ENCRYPTION_KEY"]
+    });
+  }
+
+  if (!config.MATCH_TOKEN_SIGNING_KEY || config.MATCH_TOKEN_SIGNING_KEY.length < 32) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "MATCH_TOKEN_SIGNING_KEY is required in production.",
+      path: ["MATCH_TOKEN_SIGNING_KEY"]
     });
   }
 });

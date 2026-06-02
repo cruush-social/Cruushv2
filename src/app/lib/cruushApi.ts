@@ -13,6 +13,11 @@ export type CruushRecord = {
   toUserId: string;
   createdAt: string;
   mutual: boolean;
+  permissions?: {
+    matchId: string | null;
+    canMessage: boolean;
+    canRevealPreciseLocation: boolean;
+  };
 };
 
 export type CruushActivityItem = CruushRecord & {
@@ -24,9 +29,64 @@ export type CruushActivityItem = CruushRecord & {
   };
 };
 
+export type CruushActivityPerson = {
+  id: string;
+  name: string;
+  pronouns: string;
+  photo: string | null;
+};
+
+export type CruushLockableActivityItem = {
+  id: string;
+  createdAt: string;
+  mutual?: boolean;
+  locked: boolean;
+  user: CruushActivityPerson | null;
+};
+
+export type MutualCruushActivityItem = {
+  id: string;
+  matchId: string;
+  createdAt: string;
+  locked: false;
+  user: CruushActivityPerson;
+  mutualCrowds: string[];
+  vibes: string[];
+  distance: string;
+  lastActive: string;
+  canMessage: boolean;
+  canRevealPreciseLocation: boolean;
+  coordinates: {
+    lat: number;
+    lng: number;
+    precision: 'fuzzy' | 'precise';
+  } | null;
+};
+
+export type ProfileViewActivityItem = CruushLockableActivityItem & {
+  viewedAt: string;
+};
+
+export type CruushEntitlement = {
+  cruushPlus: boolean;
+  expiresAt: string | null;
+};
+
+export type CruushActivityCounts = {
+  incoming: number;
+  sent: number;
+  mutual: number;
+  views: number;
+};
+
 export type CruushActivity = {
-  received: CruushActivityItem[];
-  sent: CruushActivityItem[];
+  entitlement: CruushEntitlement;
+  counts: CruushActivityCounts;
+  incoming: CruushLockableActivityItem[];
+  sent: CruushLockableActivityItem[];
+  mutual: MutualCruushActivityItem[];
+  views: ProfileViewActivityItem[];
+  received?: CruushActivityItem[];
 };
 
 export async function sendCruush(toUserId: string, targetUser?: CruushTargetUser) {
@@ -40,6 +100,20 @@ export async function sendCruush(toUserId: string, targetUser?: CruushTargetUser
 }
 
 export async function getMyCruushActivity() {
+  return requestApi<CruushActivity>('/api/cruush/me');
+}
+
+export async function getMyLegacyCruushActivity() {
   const userId = await getCurrentUserId();
-  return requestApi<CruushActivity>(`/api/cruush/${userId}`);
+  return requestApi<{ received: CruushActivityItem[]; sent: CruushActivityItem[] }>(`/api/cruush/${userId}`);
+}
+
+export async function getMutualCruushMap() {
+  return requestApi<MutualCruushActivityItem[]>('/api/cruush/mutual-map');
+}
+
+export async function revokeMutualCruush(otherUserId: string) {
+  return requestApi<{ revoked: boolean }>(`/api/cruush/matches/${otherUserId}`, {
+    method: 'DELETE',
+  });
 }

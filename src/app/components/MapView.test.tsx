@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, { createCruushVectorStyle, createMapMarkerBadge, getMapStyle } from './MapView';
@@ -10,7 +10,7 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
   class MockMapInstance {
     static calls: unknown[] = [];
     container: HTMLElement;
-    handlers = new Map<string, Array<() => void>>();
+    handlers = new Map<string, Array<(event?: unknown) => void>>();
     zoomIn = vi.fn();
     zoomOut = vi.fn();
     setCenter = vi.fn();
@@ -23,13 +23,13 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
       mapInstances.push(this);
     }
 
-    on(event: string, handler: () => void) {
+    on(event: string, handler: (event?: unknown) => void) {
       this.handlers.set(event, [...(this.handlers.get(event) ?? []), handler]);
       return this;
     }
 
-    trigger(event: string) {
-      this.handlers.get(event)?.forEach((handler) => handler());
+    trigger(event: string, payload?: unknown) {
+      this.handlers.get(event)?.forEach((handler) => handler(payload));
     }
   }
 
@@ -216,6 +216,65 @@ describe('MapView', () => {
     expect(markerInstances[0].element.className).not.toContain('hover:scale');
     expect(markerInstances[0].element.className).not.toContain('hover:drop-shadow');
     expect(markerInstances[0].element.className).not.toContain('transition-[filter]');
+  });
+
+  it('retries a default vector style error with raster fallback before showing a map error', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
+
+    act(() => {
+      mapInstances[0].trigger('error', { error: new Error('tilejson failed') });
+    });
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(2));
+    expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
+    expect(MockMap.calls[1]).toEqual(expect.objectContaining({
+      style: expect.objectContaining({
+        sources: expect.objectContaining({
+          osmRasterTiles: expect.objectContaining({
+            type: 'raster',
+            tiles: expect.arrayContaining(['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png']),
+          }),
+        }),
+      }),
+    }));
+    expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
+
+    act(() => {
+      mapInstances[1].trigger('load');
+    });
+
+    await waitFor(() => expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument());
+    expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
+  });
+
+  it('does not show the map error banner for nonfatal tile errors after load', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
+
+    act(() => {
+      mapInstances[0].trigger('load');
+      mapInstances[0].trigger('error', { error: new Error('glyph tile failed') });
+    });
+
+    expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
+    expect(warnSpy).toHaveBeenCalledWith('Nonfatal map tile error after load:', expect.any(Object));
+
+    warnSpy.mockRestore();
   });
 
   it('uses hosting badges only when no known position badge exists', async () => {
