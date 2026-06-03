@@ -1,5 +1,4 @@
-import { useNavigate, useLocation } from 'react-router';
-import { useIsMobile } from './ui/use-mobile';
+npimport { useNavigate, useLocation } from 'react-router';
 import cruushIconColored from '../assets/ui-icons/cruush-colored.png';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import feedIconColored from '../assets/ui-icons/feed-colored.png';
@@ -19,16 +18,9 @@ const navItems = [
   { path: '/profile', icon: profileIconWhite, activeIcon: profileIconColored, label: 'Profile' },
 ];
 
-export default function BottomNav({
-  isProfilePreviewOpen = false,
-  onProfilePreviewRequest,
-}: {
-  isProfilePreviewOpen?: boolean;
-  onProfilePreviewRequest?: () => void;
-}) {
+export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useIsMobile();
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path);
   const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
@@ -43,25 +35,16 @@ export default function BottomNav({
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md lg:ml-auto lg:mr-4"
+        className="relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
       >
         {navItems.map((item) => {
-          const active = item.path === '/profile' && !isMobile && isProfilePreviewOpen
-            ? true
-            : isActive(item.path);
+          const active = isActive(item.path);
           return (
             <button
               key={item.path}
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
-              onClick={() => {
-                if (item.path === '/profile' && !isMobile && onProfilePreviewRequest) {
-                  onProfilePreviewRequest();
-                  return;
-                }
-
-                navigate(item.path);
-              }}
+              onClick={() => navigate(item.path)}
               className={`flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full transition-colors ${
                 active
                   ? 'bg-white/[0.10] text-primary hover:bg-white/[0.12]'
