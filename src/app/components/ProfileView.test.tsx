@@ -63,6 +63,7 @@ function createProfileFixture(overrides: Record<string, unknown> = {}) {
     weight: '155 lbs',
     position: ['Vers'],
     role: ['Switch'],
+    crowds: [],
     availability: ['Now'],
     hosting_travel: ['Hosting'],
     kinks: ['Leather'],
@@ -131,6 +132,7 @@ describe('ProfileView', () => {
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
     expect(screen.getByText('About')).toBeInTheDocument();
+    expect(screen.queryByText('Crowds')).not.toBeInTheDocument();
     const intimacyTab = screen.getByRole('tab', { name: 'Intimacy' });
     fireEvent.pointerDown(intimacyTab, { button: 0, ctrlKey: false });
     fireEvent.click(intimacyTab);
@@ -138,6 +140,23 @@ describe('ProfileView', () => {
     expect(screen.getByText('Role')).toBeInTheDocument();
     expect(screen.getByText('Switch')).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
+  });
+
+  it('shows visible shared crowds when another profile includes them', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      crowds: ['T4T'],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Crowds')).toBeInTheDocument();
+    expect(screen.getByText('T4T')).toBeInTheDocument();
   });
 
   it('emits cruush changes, refreshes the profile, and avoids browser alerts', async () => {

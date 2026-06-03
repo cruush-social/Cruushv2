@@ -17,12 +17,85 @@ type ProfileLocationState = {
   lastActive?: string;
 };
 
+export type ProfileViewModel = {
+  id: string;
+  name: string;
+  age: number | null;
+  pronouns: string;
+  distance: string | null;
+  lastActive: string | null;
+  photos: string[];
+  bio: string;
+  identities: string[];
+  presentation: string[];
+  sexuality: string[];
+  ethnicity: string | null;
+  bodyType: string | null;
+  height: string | null;
+  weight: string | null;
+  isTrans: boolean | null;
+  crowds: string[];
+  position: string[];
+  role: string[];
+  lookingFor: string[];
+  availability: string[];
+  timing: string | null;
+  hosting: string[];
+  vibes: string[];
+  kinks: string[];
+  hobbies: string[];
+  protection: string[];
+  hivStatus: string | null;
+  mpoxStatus: string | null;
+  substanceBoundaries: string | null;
+  relationship: ProfileRecord['viewer_relationship'] | null;
+};
+
 function deriveAge(yearOfBirth: number | null) {
   return yearOfBirth ? new Date().getFullYear() - yearOfBirth : null;
 }
 
 function formatJoined(values: string[]) {
   return values.length ? values.join(', ') : null;
+}
+
+export function profileRecordToProfileView(
+  profile: ProfileRecord,
+  previewState: ProfileLocationState | null = null,
+): ProfileViewModel {
+  return {
+    id: profile.id,
+    name: profile.display_name || 'Cruush user',
+    age: deriveAge(profile.year_of_birth),
+    pronouns: formatJoined(profile.pronouns) ?? 'Ask me',
+    distance: previewState?.distance ?? null,
+    lastActive: previewState?.lastActive ?? null,
+    photos: profile.photos,
+    bio: profile.bio,
+    identities: profile.identities,
+    presentation: profile.presentation,
+    sexuality: profile.sexuality,
+    ethnicity: profile.ethnicity || null,
+    bodyType: formatJoined(profile.body_type),
+    height: profile.height || null,
+    weight: profile.weight || null,
+    isTrans: profile.is_trans,
+    crowds: profile.crowds,
+    position: profile.position,
+    role: profile.role,
+    lookingFor: profile.looking_for,
+    availability: profile.availability,
+    timing: formatJoined(profile.availability),
+    hosting: profile.hosting_travel,
+    vibes: [...new Set([...profile.vibes, ...profile.scenes, ...profile.archetypes])],
+    kinks: profile.kinks,
+    hobbies: profile.hobbies,
+    protection: [...profile.condoms, ...profile.prep, ...profile.doxypep].filter(Boolean),
+    hivStatus: formatJoined(profile.hiv_status),
+    mpoxStatus: formatJoined(profile.mpox_vaccine),
+    substanceBoundaries: formatJoined(profile.substance_boundaries),
+    relationship: profile.viewer_relationship ?? null,
+  };
 }
 
 export default function ProfileView() {
@@ -122,38 +195,7 @@ export default function ProfileView() {
       return null;
     }
 
-    return {
-      id: profile.id,
-      name: profile.display_name || 'Cruush user',
-      age: deriveAge(profile.year_of_birth),
-      pronouns: formatJoined(profile.pronouns) ?? 'Ask me',
-      distance: previewState?.distance ?? null,
-      lastActive: previewState?.lastActive ?? null,
-      photos: profile.photos,
-      bio: profile.bio,
-      identities: profile.identities,
-      presentation: profile.presentation,
-      sexuality: profile.sexuality,
-      ethnicity: profile.ethnicity || null,
-      bodyType: formatJoined(profile.body_type),
-      height: profile.height || null,
-      weight: profile.weight || null,
-      isTrans: profile.is_trans,
-      crowds: profile.crowds,
-      position: profile.position,
-      role: profile.role,
-      lookingFor: profile.looking_for,
-      timing: formatJoined(profile.availability),
-      hosting: profile.hosting_travel,
-      vibes: [...new Set([...profile.vibes, ...profile.scenes, ...profile.archetypes])],
-      kinks: profile.kinks,
-      hobbies: profile.hobbies,
-      protection: [...profile.condoms, ...profile.prep, ...profile.doxypep].filter(Boolean),
-      hivStatus: formatJoined(profile.hiv_status),
-      mpoxStatus: formatJoined(profile.mpox_vaccine),
-      substanceBoundaries: formatJoined(profile.substance_boundaries),
-      relationship: profile.viewer_relationship ?? null,
-    };
+    return profileRecordToProfileView(profile, previewState);
   }, [previewState?.distance, previewState?.lastActive, profile]);
 
   const isAlreadyMutual = profileView?.relationship?.mutual_cruush === true;
@@ -329,124 +371,155 @@ export default function ProfileView() {
             ) : null}
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl border border-border bg-card p-1">
-              <TabsTrigger value="basics" className="min-h-11" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
-              <TabsTrigger value="intimacy" className="min-h-11" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
-              <TabsTrigger value="health" className="min-h-11" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="basics" className="mt-5 space-y-5">
-              {profileView.bio ? (
-                <Section title="About">
-                  <p className="text-muted-foreground">{profileView.bio}</p>
-                </Section>
-              ) : null}
-
-              <Section title="Identities">
-                <BadgeList items={profileView.identities} />
-              </Section>
-
-              <Section title="Presentation">
-                <BadgeList items={profileView.presentation} />
-              </Section>
-
-              <Section title="Sexuality">
-                <BadgeList items={profileView.sexuality} />
-              </Section>
-
-              <Section title="Crowds">
-                <BadgeList items={profileView.crowds} />
-              </Section>
-
-              <Section title="Stats">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <DetailItem
-                    label="Trans status"
-                    value={profileView.isTrans === true ? 'Yes' : profileView.isTrans === false ? 'No' : null}
-                  />
-                  <DetailItem label="Ethnicity" value={profileView.ethnicity} />
-                  <DetailItem label="Body" value={profileView.bodyType} />
-                  <DetailItem label="Height" value={profileView.height} />
-                  <DetailItem label="Weight" value={profileView.weight} />
-                </div>
-              </Section>
-
-              <Section title="Hobbies">
-                <BadgeList items={profileView.hobbies} />
-              </Section>
-            </TabsContent>
-
-            <TabsContent value="intimacy" className="mt-5 space-y-5">
-              <Section title="Looking For">
-                <BadgeList items={profileView.lookingFor} />
-                {profileView.timing ? (
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    Timing: <span className="text-foreground">{profileView.timing}</span>
-                  </div>
-                ) : null}
-              </Section>
-
-              <Section title="Availability">
-                <BadgeList items={profile.availability} />
-              </Section>
-
-              <Section title="Hosting/Travel">
-                <BadgeList items={profileView.hosting} />
-              </Section>
-
-              <Section title="Position">
-                <BadgeList items={profileView.position} />
-              </Section>
-
-              <Section title="Role">
-                <BadgeList items={profileView.role} />
-              </Section>
-
-              <Section title="Kinks & Fetishes">
-                <BadgeList items={profileView.kinks} />
-              </Section>
-
-              <Section title="Vibes">
-                <BadgeList items={profileView.vibes} variant="gradient" />
-              </Section>
-            </TabsContent>
-
-            <TabsContent value="health" className="mt-5 space-y-5">
-              <Section title="Protection">
-                <BadgeList items={profileView.protection} />
-              </Section>
-
-              <Section title="Health">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <DetailItem label="HIV" value={profileView.hivStatus} />
-                  <DetailItem label="Mpox" value={profileView.mpoxStatus} />
-                </div>
-              </Section>
-
-              <Section title="Lifestyle">
-                <div className="grid gap-3 text-sm">
-                  <DetailItem label="Substance Boundaries" value={profileView.substanceBoundaries} />
-                </div>
-              </Section>
-            </TabsContent>
-          </Tabs>
+          <ProfileDetailsTabs
+            activeTab={activeTab}
+            onActiveTabChange={setActiveTab}
+            profileView={profileView}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function ProfileDetailsTabs({
+  activeTab,
+  onActiveTabChange,
+  profileView,
+  compact = false,
+}: {
+  activeTab: string;
+  onActiveTabChange: (value: string) => void;
+  profileView: ProfileViewModel;
+  compact?: boolean;
+}) {
   return (
-    <section className="space-y-3 rounded-2xl border border-border bg-card/60 p-4">
-      <h2 className="text-lg">{title}</h2>
+    <Tabs value={activeTab} onValueChange={onActiveTabChange} className="w-full">
+      <TabsList className={`grid h-auto w-full grid-cols-3 rounded-2xl border border-border bg-card p-1 ${compact ? 'text-xs' : ''}`}>
+        <TabsTrigger value="basics" className={compact ? 'min-h-9' : 'min-h-11'} onClick={() => onActiveTabChange('basics')}>Basics</TabsTrigger>
+        <TabsTrigger value="intimacy" className={compact ? 'min-h-9' : 'min-h-11'} onClick={() => onActiveTabChange('intimacy')}>Intimacy</TabsTrigger>
+        <TabsTrigger value="health" className={compact ? 'min-h-9' : 'min-h-11'} onClick={() => onActiveTabChange('health')}>Health</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="basics" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
+        {profileView.bio ? (
+          <Section title="About" compact={compact}>
+            <p className="text-muted-foreground">{profileView.bio}</p>
+          </Section>
+        ) : null}
+
+        <Section title="Identities" compact={compact}>
+          <BadgeList items={profileView.identities} compact={compact} />
+        </Section>
+
+        <Section title="Presentation" compact={compact}>
+          <BadgeList items={profileView.presentation} compact={compact} />
+        </Section>
+
+        <Section title="Sexuality" compact={compact}>
+          <BadgeList items={profileView.sexuality} compact={compact} />
+        </Section>
+
+        {profileView.crowds.length > 0 ? (
+          <Section title="Crowds" compact={compact}>
+            <BadgeList items={profileView.crowds} compact={compact} />
+          </Section>
+        ) : null}
+
+        <Section title="Stats" compact={compact}>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <DetailItem
+              label="Trans status"
+              value={profileView.isTrans === true ? 'Yes' : profileView.isTrans === false ? 'No' : null}
+              compact={compact}
+            />
+            <DetailItem label="Ethnicity" value={profileView.ethnicity} compact={compact} />
+            <DetailItem label="Body" value={profileView.bodyType} compact={compact} />
+            <DetailItem label="Height" value={profileView.height} compact={compact} />
+            <DetailItem label="Weight" value={profileView.weight} compact={compact} />
+          </div>
+        </Section>
+
+        <Section title="Hobbies" compact={compact}>
+          <BadgeList items={profileView.hobbies} compact={compact} />
+        </Section>
+      </TabsContent>
+
+      <TabsContent value="intimacy" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
+        <Section title="Looking For" compact={compact}>
+          <BadgeList items={profileView.lookingFor} compact={compact} />
+          {profileView.timing ? (
+            <div className="mt-2 text-sm text-muted-foreground">
+              Timing: <span className="text-foreground">{profileView.timing}</span>
+            </div>
+          ) : null}
+        </Section>
+
+        <Section title="Availability" compact={compact}>
+          <BadgeList items={profileView.availability} compact={compact} />
+        </Section>
+
+        <Section title="Hosting/Travel" compact={compact}>
+          <BadgeList items={profileView.hosting} compact={compact} />
+        </Section>
+
+        <Section title="Position" compact={compact}>
+          <BadgeList items={profileView.position} compact={compact} />
+        </Section>
+
+        <Section title="Role" compact={compact}>
+          <BadgeList items={profileView.role} compact={compact} />
+        </Section>
+
+        <Section title="Kinks & Fetishes" compact={compact}>
+          <BadgeList items={profileView.kinks} compact={compact} />
+        </Section>
+
+        <Section title="Vibes" compact={compact}>
+          <BadgeList items={profileView.vibes} variant="gradient" compact={compact} />
+        </Section>
+      </TabsContent>
+
+      <TabsContent value="health" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
+        <Section title="Protection" compact={compact}>
+          <BadgeList items={profileView.protection} compact={compact} />
+        </Section>
+
+        <Section title="Health" compact={compact}>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <DetailItem label="HIV" value={profileView.hivStatus} compact={compact} />
+            <DetailItem label="Mpox" value={profileView.mpoxStatus} compact={compact} />
+          </div>
+        </Section>
+
+        <Section title="Lifestyle" compact={compact}>
+          <div className="grid gap-3 text-sm">
+            <DetailItem label="Substance Boundaries" value={profileView.substanceBoundaries} compact={compact} />
+          </div>
+        </Section>
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function Section({ title, children, compact = false }: { title: string; children: ReactNode; compact?: boolean }) {
+  return (
+    <section className={`space-y-3 rounded-2xl border border-border bg-card/60 ${compact ? 'p-3' : 'p-4'}`}>
+      <h2 className={compact ? 'text-base' : 'text-lg'}>{title}</h2>
       {children}
     </section>
   );
 }
 
-function BadgeList({ items, variant = 'default' }: { items: string[]; variant?: 'default' | 'gradient' }) {
+function BadgeList({
+  items,
+  variant = 'default',
+  compact = false,
+}: {
+  items: string[];
+  variant?: 'default' | 'gradient';
+  compact?: boolean;
+}) {
   if (!items.length) {
     return <p className="text-sm text-muted-foreground">Nothing listed yet.</p>;
   }
@@ -456,7 +529,7 @@ function BadgeList({ items, variant = 'default' }: { items: string[]; variant?: 
       {items.map((item) => (
                 <span
                   key={item}
-                  className="rounded-full border px-3 py-1 text-sm"
+                  className={`rounded-full border ${compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1 text-sm'}`}
                   style={variant === 'gradient'
             ? {
                 borderColor: 'transparent',
@@ -471,9 +544,9 @@ function BadgeList({ items, variant = 'default' }: { items: string[]; variant?: 
   );
 }
 
-function DetailItem({ label, value }: { label: string; value: string | null }) {
+function DetailItem({ label, value, compact = false }: { label: string; value: string | null; compact?: boolean }) {
   return (
-    <div className="rounded-xl border border-border bg-background/50 p-3">
+    <div className={`rounded-xl border border-border bg-background/50 ${compact ? 'p-2.5' : 'p-3'}`}>
       <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
       <div className="mt-1 text-foreground">{value || 'Not shared'}</div>
     </div>

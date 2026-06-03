@@ -188,7 +188,13 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
   };
 }
 
-export default function ProfileEdit() {
+interface ProfileEditProps {
+  embedded?: boolean;
+  onCancel?: () => void;
+  onSaved?: () => void;
+}
+
+export default function ProfileEdit({ embedded = false, onCancel, onSaved }: ProfileEditProps = {}) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfilePayload>(emptyProfilePayload);
   const [loading, setLoading] = useState(true);
@@ -276,7 +282,11 @@ export default function ProfileEdit() {
         age: savedProfile.year_of_birth ? new Date().getFullYear() - savedProfile.year_of_birth : null,
         year_of_birth: savedProfile.year_of_birth,
       });
-      navigate(-1);
+      if (embedded) {
+        onSaved?.();
+      } else {
+        navigate(-1);
+      }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Failed to save profile.');
     } finally {
@@ -284,7 +294,17 @@ export default function ProfileEdit() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  const handleCancel = () => {
+    if (embedded) {
+      onCancel?.();
+    } else {
+      navigate(-1);
+    }
+  };
+
+  if (loading) {
+    return <div className={embedded ? 'p-5 text-sm text-white/60' : ''}>Loading...</div>;
+  }
 
   const normalizedProfile: ProfilePayload = {
     ...profile,
@@ -321,9 +341,9 @@ export default function ProfileEdit() {
     year_of_birth: profile.year_of_birth,
   };
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center justify-between z-10">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+    <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
+      <header className={`${embedded ? 'top-0 border-white/10 bg-black/85 text-white' : 'top-0 border-border bg-card/80'} sticky z-10 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
+        <Button variant="ghost" size="icon" onClick={handleCancel} aria-label={embedded ? 'Back to profile preview' : 'Back'}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h2 className="text-xl">Edit Profile</h2>
@@ -339,7 +359,7 @@ export default function ProfileEdit() {
         </Button>
       </header>
 
-      <div className="max-w-2xl mx-auto p-6">
+      <div className={embedded ? 'px-5 py-5' : 'max-w-2xl mx-auto p-6'}>
         {error ? (
           <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
@@ -605,6 +625,9 @@ export default function ProfileEdit() {
               <Label>Substance Boundaries</Label>
               <p className="text-sm text-muted-foreground">Select anything you do not want involved when meeting.</p>
               <MultiSelect
+                ariaLabel="Substance Boundaries"
+                menuPortal={embedded}
+                menuPlacement="top"
                 options={SUBSTANCE_BOUNDARIES}
                 value={normalizedProfile.substance_boundaries}
                 onChange={vals => handleChange('substance_boundaries', vals)}

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { useEffect, useState } from 'react';
 import MapHome from './components/MapHome';
+import MapProfilePopup from './components/MapProfilePopup';
 import LocalFeed from './components/LocalFeed';
 import ProfileView from './components/ProfileView';
 import ProfileEdit from './components/ProfileEdit';
@@ -49,6 +50,7 @@ export default function App() {
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [isOwnProfilePreviewOpen, setIsOwnProfilePreviewOpen] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -196,7 +198,7 @@ export default function App() {
         <div className="min-h-screen bg-background text-foreground">
           <Routes>
             <Route path="/" element={<Navigate to="/map" replace />} />
-            <Route path="/map" element={<MapHome />} />
+            <Route path="/map" element={<MapHome isOwnProfilePreviewOpen={isOwnProfilePreviewOpen} />} />
             <Route path="/feed" element={<LocalFeed />} />
             <Route path="/profile" element={<ProfileView />} />
             <Route path="/profile/:userId" element={<ProfileView />} />
@@ -217,7 +219,27 @@ export default function App() {
             <Route path="/requests" element={<RequestsDashboard />} />
             <Route path="*" element={<Navigate to="/map" replace />} />
           </Routes>
-          <BottomNav />
+          {isOwnProfilePreviewOpen && session ? (
+            <MapProfilePopup
+              fixed
+              isOwnProfile
+              user={{
+                id: session.user.id,
+                name: session.profile?.displayName ?? session.user.displayName,
+                display_name: session.profile?.displayName ?? session.user.displayName,
+                age: session.profile?.yearOfBirth ? new Date().getFullYear() - session.profile.yearOfBirth : null,
+                pronouns: '',
+                distance: '',
+                lastActive: '',
+                photo: null,
+              }}
+              onClose={() => setIsOwnProfilePreviewOpen(false)}
+            />
+          ) : null}
+          <BottomNav
+            isProfilePreviewOpen={isOwnProfilePreviewOpen}
+            onProfilePreviewRequest={() => setIsOwnProfilePreviewOpen(true)}
+          />
           <DebugCruushPlusToggle />
           <Toaster closeButton position="top-center" richColors />
         </div>

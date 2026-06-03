@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router';
+import { useIsMobile } from './ui/use-mobile';
 import cruushIconColored from '../assets/ui-icons/cruush-colored.png';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import feedIconColored from '../assets/ui-icons/feed-colored.png';
@@ -18,26 +19,49 @@ const navItems = [
   { path: '/profile', icon: profileIconWhite, activeIcon: profileIconColored, label: 'Profile' },
 ];
 
-export default function BottomNav() {
+export default function BottomNav({
+  isProfilePreviewOpen = false,
+  onProfilePreviewRequest,
+}: {
+  isProfilePreviewOpen?: boolean;
+  onProfilePreviewRequest?: () => void;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path);
+  const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
+      {!isMapRoute ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background from-[68%] via-background/96 via-[82%] to-background/0"
+        />
+      ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 p-1.5 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
+        className="relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md lg:ml-auto lg:mr-4"
       >
         {navItems.map((item) => {
-          const active = isActive(item.path);
+          const active = item.path === '/profile' && !isMobile && isProfilePreviewOpen
+            ? true
+            : isActive(item.path);
           return (
             <button
               key={item.path}
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                if (item.path === '/profile' && !isMobile && onProfilePreviewRequest) {
+                  onProfilePreviewRequest();
+                  return;
+                }
+
+                navigate(item.path);
+              }}
               className={`flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full transition-colors ${
                 active
                   ? 'bg-white/[0.10] text-primary hover:bg-white/[0.12]'
@@ -47,7 +71,7 @@ export default function BottomNav() {
               <img
                 alt=""
                 aria-hidden="true"
-                className="h-12 w-12 object-contain"
+                className="h-[3.6rem] w-[3.6rem] object-contain"
                 draggable={false}
                 src={active ? item.activeIcon : item.icon}
               />

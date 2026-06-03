@@ -301,6 +301,7 @@ function mapProfileRow(
     sensitiveProfile?: SensitiveProfileData | null;
     visibilityRules?: ProfileVisibilityRules | null;
     showKinks?: boolean;
+    visibleCrowds?: string[];
   } = {}
 ) {
   const includePrivateSensitive = options.includePrivateSensitive ?? true;
@@ -326,6 +327,7 @@ function mapProfileRow(
   const showKinks = options.showKinks ?? canShowByVisibility(row.kinks_visibility);
   const showTransStatus = canShowByVisibility(row.trans_status_visibility);
   const showHivStatus = canShowByVisibility(row.hiv_status_visibility);
+  const visibleCrowds = options.visibleCrowds ?? (includePrivateSensitive ? sensitiveProfile?.crowds ?? [] : []);
   const legacyKinks = showKinks ? row.kinks ?? [] : [];
   const sensitiveKinkInterests = showKinks ? sensitiveProfile?.kink_interests ?? [] : [];
   const sensitiveKinks = showKinks ? sensitiveProfile?.kinks ?? [] : [];
@@ -358,7 +360,7 @@ function mapProfileRow(
     role: row.role ?? [],
     is_trans: showTransStatus ? sensitiveProfile?.is_trans ?? null : null,
     trans_status_visibility: row.trans_status_visibility ?? "public",
-    crowds: includePrivateSensitive ? sensitiveProfile?.crowds ?? [] : [],
+    crowds: visibleCrowds,
     availability: row.availability ?? [],
     hosting_travel: row.hosting_travel ?? [],
     kinks: resolvedKinkInterests.length > 0
@@ -650,24 +652,17 @@ async function loadSensitiveProfileTokenHashes(app: FastifyInstance, userId: str
   }
 }
 
-async function profilesShareCrowd(app: FastifyInstance, firstUserId: string, secondUserId: string) {
-  if (firstUserId === secondUserId) {
-    return true;
+async function loadSharedCrowds(app: FastifyInstance, viewerUserId: string, targetCrowds: string[]) {
+  if (targetCrowds.length === 0) {
+    return [];
   }
 
-  const [firstTokens, secondTokens] = await Promise.all([
-    loadSensitiveProfileTokenHashes(app, firstUserId),
-    loadSensitiveProfileTokenHashes(app, secondUserId)
-  ]);
-  const crowdTokenHashes = new Set(createCrowdTokens(app.config, [...CROWD_OPTIONS]).map((token) => token.token_hash));
+  const viewerTokens = await loadSensitiveProfileTokenHashes(app, viewerUserId);
 
-  for (const tokenHash of crowdTokenHashes) {
-    if (firstTokens.has(tokenHash) && secondTokens.has(tokenHash)) {
-      return true;
-    }
-  }
-
-  return false;
+  return targetCrowds.filter((crowd) => {
+    const tokenHash = createCrowdTokens(app.config, [crowd])[0]?.token_hash;
+    return Boolean(tokenHash && viewerTokens.has(tokenHash));
+  });
 }
 
 function buildSensitiveProfile(payload: ProfilePayload, kinkInterests: ProfileKinkInterest[]): SensitiveProfileData {
@@ -830,13 +825,18 @@ async function loadProfileData(
     row.kinks_visibility === "mutual_cruushes" ||
     row.trans_status_visibility === "mutual_cruushes" ||
     row.hiv_status_visibility === "mutual_cruushes";
-  const hasMutualCrowd = options.viewerUserId && needsMutualCrowd
-    ? await profilesShareCrowd(app, options.viewerUserId, userId)
-    : false;
+  const sensitiveProfile = decryptSensitiveProfile(app.config, row);
+  const visibleCrowds = !options.includePrivateSensitive && options.viewerUserId
+    ? await loadSharedCrowds(app, options.viewerUserId, sensitiveProfile?.crowds ?? [])
+    : undefined;
+  const hasMutualCrowd = options.includePrivateSensitive
+    ? true
+    : needsMutualCrowd
+      ? (visibleCrowds?.length ?? 0) > 0
+      : false;
   const hasMutualCruush = options.viewerUserId && needsMutualCruush
     ? relationship?.isMutualCruush === true
     : false;
-  const sensitiveProfile = decryptSensitiveProfile(app.config, row);
   const visibilityRules = decryptProfileVisibility(app.config, row);
 
   if (!options.includePrivateSensitive && !visibilityRulesArePublic(visibilityRules)) {
@@ -869,7 +869,8 @@ async function loadProfileData(
     hasMutualCruush,
     sensitiveProfile,
     visibilityRules,
-    showKinks
+    showKinks,
+    visibleCrowds
   });
 }
 

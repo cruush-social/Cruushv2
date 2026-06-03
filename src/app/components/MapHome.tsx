@@ -1,6 +1,7 @@
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
-import { useState, useEffect, useMemo } from 'react';
+import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './MapView';
 import { Filter, MapPin, ZoomIn, ZoomOut } from 'lucide-react';
@@ -287,7 +288,7 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
   };
 }
 
-export default function MapHome() {
+export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProfilePreviewOpen?: boolean } = {}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
@@ -308,6 +309,15 @@ export default function MapHome() {
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const shouldAlignRecentlyActiveWithPreview = !isMobile && (selectedUser || isOwnProfilePreviewOpen);
+  const recentlyActiveDragRef = useRef({
+    hasPointerCapture: false,
+    isPointerDown: false,
+    hasDragged: false,
+    pointerId: -1,
+    startScrollLeft: 0,
+    startX: 0,
+  });
   const isMutualMapMode = searchParams.get('mode') === 'mutuals';
   const focusUserId = searchParams.get('focusUserId');
 
@@ -674,12 +684,83 @@ export default function MapHome() {
     }
   };
 
+  const handleRecentlyActivePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    recentlyActiveDragRef.current = {
+      hasPointerCapture: false,
+      isPointerDown: true,
+      hasDragged: false,
+      pointerId: event.pointerId,
+      startScrollLeft: target.scrollLeft,
+      startX: event.clientX,
+    };
+  };
+
+  const handleRecentlyActivePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const dragState = recentlyActiveDragRef.current;
+
+    if (!dragState.isPointerDown || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragState.startX;
+
+    if (Math.abs(deltaX) > 4) {
+      dragState.hasDragged = true;
+
+      if (!dragState.hasPointerCapture) {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        dragState.hasPointerCapture = true;
+      }
+    }
+
+    event.currentTarget.scrollLeft = dragState.startScrollLeft - deltaX;
+  };
+
+  const handleRecentlyActivePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    const dragState = recentlyActiveDragRef.current;
+
+    if (dragState.pointerId === event.pointerId) {
+      if (dragState.hasPointerCapture) {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      }
+
+      dragState.hasPointerCapture = false;
+      dragState.isPointerDown = false;
+    }
+  };
+
+  const handleRecentlyActiveClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    if (!recentlyActiveDragRef.current.hasDragged) {
+      return;
+    }
+
+    recentlyActiveDragRef.current.hasDragged = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handleRecentlyActiveWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (isMobile) {
+      return;
+    }
+
+    const scrollDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+
+    if (scrollDelta === 0) {
+      return;
+    }
+
+    event.currentTarget.scrollLeft += scrollDelta;
+    event.preventDefault();
+  };
+
   return (
     <div className="relative h-screen overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
-      <div className="absolute inset-x-0 top-0 z-30 px-3 pb-12 pt-3">
+      <div className="absolute inset-x-0 top-0 z-40 px-3 pb-12 pt-3">
         <div className="flex items-start justify-between">
-          <div className="flex flex-col items-start">
+          <div className="flex flex-col items-start lg:flex-row lg:items-start">
             <h1 className="sr-only">cruush</h1>
             <img
               alt=""
@@ -688,7 +769,7 @@ export default function MapHome() {
               draggable={false}
               src={cruushLogo}
             />
-            <div className="mt-1 inline-flex rounded-full border border-white/10 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72 backdrop-blur-md">
+            <div className="mt-1 inline-flex rounded-full border border-white/10 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72 backdrop-blur-md lg:ml-2 lg:mt-0">
               {isMutualMapMode ? 'Mutual cruushes' : 'NYC beta'}
             </div>
           </div>
@@ -783,7 +864,7 @@ export default function MapHome() {
 
         <div className="absolute right-4 top-28 z-30 flex flex-col items-end gap-2">
           <Button
-            className={`rounded-full border px-5 shadow-[0_12px_35px_rgba(0,0,0,0.25)] ${
+            className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] shadow-[0_12px_35px_rgba(0,0,0,0.25)] ${
               hasActiveFilters
                 ? 'border-white/15 text-white'
                 : 'border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
@@ -792,7 +873,7 @@ export default function MapHome() {
             onClick={() => setIsFiltersOpen(true)}
           >
             <Filter className="w-4 h-4 mr-2" />
-            {isMutualMapMode ? 'Mutuals' : 'Seeking'}
+            {isMutualMapMode ? 'MUTUALS' : 'SEEKING'}
           </Button>
 
           <Button
@@ -801,7 +882,7 @@ export default function MapHome() {
               setVisibilityError(null);
               setIsVisibilityOpen(true);
             }}
-            className={`rounded-full border px-5 text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] has-[>img]:px-3 ${
+            className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] has-[>img]:px-3 ${
               hasActiveVisibility
                 ? 'border-white/15'
                 : 'border-white/10 bg-background/68 backdrop-blur-md hover:bg-white/10'
@@ -809,7 +890,7 @@ export default function MapHome() {
             style={hasActiveVisibility ? { background: 'var(--cruush-gradient)' } : undefined}
           >
             <CruushIconImage src={visibilityIconWhite} className="mr-2 h-4 w-4" />
-            Visibility
+            VISIBILITY
           </Button>
 
           <div className="flex flex-col gap-2">
@@ -846,26 +927,52 @@ export default function MapHome() {
         </div>
 
         {displayedUsers.length > 0 && (
-          <div className="absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 px-4">
+          <div
+            className={`absolute bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-30 ${
+              isMobile
+                ? 'left-0 right-0 px-4'
+                : shouldAlignRecentlyActiveWithPreview
+                ? 'left-[calc(23rem+1.5rem)] right-4 pl-2 pr-0'
+                : 'left-0 right-4 pl-4 pr-0'
+            }`}
+          >
             <div
-              className={`mx-auto rounded-2xl border border-white/10 bg-background/40 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl ${
-                isRecentlyActiveOpen ? 'max-w-5xl p-3' : 'w-fit max-w-[calc(100vw-2rem)] px-4 py-2'
-              }`}
+              className={`mx-auto w-full ${
+                isRecentlyActiveOpen
+                  ? 'max-w-[29.5rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                  : 'max-w-max p-0'
+              } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''}`}
               data-testid="recently-active-panel"
             >
-              <button
-                type="button"
-                aria-controls="recently-active-tray"
-                aria-expanded={isRecentlyActiveOpen}
-                className={`block rounded px-1 text-left text-xs uppercase tracking-[0.18em] text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65 ${
-                  isRecentlyActiveOpen ? 'mb-2' : 'mb-0'
-                }`}
-                onClick={() => setIsRecentlyActiveOpen((open) => !open)}
-              >
-                Recently Active
-              </button>
+              <div className={`flex justify-end ${isRecentlyActiveOpen ? 'mb-2' : 'mb-0'}`}>
+                <button
+                  type="button"
+                  aria-controls="recently-active-tray"
+                  aria-expanded={isRecentlyActiveOpen}
+                  aria-label={isRecentlyActiveOpen ? 'Hide recently active bar' : 'Show recently active bar'}
+                  className="h-8 rounded-full border border-white/10 px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                  onClick={() => setIsRecentlyActiveOpen((open) => !open)}
+                  style={{
+                    background: isRecentlyActiveOpen ? 'var(--cruush-gradient)' : 'rgba(0,0,0,0.82)',
+                  }}
+                >
+                  Recently Active
+                </button>
+              </div>
               {isRecentlyActiveOpen ? (
-                <div id="recently-active-tray" className="flex gap-3 overflow-x-auto scrollbar-hide" data-testid="recently-active-tray">
+                <div
+                  id="recently-active-tray"
+                  aria-label="Recently active profiles"
+                  className="flex cursor-grab gap-3 overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                  data-testid="recently-active-tray"
+                  onClickCapture={handleRecentlyActiveClickCapture}
+                  onPointerCancel={handleRecentlyActivePointerEnd}
+                  onPointerDown={handleRecentlyActivePointerDown}
+                  onPointerMove={handleRecentlyActivePointerMove}
+                  onPointerUp={handleRecentlyActivePointerEnd}
+                  onWheel={handleRecentlyActiveWheel}
+                  tabIndex={0}
+                >
                 {[...displayedUsers]
                   .sort((a, b) => {
                     const firstUserMinutes = getLastActiveMinutes(a.lastActive);

@@ -15,8 +15,9 @@ const { sendCruush } = vi.hoisted(() => ({
   sendCruush: vi.fn(),
 }));
 
-const { getMyProfile } = vi.hoisted(() => ({
+const { getMyProfile, getProfileById } = vi.hoisted(() => ({
   getMyProfile: vi.fn(),
+  getProfileById: vi.fn(),
 }));
 
 const { useIsMobile } = vi.hoisted(() => ({
@@ -46,6 +47,7 @@ vi.mock('../lib/profileApi', async () => {
   return {
     ...actual,
     getMyProfile,
+    getProfileById,
   };
 });
 
@@ -124,6 +126,7 @@ describe('MapHome', () => {
     getMutualCruushMap.mockReset();
     sendCruush.mockReset();
     getMyProfile.mockReset();
+    getProfileById.mockReset();
     useIsMobile.mockReset();
     mapControls.setCenter.mockReset();
     mapControls.setZoom.mockReset();
@@ -134,6 +137,57 @@ describe('MapHome', () => {
     getMyProfile.mockResolvedValue({
       photos: ['https://example.com/me.jpg'],
       position: ['Bottom'],
+    });
+    getProfileById.mockResolvedValue({
+      id: 'user-1',
+      display_name: 'Jordan',
+      photos: [],
+      bio: 'Out and about tonight.',
+      pronouns: ['they/them'],
+      custom_pronouns: '',
+      year_of_birth: 1998,
+      ethnicity: 'Latinx',
+      identities: ['Non-binary'],
+      presentation: ['Femme'],
+      sexuality: ['Queer'],
+      body_type: ['Athletic'],
+      height: "5'8\"",
+      weight: '155 lbs',
+      position: ['Vers'],
+      role: ['Switch'],
+      is_trans: null,
+      trans_status_visibility: 'public',
+      crowds: ['T4T'],
+      availability: ['Now'],
+      hosting_travel: ['Hosting'],
+      kinks: ['Leather'],
+      kink_interests: [{
+        kink_id: 'leather',
+        label: 'Leather',
+      }],
+      kinks_visibility: 'public',
+      vibes: ['Playful'],
+      scenes: ['Warehouse'],
+      archetypes: [],
+      hobbies: ['Hiking'],
+      custom_hobby: '',
+      looking_for: ['Dates'],
+      hiv_status: ['Negative'],
+      hiv_status_visibility: 'mutual_cruushes',
+      custom_hiv_status: '',
+      condoms: ['Always'],
+      custom_condoms: '',
+      prep: ['Daily'],
+      custom_prep: '',
+      doxypep: [],
+      custom_doxypep: '',
+      covid_vaccine: [],
+      custom_covid_vaccine: '',
+      mpox_vaccine: ['Vaccinated'],
+      custom_mpox_vaccine: '',
+      substance_boundaries: ['No alcohol involved'],
+      visibility_rules: {},
+      updated_at: '2026-04-29T12:00:00.000Z',
     });
 
     getNearbyUsers.mockResolvedValue([
@@ -221,6 +275,23 @@ describe('MapHome', () => {
     await screen.findByRole('button', { name: 'Pin Jordan' });
   });
 
+  it('floats recently active to the right side on desktop without a profile preview', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+
+    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-0', 'right-4', 'pl-4', 'pr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
+  });
+
   it('only shows the Cruush gradient on active seeking and visibility controls', async () => {
     useIsMobile.mockReturnValue(false);
 
@@ -235,6 +306,8 @@ describe('MapHome', () => {
     const inactiveSeekingButton = screen.getByRole('button', { name: /^seeking$/i });
     const inactiveVisibilityButton = screen.getByRole('button', { name: /^visibility$/i });
 
+    expect(inactiveSeekingButton).toHaveClass('h-8', 'text-[11px]', 'uppercase', 'tracking-[0.18em]');
+    expect(inactiveVisibilityButton).toHaveClass('h-8', 'text-[11px]', 'uppercase', 'tracking-[0.18em]');
     expect(inactiveSeekingButton.style.background).toBe('');
     expect(inactiveVisibilityButton.style.background).toBe('');
 
@@ -282,9 +355,43 @@ describe('MapHome', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
 
+    expect(screen.getByText('NYC beta').parentElement).toHaveClass('lg:flex-row', 'lg:items-start');
+    expect(screen.getByText('NYC beta')).toHaveClass('lg:ml-2', 'lg:mt-0');
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
+    expect(screen.getByRole('complementary')).toHaveClass('z-50');
+    expect(screen.getByRole('complementary')).toHaveClass('bottom-[calc(0.75rem+env(safe-area-inset-bottom))]');
+    expect(screen.getByRole('complementary')).toHaveClass('top-[8.75rem]');
+    expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).toBeInTheDocument();
+    expect(screen.getByRole('complementary').querySelector('.scrollbar-subtle')).not.toBeInTheDocument();
+    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(23rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
+    const intimacyTab = screen.getByRole('tab', { name: 'Intimacy' });
+    fireEvent.pointerDown(intimacyTab, { button: 0, ctrlKey: false });
+    fireEvent.click(intimacyTab);
+    await waitFor(() => expect(intimacyTab).toHaveAttribute('aria-selected', 'true'));
+    expect(screen.getByText('Role')).toBeInTheDocument();
+    expect(screen.getByText('Switch')).toBeInTheDocument();
+    expect(getProfileById).toHaveBeenCalledWith('user-1');
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+  });
+
+  it('right-aligns recently active when the desktop own profile preview is open', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <MapHome isOwnProfilePreviewOpen />
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: 'Open Jordan profile' });
+
+    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(23rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
   });
 
   it('refreshes map users after sending a cruush from the popup without a browser alert', async () => {
@@ -421,11 +528,42 @@ describe('MapHome', () => {
     const recentTray = screen.getByTestId('recently-active-tray');
     const recentTile = screen.getByTestId('recently-active-tile-user-1');
     const recentMedia = recentTile.firstElementChild;
-    const recentToggle = screen.getByRole('button', { name: 'Recently Active' });
+    const recentToggle = screen.getByRole('button', { name: 'Hide recently active bar' });
     const recentPanel = screen.getByTestId('recently-active-panel');
 
     expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
-    expect(recentPanel).toHaveClass('max-w-5xl', 'p-3');
+    expect(recentToggle).toHaveTextContent('Recently Active');
+    expect(recentToggle.parentElement).toHaveClass('justify-end');
+    expect(recentToggle).toHaveStyle({ background: 'var(--cruush-gradient)' });
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0');
+    expect(recentPanel).toHaveClass('max-w-[29.5rem]', 'p-3');
+    expect(screen.getByTestId('recently-active-tray')).toHaveClass('cursor-grab', 'overflow-x-auto', 'overscroll-x-contain', 'scroll-smooth');
+    expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('tabindex', '0');
+    fireEvent.click(recentTile);
+    expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
+    expect(screen.getByRole('complementary')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close profile preview' }));
+    fireEvent.wheel(recentTray, { deltaY: 96 });
+    expect(recentTray.scrollLeft).toBe(96);
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperties(pointerDown, {
+      clientX: { value: 140 },
+      pointerId: { value: 1 },
+    });
+    const pointerMove = new Event('pointermove', { bubbles: true });
+    Object.defineProperties(pointerMove, {
+      clientX: { value: 90 },
+      pointerId: { value: 1 },
+    });
+    const pointerUp = new Event('pointerup', { bubbles: true });
+    Object.defineProperties(pointerUp, {
+      clientX: { value: 90 },
+      pointerId: { value: 1 },
+    });
+    fireEvent(recentTray, pointerDown);
+    fireEvent(recentTray, pointerMove);
+    fireEvent(recentTray, pointerUp);
+    expect(recentTray.scrollLeft).toBe(146);
     expect(screen.queryByText('Last Active')).not.toBeInTheDocument();
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
     expect(screen.queryByText('Jordan')).not.toBeInTheDocument();
@@ -437,16 +575,19 @@ describe('MapHome', () => {
     fireEvent.click(recentToggle);
 
     expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(recentPanel).toHaveClass('w-fit', 'max-w-[calc(100vw-2rem)]', 'px-4', 'py-2');
-    expect(recentPanel).not.toHaveClass('max-w-5xl', 'p-3');
-    expect(recentToggle).toHaveClass('mb-0');
+    expect(recentToggle).toHaveAccessibleName('Show recently active bar');
+    expect(recentToggle).toHaveTextContent('Recently Active');
+    expect(recentToggle).toHaveStyle({ background: 'rgba(0, 0, 0, 0.82)' });
+    expect(recentPanel).toHaveClass('w-full', 'max-w-max', 'p-0');
+    expect(recentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
 
     fireEvent.click(recentToggle);
 
     expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
-    expect(recentPanel).toHaveClass('max-w-5xl', 'p-3');
-    expect(recentToggle).toHaveClass('mb-2');
+    expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
+    expect(recentToggle).toHaveTextContent('Recently Active');
+    expect(recentPanel).toHaveClass('max-w-[29.5rem]', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 
@@ -530,7 +671,7 @@ describe('MapHome', () => {
     expect(getMutualCruushMap).toHaveBeenCalledTimes(1);
     expect(getNearbyUsers).not.toHaveBeenCalled();
     expect(screen.getByText('Mutual cruushes')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Mutuals/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /MUTUALS/ })).toBeInTheDocument();
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-precision', 'precise');
     expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();

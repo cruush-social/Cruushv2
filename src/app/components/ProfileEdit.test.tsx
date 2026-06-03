@@ -268,4 +268,49 @@ describe('ProfileEdit', () => {
       display_name: 'River Local',
     })));
   });
+
+  it('supports embedded profile editing without routing away', async () => {
+    const onCancel = vi.fn();
+    const onSaved = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit embedded onCancel={onCancel} onSaved={onSaved} />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to profile preview' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+  });
+
+  it('lets desktop embedded users edit substance boundaries', async () => {
+    render(
+      <MemoryRouter>
+        <ProfileEdit embedded />
+      </MemoryRouter>
+    );
+
+    const healthTab = await screen.findByRole('tab', { name: 'Health' });
+    fireEvent.click(healthTab);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Substance Boundaries' }));
+    const menu = screen.getByRole('listbox', { name: 'Substance Boundaries' });
+
+    expect(menu.parentElement).toHaveClass('z-[100]');
+    expect(menu.parentElement).toHaveStyle({ position: 'fixed' });
+
+    fireEvent.click(screen.getByRole('option', { name: 'No alcohol involved' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      substance_boundaries: ['No alcohol involved'],
+    })));
+  });
 });

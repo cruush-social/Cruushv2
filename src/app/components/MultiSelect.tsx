@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Badge } from './ui/badge';
 import { X } from 'lucide-react';
 
@@ -15,6 +17,8 @@ interface MultiSelectProps {
   selectionMode?: 'multiple' | 'single';
   ariaLabel?: string;
   placeholder?: string;
+  menuPlacement?: 'bottom' | 'top';
+  menuPortal?: boolean;
 }
 
 export default function MultiSelect({
@@ -25,9 +29,13 @@ export default function MultiSelect({
   selectionMode = 'multiple',
   ariaLabel,
   placeholder = 'Select options...',
+  menuPlacement = 'bottom',
+  menuPortal = false,
 }: MultiSelectProps) {
   const [selected, setSelected] = useState<string[]>(value);
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
   const groups = useMemo(() => optionGroups ?? [{ label: '', options }], [optionGroups, options]);
   const hasCategoryPicker = Boolean(optionGroups?.length && optionGroups.length > 1);
   const [activeGroupLabel, setActiveGroupLabel] = useState(groups[0]?.label ?? '');
@@ -42,6 +50,43 @@ export default function MultiSelect({
       setActiveGroupLabel(groups[0]?.label ?? '');
     }
   }, [activeGroupLabel, groups]);
+
+  useLayoutEffect(() => {
+    if (!isOpen || !menuPortal || !triggerRef.current) {
+      setPortalStyle(null);
+      return;
+    }
+
+    const updatePortalStyle = () => {
+      if (!triggerRef.current) {
+        return;
+      }
+
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPortalStyle(menuPlacement === 'top'
+        ? {
+            bottom: window.innerHeight - rect.top + 8,
+            left: rect.left,
+            position: 'fixed',
+            width: rect.width,
+          }
+        : {
+            left: rect.left,
+            position: 'fixed',
+            top: rect.bottom + 8,
+            width: rect.width,
+          });
+    };
+
+    updatePortalStyle();
+    window.addEventListener('resize', updatePortalStyle);
+    window.addEventListener('scroll', updatePortalStyle, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePortalStyle);
+      window.removeEventListener('scroll', updatePortalStyle, true);
+    };
+  }, [isOpen, menuPlacement, menuPortal]);
 
   const toggleOption = (option: string) => {
     const newSelected = selectionMode === 'single'
@@ -62,6 +107,108 @@ export default function MultiSelect({
     onChange?.(newSelected);
   };
 
+  const menuContent = (
+    <>
+      {hasCategoryPicker ? (
+        <div className="grid max-h-80 sm:grid-cols-[11rem_minmax(0,1fr)]">
+          <div
+            role="tablist"
+            aria-label={`${ariaLabel ?? 'Options'} categories`}
+            className="flex gap-1 overflow-x-auto border-b border-border p-2 sm:max-h-80 sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
+          >
+            {groups.map((group) => {
+              const selectedCount = group.options.filter((option) => selected.includes(option)).length;
+              const isActive = group.label === activeGroup.label;
+
+              return (
+                <button
+                  key={group.label}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveGroupLabel(group.label)}
+                  className={`flex shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors sm:w-full ${
+                    isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                  }`}
+                >
+                  <span>{group.label}</span>
+                  {selectedCount > 0 ? (
+                    <span aria-hidden="true" className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                      {selectedCount}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+
+          <div role="listbox" aria-label={ariaLabel} className="max-h-64 overflow-y-auto py-1 sm:max-h-80">
+            <div role="group" aria-label={activeGroup.label || undefined}>
+              {activeGroup.options.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="option"
+                  aria-selected={selected.includes(option)}
+                  onClick={() => toggleOption(option)}
+                  className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
+                    selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div role="listbox" aria-label={ariaLabel} className="max-h-72 overflow-y-auto">
+          {groups.map((group) => (
+            <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
+              {group.label ? (
+                <div className="sticky top-0 bg-popover px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  {group.label}
+                </div>
+              ) : null}
+              {group.options.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="option"
+                  aria-selected={selected.includes(option)}
+                  onClick={() => toggleOption(option)}
+                  className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
+                    selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  const menu = isOpen && menuPortal && portalStyle
+    ? createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-[90]"
+            onClick={() => setIsOpen(false)}
+          />
+          <div
+            className="overflow-hidden rounded-md border border-border bg-popover shadow-lg z-[100]"
+            style={portalStyle}
+          >
+            {menuContent}
+          </div>
+        </>,
+        document.body
+      )
+    : null;
+
   return (
     <div className="space-y-2">
       {selected.length > 0 && (
@@ -79,6 +226,7 @@ export default function MultiSelect({
 
       <div className="relative">
         <button
+          ref={triggerRef}
           type="button"
           aria-label={ariaLabel}
           aria-haspopup="listbox"
@@ -89,94 +237,20 @@ export default function MultiSelect({
           {selected.length > 0 ? `${selected.length} selected` : placeholder}
         </button>
 
-        {isOpen && (
+        {menu}
+
+        {isOpen && !menuPortal && (
           <>
             <div
               className="fixed inset-0 z-10"
               onClick={() => setIsOpen(false)}
             />
             <div
-              className="absolute top-full left-0 right-0 mt-2 overflow-hidden rounded-md border border-border bg-popover shadow-lg z-20"
+              className={`absolute left-0 right-0 overflow-hidden rounded-md border border-border bg-popover shadow-lg z-20 ${
+                menuPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+              }`}
             >
-              {hasCategoryPicker ? (
-                <div className="grid max-h-80 sm:grid-cols-[11rem_minmax(0,1fr)]">
-                  <div
-                    role="tablist"
-                    aria-label={`${ariaLabel ?? 'Options'} categories`}
-                    className="flex gap-1 overflow-x-auto border-b border-border p-2 sm:max-h-80 sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
-                  >
-                    {groups.map((group) => {
-                      const selectedCount = group.options.filter((option) => selected.includes(option)).length;
-                      const isActive = group.label === activeGroup.label;
-
-                      return (
-                        <button
-                          key={group.label}
-                          type="button"
-                          role="tab"
-                          aria-selected={isActive}
-                          onClick={() => setActiveGroupLabel(group.label)}
-                          className={`flex shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors sm:w-full ${
-                            isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
-                          }`}
-                        >
-                          <span>{group.label}</span>
-                          {selectedCount > 0 ? (
-                            <span aria-hidden="true" className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
-                              {selectedCount}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div role="listbox" aria-label={ariaLabel} className="max-h-64 overflow-y-auto py-1 sm:max-h-80">
-                    <div role="group" aria-label={activeGroup.label || undefined}>
-                      {activeGroup.options.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          role="option"
-                          aria-selected={selected.includes(option)}
-                          onClick={() => toggleOption(option)}
-                          className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
-                            selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div role="listbox" aria-label={ariaLabel} className="max-h-72 overflow-y-auto">
-                  {groups.map((group) => (
-                    <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
-                      {group.label ? (
-                        <div className="sticky top-0 bg-popover px-4 py-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                          {group.label}
-                        </div>
-                      ) : null}
-                      {group.options.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          role="option"
-                          aria-selected={selected.includes(option)}
-                          onClick={() => toggleOption(option)}
-                          className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
-                            selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
+              {menuContent}
             </div>
           </>
         )}

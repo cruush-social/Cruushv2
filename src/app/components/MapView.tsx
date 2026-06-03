@@ -17,6 +17,7 @@ import {
   Mountain,
   MoveHorizontal,
   Repeat2,
+  User,
   type LucideIcon,
 } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -240,6 +241,34 @@ export function createCruushVectorStyle(
         },
       },
       {
+        id: 'minor-road-labels',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'transportation_name',
+        minzoom: 12,
+        filter: [
+          'match',
+          ['get', 'class'],
+          ['minor', 'service', 'track', 'path'],
+          true,
+          false,
+        ],
+        layout: {
+          'symbol-placement': 'line',
+          'symbol-spacing': 120,
+          'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
+          'text-font': MAP_LABEL_FONT_REGULAR,
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9, 16, 12],
+          'text-letter-spacing': 0.02,
+          'text-padding': 1,
+        },
+        paint: {
+          'text-color': '#7f7f7f',
+          'text-halo-color': '#080808',
+          'text-halo-width': 1,
+        },
+      },
+      {
         id: 'secondary-road-labels',
         type: 'symbol',
         source: 'openmaptiles',
@@ -435,7 +464,7 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const badge = marker.badge;
   const Icon = getBadgeIcon(badge);
 
-  if (!badge || !Icon) {
+  if (!isCurrentUser && (!badge || !Icon)) {
     return null;
   }
 
@@ -447,16 +476,20 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
 
   return (
     <span
-      aria-label={badge.label}
+      aria-label={isCurrentUser ? 'Your profile' : badge?.label}
       className={[
         'absolute right-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
         borderClass,
       ].join(' ')}
       data-testid={`marker-badge-${marker.id}`}
       role="img"
-      title={badge.label}
+      title={isCurrentUser ? 'Your profile' : badge?.label}
     >
-      <Icon aria-hidden="true" className="h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.6} />
+      {isCurrentUser ? (
+        <User aria-hidden="true" className="h-[1.0625rem] w-[1.0625rem]" strokeWidth={2.6} />
+      ) : Icon ? (
+        <Icon aria-hidden="true" className="h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.6} />
+      ) : null}
     </span>
   );
 }
@@ -536,8 +569,8 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
         <>
           <path d={HEART_PATH} fill="#050505" stroke="#0BA8FF" strokeWidth="3.2" />
           <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black/70">
-              <CruushIcon name="profile" className="h-7 w-7" variant="colored" />
+            <div className="flex h-9 w-9 items-center justify-center">
+              <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
             </div>
           </foreignObject>
         </>

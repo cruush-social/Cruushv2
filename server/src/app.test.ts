@@ -10,7 +10,7 @@ import {
   type EncryptedRelationshipRecordRow
 } from "./encrypted-relationships.js";
 import { emptyProfile } from "./profile-schema.js";
-import { encryptProfileVisibility, encryptSensitiveProfile } from "./profile-sensitive.js";
+import { createCrowdTokens, encryptProfileVisibility, encryptSensitiveProfile } from "./profile-sensitive.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
 
 const query = vi.fn();
@@ -3006,6 +3006,18 @@ describe("server", () => {
   });
 
   it("returns another user's profile on GET /api/profiles/:userId", async () => {
+    const targetSensitiveProfile = encryptSensitiveProfile(app.config, {
+      is_trans: true,
+      crowds: ["T4T", "Sapphic"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+    const viewerCrowdTokens = createCrowdTokens(app.config, ["T4T"]).map((token) => ({
+      token_hash: token.token_hash
+    }));
+
     query.mockResolvedValueOnce({
       rows: [{
         id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -3043,9 +3055,15 @@ describe("server", () => {
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
+        ...targetSensitiveProfile,
         updated_at: "2026-04-28T12:00:00.000Z"
       }]
-    });
+    })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: viewerCrowdTokens })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "GET",
@@ -3063,9 +3081,11 @@ describe("server", () => {
         display_name: "Alex",
         bio: "Nearby now",
         pronouns: ["they/them"],
-        looking_for: ["Dates"]
+        looking_for: ["Dates"],
+        crowds: ["T4T"]
       })
     });
+    expect(response.json().data.crowds).not.toContain("Sapphic");
   });
 
   it("rejects invalid profile ids before querying profiles", async () => {

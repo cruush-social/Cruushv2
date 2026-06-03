@@ -147,13 +147,17 @@ describe('MapView', () => {
     expect(screen.queryByText('YOU')).not.toBeInTheDocument();
     expect(screen.queryByText('Now')).not.toBeInTheDocument();
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('bottom')).toBeInTheDocument();
+    expect(screen.queryByLabelText('bottom')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
     expect(screen.getByLabelText('top')).toBeInTheDocument();
     expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]/80');
+    expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('border-[#FF0072]/80');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
     expect(screen.getByTestId('marker-current-fallback-me')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-current-fallback-me').querySelector('div')).not.toHaveClass('rounded-full', 'bg-black/70');
+    expect(screen.getByTestId('marker-current-fallback-me').querySelector('svg')).toHaveClass('h-7', 'w-7', 'text-white');
     expect(screen.queryByTestId('marker-current-fallback-user-1')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-20', 'w-20');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
@@ -197,7 +201,9 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-photo-fill-user-photo')).toHaveAttribute('href', 'https://example.com/kai.jpg');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-marker-theme', 'nearby');
-    expect(screen.getByLabelText('versatile')).toBeInTheDocument();
+    expect(screen.queryByLabelText('versatile')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
   });
 
@@ -368,7 +374,10 @@ describe('MapView', () => {
     expect(layerById.get('major-roads')?.paint['line-color']).toBe('#242424');
     expect(layerById.has('building-fill')).toBe(false);
     expect(layerById.has('building-outline')).toBe(false);
-    expect(layerById.has('minor-road-labels')).toBe(false);
+    expect(layerById.get('minor-road-labels')?.layout['symbol-placement']).toBe('line');
+    expect(layerById.get('minor-road-labels')?.layout['symbol-spacing']).toBe(120);
+    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
+    expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#7f7f7f');
     expect(layerById.has('poi-dots')).toBe(false);
     expect(layerById.has('poi-labels')).toBe(false);
     expect(layerById.get('secondary-road-labels')?.paint['text-color']).toBe('#a0a0a0');
