@@ -20,6 +20,7 @@ vi.mock('../lib/debugApi', async () => {
 
 describe('DebugCruushPlusToggle', () => {
   beforeEach(() => {
+    vi.unstubAllEnvs();
     getDebugCruushPlus.mockReset();
     setDebugCruushPlus.mockReset();
     getDebugCruushPlus.mockResolvedValue({
@@ -52,5 +53,14 @@ describe('DebugCruushPlusToggle', () => {
     });
 
     window.removeEventListener(DEBUG_CRUUSH_PLUS_EVENT, eventHandler);
+  });
+
+  it('does not call the debug endpoint outside dev mode', () => {
+    vi.stubEnv('DEV', false);
+
+    render(<DebugCruushPlusToggle />);
+
+    expect(getDebugCruushPlus).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

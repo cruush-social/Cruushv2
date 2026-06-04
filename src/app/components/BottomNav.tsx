@@ -1,4 +1,4 @@
-npimport { useNavigate, useLocation } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import cruushIconColored from '../assets/ui-icons/cruush-colored.png';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import feedIconColored from '../assets/ui-icons/feed-colored.png';
