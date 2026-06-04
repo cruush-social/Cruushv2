@@ -756,9 +756,9 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
   };
 
   return (
-    <div className="relative h-screen overflow-hidden bg-background">
+    <div className="relative h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none bg-background" data-testid="map-home-shell">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
-      <div className="absolute inset-x-0 top-0 z-40 px-3 pb-12 pt-3">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-40 px-3 pb-12 pt-3" data-testid="map-top-chrome">
         <div className="flex items-start justify-between">
           <div className="flex flex-col items-start lg:flex-row lg:items-start">
             <h1 className="sr-only">cruush</h1>
@@ -774,7 +774,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
             </div>
           </div>
 
-          <div className="mt-11 flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md">
+          <div className="pointer-events-auto mt-11 flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md">
             <Button
               variant="ghost"
               size="icon"
@@ -862,7 +862,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
           />
         ) : null}
 
-        <div className="absolute right-4 top-28 z-30 flex flex-col items-end gap-2">
+        <div className="absolute right-4 top-28 z-50 flex flex-col items-end gap-2" data-testid="map-floating-controls">
           <Button
             className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] shadow-[0_12px_35px_rgba(0,0,0,0.25)] ${
               hasActiveFilters
@@ -928,7 +928,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
 
         {displayedUsers.length > 0 && (
           <div
-            className={`absolute bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-30 ${
+            className={`${isMobile ? 'fixed' : 'absolute'} bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-30 ${
               isMobile
                 ? 'left-0 right-0 px-4'
                 : shouldAlignRecentlyActiveWithPreview
@@ -963,7 +963,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
                 <div
                   id="recently-active-tray"
                   aria-label="Recently active profiles"
-                  className="flex cursor-grab gap-3 overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                  className="flex cursor-grab gap-3 overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide [touch-action:pan-x] active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
                   data-testid="recently-active-tray"
                   onClickCapture={handleRecentlyActiveClickCapture}
                   onPointerCancel={handleRecentlyActivePointerEnd}

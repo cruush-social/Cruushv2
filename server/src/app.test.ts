@@ -2968,6 +2968,62 @@ describe("server", () => {
     expect(query).not.toHaveBeenCalled();
   });
 
+  it("rejects unsafe cruush snapshot photo urls before querying", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/cruush",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        targetUser: {
+          name: "Jordan",
+          pronouns: "they/them",
+          photo: "javascript:alert(1)"
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("rejects local cruush snapshot photo hosts before querying", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/cruush",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        targetUser: {
+          name: "Jordan",
+          pronouns: "they/them",
+          photo: "https://localhost/avatar.png"
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it("requires the temporary x-user-id header on GET /api/profiles/me", async () => {
     const response = await app.inject({
       method: "GET",
@@ -4168,6 +4224,31 @@ describe("server", () => {
         display_name: "Cruusher",
         year_of_birth: 1994,
         photos: [localPhoto]
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed"
+      }
+    });
+  });
+
+  it("rejects private network profile photo hosts on PUT /api/profiles/me", async () => {
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        year_of_birth: 1994,
+        photos: ["https://[::1]/avatar.png"]
       }
     });
 

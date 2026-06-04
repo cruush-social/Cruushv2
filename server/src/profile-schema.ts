@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { multilineTextSchema, optionalSingleLineTextSchema, singleLineTextSchema } from "./input-schema.js";
+import { multilineTextSchema, optionalSingleLineTextSchema, publicHttpsUrlSchema, singleLineTextSchema } from "./input-schema.js";
 
 const currentYear = new Date().getFullYear();
 
@@ -11,56 +11,9 @@ const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_cro
 const transStatusSchema = z.boolean().nullable().optional().default(null);
 const crowdSchema = z.enum(["T4T", "Sapphic", "Gay"]);
 const visibilityArrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(50).optional().default([]);
-
-function isPrivateIpv4(hostname: string) {
-  const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-
-  if (!match) {
-    return false;
-  }
-
-  const octets = match.slice(1).map(Number);
-
-  if (octets.some((octet) => octet < 0 || octet > 255)) {
-    return false;
-  }
-
-  const [first, second] = octets;
-
-  return (
-    first === 10 ||
-    first === 127 ||
-    (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168) ||
-    (first === 169 && second === 254)
-  );
-}
-
-function isUnsafePhotoHost(hostname: string) {
-  const normalized = hostname.toLowerCase();
-
-  return (
-    normalized === "localhost" ||
-    normalized === "metadata.google.internal" ||
-    normalized === "169.254.169.254" ||
-    normalized.endsWith(".local") ||
-    isPrivateIpv4(normalized)
-  );
-}
-
-const profilePhotoUrlSchema = z.string()
-  .trim()
-  .url()
-  .max(2048)
-  .refine((value) => {
-    try {
-      const url = new URL(value);
-
-      return url.protocol === "https:" && !url.username && !url.password && !isUnsafePhotoHost(url.hostname);
-    } catch {
-      return false;
-    }
-  }, "Photo URLs must be public HTTPS URLs.");
+const profilePhotoUrlSchema = publicHttpsUrlSchema({
+  message: "Photo URLs must be public HTTPS URLs."
+});
 
 const profileVisibilityRulesSchema = z.object({
   active_crowd_modes: z.array(crowdSchema).max(3).optional().default([]),

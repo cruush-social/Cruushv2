@@ -96,8 +96,17 @@ function normalizeCruushSnapshotPhoto(photo: string | null | undefined) {
 
   try {
     const parsedUrl = new URL(photo);
+    const hostname = parsedUrl.hostname.toLowerCase().replace(/^\[|\]$/g, '');
 
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    if (
+      parsedUrl.protocol !== 'https:' ||
+      parsedUrl.username ||
+      parsedUrl.password ||
+      hostname === 'localhost' ||
+      hostname === 'metadata.google.internal' ||
+      hostname === '169.254.169.254' ||
+      hostname.endsWith('.local')
+    ) {
       return null;
     }
 

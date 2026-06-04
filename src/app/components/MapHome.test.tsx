@@ -306,6 +306,10 @@ describe('MapHome', () => {
     const inactiveSeekingButton = screen.getByRole('button', { name: /^seeking$/i });
     const inactiveVisibilityButton = screen.getByRole('button', { name: /^visibility$/i });
 
+    expect(screen.getByTestId('map-home-shell')).toHaveClass('h-[100dvh]', 'max-h-[100dvh]', 'overflow-hidden', 'overscroll-none');
+    expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none', 'z-40');
+    expect(screen.getByRole('button', { name: "I'm Feeling Lucky" }).parentElement).toHaveClass('pointer-events-auto');
+    expect(screen.getByTestId('map-floating-controls')).toHaveClass('z-50');
     expect(inactiveSeekingButton).toHaveClass('h-8', 'text-[11px]', 'uppercase', 'tracking-[0.18em]');
     expect(inactiveVisibilityButton).toHaveClass('h-8', 'text-[11px]', 'uppercase', 'tracking-[0.18em]');
     expect(inactiveSeekingButton.style.background).toBe('');
@@ -535,9 +539,9 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveTextContent('Recently Active');
     expect(recentToggle.parentElement).toHaveClass('justify-end');
     expect(recentToggle).toHaveStyle({ background: 'var(--cruush-gradient)' });
-    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0');
+    expect(recentPanel.parentElement).toHaveClass('absolute', 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0');
     expect(recentPanel).toHaveClass('max-w-[29.5rem]', 'p-3');
-    expect(screen.getByTestId('recently-active-tray')).toHaveClass('cursor-grab', 'overflow-x-auto', 'overscroll-x-contain', 'scroll-smooth');
+    expect(screen.getByTestId('recently-active-tray')).toHaveClass('cursor-grab', 'overflow-x-auto', 'overscroll-x-contain', 'scroll-smooth', '[touch-action:pan-x]');
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('tabindex', '0');
     fireEvent.click(recentTile);
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
@@ -589,6 +593,25 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveTextContent('Recently Active');
     expect(recentPanel).toHaveClass('max-w-[29.5rem]', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
+  });
+
+  it('keeps mobile map chrome and recently active controls fixed in the visual viewport', async () => {
+    useIsMobile.mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+    expect(screen.getByTestId('map-home-shell')).toHaveClass('h-[100dvh]', 'max-h-[100dvh]', 'overflow-hidden', 'overscroll-none');
+    expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none', 'z-40');
+    expect(screen.getByTestId('map-floating-controls')).toHaveClass('z-50');
+    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('fixed', 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0', 'right-0');
+    expect(screen.getByTestId('recently-active-tray')).toHaveClass('[touch-action:pan-x]');
   });
 
   it('greys mutual discovery markers and disables the popup cruush action', async () => {
