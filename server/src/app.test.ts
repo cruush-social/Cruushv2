@@ -1284,6 +1284,8 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
+    expect(query.mock.calls[0]?.[0]).toContain("limit $2");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, 50]);
     expect(response.json()).toEqual({
       data: [{
         id: conversationId,
@@ -1305,6 +1307,21 @@ describe("server", () => {
         tags: ["Hosting", "Now"]
       }]
     });
+  });
+
+  it("caps requested conversation list size", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/conversations?limit=200",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("opens or creates a dm conversation on POST /api/conversations/dm", async () => {
@@ -1468,6 +1485,8 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("join conversations c");
     expect(query.mock.calls[1]?.[0]).toContain("from messages m");
+    expect(query.mock.calls[1]?.[0]).toContain("limit $2");
+    expect(query.mock.calls[1]?.[1]).toEqual([conversationId, 50]);
     expect(response.json()).toEqual({
       data: {
         conversation: {
@@ -1502,6 +1521,38 @@ describe("server", () => {
         }]
       }
     });
+  });
+
+  it("bounds requested message history size", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/messages/${conversationId}?limit=25`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[1]).toEqual([conversationId, 25]);
   });
 
   it("rejects invalid conversation ids before querying messages", async () => {
@@ -1594,6 +1645,75 @@ describe("server", () => {
         userId: userId,
         content: "on my way",
         timestamp: "2026-04-29T12:10:00.000Z"
+      }
+    });
+  });
+
+  it("rate limits message creation per user", async () => {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      query
+        .mockResolvedValueOnce({
+          rows: [{
+            id: conversationId,
+            kind: "group",
+            title: "Group chat",
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: null,
+            other_user_name: null,
+            other_user_pronouns: null,
+            other_user_photo: null,
+            member_count: 3
+          }]
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: `msg-${attempt}`,
+            user_id: userId,
+            content: "nearby now",
+            created_at: "2026-04-29T12:10:00.000Z"
+          }]
+        });
+    }
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const allowed = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        headers: {
+          "x-user-id": userId
+        },
+        payload: {
+          conversationId,
+          content: "nearby now"
+        }
+      });
+
+      expect(allowed.statusCode).toBe(201);
+    }
+
+    const limited = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "nearby now"
+      }
+    });
+
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many messages. Try again later.",
+        details: expect.any(Object)
       }
     });
   });
@@ -2217,6 +2337,61 @@ describe("server", () => {
           pronouns: "they/them",
           photo: null
         }
+      }
+    });
+  });
+
+  it("rate limits post creation per user", async () => {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      query.mockResolvedValueOnce({
+        rows: [{
+          id: `post-${attempt}`,
+          user_id: userId,
+          content: "Hosting tonight",
+          expires_in: "1h",
+          expires_at: "2026-04-28T13:00:00.000Z",
+          created_at: "2026-04-28T12:10:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: []
+        }]
+      });
+    }
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const allowed = await app.inject({
+        method: "POST",
+        url: "/api/posts",
+        headers: {
+          "x-user-id": userId
+        },
+        payload: {
+          content: "Hosting tonight",
+          expiresIn: "1h"
+        }
+      });
+
+      expect(allowed.statusCode).toBe(201);
+    }
+
+    const limited = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Hosting tonight",
+        expiresIn: "1h"
+      }
+    });
+
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many posts. Try again later.",
+        details: expect.any(Object)
       }
     });
   });
