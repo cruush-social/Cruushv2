@@ -20,6 +20,10 @@ const { getMyProfile, getProfileById } = vi.hoisted(() => ({
   getProfileById: vi.fn(),
 }));
 
+const { decryptDisplayLocationToken } = vi.hoisted(() => ({
+  decryptDisplayLocationToken: vi.fn(),
+}));
+
 const { useIsMobile } = vi.hoisted(() => ({
   useIsMobile: vi.fn(),
 }));
@@ -51,6 +55,10 @@ vi.mock('../lib/profileApi', async () => {
   };
 });
 
+vi.mock('../lib/displayLocationTokens', () => ({
+  decryptDisplayLocationToken,
+}));
+
 vi.mock('./ui/use-mobile', () => ({
   useIsMobile,
 }));
@@ -65,13 +73,25 @@ vi.mock('./MapView', async () => {
     },
     default: ({
       markers,
+      fitToMarkers,
       focusCoordinates,
+      radiusCircle,
+      demoRadiusCircles = [],
       onPinClick,
       onMapClick,
       onMapReady,
     }: {
       markers: any[];
+      fitToMarkers?: boolean;
       focusCoordinates?: { approximateLatitude: number; approximateLongitude: number } | null;
+      radiusCircle?: {
+        center: { approximateLatitude: number; approximateLongitude: number };
+        radiusMeters: number;
+      } | null;
+      demoRadiusCircles?: Array<{
+        center: { approximateLatitude: number; approximateLongitude: number };
+        radiusMeters: number;
+      }>;
       onPinClick: (marker: any) => void;
       onMapClick?: () => void;
       onMapReady?: (map: typeof mapControls) => void;
@@ -86,6 +106,11 @@ vi.mock('./MapView', async () => {
             data-testid="map-focus"
             data-lat={focusCoordinates ? String(focusCoordinates.approximateLatitude) : ''}
             data-lng={focusCoordinates ? String(focusCoordinates.approximateLongitude) : ''}
+            data-fit-to-markers={String(Boolean(fitToMarkers))}
+            data-radius-circle={radiusCircle ? String(radiusCircle.radiusMeters) : ''}
+            data-radius-lat={radiusCircle ? String(radiusCircle.center.approximateLatitude) : ''}
+            data-radius-lng={radiusCircle ? String(radiusCircle.center.approximateLongitude) : ''}
+            data-demo-radius-circles={String(demoRadiusCircles.length)}
           />
           <button onClick={() => onMapClick?.()}>Map background</button>
           {markers.map((marker) => (
@@ -99,6 +124,8 @@ vi.mock('./MapView', async () => {
               data-relationship={marker.relationship?.kind ?? ''}
               data-can-message={String(marker.relationship?.canMessage ?? '')}
               data-precision={marker.relationship?.precision ?? ''}
+              data-display-mode={marker.displayMode ?? ''}
+              data-npc-ghost-demo={String(Boolean(marker.npcGhostDemo))}
               key={`marker-data-${marker.id}`}
             />
           ))}
@@ -127,6 +154,7 @@ describe('MapHome', () => {
     sendCruush.mockReset();
     getMyProfile.mockReset();
     getProfileById.mockReset();
+    decryptDisplayLocationToken.mockReset();
     useIsMobile.mockReset();
     mapControls.setCenter.mockReset();
     mapControls.setZoom.mockReset();
@@ -216,6 +244,23 @@ describe('MapHome', () => {
       createdAt: '2026-04-29T12:00:00.000Z',
       mutual: true,
     });
+    decryptDisplayLocationToken.mockResolvedValue({
+      version: 1,
+      subjectUserId: 'me',
+      viewerUserId: 'me',
+      displayMode: 'PRECISE',
+      latE7: 407128000,
+      lonE7: -740060000,
+      accuracyDisplayM: 250,
+      rotationEpoch: null,
+      subjectPolicyVersion: 1,
+      relationshipGrantVersion: 0,
+      expiresAtMs: Date.now() + 60_000,
+      animationHint: 'NONE',
+      renderNonce: 'render-nonce',
+      latitude: 40.7128,
+      longitude: -74.006,
+    });
     Object.defineProperty(global.navigator, 'geolocation', {
       configurable: true,
       value: {
@@ -267,6 +312,8 @@ describe('MapHome', () => {
     const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
     const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
 
+    expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
+    expect(screen.getByTestId('map-top-actions')).toHaveClass('pointer-events-auto');
     expect(luckyIcon).toHaveClass('h-[1.5625rem]', 'w-[1.5625rem]');
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
@@ -289,7 +336,9 @@ describe('MapHome', () => {
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-0', 'right-4', 'pl-4', 'pr-0');
+    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('pointer-events-none');
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('pointer-events-auto');
   });
 
   it('only shows the Cruush gradient on active seeking and visibility controls', async () => {
@@ -510,6 +559,173 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
   });
 
+  it('uses the saved display-token location for initial discovery', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+    const displayLocationToken = {
+      version: 1 as const,
+      tokenId: 'owner-token',
+      keyId: 'owner-key',
+      ciphertext: 'encrypted-location',
+      nonce: 'nonce',
+      expiresAtMs: Date.now() + 60_000,
+      tokenVersion: 1 as const,
+    };
+
+    getMyProfile.mockResolvedValue({
+      photos: ['https://example.com/me.jpg'],
+      position: ['Bottom'],
+      location: {
+        id: 'me',
+        display_location_token: displayLocationToken,
+        display_expires_at_ms: displayLocationToken.expiresAtMs,
+        display_mode: 'PRECISE',
+        animation_hint: 'NONE',
+        location_updated_at: '2026-06-02T12:00:00.000Z',
+      },
+    });
+    decryptDisplayLocationToken.mockResolvedValueOnce({
+      version: 1,
+      subjectUserId: 'me',
+      viewerUserId: 'me',
+      displayMode: 'PRECISE',
+      latE7: 407128000,
+      lonE7: -740060000,
+      accuracyDisplayM: 250,
+      rotationEpoch: null,
+      subjectPolicyVersion: 1,
+      relationshipGrantVersion: 0,
+      expiresAtMs: displayLocationToken.expiresAtMs,
+      animationHint: 'NONE',
+      renderNonce: 'render-nonce',
+      latitude: 40.7128,
+      longitude: -74.006,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(getNearbyUsers).toHaveBeenCalledTimes(1));
+
+    expect(decryptDisplayLocationToken).toHaveBeenCalledWith(displayLocationToken);
+    expect(getNearbyUsers.mock.calls[0]).toEqual([
+      {
+        lat: 40.7128,
+        lng: -74.006,
+      },
+      undefined,
+      { limit: 50 },
+    ]);
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'true');
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it('toggles the NPC Ghost Test discovery flag and shows the owner radius circle without the real Ghost badge', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+    const normalDiscoveryUsers = [{
+      id: 'user-1',
+      name: 'Jordan',
+      display_name: 'Jordan',
+      age: 26,
+      pronouns: 'they/them',
+      lat: 40.7,
+      lng: -73.9,
+      lastActive: '2m ago',
+      distance: '0.2 mi',
+      lookingFor: ['Fun'],
+      vibes: ['Goth'],
+      position: ['Top'],
+      hostingTravel: ['Can Host'],
+      photo: null,
+      displayMode: 'PRECISE' as const,
+    }];
+    const demoGhostUsers = [{
+      ...normalDiscoveryUsers[0],
+      id: 'npc-ghost-demo-02',
+      name: 'NPC Ghost 02',
+      display_name: 'NPC Ghost 02',
+      lat: 40.714,
+      lng: -74.004,
+      displayMode: 'GHOST' as const,
+      animationHint: 'FADE_LAST_MINUTE' as const,
+      privacyRadiusMeters: 1609,
+      npcGhostDemo: true,
+    }];
+
+    getNearbyUsers
+      .mockResolvedValueOnce(normalDiscoveryUsers)
+      .mockResolvedValueOnce(demoGhostUsers)
+      .mockResolvedValueOnce(normalDiscoveryUsers);
+    getMyProfile.mockResolvedValue({
+      photos: ['https://example.com/me.jpg'],
+      position: ['Bottom'],
+      location: {
+        id: 'me',
+        lat: 40.7128,
+        lng: -74.006,
+        fuzzy_lat: 40.713,
+        fuzzy_lng: -74.005,
+        fuzz_radius_meters: 250,
+        location_updated_at: '2026-06-02T12:00:00.000Z',
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const npcGhostSwitch = await screen.findByRole('switch', { name: 'NPC Ghost Test' });
+    await waitFor(() => expect(getNearbyUsers).toHaveBeenCalledTimes(1));
+
+    expect(npcGhostSwitch).toHaveAttribute('aria-checked', 'false');
+    expect(screen.queryByText('Ghost Mode Active')).not.toBeInTheDocument();
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-demo-radius-circles', '0');
+
+    fireEvent.click(npcGhostSwitch);
+
+    await waitFor(() => {
+      expect(npcGhostSwitch).toHaveAttribute('aria-checked', 'true');
+      expect(getNearbyUsers).toHaveBeenLastCalledWith(null, expect.objectContaining({
+        distance: 100,
+        vibes: [],
+      }), {
+        limit: 50,
+        npcGhostDemo: true,
+      });
+    });
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '1609');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lat', '40.713');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lng', '-74.005');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-demo-radius-circles', '1');
+    expect(screen.getByTestId('marker-npc-ghost-demo-02')).toHaveAttribute('data-display-mode', 'GHOST');
+    expect(screen.getByTestId('marker-npc-ghost-demo-02')).toHaveAttribute('data-npc-ghost-demo', 'true');
+    expect(screen.queryByText('Ghost Mode Active')).not.toBeInTheDocument();
+
+    fireEvent.click(npcGhostSwitch);
+
+    await waitFor(() => {
+      expect(npcGhostSwitch).toHaveAttribute('aria-checked', 'false');
+      expect(getNearbyUsers).toHaveBeenLastCalledWith(null, expect.objectContaining({
+        distance: 100,
+        vibes: [],
+      }), { limit: 50 });
+    });
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-demo-radius-circles', '0');
+    expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-npc-ghost-demo', 'false');
+  });
+
   it('passes discovery badge metadata and last active labels into map markers', async () => {
     useIsMobile.mockReturnValue(false);
 
@@ -712,8 +928,9 @@ describe('MapHome', () => {
     );
 
     expect(await screen.findByRole('button', { name: 'Pin River' })).toBeInTheDocument();
-    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.731674');
-    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-73.989796');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.731');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-73.991');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
   });
 
   it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {

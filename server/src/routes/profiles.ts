@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
 import {
@@ -36,15 +36,54 @@ import {
   type SensitiveProfileToken
 } from "../profile-sensitive.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
+import {
+  DEFAULT_GHOST_RADIUS_METERS,
+  GHOST_RADIUS_OPTIONS,
+  loadLocationEnvelope,
+  loadVisibilityPolicy,
+  makeDisplayLocationToken,
+  publicPrivacySettings,
+  radiusMetersForLabel,
+  saveVisibilityPolicy,
+  storeLocationEnvelope,
+  type CrowdPrecisionPolicy,
+  type VisibilityBaseMode
+} from "../location-privacy.js";
 
 const profileParamsSchema = z.object({
   userId: z.uuid()
 }).strict();
 
+const crowdPrecisionPolicySchema = z.object({
+  crowdId: z.enum(["T4T", "Gay", "Sapphic"]),
+  precisionEnabled: z.boolean(),
+  mutualityRequired: z.boolean().optional().default(true),
+  minimumTrustLevel: z.enum(["MEMBER", "VERIFIED", "MUTUAL_INTERACTION"]).optional().default("MEMBER"),
+  createdAtMs: z.number().int().optional(),
+  revokedAtMs: z.number().int().nullable().optional().default(null)
+}).strip();
+
 const privacySettingsPayloadSchema = z.object({
-  ghostModeEnabled: z.boolean(),
-  preciseLocationVisibility: z.enum(["none", "mutual_cruushes"])
-}).strict();
+  baseMode: z.enum(["PUBLIC_PRECISE", "GHOST", "STEALTH"]).optional(),
+  ghostModeEnabled: z.boolean().optional(),
+  ghostRadiusMeters: z.number().int().optional(),
+  ghostRadiusLabel: z.string().optional(),
+  preciseToMutualCruushes: z.boolean().optional(),
+  preciseToMutualCrowds: z.array(crowdPrecisionPolicySchema).max(3).optional(),
+  preciseLocationVisibility: z.enum(["none", "mutual_cruushes"]).optional(),
+  updatedAtMs: z.number().int().optional()
+}).strict().superRefine((payload, ctx) => {
+  if (
+    typeof payload.ghostRadiusMeters === "number" &&
+    !GHOST_RADIUS_OPTIONS.some((option) => option.meters === payload.ghostRadiusMeters)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Ghost radius must be one of the supported values.",
+      path: ["ghostRadiusMeters"]
+    });
+  }
+});
 
 type ProfileRow = {
   id: string;
@@ -338,8 +377,6 @@ function mapProfileRow(
       : legacyKinks
       .map((kink) => legacyKinkToInterest(kink))
       .filter((interest): interest is ProfileKinkInterest => Boolean(interest));
-  const ownLocation = includePrivateSensitive ? mapOwnProfileLocation(row) : null;
-
   return {
     id: row.id,
     ...emptyProfile,
@@ -392,7 +429,6 @@ function mapProfileRow(
     substance_boundaries: row.substance_boundaries ?? [],
     visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
     updated_at: new Date(row.updated_at).toISOString(),
-    ...(ownLocation ? { location: ownLocation } : {}),
     ...(options.relationship ? {
       viewer_relationship: {
         match_id: options.relationship.matchId,
@@ -432,6 +468,57 @@ function mapOwnProfileLocation(row: ProfileRow) {
     location_fuzz_radius_meters: row.location_fuzz_radius_meters ?? null,
     location_updated_at: row.location_updated_at ?? null
   });
+}
+
+async function buildOwnerLocationDisplay(app: FastifyInstance, request: FastifyRequest, userId: string) {
+  const location = await loadLocationEnvelope(app, userId).catch((error) => {
+    if (isSchemaCompatibilityError(error)) {
+      return null;
+    }
+
+    throw error;
+  });
+
+  if (!location) {
+    return null;
+  }
+
+  const policy = await loadVisibilityPolicy(app, userId).catch((error) => {
+    if (isSchemaCompatibilityError(error)) {
+      return null;
+    }
+
+    throw error;
+  });
+  const effectivePolicy = policy ?? {
+    version: 1 as const,
+    subjectUserId: userId,
+    policyVersion: 1,
+    baseMode: "PUBLIC_PRECISE" as const,
+    ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
+    preciseToMutualCruushes: false,
+    preciseToMutualCrowds: [],
+    auditRequired: false,
+    updatedAtMs: Date.now(),
+    expiresAtMs: null,
+    keyVersion: app.config.VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION || "v1"
+  };
+  const token = await makeDisplayLocationToken(app, request, {
+    subjectUserId: userId,
+    viewerUserId: userId,
+    policy: effectivePolicy,
+    location,
+    displayMode: "PRECISE",
+    forceSelfPrecise: true
+  });
+
+  return {
+    display_location_token: token,
+    display_expires_at_ms: token.expiresAtMs,
+    display_mode: "PRECISE",
+    animation_hint: "NONE",
+    location_updated_at: new Date(location.collectedAtMs).toISOString()
+  };
 }
 
 function getProfileCoordinates(row: Pick<ProfileRow | VisibilitySubjectRow, "lat" | "lng" | "fuzzy_lat" | "fuzzy_lng">): VisibilityCoordinates {
@@ -548,9 +635,9 @@ function createFuzzyCoordinates(lat: number, lng: number, radiusMeters: number) 
   };
 }
 
-async function loadProfile(app: FastifyInstance, userId: string, reply: FastifyReply) {
+async function loadProfile(app: FastifyInstance, request: FastifyRequest, userId: string, reply: FastifyReply) {
   return reply.send({
-    data: await loadProfileData(app, userId, { includePrivateSensitive: true })
+    data: await loadProfileData(app, userId, { includePrivateSensitive: true, request })
   });
 }
 
@@ -793,7 +880,7 @@ function assertTransCrowdChangeAllowed(existingState: ExistingIdentityState, has
 async function loadProfileData(
   app: FastifyInstance,
   userId: string,
-  options: { includePrivateSensitive: boolean; viewerUserId?: string }
+  options: { includePrivateSensitive: boolean; viewerUserId?: string; request?: FastifyRequest }
 ) {
   const result = await app.db.query<ProfileRow>(
     `select ${PROFILE_COLUMNS.join(", ")},
@@ -862,7 +949,7 @@ async function loadProfileData(
     ? await loadProfileKinkInterests(app, userId)
     : [];
 
-  return mapProfileRow(row, kinkInterests, {
+  const mappedProfile = mapProfileRow(row, kinkInterests, {
     includePrivateSensitive: options.includePrivateSensitive,
     relationship,
     hasMutualCrowd,
@@ -872,31 +959,81 @@ async function loadProfileData(
     showKinks,
     visibleCrowds
   });
+
+  if (options.includePrivateSensitive && options.request) {
+    const location = await buildOwnerLocationDisplay(app, options.request, userId);
+
+    if (location) {
+      return {
+        ...mappedProfile,
+        location
+      };
+    }
+  }
+
+  return mappedProfile;
 }
 
 export async function registerProfileRoutes(app: FastifyInstance) {
   app.get("/api/profiles/me", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
-    return loadProfile(app, userId, reply);
+    return loadProfile(app, request, userId, reply);
   });
 
   app.get("/api/profiles/me/privacy-settings", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
 
     return reply.send({
-      data: await getPrivacySettings(app, userId)
+      data: publicPrivacySettings(await loadVisibilityPolicy(app, userId).catch(async (error) => {
+        if (isSchemaCompatibilityError(error)) {
+          const legacy = await getPrivacySettings(app, userId);
+          return {
+            version: 1 as const,
+            subjectUserId: userId,
+            policyVersion: 1,
+            baseMode: legacy.baseMode,
+            ghostRadiusMeters: legacy.ghostRadiusMeters,
+            preciseToMutualCruushes: legacy.preciseToMutualCruushes,
+            preciseToMutualCrowds: [],
+            auditRequired: false,
+            updatedAtMs: legacy.updatedAtMs,
+            expiresAtMs: null,
+            keyVersion: app.config.VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION || "v1"
+          };
+        }
+
+        throw error;
+      }))
     });
   });
 
   app.put("/api/profiles/me/privacy-settings", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = privacySettingsPayloadSchema.parse(request.body);
+    const baseMode: VisibilityBaseMode = payload.baseMode ??
+      (payload.ghostModeEnabled === true ? "GHOST" : payload.ghostModeEnabled === false ? "PUBLIC_PRECISE" : undefined) ??
+      "PUBLIC_PRECISE";
+    const preciseToMutualCruushes = typeof payload.preciseToMutualCruushes === "boolean"
+      ? payload.preciseToMutualCruushes
+      : payload.preciseLocationVisibility === "mutual_cruushes";
+    const preciseToMutualCrowds = (payload.preciseToMutualCrowds ?? []).map((policy): CrowdPrecisionPolicy => ({
+      crowdId: policy.crowdId,
+      precisionEnabled: policy.precisionEnabled,
+      mutualityRequired: policy.mutualityRequired,
+      minimumTrustLevel: policy.minimumTrustLevel,
+      createdAtMs: policy.createdAtMs ?? Date.now(),
+      revokedAtMs: policy.revokedAtMs ?? null
+    }));
 
     return reply.send({
-      data: await savePrivacySettings(app, userId, {
-        ghostModeEnabled: payload.ghostModeEnabled,
-        preciseLocationVisibility: payload.preciseLocationVisibility
-      })
+      data: publicPrivacySettings(await saveVisibilityPolicy(app, userId, {
+        baseMode,
+        ghostModeEnabled: baseMode === "GHOST",
+        ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(payload.ghostRadiusLabel),
+        preciseToMutualCruushes,
+        preciseToMutualCrowds,
+        preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" : "none"
+      }))
     });
   });
 
@@ -989,55 +1126,49 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.put("/api/profiles/me/location", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = profileLocationPayloadSchema.parse(request.body);
-    const fuzzyCoordinates = createFuzzyCoordinates(payload.lat, payload.lng, payload.fuzz_radius_meters);
 
     try {
-      const result = await app.db.query<ProfileLocationRow>(
-        `insert into profiles (
-           id,
-           lat,
-           lng,
-           fuzzy_lat,
-           fuzzy_lng,
-           location_fuzz_radius_meters,
-           location_updated_at
-         )
-         values ($1, $2, $3, $4, $5, $6, now())
+      await app.db.query(
+        `insert into profiles (id, location_updated_at, updated_at)
+         values ($1, now(), now())
          on conflict (id) do update
-         set lat = excluded.lat,
-             lng = excluded.lng,
-             fuzzy_lat = excluded.fuzzy_lat,
-             fuzzy_lng = excluded.fuzzy_lng,
-             location_fuzz_radius_meters = excluded.location_fuzz_radius_meters,
-             location_updated_at = now(),
-             updated_at = now()
-         returning
-           id::text as id,
-           lat,
-           lng,
-           fuzzy_lat,
-           fuzzy_lng,
-           location_fuzz_radius_meters,
-           location_updated_at`,
-        [
-          userId,
-          payload.lat,
-          payload.lng,
-          fuzzyCoordinates.fuzzyLat,
-          fuzzyCoordinates.fuzzyLng,
-          payload.fuzz_radius_meters
-        ]
+         set location_updated_at = now(),
+             updated_at = now()`,
+        [userId]
       );
+      const location = await storeLocationEnvelope(app, {
+        subjectUserId: userId,
+        lat: payload.lat,
+        lng: payload.lng,
+        accuracyM: payload.fuzz_radius_meters,
+        source: "GPS"
+      });
+      const policy = await loadVisibilityPolicy(app, userId);
+      const token = await makeDisplayLocationToken(app, request, {
+        subjectUserId: userId,
+        viewerUserId: userId,
+        policy,
+        location,
+        displayMode: "PRECISE",
+        forceSelfPrecise: true
+      });
 
       return reply.send({
-        data: mapProfileLocationRow(result.rows[0])
+        data: {
+          id: userId,
+          display_location_token: token,
+          display_expires_at_ms: token.expiresAtMs,
+          display_mode: "PRECISE",
+          animation_hint: "NONE",
+          location_updated_at: new Date(location.collectedAtMs).toISOString()
+        }
       });
     } catch (error) {
       if (isSchemaCompatibilityError(error)) {
         throw new ApiError(
           503,
           "LOCATION_STORAGE_UNAVAILABLE",
-          "Location storage is unavailable until the latest database migrations run."
+          "Encrypted location storage is unavailable until the latest database migrations run."
         );
       }
 

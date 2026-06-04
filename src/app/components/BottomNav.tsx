@@ -9,6 +9,7 @@ import messagesIconColored from '../assets/ui-icons/messages-colored.png';
 import messagesIconWhite from '../assets/ui-icons/messages-white.png';
 import profileIconColored from '../assets/ui-icons/profile-colored.png';
 import profileIconWhite from '../assets/ui-icons/profile-white.png';
+import { useIsMobile } from './ui/use-mobile';
 
 const navItems = [
   { path: '/map', icon: mapIconWhite, activeIcon: mapIconColored, label: 'Map' },
@@ -18,15 +19,35 @@ const navItems = [
   { path: '/profile', icon: profileIconWhite, activeIcon: profileIconColored, label: 'Profile' },
 ];
 
-export default function BottomNav() {
+interface BottomNavProps {
+  onProfilePreviewRequest?: () => void;
+  isProfilePreviewOpen?: boolean;
+}
+
+export default function BottomNav({ onProfilePreviewRequest, isProfilePreviewOpen = false }: BottomNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
 
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path);
+  const isActive = (path: string) => {
+    if (path === '/profile' && isProfilePreviewOpen) {
+      return true;
+    }
+
+    return location.pathname === path || location.pathname.startsWith(path);
+  };
   const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
+  const handleNavClick = (path: string) => {
+    if (path === '/profile' && isMapRoute && !isMobile && onProfilePreviewRequest) {
+      onProfilePreviewRequest();
+      return;
+    }
+
+    navigate(path);
+  };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
+    <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
       {!isMapRoute ? (
         <div
           aria-hidden="true"
@@ -35,7 +56,7 @@ export default function BottomNav() {
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
+        className="pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
       >
         {navItems.map((item) => {
           const active = isActive(item.path);
@@ -44,7 +65,7 @@ export default function BottomNav() {
               key={item.path}
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
-              onClick={() => navigate(item.path)}
+              onClick={() => handleNavClick(item.path)}
               className={`flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full transition-colors ${
                 active
                   ? 'bg-white/[0.10] text-primary hover:bg-white/[0.12]'

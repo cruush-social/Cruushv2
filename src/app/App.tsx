@@ -16,6 +16,7 @@ import DirectMessages from './components/DirectMessages';
 import CruushActivity from './components/CruushActivity';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
+import PrivacyAudit from './components/PrivacyAudit';
 import FeelingLucky from './components/FeelingLucky';
 import RequestsDashboard from './components/RequestsDashboard';
 import VerifyEmail from './components/VerifyEmail';
@@ -215,6 +216,7 @@ export default function App() {
             <Route path="/messages" element={<DirectMessages />} />
             <Route path="/cruush" element={<CruushActivity />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/privacy/audit" element={<PrivacyAudit />} />
             <Route path="/lucky" element={<FeelingLucky />} />
             <Route path="/requests" element={<RequestsDashboard />} />
             <Route path="*" element={<Navigate to="/map" replace />} />

@@ -42,7 +42,12 @@ describe("loadConfig", () => {
       RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
       RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
-      MATCH_TOKEN_SIGNING_KEY: strongSecret
+      MATCH_TOKEN_SIGNING_KEY: strongSecret,
+      LOCATION_ENCRYPTION_KEY: strongSecret,
+      LOCATION_INDEX_KEY: strongSecret,
+      VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
+      GHOST_DERIVATION_KEY: strongSecret,
+      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
     })).toThrow();
   });
 
@@ -59,7 +64,12 @@ describe("loadConfig", () => {
       RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
       RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
-      MATCH_TOKEN_SIGNING_KEY: strongSecret
+      MATCH_TOKEN_SIGNING_KEY: strongSecret,
+      LOCATION_ENCRYPTION_KEY: strongSecret,
+      LOCATION_INDEX_KEY: strongSecret,
+      VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
+      GHOST_DERIVATION_KEY: strongSecret,
+      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
     })).toMatchObject({
       NODE_ENV: "production",
       EMAIL_PREVIEW_ENABLED: false,
@@ -68,7 +78,12 @@ describe("loadConfig", () => {
       RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
       RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
-      MATCH_TOKEN_SIGNING_KEY: strongSecret
+      MATCH_TOKEN_SIGNING_KEY: strongSecret,
+      LOCATION_ENCRYPTION_KEY: strongSecret,
+      LOCATION_INDEX_KEY: strongSecret,
+      VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
+      GHOST_DERIVATION_KEY: strongSecret,
+      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
     });
   });
 });
