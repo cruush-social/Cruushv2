@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
-import { hashPassword, hashSessionToken } from "./auth.js";
+import { hashPassword, hashSessionToken, SESSION_COOKIE_NAME } from "./auth.js";
 import type { DbClient } from "./db.js";
 import { DEVELOPMENT_ADMIN_LOCATION } from "./development-admin.js";
 import {
@@ -827,6 +827,52 @@ describe("server", () => {
     expect(response.statusCode).toBe(400);
     expect(query).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+
+  it("issues a 256-bit login session token and stores only its 256-bit hash", async () => {
+    const passwordHash = await hashPassword("password-123");
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          password_hash: passwordHash,
+          display_name: "River",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          app_display_name: "River",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          profile_display_name: "River",
+          year_of_birth: 1990
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "river@example.com",
+        password: "password-123"
+      }
+    });
+
+    const cookieHeader = String(response.headers["set-cookie"]);
+    const token = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`))?.[1] ?? "";
+    const tokenHash = query.mock.calls[1]?.[1]?.[1];
+
+    expect(response.statusCode).toBe(200);
+    expect(Buffer.from(decodeURIComponent(token), "base64url")).toHaveLength(32);
+    expect(tokenHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(Buffer.from(String(tokenHash), "hex")).toHaveLength(32);
+    expect(cookieHeader).toContain("HttpOnly");
   });
 
   it("rate limits repeated login attempts for the same email", async () => {

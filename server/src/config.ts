@@ -71,11 +71,11 @@ const configSchema = z.object({
   PROFILE_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   RELATIONSHIP_ENCRYPTION_KEY: z.string().optional().default(""),
   RELATIONSHIP_INDEX_KEY: z.string().optional().default(""),
-  RELATIONSHIP_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  RELATIONSHIP_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v2"),
   RELATIONSHIP_INDEX_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   MATCH_TOKEN_ENCRYPTION_KEY: z.string().optional().default(""),
   MATCH_TOKEN_SIGNING_KEY: z.string().optional().default(""),
-  MATCH_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
+  MATCH_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v2")
 }).superRefine((config, ctx) => {
   if (config.NODE_ENV !== "production") {
     return;

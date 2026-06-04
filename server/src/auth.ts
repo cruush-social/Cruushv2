@@ -6,6 +6,8 @@ const scrypt = promisify(scryptCallback);
 
 export const SESSION_COOKIE_NAME = "cruush_session";
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+export const SESSION_TOKEN_BYTES = 32;
+export const SESSION_TOKEN_HASH_BYTES = 32;
 
 type SessionCookieOptions = {
   secure: boolean;
@@ -44,7 +46,7 @@ export async function verifyPassword(password: string, passwordHash: string) {
 }
 
 export function generateSessionToken() {
-  return toBase64Url(randomBytes(32));
+  return toBase64Url(randomBytes(SESSION_TOKEN_BYTES));
 }
 
 export function hashSessionToken(token: string) {

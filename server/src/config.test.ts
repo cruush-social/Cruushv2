@@ -17,6 +17,10 @@ describe("loadConfig", () => {
       "https://127.0.0.1:5173"
     ]));
     expect(config.APP_URL).toBe("https://localhost:5173");
+    expect(config.RELATIONSHIP_ENCRYPTION_KEY_VERSION).toBe("v2");
+    expect(config.MATCH_TOKEN_KEY_VERSION).toBe("v2");
+    expect(config.RELATIONSHIP_INDEX_KEY_VERSION).toBe("v1");
+    expect(config.PROFILE_TOKEN_KEY_VERSION).toBe("v1");
   });
 
   it("rejects production config without dedicated profile keys", () => {
