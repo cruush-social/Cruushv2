@@ -99,6 +99,7 @@ type MutualCruushRow = {
   pronouns: string[] | null;
   photos: string[] | null;
   updated_at: string | Date;
+  location_updated_at: string | Date | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -132,6 +133,7 @@ type ActivityProfileRow = {
   pronouns: string[] | null;
   photos: string[] | null;
   updated_at: string | Date;
+  location_updated_at: string | Date | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -270,6 +272,20 @@ function uniqueStrings(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
+function wasActiveOnMapRecently(locationUpdatedAt: string | Date | null | undefined) {
+  if (!locationUpdatedAt) {
+    return false;
+  }
+
+  const timestamp = new Date(locationUpdatedAt).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return false;
+  }
+
+  return Date.now() - timestamp <= 24 * 60 * 60 * 1000;
+}
+
 async function loadCurrentProfileLocation(app: FastifyInstance, userId: string) {
   return (await safeQueryRows<CurrentProfileLocationRow>(
     app,
@@ -304,6 +320,7 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
        profiles.pronouns,
        profiles.photos,
        profiles.updated_at,
+       profiles.location_updated_at,
        profiles.lat,
        profiles.lng,
        profiles.fuzzy_lat,
@@ -369,6 +386,7 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       pronouns: profile.pronouns,
       photos: profile.photos,
       updated_at: profile.updated_at,
+      location_updated_at: profile.location_updated_at,
       lat: profile.lat,
       lng: profile.lng,
       fuzzy_lat: profile.fuzzy_lat,
@@ -402,7 +420,10 @@ function mapMutualCruushRow(
     !options.viewerGhostMode &&
     row.ghost_mode_enabled !== true &&
     row.precise_location_visibility === "mutual_cruushes";
-  const coordinates = getRowCoordinates(row, preciseAllowed);
+  const isRecentlyActiveOnMap = wasActiveOnMapRecently(row.location_updated_at);
+  const coordinates = isRecentlyActiveOnMap
+    ? getRowCoordinates(row, preciseAllowed)
+    : { lat: null, lng: null };
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
   const otherCrowds = sensitiveProfile?.crowds ?? [];
   const currentCrowds = new Set(options.currentCrowds.map((crowd) => crowd.toLowerCase()));
@@ -427,7 +448,9 @@ function mapMutualCruushRow(
     mutualCrowds: sharedCrowds,
     vibes,
     distance: formatMaybeDistance(options.currentCoordinates, coordinates),
-    lastActive: formatLastActiveFromDate(row.updated_at),
+    lastActive: row.location_updated_at
+      ? formatLastActiveFromDate(row.location_updated_at)
+      : formatLastActiveFromDate(row.updated_at),
     canMessage: row.can_message === true,
     canRevealPreciseLocation: preciseAllowed,
     coordinates: coordinates.lat != null && coordinates.lng != null

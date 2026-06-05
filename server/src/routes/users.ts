@@ -54,9 +54,10 @@ type DiscoveryProfileRow = {
   fuzzy_lat: number | null;
   fuzzy_lng: number | null;
   updated_at: string | Date;
+  location_updated_at: string | Date | null;
 };
 
-type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "display_name" | "photos" | "updated_at">;
+type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "display_name" | "photos" | "updated_at" | "location_updated_at">;
 
 type LegacyDiscoveryProfileRow = {
   id: string;
@@ -406,6 +407,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
       "profiles.id <> $1",
       "lat is not null",
       "lng is not null",
+      "profiles.location_updated_at >= now() - interval '24 hours'",
       "coalesce(profile_privacy.ghost_mode_enabled, false) = false"
     ];
 
@@ -461,12 +463,13 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          lng,
          fuzzy_lat,
          fuzzy_lng,
+         profiles.location_updated_at,
          profiles.updated_at
        from profiles
        left join user_privacy_settings profile_privacy
          on profile_privacy.user_id = profiles.id
        where ${where.join("\n         and ")}
-       order by profiles.updated_at desc
+       order by profiles.location_updated_at desc
        limit ${limitPlaceholder}`,
       values
     );
@@ -495,6 +498,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lat,
          fuzzy_lng
        from profiles
+       where last_active >= now() - interval '24 hours'
        order by last_active desc nulls last
        limit $1`,
       [filters.limit]
@@ -530,7 +534,7 @@ function mapModernDiscoveryRow(
     pronouns: coerceStringArray(row.pronouns).join(", "),
     lat: coordinates.lat,
     lng: coordinates.lng,
-    lastActive: formatLastActiveFromDate(row.updated_at),
+    lastActive: formatLastActiveFromDate(row.location_updated_at ?? row.updated_at),
     distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
     lookingFor: coerceStringArray(row.looking_for),
     vibes: uniqueStrings([

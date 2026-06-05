@@ -1930,6 +1930,24 @@ describe("server", () => {
     expect(response.json().data).toHaveLength(20);
   });
 
+  it("only queries map users active on the map in the last 24 hours", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("profiles.location_updated_at >= now() - interval '24 hours'");
+    expect(query.mock.calls[1]?.[0]).toContain("order by profiles.location_updated_at desc");
+  });
+
   it("marks active mutual cruushes in discovery results", async () => {
     const matchRecord = await encryptedRelationshipRecordRow({
       id: "match-1",
@@ -2230,6 +2248,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(3);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
+    expect(query.mock.calls[2]?.[0]).toContain("where last_active >= now() - interval '24 hours'");
 
     expect(response.json()).toEqual({
       data: expect.arrayContaining([
@@ -2763,6 +2782,87 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(1);
+    expect(response.json()).toEqual({
+      data: []
+    });
+  });
+
+  it("does not return mutual map coordinates for users who were not active on the map in the last 24 hours", async () => {
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "stale-mutual-match",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      createdAt: "2026-04-28T12:00:00.000Z"
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "stale-mutual-match",
+      userOneId: userId,
+      userTwoId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          ghost_mode_enabled: false,
+          precise_location_visibility: "none"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          lat: 40.7128,
+          lng: -74.006,
+          fuzzy_lat: 40.713,
+          fuzzy_lng: -74.005,
+          profile_sensitive_ciphertext: null,
+          profile_sensitive_nonce: null,
+          profile_sensitive_auth_tag: null,
+          profile_sensitive_key_version: null
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          pronouns: ["they/them"],
+          photos: [],
+          updated_at: "2026-06-04T12:00:00.000Z",
+          location_updated_at: "2026-04-28T12:00:00.000Z",
+          lat: 40.711,
+          lng: -74.002,
+          fuzzy_lat: 40.7115,
+          fuzzy_lng: -74.0025,
+          vibes: [],
+          scenes: [],
+          archetypes: [],
+          profile_sensitive_ciphertext: null,
+          profile_sensitive_nonce: null,
+          profile_sensitive_auth_tag: null,
+          profile_sensitive_key_version: null,
+          ghost_mode_enabled: false,
+          precise_location_visibility: "mutual_cruushes"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          ghost_mode_enabled: false,
+          precise_location_visibility: "mutual_cruushes"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [matchToken] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/cruush/mutual-map",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       data: []
     });
