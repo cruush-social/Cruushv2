@@ -37,6 +37,7 @@ import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 import visibilityIconWhite from '../assets/ui-icons/visibility-white.png';
 
 const DISCOVERY_MAP_LIMIT = 50;
+const MAX_MAP_ACTIVE_MINUTES = 24 * 60;
 const LOCATION_PROMPT_SESSION_KEY = 'cruush-location-permission-prompted';
 
 const DEMO_NYC_PROFILE_PHOTO = `data:image/svg+xml,${encodeURIComponent(`
@@ -88,6 +89,11 @@ const DEMO_NYC_DISCOVERY_USER: DiscoveryUser = {
 };
 
 function getLastActiveMinutes(lastActive: string) {
+  const normalizedLastActive = lastActive.trim().toLowerCase();
+  if (normalizedLastActive === 'now' || normalizedLastActive === 'active now') {
+    return 0;
+  }
+
   const value = parseInt(lastActive, 10);
 
   if (Number.isNaN(value)) {
@@ -103,6 +109,14 @@ function getLastActiveMinutes(lastActive: string) {
   }
 
   return value;
+}
+
+function wasRecentlyActiveForMap(user: DiscoveryUser) {
+  if (user.isDemo) {
+    return true;
+  }
+
+  return getLastActiveMinutes(user.lastActive) <= MAX_MAP_ACTIVE_MINUTES;
 }
 
 function uniqueValues(values: string[] = []) {
@@ -512,6 +526,10 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
   const hasActiveVisibility = hasActiveVisibilityControls(safeVisibility);
 
   const filteredUsers = users.filter((user) => {
+    if (!wasRecentlyActiveForMap(user)) {
+      return false;
+    }
+
     const distanceMiles = Number.parseFloat(user.distance);
     if (Number.isFinite(distanceMiles) && distanceMiles > filters.distance) {
       return false;
@@ -594,7 +612,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
     }
   };
 
-  const shouldShowDemoUser = !isMutualMapMode && !loading && !error && users.length === 0;
+  const shouldShowDemoUser = !isMutualMapMode && !loading && !error && filteredUsers.length === 0;
   const displayedUsers = shouldShowDemoUser ? [DEMO_NYC_DISCOVERY_USER] : filteredUsers;
   const currentUserMapLocation = useMemo(
     () => userApproximateLocation ?? profileLocationToApproximateCoordinates(currentProfile),

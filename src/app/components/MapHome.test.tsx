@@ -252,6 +252,58 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
   });
 
+  it('does not render discovery users who were not active on the map in the last 24 hours', async () => {
+    useIsMobile.mockReturnValue(false);
+    getNearbyUsers.mockResolvedValue([
+      {
+        id: 'user-recent',
+        name: 'Jordan',
+        display_name: 'Jordan',
+        age: 26,
+        pronouns: 'they/them',
+        lat: 40.7,
+        lng: -73.9,
+        lastActive: '2m ago',
+        distance: '0.2 mi',
+        lookingFor: ['Fun'],
+        vibes: ['Goth'],
+        position: ['Top'],
+        hostingTravel: ['Can Host'],
+        photo: null,
+      },
+      {
+        id: 'user-stale',
+        name: 'Avery',
+        display_name: 'Avery',
+        age: 31,
+        pronouns: 'she/her',
+        lat: 40.72,
+        lng: -73.95,
+        lastActive: '3d ago',
+        distance: '0.7 mi',
+        lookingFor: ['Fun'],
+        vibes: ['Chill'],
+        position: ['Versatile'],
+        hostingTravel: ['Can Host'],
+        photo: null,
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+    expect(screen.getByTestId('marker-user-recent')).toHaveAttribute('data-last-active', '2m ago');
+    expect(screen.queryByRole('button', { name: 'Pin Avery' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('marker-user-stale')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('recently-active-tile-user-stale')).not.toBeInTheDocument();
+  });
+
   it('renders 25 percent larger Cruush icons on the map controls', async () => {
     useIsMobile.mockReturnValue(false);
 
@@ -698,6 +750,71 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-precision', 'precise');
     expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
+  });
+
+  it('does not render stale mutual map pins returned by an older API response', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMutualCruushMap.mockResolvedValue([
+      {
+        id: 'match-recent',
+        matchId: 'match-recent',
+        createdAt: '2026-04-29T12:00:00.000Z',
+        locked: false,
+        user: {
+          id: 'user-recent-mutual',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: 'https://example.com/river.jpg',
+        },
+        mutualCrowds: ['T4T'],
+        vibes: ['Goth'],
+        distance: '0.4 mi away',
+        lastActive: 'Active now',
+        canMessage: true,
+        canRevealPreciseLocation: true,
+        coordinates: {
+          lat: 40.731,
+          lng: -73.991,
+          precision: 'precise',
+        },
+      },
+      {
+        id: 'match-stale',
+        matchId: 'match-stale',
+        createdAt: '2026-04-29T12:00:00.000Z',
+        locked: false,
+        user: {
+          id: 'user-stale-mutual',
+          name: 'Avery',
+          pronouns: 'she/her',
+          photo: 'https://example.com/avery.jpg',
+        },
+        mutualCrowds: ['Sapphic'],
+        vibes: ['Chill'],
+        distance: '0.8 mi away',
+        lastActive: '2d ago',
+        canMessage: true,
+        canRevealPreciseLocation: true,
+        coordinates: {
+          lat: 40.722,
+          lng: -73.981,
+          precision: 'precise',
+        },
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={['/map?mode=mutuals']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'Pin River' })).toBeInTheDocument();
+    expect(screen.getByTestId('marker-user-recent-mutual')).toHaveAttribute('data-last-active', 'Active now');
+    expect(screen.queryByRole('button', { name: 'Pin Avery' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('marker-user-stale-mutual')).not.toBeInTheDocument();
   });
 
   it('focuses the requested mutual cruush pin from the map query', async () => {
