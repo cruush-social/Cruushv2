@@ -43,6 +43,9 @@ export default function BottomNav({
 
   const handleNavClick = (path: string) => {
     if (path === '/profile' && !isMobile && onProfilePreviewRequest) {
+      if (!isMapRoute) {
+        navigate('/map');
+      }
       onProfilePreviewRequest();
       return;
     }

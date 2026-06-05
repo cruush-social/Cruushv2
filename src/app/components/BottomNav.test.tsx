@@ -149,6 +149,22 @@ describe('BottomNav', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 
+  it('redirects desktop users to the map before opening their profile preview', () => {
+    const onProfilePreviewRequest = vi.fn();
+
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <BottomNav onProfilePreviewRequest={onProfilePreviewRequest} />
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }));
+
+    expect(onProfilePreviewRequest).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+  });
+
   it('shows the desktop profile icon as active while the profile preview is open', () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
