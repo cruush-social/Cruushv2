@@ -38,6 +38,8 @@ import visibilityIconWhite from '../assets/ui-icons/visibility-white.png';
 
 const DISCOVERY_MAP_LIMIT = 50;
 const MAX_MAP_ACTIVE_MINUTES = 24 * 60;
+const ENABLE_DEMO_MAP_USER =
+  import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_MAP_USER === 'true';
 const LOCATION_PROMPT_SESSION_KEY = 'cruush-location-permission-prompted';
 
 const DEMO_NYC_PROFILE_PHOTO = `data:image/svg+xml,${encodeURIComponent(`
@@ -612,7 +614,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
     }
   };
 
-  const shouldShowDemoUser = !isMutualMapMode && !loading && !error && filteredUsers.length === 0;
+  const shouldShowDemoUser = ENABLE_DEMO_MAP_USER && !isMutualMapMode && !loading && !error && filteredUsers.length === 0;
   const displayedUsers = shouldShowDemoUser ? [DEMO_NYC_DISCOVERY_USER] : filteredUsers;
   const currentUserMapLocation = useMemo(
     () => userApproximateLocation ?? profileLocationToApproximateCoordinates(currentProfile),

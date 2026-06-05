@@ -856,7 +856,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-73.989796');
   });
 
-  it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {
+  it('does not show fake demo users when discovery returns no nearby users by default', async () => {
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([]);
 
@@ -868,14 +868,10 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('button', { name: 'Pin Mika Demo' })).toBeInTheDocument();
-    expect(screen.getAllByText('Demo NYC pin').length).toBeGreaterThan(0);
-    expect(screen.getByTestId('marker-demo-nyc-connected-pin')).toHaveAttribute('data-badge', 'versatile');
-    expect(screen.getByTestId('marker-demo-nyc-connected-pin')).toHaveAttribute('data-last-active', '3m ago');
-    expect(screen.getByTestId('marker-demo-nyc-connected-pin').getAttribute('data-photo')).toContain('data:image/svg+xml');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Pin Mika Demo' }));
-    expect(screen.getByRole('button', { name: 'Demo profile' })).toBeDisabled();
+    await waitFor(() => expect(getNearbyUsers).toHaveBeenCalled());
+    expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('marker-demo-nyc-connected-pin')).not.toBeInTheDocument();
     expect(sendCruush).not.toHaveBeenCalled();
   });
 
