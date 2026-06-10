@@ -87,17 +87,23 @@ describe('Settings', () => {
     await waitFor(() => expect(preciseSwitch).not.toBeDisabled());
     fireEvent.click(preciseSwitch);
 
-    await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenCalledWith({
+    await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenCalledWith(expect.objectContaining({
+      baseMode: 'PUBLIC_PRECISE',
       ghostModeEnabled: false,
+      ghostRadiusMeters: 1609,
       preciseLocationVisibility: 'mutual_cruushes',
-    }));
+      preciseToMutualCruushes: true,
+    })));
 
     await waitFor(() => expect(ghostSwitch).not.toBeDisabled());
     fireEvent.click(ghostSwitch);
 
-    await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenLastCalledWith({
+    await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenLastCalledWith(expect.objectContaining({
+      baseMode: 'GHOST',
       ghostModeEnabled: true,
+      ghostRadiusMeters: 1609,
       preciseLocationVisibility: 'mutual_cruushes',
-    }));
+      preciseToMutualCruushes: true,
+    })));
   });
 });

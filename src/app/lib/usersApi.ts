@@ -1,4 +1,10 @@
 import { requestApi } from './apiClient';
+import {
+  decryptDisplayLocationToken,
+  type DisplayAnimationHint,
+  type DisplayLocationToken,
+  type DisplayMode,
+} from './displayLocationTokens';
 
 export type DiscoveryUser = {
   id: string;
@@ -19,6 +25,11 @@ export type DiscoveryUser = {
   hostingTravel: string[];
   photo: string | null;
   isDemo?: boolean;
+  displayMode?: DisplayMode;
+  animationHint?: DisplayAnimationHint;
+  displayExpiresAtMs?: number;
+  privacyRadiusMeters?: number;
+  npcGhostDemo?: boolean;
   relationship?: {
     mutualCruush: boolean;
     canMessage: boolean;
@@ -50,6 +61,36 @@ export type DiscoveryFilterParams = {
 
 type DiscoveryRequestOptions = {
   limit?: number;
+  npcGhostDemo?: boolean;
+};
+
+type TokenizedDiscoveryProfile = {
+  profileToken: string;
+  name: string;
+  display_name: string;
+  age: number | null;
+  pronouns: string;
+  lastActive: string;
+  distanceLabel: string;
+  displayLocationToken: DisplayLocationToken;
+  displayExpiresAtMs: number;
+  animationHint: DisplayAnimationHint;
+  demoDisplayMode?: 'NPC_GHOST_TEST';
+  relationshipContext: 'PUBLIC' | 'MUTUAL_CRUUSH' | 'MUTUAL_CROWD';
+  lookingFor: string[];
+  vibes: string[];
+  scenes?: string[];
+  archetypes?: string[];
+  position: string[];
+  role: string[];
+  hostingTravel: string[];
+  photo: string | null;
+  relationship?: DiscoveryUser['relationship'];
+};
+
+type NearbyUsersResponse = {
+  mapEpochMs: number;
+  profiles: TokenizedDiscoveryProfile[];
 };
 
 function appendListParams(params: URLSearchParams, key: string, values?: string[]) {
@@ -76,6 +117,10 @@ export async function getNearbyUsers(
     params.set('limit', String(options.limit));
   }
 
+  if (options?.npcGhostDemo) {
+    params.set('npcGhostDemo', '1');
+  }
+
   appendListParams(params, 'identities', filters?.identities);
   appendListParams(params, 'presentations', filters?.presentations);
   appendListParams(params, 'lookingFor', filters?.lookingFor);
@@ -93,5 +138,39 @@ export async function getNearbyUsers(
 
   const query = params.toString();
   const path = query ? `/api/users?${query}` : '/api/users';
-  return requestApi<DiscoveryUser[]>(path);
+  const response = await requestApi<NearbyUsersResponse | DiscoveryUser[]>(path);
+
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  return Promise.all(response.profiles.map(async (profile): Promise<DiscoveryUser> => {
+    const displayPayload = await decryptDisplayLocationToken(profile.displayLocationToken);
+
+    return {
+      id: profile.profileToken,
+      name: profile.name,
+      display_name: profile.display_name,
+      age: profile.age,
+      pronouns: profile.pronouns,
+      lat: displayPayload.latitude,
+      lng: displayPayload.longitude,
+      lastActive: profile.lastActive,
+      distance: profile.distanceLabel,
+      lookingFor: profile.lookingFor,
+      vibes: profile.vibes,
+      scenes: profile.scenes,
+      archetypes: profile.archetypes,
+      position: profile.position,
+      role: profile.role,
+      hostingTravel: profile.hostingTravel,
+      photo: profile.photo,
+      displayMode: displayPayload.displayMode,
+      animationHint: profile.animationHint ?? displayPayload.animationHint,
+      displayExpiresAtMs: profile.displayExpiresAtMs,
+      privacyRadiusMeters: displayPayload.accuracyDisplayM,
+      npcGhostDemo: profile.demoDisplayMode === 'NPC_GHOST_TEST',
+      relationship: profile.relationship,
+    };
+  }));
 }
