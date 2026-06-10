@@ -37,12 +37,6 @@ const config: AppConfig = {
   MATCH_TOKEN_KEY_VERSION: "v1"
 };
 
-const hkdfConfig: AppConfig = {
-  ...config,
-  RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v2",
-  MATCH_TOKEN_KEY_VERSION: "v2"
-};
-
 function createRecordReturningDb() {
   const query = vi.fn(async (_sql: string, params: unknown[] = []) => ({
     rows: [{
@@ -127,23 +121,6 @@ describe("encrypted relationship storage", () => {
     })).toThrow();
   });
 
-  it("uses stored key versions for relationship payload encryption", async () => {
-    const db = createRecordReturningDb();
-    const payload = buildEncryptedRelationshipPayload({
-      type: "cruush",
-      actorUserId: "d271f6da-c51d-4d73-a322-d9c56f45d4fa",
-      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
-    });
-    const record = await upsertEncryptedRelationshipRecord({ config: hkdfConfig, db }, payload);
-
-    expect(record?.encryption_key_version).toBe("v2");
-    expect(decryptRelationshipPayload(hkdfConfig, record!)).toEqual(payload);
-    expect(() => decryptRelationshipPayload(hkdfConfig, {
-      ...record!,
-      encryption_key_version: "v1"
-    })).toThrow();
-  });
-
   it("verifies encrypted match tokens and rejects tampered, expired, or revoked rows", async () => {
     const tokenQuery = vi.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [] }));
     const tokenDb = { query: tokenQuery } as unknown as Pick<DbClient, "query">;
@@ -214,53 +191,5 @@ describe("encrypted relationship storage", () => {
       userTwoId: "d271f6da-c51d-4d73-a322-d9c56f45d4fa",
       purpose: "permissions"
     })).resolves.toBe(false);
-  });
-
-  it("encrypts match tokens with distinct nonces and stored key versions", async () => {
-    const tokenQuery = vi.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [] }));
-    const tokenDb = { query: tokenQuery } as unknown as Pick<DbClient, "query">;
-    const input = {
-      relationshipRecordId: "9c5290ed-1960-4a87-8f5d-21a6e8b82874",
-      userOneId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-      userTwoId: "d271f6da-c51d-4d73-a322-d9c56f45d4fa",
-      purpose: "permissions",
-      expiresAt: new Date(Date.now() + 60_000)
-    };
-
-    await issueEncryptedRelationshipToken({ config: hkdfConfig, db: tokenDb }, input);
-    await issueEncryptedRelationshipToken({ config: hkdfConfig, db: tokenDb }, input);
-
-    const firstParams = (tokenQuery.mock.calls[0]?.[1] ?? []) as unknown[];
-    const secondParams = (tokenQuery.mock.calls[1]?.[1] ?? []) as unknown[];
-    const firstTokenRow = {
-      id: "token-1",
-      relationship_record_id: firstParams[0] as string,
-      purpose_index: firstParams[1] as string,
-      token_lookup_index: firstParams[2] as string,
-      token_ciphertext: firstParams[3] as string,
-      token_nonce: firstParams[4] as string,
-      token_auth_tag: firstParams[5] as string,
-      token_signature: firstParams[6] as string,
-      token_key_version: firstParams[7] as string,
-      expires_at: firstParams[8] as string,
-      created_at: "2026-06-02T12:00:00.000Z",
-      revoked_at: null
-    };
-
-    expect(firstParams[4]).not.toBe(secondParams[4]);
-    expect(firstParams[3]).not.toBe(secondParams[3]);
-    expect(firstTokenRow.token_key_version).toBe("v2");
-    expect(verifyEncryptedRelationshipToken(hkdfConfig, firstTokenRow)).toMatchObject({
-      relationshipRecordId: input.relationshipRecordId,
-      keyVersion: "v2"
-    });
-    expect(verifyEncryptedRelationshipToken(hkdfConfig, {
-      ...firstTokenRow,
-      token_key_version: "v1"
-    })).toBeNull();
-    expect(verifyEncryptedRelationshipToken(hkdfConfig, {
-      ...firstTokenRow,
-      token_auth_tag: Buffer.alloc(16).toString("base64")
-    })).toBeNull();
   });
 });

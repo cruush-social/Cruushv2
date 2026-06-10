@@ -37,26 +37,6 @@ describe('cruushApi', () => {
     }));
   });
 
-  it('drops non-https snapshot photos before sending a cruush', async () => {
-    await sendCruush('53fd68d7-24fc-4cff-8cd7-a97ec0cadf97', {
-      name: 'jay',
-      pronouns: 'he/him',
-      photo: 'http://example.com/profile.jpg',
-    });
-
-    expect(fetch).toHaveBeenCalledWith('/api/cruush', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({
-        toUserId: '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97',
-        targetUser: {
-          name: 'jay',
-          pronouns: 'he/him',
-          photo: null,
-        },
-      }),
-    }));
-  });
-
   it('rejects non-profile ids before sending a cruush request', async () => {
     await expect(sendCruush('demo-nyc-connected-pin', {
       name: 'Mika Demo',

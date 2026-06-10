@@ -71,11 +71,21 @@ const configSchema = z.object({
   PROFILE_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   RELATIONSHIP_ENCRYPTION_KEY: z.string().optional().default(""),
   RELATIONSHIP_INDEX_KEY: z.string().optional().default(""),
-  RELATIONSHIP_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v2"),
+  RELATIONSHIP_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   RELATIONSHIP_INDEX_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   MATCH_TOKEN_ENCRYPTION_KEY: z.string().optional().default(""),
   MATCH_TOKEN_SIGNING_KEY: z.string().optional().default(""),
-  MATCH_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v2")
+  MATCH_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  LOCATION_ENCRYPTION_KEY: z.string().optional().default(""),
+  LOCATION_INDEX_KEY: z.string().optional().default(""),
+  VISIBILITY_POLICY_ENCRYPTION_KEY: z.string().optional().default(""),
+  GHOST_DERIVATION_KEY: z.string().optional().default(""),
+  DISPLAY_TOKEN_ENCRYPTION_KEY: z.string().optional().default(""),
+  LOCATION_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  LOCATION_INDEX_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  GHOST_DERIVATION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
 }).superRefine((config, ctx) => {
   if (config.NODE_ENV !== "production") {
     return;
@@ -144,9 +154,38 @@ const configSchema = z.object({
       path: ["MATCH_TOKEN_SIGNING_KEY"]
     });
   }
+
+  for (const keyName of [
+    "LOCATION_ENCRYPTION_KEY",
+    "LOCATION_INDEX_KEY",
+    "VISIBILITY_POLICY_ENCRYPTION_KEY",
+    "GHOST_DERIVATION_KEY",
+    "DISPLAY_TOKEN_ENCRYPTION_KEY"
+  ] as const) {
+    if (!config[keyName] || config[keyName].length < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${keyName} is required in production.`,
+        path: [keyName]
+      });
+    }
+  }
 });
 
-export type AppConfig = z.infer<typeof configSchema>;
+type ParsedAppConfig = z.infer<typeof configSchema>;
+type GhostModeConfigKey =
+  | "LOCATION_ENCRYPTION_KEY"
+  | "LOCATION_INDEX_KEY"
+  | "VISIBILITY_POLICY_ENCRYPTION_KEY"
+  | "GHOST_DERIVATION_KEY"
+  | "DISPLAY_TOKEN_ENCRYPTION_KEY"
+  | "LOCATION_ENCRYPTION_KEY_VERSION"
+  | "LOCATION_INDEX_KEY_VERSION"
+  | "VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION"
+  | "GHOST_DERIVATION_KEY_VERSION"
+  | "DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION";
+
+export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey> & Partial<Pick<ParsedAppConfig, GhostModeConfigKey>>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return configSchema.parse(env);

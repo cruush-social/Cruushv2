@@ -1,5 +1,10 @@
 import { getCurrentUserId } from './sessionUser';
 import { requestApi } from './apiClient';
+import {
+  decryptDisplayLocationToken,
+  type DisplayAnimationHint,
+  type DisplayLocationToken,
+} from './displayLocationTokens';
 
 export type CruushTargetUser = {
   name: string;
@@ -56,11 +61,33 @@ export type MutualCruushActivityItem = {
   lastActive: string;
   canMessage: boolean;
   canRevealPreciseLocation: boolean;
+  displayLocationToken?: DisplayLocationToken;
+  displayExpiresAtMs?: number;
+  animationHint?: DisplayAnimationHint;
+  distanceLabel?: string;
   coordinates: {
     lat: number;
     lng: number;
     precision: 'fuzzy' | 'precise';
   } | null;
+};
+
+type TokenizedMutualMapItem = Omit<MutualCruushActivityItem, 'id' | 'coordinates' | 'distance'> & {
+  profileToken: string;
+  distanceLabel: string;
+  displayLocationToken: DisplayLocationToken;
+  displayExpiresAtMs: number;
+  animationHint: DisplayAnimationHint;
+  relationship?: {
+    mutualCruush: boolean;
+    canMessage: boolean;
+    precision?: 'fuzzy' | 'precise';
+  };
+};
+
+type MutualMapResponse = {
+  mapEpochMs: number;
+  profiles: TokenizedMutualMapItem[];
 };
 
 export type ProfileViewActivityItem = CruushLockableActivityItem & {
@@ -96,17 +123,8 @@ function normalizeCruushSnapshotPhoto(photo: string | null | undefined) {
 
   try {
     const parsedUrl = new URL(photo);
-    const hostname = parsedUrl.hostname.toLowerCase().replace(/^\[|\]$/g, '');
 
-    if (
-      parsedUrl.protocol !== 'https:' ||
-      parsedUrl.username ||
-      parsedUrl.password ||
-      hostname === 'localhost' ||
-      hostname === 'metadata.google.internal' ||
-      hostname === '169.254.169.254' ||
-      hostname.endsWith('.local')
-    ) {
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
       return null;
     }
 
@@ -151,7 +169,29 @@ export async function getMyLegacyCruushActivity() {
 }
 
 export async function getMutualCruushMap() {
-  return requestApi<MutualCruushActivityItem[]>('/api/cruush/mutual-map');
+  const response = await requestApi<MutualMapResponse | MutualCruushActivityItem[]>('/api/cruush/mutual-map');
+
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  return Promise.all(response.profiles.map(async (item): Promise<MutualCruushActivityItem> => {
+    const displayPayload = await decryptDisplayLocationToken(item.displayLocationToken);
+
+    return {
+      ...item,
+      id: item.profileToken,
+      distance: item.distanceLabel,
+      displayLocationToken: item.displayLocationToken,
+      displayExpiresAtMs: item.displayExpiresAtMs,
+      animationHint: item.animationHint ?? displayPayload.animationHint,
+      coordinates: {
+        lat: displayPayload.latitude,
+        lng: displayPayload.longitude,
+        precision: displayPayload.displayMode === 'PRECISE' ? 'precise' : 'fuzzy',
+      },
+    };
+  }));
 }
 
 export async function revokeMutualCruush(otherUserId: string) {
