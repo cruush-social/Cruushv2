@@ -43,6 +43,12 @@ const POST_COLUMNS = `
   pr.photos
 `;
 
+const POST_CREATE_LIMIT = {
+  max: 10,
+  windowMs: 15 * 60 * 1000,
+  message: "Too many posts. Try again later."
+};
+
 export async function registerPostRoutes(app: FastifyInstance) {
   app.get("/api/posts", async (request, reply) => {
     await getAuthenticatedUserId(request);
@@ -64,6 +70,10 @@ export async function registerPostRoutes(app: FastifyInstance) {
   app.post("/api/posts", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
+    await app.rateLimiter.assert({
+      key: `post-create:user:${userId}`,
+      ...POST_CREATE_LIMIT
+    });
 
     const result = await app.db.query<PostRow>(
       `with inserted as (

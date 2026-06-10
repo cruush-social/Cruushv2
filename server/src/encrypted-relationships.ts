@@ -1,12 +1,12 @@
 import {
   createCipheriv,
   createDecipheriv,
-  createHash,
   createHmac,
   randomBytes,
   timingSafeEqual
 } from "node:crypto";
 import type { AppConfig } from "./config.js";
+import { deriveKey } from "./crypto-keys.js";
 import type { DbClient } from "./db.js";
 
 export type EncryptedRelationshipType =
@@ -101,12 +101,6 @@ export type RelationshipStorageContext = {
 };
 
 const ACTIVE_STATUS: EncryptedRelationshipStatus = "active";
-
-function deriveKey(secret: string, purpose: string, keyVersion: string) {
-  return createHash("sha256")
-    .update(`${purpose}:${keyVersion}:${secret}`)
-    .digest();
-}
 
 function getRelationshipEncryptionSecret(config: AppConfig) {
   return config.RELATIONSHIP_ENCRYPTION_KEY || config.SESSION_SECRET;

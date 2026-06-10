@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
   formatDistanceMiles,
@@ -20,22 +20,9 @@ import {
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { normalizeSingleLineText } from "../input-schema.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
-import {
-  DEFAULT_GHOST_RADIUS_METERS,
-  createCoarseIndexTokens,
-  buildDefaultVisibilityPolicy,
-  formatDistanceLabel,
-  loadLocationEnvelopes,
-  loadVisibilityPolicy,
-  locationPayloadToCoordinates,
-  makeDisplayLocationToken,
-  type DisplayMode,
-  type LocationPayload
-} from "../location-privacy.js";
 
 type DiscoveryProfileRow = {
   id: string;
-  email: string | null;
   display_name: string | null;
   year_of_birth: number | null;
   pronouns: string[] | null;
@@ -67,10 +54,10 @@ type DiscoveryProfileRow = {
   fuzzy_lat: number | null;
   fuzzy_lng: number | null;
   updated_at: string | Date;
+  location_updated_at: string | Date | null;
 };
 
-
-type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "email" | "display_name" | "photos" | "updated_at">;
+type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "display_name" | "photos" | "updated_at" | "location_updated_at">;
 
 type LegacyDiscoveryProfileRow = {
   id: string;
@@ -111,25 +98,10 @@ const crowdQueryArrayField = z.preprocess((value) => {
     : []);
 }, z.array(z.enum(["T4T", "Sapphic", "Gay"])).max(3).default([]));
 
-const booleanQueryFlag = z.preprocess((value) => {
-  if (value === undefined) {
-    return false;
-  }
-
-  const normalizedValue = Array.isArray(value) ? value[0] : value;
-
-  if (typeof normalizedValue === "string") {
-    return ["1", "true", "yes", "on"].includes(normalizedValue.trim().toLowerCase());
-  }
-
-  return normalizedValue === true;
-}, z.boolean().default(false));
-
 const discoveryQuerySchema = z.object({
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(50),
-  npcGhostDemo: booleanQueryFlag,
   identities: queryArrayField,
   presentations: queryArrayField,
   lookingFor: queryArrayField,
@@ -365,10 +337,10 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
          profile_visibility_nonce,
          profile_visibility_auth_tag,
          profile_visibility_key_version,
-         null::double precision as lat,
-         null::double precision as lng,
-         null::double precision as fuzzy_lat,
-         null::double precision as fuzzy_lng
+         lat,
+         lng,
+         fuzzy_lat,
+         fuzzy_lng
        from profiles
        where id = $1`,
       [currentUserId]
@@ -430,16 +402,13 @@ function discoveryRowIsVisibleToViewer(
 
 async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, filters: DiscoveryQuery) {
   try {
-    const centerLat = filters.lat ?? DEFAULT_CENTER.lat;
-    const centerLng = filters.lng ?? DEFAULT_CENTER.lng;
-    const values: unknown[] = [
-      currentUserId,
-      createCoarseIndexTokens(app.config, centerLat, centerLng)
-    ];
+    const values: unknown[] = [currentUserId];
     const where = [
       "profiles.id <> $1",
-      "location_envelopes.expires_at_ms > (extract(epoch from now()) * 1000)::bigint",
-      "location_envelopes.coarse_index_tokens && $2::text[]"
+      "lat is not null",
+      "lng is not null",
+      "profiles.location_updated_at >= now() - interval '24 hours'",
+      "coalesce(profile_privacy.ghost_mode_enabled, false) = false"
     ];
 
     addTextArrayFilter(where, values, "identities", filters.identities);
@@ -464,8 +433,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     const modernRows = await app.db.query<DiscoveryProfileRow>(
       `select
          profiles.id::text as id,
-         app_users.email,
-         profiles.display_name as display_name,
+         display_name,
          year_of_birth,
          pronouns,
          looking_for,
@@ -491,18 +459,17 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          profile_visibility_nonce,
          profile_visibility_auth_tag,
          profile_visibility_key_version,
-         null::double precision as lat,
-         null::double precision as lng,
-         null::double precision as fuzzy_lat,
-         null::double precision as fuzzy_lng,
+         lat,
+         lng,
+         fuzzy_lat,
+         fuzzy_lng,
+         profiles.location_updated_at,
          profiles.updated_at
        from profiles
-       join app_users
-         on app_users.id = profiles.id
-       join encrypted_location_envelopes location_envelopes
-         on location_envelopes.subject_user_id = profiles.id
+       left join user_privacy_settings profile_privacy
+         on profile_privacy.user_id = profiles.id
        where ${where.join("\n         and ")}
-       order by profiles.updated_at desc
+       order by profiles.location_updated_at desc
        limit ${limitPlaceholder}`,
       values
     );
@@ -531,6 +498,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lat,
          fuzzy_lng
        from profiles
+       where last_active >= now() - interval '24 hours'
        order by last_active desc nulls last
        limit $1`,
       [filters.limit]
@@ -543,120 +511,31 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
   }
 }
 
-function locationPayloadFromCoordinates(input: {
-  subjectUserId: string;
-  lat: number;
-  lng: number;
-  updatedAt: string | Date;
-}): LocationPayload {
-  const updatedAtMs = new Date(input.updatedAt).getTime();
-
-  return {
-    version: 1,
-    subjectUserId: input.subjectUserId,
-    locationVersion: updatedAtMs,
-    latE7: Math.round(input.lat * 10_000_000),
-    lonE7: Math.round(input.lng * 10_000_000),
-    accuracyM: 0,
-    source: "SYSTEM",
-    deviceReportedAtMs: updatedAtMs,
-    collectedAtMs: updatedAtMs,
-    expiresAtMs: Date.now() + 180_000,
-    keyVersion: "legacy"
-  };
-}
-
-async function loadPolicyOrDefault(app: FastifyInstance, subjectUserId: string) {
-  try {
-    return await loadVisibilityPolicy(app, subjectUserId);
-  } catch (error) {
-    if (isSchemaCompatibilityError(error)) {
-      return buildDefaultVisibilityPolicy(app.config, subjectUserId);
-    }
-
-    throw error;
-  }
-}
-
-async function mapModernDiscoveryRow(
-  app: FastifyInstance,
-  request: FastifyRequest,
-  viewerUserId: string,
+function mapModernDiscoveryRow(
   row: DiscoveryProfileRow,
   centerLat: number,
   centerLng: number,
-  relationship: Awaited<ReturnType<typeof getRelationshipPermissions>> | null = null,
-  encryptedLocation: LocationPayload | null = null,
-  options: {
-    npcGhostDemoRadiusMeters?: number | null;
-  } = {}
+  relationship: Awaited<ReturnType<typeof getRelationshipPermissions>> | null = null
 ) {
-  const fallbackLat = row.fuzzy_lat ?? row.lat;
-  const fallbackLng = row.fuzzy_lng ?? row.lng;
-  const location = encryptedLocation ?? (fallbackLat != null && fallbackLng != null
-    ? locationPayloadFromCoordinates({
-        subjectUserId: row.id,
-        lat: fallbackLat,
-        lng: fallbackLng,
-        updatedAt: row.updated_at
-      })
-    : null);
+  const coordinates = {
+    lat: row.fuzzy_lat ?? row.lat,
+    lng: row.fuzzy_lng ?? row.lng
+  };
 
-  if (!location) {
+  if (coordinates.lat == null || coordinates.lng == null) {
     return null;
   }
-
-  const preciseCoordinates = locationPayloadToCoordinates(location);
-  const storedPolicy = await loadPolicyOrDefault(app, row.id);
-
-  if (storedPolicy.baseMode === "STEALTH") {
-    return null;
-  }
-
-  const npcGhostDemoActive = options.npcGhostDemoRadiusMeters != null;
-  const policy = npcGhostDemoActive
-    ? {
-        ...storedPolicy,
-        baseMode: "GHOST" as const,
-        ghostRadiusMeters: options.npcGhostDemoRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS
-      }
-    : storedPolicy;
-
-  const displayMode: DisplayMode = npcGhostDemoActive
-    ? "GHOST"
-    : relationship?.canRevealPreciseLocation
-    ? "PRECISE"
-    : policy.baseMode === "GHOST"
-      ? "GHOST"
-      : "PRECISE";
-  const displayLocationToken = await makeDisplayLocationToken(app, request, {
-    subjectUserId: row.id,
-    viewerUserId,
-    policy,
-    location,
-    displayMode,
-    relationshipGrantVersion: relationship?.isMutualCruush ? 1 : 0
-  });
 
   return {
-    profileToken: row.id,
+    id: row.id,
     name: coerceDisplayName(row.display_name),
     display_name: coerceDisplayName(row.display_name),
     age: row.year_of_birth ? new Date().getFullYear() - row.year_of_birth : null,
     pronouns: coerceStringArray(row.pronouns).join(", "),
-    lastActive: formatLastActiveFromDate(row.updated_at),
-    distanceLabel: formatDistanceLabel({
-      displayMode,
-      viewerLat: centerLat,
-      viewerLng: centerLng,
-      targetLat: preciseCoordinates.lat,
-      targetLng: preciseCoordinates.lng
-    }),
-    displayLocationToken,
-    displayExpiresAtMs: displayLocationToken.expiresAtMs,
-    animationHint: displayMode === "GHOST" ? "FADE_LAST_MINUTE" : "NONE",
-    ...(npcGhostDemoActive ? { demoDisplayMode: "NPC_GHOST_TEST" as const } : {}),
-    relationshipContext: relationship?.isMutualCruush ? "MUTUAL_CRUUSH" : "PUBLIC",
+    lat: coordinates.lat,
+    lng: coordinates.lng,
+    lastActive: formatLastActiveFromDate(row.location_updated_at ?? row.updated_at),
+    distance: formatDistanceMiles(centerLat, centerLng, coordinates.lat, coordinates.lng),
     lookingFor: coerceStringArray(row.looking_for),
     vibes: uniqueStrings([
       ...coerceStringArray(row.vibes),
@@ -672,8 +551,7 @@ async function mapModernDiscoveryRow(
     relationship: relationship?.isMutualCruush
       ? {
           mutualCruush: true,
-          canMessage: relationship.canMessage,
-          precision: displayMode === "PRECISE" ? "precise" as const : "fuzzy" as const
+          canMessage: relationship.canMessage
         }
       : null
   };
@@ -710,20 +588,6 @@ function mapLegacyDiscoveryRow(
   };
 }
 
-function getSeededNpcNumber(row: Pick<DiscoveryProfileRow, "email">) {
-  const match = row.email?.match(/^test-cruush-(\d{2})@cruush\.local$/);
-  return match ? Number(match[1]) : null;
-}
-
-function shouldApplyNpcGhostDemo(app: FastifyInstance, row: DiscoveryProfileRow, enabled: boolean) {
-  if (!enabled || app.config.NODE_ENV === "production") {
-    return false;
-  }
-
-  const seedNumber = getSeededNpcNumber(row);
-  return seedNumber !== null && seedNumber % 2 === 0;
-}
-
 export async function registerUserRoutes(app: FastifyInstance) {
   app.get("/api/users", async (request, reply) => {
     const currentUserId = await getAuthenticatedUserId(request);
@@ -736,93 +600,26 @@ export async function registerUserRoutes(app: FastifyInstance) {
     });
     const centerLat = parsedQuery.lat ?? DEFAULT_CENTER.lat;
     const centerLng = parsedQuery.lng ?? DEFAULT_CENTER.lng;
-    const npcGhostDemoEnabled = app.config.NODE_ENV !== "production" && parsedQuery.npcGhostDemo;
 
     const usedIds = new Set<string>();
     const discoveryViewer = await loadDiscoveryViewer(app, currentUserId);
     const discoveryRows = await loadDiscoveryRows(app, currentUserId, parsedQuery);
-    const viewerGhostRadiusMeters = npcGhostDemoEnabled
-      ? (await loadPolicyOrDefault(app, currentUserId)).ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS
-      : DEFAULT_GHOST_RADIUS_METERS;
-    const encryptedLocations = discoveryRows.mode === "modern"
-      ? await loadLocationEnvelopes(app, discoveryRows.rows.map((row) => row.id)).catch((error) => {
-          if (isSchemaCompatibilityError(error)) {
-            return new Map<string, LocationPayload>();
-          }
-
-          throw error;
-        })
-      : new Map<string, LocationPayload>();
     const realUsers = discoveryRows.mode === "modern"
       ? (await Promise.all(discoveryRows.rows
           .filter((row) => discoveryRowIsVisibleToViewer(app, row, discoveryViewer))
           .map(async (row) => {
             usedIds.add(row.id);
             const relationship = await getRelationshipPermissions(app, currentUserId, row.id);
-            return mapModernDiscoveryRow(
-              app,
-              request,
-              currentUserId,
-              row,
-              centerLat,
-              centerLng,
-              relationship,
-              encryptedLocations.get(row.id) ?? null,
-              {
-                npcGhostDemoRadiusMeters: shouldApplyNpcGhostDemo(app, row, npcGhostDemoEnabled)
-                  ? viewerGhostRadiusMeters
-                  : null
-              }
-            );
+            return mapModernDiscoveryRow(row, centerLat, centerLng, relationship);
           })))
           .filter((row): row is NonNullable<typeof row> => row !== null)
-      : await Promise.all(discoveryRows.rows.map(async (row, index) => {
+      : discoveryRows.rows.map((row, index) => {
           usedIds.add(row.id);
-          const legacy = mapLegacyDiscoveryRow(row, centerLat, centerLng, index);
-          const location = locationPayloadFromCoordinates({
-            subjectUserId: legacy.id,
-            lat: legacy.lat,
-            lng: legacy.lng,
-            updatedAt: row.last_active ?? new Date()
-          });
-          const policy = await loadPolicyOrDefault(app, legacy.id);
-          const displayLocationToken = await makeDisplayLocationToken(app, request, {
-            subjectUserId: legacy.id,
-            viewerUserId: currentUserId,
-            policy,
-            location,
-            displayMode: "PRECISE"
-          });
-
-          return {
-            profileToken: legacy.id,
-            name: legacy.name,
-            display_name: legacy.display_name,
-            age: legacy.age,
-            pronouns: legacy.pronouns,
-            lastActive: legacy.lastActive,
-            distanceLabel: legacy.distance,
-            displayLocationToken,
-            displayExpiresAtMs: displayLocationToken.expiresAtMs,
-            animationHint: "NONE",
-            relationshipContext: "PUBLIC",
-            lookingFor: legacy.lookingFor,
-            vibes: legacy.vibes,
-            scenes: legacy.scenes,
-            archetypes: legacy.archetypes,
-            position: legacy.position,
-            role: legacy.role,
-            hostingTravel: legacy.hostingTravel,
-            photo: legacy.photo,
-            relationship: null
-          };
-        }));
+          return mapLegacyDiscoveryRow(row, centerLat, centerLng, index);
+        });
 
     return reply.send({
-      data: {
-        mapEpochMs: Date.now(),
-        profiles: realUsers.slice(0, parsedQuery.limit)
-      }
+      data: realUsers.slice(0, parsedQuery.limit)
     });
   });
 }

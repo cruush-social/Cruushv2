@@ -10,27 +10,12 @@ import {
   updateEncryptedRelationshipRecordStatus,
   upsertEncryptedRelationshipRecord
 } from "./encrypted-relationships.js";
-import {
-  DEFAULT_GHOST_RADIUS_METERS,
-  loadVisibilityPolicy,
-  publicPrivacySettings,
-  saveVisibilityPolicy,
-  isPreciseLocationRevoked,
-  type CrowdPrecisionPolicy,
-  type VisibilityBaseMode
-} from "./location-privacy.js";
 
 export type PreciseLocationVisibility = "none" | "mutual_cruushes";
 
 export type PrivacySettings = {
-  baseMode: VisibilityBaseMode;
   ghostModeEnabled: boolean;
-  ghostRadiusMeters: number;
-  ghostRadiusLabel: string;
-  preciseToMutualCruushes: boolean;
-  preciseToMutualCrowds: CrowdPrecisionPolicy[];
   preciseLocationVisibility: PreciseLocationVisibility;
-  updatedAtMs: number;
 };
 
 export type CruushEntitlement = {
@@ -107,14 +92,6 @@ export function getOrderedMatchUserIds(firstUserId: string, secondUserId: string
 }
 
 export async function getPrivacySettings(app: FastifyInstance, userId: string): Promise<PrivacySettings> {
-  try {
-    return publicPrivacySettings(await loadVisibilityPolicy(app, userId));
-  } catch (error) {
-    if (!isSchemaCompatibilityError(error)) {
-      throw error;
-    }
-  }
-
   const row = (await safeRows<PrivacySettingsRow>(
     app,
     `select ghost_mode_enabled, precise_location_visibility
@@ -123,44 +100,20 @@ export async function getPrivacySettings(app: FastifyInstance, userId: string): 
      limit 1`,
     [userId]
   ))[0];
-  const preciseToMutualCruushes = row?.precise_location_visibility === "mutual_cruushes";
-  const ghostModeEnabled = row?.ghost_mode_enabled === true;
 
   return {
-    baseMode: ghostModeEnabled ? "GHOST" : "PUBLIC_PRECISE",
-    ghostModeEnabled,
-    ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
-    ghostRadiusLabel: "1 mi",
-    preciseToMutualCruushes,
-    preciseToMutualCrowds: [],
-    preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" : "none",
-    updatedAtMs: Date.now()
+    ghostModeEnabled: row?.ghost_mode_enabled === true,
+    preciseLocationVisibility: row?.precise_location_visibility === "mutual_cruushes"
+      ? "mutual_cruushes"
+      : "none"
   };
 }
 
 export async function savePrivacySettings(
   app: FastifyInstance,
   userId: string,
-  settings: Partial<PrivacySettings> & {
-    ghostModeEnabled?: boolean;
-    preciseLocationVisibility?: PreciseLocationVisibility;
-  }
+  settings: PrivacySettings
 ) {
-  try {
-    return publicPrivacySettings(await saveVisibilityPolicy(app, userId, {
-      baseMode: settings.baseMode ?? (settings.ghostModeEnabled ? "GHOST" : "PUBLIC_PRECISE"),
-      ghostModeEnabled: settings.ghostModeEnabled,
-      ghostRadiusMeters: settings.ghostRadiusMeters,
-      preciseToMutualCruushes: settings.preciseToMutualCruushes ?? settings.preciseLocationVisibility === "mutual_cruushes",
-      preciseToMutualCrowds: settings.preciseToMutualCrowds ?? [],
-      preciseLocationVisibility: settings.preciseLocationVisibility
-    }));
-  } catch (error) {
-    if (!isSchemaCompatibilityError(error)) {
-      throw error;
-    }
-  }
-
   const row = (await safeRows<PrivacySettingsRow>(
     app,
     `insert into user_privacy_settings (
@@ -176,22 +129,16 @@ export async function savePrivacySettings(
      returning ghost_mode_enabled, precise_location_visibility`,
     [
       userId,
-      settings.ghostModeEnabled === true,
-      settings.preciseLocationVisibility === "mutual_cruushes" ? "mutual_cruushes" : "none"
+      settings.ghostModeEnabled,
+      settings.preciseLocationVisibility
     ]
   ))[0];
-  const preciseToMutualCruushes = row?.precise_location_visibility === "mutual_cruushes";
-  const ghostModeEnabled = row?.ghost_mode_enabled === true;
 
   return {
-    baseMode: ghostModeEnabled ? "GHOST" as const : "PUBLIC_PRECISE" as const,
-    ghostModeEnabled,
-    ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
-    ghostRadiusLabel: "1 mi",
-    preciseToMutualCruushes,
-    preciseToMutualCrowds: [],
-    preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" as const : "none" as const,
-    updatedAtMs: Date.now()
+    ghostModeEnabled: row?.ghost_mode_enabled === true,
+    preciseLocationVisibility: row?.precise_location_visibility === "mutual_cruushes"
+      ? "mutual_cruushes"
+      : "none"
   };
 }
 
@@ -341,24 +288,11 @@ export async function getRelationshipPermissions(
   const targetPreciseLocationVisibility = targetSettings.preciseLocationVisibility;
   const viewerGhostMode = viewerSettings.ghostModeEnabled;
   const targetGhostMode = targetSettings.ghostModeEnabled;
-  const preciseGrantCandidate = isMutualCruush &&
+  const canRevealPreciseLocation = isMutualCruush &&
     hasActiveMatchToken &&
-    targetSettings.baseMode !== "STEALTH" &&
+    !viewerGhostMode &&
+    !targetGhostMode &&
     targetPreciseLocationVisibility === "mutual_cruushes";
-  const isRevoked = preciseGrantCandidate
-    ? await isPreciseLocationRevoked(app, {
-        subjectUserId: targetUserId,
-        viewerUserId,
-        permissionType: "mutual_cruush"
-      }).catch((error) => {
-        if (isSchemaCompatibilityError(error)) {
-          return false;
-        }
-
-        throw error;
-      })
-    : false;
-  const canRevealPreciseLocation = preciseGrantCandidate && !isRevoked;
 
   return {
     matchId: match?.id ?? null,

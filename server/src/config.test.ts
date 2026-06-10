@@ -17,6 +17,10 @@ describe("loadConfig", () => {
       "https://127.0.0.1:5173"
     ]));
     expect(config.APP_URL).toBe("https://localhost:5173");
+    expect(config.RELATIONSHIP_ENCRYPTION_KEY_VERSION).toBe("v2");
+    expect(config.MATCH_TOKEN_KEY_VERSION).toBe("v2");
+    expect(config.RELATIONSHIP_INDEX_KEY_VERSION).toBe("v1");
+    expect(config.PROFILE_TOKEN_KEY_VERSION).toBe("v1");
   });
 
   it("rejects production config without dedicated profile keys", () => {
@@ -42,12 +46,7 @@ describe("loadConfig", () => {
       RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
       RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
-      MATCH_TOKEN_SIGNING_KEY: strongSecret,
-      LOCATION_ENCRYPTION_KEY: strongSecret,
-      LOCATION_INDEX_KEY: strongSecret,
-      VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
-      GHOST_DERIVATION_KEY: strongSecret,
-      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
+      MATCH_TOKEN_SIGNING_KEY: strongSecret
     })).toThrow();
   });
 
@@ -64,12 +63,7 @@ describe("loadConfig", () => {
       RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
       RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
-      MATCH_TOKEN_SIGNING_KEY: strongSecret,
-      LOCATION_ENCRYPTION_KEY: strongSecret,
-      LOCATION_INDEX_KEY: strongSecret,
-      VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
-      GHOST_DERIVATION_KEY: strongSecret,
-      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
+      MATCH_TOKEN_SIGNING_KEY: strongSecret
     })).toMatchObject({
       NODE_ENV: "production",
       EMAIL_PREVIEW_ENABLED: false,
@@ -78,12 +72,7 @@ describe("loadConfig", () => {
       RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
       RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
-      MATCH_TOKEN_SIGNING_KEY: strongSecret,
-      LOCATION_ENCRYPTION_KEY: strongSecret,
-      LOCATION_INDEX_KEY: strongSecret,
-      VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
-      GHOST_DERIVATION_KEY: strongSecret,
-      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
+      MATCH_TOKEN_SIGNING_KEY: strongSecret
     });
   });
 });

@@ -1,5 +1,4 @@
 import { ApiClientError, requestApi } from './apiClient';
-import type { DisplayLocationToken } from './displayLocationTokens';
 
 export type ProfileVisibility = 'public' | 'mutual_cruushes' | 'mutual_crowds';
 
@@ -81,15 +80,11 @@ export type ProfileRecord = ProfilePayload & {
   updated_at: string;
   location?: {
     id: string;
-    display_location_token?: DisplayLocationToken;
-    display_expires_at_ms?: number;
-    display_mode?: 'PRECISE' | 'GHOST';
-    animation_hint?: 'NONE' | 'FADE_LAST_MINUTE' | 'SIGNAL_LOSS' | 'REAPPEAR';
-    lat?: number | null;
-    lng?: number | null;
-    fuzzy_lat?: number | null;
-    fuzzy_lng?: number | null;
-    fuzz_radius_meters?: number;
+    lat: number | null;
+    lng: number | null;
+    fuzzy_lat: number | null;
+    fuzzy_lng: number | null;
+    fuzz_radius_meters: number;
     location_updated_at: string | null;
   } | null;
   viewer_relationship?: {

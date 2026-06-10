@@ -19,12 +19,15 @@ const navItems = [
   { path: '/profile', icon: profileIconWhite, activeIcon: profileIconColored, label: 'Profile' },
 ];
 
-interface BottomNavProps {
-  onProfilePreviewRequest?: () => void;
+type BottomNavProps = {
   isProfilePreviewOpen?: boolean;
-}
+  onProfilePreviewRequest?: () => void;
+};
 
-export default function BottomNav({ onProfilePreviewRequest, isProfilePreviewOpen = false }: BottomNavProps) {
+export default function BottomNav({
+  isProfilePreviewOpen = false,
+  onProfilePreviewRequest,
+}: BottomNavProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -37,8 +40,12 @@ export default function BottomNav({ onProfilePreviewRequest, isProfilePreviewOpe
     return location.pathname === path || location.pathname.startsWith(path);
   };
   const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
+
   const handleNavClick = (path: string) => {
-    if (path === '/profile' && isMapRoute && !isMobile && onProfilePreviewRequest) {
+    if (path === '/profile' && !isMobile && onProfilePreviewRequest) {
+      if (!isMapRoute) {
+        navigate('/map');
+      }
       onProfilePreviewRequest();
       return;
     }
@@ -47,7 +54,7 @@ export default function BottomNav({ onProfilePreviewRequest, isProfilePreviewOpe
   };
 
   return (
-    <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
       {!isMapRoute ? (
         <div
           aria-hidden="true"
@@ -56,7 +63,7 @@ export default function BottomNav({ onProfilePreviewRequest, isProfilePreviewOpe
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
+        className="relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md lg:ml-auto lg:mr-4"
       >
         {navItems.map((item) => {
           const active = isActive(item.path);

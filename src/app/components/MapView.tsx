@@ -37,10 +37,6 @@ export type MapMarker = {
   lastActiveLabel?: string;
   photo?: string | null;
   isCurrentUser?: boolean;
-  displayMode?: 'PRECISE' | 'GHOST';
-  animationHint?: 'NONE' | 'FADE_LAST_MINUTE' | 'SIGNAL_LOSS' | 'REAPPEAR';
-  privacyRadiusMeters?: number;
-  npcGhostDemo?: boolean;
   badge?: MapMarkerBadge | null;
   relationship?: {
     kind: 'mutual_cruush';
@@ -49,26 +45,15 @@ export type MapMarker = {
   } | null;
 };
 
-type RadiusCircle = {
-  center: {
-    approximateLatitude: number;
-    approximateLongitude: number;
-  };
-  radiusMeters: number;
-};
-
 interface MapViewProps {
   onPinClick: (marker: MapMarker) => void;
   onMapClick?: () => void;
   onMapReady?: (map: MapLibreMap) => void;
   markers: MapMarker[];
-  fitToMarkers?: boolean;
   focusCoordinates?: {
     approximateLatitude: number;
     approximateLongitude: number;
   } | null;
-  radiusCircle?: RadiusCircle | null;
-  demoRadiusCircles?: RadiusCircle[];
 }
 
 const DEFAULT_CENTER: LngLatLike = [-74.006, 40.7128];
@@ -543,9 +528,8 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const gradientId = `marker-fill-${marker.id}`;
   const clipId = `marker-photo-clip-${marker.id}`;
   const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
-  const isNpcGhostDemo = marker.npcGhostDemo === true;
-  const borderColor = isNpcGhostDemo ? '#0BA8FF' : isMutualCruush ? '#6f00ff' : isCurrentUser ? '#0BA8FF' : '#FF0072';
-  const theme = isNpcGhostDemo ? 'npc-ghost-demo' : isMutualCruush ? 'mutual' : isCurrentUser ? 'current' : 'nearby';
+  const borderColor = isMutualCruush ? '#6f00ff' : isCurrentUser ? '#0BA8FF' : '#FF0072';
+  const theme = isMutualCruush ? 'mutual' : isCurrentUser ? 'current' : 'nearby';
 
   return (
     <svg
@@ -561,9 +545,9 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     >
       <defs>
         <linearGradient id={gradientId} x1="10" x2="55" y1="9" y2="56" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={isNpcGhostDemo ? '#00D8FF' : isMutualCruush ? '#A64DFF' : isCurrentUser ? '#00B8FF' : '#FF0072'} />
-          <stop offset="52%" stopColor={isNpcGhostDemo ? '#0BA8FF' : isMutualCruush ? '#6f00ff' : isCurrentUser ? '#0A7DF4' : '#E00062'} />
-          <stop offset="100%" stopColor={isNpcGhostDemo ? '#3236D4' : isMutualCruush ? '#3B00A8' : isCurrentUser ? '#3236D4' : '#B00045'} />
+          <stop offset="0%" stopColor={isMutualCruush ? '#A64DFF' : isCurrentUser ? '#00B8FF' : '#FF0072'} />
+          <stop offset="52%" stopColor={isMutualCruush ? '#6f00ff' : isCurrentUser ? '#0A7DF4' : '#E00062'} />
+          <stop offset="100%" stopColor={isMutualCruush ? '#3B00A8' : isCurrentUser ? '#3236D4' : '#B00045'} />
         </linearGradient>
         <clipPath id={clipId}>
           <path d={HEART_PATH} />
@@ -591,7 +575,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           </foreignObject>
         </>
       ) : (
-        <path d={HEART_PATH} fill={`url(#${gradientId})`} stroke={isMutualCruush || isNpcGhostDemo ? borderColor : undefined} strokeWidth={isMutualCruush || isNpcGhostDemo ? '3.2' : undefined} />
+        <path d={HEART_PATH} fill={`url(#${gradientId})`} stroke={isMutualCruush ? borderColor : undefined} strokeWidth={isMutualCruush ? '3.2' : undefined} />
       )}
     </svg>
   );
@@ -603,13 +587,6 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   return (
     <span className="pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
       <span className="relative flex h-20 w-[103px] items-center justify-center">
-        {marker.npcGhostDemo ? (
-          <span
-            aria-hidden="true"
-            className="absolute h-[5.625rem] w-[5.625rem] rounded-full border border-[#0BA8FF]/70 bg-[#0BA8FF]/10 shadow-[0_0_28px_rgba(11,168,255,0.42)]"
-            data-testid={`marker-npc-ghost-halo-${marker.id}`}
-          />
-        ) : null}
         <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
         <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
         <MarkerRelationshipBadge marker={marker} />
@@ -622,16 +599,8 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
   const element = document.createElement(isCurrentUser ? 'div' : 'button');
   const name = getDisplayName(marker);
-  const animationHint = marker.animationHint ?? 'NONE';
 
-  element.className = [
-    'relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0 transition-opacity duration-700',
-    animationHint === 'FADE_LAST_MINUTE' ? 'opacity-45' : '',
-    animationHint === 'SIGNAL_LOSS' ? 'opacity-15 animate-pulse' : '',
-    animationHint === 'REAPPEAR' ? 'opacity-100' : '',
-  ].filter(Boolean).join(' ');
-  element.dataset.animationHint = animationHint;
-  element.dataset.displayMode = marker.displayMode ?? 'PRECISE';
+  element.className = 'relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0';
 
   if (isCurrentUser) {
     element.setAttribute('aria-label', 'Your approximate area');
@@ -655,91 +624,21 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
 
 export type CruushMapInstance = MapLibreMap;
 
-function createCircleFeature({ center, radiusMeters }: RadiusCircle) {
-  const points: number[][] = [];
-  const steps = 96;
-  const lat = center.approximateLatitude;
-  const lng = center.approximateLongitude;
-  const lngScale = Math.max(0.01, Math.abs(Math.cos(lat * Math.PI / 180)));
-
-  for (let index = 0; index <= steps; index += 1) {
-    const theta = (index / steps) * Math.PI * 2;
-    const northMeters = Math.cos(theta) * radiusMeters;
-    const eastMeters = Math.sin(theta) * radiusMeters;
-    points.push([
-      lng + eastMeters / (111_320 * lngScale),
-      lat + northMeters / 111_320,
-    ]);
-  }
-
-  return {
-    type: 'Feature' as const,
-    properties: {},
-    geometry: {
-      type: 'Polygon' as const,
-      coordinates: [points],
-    },
-  };
-}
-
-function createCircleFeatureCollection(circles: RadiusCircle[]) {
-  return {
-    type: 'FeatureCollection' as const,
-    features: circles.map(createCircleFeature),
-  };
-}
-
-function createCirclePolygon(center: RadiusCircle['center'], radiusMeters: number) {
-  return createCircleFeatureCollection([{ center, radiusMeters }]);
-}
-
 function cleanupRenderedMarker({ marker, root }: RenderedMapMarker) {
   marker.remove();
   queueMicrotask(() => root.unmount());
 }
 
-function MapView({
-  onPinClick,
-  onMapClick,
-  onMapReady,
-  markers,
-  fitToMarkers = false,
-  focusCoordinates,
-  radiusCircle,
-  demoRadiusCircles = [],
-}: MapViewProps) {
+function MapView({ onPinClick, onMapClick, onMapReady, markers, focusCoordinates }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<RenderedMapMarker[]>([]);
-  const viewportMarkersRef = useRef<MapMarker[]>([]);
-  const demoRadiusCirclesRef = useRef<RadiusCircle[]>([]);
-  const autoFitFocusKeyRef = useRef<string | null>(null);
-  const hasAppliedAutoFitRef = useRef(false);
   const onPinClickRef = useRef(onPinClick);
   const onMapClickRef = useRef(onMapClick);
   const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
   const mapStyle = useMemo(() => getMapStyle(), []);
-  const focusLatitude = focusCoordinates?.approximateLatitude ?? null;
-  const focusLongitude = focusCoordinates?.approximateLongitude ?? null;
-  const viewportMarkerSignature = useMemo(() => markers
-    .filter(isMapMarker)
-    .map((marker) => [
-      marker.id,
-      marker.approximateLatitude.toFixed(6),
-      marker.approximateLongitude.toFixed(6),
-    ].join(':'))
-    .sort()
-    .join('|'), [markers]);
-  const demoRadiusCircleSignature = useMemo(() => demoRadiusCircles
-    .map((circle, index) => [
-      index,
-      circle.center.approximateLatitude.toFixed(6),
-      circle.center.approximateLongitude.toFixed(6),
-      Math.round(circle.radiusMeters),
-    ].join(':'))
-    .join('|'), [demoRadiusCircles]);
 
   useEffect(() => {
     onPinClickRef.current = onPinClick;
@@ -748,14 +647,6 @@ function MapView({
   useEffect(() => {
     onMapClickRef.current = onMapClick;
   }, [onMapClick]);
-
-  useEffect(() => {
-    viewportMarkersRef.current = markers.filter(isMapMarker);
-  }, [markers]);
-
-  useEffect(() => {
-    demoRadiusCirclesRef.current = demoRadiusCircles;
-  }, [demoRadiusCircles]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -859,193 +750,13 @@ function MapView({
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
 
-    if (!map || focusLatitude == null || focusLongitude == null) {
+    if (!map || !focusCoordinates) {
       return;
     }
 
-    const visibleMarkers = viewportMarkersRef.current;
-    const focusKey = `${focusLatitude.toFixed(6)}:${focusLongitude.toFixed(6)}`;
-
-    if (fitToMarkers) {
-      if (autoFitFocusKeyRef.current !== focusKey) {
-        autoFitFocusKeyRef.current = focusKey;
-        hasAppliedAutoFitRef.current = false;
-      } else if (hasAppliedAutoFitRef.current) {
-        return;
-      }
-    } else {
-      autoFitFocusKeyRef.current = null;
-      hasAppliedAutoFitRef.current = false;
-    }
-
-    if (fitToMarkers && visibleMarkers.length > 1 && typeof map.fitBounds === 'function') {
-      const coordinates = [
-        ...visibleMarkers.map((marker) => ({
-          lat: marker.approximateLatitude,
-          lng: marker.approximateLongitude,
-        })),
-        {
-          lat: focusLatitude,
-          lng: focusLongitude,
-        },
-      ];
-      const lats = coordinates.map((coordinate) => coordinate.lat);
-      const lngs = coordinates.map((coordinate) => coordinate.lng);
-
-      map.fitBounds(
-        [
-          [Math.min(...lngs), Math.min(...lats)],
-          [Math.max(...lngs), Math.max(...lats)],
-        ],
-        {
-          padding: {
-            top: 140,
-            right: 120,
-            bottom: 170,
-            left: 120,
-          },
-          maxZoom: FOCUSED_ZOOM,
-          duration: 500,
-        }
-      );
-      hasAppliedAutoFitRef.current = true;
-      return;
-    }
-
-    map.setCenter([focusLongitude, focusLatitude]);
+    map.setCenter([focusCoordinates.approximateLongitude, focusCoordinates.approximateLatitude]);
     map.setZoom(FOCUSED_ZOOM);
-  }, [fitToMarkers, focusLatitude, focusLongitude, mapInstance, viewportMarkerSignature]);
-
-  useEffect(() => {
-    const map = mapInstance ?? mapRef.current;
-
-    if (!map || mapLoadStatus !== 'ready') {
-      return;
-    }
-
-    const sourceId = 'owner-ghost-radius';
-    const fillLayerId = 'owner-ghost-radius-fill';
-    const lineLayerId = 'owner-ghost-radius-line';
-    const getLayer = typeof map.getLayer === 'function' ? map.getLayer.bind(map) : () => undefined;
-    const getSource = typeof map.getSource === 'function' ? map.getSource.bind(map) : () => undefined;
-    const removeLayer = typeof map.removeLayer === 'function' ? map.removeLayer.bind(map) : null;
-    const removeSource = typeof map.removeSource === 'function' ? map.removeSource.bind(map) : null;
-
-    if (!radiusCircle) {
-      if (getLayer(lineLayerId) && removeLayer) {
-        removeLayer(lineLayerId);
-      }
-      if (getLayer(fillLayerId) && removeLayer) {
-        removeLayer(fillLayerId);
-      }
-      if (getSource(sourceId) && removeSource) {
-        removeSource(sourceId);
-      }
-      return;
-    }
-
-    const data = createCirclePolygon(radiusCircle.center, radiusCircle.radiusMeters);
-    const existingSource = getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
-
-    if (existingSource) {
-      existingSource.setData(data);
-      return;
-    }
-
-    if (typeof map.addSource !== 'function' || typeof map.addLayer !== 'function') {
-      return;
-    }
-
-    map.addSource(sourceId, {
-      type: 'geojson',
-      data,
-    });
-    map.addLayer({
-      id: fillLayerId,
-      type: 'fill',
-      source: sourceId,
-      paint: {
-        'fill-color': '#1181FF',
-        'fill-opacity': 0.08,
-      },
-    });
-    map.addLayer({
-      id: lineLayerId,
-      type: 'line',
-      source: sourceId,
-      paint: {
-        'line-color': '#1181FF',
-        'line-opacity': 0.55,
-        'line-width': 1.5,
-      },
-    });
-  }, [mapInstance, mapLoadStatus, radiusCircle]);
-
-  useEffect(() => {
-    const map = mapInstance ?? mapRef.current;
-
-    if (!map || mapLoadStatus !== 'ready') {
-      return;
-    }
-
-    const sourceId = 'npc-ghost-demo-radii';
-    const fillLayerId = 'npc-ghost-demo-radii-fill';
-    const lineLayerId = 'npc-ghost-demo-radii-line';
-    const getLayer = typeof map.getLayer === 'function' ? map.getLayer.bind(map) : () => undefined;
-    const getSource = typeof map.getSource === 'function' ? map.getSource.bind(map) : () => undefined;
-    const removeLayer = typeof map.removeLayer === 'function' ? map.removeLayer.bind(map) : null;
-    const removeSource = typeof map.removeSource === 'function' ? map.removeSource.bind(map) : null;
-    const circles = demoRadiusCirclesRef.current;
-
-    if (circles.length === 0) {
-      if (getLayer(lineLayerId) && removeLayer) {
-        removeLayer(lineLayerId);
-      }
-      if (getLayer(fillLayerId) && removeLayer) {
-        removeLayer(fillLayerId);
-      }
-      if (getSource(sourceId) && removeSource) {
-        removeSource(sourceId);
-      }
-      return;
-    }
-
-    const data = createCircleFeatureCollection(circles);
-    const existingSource = getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
-
-    if (existingSource) {
-      existingSource.setData(data);
-      return;
-    }
-
-    if (typeof map.addSource !== 'function' || typeof map.addLayer !== 'function') {
-      return;
-    }
-
-    map.addSource(sourceId, {
-      type: 'geojson',
-      data,
-    });
-    map.addLayer({
-      id: fillLayerId,
-      type: 'fill',
-      source: sourceId,
-      paint: {
-        'fill-color': '#0BA8FF',
-        'fill-opacity': 0.045,
-      },
-    });
-    map.addLayer({
-      id: lineLayerId,
-      type: 'line',
-      source: sourceId,
-      paint: {
-        'line-color': '#0BA8FF',
-        'line-opacity': 0.38,
-        'line-width': 1.2,
-      },
-    });
-  }, [demoRadiusCircleSignature, mapInstance, mapLoadStatus]);
+  }, [focusCoordinates, mapInstance]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

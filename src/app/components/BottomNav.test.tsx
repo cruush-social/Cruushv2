@@ -62,17 +62,14 @@ describe('BottomNav', () => {
     expect(nav.className).not.toContain('border-t');
     expect(nav.className).not.toContain('bg-background/');
     expect(nav.className).not.toContain('backdrop-blur');
-    expect(nav).toHaveClass('pointer-events-none');
     expect(nav.querySelector('.bg-gradient-to-t')).toBeNull();
     expect(nav.className).toContain('pb-[calc(0.75rem+env(safe-area-inset-bottom))]');
 
     const pill = nav.querySelector('[data-testid="bottom-nav-pill"]');
 
     expect(pill).toHaveClass('rounded-full', 'border', 'bg-background/68', 'backdrop-blur-md');
-    expect(pill).toHaveClass('pointer-events-auto');
     expect(pill).toHaveClass('px-1.5', 'pb-1.5', 'pt-2');
-    expect(pill).toHaveClass('mx-auto');
-    expect(pill).not.toHaveClass('lg:ml-auto', 'lg:mr-4');
+    expect(pill).toHaveClass('mx-auto', 'lg:ml-auto', 'lg:mr-4');
   });
 
   it('adds a bottom backdrop on scroll-heavy non-map pages', () => {
@@ -141,6 +138,22 @@ describe('BottomNav', () => {
 
     render(
       <MemoryRouter initialEntries={['/map']}>
+        <BottomNav onProfilePreviewRequest={onProfilePreviewRequest} />
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }));
+
+    expect(onProfilePreviewRequest).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+  });
+
+  it('redirects desktop users to the map before opening their profile preview', () => {
+    const onProfilePreviewRequest = vi.fn();
+
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
         <BottomNav onProfilePreviewRequest={onProfilePreviewRequest} />
         <LocationProbe />
       </MemoryRouter>

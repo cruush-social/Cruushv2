@@ -6,9 +6,7 @@ import { createPool, type DbClient } from "./db.js";
 import {
   DEVELOPMENT_ADMIN_DISPLAY_NAME,
   DEVELOPMENT_ADMIN_EMAIL,
-  DEVELOPMENT_ADMIN_LOCATION,
-  ensureDevelopmentAdminUser,
-  syncDevelopmentLocationPrivacy
+  ensureDevelopmentAdminUser
 } from "./development-admin.js";
 import {
   buildEncryptedRelationshipPayload,
@@ -85,33 +83,28 @@ const seedProfileTemplates: readonly SeedProfileTemplate[] = [
   ["ren", ["they/she"], ["T4T", "Sapphic"], ["Versatile"], ["Cruising", "Chat"]]
 ] as const;
 
-const seedCoordinateOffsets = [
-  [-0.0087, -0.0112],
-  [0.0026, -0.0108],
-  [0.0205, 0.0028],
-  [0.0112, 0.0052],
-  [0.0038, 0.009],
-  [0.0059, 0.0183],
-  [-0.0068, 0.0028],
-  [-0.0125, 0.0093],
-  [-0.0095, 0.0175],
-  [-0.0178, 0.0104],
-  [-0.0248, 0.0102],
-  [-0.0321, -0.0068],
-  [-0.0233, -0.0109],
-  [-0.0062, -0.033],
-  [0.0085, -0.0328],
-  [0.015, -0.0282],
-  [0.026, -0.024],
-  [0.0264, -0.0004],
-  [0.0166, 0.016],
-  [-0.0007, 0.0248]
+const nycCoordinates = [
+  [40.7336, -74.0027],
+  [40.7282, -73.9942],
+  [40.7218, -73.9872],
+  [40.7168, -74.0059],
+  [40.7061, -74.0092],
+  [40.7484, -73.9857],
+  [40.7527, -73.9772],
+  [40.7604, -73.9849],
+  [40.7411, -73.9897],
+  [40.7448, -74.0060],
+  [40.6782, -73.9442],
+  [40.6895, -73.9660],
+  [40.7003, -73.9875],
+  [40.7093, -73.9566],
+  [40.7150, -73.9665],
+  [40.8075, -73.9626],
+  [40.8015, -73.9505],
+  [40.7648, -73.9730],
+  [40.7420, -74.0315],
+  [40.7295, -73.9515]
 ] as const;
-
-const nycCoordinates = seedCoordinateOffsets.map(([latOffset, lngOffset]) => [
-  Number((DEVELOPMENT_ADMIN_LOCATION.lat + latOffset).toFixed(6)),
-  Number((DEVELOPMENT_ADMIN_LOCATION.lng + lngOffset).toFixed(6))
-] as const);
 
 function parseEnvFile(contents: string) {
   const result: Record<string, string> = {};
@@ -401,13 +394,6 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
   );
 
   await upsertSensitiveTokens(context, userId, profile.sensitiveProfile);
-  await syncDevelopmentLocationPrivacy(context, {
-    userId,
-    lat: profile.lat,
-    lng: profile.lng,
-    accuracyM: 250,
-    deviceReportedAtMs: profile.updatedAt.getTime()
-  });
   await context.db.query(
     `insert into user_privacy_settings (user_id, ghost_mode_enabled, precise_location_visibility)
      values ($1, false, 'none')

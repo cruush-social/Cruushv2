@@ -2,12 +2,10 @@ import { useNavigate } from 'react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, HelpCircle, LogOut, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
-import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
-import { DEFAULT_PRIVACY_SETTINGS, GHOST_RADIUS_OPTIONS, getMyPrivacySettings, saveMyPrivacySettings, type CrowdPrecisionPolicy, type PrivacySettings } from '../lib/privacyApi';
+import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, saveMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
 import { sendVerificationEmail, signOut } from '../lib/authApi';
-import { CROWDS } from '../lib/profileOptions';
 import {
   clearCurrentUser,
   getStoredCurrentUser,
@@ -47,46 +45,13 @@ export default function Settings() {
     },
   ];
 
-  const normalizePrivacySettings = (settings: Partial<PrivacySettings>): PrivacySettings => ({
-    ...DEFAULT_PRIVACY_SETTINGS,
-    ...settings,
-    baseMode: settings.baseMode ?? (settings.ghostModeEnabled ? 'GHOST' : 'PUBLIC_PRECISE'),
-    ghostModeEnabled: settings.ghostModeEnabled ?? settings.baseMode === 'GHOST',
-    ghostRadiusMeters: settings.ghostRadiusMeters ?? DEFAULT_PRIVACY_SETTINGS.ghostRadiusMeters,
-    ghostRadiusLabel: settings.ghostRadiusLabel ?? DEFAULT_PRIVACY_SETTINGS.ghostRadiusLabel,
-    preciseToMutualCruushes: settings.preciseToMutualCruushes ?? settings.preciseLocationVisibility === 'mutual_cruushes',
-    preciseLocationVisibility: settings.preciseLocationVisibility ?? (settings.preciseToMutualCruushes ? 'mutual_cruushes' : 'none'),
-    preciseToMutualCrowds: settings.preciseToMutualCrowds ?? [],
-    updatedAtMs: settings.updatedAtMs ?? 0,
-  });
-
-  const upsertCrowdPolicy = (crowdId: CrowdPrecisionPolicy['crowdId'], enabled: boolean): CrowdPrecisionPolicy[] => {
-    const remainingPolicies = privacySettings.preciseToMutualCrowds.filter((policy) => policy.crowdId !== crowdId);
-
-    if (!enabled) {
-      return remainingPolicies;
-    }
-
-    return [
-      ...remainingPolicies,
-      {
-        crowdId,
-        precisionEnabled: true,
-        mutualityRequired: true,
-        minimumTrustLevel: 'MEMBER',
-        createdAtMs: Date.now(),
-        revokedAtMs: null,
-      },
-    ];
-  };
-
   useEffect(() => {
     let active = true;
 
     getMyPrivacySettings()
       .then((settings) => {
         if (active) {
-          setPrivacySettings(normalizePrivacySettings(settings));
+          setPrivacySettings(settings);
           setPrivacyError(null);
         }
       })
@@ -113,7 +78,7 @@ export default function Settings() {
 
     try {
       const savedSettings = await saveMyPrivacySettings(nextSettings);
-      setPrivacySettings(normalizePrivacySettings(savedSettings));
+      setPrivacySettings(savedSettings);
     } catch (error) {
       setPrivacyError(error instanceof Error ? error.message : 'Failed to save privacy settings.');
     } finally {
@@ -268,7 +233,7 @@ export default function Settings() {
                 <CruushIcon name="visibility" className="mt-1 h-5 w-5 opacity-65" />
                 <div>
                   <p>Ghost Mode</p>
-                  <p className="text-sm text-muted-foreground">Stay discoverable while public pins render as a nearby protected location.</p>
+                  <p className="text-sm text-muted-foreground">Hide from discovery, mutual maps, profile-view history, and precise reveals.</p>
                 </div>
               </div>
               <Switch
@@ -278,115 +243,31 @@ export default function Settings() {
                 onCheckedChange={(ghostModeEnabled) => {
                   void persistPrivacySettings({
                     ...privacySettings,
-                    baseMode: ghostModeEnabled ? 'GHOST' : 'PUBLIC_PRECISE',
                     ghostModeEnabled,
                   });
                 }}
               />
-            </div>
-            <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p>Ghost radius</p>
-                  <p className="text-sm text-muted-foreground">{privacySettings.ghostRadiusLabel}</p>
-                </div>
-                <span className="text-xs uppercase tracking-[0.16em] text-white/48">
-                  {privacySettings.ghostModeEnabled ? 'Active' : 'Saved'}
-                </span>
-              </div>
-              <Slider
-                aria-label="Ghost radius"
-                min={0}
-                max={GHOST_RADIUS_OPTIONS.length - 1}
-                step={1}
-                value={[Math.max(0, GHOST_RADIUS_OPTIONS.findIndex((option) => option.meters === privacySettings.ghostRadiusMeters))]}
-                disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
-                onValueChange={([index]) => {
-                  const option = GHOST_RADIUS_OPTIONS[index] ?? GHOST_RADIUS_OPTIONS[3];
-                  void persistPrivacySettings({
-                    ...privacySettings,
-                    ghostRadiusMeters: option.meters,
-                    ghostRadiusLabel: option.label,
-                  });
-                }}
-              />
-              <div className="flex justify-between text-[11px] text-muted-foreground">
-                {GHOST_RADIUS_OPTIONS.map((option) => (
-                  <span key={option.label}>{option.label}</span>
-                ))}
-              </div>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-3">
                 <CruushIcon name="map" className="mt-1 h-5 w-5 opacity-65" />
                 <div>
                   <p>Precise location for mutual cruushes</p>
-                  <p className="text-sm text-muted-foreground">Off by default. When on, mutual cruushes can receive an exact live display token.</p>
+                  <p className="text-sm text-muted-foreground">Off by default. When off, mutual cruushes only see your fuzzy map area.</p>
                 </div>
               </div>
               <Switch
                 aria-label="Toggle precise location for mutual cruushes"
-                checked={privacySettings.preciseToMutualCruushes}
-                disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                checked={privacySettings.preciseLocationVisibility === 'mutual_cruushes'}
+                disabled={privacyStatus === 'loading' || privacyStatus === 'saving' || privacySettings.ghostModeEnabled}
                 onCheckedChange={(enabled) => {
                   void persistPrivacySettings({
                     ...privacySettings,
-                    preciseToMutualCruushes: enabled,
                     preciseLocationVisibility: enabled ? 'mutual_cruushes' : 'none',
                   });
                 }}
               />
             </div>
-            <div className="space-y-3">
-              <div>
-                <p>Precise location for mutual crowds</p>
-                <p className="text-sm text-muted-foreground">Each crowd still requires mutual eligibility and can be revoked per person.</p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {CROWDS.map((crowd) => {
-                  const selected = privacySettings.preciseToMutualCrowds.some((policy) => policy.crowdId === crowd && policy.precisionEnabled);
-
-                  return (
-                    <button
-                      key={crowd}
-                      type="button"
-                      aria-pressed={selected}
-                      className={[
-                        'flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors',
-                        selected
-                          ? 'border-white/15 text-white'
-                          : 'border-white/10 bg-white/[0.035] text-white/72 hover:bg-white/[0.065]',
-                      ].join(' ')}
-                      disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
-                      onClick={() => {
-                        void persistPrivacySettings({
-                          ...privacySettings,
-                          preciseToMutualCrowds: upsertCrowdPolicy(crowd as CrowdPrecisionPolicy['crowdId'], !selected),
-                        });
-                      }}
-                      style={selected ? { background: 'var(--cruush-gradient)' } : undefined}
-                    >
-                      <span>{crowd}</span>
-                      <span className="text-xs">{selected ? 'On' : 'Off'}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => navigate('/privacy/audit')}
-              className="w-full rounded-lg border border-white/10 p-4 text-left transition-colors hover:bg-accent"
-            >
-              <span className="flex items-center gap-3">
-                <CruushIcon name="safety" className="h-5 w-5 opacity-65" />
-                <span className="flex-1">
-                  <span className="block">Privacy Audit</span>
-                  <span className="block text-sm text-muted-foreground">Review and revoke exact-location access.</span>
-                </span>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </span>
-            </button>
             {privacyStatus === 'saving' ? (
               <p className="text-xs text-muted-foreground">Saving privacy settings...</p>
             ) : null}

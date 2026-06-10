@@ -5,11 +5,17 @@ import type { CruushEntitlement } from '../lib/cruushApi';
 
 // DEBUG ONLY: delete this component, its App import, and server/src/routes/dev.ts when this test control is no longer needed.
 export default function DebugCruushPlusToggle() {
+  const isDebugEnabled = import.meta.env.DEV;
   const [entitlement, setEntitlement] = useState<CruushEntitlement | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!isDebugEnabled) {
+      setLoading(false);
+      return;
+    }
+
     let active = true;
 
     getDebugCruushPlus()
@@ -30,9 +36,9 @@ export default function DebugCruushPlusToggle() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isDebugEnabled]);
 
-  if (!import.meta.env.DEV || loading || !entitlement) {
+  if (!isDebugEnabled || loading || !entitlement) {
     return null;
   }
 

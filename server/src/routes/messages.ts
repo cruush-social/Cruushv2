@@ -9,6 +9,26 @@ const conversationParamsSchema = z.object({
   conversationId: z.uuid()
 }).strict();
 
+const conversationListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(50)
+}).strict();
+
+const messageListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50)
+}).strict();
+
+const MESSAGE_CREATE_LIMIT = {
+  max: 30,
+  windowMs: 60 * 1000,
+  message: "Too many messages. Try again later."
+};
+
+const DIRECT_CONVERSATION_LIMIT = {
+  max: 20,
+  windowMs: 60 * 1000,
+  message: "Too many conversation requests. Try again later."
+};
+
 type ConversationRow = {
   id: string;
   kind: "dm" | "group";
@@ -128,6 +148,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   app.post("/api/conversations/dm", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = openDirectConversationPayloadSchema.parse(request.body);
+    await app.rateLimiter.assert({
+      key: `conversation-dm:user:${userId}`,
+      ...DIRECT_CONVERSATION_LIMIT
+    });
 
     if (payload.otherUserId === userId) {
       throw new ApiError(400, "VALIDATION_ERROR", "You cannot create a direct conversation with yourself.");
@@ -197,12 +221,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
   app.get("/api/conversations", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
+    const query = conversationListQuerySchema.parse(request.query);
 
     const result = await app.db.query<ConversationRow>(
       `${CONVERSATION_SELECT}
        where cm.user_id = $1
-       order by greatest(c.updated_at, coalesce(last_message.created_at, c.updated_at)) desc`,
-      [userId]
+       order by greatest(c.updated_at, coalesce(last_message.created_at, c.updated_at)) desc
+       limit $2`,
+      [userId, query.limit]
     );
 
     return reply.send({
@@ -213,6 +239,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   app.get("/api/messages/:conversationId", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
+    const query = messageListQuerySchema.parse(request.query);
 
     const conversationResult = await app.db.query<ConversationRow>(
       `${CONVERSATION_SELECT}
@@ -229,15 +256,20 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     }
 
     const messagesResult = await app.db.query<MessageRow>(
-      `select
-         m.id::text as id,
-         m.user_id::text as user_id,
-         m.content,
-         m.created_at
-       from messages m
-       where m.conversation_id::text = $1
-       order by m.created_at asc`,
-      [conversationId]
+      `select *
+       from (
+         select
+           m.id::text as id,
+           m.user_id::text as user_id,
+           m.content,
+           m.created_at
+         from messages m
+         where m.conversation_id::text = $1
+         order by m.created_at desc
+         limit $2
+       ) recent_messages
+       order by created_at asc`,
+      [conversationId, query.limit]
     );
 
     return reply.send({
@@ -255,6 +287,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   app.post("/api/messages", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = createMessagePayloadSchema.parse(request.body);
+    await app.rateLimiter.assert({
+      key: `message-create:user:${userId}`,
+      ...MESSAGE_CREATE_LIMIT
+    });
 
     const conversationResult = await app.db.query<ConversationRow>(
       `${CONVERSATION_SELECT}

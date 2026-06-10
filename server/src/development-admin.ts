@@ -2,11 +2,6 @@ import { hashPassword } from "./auth.js";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
 import { ApiError } from "./errors.js";
-import {
-  DEFAULT_GHOST_RADIUS_METERS,
-  saveVisibilityPolicy,
-  storeLocationEnvelope
-} from "./location-privacy.js";
 
 export const DEVELOPMENT_ADMIN_EMAIL = "admin@cruush.local";
 export const DEVELOPMENT_ADMIN_DISPLAY_NAME = "Admin";
@@ -20,7 +15,7 @@ export const DEVELOPMENT_ADMIN_LOCATION = {
 } as const;
 
 type DevelopmentAdminContext = {
-  config: AppConfig;
+  config: Pick<AppConfig, "NODE_ENV" | "DEVELOPMENT_ADMIN_ENABLED" | "DEVELOPMENT_ADMIN_PASSWORD">;
   db: DbClient;
 };
 
@@ -33,9 +28,7 @@ type CreatedDevelopmentAdminRow = {
 };
 
 export function isDevelopmentAdminLogin(
-  context: {
-    config: Pick<AppConfig, "NODE_ENV" | "DEVELOPMENT_ADMIN_ENABLED" | "DEVELOPMENT_ADMIN_PASSWORD">;
-  },
+  context: DevelopmentAdminContext,
   email: string,
   password: string
 ) {
@@ -46,71 +39,6 @@ export function isDevelopmentAdminLogin(
     email === DEVELOPMENT_ADMIN_EMAIL &&
     password === context.config.DEVELOPMENT_ADMIN_PASSWORD
   );
-}
-
-function isSchemaCompatibilityError(error: unknown) {
-  const code = typeof error === "object" && error !== null && "code" in error
-    ? String((error as { code?: string }).code)
-    : "";
-
-  if (["42703", "42P01", "42883", "22P02"].includes(code)) {
-    return true;
-  }
-
-  const message = error instanceof Error ? error.message.toLowerCase() : "";
-  return (
-    message.includes("column") ||
-    message.includes("relation") ||
-    message.includes("operator does not exist") ||
-    message.includes("does not exist")
-  );
-}
-
-async function hasEncryptedVisibilityPolicy(context: DevelopmentAdminContext, userId: string) {
-  const result = await context.db.query<{ exists: boolean }>(
-    `select true as exists
-     from encrypted_visibility_tokens
-     where subject_user_id = $1
-     limit 1`,
-    [userId]
-  );
-
-  return result.rows.length > 0;
-}
-
-export async function syncDevelopmentLocationPrivacy(context: DevelopmentAdminContext, input: {
-  userId: string;
-  lat: number;
-  lng: number;
-  accuracyM?: number;
-  deviceReportedAtMs?: number;
-}) {
-  try {
-    await storeLocationEnvelope(context, {
-      subjectUserId: input.userId,
-      lat: input.lat,
-      lng: input.lng,
-      accuracyM: input.accuracyM ?? 0,
-      source: "SYSTEM",
-      deviceReportedAtMs: input.deviceReportedAtMs
-    });
-
-    if (!(await hasEncryptedVisibilityPolicy(context, input.userId))) {
-      await saveVisibilityPolicy(context, input.userId, {
-        baseMode: "PUBLIC_PRECISE",
-        ghostModeEnabled: false,
-        ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
-        preciseToMutualCruushes: false,
-        preciseLocationVisibility: "none"
-      });
-    }
-  } catch (error) {
-    if (isSchemaCompatibilityError(error)) {
-      return;
-    }
-
-    throw error;
-  }
 }
 
 export async function ensureDevelopmentAdminUser(context: DevelopmentAdminContext) {
@@ -173,12 +101,6 @@ export async function ensureDevelopmentAdminUser(context: DevelopmentAdminContex
       DEVELOPMENT_ADMIN_LOCATION.fuzzRadiusMeters
     ]
   );
-  await syncDevelopmentLocationPrivacy(context, {
-    userId: user.id,
-    lat: DEVELOPMENT_ADMIN_LOCATION.lat,
-    lng: DEVELOPMENT_ADMIN_LOCATION.lng,
-    accuracyM: DEVELOPMENT_ADMIN_LOCATION.fuzzRadiusMeters
-  });
 
   return user.id;
 }

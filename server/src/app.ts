@@ -8,7 +8,6 @@ import { ApiError, formatError, toApiError } from "./errors.js";
 import { registerMessageRoutes } from "./routes/messages.js";
 import { registerPostRoutes } from "./routes/posts.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
-import { registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerUserRoutes } from "./routes/users.js";
 import { registerDevRoutes } from "./routes/dev.js";
 import { createPostgresRateLimiter, type RateLimiter } from "./rate-limit.js";
@@ -109,7 +108,6 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerCruushRoutes(app);
   void registerPostRoutes(app);
   void registerProfileRoutes(app);
-  void registerPrivacyRoutes(app);
   if (config.NODE_ENV !== "production") {
     void registerDevRoutes(app);
   }

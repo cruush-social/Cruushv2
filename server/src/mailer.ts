@@ -20,6 +20,23 @@ export type VerificationDeliveryResult = {
   previewUrl: string | null;
 };
 
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => {
+    switch (character) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case "\"":
+        return "&quot;";
+      default:
+        return "&#39;";
+    }
+  });
+}
+
 async function sendResendEmail(input: {
   config: AppConfig;
   email: string;
@@ -57,12 +74,14 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
   const { config, email, logger, verificationUrl } = input;
 
   if (config.RESEND_API_KEY && config.MAIL_FROM) {
+    const escapedVerificationUrl = escapeHtml(verificationUrl);
+
     await sendResendEmail({
       config,
       email,
       logger,
       subject: "Verify your cruush email",
-      html: `<p>Verify your email for cruush.</p><p><a href="${verificationUrl}">Verify email</a></p>`,
+      html: `<p>Verify your email for cruush.</p><p><a href="${escapedVerificationUrl}">Verify email</a></p>`,
       text: `Verify your email for cruush: ${verificationUrl}`,
       failureMessage: "verification email delivery failed"
     });
@@ -87,12 +106,14 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
   const { config, email, logger, resetUrl } = input;
 
   if (config.RESEND_API_KEY && config.MAIL_FROM) {
+    const escapedResetUrl = escapeHtml(resetUrl);
+
     await sendResendEmail({
       config,
       email,
       logger,
       subject: "Reset your cruush password",
-      html: `<p>Reset your cruush password.</p><p><a href="${resetUrl}">Reset password</a></p><p>This link expires soon. If you did not request it, ignore this email.</p>`,
+      html: `<p>Reset your cruush password.</p><p><a href="${escapedResetUrl}">Reset password</a></p><p>This link expires soon. If you did not request it, ignore this email.</p>`,
       text: `Reset your cruush password: ${resetUrl}`,
       failureMessage: "password reset email delivery failed"
     });

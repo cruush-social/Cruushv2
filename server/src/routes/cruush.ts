@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
 import { createCruushPayloadSchema } from "../cruush-schema.js";
@@ -21,15 +21,6 @@ import {
 import { formatDistanceMiles, formatLastActiveFromDate } from "../discovery-users.js";
 import { decryptSensitiveProfile } from "../profile-sensitive.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
-import {
-  buildDefaultVisibilityPolicy,
-  formatDistanceLabel,
-  loadLocationEnvelope,
-  loadVisibilityPolicy,
-  locationPayloadToCoordinates,
-  makeDisplayLocationToken,
-  type DisplayMode
-} from "../location-privacy.js";
 
 const cruushActivityParamsSchema = z.object({
   userId: z.uuid()
@@ -108,6 +99,7 @@ type MutualCruushRow = {
   pronouns: string[] | null;
   photos: string[] | null;
   updated_at: string | Date;
+  location_updated_at: string | Date | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -122,7 +114,6 @@ type MutualCruushRow = {
   ghost_mode_enabled: boolean | null;
   precise_location_visibility: "none" | "mutual_cruushes" | null;
   can_message: boolean | null;
-  can_reveal_precise_location: boolean | null;
 };
 
 type CurrentProfileLocationRow = {
@@ -142,6 +133,7 @@ type ActivityProfileRow = {
   pronouns: string[] | null;
   photos: string[] | null;
   updated_at: string | Date;
+  location_updated_at: string | Date | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -280,14 +272,28 @@ function uniqueStrings(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
+function wasActiveOnMapRecently(locationUpdatedAt: string | Date | null | undefined) {
+  if (!locationUpdatedAt) {
+    return false;
+  }
+
+  const timestamp = new Date(locationUpdatedAt).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return false;
+  }
+
+  return Date.now() - timestamp <= 24 * 60 * 60 * 1000;
+}
+
 async function loadCurrentProfileLocation(app: FastifyInstance, userId: string) {
   return (await safeQueryRows<CurrentProfileLocationRow>(
     app,
     `select
-       null::double precision as lat,
-       null::double precision as lng,
-       null::double precision as fuzzy_lat,
-       null::double precision as fuzzy_lng,
+       lat,
+       lng,
+       fuzzy_lat,
+       fuzzy_lng,
        profile_sensitive_ciphertext,
        profile_sensitive_nonce,
        profile_sensitive_auth_tag,
@@ -314,10 +320,11 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
        profiles.pronouns,
        profiles.photos,
        profiles.updated_at,
-       null::double precision as lat,
-       null::double precision as lng,
-       null::double precision as fuzzy_lat,
-       null::double precision as fuzzy_lng,
+       profiles.location_updated_at,
+       profiles.lat,
+       profiles.lng,
+       profiles.fuzzy_lat,
+       profiles.fuzzy_lng,
        profiles.vibes,
        profiles.scenes,
        profiles.archetypes,
@@ -325,9 +332,11 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
        profiles.profile_sensitive_nonce,
        profiles.profile_sensitive_auth_tag,
        profiles.profile_sensitive_key_version,
-       null::boolean as ghost_mode_enabled,
-       null::text as precise_location_visibility
+       user_privacy_settings.ghost_mode_enabled,
+       user_privacy_settings.precise_location_visibility
      from profiles
+     left join user_privacy_settings
+       on user_privacy_settings.user_id = profiles.id
      where profiles.id = any($1::uuid[])`,
     [uniqueUserIds]
   );
@@ -364,7 +373,7 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
     const otherUserId = otherUserIdForRecord(record, userId);
     const profile = profilesById.get(otherUserId);
 
-    if (!profile) {
+    if (!profile || isGhostProfile(profile)) {
       return null;
     }
 
@@ -377,6 +386,7 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       pronouns: profile.pronouns,
       photos: profile.photos,
       updated_at: profile.updated_at,
+      location_updated_at: profile.location_updated_at,
       lat: profile.lat,
       lng: profile.lng,
       fuzzy_lat: profile.fuzzy_lat,
@@ -390,114 +400,11 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       profile_sensitive_key_version: profile.profile_sensitive_key_version,
       ghost_mode_enabled: profile.ghost_mode_enabled,
       precise_location_visibility: profile.precise_location_visibility,
-      can_message: relationship.canMessage,
-      can_reveal_precise_location: relationship.canRevealPreciseLocation
+      can_message: relationship.canMessage
     };
   }));
 
   return rows.filter((row): row is MutualCruushRow => row !== null);
-}
-
-async function loadPolicyOrDefault(app: FastifyInstance, subjectUserId: string) {
-  try {
-    return await loadVisibilityPolicy(app, subjectUserId);
-  } catch (error) {
-    if (isSchemaCompatibilityError(error)) {
-      return buildDefaultVisibilityPolicy(app.config, subjectUserId);
-    }
-
-    throw error;
-  }
-}
-
-async function mapTokenizedMutualCruushRow(
-  app: FastifyInstance,
-  request: FastifyRequest,
-  viewerUserId: string,
-  row: MutualCruushRow,
-  options: {
-    currentCoordinates: { lat: number | null; lng: number | null } | null;
-    currentCrowds: string[];
-  }
-) {
-  const location = await loadLocationEnvelope(app, row.other_user_id).catch((error) => {
-    if (isSchemaCompatibilityError(error)) {
-      return null;
-    }
-
-    throw error;
-  });
-
-  if (!location) {
-    return null;
-  }
-
-  const policy = await loadPolicyOrDefault(app, row.other_user_id);
-
-  if (policy.baseMode === "STEALTH") {
-    return null;
-  }
-
-  const relationship = await getRelationshipPermissions(app, viewerUserId, row.other_user_id);
-  const displayMode: DisplayMode = relationship.canRevealPreciseLocation
-    ? "PRECISE"
-    : policy.baseMode === "GHOST"
-      ? "GHOST"
-      : "PRECISE";
-  const token = await makeDisplayLocationToken(app, request, {
-    subjectUserId: row.other_user_id,
-    viewerUserId,
-    policy,
-    location,
-    displayMode,
-    relationshipGrantVersion: relationship.isMutualCruush ? 1 : 0
-  });
-  const preciseCoordinates = locationPayloadToCoordinates(location);
-  const sensitiveProfile = decryptSensitiveProfile(app.config, row);
-  const otherCrowds = sensitiveProfile?.crowds ?? [];
-  const currentCrowds = new Set(options.currentCrowds.map((crowd) => crowd.toLowerCase()));
-  const sharedCrowds = otherCrowds.filter((crowd) => currentCrowds.has(crowd.toLowerCase()));
-  const vibes = uniqueStrings([
-    ...(row.vibes ?? []),
-    ...(row.scenes ?? []),
-    ...(row.archetypes ?? [])
-  ]);
-
-  return {
-    profileToken: row.other_user_id,
-    matchId: row.match_id,
-    createdAt: new Date(row.updated_at).toISOString(),
-    locked: false,
-    user: mapActivityPerson({
-      userId: row.other_user_id,
-      displayName: row.display_name,
-      pronouns: row.pronouns,
-      photos: row.photos
-    }),
-    mutualCrowds: sharedCrowds,
-    vibes,
-    distanceLabel: options.currentCoordinates?.lat != null && options.currentCoordinates.lng != null
-      ? formatDistanceLabel({
-          displayMode,
-          viewerLat: options.currentCoordinates.lat,
-          viewerLng: options.currentCoordinates.lng,
-          targetLat: preciseCoordinates.lat,
-          targetLng: preciseCoordinates.lng
-        })
-      : "Nearby",
-    lastActive: formatLastActiveFromDate(row.updated_at),
-    canMessage: relationship.canMessage,
-    canRevealPreciseLocation: relationship.canRevealPreciseLocation,
-    displayLocationToken: token,
-    displayExpiresAtMs: token.expiresAtMs,
-    animationHint: displayMode === "GHOST" ? "FADE_LAST_MINUTE" : "NONE",
-    relationshipContext: "MUTUAL_CRUUSH",
-    relationship: {
-      mutualCruush: true,
-      canMessage: relationship.canMessage,
-      precision: displayMode === "PRECISE" ? "precise" : "fuzzy"
-    }
-  };
 }
 
 function mapMutualCruushRow(
@@ -509,8 +416,14 @@ function mapMutualCruushRow(
     viewerGhostMode: boolean;
   }
 ) {
-  const preciseAllowed = row.can_reveal_precise_location === true && !options.viewerGhostMode;
-  const coordinates = getRowCoordinates(row, preciseAllowed);
+  const preciseAllowed = row.can_message === true &&
+    !options.viewerGhostMode &&
+    row.ghost_mode_enabled !== true &&
+    row.precise_location_visibility === "mutual_cruushes";
+  const isRecentlyActiveOnMap = wasActiveOnMapRecently(row.location_updated_at);
+  const coordinates = isRecentlyActiveOnMap
+    ? getRowCoordinates(row, preciseAllowed)
+    : { lat: null, lng: null };
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
   const otherCrowds = sensitiveProfile?.crowds ?? [];
   const currentCrowds = new Set(options.currentCrowds.map((crowd) => crowd.toLowerCase()));
@@ -535,7 +448,9 @@ function mapMutualCruushRow(
     mutualCrowds: sharedCrowds,
     vibes,
     distance: formatMaybeDistance(options.currentCoordinates, coordinates),
-    lastActive: formatLastActiveFromDate(row.updated_at),
+    lastActive: row.location_updated_at
+      ? formatLastActiveFromDate(row.location_updated_at)
+      : formatLastActiveFromDate(row.updated_at),
     canMessage: row.can_message === true,
     canRevealPreciseLocation: preciseAllowed,
     coordinates: coordinates.lat != null && coordinates.lng != null
@@ -718,31 +633,29 @@ export async function registerCruushRoutes(app: FastifyInstance) {
 
   app.get("/api/cruush/mutual-map", async (request, reply) => {
     const authenticatedUserId = await getAuthenticatedUserId(request);
-    const currentLocation = await loadLocationEnvelope(app, authenticatedUserId).catch((error) => {
-      if (isSchemaCompatibilityError(error)) {
-        return null;
-      }
+    const viewerPrivacy = await getPrivacySettings(app, authenticatedUserId);
 
-      throw error;
-    });
-    const currentCoordinates = currentLocation
-      ? locationPayloadToCoordinates(currentLocation)
-      : null;
+    if (viewerPrivacy.ghostModeEnabled) {
+      return reply.send({ data: [] });
+    }
+
     const currentProfile = await loadCurrentProfileLocation(app, authenticatedUserId);
+    const currentCoordinates = currentProfile
+      ? getRowCoordinates(currentProfile, false)
+      : null;
     const currentSensitiveProfile = currentProfile
       ? decryptSensitiveProfile(app.config, currentProfile)
       : null;
     const rows = await loadMutualCruushRows(app, authenticatedUserId);
-    const items = await Promise.all(rows.map((row) => mapTokenizedMutualCruushRow(app, request, authenticatedUserId, row, {
-      currentCoordinates,
-      currentCrowds: currentSensitiveProfile?.crowds ?? []
-    })));
 
     return reply.send({
-      data: {
-        mapEpochMs: Date.now(),
-        profiles: items.filter((item): item is NonNullable<typeof item> => item !== null)
-      }
+      data: rows
+        .map((row) => mapMutualCruushRow(app, row, {
+          currentCoordinates,
+          currentCrowds: currentSensitiveProfile?.crowds ?? [],
+          viewerGhostMode: viewerPrivacy.ghostModeEnabled
+        }))
+        .filter((item) => item.coordinates !== null)
     });
   });
 

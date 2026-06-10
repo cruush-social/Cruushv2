@@ -1,11 +1,11 @@
 import {
   createCipheriv,
   createDecipheriv,
-  createHash,
   createHmac,
   randomBytes
 } from "node:crypto";
 import type { AppConfig } from "./config.js";
+import { deriveKey } from "./crypto-keys.js";
 import type { ProfilePayload } from "./profile-schema.js";
 
 export type SensitiveProfileData = Pick<
@@ -63,18 +63,12 @@ function getProfileTokenSecret(config: AppConfig) {
   return config.PROFILE_TOKEN_KEY || config.SESSION_SECRET;
 }
 
-function deriveKey(secret: string, purpose: string, keyVersion: string) {
-  return createHash("sha256")
-    .update(`${purpose}:${keyVersion}:${secret}`)
-    .digest();
-}
-
 export function getSensitiveProfileKeyVersion(_config: AppConfig) {
-  return "v1";
+  return "v2";
 }
 
 export function getProfileVisibilityKeyVersion(_config: AppConfig) {
-  return "v1";
+  return "v2";
 }
 
 export function getSensitiveProfileTokenKeyVersion(config: AppConfig) {

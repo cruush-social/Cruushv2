@@ -6,7 +6,6 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './MapView';
 import { Filter, MapPin, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
-import { Switch } from './ui/switch';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage from './CruushIconImage';
 import MapView from './MapView';
@@ -15,7 +14,6 @@ import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './Map
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
-import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
@@ -31,7 +29,6 @@ import {
   approximateDisplayCoordinates,
   type ApproximateCoordinates,
 } from '../lib/locationPrivacy';
-import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
 import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
@@ -40,6 +37,9 @@ import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 import visibilityIconWhite from '../assets/ui-icons/visibility-white.png';
 
 const DISCOVERY_MAP_LIMIT = 50;
+const MAX_MAP_ACTIVE_MINUTES = 24 * 60;
+const ENABLE_DEMO_MAP_USER =
+  import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_MAP_USER === 'true';
 const LOCATION_PROMPT_SESSION_KEY = 'cruush-location-permission-prompted';
 
 const DEMO_NYC_PROFILE_PHOTO = `data:image/svg+xml,${encodeURIComponent(`
@@ -91,6 +91,11 @@ const DEMO_NYC_DISCOVERY_USER: DiscoveryUser = {
 };
 
 function getLastActiveMinutes(lastActive: string) {
+  const normalizedLastActive = lastActive.trim().toLowerCase();
+  if (normalizedLastActive === 'now' || normalizedLastActive === 'active now') {
+    return 0;
+  }
+
   const value = parseInt(lastActive, 10);
 
   if (Number.isNaN(value)) {
@@ -106,6 +111,14 @@ function getLastActiveMinutes(lastActive: string) {
   }
 
   return value;
+}
+
+function wasRecentlyActiveForMap(user: DiscoveryUser) {
+  if (user.isDemo) {
+    return true;
+  }
+
+  return getLastActiveMinutes(user.lastActive) <= MAX_MAP_ACTIVE_MINUTES;
 }
 
 function uniqueValues(values: string[] = []) {
@@ -283,9 +296,6 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
     role: [],
     hostingTravel: [],
     photo: item.user.photo,
-    displayMode: item.coordinates?.precision === 'precise' ? 'PRECISE' : 'GHOST',
-    animationHint: item.animationHint,
-    displayExpiresAtMs: item.displayExpiresAtMs,
     relationship: {
       mutualCruush: true,
       canMessage: item.canMessage,
@@ -314,10 +324,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
-  const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
-  const [npcGhostDemoEnabled, setNpcGhostDemoEnabled] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const hasFetchedInitialUsersRef = useRef(false);
   const shouldAlignRecentlyActiveWithPreview = !isMobile && (selectedUser || isOwnProfilePreviewOpen);
   const recentlyActiveDragRef = useRef({
     hasPointerCapture: false,
@@ -364,48 +371,23 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
   }, [isMobile, selectedUser]);
 
   useEffect(() => {
+    void fetchUsers(null);
+  }, [isMutualMapMode]);
+
+  useEffect(() => {
     let isMounted = true;
 
-    Promise.all([
-      getMyProfile(),
-      getMyPrivacySettings().catch(() => DEFAULT_PRIVACY_SETTINGS),
-    ])
-      .then(async ([profile, loadedPrivacySettings]) => {
-        let initialFetchCoordinates: { lat: number; lng: number } | null = null;
-
+    getMyProfile()
+      .then((profile) => {
         if (isMounted) {
           setCurrentProfile(profile);
-          setPrivacySettings(loadedPrivacySettings);
           setVisibility(visibilityRulesToState(profile.visibility_rules));
-        }
-
-        if (profile.location?.display_location_token) {
-          const displayPayload = await decryptDisplayLocationToken(profile.location.display_location_token);
-          initialFetchCoordinates = {
-            lat: displayPayload.latitude,
-            lng: displayPayload.longitude,
-          };
-
-          if (isMounted) {
-            setUserApproximateLocation({
-              approximateLatitude: displayPayload.latitude,
-              approximateLongitude: displayPayload.longitude,
-              privacyRadiusMeters: displayPayload.accuracyDisplayM,
-            });
-          }
-        }
-
-        if (isMounted) {
-          hasFetchedInitialUsersRef.current = true;
-          void fetchUsers(initialFetchCoordinates);
         }
       })
       .catch((profileError) => {
         console.error('Error loading current profile for map marker:', profileError);
         if (isMounted) {
           setCurrentProfile(null);
-          hasFetchedInitialUsersRef.current = true;
-          void fetchUsers(null);
         }
       })
       .finally(() => {
@@ -419,24 +401,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
     };
   }, []);
 
-  useEffect(() => {
-    if (!hasFetchedInitialUsersRef.current) {
-      return;
-    }
-
-    void fetchUsers(getCurrentFetchCoordinates(), filters);
-  }, [isMutualMapMode]);
-
-  const discoveryRequestOptions = (npcGhostDemo = npcGhostDemoEnabled) => ({
-    limit: DISCOVERY_MAP_LIMIT,
-    ...(npcGhostDemo ? { npcGhostDemo: true } : {}),
-  });
-
-  const fetchUsers = async (
-    coordinates: { lat: number; lng: number } | null,
-    filterParams?: FilterState,
-    npcGhostDemoOverride = npcGhostDemoEnabled,
-  ) => {
+  const fetchUsers = async (coordinates: { lat: number; lng: number } | null, filterParams?: FilterState) => {
     setLoading(true);
     setError(null);
     try {
@@ -447,8 +412,8 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
           .map(mutualMapItemToDiscoveryUser));
       } else {
         setUsers(filterParams
-          ? await getNearbyUsers(coordinates, filterParams, discoveryRequestOptions(npcGhostDemoOverride))
-          : await getNearbyUsers(coordinates, undefined, discoveryRequestOptions(npcGhostDemoOverride)));
+          ? await getNearbyUsers(coordinates, filterParams, { limit: DISCOVERY_MAP_LIMIT })
+          : await getNearbyUsers(coordinates, undefined, { limit: DISCOVERY_MAP_LIMIT }));
       }
     } catch (fetchError) {
       console.error('Error fetching users:', fetchError);
@@ -476,7 +441,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
       setSelectedUser((currentUser) => currentUser?.id === payload.targetUserId ? null : currentUser);
       void fetchUsers(getCurrentFetchCoordinates(), filters);
     });
-  }, [filters, isMutualMapMode, npcGhostDemoEnabled, userApproximateLocation]);
+  }, [filters, isMutualMapMode, userApproximateLocation]);
 
   const requestUserLocation = (centerAfterUpdate = false) => {
     setLocationError(null);
@@ -563,6 +528,10 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
   const hasActiveVisibility = hasActiveVisibilityControls(safeVisibility);
 
   const filteredUsers = users.filter((user) => {
+    if (!wasRecentlyActiveForMap(user)) {
+      return false;
+    }
+
     const distanceMiles = Number.parseFloat(user.distance);
     if (Number.isFinite(distanceMiles) && distanceMiles > filters.distance) {
       return false;
@@ -597,14 +566,6 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
         lng: userApproximateLocation.approximateLongitude,
       }
     : null;
-
-  const handleNpcGhostDemoChange = (enabled: boolean) => {
-    setNpcGhostDemoEnabled(enabled);
-
-    if (!isMutualMapMode) {
-      void fetchUsers(getCurrentFetchCoordinates(), filters, enabled);
-    }
-  };
 
   const handleVisibilityChange = (nextVisibility: VisibilityControlState) => {
     setVisibility({
@@ -653,7 +614,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
     }
   };
 
-  const shouldShowDemoUser = !isMutualMapMode && !loading && !error && users.length === 0;
+  const shouldShowDemoUser = ENABLE_DEMO_MAP_USER && !isMutualMapMode && !loading && !error && filteredUsers.length === 0;
   const displayedUsers = shouldShowDemoUser ? [DEMO_NYC_DISCOVERY_USER] : filteredUsers;
   const currentUserMapLocation = useMemo(
     () => userApproximateLocation ?? profileLocationToApproximateCoordinates(currentProfile),
@@ -676,18 +637,19 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
 
   const mapMarkers = useMemo<MapMarker[]>(() => {
     const nearbyMarkers = displayedUsers.map((user) => {
+      const approximateCoordinates = approximateDisplayCoordinates({
+        latitude: user.lat,
+        longitude: user.lng,
+      });
+
       return {
         id: user.id,
         displayName: user.name,
-        approximateLatitude: user.lat,
-        approximateLongitude: user.lng,
+        approximateLatitude: approximateCoordinates.approximateLatitude,
+        approximateLongitude: approximateCoordinates.approximateLongitude,
         lastActiveLabel: user.lastActive,
         photo: user.photo,
         badge: createMapMarkerBadge(user.position, user.hostingTravel),
-        animationHint: user.animationHint,
-        displayMode: user.displayMode,
-        privacyRadiusMeters: user.privacyRadiusMeters,
-        npcGhostDemo: user.npcGhostDemo,
         relationship: user.relationship?.mutualCruush
           ? {
               kind: 'mutual_cruush',
@@ -712,28 +674,10 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
         photo: currentProfile?.photos[0] ?? null,
         isCurrentUser: true,
         badge: createMapMarkerBadge(currentProfile?.position ?? []),
-        displayMode: privacySettings.ghostModeEnabled ? 'GHOST' : 'PRECISE',
-        privacyRadiusMeters: privacySettings.ghostRadiusMeters,
       },
       ...nearbyMarkers,
     ];
-  }, [currentProfile, currentUserMapLocation, displayedUsers, privacySettings, userApproximateLocation]);
-
-  const npcGhostDemoRadiusCircles = useMemo(() => {
-    if (!npcGhostDemoEnabled) {
-      return [];
-    }
-
-    return displayedUsers
-      .filter((user) => user.npcGhostDemo)
-      .map((user) => ({
-        center: {
-          approximateLatitude: user.lat,
-          approximateLongitude: user.lng,
-        },
-        radiusMeters: privacySettings.ghostRadiusMeters,
-      }));
-  }, [displayedUsers, npcGhostDemoEnabled, privacySettings.ghostRadiusMeters]);
+  }, [currentProfile, currentUserMapLocation, displayedUsers, userApproximateLocation]);
 
   const focusedMutualMapLocation = useMemo(() => {
     if (!isMutualMapMode || !focusUserId) {
@@ -746,11 +690,10 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
       return null;
     }
 
-    return {
-      approximateLatitude: focusedUser.lat,
-      approximateLongitude: focusedUser.lng,
-      privacyRadiusMeters: focusedUser.privacyRadiusMeters ?? 1,
-    };
+    return approximateDisplayCoordinates({
+      latitude: focusedUser.lat,
+      longitude: focusedUser.lng,
+    });
   }, [displayedUsers, focusUserId, isMutualMapMode]);
 
   const handleMarkerSelect = (marker: MapMarker) => {
@@ -833,12 +776,9 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
   };
 
   return (
-    <div className="relative h-screen overflow-hidden bg-background">
+    <div className="relative h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none bg-background" data-testid="map-home-shell">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-40 px-3 pb-12 pt-3"
-        data-testid="map-top-chrome"
-      >
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-40 px-3 pb-12 pt-3" data-testid="map-top-chrome">
         <div className="flex items-start justify-between">
           <div className="flex flex-col items-start lg:flex-row lg:items-start">
             <h1 className="sr-only">cruush</h1>
@@ -854,10 +794,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
             </div>
           </div>
 
-          <div
-            className="pointer-events-auto mt-11 flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md"
-            data-testid="map-top-actions"
-          >
+          <div className="pointer-events-auto mt-11 flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md">
             <Button
               variant="ghost"
               size="icon"
@@ -906,15 +843,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
           onPinClick={handleMarkerSelect}
           onMapClick={() => setSelectedUser(null)}
           markers={mapMarkers}
-          fitToMarkers={!isMutualMapMode && !focusUserId}
           focusCoordinates={focusedMutualMapLocation ?? currentUserMapLocation}
-          radiusCircle={(privacySettings.ghostModeEnabled || npcGhostDemoEnabled) && currentUserMapLocation
-            ? {
-                center: currentUserMapLocation,
-                radiusMeters: privacySettings.ghostRadiusMeters,
-              }
-            : null}
-          demoRadiusCircles={npcGhostDemoRadiusCircles}
           onMapReady={setMapInstance}
         />
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
@@ -953,26 +882,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
           />
         ) : null}
 
-        <div className="pointer-events-auto absolute right-4 top-28 z-30 flex flex-col items-end gap-2">
-          {privacySettings.ghostModeEnabled ? (
-            <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
-              <CruushIconImage src={visibilityIconWhite} className="h-4 w-4" />
-              Ghost Mode Active
-            </div>
-          ) : null}
-
-          {!isMutualMapMode ? (
-            <label className="inline-flex h-8 items-center gap-3 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
-              <span>NPC Ghost Test</span>
-              <Switch
-                checked={npcGhostDemoEnabled}
-                onCheckedChange={handleNpcGhostDemoChange}
-                aria-label="NPC Ghost Test"
-                className="data-[state=checked]:bg-[#0ea5ff]"
-              />
-            </label>
-          ) : null}
-
+        <div className="absolute right-4 top-28 z-50 flex flex-col items-end gap-2" data-testid="map-floating-controls">
           <Button
             className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] shadow-[0_12px_35px_rgba(0,0,0,0.25)] ${
               hasActiveFilters
@@ -1038,7 +948,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
 
         {displayedUsers.length > 0 && (
           <div
-            className={`pointer-events-none absolute bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-30 ${
+            className={`${isMobile ? 'fixed' : 'absolute'} bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-30 ${
               isMobile
                 ? 'left-0 right-0 px-4'
                 : shouldAlignRecentlyActiveWithPreview
@@ -1051,7 +961,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
                 isRecentlyActiveOpen
                   ? 'max-w-[29.5rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
                   : 'max-w-max p-0'
-              } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''} pointer-events-auto`}
+              } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''}`}
               data-testid="recently-active-panel"
             >
               <div className={`flex justify-end ${isRecentlyActiveOpen ? 'mb-2' : 'mb-0'}`}>
@@ -1073,7 +983,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
                 <div
                   id="recently-active-tray"
                   aria-label="Recently active profiles"
-                  className="flex cursor-grab gap-3 overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                  className="flex cursor-grab gap-3 overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide [touch-action:pan-x] active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
                   data-testid="recently-active-tray"
                   onClickCapture={handleRecentlyActiveClickCapture}
                   onPointerCancel={handleRecentlyActivePointerEnd}

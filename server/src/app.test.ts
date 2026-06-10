@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
-import { createSessionCookie, generateSessionToken, hashPassword, hashSessionToken } from "./auth.js";
+import { hashPassword, hashSessionToken, SESSION_COOKIE_NAME } from "./auth.js";
 import type { DbClient } from "./db.js";
 import { DEVELOPMENT_ADMIN_LOCATION } from "./development-admin.js";
 import {
@@ -12,12 +12,6 @@ import {
 import { emptyProfile } from "./profile-schema.js";
 import { createCrowdTokens, encryptProfileVisibility, encryptSensitiveProfile } from "./profile-sensitive.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
-import {
-  decryptDisplayLocationTokenForTest,
-  saveVisibilityPolicy,
-  storeLocationEnvelope,
-  type VisibilityBaseMode
-} from "./location-privacy.js";
 
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
@@ -345,85 +339,6 @@ async function encryptedMatchTokenRow(input: {
     expires_at: params[8],
     created_at: "2026-04-28T12:00:00.000Z",
     revoked_at: null
-  };
-}
-
-async function encryptedLocationEnvelopeRow(input: {
-  subjectUserId: string;
-  lat: number;
-  lng: number;
-  accuracyM?: number;
-}) {
-  const locationQuery = vi.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [] }));
-  const locationDb = { query: locationQuery } as unknown as Pick<DbClient, "query">;
-
-  await storeLocationEnvelope({
-    config: app.config,
-    db: locationDb
-  }, {
-    subjectUserId: input.subjectUserId,
-    lat: input.lat,
-    lng: input.lng,
-    accuracyM: input.accuracyM ?? 0,
-    source: "GPS"
-  });
-
-  const params = (locationQuery.mock.calls[0]?.[1] ?? []) as unknown[];
-
-  return {
-    subject_user_id: params[0],
-    location_version: params[1],
-    location_ciphertext: params[2],
-    location_nonce: params[3],
-    location_auth_tag: params[4],
-    wrapped_location_dek: params[5],
-    location_dek_nonce: params[6],
-    location_dek_auth_tag: params[7],
-    key_version: params[8],
-    coarse_index_tokens: params[9],
-    collected_at_ms: params[10],
-    expires_at_ms: params[11]
-  };
-}
-
-async function encryptedVisibilityPolicyRow(input: {
-  subjectUserId: string;
-  baseMode?: VisibilityBaseMode;
-  preciseToMutualCruushes?: boolean;
-  ghostRadiusMeters?: number;
-}) {
-  const policyQuery = vi.fn(async (sql: string, _params?: unknown[]) => {
-    if (sql.includes("from encrypted_visibility_tokens")) {
-      return { rows: [] };
-    }
-
-    return { rows: [] };
-  });
-  const policyDb = { query: policyQuery } as unknown as Pick<DbClient, "query">;
-
-  await saveVisibilityPolicy({
-    config: app.config,
-    db: policyDb
-  }, input.subjectUserId, {
-    baseMode: input.baseMode,
-    preciseToMutualCruushes: input.preciseToMutualCruushes,
-    ghostRadiusMeters: input.ghostRadiusMeters
-  });
-
-  const insertCall = policyQuery.mock.calls.find(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"));
-  const params = (insertCall?.[1] ?? []) as unknown[];
-
-  return {
-    subject_user_id: params[0],
-    policy_version: params[1],
-    policy_ciphertext: params[2],
-    policy_nonce: params[3],
-    policy_auth_tag: params[4],
-    wrapped_policy_dek: params[5],
-    policy_dek_nonce: params[6],
-    policy_dek_auth_tag: params[7],
-    key_version: params[8],
-    updated_at_ms: params[9]
   };
 }
 
@@ -787,39 +702,33 @@ describe("server", () => {
   });
 
   it("signs in the hardcoded development admin", async () => {
-    query.mockImplementation(async (sql: string) => {
-      const normalizedSql = sql.toLowerCase();
-
-      if (normalizedSql.includes("insert into app_users")) {
-        return {
-          rows: [{
-            id: userId,
-            email: "admin@cruush.local",
-            display_name: "Admin",
-            email_verified_at: "2026-04-28T12:00:00.000Z",
-            created_at: "2026-04-28T12:00:00.000Z"
-          }]
-        };
-      }
-
-      if (normalizedSql.includes("from app_users u") && normalizedSql.includes("left join profiles")) {
-        return {
-          rows: [{
-            id: userId,
-            email: "admin@cruush.local",
-            app_display_name: "Admin",
-            email_verified_at: "2026-04-28T12:00:00.000Z",
-            created_at: "2026-04-28T12:00:00.000Z",
-            profile_display_name: "Admin",
-            year_of_birth: 1990
-          }]
-        };
-      }
-
-      return {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "admin@cruush.local",
+          display_name: "Admin",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
         rows: []
-      };
-    });
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "admin@cruush.local",
+          app_display_name: "Admin",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          profile_display_name: "Admin",
+          year_of_birth: 1990
+        }]
+      });
 
     const response = await developmentApp.inject({
       method: "POST",
@@ -833,9 +742,9 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(response.headers["set-cookie"]).toContain("cruush_session=");
     expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
-    const profileInsertCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into profiles"));
-    expect(profileInsertCall?.[0]).toContain("location_updated_at");
-    expect(profileInsertCall?.[1]).toEqual([
+    expect(query.mock.calls[1]?.[0]).toContain("insert into profiles");
+    expect(query.mock.calls[1]?.[0]).toContain("location_updated_at");
+    expect(query.mock.calls[1]?.[1]).toEqual([
       userId,
       "Admin",
       1990,
@@ -845,14 +754,7 @@ describe("server", () => {
       DEVELOPMENT_ADMIN_LOCATION.fuzzyLng,
       DEVELOPMENT_ADMIN_LOCATION.fuzzRadiusMeters
     ]);
-    const encryptedLocationCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into encrypted_location_envelopes"));
-    const encryptedPolicyCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"));
-    const sessionInsertCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into app_sessions"));
-    expect(encryptedLocationCall?.[0]).toContain("coarse_index_tokens");
-    expect(JSON.stringify(encryptedLocationCall?.[1])).not.toContain(String(DEVELOPMENT_ADMIN_LOCATION.lat));
-    expect(JSON.stringify(encryptedLocationCall?.[1])).not.toContain(String(DEVELOPMENT_ADMIN_LOCATION.lng));
-    expect(encryptedPolicyCall?.[0]).toContain("insert into encrypted_visibility_tokens");
-    expect(sessionInsertCall?.[0]).toContain("insert into app_sessions");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into app_sessions");
     expect(response.json()).toEqual({
       data: {
         user: {
@@ -925,6 +827,52 @@ describe("server", () => {
     expect(response.statusCode).toBe(400);
     expect(query).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+
+  it("issues a 256-bit login session token and stores only its 256-bit hash", async () => {
+    const passwordHash = await hashPassword("password-123");
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          password_hash: passwordHash,
+          display_name: "River",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          app_display_name: "River",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          profile_display_name: "River",
+          year_of_birth: 1990
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "river@example.com",
+        password: "password-123"
+      }
+    });
+
+    const cookieHeader = String(response.headers["set-cookie"]);
+    const token = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`))?.[1] ?? "";
+    const tokenHash = query.mock.calls[1]?.[1]?.[1];
+
+    expect(response.statusCode).toBe(200);
+    expect(Buffer.from(decodeURIComponent(token), "base64url")).toHaveLength(32);
+    expect(tokenHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(Buffer.from(String(tokenHash), "hex")).toHaveLength(32);
+    expect(cookieHeader).toContain("HttpOnly");
   });
 
   it("rate limits repeated login attempts for the same email", async () => {
@@ -1382,6 +1330,8 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
+    expect(query.mock.calls[0]?.[0]).toContain("limit $2");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, 50]);
     expect(response.json()).toEqual({
       data: [{
         id: conversationId,
@@ -1403,6 +1353,21 @@ describe("server", () => {
         tags: ["Hosting", "Now"]
       }]
     });
+  });
+
+  it("caps requested conversation list size", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/conversations?limit=200",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("opens or creates a dm conversation on POST /api/conversations/dm", async () => {
@@ -1566,6 +1531,8 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("join conversations c");
     expect(query.mock.calls[1]?.[0]).toContain("from messages m");
+    expect(query.mock.calls[1]?.[0]).toContain("limit $2");
+    expect(query.mock.calls[1]?.[1]).toEqual([conversationId, 50]);
     expect(response.json()).toEqual({
       data: {
         conversation: {
@@ -1600,6 +1567,38 @@ describe("server", () => {
         }]
       }
     });
+  });
+
+  it("bounds requested message history size", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/messages/${conversationId}?limit=25`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[1]).toEqual([conversationId, 25]);
   });
 
   it("rejects invalid conversation ids before querying messages", async () => {
@@ -1696,6 +1695,75 @@ describe("server", () => {
     });
   });
 
+  it("rate limits message creation per user", async () => {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      query
+        .mockResolvedValueOnce({
+          rows: [{
+            id: conversationId,
+            kind: "group",
+            title: "Group chat",
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: null,
+            other_user_name: null,
+            other_user_pronouns: null,
+            other_user_photo: null,
+            member_count: 3
+          }]
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: `msg-${attempt}`,
+            user_id: userId,
+            content: "nearby now",
+            created_at: "2026-04-29T12:10:00.000Z"
+          }]
+        });
+    }
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const allowed = await app.inject({
+        method: "POST",
+        url: "/api/messages",
+        headers: {
+          "x-user-id": userId
+        },
+        payload: {
+          conversationId,
+          content: "nearby now"
+        }
+      });
+
+      expect(allowed.statusCode).toBe(201);
+    }
+
+    const limited = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "nearby now"
+      }
+    });
+
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many messages. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+  });
+
   it("requires a mutual cruush before sending a dm message", async () => {
     query
       .mockResolvedValueOnce({
@@ -1767,19 +1835,11 @@ describe("server", () => {
   });
 
   it("returns nearby users from GET /api/users", async () => {
-    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
-    const targetLocation = await encryptedLocationEnvelopeRow({
-      subjectUserId: targetUserId,
-      lat: 40.711,
-      lng: -74.002,
-      accuracyM: 50
-    });
-
     query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
-          id: targetUserId,
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
           display_name: "Alex",
           year_of_birth: 1998,
           pronouns: ["they/them"],
@@ -1794,10 +1854,84 @@ describe("server", () => {
           fuzzy_lng: -74.0025,
           updated_at: "2026-04-28T12:00:00.000Z"
         }]
-      })
-      .mockResolvedValueOnce({ rows: [targetLocation] })
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(5);
+    expect(query.mock.calls[1]?.[0]).toContain("from profiles");
+    expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
+    expect(query.mock.calls[1]?.[0]).toContain("and lat is not null");
+    expect(query.mock.calls[1]?.[0]).toContain("profiles.updated_at");
+    expect(query.mock.calls[1]?.[0]).not.toContain("discovery_match");
+    expect(query.mock.calls[1]?.[0]).toContain("limit $2");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, 50]);
+
+    const body = response.json();
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data[0]).toMatchObject({
+      id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      name: "Alex",
+      display_name: "Alex",
+      pronouns: "they/them",
+      lat: 40.7115,
+      lng: -74.0025,
+      lookingFor: ["Fun"],
+      vibes: ["Chill"],
+      position: ["Top"],
+      hostingTravel: ["Can Host"],
+      photo: "https://example.com/alex.jpg",
+      relationship: null
+    });
+    expect(body.data[0].distance).toMatch(/ mi$/);
+    expect(body.data[0].lastActive).toMatch(/ago$/);
+  });
+
+  it("honors a bounded discovery limit on GET /api/users", async () => {
+    query
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: Array.from({ length: 25 }, (_, index) => ({
+          id: `seeded-user-${index + 1}`,
+          display_name: `Seeded ${index + 1}`,
+          year_of_birth: 1998,
+          pronouns: ["they/them"],
+          looking_for: ["Testing"],
+          vibes: ["Map pin"],
+          position: ["Top"],
+          hosting_travel: [],
+          photos: [],
+          lat: 40.711 + index / 1000,
+          lng: -74.002 - index / 1000,
+          fuzzy_lat: 40.7115 + index / 1000,
+          fuzzy_lng: -74.0025 - index / 1000,
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }))
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006&limit=20",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("limit $2");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, 20]);
+    expect(response.json().data).toHaveLength(20);
+  });
+
+  it("only queries map users active on the map in the last 24 hours", async () => {
+    query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
@@ -1810,412 +1944,65 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(7);
-    expect(query.mock.calls[1]?.[0]).toContain("from profiles");
-    expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
-    expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
-    expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
-    expect(query.mock.calls[1]?.[0]).toContain("profiles.updated_at");
-    expect(query.mock.calls[1]?.[0]).not.toContain("discovery_match");
-    expect(query.mock.calls[1]?.[0]).toContain("limit $3");
-    expect(query.mock.calls[1]?.[1]?.[0]).toBe(userId);
-    expect(Array.isArray(query.mock.calls[1]?.[1]?.[1])).toBe(true);
-    expect(query.mock.calls[1]?.[1]?.[2]).toBe(50);
-
-    const body = response.json();
-    expect(body.data.mapEpochMs).toEqual(expect.any(Number));
-    expect(Array.isArray(body.data.profiles)).toBe(true);
-    expect(body.data.profiles[0]).toMatchObject({
-      profileToken: targetUserId,
-      name: "Alex",
-      display_name: "Alex",
-      pronouns: "they/them",
-      lookingFor: ["Fun"],
-      vibes: ["Chill"],
-      position: ["Top"],
-      hostingTravel: ["Can Host"],
-      photo: "https://example.com/alex.jpg",
-      relationshipContext: "PUBLIC",
-      relationship: null
-    });
-    expect(body.data.profiles[0]).not.toHaveProperty("lat");
-    expect(body.data.profiles[0]).not.toHaveProperty("lng");
-    expect(body.data.profiles[0].displayLocationToken).toMatchObject({
-      version: 1,
-      tokenVersion: 1,
-      ciphertext: expect.any(String),
-      nonce: expect.any(String)
-    });
-    expect(body.data.profiles[0].distanceLabel).toMatch(/ mi$/);
-    expect(body.data.profiles[0].lastActive).toMatch(/ago$/);
-  });
-
-  it("honors a bounded discovery limit on GET /api/users", async () => {
-    const targetRows = Array.from({ length: 25 }, (_, index) => ({
-      id: `seeded-user-${index + 1}`,
-      display_name: `Seeded ${index + 1}`,
-      year_of_birth: 1998,
-      pronouns: ["they/them"],
-      looking_for: ["Testing"],
-      vibes: ["Map pin"],
-      position: ["Top"],
-      hosting_travel: [],
-      photos: [],
-      lat: 40.711 + index / 1000,
-      lng: -74.002 - index / 1000,
-      fuzzy_lat: 40.7115 + index / 1000,
-      fuzzy_lng: -74.0025 - index / 1000,
-      updated_at: "2026-04-28T12:00:00.000Z"
-    }));
-    const locationRows = await Promise.all(targetRows.map((row) => encryptedLocationEnvelopeRow({
-      subjectUserId: row.id,
-      lat: row.lat,
-      lng: row.lng,
-      accuracyM: 50
-    })));
-
-    query.mockImplementation((sql: string) => {
-      const normalizedSql = sql.toLowerCase();
-
-      if (normalizedSql.includes("join encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: targetRows });
-      }
-
-      if (normalizedSql.includes("from encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: locationRows });
-      }
-
-      return Promise.resolve({ rows: [] });
-    });
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/users?lat=40.7128&lng=-74.006&limit=20",
-      headers: {
-        "x-user-id": userId
-      }
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[1]?.[0]).toContain("limit $3");
-    expect(query.mock.calls[1]?.[1]?.[0]).toBe(userId);
-    expect(query.mock.calls[1]?.[1]?.[2]).toBe(20);
-    expect(response.json().data.profiles).toHaveLength(20);
-  });
-
-  it("ghosts exactly half of seeded NPC discovery profiles when the dev demo flag is enabled", async () => {
-    const seededRows = Array.from({ length: 20 }, (_, index) => {
-      const seedNumber = index + 1;
-      return {
-        id: `00000000-0000-4000-8000-${String(seedNumber).padStart(12, "0")}`,
-        email: `test-cruush-${String(seedNumber).padStart(2, "0")}@cruush.local`,
-        display_name: `Test Cruush ${seedNumber}`,
-        year_of_birth: 1998,
-        pronouns: ["they/them"],
-        looking_for: ["Testing"],
-        vibes: ["Map pin"],
-        scenes: [],
-        archetypes: [],
-        position: ["Top"],
-        role: [],
-        hosting_travel: [],
-        photos: [],
-        identities: [],
-        presentation: [],
-        sexuality: [],
-        body_type: [],
-        availability: [],
-        hobbies: [],
-        substance_boundaries: [],
-        profile_sensitive_ciphertext: null,
-        profile_sensitive_nonce: null,
-        profile_sensitive_auth_tag: null,
-        profile_sensitive_key_version: "v1",
-        profile_visibility_ciphertext: null,
-        profile_visibility_nonce: null,
-        profile_visibility_auth_tag: null,
-        profile_visibility_key_version: "v1",
-        lat: null,
-        lng: null,
-        fuzzy_lat: null,
-        fuzzy_lng: null,
-        updated_at: "2026-04-28T12:00:00.000Z"
-      };
-    });
-    const nonNpcRow = {
-      ...seededRows[0],
-      id: "00000000-0000-4000-8000-000000000099",
-      email: "real-user@example.com",
-      display_name: "Real Nearby"
-    };
-    const profileRows = [...seededRows, nonNpcRow];
-    const locationRows = await Promise.all(profileRows.map((row, index) => encryptedLocationEnvelopeRow({
-      subjectUserId: row.id,
-      lat: 40.7128 + index * 0.0001,
-      lng: -74.006 - index * 0.0001,
-      accuracyM: 25
-    })));
-
-    query.mockImplementation((sql: string) => {
-      const normalizedSql = sql.toLowerCase();
-
-      if (normalizedSql.includes("join encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: profileRows });
-      }
-
-      if (normalizedSql.includes("from encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: locationRows });
-      }
-
-      return Promise.resolve({ rows: [] });
-    });
-
-    const displayKeyResponse = await app.inject({
-      method: "GET",
-      url: "/api/location/display-key",
-      headers: {
-        "x-user-id": userId
-      }
-    });
-    const displayKey = displayKeyResponse.json().data;
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/users?lat=40.7128&lng=-74.006&limit=50&npcGhostDemo=1",
-      headers: {
-        "x-user-id": userId
-      }
-    });
-
-    expect(response.statusCode).toBe(200);
-    const body = response.json();
-    const profiles = body.data.profiles as Array<{
-      profileToken: string;
-      displayLocationToken: Parameters<typeof decryptDisplayLocationTokenForTest>[0]["token"];
-      demoDisplayMode?: "NPC_GHOST_TEST";
-    }>;
-    const payloadsById = new Map(profiles.map((profile) => [
-      profile.profileToken,
-      decryptDisplayLocationTokenForTest({
-        key: displayKey.key,
-        token: profile.displayLocationToken
-      })
-    ]));
-    const seededPayloads = seededRows.map((row) => payloadsById.get(row.id));
-    const ghostedSeedNumbers = seededRows
-      .filter((row) => payloadsById.get(row.id)?.displayMode === "GHOST")
-      .map((row) => Number(row.email.match(/test-cruush-(\d{2})/)?.[1]));
-    const preciseSeedNumbers = seededRows
-      .filter((row) => payloadsById.get(row.id)?.displayMode === "PRECISE")
-      .map((row) => Number(row.email.match(/test-cruush-(\d{2})/)?.[1]));
-    const profilesById = new Map(profiles.map((profile) => [profile.profileToken, profile]));
-    const demoTaggedSeedNumbers = seededRows
-      .filter((row) => profilesById.get(row.id)?.demoDisplayMode === "NPC_GHOST_TEST")
-      .map((row) => Number(row.email.match(/test-cruush-(\d{2})/)?.[1]));
-
-    expect(profiles).toHaveLength(21);
-    expect(seededPayloads).toHaveLength(20);
-    expect(ghostedSeedNumbers).toEqual([2, 4, 6, 8, 10, 12, 14, 16, 18, 20]);
-    expect(preciseSeedNumbers).toEqual([1, 3, 5, 7, 9, 11, 13, 15, 17, 19]);
-    expect(demoTaggedSeedNumbers).toEqual([2, 4, 6, 8, 10, 12, 14, 16, 18, 20]);
-    expect(profilesById.get(nonNpcRow.id)?.demoDisplayMode).toBeUndefined();
-    expect(payloadsById.get(nonNpcRow.id)?.displayMode).toBe("PRECISE");
-    expect(JSON.stringify(body)).not.toContain("@cruush.local");
-    expect(JSON.stringify(body)).not.toContain("real-user@example.com");
-    for (const profile of profiles) {
-      expect(profile).not.toHaveProperty("lat");
-      expect(profile).not.toHaveProperty("lng");
-      expect(profile).not.toHaveProperty("ghost_mode_enabled");
-      expect(profile).not.toHaveProperty("ghostRadiusMeters");
-      expect(profile).not.toHaveProperty("email");
-    }
-    expect(query.mock.calls.some(([sql]) => {
-      const normalizedSql = String(sql).toLowerCase();
-      return (
-        (/\binsert\b/.test(normalizedSql) || /\bupdate\b/.test(normalizedSql)) &&
-        (normalizedSql.includes("encrypted_visibility_tokens") || normalizedSql.includes("user_privacy_settings"))
-      );
-    })).toBe(false);
-  });
-
-  it("ignores the NPC Ghost demo flag in production discovery", async () => {
-    const sessionToken = generateSessionToken();
-    const cookie = createSessionCookie(sessionToken, {
-      secure: true,
-      expiresAt: new Date(Date.now() + 60_000)
-    });
-    const evenNpcRow = {
-      id: "00000000-0000-4000-8000-000000000002",
-      email: "test-cruush-02@cruush.local",
-      display_name: "Test Cruush 2",
-      year_of_birth: 1998,
-      pronouns: ["they/them"],
-      looking_for: ["Testing"],
-      vibes: ["Map pin"],
-      scenes: [],
-      archetypes: [],
-      position: ["Top"],
-      role: [],
-      hosting_travel: [],
-      photos: [],
-      identities: [],
-      presentation: [],
-      sexuality: [],
-      body_type: [],
-      availability: [],
-      hobbies: [],
-      substance_boundaries: [],
-      profile_sensitive_ciphertext: null,
-      profile_sensitive_nonce: null,
-      profile_sensitive_auth_tag: null,
-      profile_sensitive_key_version: "v1",
-      profile_visibility_ciphertext: null,
-      profile_visibility_nonce: null,
-      profile_visibility_auth_tag: null,
-      profile_visibility_key_version: "v1",
-      lat: null,
-      lng: null,
-      fuzzy_lat: null,
-      fuzzy_lng: null,
-      updated_at: "2026-04-28T12:00:00.000Z"
-    };
-    const locationRow = await encryptedLocationEnvelopeRow({
-      subjectUserId: evenNpcRow.id,
-      lat: 40.7128,
-      lng: -74.006,
-      accuracyM: 25
-    });
-
-    query.mockImplementation((sql: string, params: unknown[] = []) => {
-      const normalizedSql = sql.toLowerCase();
-
-      if (normalizedSql.includes("from app_sessions")) {
-        return Promise.resolve({
-          rows: params[0] === hashSessionToken(sessionToken)
-            ? [{ user_id: userId }]
-            : []
-        });
-      }
-
-      if (normalizedSql.includes("join encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: [evenNpcRow] });
-      }
-
-      if (normalizedSql.includes("from encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: [locationRow] });
-      }
-
-      return Promise.resolve({ rows: [] });
-    });
-
-    const displayKeyResponse = await productionApp.inject({
-      method: "GET",
-      url: "/api/location/display-key",
-      headers: {
-        cookie
-      }
-    });
-    const displayKey = displayKeyResponse.json().data;
-    const response = await productionApp.inject({
-      method: "GET",
-      url: "/api/users?lat=40.7128&lng=-74.006&npcGhostDemo=1",
-      headers: {
-        cookie
-      }
-    });
-
-    expect(response.statusCode).toBe(200);
-    const profile = response.json().data.profiles[0];
-    const payload = decryptDisplayLocationTokenForTest({
-      key: displayKey.key,
-      token: profile.displayLocationToken
-    });
-
-    expect(payload.displayMode).toBe("PRECISE");
-    expect(profile.demoDisplayMode).toBeUndefined();
-    expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase().includes("insert into ghost_rotation_tokens"))).toBe(false);
+    expect(query.mock.calls[1]?.[0]).toContain("profiles.location_updated_at >= now() - interval '24 hours'");
+    expect(query.mock.calls[1]?.[0]).toContain("order by profiles.location_updated_at desc");
   });
 
   it("marks active mutual cruushes in discovery results", async () => {
-    const matchedUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
-    const otherUserId = "8f707f0b-81aa-470d-b0e1-321d493d04d2";
     const matchRecord = await encryptedRelationshipRecordRow({
       id: "match-1",
       type: "mutual_cruush",
       actorUserId: userId,
-      targetUserId: matchedUserId
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
     });
     const matchToken = await encryptedMatchTokenRow({
       relationshipRecordId: "match-1",
       userOneId: userId,
-      userTwoId: matchedUserId
+      userTwoId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
     });
-    const locationRows = await Promise.all([
-      encryptedLocationEnvelopeRow({
-        subjectUserId: matchedUserId,
-        lat: 40.711,
-        lng: -74.002,
-        accuracyM: 50
-      }),
-      encryptedLocationEnvelopeRow({
-        subjectUserId: otherUserId,
-        lat: 40.712,
-        lng: -74.003,
-        accuracyM: 50
+
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          year_of_birth: 1998,
+          pronouns: ["they/them"],
+          looking_for: ["Fun"],
+          vibes: ["Chill"],
+          position: ["Top"],
+          hosting_travel: ["Can Host"],
+          photos: ["https://example.com/alex.jpg"],
+          lat: 40.711,
+          lng: -74.002,
+          fuzzy_lat: 40.7115,
+          fuzzy_lng: -74.0025,
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }, {
+          id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
+          display_name: "River",
+          year_of_birth: 1997,
+          pronouns: ["he/him"],
+          looking_for: ["Dates"],
+          vibes: ["Soft"],
+          position: ["Bottom"],
+          hosting_travel: [],
+          photos: [],
+          lat: 40.712,
+          lng: -74.003,
+          fuzzy_lat: 40.7125,
+          fuzzy_lng: -74.0035,
+          updated_at: "2026-04-28T11:00:00.000Z"
+        }]
       })
-    ]);
-    const profileRows = [{
-      id: matchedUserId,
-      display_name: "Alex",
-      year_of_birth: 1998,
-      pronouns: ["they/them"],
-      looking_for: ["Fun"],
-      vibes: ["Chill"],
-      position: ["Top"],
-      hosting_travel: ["Can Host"],
-      photos: ["https://example.com/alex.jpg"],
-      lat: 40.711,
-      lng: -74.002,
-      fuzzy_lat: 40.7115,
-      fuzzy_lng: -74.0025,
-      updated_at: "2026-04-28T12:00:00.000Z"
-    }, {
-      id: otherUserId,
-      display_name: "River",
-      year_of_birth: 1997,
-      pronouns: ["he/him"],
-      looking_for: ["Dates"],
-      vibes: ["Soft"],
-      position: ["Bottom"],
-      hosting_travel: [],
-      photos: [],
-      lat: 40.712,
-      lng: -74.003,
-      fuzzy_lat: 40.7125,
-      fuzzy_lng: -74.0035,
-      updated_at: "2026-04-28T11:00:00.000Z"
-    }];
-
-    query.mockImplementation((sql: string, params: unknown[] = []) => {
-      const normalizedSql = sql.toLowerCase();
-
-      if (normalizedSql.includes("join encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: profileRows });
-      }
-
-      if (normalizedSql.includes("from encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: locationRows });
-      }
-
-      if (normalizedSql.includes("from encrypted_relationship_records")) {
-        return Promise.resolve({ rows: params[0] === matchRecord.record_lookup_index ? [matchRecord] : [] });
-      }
-
-      if (normalizedSql.includes("from encrypted_relationship_tokens")) {
-        return Promise.resolve({ rows: params[0] === matchRecord.id ? [matchToken] : [] });
-      }
-
-      return Promise.resolve({ rows: [] });
-    });
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] });
 
     const response = await app.inject({
       method: "GET",
@@ -2226,16 +2013,16 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.profiles).toEqual([
+    expect(response.json().data).toEqual([
       expect.objectContaining({
-        profileToken: matchedUserId,
-        relationship: expect.objectContaining({
+        id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        relationship: {
           mutualCruush: true,
           canMessage: true
-        })
+        }
       }),
       expect.objectContaining({
-        profileToken: otherUserId,
+        id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
         relationship: null
       })
     ]);
@@ -2310,35 +2097,8 @@ describe("server", () => {
       hiv_status: [],
       custom_hiv_status: ""
     });
-    const locationRows = await Promise.all([
-      encryptedLocationEnvelopeRow({
-        subjectUserId: "t4t-user",
-        lat: 40.711,
-        lng: -74.002,
-        accuracyM: 50
-      }),
-      encryptedLocationEnvelopeRow({
-        subjectUserId: "sapphic-user",
-        lat: 40.711,
-        lng: -74.002,
-        accuracyM: 50
-      })
-    ]);
 
     query.mockImplementation((sql: string) => {
-      const normalizedSql = sql.toLowerCase();
-
-      if (normalizedSql.includes("from encrypted_location_envelopes")) {
-        return Promise.resolve({ rows: locationRows });
-      }
-
-      if (normalizedSql.includes("from encrypted_relationship_records") ||
-          normalizedSql.includes("from encrypted_relationship_tokens") ||
-          normalizedSql.includes("from encrypted_visibility_tokens") ||
-          normalizedSql.includes("from encrypted_privacy_audit_events")) {
-        return Promise.resolve({ rows: [] });
-      }
-
       if (sql.includes("profile_visibility_ciphertext") && sql.includes("where id = $1")) {
         return Promise.resolve({
           rows: [{
@@ -2431,7 +2191,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.profiles.map((user: { profileToken: string }) => user.profileToken)).toEqual(["t4t-user"]);
+    expect(response.json().data.map((user: { id: string }) => user.id)).toEqual(["t4t-user"]);
   });
 
   it("returns an empty array when no nearby profiles have stored coordinates", async () => {
@@ -2449,10 +2209,7 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      data: {
-        mapEpochMs: expect.any(Number),
-        profiles: []
-      }
+      data: []
     });
   });
 
@@ -2478,8 +2235,7 @@ describe("server", () => {
           fuzzy_lat: 40.7105,
           fuzzy_lng: -74.0005
         }]
-      })
-      .mockResolvedValueOnce({ rows: [] });
+      });
 
     const response = await app.inject({
       method: "GET",
@@ -2490,15 +2246,14 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(4);
+    expect(query).toHaveBeenCalledTimes(3);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
+    expect(query.mock.calls[2]?.[0]).toContain("where last_active >= now() - interval '24 hours'");
 
     expect(response.json()).toEqual({
-      data: expect.objectContaining({
-        mapEpochMs: expect.any(Number),
-        profiles: expect.arrayContaining([
+      data: expect.arrayContaining([
         expect.objectContaining({
-          profileToken: "27",
+          id: "27",
           name: "Jordan",
           display_name: "Jordan",
           age: 29,
@@ -2510,7 +2265,6 @@ describe("server", () => {
           photo: "https://example.com/jordan.jpg"
         })
       ])
-      })
     });
   });
 
@@ -2648,6 +2402,61 @@ describe("server", () => {
           pronouns: "they/them",
           photo: null
         }
+      }
+    });
+  });
+
+  it("rate limits post creation per user", async () => {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      query.mockResolvedValueOnce({
+        rows: [{
+          id: `post-${attempt}`,
+          user_id: userId,
+          content: "Hosting tonight",
+          expires_in: "1h",
+          expires_at: "2026-04-28T13:00:00.000Z",
+          created_at: "2026-04-28T12:10:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: []
+        }]
+      });
+    }
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const allowed = await app.inject({
+        method: "POST",
+        url: "/api/posts",
+        headers: {
+          "x-user-id": userId
+        },
+        payload: {
+          content: "Hosting tonight",
+          expiresIn: "1h"
+        }
+      });
+
+      expect(allowed.statusCode).toBe(201);
+    }
+
+    const limited = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Hosting tonight",
+        expiresIn: "1h"
+      }
+    });
+
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many posts. Try again later.",
+        details: expect.any(Object)
       }
     });
   });
@@ -2955,79 +2764,12 @@ describe("server", () => {
     });
   });
 
-  it("returns tokenized mutual map pins when the viewer has Ghost Mode enabled", async () => {
-    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
-    const matchRecord = await encryptedRelationshipRecordRow({
-      id: "match-1",
-      type: "mutual_cruush",
-      actorUserId: userId,
-      targetUserId: otherUserId
-    });
-    const matchToken = await encryptedMatchTokenRow({
-      relationshipRecordId: "match-1",
-      userOneId: userId,
-      userTwoId: otherUserId
-    });
-    const viewerLocation = await encryptedLocationEnvelopeRow({
-      subjectUserId: userId,
-      lat: 40.7128,
-      lng: -74.006,
-      accuracyM: 20
-    });
-    const targetLocation = await encryptedLocationEnvelopeRow({
-      subjectUserId: otherUserId,
-      lat: 40.711,
-      lng: -74.002,
-      accuracyM: 50
-    });
-
-    query.mockImplementation((sql: string, params: unknown[] = []) => {
-      const normalizedSql = sql.toLowerCase();
-
-      if (normalizedSql.includes("from encrypted_location_envelopes")) {
-        return Promise.resolve({
-          rows: params[0] === userId ? [viewerLocation] : [targetLocation]
-        });
-      }
-
-      if (normalizedSql.includes("participant_one_index") && normalizedSql.includes("from encrypted_relationship_records")) {
-        return Promise.resolve({ rows: [matchRecord] });
-      }
-
-      if (normalizedSql.includes("record_lookup_index = $1") && normalizedSql.includes("from encrypted_relationship_records")) {
-        return Promise.resolve({ rows: params[0] === matchRecord.record_lookup_index ? [matchRecord] : [] });
-      }
-
-      if (normalizedSql.includes("from encrypted_relationship_tokens")) {
-        return Promise.resolve({ rows: params[0] === matchRecord.id ? [matchToken] : [] });
-      }
-
-      if (normalizedSql.includes("where profiles.id = any")) {
-        return Promise.resolve({
-          rows: [{
-            id: otherUserId,
-            display_name: "Alex",
-            pronouns: ["they/them"],
-            photos: ["https://example.com/alex.jpg"],
-            updated_at: "2026-04-28T12:00:00.000Z",
-            lat: 40.711,
-            lng: -74.002,
-            fuzzy_lat: 40.7115,
-            fuzzy_lng: -74.0025,
-            vibes: ["Chill"],
-            scenes: [],
-            archetypes: [],
-            profile_sensitive_ciphertext: null,
-            profile_sensitive_nonce: null,
-            profile_sensitive_auth_tag: null,
-            profile_sensitive_key_version: "v1",
-            ghost_mode_enabled: true,
-            precise_location_visibility: "mutual_cruushes"
-          }]
-        });
-      }
-
-      return Promise.resolve({ rows: [] });
+  it("returns no mutual map pins while the viewer has Ghost Mode enabled", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        ghost_mode_enabled: true,
+        precise_location_visibility: "mutual_cruushes"
+      }]
     });
 
     const response = await app.inject({
@@ -3039,24 +2781,91 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(1);
     expect(response.json()).toEqual({
-      data: {
-        mapEpochMs: expect.any(Number),
-        profiles: [
-          expect.objectContaining({
-            profileToken: otherUserId,
-            displayLocationToken: expect.objectContaining({
-              version: 1,
-              tokenVersion: 1,
-              ciphertext: expect.any(String)
-            }),
-            relationshipContext: "MUTUAL_CRUUSH"
-          })
-        ]
+      data: []
+    });
+  });
+
+  it("does not return mutual map coordinates for users who were not active on the map in the last 24 hours", async () => {
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "stale-mutual-match",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      createdAt: "2026-04-28T12:00:00.000Z"
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "stale-mutual-match",
+      userOneId: userId,
+      userTwoId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          ghost_mode_enabled: false,
+          precise_location_visibility: "none"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          lat: 40.7128,
+          lng: -74.006,
+          fuzzy_lat: 40.713,
+          fuzzy_lng: -74.005,
+          profile_sensitive_ciphertext: null,
+          profile_sensitive_nonce: null,
+          profile_sensitive_auth_tag: null,
+          profile_sensitive_key_version: null
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          pronouns: ["they/them"],
+          photos: [],
+          updated_at: "2026-06-04T12:00:00.000Z",
+          location_updated_at: "2026-04-28T12:00:00.000Z",
+          lat: 40.711,
+          lng: -74.002,
+          fuzzy_lat: 40.7115,
+          fuzzy_lng: -74.0025,
+          vibes: [],
+          scenes: [],
+          archetypes: [],
+          profile_sensitive_ciphertext: null,
+          profile_sensitive_nonce: null,
+          profile_sensitive_auth_tag: null,
+          profile_sensitive_key_version: null,
+          ghost_mode_enabled: false,
+          precise_location_visibility: "mutual_cruushes"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          ghost_mode_enabled: false,
+          precise_location_visibility: "mutual_cruushes"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [matchToken] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/cruush/mutual-map",
+      headers: {
+        "x-user-id": userId
       }
     });
-    expect(response.json().data.profiles[0]).not.toHaveProperty("lat");
-    expect(response.json().data.profiles[0]).not.toHaveProperty("lng");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: []
+    });
   });
 
   it("creates or updates a cruush on POST /api/cruush", async () => {
@@ -3305,6 +3114,62 @@ describe("server", () => {
     expect(query).not.toHaveBeenCalled();
   });
 
+  it("rejects unsafe cruush snapshot photo urls before querying", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/cruush",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        targetUser: {
+          name: "Jordan",
+          pronouns: "they/them",
+          photo: "javascript:alert(1)"
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("rejects local cruush snapshot photo hosts before querying", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/cruush",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        targetUser: {
+          name: "Jordan",
+          pronouns: "they/them",
+          photo: "https://localhost/avatar.png"
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it("requires the temporary x-user-id header on GET /api/profiles/me", async () => {
     const response = await app.inject({
       method: "GET",
@@ -3460,10 +3325,18 @@ describe("server", () => {
         custom_mpox_vaccine: "",
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
         visibility_rules: emptyProfile.visibility_rules,
+        location: {
+          id: userId,
+          lat: 40.7128,
+          lng: -74.006,
+          fuzzy_lat: 40.713,
+          fuzzy_lng: -74.005,
+          fuzz_radius_meters: 250,
+          location_updated_at: "2026-06-02T12:00:00.000Z"
+        },
         updated_at: "2026-04-28T12:00:00.000Z"
       }
     });
-    expect(response.json().data).not.toHaveProperty("location");
   });
 
   it("returns kink and fetish interests with field-level visibility metadata", async () => {
@@ -3842,53 +3715,45 @@ describe("server", () => {
   });
 
   it("rate limits repeated reads of another user's profile", async () => {
-    const profileRow = {
-      id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-      display_name: "Alex",
-      photos: ["https://example.com/alex.jpg"],
-      bio: "Nearby now",
-      pronouns: ["they/them"],
-      custom_pronouns: "",
-      year_of_birth: 1998,
-      ethnicity: ["Latinx"],
-      identities: ["Non-binary"],
-      presentation: ["Femme"],
-      sexuality: ["Queer"],
-      body_type: ["Athletic"],
-      height: "5'8\"",
-      weight: "155 lbs",
-      position: ["Vers"],
-      availability: ["Now"],
-      hosting_travel: ["Hosting"],
-      kinks: ["Leather"],
-      vibes: ["Playful"],
-      hobbies: ["Hiking"],
-      custom_hobby: "",
-      looking_for: ["Dates"],
-      hiv_status: ["Negative"],
-      custom_hiv_status: "",
-      condoms: ["Always"],
-      custom_condoms: "",
-      prep: ["Daily"],
-      custom_prep: "",
-      doxypep: ["Sometimes"],
-      custom_doxypep: "",
-      covid_vaccine: ["Boosted"],
-      custom_covid_vaccine: "",
-      mpox_vaccine: ["Vaccinated"],
-      custom_mpox_vaccine: "",
-      substance_boundaries: ["No alcohol involved", "Let's discuss"],
-      updated_at: "2026-04-28T12:00:00.000Z"
-    };
-
-    query.mockImplementation((sql: string) => {
-      const normalizedSql = sql.toLowerCase();
-
-      if (normalizedSql.includes("from profiles") && normalizedSql.includes("where id = $1")) {
-        return Promise.resolve({ rows: [profileRow] });
-      }
-
-      return Promise.resolve({ rows: [] });
+    query.mockResolvedValue({
+      rows: [{
+        id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        display_name: "Alex",
+        photos: ["https://example.com/alex.jpg"],
+        bio: "Nearby now",
+        pronouns: ["they/them"],
+        custom_pronouns: "",
+        year_of_birth: 1998,
+        ethnicity: ["Latinx"],
+        identities: ["Non-binary"],
+        presentation: ["Femme"],
+        sexuality: ["Queer"],
+        body_type: ["Athletic"],
+        height: "5'8\"",
+        weight: "155 lbs",
+        position: ["Vers"],
+        availability: ["Now"],
+        hosting_travel: ["Hosting"],
+        kinks: ["Leather"],
+        vibes: ["Playful"],
+        hobbies: ["Hiking"],
+        custom_hobby: "",
+        looking_for: ["Dates"],
+        hiv_status: ["Negative"],
+        custom_hiv_status: "",
+        condoms: ["Always"],
+        custom_condoms: "",
+        prep: ["Daily"],
+        custom_prep: "",
+        doxypep: ["Sometimes"],
+        custom_doxypep: "",
+        covid_vaccine: ["Boosted"],
+        custom_covid_vaccine: "",
+        mpox_vaccine: ["Vaccinated"],
+        custom_mpox_vaccine: "",
+        substance_boundaries: ["No alcohol involved", "Let's discuss"],
+        updated_at: "2026-04-28T12:00:00.000Z"
+      }]
     });
 
     for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -4518,11 +4383,47 @@ describe("server", () => {
     });
   });
 
+  it("rejects private network profile photo hosts on PUT /api/profiles/me", async () => {
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        year_of_birth: 1994,
+        photos: ["https://[::1]/avatar.png"]
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed"
+      }
+    });
+  });
+
   it("stores the authenticated profile location on PUT /api/profiles/me/location", async () => {
-    query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: userId,
+        lat: 40.711,
+        lng: -74.002,
+        fuzzy_lat: 40.7114,
+        fuzzy_lng: -74.0016,
+        location_fuzz_radius_meters: 50,
+        location_updated_at: "2026-04-29T12:05:00.000Z"
+      }]
+    });
+
+    const randomSpy = vi.spyOn(Math, "random")
+      .mockReturnValueOnce(0.125)
+      .mockReturnValueOnce(0.75);
 
     const response = await app.inject({
       method: "PUT",
@@ -4537,31 +4438,28 @@ describe("server", () => {
       }
     });
 
+    randomSpy.mockRestore();
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(3);
+    expect(query).toHaveBeenCalledTimes(1);
     expect(query.mock.calls[0]?.[0]).toContain("insert into profiles");
     expect(query.mock.calls[0]?.[0]).toContain("location_updated_at");
     expect(query.mock.calls[0]?.[1]?.[0]).toBe(userId);
-    expect(query.mock.calls[1]?.[0]).toContain("insert into encrypted_location_envelopes");
-    const persistedLocationParams = query.mock.calls[1]?.[1] ?? [];
-    expect(persistedLocationParams).not.toContain(40.711);
-    expect(persistedLocationParams).not.toContain(-74.002);
-    expect(response.json()).toMatchObject({
+    expect(query.mock.calls[0]?.[1]?.[1]).toBe(40.711);
+    expect(query.mock.calls[0]?.[1]?.[2]).toBe(-74.002);
+    expect(query.mock.calls[0]?.[1]?.[5]).toBe(50);
+    expect(query.mock.calls[0]?.[1]?.[3]).not.toBe(40.711);
+    expect(query.mock.calls[0]?.[1]?.[4]).not.toBe(-74.002);
+    expect(response.json()).toEqual({
       data: {
         id: userId,
-        display_location_token: expect.objectContaining({
-          version: 1,
-          tokenVersion: 1,
-          ciphertext: expect.any(String)
-        }),
-        display_expires_at_ms: expect.any(Number),
-        display_mode: "PRECISE",
-        animation_hint: "NONE",
-        location_updated_at: expect.any(String)
+        lat: 40.711,
+        lng: -74.002,
+        fuzzy_lat: 40.7114,
+        fuzzy_lng: -74.0016,
+        fuzz_radius_meters: 50,
+        location_updated_at: "2026-04-29T12:05:00.000Z"
       }
     });
-    expect(response.json().data).not.toHaveProperty("lat");
-    expect(response.json().data).not.toHaveProperty("lng");
   });
 
   it("invalidates active sessions after resetting a password", async () => {
