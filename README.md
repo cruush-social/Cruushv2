@@ -122,7 +122,22 @@
 
   That changes the callback target only. It does not change the staging deployment itself.
 
-  ### 7. Useful manual commands
+  ### 7. Staging deployment CORS
+
+  The staging API must allow the exact browser origin that serves the app. Set the backend deployment env to include:
+
+  ```bash
+  CORS_ORIGIN=https://staging.cruush.app
+  APP_URL=https://staging.cruush.app
+  ```
+
+  If production and staging share the same API deployment, include both origins in the comma-separated allowlist:
+
+  ```bash
+  CORS_ORIGIN=https://www.cruush.app,https://staging.cruush.app
+  ```
+
+  ### 8. Useful manual commands
 
   ```bash
   npm run dev
