@@ -1810,7 +1810,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(7);
+    expect(query).toHaveBeenCalledTimes(8);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
@@ -3566,6 +3566,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: viewerCrowdTokens })
       .mockResolvedValueOnce({ rows: [] });
 
@@ -3788,6 +3789,7 @@ describe("server", () => {
         viewer_relationship: {
           match_id: "match-1",
           mutual_cruush: true,
+          outgoing_cruush: true,
           can_message: true,
           can_reveal_precise_location: false
         }
@@ -3835,6 +3837,56 @@ describe("server", () => {
       data: expect.objectContaining({
         viewer_relationship: expect.objectContaining({
           mutual_cruush: false,
+          can_message: false
+        })
+      })
+    });
+  });
+
+  it("marks profiles with an outgoing non-mutual cruush as sent", async () => {
+    const outgoingCruush = await encryptedRelationshipRecordRow({
+      id: "cruush-1",
+      type: "cruush",
+      actorUserId: userId,
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+    });
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          ethnicity: [],
+          position: [],
+          role: [],
+          kinks: [],
+          kinks_visibility: "public",
+          substance_boundaries: [],
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [outgoingCruush] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        viewer_relationship: expect.objectContaining({
+          match_id: null,
+          mutual_cruush: false,
+          outgoing_cruush: true,
           can_message: false
         })
       })

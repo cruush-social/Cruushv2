@@ -307,7 +307,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(true);
+  const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(() => !isMobile);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
   const [visibility, setVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
@@ -1038,23 +1038,25 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
 
         {displayedUsers.length > 0 && (
           <div
-            className={`pointer-events-none absolute bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-30 ${
+            className={`pointer-events-none absolute ${
               isMobile
-                ? 'left-0 right-0 px-4'
+                ? 'bottom-[calc(7.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
                 : shouldAlignRecentlyActiveWithPreview
-                ? 'left-[calc(23rem+1.5rem)] right-4 pl-2 pr-0'
-                : 'left-0 right-4 pl-4 pr-0'
+                ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-[calc(23rem+1.5rem)] right-4 z-30 pl-2 pr-0'
+                : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-4 z-30 pl-4 pr-0'
             }`}
           >
             <div
-              className={`mx-auto w-full ${
+              className={`mx-auto ${
                 isRecentlyActiveOpen
-                  ? 'max-w-[29.5rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                  ? isMobile
+                    ? 'w-full max-w-full rounded-2xl border border-white/10 bg-background/50 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                    : 'w-fit max-w-[29.5rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
                   : 'max-w-max p-0'
               } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''} pointer-events-auto`}
               data-testid="recently-active-panel"
             >
-              <div className={`flex justify-end ${isRecentlyActiveOpen ? 'mb-2' : 'mb-0'}`}>
+              <div className={`flex ${isMobile ? 'justify-center' : 'justify-end'} ${isRecentlyActiveOpen ? 'mb-2' : 'mb-0'}`}>
                 <button
                   type="button"
                   aria-controls="recently-active-tray"
@@ -1073,7 +1075,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
                 <div
                   id="recently-active-tray"
                   aria-label="Recently active profiles"
-                  className="flex cursor-grab gap-3 overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                  className={`${isMobile ? 'gap-2' : 'gap-3'} flex cursor-grab overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                   data-testid="recently-active-tray"
                   onClickCapture={handleRecentlyActiveClickCapture}
                   onPointerCancel={handleRecentlyActivePointerEnd}
@@ -1095,7 +1097,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
                       key={user.id}
                       aria-label={`Open ${user.name} profile`}
                       onClick={() => handleUserSelect(user)}
-                      className="group block w-20 flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                      className={`${isMobile ? 'w-16' : 'w-20'} group block flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                       data-testid={`recently-active-tile-${user.id}`}
                     >
                       <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">

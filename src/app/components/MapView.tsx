@@ -966,7 +966,7 @@ function MapView({
       source: sourceId,
       paint: {
         'fill-color': '#1181FF',
-        'fill-opacity': 0.08,
+        'fill-opacity': 0.14,
       },
     });
     map.addLayer({
@@ -975,8 +975,8 @@ function MapView({
       source: sourceId,
       paint: {
         'line-color': '#1181FF',
-        'line-opacity': 0.55,
-        'line-width': 1.5,
+        'line-opacity': 0.88,
+        'line-width': 2.5,
       },
     });
   }, [mapInstance, mapLoadStatus, radiusCircle]);

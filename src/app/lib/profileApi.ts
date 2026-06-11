@@ -95,6 +95,7 @@ export type ProfileRecord = ProfilePayload & {
   viewer_relationship?: {
     match_id: string | null;
     mutual_cruush: boolean;
+    outgoing_cruush?: boolean;
     can_message: boolean;
     can_reveal_precise_location: boolean;
   };

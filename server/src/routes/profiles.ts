@@ -433,6 +433,7 @@ function mapProfileRow(
       viewer_relationship: {
         match_id: options.relationship.matchId,
         mutual_cruush: options.relationship.isMutualCruush,
+        outgoing_cruush: options.relationship.hasOutgoingCruush,
         can_message: options.relationship.canMessage,
         can_reveal_precise_location: options.relationship.canRevealPreciseLocation
       }
