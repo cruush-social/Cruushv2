@@ -1,15 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import BottomNav from './BottomNav';
-
-const { useIsMobile } = vi.hoisted(() => ({
-  useIsMobile: vi.fn(),
-}));
-
-vi.mock('./ui/use-mobile', () => ({
-  useIsMobile,
-}));
 
 function LocationProbe() {
   const location = useLocation();
@@ -17,10 +9,6 @@ function LocationProbe() {
 }
 
 describe('BottomNav', () => {
-  beforeEach(() => {
-    useIsMobile.mockReturnValue(false);
-  });
-
   it('navigates to /map when the map button is pressed', () => {
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -136,67 +124,29 @@ describe('BottomNav', () => {
     expect(inactiveMapIcon?.getAttribute('src')).toContain('map-white');
   });
 
-  it('opens the desktop profile preview instead of navigating to the profile page', () => {
-    const onProfilePreviewRequest = vi.fn();
-
+  it('navigates to the profile page from the profile icon on the map', () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
-        <BottomNav onProfilePreviewRequest={onProfilePreviewRequest} />
+        <BottomNav />
         <LocationProbe />
       </MemoryRouter>
     );
 
     fireEvent.click(screen.getByRole('button', { name: /profile/i }));
 
-    expect(onProfilePreviewRequest).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile');
   });
 
-  it('redirects desktop users to the map before opening their profile preview', () => {
-    const onProfilePreviewRequest = vi.fn();
-
+  it('navigates to the profile page from the profile icon on non-map pages', () => {
     render(
       <MemoryRouter initialEntries={['/messages']}>
-        <BottomNav onProfilePreviewRequest={onProfilePreviewRequest} />
+        <BottomNav />
         <LocationProbe />
       </MemoryRouter>
     );
 
     fireEvent.click(screen.getByRole('button', { name: /profile/i }));
 
-    expect(onProfilePreviewRequest).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
-  });
-
-  it('shows the desktop profile icon as active while the profile preview is open', () => {
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <BottomNav isProfilePreviewOpen />
-      </MemoryRouter>
-    );
-
-    const profileButton = screen.getByRole('button', { name: /profile/i });
-    const profileIcon = profileButton.querySelector('img');
-
-    expect(profileButton).toHaveClass('bg-white/[0.10]');
-    expect(profileButton).toHaveAttribute('aria-current', 'page');
-    expect(profileIcon?.getAttribute('src')).toContain('profile-colored');
-  });
-
-  it('navigates to the full profile page from the profile icon on mobile', () => {
-    useIsMobile.mockReturnValue(true);
-    const onProfilePreviewRequest = vi.fn();
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <BottomNav onProfilePreviewRequest={onProfilePreviewRequest} />
-        <LocationProbe />
-      </MemoryRouter>
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /profile/i }));
-
-    expect(onProfilePreviewRequest).not.toHaveBeenCalled();
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile');
   });
 });

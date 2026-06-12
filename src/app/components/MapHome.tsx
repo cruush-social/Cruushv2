@@ -17,6 +17,7 @@ import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
+import { resolveMediaUrl } from '../lib/apiClient';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
   emptyProfilePayload,
@@ -294,7 +295,7 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
   };
 }
 
-export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProfilePreviewOpen?: boolean } = {}) {
+export default function MapHome() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
@@ -318,7 +319,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
   const [npcGhostDemoEnabled, setNpcGhostDemoEnabled] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
-  const shouldAlignRecentlyActiveWithPreview = !isMobile && (selectedUser || isOwnProfilePreviewOpen);
+  const shouldAlignRecentlyActiveWithPreview = !isMobile && Boolean(selectedUser);
   const recentlyActiveDragRef = useRef({
     hasPointerCapture: false,
     isPointerDown: false,
@@ -1105,7 +1106,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
                             aria-hidden="true"
                             className="h-full w-full object-cover"
                             draggable={false}
-                            src={user.photo}
+                            src={resolveMediaUrl(user.photo)}
                           />
                         ) : (
                           <div

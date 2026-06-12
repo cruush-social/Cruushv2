@@ -54,6 +54,7 @@ coverage/
 
 # Ignore output
 out/
+server/media/
 
 # Ignore temp files
 *.tmp

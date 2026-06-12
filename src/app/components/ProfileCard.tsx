@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { CruushIcon } from './CruushIconImage';
 import { sendCruush } from '../lib/cruushApi';
+import { resolveMediaUrl } from '../lib/apiClient';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
@@ -50,7 +51,7 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
         style={{ ...PROFILE_CARD_MEDIA_ASPECT_STYLE, background: 'var(--cruush-gradient)' }}
       >
         {user.photo ? (
-          <img src={user.photo} alt={user.name} className="w-full h-full object-cover" style={PROFILE_CARD_MEDIA_ASPECT_STYLE} />
+          <img src={resolveMediaUrl(user.photo)} alt={user.name} className="w-full h-full object-cover" style={PROFILE_CARD_MEDIA_ASPECT_STYLE} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <CruushIcon name="cruush" className="h-24 w-24 opacity-20" />

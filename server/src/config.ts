@@ -60,6 +60,7 @@ const configSchema = z.object({
   CORS_ORIGIN: corsOriginSchema.default("http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,https://127.0.0.1:5173"),
   SESSION_SECRET: z.string().min(1, "SESSION_SECRET is required"),
   APP_URL: z.string().url().default("https://localhost:5173"),
+  MEDIA_STORAGE_DIR: z.string().trim().min(1).optional().default("media"),
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default(""),
   EMAIL_PREVIEW_ENABLED: booleanEnvSchema,
@@ -185,7 +186,8 @@ type GhostModeConfigKey =
   | "GHOST_DERIVATION_KEY_VERSION"
   | "DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION";
 
-export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey> & Partial<Pick<ParsedAppConfig, GhostModeConfigKey>>;
+export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey | "MEDIA_STORAGE_DIR"> &
+  Partial<Pick<ParsedAppConfig, GhostModeConfigKey | "MEDIA_STORAGE_DIR">>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return configSchema.parse(env);

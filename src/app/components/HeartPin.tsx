@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { resolveMediaUrl } from '../lib/apiClient';
 
 interface HeartPinProps {
   user: any;
@@ -6,7 +7,8 @@ interface HeartPinProps {
 
 export default function HeartPin({ user }: HeartPinProps) {
   const id = useId();
-  const hasPhoto = Boolean(user.photo);
+  const resolvedPhoto = user.photo ? resolveMediaUrl(user.photo) : null;
+  const hasPhoto = Boolean(resolvedPhoto);
   const isCurrentUser = user.id === 'me' || user.isCurrentUser;
   const patternId = `heart-pin-photo-${id}`;
   const fillId = `heart-pin-fill-${id}`;
@@ -27,7 +29,7 @@ export default function HeartPin({ user }: HeartPinProps) {
         <defs>
           {hasPhoto && (
             <pattern id={patternId} width="1" height="1">
-              <image href={user.photo} width="71" height="71" preserveAspectRatio="xMidYMid slice" />
+              <image href={resolvedPhoto ?? ''} width="71" height="71" preserveAspectRatio="xMidYMid slice" />
             </pattern>
           )}
           <linearGradient id={fillId} x1="16" y1="16" x2="54.4" y2="54.4" gradientUnits="userSpaceOnUse">

@@ -19,10 +19,14 @@ services:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/cruush
       CORS_ORIGIN: http://localhost:5173
       SESSION_SECRET: local-dev-secret
+      MEDIA_STORAGE_DIR: /app/media
     ports:
       - "127.0.0.1:3001:3001"
+    volumes:
+      - api_media:/app/media
     depends_on:
       - postgres
 
 volumes:
   postgres_data:
+  api_media:

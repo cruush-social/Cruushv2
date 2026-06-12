@@ -62,6 +62,14 @@ const profilePhotoUrlSchema = z.string()
     }
   }, "Photo URLs must be public HTTPS URLs.");
 
+const appOwnedProfilePhotoPathSchema = z.string()
+  .trim()
+  .max(256)
+  .regex(
+    /^\/media\/profile-photos\/[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(jpg|png|webp)$/i,
+    "Photo paths must be uploaded Cruush profile photos."
+  );
+
 const profileVisibilityRulesSchema = z.object({
   active_crowd_modes: z.array(crowdSchema).max(3).optional().default([]),
   age_range: z.tuple([
@@ -101,7 +109,7 @@ export const profileKinkInterestSchema = z.object({
 
 export const profilePayloadSchema = z.object({
   display_name: singleLineTextSchema({ min: 2, max: 80 }),
-  photos: z.array(profilePhotoUrlSchema).max(9).optional().default([]),
+  photos: z.array(z.union([profilePhotoUrlSchema, appOwnedProfilePhotoPathSchema])).max(9).optional().default([]),
   bio: multilineTextSchema({ max: 2000 }).optional().default(""),
   pronouns: arrayField,
   custom_pronouns: shortStringField,

@@ -196,3 +196,13 @@ export async function saveMyProfile(profile: ProfilePayload) {
     body: JSON.stringify(profile),
   });
 }
+
+export async function uploadProfilePhoto(photo: File) {
+  const formData = new FormData();
+  formData.set('photo', photo);
+
+  return requestApi<{ url: string }>('/api/profile-photos', {
+    method: 'POST',
+    body: formData,
+  });
+}

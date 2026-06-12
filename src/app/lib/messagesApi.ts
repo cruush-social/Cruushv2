@@ -1,5 +1,31 @@
 import { requestApi } from './apiClient';
-import type { ChatMessageRecord, ConversationThread } from './messageFixtures';
+
+export type ConversationThread = {
+  id: string;
+  kind: 'dm' | 'group';
+  user: {
+    id: string;
+    name: string;
+    pronouns: string;
+    photo: string | null;
+  };
+  distance: string;
+  updatedAt: string;
+  lastMessage: string;
+  unreadCount: number;
+  pinned: boolean;
+  muted?: boolean;
+  mutual?: boolean;
+  membersLabel?: string;
+  tags: string[];
+};
+
+export type ChatMessageRecord = {
+  id: string;
+  author: 'self' | 'other' | 'system';
+  content: string;
+  timestamp: string;
+};
 
 export type RemoteChatMessage = {
   id: string;
