@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DebugCruushPlusToggle from './DebugCruushPlusToggle';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 
@@ -30,6 +30,11 @@ describe('DebugCruushPlusToggle', () => {
       cruushPlus: true,
       expiresAt: null,
     });
+    vi.stubEnv('DEV', true);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('toggles cruush+ and announces the entitlement change', async () => {
@@ -52,5 +57,14 @@ describe('DebugCruushPlusToggle', () => {
     });
 
     window.removeEventListener(DEBUG_CRUUSH_PLUS_EVENT, eventHandler);
+  });
+
+  it('does not request the debug entitlement outside dev mode', () => {
+    vi.stubEnv('DEV', false);
+
+    const { container } = render(<DebugCruushPlusToggle />);
+
+    expect(container).toBeEmptyDOMElement();
+    expect(getDebugCruushPlus).not.toHaveBeenCalled();
   });
 });
