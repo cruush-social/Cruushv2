@@ -5,6 +5,7 @@ import type { FastifyInstance } from "fastify";
 import { ApiError } from "../errors.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { getProfilePhotoStorageDir, PROFILE_PHOTO_MEDIA_PREFIX } from "../media-storage.js";
+import { approvedContentReviewCte, moderateImageOrReject } from "../moderation-service.js";
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const PROFILE_PHOTO_MIME_TYPES = {
@@ -111,6 +112,14 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "Profile photo content does not match its image type.");
     }
 
+    await moderateImageOrReject(app, {
+      userId,
+      surface: "profile_photo",
+      mimeType,
+      filename: upload.filename,
+      bytes: buffer
+    });
+
     const currentPhotoResult = await app.db.query<{ photos: string[] | null }>(
       "select photos from profiles where id = $1",
       [userId]
@@ -130,8 +139,37 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     await writeFile(filePath, buffer, { flag: "wx" });
 
     const savedPhotoResult = await app.db.query<{ photos: string[] | null }>(
-      `insert into profiles (id, photos, updated_at)
-       values ($1, array[$2]::text[], now())
+      `with eligible_user as (
+         select u.id
+         from app_users u
+         left join user_trust_profiles trust on trust.user_id = u.id
+         where u.id = $1
+           and coalesce(trust.is_suspended, false) = false
+           and coalesce(trust.trust_score, 50) > 20
+           and not exists (
+             select 1
+             from suspensions suspension
+             where suspension.user_id = u.id
+               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+           )
+           and not exists (
+             select 1
+             from feature_restrictions restriction
+             where restriction.user_id = u.id
+               and restriction.feature = 'photo_uploads'
+               and (restriction.ends_at is null or restriction.ends_at > now())
+           )
+       ),
+       ${approvedContentReviewCte({
+         userIdParam: "$1",
+         surface: "profile_photo",
+         contentType: "image",
+         fromCte: "eligible_user"
+       })}
+       insert into profiles (id, photos, updated_at)
+       select eligible_user.id, array[$2]::text[], now()
+       from eligible_user
+       join moderation_review on true
        on conflict (id) do update
        set photos = case
          when array_position(profiles.photos, $2) is not null then profiles.photos

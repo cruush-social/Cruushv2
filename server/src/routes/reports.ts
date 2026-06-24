@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "../errors.js";
-import { createReportPayloadSchema, type CreateReportPayload } from "../report-schema.js";
+import { createReportPayloadSchema, type CreateReportPayload, type ReportReason } from "../report-schema.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 
 type ReportTarget = {
@@ -13,6 +13,20 @@ type ReportRow = {
   id: string;
   status: string;
   created_at: string | Date;
+};
+
+const reportReasonCategory: Record<ReportReason, string> = {
+  non_consensual_imagery: "revenge_porn",
+  minor_safety: "underage_sexual",
+  impersonation: "scam",
+  coercion_trafficking: "commercial_sex",
+  illegal_activity: "drug_sales",
+  spam_scam: "spam",
+  harassment: "harassment",
+  hate: "hate_speech",
+  violence_threat: "threat",
+  privacy_location: "location_privacy",
+  other: "other"
 };
 
 async function validateProfileReport(app: FastifyInstance, reporterUserId: string, payload: CreateReportPayload): Promise<ReportTarget> {
@@ -142,9 +156,19 @@ export async function registerReportRoutes(app: FastifyInstance) {
          conversation_id,
          message_id,
          reason,
-         details
+         details,
+         report_weight
        )
-       values ($1, $2, $3, $4, $5, $6, $7)
+       values (
+         $1,
+         $2,
+         $3,
+         $4,
+         $5,
+         $6,
+         $7,
+         coalesce((select report_weight from user_trust_profiles where user_id = $1), 50)
+       )
        returning id::text as id, status, created_at`,
       [
         reporterUserId,
@@ -160,6 +184,61 @@ export async function registerReportRoutes(app: FastifyInstance) {
 
     if (!row) {
       throw new ApiError(500, "INTERNAL_ERROR", "Failed to create report.");
+    }
+
+    if (target.targetUserId) {
+      await app.db.query(
+        `with reporter_weight as (
+           select
+             case
+               when coalesce(trust.trust_score, 50) < 20 then 0
+               when reporter.created_at > now() - interval '7 days'
+                 then greatest(5, least(100, coalesce(trust.report_weight, 50))) * 0.25
+               else greatest(5, least(100, coalesce(trust.report_weight, 50)))
+             end as evidence_value
+           from app_users reporter
+           left join user_trust_profiles trust on trust.user_id = reporter.id
+           where reporter.id = $2
+         ),
+         created_evidence as (
+           insert into evidence_events (
+             target_user_id,
+             source_type,
+             category,
+             evidence_value,
+             confidence,
+             expires_at,
+             metadata
+           )
+           select
+             $1,
+             'report',
+             $3,
+             coalesce((select evidence_value from reporter_weight), 50),
+             null,
+             now() + interval '90 days',
+             jsonb_build_object(
+               'reportId', $4::text,
+               'reporterId', $2::text,
+               'reason', $5::text,
+               'targetType', $6::text
+             )
+           returning id
+         )
+         update reports
+         set evidence_event_id = created_evidence.id,
+             updated_at = now()
+         from created_evidence
+         where reports.id::text = $4`,
+        [
+          target.targetUserId,
+          reporterUserId,
+          reportReasonCategory[payload.reason],
+          row.id,
+          payload.reason,
+          payload.targetType
+        ]
+      );
     }
 
     return reply.code(201).send({

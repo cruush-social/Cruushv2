@@ -11,6 +11,7 @@ import { ApiError, formatError, toApiError } from "./errors.js";
 import { resolveMediaStorageDir } from "./media-storage.js";
 import { registerMediaRoutes } from "./routes/media.js";
 import { registerMessageRoutes } from "./routes/messages.js";
+import { registerInternalRoutes } from "./routes/internal.js";
 import { registerPostRoutes } from "./routes/posts.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
@@ -132,6 +133,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerProfileRoutes(app);
   void registerPrivacyRoutes(app);
   void registerReportRoutes(app);
+  void registerInternalRoutes(app);
   if (config.NODE_ENV !== "production") {
     void registerDevRoutes(app);
   }

@@ -335,9 +335,19 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     try {
       const result = await app.db.query<CreatedUserRow>(
-        `insert into app_users (email, password_hash, display_name)
-         values ($1, $2, $3)
-         returning id, email, display_name, email_verified_at, created_at`,
+        `with created_user as (
+           insert into app_users (email, password_hash, display_name)
+           values ($1, $2, $3)
+           returning id, email, display_name, email_verified_at, created_at
+         ),
+         created_trust_profile as (
+           insert into user_trust_profiles (user_id)
+           select id
+           from created_user
+           on conflict (user_id) do nothing
+         )
+         select id, email, display_name, email_verified_at, created_at
+         from created_user`,
         [payload.email, passwordHash, payload.displayName]
       );
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ApiError } from "../errors.js";
 import { hasActiveMutualMessagePermission } from "../match-relationships.js";
 import { createMessagePayloadSchema, openDirectConversationPayloadSchema } from "../message-schema.js";
+import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 
 const conversationParamsSchema = z.object({
@@ -281,6 +282,15 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       );
     }
 
+    const moderationSurface = conversation.kind === "group" ? "group_message" : "direct_message";
+    const restrictedFeature = conversation.kind === "group" ? "group_messages" : "direct_messages";
+
+    await moderateTextOrReject(app, {
+      userId,
+      surface: moderationSurface,
+      text: payload.content
+    });
+
     const result = await app.db.query<MessageRow>(
       `with membership as (
          select c.id
@@ -289,10 +299,37 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          where c.id::text = $1
            and cm.user_id = $2
          limit 1
-       ), inserted as (
+       ), eligible_sender as (
+         select u.id
+         from app_users u
+         left join user_trust_profiles trust on trust.user_id = u.id
+         where u.id = $2
+           and coalesce(trust.is_suspended, false) = false
+           and coalesce(trust.trust_score, 50) > 20
+           and not exists (
+             select 1
+             from suspensions suspension
+             where suspension.user_id = u.id
+               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+           )
+           and not exists (
+             select 1
+             from feature_restrictions restriction
+             where restriction.user_id = u.id
+               and restriction.feature = '${restrictedFeature}'
+               and (restriction.ends_at is null or restriction.ends_at > now())
+           )
+       ), ${approvedContentReviewCte({
+         userIdParam: "$2",
+         surface: moderationSurface,
+         contentType: "text",
+         fromCte: "eligible_sender"
+       })}, inserted as (
          insert into messages (conversation_id, user_id, content)
-         select membership.id, $2, $3
+         select membership.id, eligible_sender.id, $3
          from membership
+         join eligible_sender on true
+         join moderation_review on true
          returning id::text as id, user_id::text as user_id, content, created_at, conversation_id
        ), updated_conversation as (
          update conversations c
@@ -314,7 +351,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const created = result.rows[0];
 
     if (!created) {
-      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
     return reply.code(201).send({

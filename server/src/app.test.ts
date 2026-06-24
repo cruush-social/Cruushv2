@@ -1716,6 +1716,53 @@ describe("server", () => {
     });
   });
 
+  it("rejects prohibited message content before storage", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: conversationId,
+        kind: "group",
+        title: "Afterparty",
+        tags: [],
+        updated_at: "2026-04-29T12:00:00.000Z",
+        last_message: "",
+        unread_count: 0,
+        pinned: false,
+        muted: false,
+        other_user_id: null,
+        other_user_name: null,
+        other_user_pronouns: null,
+        other_user_photo: null,
+        member_count: 4
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "Selling meth delivery menu tonight"
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This content violates Cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into trust_events"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into suspensions"))).toBe(true);
+  });
+
   it("requires a mutual cruush before sending a dm message", async () => {
     query
       .mockResolvedValueOnce({
@@ -2036,6 +2083,39 @@ describe("server", () => {
       }
     });
     expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects prohibited profile photos before storage", async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "drug-sales.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This content violates Cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
 
   it("rejects unsupported profile photo MIME types", async () => {
@@ -2982,6 +3062,35 @@ describe("server", () => {
         }
       }
     });
+  });
+
+  it("rejects prohibited feed content before storing a post", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Selling meth delivery menu tonight",
+        expiresIn: "1h"
+      }
+    });
+
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This content violates Cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into posts"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into trust_events"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into suspensions"))).toBe(true);
   });
 
   it("normalizes post text before storing it", async () => {
