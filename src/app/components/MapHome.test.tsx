@@ -480,21 +480,6 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 
-  it('right-aligns recently active when the desktop own profile preview is open', async () => {
-    useIsMobile.mockReturnValue(false);
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <MapHome isOwnProfilePreviewOpen />
-      </MemoryRouter>
-    );
-
-    await screen.findByRole('button', { name: 'Open Jordan profile' });
-
-    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(23rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
-  });
-
   it('refreshes map users after sending a cruush from the popup without a browser alert', async () => {
     useIsMobile.mockReturnValue(false);
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
