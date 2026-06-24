@@ -1,4 +1,6 @@
 import type { FastifyInstance } from "fastify";
+import { ApiError } from "../errors.js";
+import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
 import { createPostPayloadSchema } from "../post-schema.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 
@@ -64,12 +66,44 @@ export async function registerPostRoutes(app: FastifyInstance) {
   app.post("/api/posts", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
+    await moderateTextOrReject(app, {
+      userId,
+      surface: "feed",
+      text: payload.content
+    });
 
     const result = await app.db.query<PostRow>(
-      `with inserted as (
+      `with eligible_user as (
+         select u.id
+         from app_users u
+         left join user_trust_profiles trust on trust.user_id = u.id
+         where u.id = $1
+           and coalesce(trust.is_suspended, false) = false
+           and coalesce(trust.trust_score, 50) > 20
+           and not exists (
+             select 1
+             from suspensions suspension
+             where suspension.user_id = u.id
+               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+           )
+           and not exists (
+             select 1
+             from feature_restrictions restriction
+             where restriction.user_id = u.id
+               and restriction.feature = 'feed_posting'
+               and (restriction.ends_at is null or restriction.ends_at > now())
+           )
+       ),
+       ${approvedContentReviewCte({
+         userIdParam: "$1",
+         surface: "feed",
+         contentType: "text",
+         fromCte: "eligible_user"
+       })},
+       inserted as (
          insert into posts (user_id, content, expires_in, expires_at)
-         values (
-           $1,
+         select
+           eligible_user.id,
            $2,
            $3,
            now() + case
@@ -77,7 +111,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
              when $3 = '6h' then interval '6 hours'
              else interval '24 hours'
            end
-         )
+         from eligible_user
+         join moderation_review on true
          returning id, user_id, content, expires_in, expires_at, created_at
        )
        select
@@ -94,9 +129,14 @@ export async function registerPostRoutes(app: FastifyInstance) {
        left join profiles pr on pr.id = i.user_id`,
       [userId, payload.content, payload.expiresIn]
     );
+    const row = result.rows[0];
+
+    if (!row) {
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Feed posting is unavailable for this account.");
+    }
 
     return reply.code(201).send({
-      data: mapPostRow(result.rows[0])
+      data: mapPostRow(row)
     });
   });
 }

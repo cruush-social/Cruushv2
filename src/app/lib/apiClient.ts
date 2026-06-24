@@ -24,6 +24,26 @@ export function getApiBaseUrl() {
   return (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
 }
 
+export function resolveApiUrl(pathOrUrl: string | null | undefined) {
+  if (!pathOrUrl) {
+    return pathOrUrl ?? '';
+  }
+
+  if (/^(https?:|data:|blob:)/i.test(pathOrUrl)) {
+    return pathOrUrl;
+  }
+
+  if (pathOrUrl.startsWith('/')) {
+    return `${getApiBaseUrl()}${pathOrUrl}`;
+  }
+
+  return pathOrUrl;
+}
+
+export function resolveMediaUrl(pathOrUrl: string | null | undefined) {
+  return resolveApiUrl(pathOrUrl);
+}
+
 export async function parseApiResponse<T>(response: Response): Promise<T> {
   const bodyText = await response.text();
   let body: ({ data?: T } & ApiErrorBody) | {} = {};
@@ -53,8 +73,9 @@ export async function parseApiResponse<T>(response: Response): Promise<T> {
 
 export async function requestApi<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
+  const isFormDataBody = typeof FormData !== 'undefined' && init?.body instanceof FormData;
 
-  if (init?.body && !headers.has('content-type')) {
+  if (init?.body && !isFormDataBody && !headers.has('content-type')) {
     headers.set('content-type', 'application/json');
   }
 

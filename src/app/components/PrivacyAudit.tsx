@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
+import { resolveMediaUrl } from '../lib/apiClient';
 import { getPrivacyAudit, revokePrivacyAccess, type PrivacyAuditAccess } from '../lib/privacyApi';
 
 function formatAuditTime(value: number) {
@@ -104,7 +105,7 @@ export default function PrivacyAudit() {
             <div key={item.revoke_action_token} className="rounded-lg border border-white/10 bg-card p-4">
               <div className="flex items-start gap-3">
                 {item.viewer.photo ? (
-                  <img alt="" className="h-12 w-12 rounded-full object-cover" src={item.viewer.photo} />
+                  <img alt="" className="h-12 w-12 rounded-full object-cover" src={resolveMediaUrl(item.viewer.photo)} />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'var(--cruush-gradient)' }}>
                     <CruushIcon name="profile" className="h-6 w-6" variant="white" />

@@ -9,7 +9,6 @@ import messagesIconColored from '../assets/ui-icons/messages-colored.png';
 import messagesIconWhite from '../assets/ui-icons/messages-white.png';
 import profileIconColored from '../assets/ui-icons/profile-colored.png';
 import profileIconWhite from '../assets/ui-icons/profile-white.png';
-import { useIsMobile } from './ui/use-mobile';
 
 const navItems = [
   { path: '/map', icon: mapIconWhite, activeIcon: mapIconColored, label: 'Map' },
@@ -19,33 +18,15 @@ const navItems = [
   { path: '/profile', icon: profileIconWhite, activeIcon: profileIconColored, label: 'Profile' },
 ];
 
-interface BottomNavProps {
-  onProfilePreviewRequest?: () => void;
-  isProfilePreviewOpen?: boolean;
-}
-
-export default function BottomNav({ onProfilePreviewRequest, isProfilePreviewOpen = false }: BottomNavProps) {
+export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useIsMobile();
 
   const isActive = (path: string) => {
-    if (path === '/profile' && isProfilePreviewOpen) {
-      return true;
-    }
-
     return location.pathname === path || location.pathname.startsWith(path);
   };
   const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
   const handleNavClick = (path: string) => {
-    if (path === '/profile' && !isMobile && onProfilePreviewRequest) {
-      if (!isMapRoute) {
-        navigate('/map');
-      }
-      onProfilePreviewRequest();
-      return;
-    }
-
     navigate(path);
   };
 

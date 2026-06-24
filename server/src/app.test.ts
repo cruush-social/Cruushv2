@@ -427,6 +427,26 @@ async function encryptedVisibilityPolicyRow(input: {
   };
 }
 
+function multipartFilePayload(input: {
+  fieldName: string;
+  filename: string;
+  contentType: string;
+  content: Buffer;
+}) {
+  const boundary = `----cruush-test-${Date.now()}`;
+  const head = Buffer.from(
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="${input.fieldName}"; filename="${input.filename}"\r\n` +
+    `Content-Type: ${input.contentType}\r\n\r\n`
+  );
+  const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+
+  return {
+    payload: Buffer.concat([head, input.content, tail]),
+    contentType: `multipart/form-data; boundary=${boundary}`
+  };
+}
+
 describe("server", () => {
   const userId = "d271f6da-c51d-4d73-a322-d9c56f45d4fa";
   const conversationId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
@@ -1696,6 +1716,53 @@ describe("server", () => {
     });
   });
 
+  it("rejects prohibited message content before storage", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: conversationId,
+        kind: "group",
+        title: "Afterparty",
+        tags: [],
+        updated_at: "2026-04-29T12:00:00.000Z",
+        last_message: "",
+        unread_count: 0,
+        pinned: false,
+        muted: false,
+        other_user_id: null,
+        other_user_name: null,
+        other_user_pronouns: null,
+        other_user_photo: null,
+        member_count: 4
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "Selling meth delivery menu tonight"
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This content violates Cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into trust_events"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into suspensions"))).toBe(true);
+  });
+
   it("requires a mutual cruush before sending a dm message", async () => {
     query
       .mockResolvedValueOnce({
@@ -1764,6 +1831,351 @@ describe("server", () => {
       }
     });
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it("creates a profile report on POST /api/reports", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "report-1",
+          status: "open",
+          created_at: "2026-04-29T12:00:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "profile",
+        targetUserId,
+        reason: "harassment",
+        details: "keeps sending threats"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("from profiles");
+    expect(query.mock.calls[1]?.[0]).toContain("insert into reports");
+    expect(query.mock.calls[1]?.[1]).toEqual([
+      userId,
+      "profile",
+      targetUserId,
+      null,
+      null,
+      "harassment",
+      "keeps sending threats"
+    ]);
+    expect(response.json()).toEqual({
+      data: {
+        id: "report-1",
+        status: "open",
+        createdAt: "2026-04-29T12:00:00.000Z"
+      }
+    });
+  });
+
+  it("requires conversation membership before creating a conversation report", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "conversation",
+        conversationId,
+        reason: "spam_scam"
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Conversation not found.",
+        details: null
+      }
+    });
+  });
+
+  it("creates a conversation report for a member conversation", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          conversation_id: conversationId,
+          target_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "report-2",
+          status: "open",
+          created_at: "2026-04-29T12:10:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "conversation",
+        conversationId,
+        reason: "privacy_location"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
+    expect(query.mock.calls[1]?.[1]).toEqual([
+      userId,
+      "conversation",
+      "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      conversationId,
+      null,
+      "privacy_location",
+      ""
+    ]);
+  });
+
+  it("rate limits repeated report creation", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from profiles")) {
+        return { rows: [{ id: targetUserId }] };
+      }
+
+      return {
+        rows: [{
+          id: "report-rate-limit",
+          status: "open",
+          created_at: "2026-04-29T12:00:00.000Z"
+        }]
+      };
+    });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/reports",
+        headers: {
+          "x-user-id": userId
+        },
+        payload: {
+          targetType: "profile",
+          targetUserId,
+          reason: "harassment"
+        }
+      });
+
+      expect(response.statusCode).toBe(201);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "profile",
+        targetUserId,
+        reason: "harassment"
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many reports. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+  });
+
+  it("uploads a profile photo on POST /api/profile-photos", async () => {
+    query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
+      rows: String(_sql).includes("select photos from profiles")
+        ? [{ photos: [] }]
+        : [{ photos: [params[1]] }]
+    }));
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "profile.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json();
+    expect(body).toEqual({
+      data: {
+        url: expect.stringMatching(/^\/media\/profile-photos\/d271f6da-c51d-4d73-a322-d9c56f45d4fa-[0-9a-f-]{36}\.png$/)
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[0]?.[0]).toBe("select photos from profiles where id = $1");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId]);
+    expect(query.mock.calls[1]?.[0]).toContain("insert into profiles (id, photos, updated_at)");
+    expect(query.mock.calls[1]?.[0]).toContain("array_append(profiles.photos, $2)");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, body.data.url]);
+  });
+
+  it("rejects profile photo uploads when the profile already has 9 photos", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        photos: Array.from({ length: 9 }, (_, index) => `https://example.com/photo-${index}.jpg`)
+      }]
+    });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "profile.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "You can add up to 9 photos.",
+        details: null
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects prohibited profile photos before storage", async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "drug-sales.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This content violates Cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
+  });
+
+  it("rejects unsupported profile photo MIME types", async () => {
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "profile.txt",
+      contentType: "text/plain",
+      content: Buffer.from("not an image")
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Profile photo must be a JPEG, PNG, or WebP image.",
+        details: null
+      }
+    });
+  });
+
+  it("rejects oversized profile photo uploads", async () => {
+    const oversizedPng = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.alloc(5 * 1024 * 1024 + 1)
+    ]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "profile.png",
+      contentType: "image/png",
+      content: oversizedPng
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Profile photo must be 5 MB or smaller.",
+        details: null
+      }
+    });
   });
 
   it("returns nearby users from GET /api/users", async () => {
@@ -2650,6 +3062,35 @@ describe("server", () => {
         }
       }
     });
+  });
+
+  it("rejects prohibited feed content before storing a post", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Selling meth delivery menu tonight",
+        expiresIn: "1h"
+      }
+    });
+
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This content violates Cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into posts"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into trust_events"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into suspensions"))).toBe(true);
   });
 
   it("normalizes post text before storing it", async () => {

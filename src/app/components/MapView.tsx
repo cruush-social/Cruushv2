@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CruushIcon } from './CruushIconImage';
+import { resolveMediaUrl } from '../lib/apiClient';
 
 export type MapMarkerBadge = {
   kind: 'position';
@@ -575,7 +576,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             clipPath={`url(#${clipId})`}
             data-testid={`marker-photo-fill-${marker.id}`}
             height="64"
-            href={marker.photo ?? ''}
+            href={marker.photo ? resolveMediaUrl(marker.photo) : ''}
             preserveAspectRatio="xMidYMid slice"
             width="64"
           />

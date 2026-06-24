@@ -1,7 +1,7 @@
 import type { ChangeEvent } from 'react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Star, Trash2, Upload } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
@@ -16,10 +16,12 @@ import {
   saveMyProfile,
   toDefaultKinkInterest,
   toKinkId,
+  uploadProfilePhoto,
   type ProfileVisibility,
   type ProfilePayload,
   type ProfileVisibilityRules,
 } from '../lib/profileApi';
+import { resolveMediaUrl } from '../lib/apiClient';
 import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
 import {
   AVAILABILITY,
@@ -199,6 +201,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [profile, setProfile] = useState<ProfilePayload>(emptyProfilePayload);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('profile');
 
@@ -294,6 +297,49 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     }
   };
 
+  const handlePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if ((profile.photos ?? []).length >= 9) {
+      setError('You can add up to 9 photos.');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    setError(null);
+
+    try {
+      const uploaded = await uploadProfilePhoto(file);
+      setProfile((prev) => ({
+        ...prev,
+        photos: [...(prev.photos ?? []), uploaded.url].slice(0, 9),
+      }));
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload profile photo.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleSetPrimaryPhoto = (photo: string) => {
+    setProfile((prev) => ({
+      ...prev,
+      photos: [photo, ...(prev.photos ?? []).filter((item) => item !== photo)],
+    }));
+  };
+
+  const handleRemovePhoto = (photo: string) => {
+    setProfile((prev) => ({
+      ...prev,
+      photos: (prev.photos ?? []).filter((item) => item !== photo),
+    }));
+  };
+
   const handleCancel = () => {
     if (embedded) {
       onCancel?.();
@@ -377,8 +423,58 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
           {/* ...Photos tab (not migrated)... */}
           <TabsContent value="photos" className="space-y-4 mt-6">
-            <div className="grid grid-cols-3 gap-4">
-              {/* Photos logic here */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {normalizedProfile.photos.map((photo, index) => (
+                <div key={photo} className="group overflow-hidden rounded-2xl border border-border bg-card/70">
+                  <div className="relative aspect-[4/5] bg-accent">
+                    <img
+                      alt={index === 0 ? 'Primary profile photo' : `Profile photo ${index + 1}`}
+                      className="h-full w-full object-cover"
+                      src={resolveMediaUrl(photo)}
+                    />
+                    {index === 0 ? (
+                      <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-1 text-[11px] text-white">
+                        PFP
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 p-2">
+                    <Button
+                      aria-label={`Make photo ${index + 1} primary`}
+                      disabled={index === 0}
+                      onClick={() => handleSetPrimaryPhoto(photo)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <Star className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      aria-label={`Remove photo ${index + 1}`}
+                      onClick={() => handleRemovePhoto(photo)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              {normalizedProfile.photos.length < 9 ? (
+                <label className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card/60 p-4 text-center transition-colors hover:bg-accent/50">
+                  <Upload className="h-7 w-7 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{uploadingPhoto ? 'Uploading...' : 'Upload photo'}</span>
+                  <input
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={uploadingPhoto}
+                    onChange={handlePhotoUpload}
+                    type="file"
+                  />
+                </label>
+              ) : null}
             </div>
             <p className="text-sm text-muted-foreground">Add up to 9 photos. Your first photo will be your profile picture.</p>
           </TabsContent>

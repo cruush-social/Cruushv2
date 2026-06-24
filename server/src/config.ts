@@ -60,6 +60,18 @@ const configSchema = z.object({
   CORS_ORIGIN: corsOriginSchema.default("http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,https://127.0.0.1:5173"),
   SESSION_SECRET: z.string().min(1, "SESSION_SECRET is required"),
   APP_URL: z.string().url().default("https://localhost:5173"),
+  MEDIA_STORAGE_DIR: z.string().trim().min(1).optional().default("media"),
+  MODERATION_PROVIDER: z.enum(["mock", "hive", "sightengine", "aws", "google"]).optional().default("mock"),
+  MODERATION_API_KEY: z.string().optional().default(""),
+  MODERATION_API_SECRET: z.string().optional().default(""),
+  MODERATION_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
+  MODERATION_MAX_RETRIES: z.coerce.number().int().nonnegative().optional().default(3),
+  MODERATION_FAIL_MODE: z.enum(["queue"]).optional().default("queue"),
+  RABBITMQ_URL: z.string().optional().default(""),
+  TEMP_MEDIA_TTL_MINUTES: z.coerce.number().int().positive().optional().default(30),
+  TRUST_DECAY_CRON: z.string().trim().min(1).optional().default("0 3 * * *"),
+  TRUST_EVENT_RECALCULATION_ENABLED: booleanEnvSchema,
+  INTERNAL_API_SECRET: z.string().optional().default(""),
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default(""),
   EMAIL_PREVIEW_ENABLED: booleanEnvSchema,
@@ -184,8 +196,21 @@ type GhostModeConfigKey =
   | "VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION"
   | "GHOST_DERIVATION_KEY_VERSION"
   | "DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION";
+type ModerationConfigKey =
+  | "MODERATION_PROVIDER"
+  | "MODERATION_API_KEY"
+  | "MODERATION_API_SECRET"
+  | "MODERATION_TIMEOUT_MS"
+  | "MODERATION_MAX_RETRIES"
+  | "MODERATION_FAIL_MODE"
+  | "RABBITMQ_URL"
+  | "TEMP_MEDIA_TTL_MINUTES"
+  | "TRUST_DECAY_CRON"
+  | "TRUST_EVENT_RECALCULATION_ENABLED"
+  | "INTERNAL_API_SECRET";
 
-export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey> & Partial<Pick<ParsedAppConfig, GhostModeConfigKey>>;
+export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey | "MEDIA_STORAGE_DIR" | ModerationConfigKey> &
+  Partial<Pick<ParsedAppConfig, GhostModeConfigKey | "MEDIA_STORAGE_DIR" | ModerationConfigKey>>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return configSchema.parse(env);
