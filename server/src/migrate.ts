@@ -27,7 +27,8 @@ const migrationFiles = [
   "019_encrypted_relationship_storage.sql",
   "020_ghost_mode_location_privacy.sql",
   "021_reports.sql",
-  "022_moderation_foundation.sql"
+  "022_moderation_foundation.sql",
+  "023_stream_moderation.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

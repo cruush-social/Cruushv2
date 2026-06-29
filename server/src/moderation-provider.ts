@@ -1,4 +1,5 @@
 import type { AppConfig } from "./config.js";
+import { StreamClient } from "@stream-io/node-sdk";
 import type {
   ModerationContentType,
   ModerationSurface,
@@ -11,6 +12,7 @@ export type TextModerationInput = {
   userId: string;
   surface: ModerationSurface;
   text: string;
+  contentId?: string;
 };
 
 export type ImageModerationInput = {
@@ -18,6 +20,8 @@ export type ImageModerationInput = {
   surface: ModerationSurface;
   mimeType: string;
   filename?: string;
+  imageUrl?: string;
+  contentId?: string;
   bytes: Buffer;
 };
 
@@ -38,6 +42,17 @@ type TextRule = {
 };
 
 const textRules: TextRule[] = [
+  {
+    providerLabel: "chaser_fetishization",
+    normalizedLabel: "chaser_fetishization",
+    confidence: 0.88,
+    severity: "medium",
+    patterns: [
+      /\b(?:trans|tgirl|transgirl|trans woman|trans women|ftm|mtf)\b.{0,50}\b(?:fetish|bucket list|experiment|object|toy)\b/i,
+      /\b(?:only|just)\s+(?:want|date|hook ?up with)\s+(?:trans|tgirls?|transgirls?|trans women)\b.{0,60}\b(?:because|for)\b/i,
+      /\b(?:real woman|real man)\b.{0,50}\b(?:not|never)\b.{0,40}\b(?:trans|queer|nonbinary)\b/i
+    ]
+  },
   {
     providerLabel: "drug_sale_or_menu",
     normalizedLabel: "drug_sales",
@@ -235,7 +250,352 @@ export class MockModerationProvider implements ModerationProvider {
   }
 }
 
-export function createModerationProvider(config: Pick<AppConfig, "MODERATION_PROVIDER">): ModerationProvider {
+type StreamConfig = Pick<
+  AppConfig,
+  | "MODERATION_TIMEOUT_MS"
+  | "STREAM_MODERATION_ENABLED"
+  | "STREAM_API_KEY"
+  | "STREAM_API_SECRET"
+  | "STREAM_MODERATION_CONFIG_KEY"
+>;
+
+type StreamCheckResponse = {
+  recommended_action?: string;
+  status?: string;
+  task_id?: string;
+  item?: {
+    id?: string;
+    ai_text_severity?: string;
+    recommended_action?: string;
+    severity?: number;
+    flags?: Array<{
+      type?: string;
+      reason?: string;
+      labels?: string[];
+      result?: Array<Record<string, unknown>>;
+      custom?: Record<string, unknown>;
+    }>;
+  };
+  triggered_rule?: {
+    name?: string;
+    rule_type?: string;
+  };
+  duration?: string;
+  metadata?: {
+    clientRequestId?: string;
+  };
+};
+
+const streamSeverityByAction: Record<string, ProviderLabel["severity"]> = {
+  keep: "none",
+  flag: "medium",
+  remove: "high",
+  block: "high",
+  bounce: "medium",
+  shadow_block: "medium"
+};
+
+function streamEntityType(surface: ModerationSurface, contentType: ModerationContentType) {
+  if (surface === "direct_message" || surface === "group_message") {
+    return "cruush:message";
+  }
+
+  if (surface === "feed") {
+    return contentType === "image" ? "cruush:feed:image" : "cruush:feed:post";
+  }
+
+  if (surface === "profile_photo" || surface === "private_photo") {
+    return `cruush:${surface}`;
+  }
+
+  return "cruush:profile";
+}
+
+function severityFromStream(value: unknown, fallback: ProviderLabel["severity"] = "medium"): ProviderLabel["severity"] {
+  if (typeof value === "string") {
+    const normalized = value.toLowerCase();
+
+    if (["none", "low", "medium", "high", "critical"].includes(normalized)) {
+      return normalized as ProviderLabel["severity"];
+    }
+  }
+
+  if (typeof value === "number") {
+    if (value >= 4) {
+      return "critical";
+    }
+
+    if (value >= 3) {
+      return "high";
+    }
+
+    if (value >= 2) {
+      return "medium";
+    }
+
+    if (value >= 1) {
+      return "low";
+    }
+  }
+
+  return fallback;
+}
+
+function normalizeStreamLabel(label: string): NormalizedModerationLabel | null {
+  const normalized = label
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (/(csam|child|minor|underage|teen sexual|sexual minor)/i.test(normalized)) {
+    return "underage_sexual";
+  }
+
+  if (/(non consensual|non-consensual|revenge|sexual exploitation|intimate image abuse)/i.test(normalized)) {
+    return "revenge_porn";
+  }
+
+  if (/(bestiality|zoophilia)/i.test(normalized)) {
+    return "bestiality";
+  }
+
+  if (/(threat|violent threat|incitement|weapon)/i.test(normalized)) {
+    return "threat";
+  }
+
+  if (/(hate symbol|extremist symbol)/i.test(normalized)) {
+    return "hate_symbol";
+  }
+
+  if (/(hate|hateful|protected class|slur)/i.test(normalized)) {
+    return "hate_speech";
+  }
+
+  if (/(harass|bully|insult|abuse|toxic)/i.test(normalized)) {
+    return "harassment";
+  }
+
+  if (/(dox|personal information|private information)/i.test(normalized)) {
+    return "doxxing";
+  }
+
+  if (/(location|address|phone|workplace)/i.test(normalized)) {
+    return "location_privacy";
+  }
+
+  if (/(scam|fraud|misleading identity|impersonation)/i.test(normalized)) {
+    return "scam";
+  }
+
+  if (/(spam|platform circumvention)/i.test(normalized)) {
+    return "spam";
+  }
+
+  if (/(chaser|fetishization|dehumaniz)/i.test(normalized)) {
+    return "chaser_fetishization";
+  }
+
+  if (/(explicit|sexual|porn|nudity|nude|non explicit nudity|swimwear|underwear)/i.test(normalized)) {
+    return normalized.includes("nud") || normalized.includes("swimwear") || normalized.includes("underwear")
+      ? "adult_nudity"
+      : "adult_explicit";
+  }
+
+  if (/(gore|disturbing|blood|violence)/i.test(normalized)) {
+    return "gore";
+  }
+
+  return null;
+}
+
+function streamLabelsFromResponse(response: StreamCheckResponse): ProviderLabel[] {
+  const recommendedAction = response.recommended_action?.toLowerCase();
+  const fallbackSeverity = severityFromStream(
+    response.item?.ai_text_severity ?? response.item?.severity,
+    streamSeverityByAction[(response.recommended_action ?? response.item?.recommended_action ?? "flag").toLowerCase()] ?? "medium"
+  );
+  const labels: ProviderLabel[] = [];
+
+  for (const flag of response.item?.flags ?? []) {
+    const rawLabels = [
+      ...(flag.labels ?? []),
+      ...((flag.result ?? []).flatMap((result) => Object.values(result).map(String))),
+      flag.type,
+      flag.reason
+    ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+
+    for (const rawLabel of rawLabels) {
+      const normalizedLabel = normalizeStreamLabel(rawLabel);
+
+      if (!normalizedLabel) {
+        continue;
+      }
+
+      labels.push({
+        provider_label: rawLabel,
+        normalized_label: normalizedLabel,
+        confidence: recommendedAction === "remove" ? 0.92 : 0.86,
+        severity: fallbackSeverity
+      });
+    }
+  }
+
+  if (labels.length === 0 && recommendedAction && recommendedAction !== "keep") {
+    labels.push({
+      provider_label: `stream_recommended_${recommendedAction}`,
+      normalized_label: recommendedAction === "remove" ? "harassment" : "spam",
+      confidence: recommendedAction === "remove" ? 0.88 : 0.8,
+      severity: fallbackSeverity
+    });
+  }
+
+  const seen = new Set<string>();
+
+  return labels.filter((label) => {
+    const key = `${label.provider_label}:${label.normalized_label}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function sanitizeStreamResponse(response: StreamCheckResponse): Record<string, unknown> {
+  return {
+    recommended_action: response.recommended_action,
+    status: response.status,
+    task_id: response.task_id,
+    review_queue_item_id: response.item?.id,
+    triggered_rule: response.triggered_rule
+      ? {
+          name: response.triggered_rule.name,
+          rule_type: response.triggered_rule.rule_type
+        }
+      : undefined,
+    flags: (response.item?.flags ?? []).map((flag) => ({
+      type: flag.type,
+      reason: flag.reason,
+      labels: flag.labels
+    }))
+  };
+}
+
+export class StreamModerationProvider implements ModerationProvider {
+  readonly name = "stream";
+  readonly version = "2026-06-26";
+  private readonly client: StreamClient;
+  private readonly configKey: string;
+
+  constructor(private readonly config: StreamConfig) {
+    if (!config.STREAM_API_KEY || !config.STREAM_API_SECRET || !config.STREAM_MODERATION_CONFIG_KEY) {
+      throw new Error("STREAM_API_KEY, STREAM_API_SECRET, and STREAM_MODERATION_CONFIG_KEY are required when Stream moderation is enabled.");
+    }
+
+    this.client = new StreamClient(config.STREAM_API_KEY, config.STREAM_API_SECRET, {
+      timeout: config.MODERATION_TIMEOUT_MS ?? 5000
+    });
+    this.configKey = config.STREAM_MODERATION_CONFIG_KEY;
+  }
+
+  private async check(input: {
+    userId: string;
+    surface: ModerationSurface;
+    contentType: ModerationContentType;
+    contentId?: string;
+    moderationPayload: {
+      texts?: string[];
+      images?: string[];
+    };
+  }): Promise<ProviderModerationResult> {
+    const startedAt = Date.now();
+    const entityId = input.contentId ?? `${input.surface}-${input.contentType}-${Date.now().toString(36)}`;
+
+    try {
+      const response = await this.client.moderation.check({
+        entity_type: streamEntityType(input.surface, input.contentType),
+        entity_id: entityId,
+        entity_creator_id: input.userId,
+        config_key: this.configKey,
+        moderation_payload: input.moderationPayload,
+        options: {
+          force_sync: true
+        },
+        user_id: input.userId
+      }) as StreamCheckResponse;
+
+      return {
+        provider: this.name,
+        provider_request_id: response.item?.id ?? response.task_id ?? response.metadata?.clientRequestId ?? `stream-${Date.now().toString(36)}`,
+        labels: streamLabelsFromResponse(response),
+        latency_ms: Date.now() - startedAt,
+        recommended_action: response.recommended_action,
+        status: response.status,
+        raw_result: sanitizeStreamResponse(response)
+      };
+    } catch (error) {
+      return {
+        provider: this.name,
+        provider_request_id: `stream-error-${Date.now().toString(36)}`,
+        labels: [],
+        latency_ms: Date.now() - startedAt,
+        status: "error",
+        raw_result: {
+          error_name: error instanceof Error ? error.name : "UnknownError"
+        },
+        error: error instanceof Error ? error.message : "Stream moderation request failed."
+      };
+    }
+  }
+
+  async moderateText(input: TextModerationInput): Promise<ProviderModerationResult> {
+    return this.check({
+      userId: input.userId,
+      surface: input.surface,
+      contentType: "text",
+      contentId: input.contentId,
+      moderationPayload: {
+        texts: [input.text]
+      }
+    });
+  }
+
+  async moderateImage(input: ImageModerationInput): Promise<ProviderModerationResult> {
+    if (!input.imageUrl) {
+      return {
+        provider: this.name,
+        provider_request_id: `stream-missing-image-url-${Date.now().toString(36)}`,
+        labels: [],
+        latency_ms: 0,
+        status: "error",
+        error: "Stream image moderation requires an imageUrl."
+      };
+    }
+
+    return this.check({
+      userId: input.userId,
+      surface: input.surface,
+      contentType: "image",
+      contentId: input.contentId,
+      moderationPayload: {
+        images: [input.imageUrl]
+      }
+    });
+  }
+}
+
+export function createModerationProvider(config: Pick<AppConfig, "MODERATION_PROVIDER"> & StreamConfig): ModerationProvider {
+  if (config.STREAM_MODERATION_ENABLED) {
+    return new StreamModerationProvider(config);
+  }
+
   const provider = config.MODERATION_PROVIDER ?? "mock";
 
   if (provider !== "mock") {

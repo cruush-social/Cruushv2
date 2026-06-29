@@ -17,6 +17,15 @@ describe("loadConfig", () => {
       "https://127.0.0.1:5173"
     ]));
     expect(config.APP_URL).toBe("https://localhost:5173");
+    expect(config.STREAM_MODERATION_ENABLED).toBe(false);
+  });
+
+  it("rejects enabled Stream moderation without server-side Stream credentials", () => {
+    expect(() => loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      STREAM_MODERATION_ENABLED: "true"
+    })).toThrow(/STREAM_API_KEY/);
   });
 
   it("rejects production config without dedicated profile keys", () => {

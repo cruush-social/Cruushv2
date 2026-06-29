@@ -14,6 +14,7 @@ import {
   profilePayloadSchema,
   type ProfilePayload
 } from "../profile-schema.js";
+import { moderateProfileOrReject } from "../moderation-service.js";
 import {
   canSubjectViewProfile,
   visibilityRulesArePublic,
@@ -764,6 +765,24 @@ function buildSensitiveProfile(payload: ProfilePayload, kinkInterests: ProfileKi
   };
 }
 
+function buildProfileModerationFields(payload: ProfilePayload, kinkInterests: ProfileKinkInterest[]) {
+  return {
+    display_name: payload.display_name,
+    bio: payload.bio,
+    custom_pronouns: payload.custom_pronouns,
+    custom_hobby: payload.custom_hobby,
+    kinks: kinkInterests.map((interest) => interest.label ?? interest.kink_id),
+    vibes: payload.vibes,
+    scenes: payload.scenes,
+    archetypes: payload.archetypes,
+    looking_for: payload.looking_for,
+    availability: payload.availability,
+    hosting_travel: payload.hosting_travel,
+    position: payload.position,
+    role: payload.role
+  };
+}
+
 function combineSensitiveTokens(...tokenGroups: SensitiveProfileToken[][]) {
   const tokensByKey = new Map<string, SensitiveProfileToken>();
 
@@ -1058,6 +1077,11 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     const payload = profilePayloadSchema.parse(request.body);
     const kinkInterests = normalizeKinkInterests(payload);
     const sensitiveProfile = buildSensitiveProfile(payload, kinkInterests);
+    await moderateProfileOrReject(app, {
+      userId,
+      fields: buildProfileModerationFields(payload, kinkInterests),
+      contentId: userId
+    });
     const existingIdentityState = await loadExistingIdentityState(app, userId);
     const hasIdentityChange = hasTransCrowdChange(existingIdentityState, sensitiveProfile);
     assertTransCrowdChangeAllowed(existingIdentityState, hasIdentityChange);

@@ -285,7 +285,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const moderationSurface = conversation.kind === "group" ? "group_message" : "direct_message";
     const restrictedFeature = conversation.kind === "group" ? "group_messages" : "direct_messages";
 
-    await moderateTextOrReject(app, {
+    const moderation = await moderateTextOrReject(app, {
       userId,
       surface: moderationSurface,
       text: payload.content
@@ -323,7 +323,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          userIdParam: "$2",
          surface: moderationSurface,
          contentType: "text",
-         fromCte: "eligible_sender"
+         fromCte: "eligible_sender",
+         providerParam: "$4",
+         providerRequestIdParam: "$5",
+         normalizedLabelsParam: "$6",
+         policyDecisionParam: "$7",
+         moderationStatusParam: "$8",
+         flaggedReasonParam: "$9",
+         moderationRawResultParam: "$10"
        })}, inserted as (
          insert into messages (conversation_id, user_id, content)
          select membership.id, eligible_sender.id, $3
@@ -345,7 +352,18 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        )
        select id, user_id, content, created_at
        from inserted`,
-      [payload.conversationId, userId, payload.content]
+      [
+        payload.conversationId,
+        userId,
+        payload.content,
+        moderation.providerResult.provider,
+        moderation.providerResult.provider_request_id,
+        JSON.stringify(moderation.providerResult.labels),
+        JSON.stringify(moderation.decision),
+        "allowed",
+        null,
+        JSON.stringify(moderation.providerResult.raw_result ?? {})
+      ]
     );
 
     const created = result.rows[0];

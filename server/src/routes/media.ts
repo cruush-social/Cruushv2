@@ -112,14 +112,6 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "Profile photo content does not match its image type.");
     }
 
-    await moderateImageOrReject(app, {
-      userId,
-      surface: "profile_photo",
-      mimeType,
-      filename: upload.filename,
-      bytes: buffer
-    });
-
     const currentPhotoResult = await app.db.query<{ photos: string[] | null }>(
       "select photos from profiles where id = $1",
       [userId]
@@ -136,7 +128,34 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     const filename = `${userId}-${randomUUID()}.${extension}`;
     const filePath = path.join(storageDir, filename);
     const url = `${PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
+    const publicImageUrl = new URL(url, app.config.APP_URL).toString();
     await writeFile(filePath, buffer, { flag: "wx" });
+
+    let moderation;
+
+    try {
+      moderation = await moderateImageOrReject(app, {
+        userId,
+        surface: "profile_photo",
+        mimeType,
+        filename: upload.filename,
+        imageUrl: publicImageUrl,
+        contentId: url,
+        contentRef: {
+          url,
+          originalFilename: upload.filename,
+          mimeType
+        },
+        bytes: buffer
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "MODERATION_UNAVAILABLE") {
+        throw error;
+      }
+
+      await removeStoredFile(filePath);
+      throw error;
+    }
 
     const savedPhotoResult = await app.db.query<{ photos: string[] | null }>(
       `with eligible_user as (
@@ -164,7 +183,14 @@ export async function registerMediaRoutes(app: FastifyInstance) {
          userIdParam: "$1",
          surface: "profile_photo",
          contentType: "image",
-         fromCte: "eligible_user"
+         fromCte: "eligible_user",
+         providerParam: "$3",
+         providerRequestIdParam: "$4",
+         normalizedLabelsParam: "$5",
+         policyDecisionParam: "$6",
+         moderationStatusParam: "$7",
+         flaggedReasonParam: "$8",
+         moderationRawResultParam: "$9"
        })}
        insert into profiles (id, photos, updated_at)
        select eligible_user.id, array[$2]::text[], now()
@@ -179,7 +205,17 @@ export async function registerMediaRoutes(app: FastifyInstance) {
        where array_position(profiles.photos, $2) is not null
           or coalesce(array_length(profiles.photos, 1), 0) < 9
        returning photos`,
-      [userId, url]
+      [
+        userId,
+        url,
+        moderation.providerResult.provider,
+        moderation.providerResult.provider_request_id,
+        JSON.stringify(moderation.providerResult.labels),
+        JSON.stringify(moderation.decision),
+        "allowed",
+        null,
+        JSON.stringify(moderation.providerResult.raw_result ?? {})
+      ]
     ).catch(async (error) => {
       await removeStoredFile(filePath);
       throw error;

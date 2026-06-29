@@ -70,6 +70,14 @@ describe("policy mapper", () => {
     expect(decision.decision).toBe("allow");
   });
 
+  it("queues chaser and fetishizing language for review instead of treating it as consensual kink", () => {
+    const decision = map("chaser_fetishization", "profile", 0.88);
+
+    expect(decision.decision).toBe("quarantine");
+    expect(decision.reason_code).toBe("chaser_fetishization_pending_review");
+    expect(decision.trust_impact).toBe(0);
+  });
+
   it("sets trust to zero for zero-tolerance categories", () => {
     const decision = map("underage_sexual", "profile_photo", 0.98);
 

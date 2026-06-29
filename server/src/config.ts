@@ -67,6 +67,11 @@ const configSchema = z.object({
   MODERATION_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
   MODERATION_MAX_RETRIES: z.coerce.number().int().nonnegative().optional().default(3),
   MODERATION_FAIL_MODE: z.enum(["queue"]).optional().default("queue"),
+  STREAM_MODERATION_ENABLED: booleanEnvSchema,
+  STREAM_API_KEY: z.string().optional().default(""),
+  STREAM_API_SECRET: z.string().optional().default(""),
+  STREAM_APP_ID: z.string().optional().default(""),
+  STREAM_MODERATION_CONFIG_KEY: z.string().trim().regex(/^[\w:-]*$/, "STREAM_MODERATION_CONFIG_KEY may only contain letters, numbers, underscores, dashes, and colons.").optional().default(""),
   RABBITMQ_URL: z.string().optional().default(""),
   TEMP_MEDIA_TTL_MINUTES: z.coerce.number().int().positive().optional().default(30),
   TRUST_DECAY_CRON: z.string().trim().min(1).optional().default("0 3 * * *"),
@@ -99,6 +104,18 @@ const configSchema = z.object({
   GHOST_DERIVATION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
 }).superRefine((config, ctx) => {
+  if (config.STREAM_MODERATION_ENABLED) {
+    for (const keyName of ["STREAM_API_KEY", "STREAM_API_SECRET", "STREAM_MODERATION_CONFIG_KEY"] as const) {
+      if (!config[keyName]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${keyName} is required when STREAM_MODERATION_ENABLED=true.`,
+          path: [keyName]
+        });
+      }
+    }
+  }
+
   if (config.NODE_ENV !== "production") {
     return;
   }
@@ -203,6 +220,11 @@ type ModerationConfigKey =
   | "MODERATION_TIMEOUT_MS"
   | "MODERATION_MAX_RETRIES"
   | "MODERATION_FAIL_MODE"
+  | "STREAM_MODERATION_ENABLED"
+  | "STREAM_API_KEY"
+  | "STREAM_API_SECRET"
+  | "STREAM_APP_ID"
+  | "STREAM_MODERATION_CONFIG_KEY"
   | "RABBITMQ_URL"
   | "TEMP_MEDIA_TTL_MINUTES"
   | "TRUST_DECAY_CRON"

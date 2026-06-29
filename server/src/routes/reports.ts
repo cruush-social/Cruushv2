@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "../errors.js";
+import { createUserReport } from "../moderation-service.js";
 import { createReportPayloadSchema, type CreateReportPayload, type ReportReason } from "../report-schema.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 
@@ -185,6 +186,17 @@ export async function registerReportRoutes(app: FastifyInstance) {
     if (!row) {
       throw new ApiError(500, "INTERNAL_ERROR", "Failed to create report.");
     }
+
+    await createUserReport(app, {
+      reporterId: reporterUserId,
+      targetUserId: target.targetUserId,
+      contentType: payload.targetType,
+      contentId: row.id,
+      reason: payload.reason,
+      details: payload.details,
+      conversationId: target.conversationId,
+      messageId: target.messageId
+    });
 
     if (target.targetUserId) {
       await app.db.query(

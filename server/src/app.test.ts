@@ -1,3 +1,6 @@
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
 import { createSessionCookie, generateSessionToken, hashPassword, hashSessionToken } from "./auth.js";
@@ -445,6 +448,42 @@ function multipartFilePayload(input: {
     payload: Buffer.concat([head, input.content, tail]),
     contentType: `multipart/form-data; boundary=${boundary}`
   };
+}
+
+function buildInternalModerationTestApp(options: { mediaStorageDir?: string } = {}) {
+  return buildServer({
+    NODE_ENV: "test",
+    PORT: 3001,
+    HOST: "127.0.0.1",
+    DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+    CORS_ORIGIN: "http://localhost:5173",
+    SESSION_SECRET: "test-secret",
+    APP_URL: "https://cruush.test",
+    RESEND_API_KEY: "",
+    MAIL_FROM: "",
+    EMAIL_PREVIEW_ENABLED: false,
+    DEVELOPMENT_ADMIN_ENABLED: false,
+    DEVELOPMENT_ADMIN_PASSWORD: "",
+    TURNSTILE_SECRET_KEY: "",
+    PROFILE_ENCRYPTION_KEY: "",
+    PROFILE_TOKEN_KEY: "",
+    PROFILE_TOKEN_KEY_VERSION: "v1",
+    RELATIONSHIP_ENCRYPTION_KEY: "",
+    RELATIONSHIP_INDEX_KEY: "",
+    RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v1",
+    RELATIONSHIP_INDEX_KEY_VERSION: "v1",
+    MATCH_TOKEN_ENCRYPTION_KEY: "",
+    MATCH_TOKEN_SIGNING_KEY: "",
+    MATCH_TOKEN_KEY_VERSION: "v1",
+    INTERNAL_API_SECRET: "internal-secret",
+    ...(options.mediaStorageDir ? { MEDIA_STORAGE_DIR: options.mediaStorageDir } : {})
+  }, {
+    db: {
+      query,
+      end
+    },
+    rateLimiter
+  });
 }
 
 describe("server", () => {
@@ -2011,6 +2050,343 @@ describe("server", () => {
     });
   });
 
+  it("creates a moderation review item when a report is submitted", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "report-moderation",
+          status: "open",
+          created_at: "2026-04-29T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValue({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "profile",
+        targetUserId,
+        reason: "harassment",
+        details: "keeps sending threats"
+      }
+    });
+    const reviewInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into content_reviews"));
+
+    expect(response.statusCode).toBe(201);
+    expect(reviewInsert?.[1]).toEqual(expect.arrayContaining([
+      targetUserId,
+      "profile",
+      "text",
+      "queued",
+      "report-moderation",
+      "flagged",
+      "harassment",
+      "user_report"
+    ]));
+  });
+
+  it("rejects moderation queue access without the internal secret", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/internal/moderation/queue"
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Internal moderation access is disabled.",
+        details: null
+      }
+    });
+  });
+
+  it("lists pending moderation queue items with the internal secret", async () => {
+    const internalApp = buildInternalModerationTestApp();
+
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2",
+        user_id: userId,
+        surface: "profile",
+        content_type: "text",
+        status: "queued",
+        moderation_status: "flagged",
+        flagged_reason: "harassment",
+        provider: "user_report",
+        moderation_provider: "user_report",
+        provider_request_id: "report-1",
+        content_id: "report-1",
+        content_ref: {
+          reporterId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          targetUserId: userId,
+          targetType: "profile",
+          reason: "harassment"
+        },
+        created_at: "2026-04-29T12:00:00.000Z",
+        completed_at: null,
+        reviewed_by: null,
+        reviewed_at: null
+      }]
+    });
+
+    try {
+      const response = await internalApp.inject({
+        method: "GET",
+        url: "/api/internal/moderation/queue",
+        headers: {
+          "x-internal-secret": "internal-secret"
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(query.mock.calls[0]?.[0]).toContain("from content_reviews");
+      expect(response.json()).toEqual({
+        data: [{
+          id: "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2",
+          userId,
+          surface: "profile",
+          contentType: "text",
+          contentId: "report-1",
+          contentRef: {
+            reporterId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            targetUserId: userId,
+            targetType: "profile",
+            reason: "harassment"
+          },
+          provider: "user_report",
+          providerRequestId: "report-1",
+          reason: "harassment",
+          status: "queued",
+          moderationStatus: "flagged",
+          createdAt: "2026-04-29T12:00:00.000Z",
+          completedAt: null,
+          reviewedBy: null,
+          reviewedAt: null
+        }]
+      });
+    } finally {
+      await internalApp.close();
+    }
+  });
+
+  it("prevents users from reviewing their own moderation item", async () => {
+    const internalApp = buildInternalModerationTestApp();
+    const reviewId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
+
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: reviewId,
+        user_id: userId,
+        surface: "profile",
+        content_type: "text",
+        status: "queued",
+        moderation_status: "flagged",
+        flagged_reason: "harassment",
+        provider: "user_report",
+        moderation_provider: "user_report",
+        provider_request_id: "report-1",
+        content_id: "report-1",
+        content_ref: {
+          reporterId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          targetUserId: userId
+        },
+        created_at: "2026-04-29T12:00:00.000Z",
+        completed_at: null,
+        reviewed_by: null,
+        reviewed_at: null
+      }]
+    });
+
+    try {
+      const response = await internalApp.inject({
+        method: "POST",
+        url: `/api/internal/moderation/reviews/${reviewId}/actions`,
+        headers: {
+          "x-internal-secret": "internal-secret"
+        },
+        payload: {
+          action: "approve",
+          reviewerUserId: userId
+        }
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(query).toHaveBeenCalledTimes(1);
+    } finally {
+      await internalApp.close();
+    }
+  });
+
+  it("marks moderation reviews as removed from the internal action endpoint", async () => {
+    const internalApp = buildInternalModerationTestApp();
+    const reviewId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
+    const reviewerUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reviewId,
+          user_id: userId,
+          surface: "profile",
+          content_type: "text",
+          status: "queued",
+          moderation_status: "flagged",
+          flagged_reason: "harassment",
+          provider: "user_report",
+          moderation_provider: "user_report",
+          provider_request_id: "report-1",
+          content_id: "report-1",
+          content_ref: {
+            reporterId: "6f13b8a8-bccd-49a4-bc6a-87b271ca37d5",
+            targetUserId: userId
+          },
+          created_at: "2026-04-29T12:00:00.000Z",
+          completed_at: null,
+          reviewed_by: null,
+          reviewed_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reviewId,
+          user_id: userId,
+          surface: "profile",
+          content_type: "text",
+          status: "closed",
+          moderation_status: "removed",
+          flagged_reason: "harassment",
+          provider: "user_report",
+          moderation_provider: "user_report",
+          provider_request_id: "report-1",
+          content_id: "report-1",
+          content_ref: {},
+          created_at: "2026-04-29T12:00:00.000Z",
+          completed_at: "2026-04-29T12:10:00.000Z",
+          reviewed_by: reviewerUserId,
+          reviewed_at: "2026-04-29T12:10:00.000Z"
+        }]
+      });
+
+    try {
+      const response = await internalApp.inject({
+        method: "POST",
+        url: `/api/internal/moderation/reviews/${reviewId}/actions`,
+        headers: {
+          "x-internal-secret": "internal-secret"
+        },
+        payload: {
+          action: "remove",
+          reviewerUserId
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(query.mock.calls[1]?.[1]).toEqual([reviewId, "removed", reviewerUserId]);
+      expect(response.json()).toEqual({
+        data: {
+          id: reviewId,
+          moderationStatus: "removed",
+          status: "closed",
+          reviewedBy: reviewerUserId,
+          reviewedAt: "2026-04-29T12:10:00.000Z"
+        }
+      });
+    } finally {
+      await internalApp.close();
+    }
+  });
+
+  it("deletes queued profile photo files when moderators remove them", async () => {
+    const mediaStorageDir = await mkdtemp(path.join(tmpdir(), "cruush-test-media-"));
+    const profilePhotoDir = path.join(mediaStorageDir, "profile-photos");
+    const internalApp = buildInternalModerationTestApp({ mediaStorageDir });
+    const reviewId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
+    const reviewerUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const filename = `${userId}-2992c843-c914-43db-840c-330749426e9f.png`;
+    const filePath = path.join(profilePhotoDir, filename);
+
+    await mkdir(profilePhotoDir, { recursive: true });
+    await writeFile(filePath, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reviewId,
+          user_id: userId,
+          surface: "profile_photo",
+          content_type: "image",
+          status: "queued",
+          moderation_status: "pending_review",
+          flagged_reason: "provider_unavailable",
+          provider: "stream",
+          moderation_provider: "stream",
+          provider_request_id: "stream-review-1",
+          content_id: `/media/profile-photos/${filename}`,
+          content_ref: {
+            url: `/media/profile-photos/${filename}`,
+            reporterId: "6f13b8a8-bccd-49a4-bc6a-87b271ca37d5",
+            targetUserId: userId
+          },
+          created_at: "2026-04-29T12:00:00.000Z",
+          completed_at: null,
+          reviewed_by: null,
+          reviewed_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reviewId,
+          user_id: userId,
+          surface: "profile_photo",
+          content_type: "image",
+          status: "closed",
+          moderation_status: "removed",
+          flagged_reason: "provider_unavailable",
+          provider: "stream",
+          moderation_provider: "stream",
+          provider_request_id: "stream-review-1",
+          content_id: `/media/profile-photos/${filename}`,
+          content_ref: {},
+          created_at: "2026-04-29T12:00:00.000Z",
+          completed_at: "2026-04-29T12:10:00.000Z",
+          reviewed_by: reviewerUserId,
+          reviewed_at: "2026-04-29T12:10:00.000Z"
+        }]
+      });
+
+    try {
+      const response = await internalApp.inject({
+        method: "POST",
+        url: `/api/internal/moderation/reviews/${reviewId}/actions`,
+        headers: {
+          "x-internal-secret": "internal-secret"
+        },
+        payload: {
+          action: "remove",
+          reviewerUserId
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      await expect(access(filePath)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await internalApp.close();
+      await rm(mediaStorageDir, { recursive: true, force: true });
+    }
+  });
+
   it("uploads a profile photo on POST /api/profile-photos", async () => {
     query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
       rows: String(_sql).includes("select photos from profiles")
@@ -2047,7 +2423,7 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[1]).toEqual([userId]);
     expect(query.mock.calls[1]?.[0]).toContain("insert into profiles (id, photos, updated_at)");
     expect(query.mock.calls[1]?.[0]).toContain("array_append(profiles.photos, $2)");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, body.data.url]);
+    expect(query.mock.calls[1]?.[1]).toEqual(expect.arrayContaining([userId, body.data.url, "mock", "allowed"]));
   });
 
   it("rejects profile photo uploads when the profile already has 9 photos", async () => {
@@ -2113,7 +2489,7 @@ describe("server", () => {
         details: null
       }
     });
-    expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
@@ -3045,7 +3421,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     expect(query).toHaveBeenCalledTimes(1);
     expect(query.mock.calls[0]?.[0]).toContain("insert into posts");
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "Hosting tonight", "1h"]);
+    expect(query.mock.calls[0]?.[1]).toEqual(expect.arrayContaining([userId, "Hosting tonight", "1h", "mock", "allowed"]));
     expect(response.json()).toEqual({
       data: {
         id: "post-2",
@@ -3121,7 +3497,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "Hosting now", "6h"]);
+    expect(query.mock.calls[0]?.[1]).toEqual(expect.arrayContaining([userId, "Hosting now", "6h", "mock", "allowed"]));
   });
 
   it("forbids reading another user's cruush activity", async () => {
@@ -4619,6 +4995,36 @@ describe("server", () => {
         updated_at: "2026-04-28T12:05:00.000Z"
       }
     });
+  });
+
+  it("rejects prohibited profile text before profile storage", async () => {
+    query.mockResolvedValue({ rows: [] });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        bio: "I will kill you.",
+        year_of_birth: 1994
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This content violates Cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
 
   it("accepts field-level mutual crowd visibility for kinks and fetishes", async () => {

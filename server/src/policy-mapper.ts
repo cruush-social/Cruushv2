@@ -290,6 +290,26 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
     });
   }
 
+  if (normalizedLabel === "chaser_fetishization") {
+    if (label.confidence < 0.7) {
+      return evidenceOnly(label, 25);
+    }
+
+    return baseDecision({
+      decision: "quarantine",
+      category: normalizedLabel,
+      severity: label.severity ?? "medium",
+      confidence: label.confidence,
+      create_evidence_event: true,
+      evidence_value: 50,
+      trust_impact: 0,
+      penalty_decays: true,
+      moderation_history_required: true,
+      reason_code: "chaser_fetishization_pending_review",
+      user_message_code: "content_pending_review"
+    });
+  }
+
   return baseDecision({
     category: normalizedLabel,
     severity: label.severity ?? "low",
@@ -317,7 +337,12 @@ function chooseDecision(current: PolicyDecision, next: PolicyDecision) {
 }
 
 export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecision {
-  if (input.providerResult.error) {
+  const recommendedAction = input.providerResult.recommended_action?.toLowerCase();
+
+  if (
+    input.providerResult.error ||
+    ["partial", "pending", "provider_processing", "error"].includes((input.providerResult.status ?? "").toLowerCase())
+  ) {
     return baseDecision({
       decision: "quarantine",
       category: "provider_unavailable",
@@ -332,7 +357,41 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
     });
   }
 
-  return input.providerResult.labels
+  const decision = input.providerResult.labels
     .map((label) => mapLabel(label, input.surface, input.contentType))
     .reduce(chooseDecision, ALLOW_POLICY_DECISION);
+
+  if (decision.decision === "allow" && recommendedAction === "flag") {
+    return baseDecision({
+      decision: "quarantine",
+      category: decision.category ?? input.providerResult.labels[0]?.normalized_label,
+      severity: decision.severity === "none" ? "medium" : decision.severity,
+      confidence: decision.confidence || 0.8,
+      create_evidence_event: decision.create_evidence_event,
+      evidence_value: decision.evidence_value,
+      trust_impact: 0,
+      penalty_decays: true,
+      moderation_history_required: true,
+      reason_code: "provider_flagged_for_review",
+      user_message_code: "content_pending_review"
+    });
+  }
+
+  if (decision.decision === "allow" && recommendedAction === "remove") {
+    return baseDecision({
+      decision: "reject",
+      category: decision.category ?? input.providerResult.labels[0]?.normalized_label ?? "harassment",
+      severity: decision.severity === "none" ? "high" : decision.severity,
+      confidence: decision.confidence || 0.88,
+      create_evidence_event: true,
+      evidence_value: Math.max(decision.evidence_value, 100),
+      trust_impact: Math.min(decision.trust_impact, -20),
+      penalty_decays: true,
+      moderation_history_required: true,
+      reason_code: "provider_recommended_remove",
+      user_message_code: "content_rejected"
+    });
+  }
+
+  return decision;
 }

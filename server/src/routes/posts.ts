@@ -66,7 +66,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
   app.post("/api/posts", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
-    await moderateTextOrReject(app, {
+    const moderation = await moderateTextOrReject(app, {
       userId,
       surface: "feed",
       text: payload.content
@@ -98,7 +98,14 @@ export async function registerPostRoutes(app: FastifyInstance) {
          userIdParam: "$1",
          surface: "feed",
          contentType: "text",
-         fromCte: "eligible_user"
+         fromCte: "eligible_user",
+         providerParam: "$4",
+         providerRequestIdParam: "$5",
+         normalizedLabelsParam: "$6",
+         policyDecisionParam: "$7",
+         moderationStatusParam: "$8",
+         flaggedReasonParam: "$9",
+         moderationRawResultParam: "$10"
        })},
        inserted as (
          insert into posts (user_id, content, expires_in, expires_at)
@@ -127,7 +134,18 @@ export async function registerPostRoutes(app: FastifyInstance) {
          pr.photos
        from inserted i
        left join profiles pr on pr.id = i.user_id`,
-      [userId, payload.content, payload.expiresIn]
+      [
+        userId,
+        payload.content,
+        payload.expiresIn,
+        moderation.providerResult.provider,
+        moderation.providerResult.provider_request_id,
+        JSON.stringify(moderation.providerResult.labels),
+        JSON.stringify(moderation.decision),
+        "allowed",
+        null,
+        JSON.stringify(moderation.providerResult.raw_result ?? {})
+      ]
     );
     const row = result.rows[0];
 

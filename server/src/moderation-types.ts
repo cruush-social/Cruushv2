@@ -28,7 +28,8 @@ export type NormalizedModerationLabel =
   | "location_privacy"
   | "revenge_porn"
   | "scam"
-  | "spam";
+  | "spam"
+  | "chaser_fetishization";
 
 export type ModerationCategory = NormalizedModerationLabel | "provider_unavailable";
 
@@ -67,6 +68,9 @@ export type ProviderModerationResult = {
   provider_request_id: string;
   labels: ProviderLabel[];
   latency_ms: number;
+  recommended_action?: "keep" | "flag" | "remove" | string;
+  status?: "complete" | "completed" | "partial" | "pending" | string;
+  raw_result?: Record<string, unknown>;
   error?: string;
 };
 
