@@ -183,10 +183,10 @@ Encryption changes how moderation works.
 
 Plan for:
 
-- moderation-only decrypted access in backend tooling
+- automated moderation-only decrypted access in backend services
 - text search limited to fields intentionally left queryable
-- separate moderation views for sensitive content
-- audit logs for moderator access
+- separate moderation events and status tables for sensitive content
+- audit logs for service access to decrypted moderation inputs
 
 If you need abuse detection on encrypted text, do not rely on plaintext search. Use:
 
@@ -194,7 +194,7 @@ If you need abuse detection on encrypted text, do not rely on plaintext search. 
 - rate limits
 - metadata signals
 - derived moderation indexes
-- manual review tools
+- automated trust-score enforcement from report evidence
 
 ## Step 7: Migrate in slices
 

@@ -60,6 +60,19 @@ const configSchema = z.object({
   CORS_ORIGIN: corsOriginSchema.default("http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,https://127.0.0.1:5173"),
   SESSION_SECRET: z.string().min(1, "SESSION_SECRET is required"),
   APP_URL: z.string().url().default("https://localhost:5173"),
+  MEDIA_STORAGE_DIR: z.string().trim().min(1).optional().default("media"),
+  MEDIA_PUBLIC_BASE_URL: z.string().url().optional().or(z.literal("")).default(""),
+  MODERATION_PROVIDER: z.enum(["mock"]).optional().default("mock"),
+  MODERATION_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
+  STREAM_MODERATION_ENABLED: booleanEnvSchema,
+  STREAM_API_KEY: z.string().optional().default(""),
+  STREAM_API_SECRET: z.string().optional().default(""),
+  STREAM_APP_ID: z.string().optional().default(""),
+  STREAM_MODERATION_CONFIG_KEY: z.string().trim().regex(/^[\w:-]*$/, "STREAM_MODERATION_CONFIG_KEY may only contain letters, numbers, underscores, dashes, and colons.").optional().default(""),
+  PHOTODNA_ENABLED: booleanEnvSchema,
+  PHOTODNA_API_URL: z.string().url().optional().or(z.literal("")).default(""),
+  PHOTODNA_SUBSCRIPTION_KEY: z.string().optional().default(""),
+  PHOTODNA_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default(""),
   EMAIL_PREVIEW_ENABLED: booleanEnvSchema,
@@ -87,6 +100,30 @@ const configSchema = z.object({
   GHOST_DERIVATION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
 }).superRefine((config, ctx) => {
+  if (config.STREAM_MODERATION_ENABLED) {
+    for (const keyName of ["STREAM_API_KEY", "STREAM_API_SECRET", "STREAM_MODERATION_CONFIG_KEY"] as const) {
+      if (!config[keyName]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${keyName} is required when STREAM_MODERATION_ENABLED=true.`,
+          path: [keyName]
+        });
+      }
+    }
+  }
+
+  if (config.PHOTODNA_ENABLED) {
+    for (const keyName of ["PHOTODNA_API_URL", "PHOTODNA_SUBSCRIPTION_KEY"] as const) {
+      if (!config[keyName]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${keyName} is required when PHOTODNA_ENABLED=true.`,
+          path: [keyName]
+        });
+      }
+    }
+  }
+
   if (config.NODE_ENV !== "production") {
     return;
   }
@@ -184,8 +221,23 @@ type GhostModeConfigKey =
   | "VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION"
   | "GHOST_DERIVATION_KEY_VERSION"
   | "DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION";
+type ModerationConfigKey =
+  | "MEDIA_STORAGE_DIR"
+  | "MEDIA_PUBLIC_BASE_URL"
+  | "MODERATION_PROVIDER"
+  | "MODERATION_TIMEOUT_MS"
+  | "STREAM_MODERATION_ENABLED"
+  | "STREAM_API_KEY"
+  | "STREAM_API_SECRET"
+  | "STREAM_APP_ID"
+  | "STREAM_MODERATION_CONFIG_KEY"
+  | "PHOTODNA_ENABLED"
+  | "PHOTODNA_API_URL"
+  | "PHOTODNA_SUBSCRIPTION_KEY"
+  | "PHOTODNA_TIMEOUT_MS";
 
-export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey> & Partial<Pick<ParsedAppConfig, GhostModeConfigKey>>;
+export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey> &
+  Partial<Pick<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey>>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return configSchema.parse(env);

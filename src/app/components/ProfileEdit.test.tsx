@@ -3,9 +3,10 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileEdit from './ProfileEdit';
 
-const { getMyProfile, saveMyProfile } = vi.hoisted(() => ({
+const { getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   getMyProfile: vi.fn(),
   saveMyProfile: vi.fn(),
+  uploadProfilePhoto: vi.fn(),
 }));
 
 vi.mock('../lib/profileApi', async () => {
@@ -15,6 +16,7 @@ vi.mock('../lib/profileApi', async () => {
     ...actual,
     getMyProfile,
     saveMyProfile,
+    uploadProfilePhoto,
   };
 });
 
@@ -23,6 +25,7 @@ describe('ProfileEdit', () => {
     localStorage.clear();
     getMyProfile.mockReset();
     saveMyProfile.mockReset();
+    uploadProfilePhoto.mockReset();
 
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const profile = {
@@ -53,6 +56,9 @@ describe('ProfileEdit', () => {
 
     getMyProfile.mockResolvedValue(profile);
     saveMyProfile.mockResolvedValue(profile);
+    uploadProfilePhoto.mockResolvedValue({
+      url: '/media/profile-photos/d271f6da-c51d-4d73-a322-d9c56f45d4fa-7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2.png',
+    });
   });
 
   it('lets users set master position, master role, and field-level kink visibility', async () => {
@@ -109,6 +115,86 @@ describe('ProfileEdit', () => {
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('is_seeking');
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('visibility');
   }, 10000);
+
+  it('uploads, promotes, removes, and saves profile photos', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+    const uploadedPhoto = '/media/profile-photos/d271f6da-c51d-4d73-a322-d9c56f45d4fa-7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2.png';
+
+    getMyProfile.mockResolvedValueOnce({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: 'Jordan',
+      year_of_birth: 1998,
+      photos: ['https://example.com/old.jpg'],
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+    uploadProfilePhoto.mockResolvedValueOnce({
+      url: uploadedPhoto,
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    const photosTab = await screen.findByRole('tab', { name: 'Photos' });
+    fireEvent.click(photosTab);
+
+    const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+
+    fireEvent.change(uploadInput as HTMLInputElement, {
+      target: {
+        files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })],
+      },
+    });
+
+    await waitFor(() => expect(uploadProfilePhoto).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Make photo 2 primary' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove photo 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      photos: [uploadedPhoto],
+    })));
+  });
+
+  it('keeps an uploaded profile photo visible when switching edit tabs', async () => {
+    const uploadedPhoto = '/media/profile-photos/d271f6da-c51d-4d73-a322-d9c56f45d4fa-7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2.png';
+    uploadProfilePhoto.mockResolvedValueOnce({
+      url: uploadedPhoto,
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    const photosTab = await screen.findByRole('tab', { name: 'Photos' });
+    fireEvent.click(photosTab);
+
+    const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+
+    fireEvent.change(uploadInput as HTMLInputElement, {
+      target: {
+        files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })],
+      },
+    });
+
+    const uploadedImage = await screen.findByAltText('Primary profile photo');
+    expect(uploadedImage).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
+
+    const profileTab = screen.getByRole('tab', { name: 'Profile' });
+    fireEvent.click(profileTab);
+    expect(profileTab).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.click(photosTab);
+    expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
+  });
 
   it('lets users set trans status, crowds, categorized vibes, and HIV visibility', async () => {
     render(

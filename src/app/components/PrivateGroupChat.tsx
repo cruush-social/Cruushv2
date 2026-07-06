@@ -124,6 +124,17 @@ export default function PrivateGroupChat() {
     }
   };
 
+  const openReport = () => {
+    navigate('/report', {
+      state: {
+        targetType: 'conversation',
+        conversationId: conversation.id,
+        targetUserId: conversation.kind === 'dm' ? conversation.user.id : undefined,
+        targetLabel: conversation.user.name,
+      },
+    });
+  };
+
   return (
     <div className="relative min-h-screen bg-background pb-20">
       <header className="sticky top-0 z-10 border-b border-border bg-background/88 px-4 py-4 backdrop-blur-md">
@@ -174,7 +185,7 @@ export default function PrivateGroupChat() {
             <Button variant="ghost" size="icon" title="Media states" aria-label="Open media options">
               <ImageIcon className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" title="Safety tools" aria-label="Open safety options">
+            <Button variant="ghost" size="icon" title="Report conversation" aria-label="Report conversation" onClick={openReport}>
               <CruushIcon name="safety" className="h-5 w-5" />
             </Button>
             <Button variant="ghost" size="icon" aria-label="More conversation options">

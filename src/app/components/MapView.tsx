@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CruushIcon } from './CruushIconImage';
+import { resolveMediaUrl } from '../lib/apiClient';
 
 export type MapMarkerBadge = {
   kind: 'position';
@@ -539,7 +540,8 @@ function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
 }
 
 function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
-  const hasPhoto = Boolean(marker.photo);
+  const resolvedPhoto = resolveMediaUrl(marker.photo);
+  const hasPhoto = Boolean(resolvedPhoto);
   const gradientId = `marker-fill-${marker.id}`;
   const clipId = `marker-photo-clip-${marker.id}`;
   const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
@@ -575,7 +577,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             clipPath={`url(#${clipId})`}
             data-testid={`marker-photo-fill-${marker.id}`}
             height="64"
-            href={marker.photo ?? ''}
+            href={resolvedPhoto}
             preserveAspectRatio="xMidYMid slice"
             width="64"
           />

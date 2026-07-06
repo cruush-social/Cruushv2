@@ -19,6 +19,7 @@ import Settings from './components/Settings';
 import PrivacyAudit from './components/PrivacyAudit';
 import FeelingLucky from './components/FeelingLucky';
 import RequestsDashboard from './components/RequestsDashboard';
+import ReportPage from './components/ReportPage';
 import VerifyEmail from './components/VerifyEmail';
 import EmailVerificationGate from './components/EmailVerificationGate';
 import ResetPassword from './components/ResetPassword';
@@ -219,6 +220,7 @@ export default function App() {
             <Route path="/privacy/audit" element={<PrivacyAudit />} />
             <Route path="/lucky" element={<FeelingLucky />} />
             <Route path="/requests" element={<RequestsDashboard />} />
+            <Route path="/report" element={<ReportPage />} />
             <Route path="*" element={<Navigate to="/map" replace />} />
           </Routes>
           {isOwnProfilePreviewOpen && session ? (

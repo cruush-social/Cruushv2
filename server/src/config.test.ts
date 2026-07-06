@@ -51,6 +51,48 @@ describe("loadConfig", () => {
     })).toThrow();
   });
 
+  it("requires Stream credentials when Stream moderation is enabled", () => {
+    expect(() => loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      STREAM_MODERATION_ENABLED: "true"
+    })).toThrow();
+
+    expect(loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      STREAM_MODERATION_ENABLED: "true",
+      STREAM_API_KEY: "stream-key",
+      STREAM_API_SECRET: "stream-secret",
+      STREAM_MODERATION_CONFIG_KEY: "cruush:automod"
+    })).toMatchObject({
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "stream-key",
+      STREAM_API_SECRET: "stream-secret",
+      STREAM_MODERATION_CONFIG_KEY: "cruush:automod"
+    });
+  });
+
+  it("requires PhotoDNA connection details when PhotoDNA is enabled", () => {
+    expect(() => loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      PHOTODNA_ENABLED: "true"
+    })).toThrow();
+
+    expect(loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      PHOTODNA_ENABLED: "true",
+      PHOTODNA_API_URL: "https://photodna.example.test/hash",
+      PHOTODNA_SUBSCRIPTION_KEY: "photo-dna-key"
+    })).toMatchObject({
+      PHOTODNA_ENABLED: true,
+      PHOTODNA_API_URL: "https://photodna.example.test/hash",
+      PHOTODNA_SUBSCRIPTION_KEY: "photo-dna-key"
+    });
+  });
+
   it("accepts production config with strong secrets and preview disabled", () => {
     expect(loadConfig({
       NODE_ENV: "production",

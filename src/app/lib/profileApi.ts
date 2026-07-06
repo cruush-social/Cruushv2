@@ -95,6 +95,7 @@ export type ProfileRecord = ProfilePayload & {
   viewer_relationship?: {
     match_id: string | null;
     mutual_cruush: boolean;
+    outgoing_cruush?: boolean;
     can_message: boolean;
     can_reveal_precise_location: boolean;
   };
@@ -194,5 +195,15 @@ export async function saveMyProfile(profile: ProfilePayload) {
   return requestApi<ProfileRecord>('/api/profiles/me', {
     method: 'PUT',
     body: JSON.stringify(profile),
+  });
+}
+
+export async function uploadProfilePhoto(photo: File) {
+  const formData = new FormData();
+  formData.set('photo', photo);
+
+  return requestApi<{ url: string }>('/api/profile-photos', {
+    method: 'POST',
+    body: formData,
   });
 }
