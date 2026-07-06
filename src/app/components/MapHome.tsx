@@ -17,6 +17,7 @@ import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
+import { resolveMediaUrl } from '../lib/apiClient';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
   emptyProfilePayload,
@@ -1105,7 +1106,7 @@ export default function MapHome({ isOwnProfilePreviewOpen = false }: { isOwnProf
                             aria-hidden="true"
                             className="h-full w-full object-cover"
                             draggable={false}
-                            src={user.photo}
+                            src={resolveMediaUrl(user.photo)}
                           />
                         ) : (
                           <div

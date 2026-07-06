@@ -8,6 +8,7 @@ import { CruushIcon } from './CruushIconImage';
 import { sendCruush } from '../lib/cruushApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { handleCruushSendSuccess, notifyCruushSendError, notifyMutualCruushRequired } from '../lib/cruushNotifications';
+import { resolveMediaUrl } from '../lib/apiClient';
 import { emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
@@ -286,7 +287,18 @@ export default function ProfileView() {
               </Button>
             ) : (
               <>
-                <Button variant="ghost" size="icon" aria-label="Report profile">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Report profile"
+                  onClick={() => navigate('/report', {
+                    state: {
+                      targetType: 'profile',
+                      targetUserId: userId,
+                      targetLabel: profileView.name,
+                    },
+                  })}
+                >
                   <Flag className="w-5 h-5" />
                 </Button>
               </>
@@ -303,7 +315,7 @@ export default function ProfileView() {
         >
           {profileView.photos.length > 0 ? (
             <img
-              src={profileView.photos[0]}
+              src={resolveMediaUrl(profileView.photos[0])}
               alt={profileView.name}
               className="h-full w-full object-cover"
               style={PROFILE_HERO_ASPECT_STYLE}

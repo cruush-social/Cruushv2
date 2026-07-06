@@ -223,10 +223,9 @@ flowchart LR
   Detector --> Decision{"Moderation result"}
   Decision -->|low risk| Variants["Generate approved display variants"]
   Decision -->|explicit adult| Blur["Generate blurred NSFW variant\nmark explicit"]
-  Decision -->|uncertain/prohibited| Review["Manual moderation queue"]
+  Decision -->|uncertain/prohibited| Review["Automated safety hold or rejection"]
   Variants --> Publish["Profile photos visible in app"]
   Blur --> Publish
-  Review --> Publish
   Review --> Reject["Reject/remove asset"]
 ```
 
@@ -238,16 +237,16 @@ Moderation policy target:
 - Store originals privately and publish only approved/resized/blurred variants.
 - Keep per-photo moderation metadata separate from the profile text model.
 - Blur explicit photos by default unless the viewer enables explicit content.
-- Use a manual review band for uncertain detector scores instead of hard auto-decisions.
-- Treat detector output as a moderation aid, not a legal/compliance guarantee.
+- Use an automated fail-closed band for uncertain detector scores.
+- Treat detector, Stream, and PhotoDNA output as automod signals, not a legal/compliance guarantee.
 
 Suggested score bands:
 
 | Detector score | Default action |
 | --- | --- |
 | `< 0.45` | allow after normal upload checks |
-| `0.45 - 0.85` | hold for manual review |
-| `>= 0.85` | mark explicit, blur, reject, or queue depending on policy class |
+| `0.45 - 0.85` | block upload or retry automod; do not publish |
+| `>= 0.85` | reject or apply feature/account enforcement depending on policy class |
 
 Future key files:
 

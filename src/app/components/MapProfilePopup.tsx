@@ -8,6 +8,7 @@ import { ProfileDetailsTabs, profileRecordToProfileView } from './ProfileView';
 import { sendCruush } from '../lib/cruushApi';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
+import { resolveMediaUrl } from '../lib/apiClient';
 import { emptyProfilePayload, getMyProfile, getProfileById, type ProfileRecord } from '../lib/profileApi';
 import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
@@ -148,7 +149,7 @@ export default function MapProfilePopup({ user, onClose, fixed = false, isOwnPro
         >
           {displayPhoto ? (
             <img
-              src={displayPhoto}
+              src={resolveMediaUrl(displayPhoto)}
               alt={displayName}
               className="h-full w-full object-cover"
               style={PROFILE_HERO_ASPECT_STYLE}

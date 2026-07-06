@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useId } from 'react';
+import { resolveMediaUrl } from '../lib/apiClient';
 
 interface HeartPhotoProps {
   borderColor?: string;
@@ -41,6 +42,7 @@ export default function HeartPhoto({
   const gradientId = `heart-gradient-${id}`;
   const resolvedTheme = HEART_THEME[theme];
   const resolvedBorderColor = borderColor ?? resolvedTheme.border;
+  const resolvedPhoto = resolveMediaUrl(photo);
 
   return (
     <div className={`relative aspect-square ${className}`.trim()}>
@@ -54,9 +56,9 @@ export default function HeartPhoto({
         className="h-full w-full"
       >
         <defs>
-          {photo ? (
+          {resolvedPhoto ? (
             <pattern id={patternId} width="1" height="1">
-              <image href={photo} width="64" height="64" preserveAspectRatio="xMidYMid slice" />
+              <image href={resolvedPhoto} width="64" height="64" preserveAspectRatio="xMidYMid slice" />
             </pattern>
           ) : null}
           <linearGradient id={gradientId} x1="10" y1="9" x2="55" y2="56" gradientUnits="userSpaceOnUse">
@@ -67,13 +69,13 @@ export default function HeartPhoto({
         </defs>
         <path
           d={HEART_PATH}
-          fill={photo ? `url(#${patternId})` : `url(#${gradientId})`}
+          fill={resolvedPhoto ? `url(#${patternId})` : `url(#${gradientId})`}
           stroke={resolvedBorderColor}
           strokeWidth="3.2"
         />
       </svg>
 
-      {!photo && fallback ? (
+      {!resolvedPhoto && fallback ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           {fallback}
         </div>

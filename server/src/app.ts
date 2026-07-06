@@ -1,14 +1,20 @@
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
+import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
+import { mkdirSync } from "node:fs";
 import { createPool, type DbClient } from "./db.js";
 import type { AppConfig } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
 import { ApiError, formatError, toApiError } from "./errors.js";
+import { resolveMediaStorageDir } from "./media-storage.js";
+import { registerMediaRoutes } from "./routes/media.js";
 import { registerMessageRoutes } from "./routes/messages.js";
 import { registerPostRoutes } from "./routes/posts.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
+import { registerReportRoutes } from "./routes/reports.js";
 import { registerUserRoutes } from "./routes/users.js";
 import { registerDevRoutes } from "./routes/dev.js";
 import { createPostgresRateLimiter, type RateLimiter } from "./rate-limit.js";
@@ -25,6 +31,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     logger: config.NODE_ENV !== "test"
   });
   const db = deps.db ?? createPool(config);
+  const mediaStorageDir = resolveMediaStorageDir(config);
   const allowedCorsOrigins = new Set(
     config.CORS_ORIGIN
       .split(",")
@@ -43,6 +50,19 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     },
     methods: ["GET", "POST", "PUT", "OPTIONS"],
     credentials: true
+  });
+  mkdirSync(mediaStorageDir, { recursive: true });
+
+  void app.register(multipart, {
+    limits: {
+      fileSize: 5 * 1024 * 1024,
+      files: 1
+    }
+  });
+  void app.register(fastifyStatic, {
+    root: mediaStorageDir,
+    prefix: "/media/",
+    decorateReply: false
   });
 
   app.decorate("config", config);
@@ -104,12 +124,14 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   });
 
   void registerAuthRoutes(app);
+  void registerMediaRoutes(app);
   void registerMessageRoutes(app);
   void registerUserRoutes(app);
   void registerCruushRoutes(app);
   void registerPostRoutes(app);
   void registerProfileRoutes(app);
   void registerPrivacyRoutes(app);
+  void registerReportRoutes(app);
   if (config.NODE_ENV !== "production") {
     void registerDevRoutes(app);
   }
