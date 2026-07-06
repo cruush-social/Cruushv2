@@ -351,6 +351,51 @@ describe('MapView', () => {
     }));
   });
 
+  it('draws the owner Ghost Mode radius with a visible stroke on the dark map', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'me',
+            displayName: 'You',
+            approximateLatitude: 40.714,
+            approximateLongitude: -74.004,
+            displayMode: 'GHOST',
+            isCurrentUser: true,
+          },
+        ]}
+        radiusCircle={{
+          center: {
+            approximateLatitude: 40.714,
+            approximateLongitude: -74.004,
+          },
+          radiusMeters: 1609,
+        }}
+      />
+    );
+
+    await waitFor(() => expect(mapInstances[0]).toBeDefined());
+    act(() => {
+      mapInstances[0].trigger('load');
+    });
+
+    await waitFor(() => {
+      expect(mapInstances[0].addSource).toHaveBeenCalledWith(
+        'owner-ghost-radius',
+        expect.objectContaining({ type: 'geojson' })
+      );
+    });
+    expect(mapInstances[0].addLayer).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'owner-ghost-radius-line',
+      paint: expect.objectContaining({
+        'line-color': '#1181FF',
+        'line-opacity': 0.88,
+        'line-width': 2.5,
+      }),
+    }));
+  });
+
   it('renders photo markers with current and nearby styling', async () => {
     render(
       <MapView

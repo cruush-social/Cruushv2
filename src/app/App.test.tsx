@@ -60,6 +60,10 @@ vi.mock('./components/DirectMessages', () => ({
   default: () => <div>Mock Messages</div>
 }));
 
+vi.mock('./components/ReportPage', () => ({
+  default: () => <div>Mock Report</div>
+}));
+
 vi.mock('./components/CruushActivity', () => ({
   default: () => <div>Mock Cruush</div>
 }));
@@ -219,6 +223,28 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
+  });
+
+  it('renders the report route while signed in', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+    });
+    window.history.replaceState({}, '', '/report');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Report')).toBeInTheDocument();
   });
 
   it('renders the reset password route while onboarding is required', async () => {

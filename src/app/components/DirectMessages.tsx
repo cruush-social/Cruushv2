@@ -6,8 +6,8 @@ import HeartPhoto from './HeartPhoto';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
-import { fallbackConversations, type ConversationThread } from '../lib/messageFixtures';
-import { getConversations } from '../lib/messagesApi';
+import { Button } from './ui/button';
+import { getConversations, type ConversationThread } from '../lib/messagesApi';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -32,27 +32,25 @@ function getConversationInitials(name: string) {
     .join('');
 }
 
-function normalizeConversation(raw: any, index: number): ConversationThread {
-  const fallback = fallbackConversations[index % fallbackConversations.length];
-
+function normalizeConversation(raw: any): ConversationThread {
   return {
-    id: String(raw?.id ?? fallback.id),
-    kind: raw?.kind === 'group' ? 'group' : fallback.kind,
+    id: String(raw?.id ?? ''),
+    kind: raw?.kind === 'group' ? 'group' : 'dm',
     user: {
-      id: String(raw?.user?.id ?? fallback.user.id),
-      name: raw?.user?.name ?? fallback.user.name,
-      pronouns: raw?.user?.pronouns ?? fallback.user.pronouns,
-      photo: raw?.user?.photo ?? fallback.user.photo,
+      id: String(raw?.user?.id ?? raw?.id ?? ''),
+      name: raw?.user?.name ?? 'Cruush user',
+      pronouns: raw?.user?.pronouns ?? '',
+      photo: raw?.user?.photo ?? null,
     },
-    distance: raw?.distance ?? fallback.distance,
-    updatedAt: raw?.updatedAt ?? raw?.timestamp ?? fallback.updatedAt,
-    lastMessage: raw?.lastMessage ?? raw?.preview ?? fallback.lastMessage,
-    unreadCount: typeof raw?.unreadCount === 'number' ? raw.unreadCount : raw?.unread ? 1 : fallback.unreadCount,
-    pinned: typeof raw?.pinned === 'boolean' ? raw.pinned : fallback.pinned,
-    muted: typeof raw?.muted === 'boolean' ? raw.muted : fallback.muted,
-    mutual: typeof raw?.mutual === 'boolean' ? raw.mutual : fallback.mutual,
-    membersLabel: raw?.membersLabel ?? fallback.membersLabel,
-    tags: Array.isArray(raw?.tags) && raw.tags.length > 0 ? raw.tags : fallback.tags,
+    distance: raw?.distance ?? 'Nearby',
+    updatedAt: raw?.updatedAt ?? raw?.timestamp ?? new Date().toISOString(),
+    lastMessage: raw?.lastMessage ?? '',
+    unreadCount: typeof raw?.unreadCount === 'number' ? raw.unreadCount : raw?.unread ? 1 : 0,
+    pinned: typeof raw?.pinned === 'boolean' ? raw.pinned : false,
+    muted: typeof raw?.muted === 'boolean' ? raw.muted : false,
+    mutual: typeof raw?.mutual === 'boolean' ? raw.mutual : false,
+    membersLabel: raw?.membersLabel ?? undefined,
+    tags: Array.isArray(raw?.tags) ? raw.tags : [],
   };
 }
 
@@ -62,7 +60,7 @@ export default function DirectMessages() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'groups'>('all');
-  const [usingSampleData, setUsingSampleData] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
   useEffect(() => {
@@ -70,23 +68,19 @@ export default function DirectMessages() {
   }, []);
 
   const fetchConversations = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const data = await getConversations();
       const normalized = Array.isArray(data)
-        ? data.map(normalizeConversation)
+        ? data.map(normalizeConversation).filter((conversation) => Boolean(conversation.id))
         : [];
 
-      if (normalized.length > 0) {
-        setConversations(normalized);
-        setUsingSampleData(false);
-      } else {
-        setConversations(fallbackConversations);
-        setUsingSampleData(true);
-      }
+      setConversations(normalized);
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      setConversations(fallbackConversations);
-      setUsingSampleData(true);
+      setConversations([]);
+      setError(error instanceof Error ? error.message : 'Failed to load messages.');
     } finally {
       setLoading(false);
     }
@@ -126,11 +120,6 @@ export default function DirectMessages() {
               <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Nearby chat</p>
               <h2 className="text-3xl leading-none">Messages</h2>
             </div>
-            {usingSampleData ? (
-              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
-                Preview mode
-              </Badge>
-            ) : null}
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -185,7 +174,7 @@ export default function DirectMessages() {
                   <div className="flex items-start justify-between gap-2">
                     <HeartPhoto
                       className="w-12"
-                      label={`${conversation.user.name} preview`}
+                      label={`${conversation.user.name} avatar`}
                       photo={conversation.user.photo}
                       fallback={<div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>}
                     />
@@ -229,7 +218,7 @@ export default function DirectMessages() {
               <div className="flex gap-4">
                 <HeartPhoto
                   className="w-16 shrink-0"
-                  label={`${conversation.user.name} preview`}
+                  label={`${conversation.user.name} avatar`}
                   photo={conversation.user.photo}
                   fallback={
                     conversation.kind === 'group'
@@ -299,13 +288,32 @@ export default function DirectMessages() {
             </button>
           ))}
 
-          {!loading && filteredConversations.length === 0 ? (
+          {!loading && error ? (
+            <div className="rounded-3xl border border-destructive/30 bg-destructive/10 p-8 text-center">
+              <CruushIcon name="messages" className="mx-auto mb-4 size-14 opacity-55" />
+              <p className="text-destructive">{error}</p>
+              <Button className="mt-4" variant="outline" onClick={() => void fetchConversations()}>
+                Try again
+              </Button>
+            </div>
+          ) : null}
+
+          {!loading && !error && filteredConversations.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center">
               <CruushIcon name="messages" className="mx-auto mb-4 size-14 opacity-55" />
-              <p className="text-muted-foreground">No threads match that search.</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Try a name, a vibe, or jump back into `All`.
-              </p>
+              {conversations.length === 0 ? (
+                <>
+                  <p className="text-muted-foreground">No messages yet.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Mutual cruush conversations will appear here.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-muted-foreground">No threads match that search.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Try a name, a vibe, or jump back into All.
+                  </p>
+                </>
+              )}
             </div>
           ) : null}
         </div>

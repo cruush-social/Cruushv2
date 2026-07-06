@@ -177,7 +177,7 @@ describe('ProfileView', () => {
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-1', expect.objectContaining({
       name: 'Jordan',
     })));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Cruush sent' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mutual cruush' })).toBeDisabled());
     await waitFor(() => expect(getProfileById).toHaveBeenCalledTimes(2));
 
     expect(eventListener).toHaveBeenCalledWith(expect.objectContaining({
@@ -191,6 +191,67 @@ describe('ProfileView', () => {
 
     window.removeEventListener('cruush:changed', eventListener);
     alertSpy.mockRestore();
+  });
+
+  it('locks the profile cruush action while the request is pending', async () => {
+    let resolveCruush: (value: unknown) => void = () => {};
+    sendCruush.mockReturnValue(new Promise((resolve) => {
+      resolveCruush = resolve;
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const cruushButton = await screen.findByRole('button', { name: 'Send cruush' });
+    fireEvent.click(cruushButton);
+    fireEvent.click(cruushButton);
+
+    expect(sendCruush).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Sending cruush' })).toBeDisabled();
+
+    resolveCruush({
+      id: 'cruush-1',
+      fromUserId: 'me',
+      toUserId: 'user-1',
+      createdAt: '2026-04-29T12:00:00.000Z',
+      mutual: false,
+    });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cruush sent' })).toBeDisabled());
+  });
+
+  it('shows a persisted sent state for outgoing non-mutual cruushes', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      viewer_relationship: {
+        match_id: null,
+        mutual_cruush: false,
+        outgoing_cruush: true,
+        can_message: false,
+        can_reveal_precise_location: false,
+      },
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const cruushButton = await screen.findByRole('button', { name: 'Cruush sent' });
+
+    expect(cruushButton).toBeDisabled();
+    expect(cruushButton).toHaveTextContent('sent');
+    expect(screen.queryByRole('button', { name: 'Mutual cruush' })).not.toBeInTheDocument();
+
+    fireEvent.click(cruushButton);
+    expect(sendCruush).not.toHaveBeenCalled();
   });
 
   it('removes profile sharing and disables cruushing an existing mutual', async () => {

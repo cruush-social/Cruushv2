@@ -41,6 +41,7 @@ export type CruushEntitlement = {
 export type RelationshipPermissions = {
   matchId: string | null;
   isMutualCruush: boolean;
+  hasOutgoingCruush: boolean;
   canMessage: boolean;
   canRevealMutualProtectedFields: boolean;
   canRevealPreciseLocation: boolean;
@@ -309,6 +310,7 @@ export async function getRelationshipPermissions(
     return {
       matchId: null,
       isMutualCruush: true,
+      hasOutgoingCruush: true,
       canMessage: true,
       canRevealMutualProtectedFields: true,
       canRevealPreciseLocation: true,
@@ -330,6 +332,14 @@ export async function getRelationshipPermissions(
     getPrivacySettings(app, targetUserId)
   ]);
   const isMutualCruush = Boolean(match);
+  const outgoingCruush = isMutualCruush
+    ? match
+    : await findEncryptedRelationshipRecord(app, {
+        type: "cruush",
+        actorUserId: viewerUserId,
+        targetUserId
+      });
+  const hasOutgoingCruush = Boolean(outgoingCruush) || isMutualCruush;
   const hasActiveMatchToken = match
     ? await hasActiveEncryptedRelationshipToken(app, {
         relationshipRecordId: match.id,
@@ -363,6 +373,7 @@ export async function getRelationshipPermissions(
   return {
     matchId: match?.id ?? null,
     isMutualCruush,
+    hasOutgoingCruush,
     canMessage: isMutualCruush && hasActiveMatchToken,
     canRevealMutualProtectedFields: isMutualCruush,
     canRevealPreciseLocation,

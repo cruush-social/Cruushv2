@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { CruushIcon } from './CruushIconImage';
 import { sendCruush } from '../lib/cruushApi';
+import { resolveMediaUrl } from '../lib/apiClient';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { resolveMediaUrl } from '../lib/apiClient';
@@ -19,14 +20,19 @@ interface ProfileCardProps {
 export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCardProps) {
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
-  const isAlreadyMutual = user.relationship?.mutualCruush === true;
-  const cruushDisabled = cruushed || isAlreadyMutual;
+  const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
+  const [sendingCruush, setSendingCruush] = useState(false);
+  const [openingMessage, setOpeningMessage] = useState(false);
+  const isAlreadyMutual = cruushBecameMutual || user.relationship?.mutualCruush === true;
+  const hasSentCruush = cruushed || user.relationship?.outgoingCruush === true;
+  const cruushDisabled = sendingCruush || hasSentCruush || isAlreadyMutual;
 
   const handleCruush = async () => {
-    if (isAlreadyMutual) {
+    if (sendingCruush || hasSentCruush || isAlreadyMutual) {
       return;
     }
 
+    setSendingCruush(true);
     try {
       const data = await sendCruush(user.id, {
         name: user.name,
@@ -34,15 +40,27 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
         photo: user.photo ?? null,
       });
       setCruushed(true);
+      setCruushBecameMutual(data.mutual === true);
       handleCruushSendSuccess(user.id, user.name, data);
     } catch (error) {
       console.error('Error sending cruush:', error);
       notifyCruushSendError(error);
+    } finally {
+      setSendingCruush(false);
     }
   };
 
   const handleMessage = async () => {
-    await openConversationOrInbox(navigate, user.id);
+    if (openingMessage) {
+      return;
+    }
+
+    setOpeningMessage(true);
+    try {
+      await openConversationOrInbox(navigate, user.id);
+    } finally {
+      setOpeningMessage(false);
+    }
   };
   return (
     <div className="bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30" style={{ maxHeight: '80vh' }}>
@@ -113,18 +131,19 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
             className="flex-1"
             onClick={handleCruush}
             disabled={cruushDisabled}
-            aria-label={isAlreadyMutual ? 'Already mutual' : cruushed ? 'Cruush sent' : 'Send cruush'}
+            aria-label={isAlreadyMutual ? 'Already mutual' : hasSentCruush ? 'Cruush sent' : sendingCruush ? 'Sending cruush' : 'Send cruush'}
             style={{
               borderColor: cruushDisabled ? '#73737C' : 'var(--cruush-pink)',
               color: cruushDisabled ? '#A2A2AA' : 'var(--cruush-pink)',
             }}
           >
             <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={cruushDisabled ? 'white' : 'colored'} />
-            {isAlreadyMutual ? 'mutual' : cruushed ? 'cruushed!' : 'cruush'}
+            {isAlreadyMutual ? 'mutual' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
           </Button>
           <Button
             variant="outline"
             className="flex-1"
+            disabled={openingMessage}
             onClick={() => {
               void handleMessage();
             }}
@@ -134,7 +153,7 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
             }}
           >
             <CruushIcon name="send" className="mr-2 h-4 w-4" variant="colored" />
-            Message
+            {openingMessage ? 'Opening...' : 'Message'}
           </Button>
         </div>
 

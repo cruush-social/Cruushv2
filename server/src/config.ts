@@ -73,6 +73,7 @@ const configSchema = z.object({
   PHOTODNA_API_URL: z.string().url().optional().or(z.literal("")).default(""),
   PHOTODNA_SUBSCRIPTION_KEY: z.string().optional().default(""),
   PHOTODNA_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
+  INTERNAL_API_SECRET: z.string().optional().default(""),
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default(""),
   EMAIL_PREVIEW_ENABLED: booleanEnvSchema,
@@ -234,7 +235,8 @@ type ModerationConfigKey =
   | "PHOTODNA_ENABLED"
   | "PHOTODNA_API_URL"
   | "PHOTODNA_SUBSCRIPTION_KEY"
-  | "PHOTODNA_TIMEOUT_MS";
+  | "PHOTODNA_TIMEOUT_MS"
+  | "INTERNAL_API_SECRET";
 
 export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey> &
   Partial<Pick<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey>>;

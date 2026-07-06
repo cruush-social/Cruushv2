@@ -109,6 +109,9 @@ export default function ProfileView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cruushed, setCruushed] = useState(false);
+  const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
+  const [sendingCruush, setSendingCruush] = useState(false);
+  const [openingMessage, setOpeningMessage] = useState(false);
   const [activeTab, setActiveTab] = useState('basics');
 
   useEffect(() => {
@@ -117,6 +120,8 @@ export default function ProfileView() {
     const loadProfile = async () => {
       setLoading(true);
       setError(null);
+      setCruushed(false);
+      setCruushBecameMutual(false);
 
       try {
         const data = isOwnProfile
@@ -199,18 +204,20 @@ export default function ProfileView() {
     return profileRecordToProfileView(profile, previewState);
   }, [previewState?.distance, previewState?.lastActive, profile]);
 
-  const isAlreadyMutual = profileView?.relationship?.mutual_cruush === true;
-  const cruushDisabled = cruushed || isAlreadyMutual;
+  const isAlreadyMutual = cruushBecameMutual || profileView?.relationship?.mutual_cruush === true;
+  const hasSentCruush = cruushed || profileView?.relationship?.outgoing_cruush === true;
+  const cruushDisabled = sendingCruush || hasSentCruush || isAlreadyMutual;
 
   const handleCruush = async () => {
     if (!userId || !profileView) {
       return;
     }
 
-    if (isAlreadyMutual) {
+    if (sendingCruush || hasSentCruush || isAlreadyMutual) {
       return;
     }
 
+    setSendingCruush(true);
     try {
       const data = await sendCruush(userId, {
         name: profileView.name,
@@ -218,14 +225,21 @@ export default function ProfileView() {
         photo: profileView.photos[0] ?? null,
       });
       setCruushed(true);
+      setCruushBecameMutual(data.mutual === true);
       handleCruushSendSuccess(userId, profileView.name, data);
     } catch (cruushError) {
       console.error('Error sending cruush:', cruushError);
       notifyCruushSendError(cruushError);
+    } finally {
+      setSendingCruush(false);
     }
   };
 
   const handleMessage = async () => {
+    if (openingMessage) {
+      return;
+    }
+
     if (!userId) {
       navigate('/messages');
       return;
@@ -236,7 +250,12 @@ export default function ProfileView() {
       return;
     }
 
-    await openConversationOrInbox(navigate, userId);
+    setOpeningMessage(true);
+    try {
+      await openConversationOrInbox(navigate, userId);
+    } finally {
+      setOpeningMessage(false);
+    }
   };
 
   if (loading) {
@@ -354,7 +373,7 @@ export default function ProfileView() {
                     void handleCruush();
                   }}
                   disabled={cruushDisabled}
-                  aria-label={isAlreadyMutual ? 'Mutual cruush' : cruushed ? 'Cruush sent' : 'Send cruush'}
+                  aria-label={isAlreadyMutual ? 'Mutual cruush' : hasSentCruush ? 'Cruush sent' : sendingCruush ? 'Sending cruush' : 'Send cruush'}
                   style={{
                     background: cruushDisabled
                       ? '#666'
@@ -362,7 +381,7 @@ export default function ProfileView() {
                   }}
                 >
                   <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={cruushDisabled ? 'white' : 'colored'} />
-                  {isAlreadyMutual ? 'mutual cruush' : cruushed ? 'cruushed!' : 'cruush'}
+                  {isAlreadyMutual ? 'mutual cruush' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
                 </Button>
                 <Button
                   variant="outline"
@@ -370,14 +389,14 @@ export default function ProfileView() {
                   onClick={() => {
                     void handleMessage();
                   }}
-                  disabled={Boolean(profileView.relationship && !profileView.relationship.can_message)}
+                  disabled={openingMessage || Boolean(profileView.relationship && !profileView.relationship.can_message)}
                   style={{
                     borderColor: 'var(--cruush-purple)',
                     color: 'var(--cruush-purple)',
                   }}
                 >
                   <CruushIcon name="send" className="mr-2 h-4 w-4" variant="colored" />
-                  Message
+                  {openingMessage ? 'Opening...' : 'Message'}
                 </Button>
               </div>
             ) : null}

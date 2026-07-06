@@ -42,7 +42,7 @@ export default function HeartPhoto({
   const gradientId = `heart-gradient-${id}`;
   const resolvedTheme = HEART_THEME[theme];
   const resolvedBorderColor = borderColor ?? resolvedTheme.border;
-  const resolvedPhoto = resolveMediaUrl(photo);
+  const resolvedPhoto = photo ? resolveMediaUrl(photo) : null;
 
   return (
     <div className={`relative aspect-square ${className}`.trim()}>

@@ -25,6 +25,9 @@ interface MapProfilePopupProps {
 export default function MapProfilePopup({ user, onClose, fixed = false, isOwnProfile = false }: MapProfilePopupProps) {
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
+  const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
+  const [sendingCruush, setSendingCruush] = useState(false);
+  const [openingMessage, setOpeningMessage] = useState(false);
   const [activeTab, setActiveTab] = useState('basics');
   const [fullProfile, setFullProfile] = useState<ProfileRecord | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -39,6 +42,8 @@ export default function MapProfilePopup({ user, onClose, fixed = false, isOwnPro
     setActiveTab('basics');
     setOwnProfileMode('view');
     setFullProfile(null);
+    setCruushed(false);
+    setCruushBecameMutual(false);
     setProfileError(null);
 
     if (isDemo) {
@@ -98,17 +103,19 @@ export default function MapProfilePopup({ user, onClose, fixed = false, isOwnPro
   const displayPhoto = profileView?.photos[0] ?? user.photo;
   const displayDistance = profileView?.distance ?? user.distance;
   const displayLastActive = profileView?.lastActive ?? user.lastActive;
-  const isAlreadyMutual = !isOwnProfile && (profileView?.relationship?.mutual_cruush === true || user.relationship?.mutualCruush === true);
+  const isAlreadyMutual = !isOwnProfile && (cruushBecameMutual || profileView?.relationship?.mutual_cruush === true || user.relationship?.mutualCruush === true);
+  const hasSentCruush = cruushed || profileView?.relationship?.outgoing_cruush === true;
   const canMessage = profileView?.relationship ? profileView.relationship.can_message : user.relationship?.canMessage;
-  const cruushDisabled = isDemo || cruushed || isAlreadyMutual;
+  const cruushDisabled = isDemo || sendingCruush || hasSentCruush || isAlreadyMutual;
 
   const popupClassName = `${fixed ? 'fixed' : 'absolute'} bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-6 top-[8.75rem] z-50 hidden w-[23rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl lg:block`;
 
   const handleCruush = async () => {
-    if (isDemo || isOwnProfile || isAlreadyMutual) {
+    if (isDemo || isOwnProfile || sendingCruush || hasSentCruush || isAlreadyMutual) {
       return;
     }
 
+    setSendingCruush(true);
     try {
       const data = await sendCruush(user.id, {
         name: displayName,
@@ -116,10 +123,26 @@ export default function MapProfilePopup({ user, onClose, fixed = false, isOwnPro
         photo: displayPhoto ?? null,
       });
       setCruushed(true);
+      setCruushBecameMutual(data.mutual === true);
       handleCruushSendSuccess(user.id, displayName, data);
     } catch (error) {
       console.error('Error sending cruush:', error);
       notifyCruushSendError(error);
+    } finally {
+      setSendingCruush(false);
+    }
+  };
+
+  const handleMessage = async () => {
+    if (isDemo || canMessage === false || openingMessage) {
+      return;
+    }
+
+    setOpeningMessage(true);
+    try {
+      await openConversationOrInbox(navigate, user.id);
+    } finally {
+      setOpeningMessage(false);
     }
   };
 
@@ -235,7 +258,7 @@ export default function MapProfilePopup({ user, onClose, fixed = false, isOwnPro
                   ? 'rgba(255,255,255,0.16)'
                   : 'var(--cruush-gradient)',
               }}
-              aria-label={isDemo ? 'Demo profile' : isAlreadyMutual ? 'Already mutual' : cruushed ? 'Cruush sent' : 'Send cruush'}
+              aria-label={isDemo ? 'Demo profile' : isAlreadyMutual ? 'Already mutual' : hasSentCruush ? 'Cruush sent' : sendingCruush ? 'Sending cruush' : 'Send cruush'}
             >
               <CruushIconImage src={cruushIconWhite} className={`h-6 w-6 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} />
             </Button>
@@ -245,18 +268,14 @@ export default function MapProfilePopup({ user, onClose, fixed = false, isOwnPro
               style={{
                 background: isDemo ? 'rgba(255,255,255,0.16)' : 'var(--cruush-gradient)',
               }}
-              disabled={isDemo || canMessage === false}
-              aria-label={isDemo ? 'Demo message unavailable' : 'Message now'}
+              disabled={isDemo || canMessage === false || openingMessage}
+              aria-label={isDemo ? 'Demo message unavailable' : openingMessage ? 'Opening conversation' : 'Message now'}
               onClick={() => {
-                if (isDemo || canMessage === false) {
-                  return;
-                }
-
-                void openConversationOrInbox(navigate, user.id);
+                void handleMessage();
               }}
             >
               <CruushIconImage src={sendIconWhite} className="mr-2 h-4 w-4" />
-              {isDemo ? 'Demo only' : canMessage === false ? 'Mutuals only' : 'Message now'}
+              {isDemo ? 'Demo only' : canMessage === false ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message now'}
             </Button>
           </div>
         </div>

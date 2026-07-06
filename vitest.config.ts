@@ -20,7 +20,7 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
-      'server/dist/**',
+      'server/**',
     ],
   }
 });

@@ -66,7 +66,7 @@ const appOwnedProfilePhotoPathSchema = z.string()
   .trim()
   .max(256)
   .regex(
-    /^\/media\/profile-photos\/[0-9a-f-]{36}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/i,
+    /^\/media\/profile-photos\/[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(jpg|png|webp)$/i,
     "Photo paths must be uploaded Cruush profile photos."
   );
 

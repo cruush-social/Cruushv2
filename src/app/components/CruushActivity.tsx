@@ -117,10 +117,12 @@ function UpgradeBanner({
 function IncomingRow({
   item,
   onCruushBack,
+  pendingCruush = false,
   onOpenProfile,
 }: {
   item: CruushLockableActivityItem;
   onCruushBack: (item: CruushLockableActivityItem) => void;
+  pendingCruush?: boolean;
   onOpenProfile: (userId: string) => void;
 }) {
   const unlocked = !item.locked && item.user;
@@ -153,15 +155,15 @@ function IncomingRow({
             variant="secondary"
             className={[
               'h-11 w-11 rounded-full text-white',
-              item.mutual
+              item.mutual || pendingCruush
                 ? 'bg-white/8 opacity-65 grayscale hover:bg-white/8'
                 : 'bg-white/10 hover:bg-white/14',
             ].join(' ')}
-            aria-label={item.mutual ? `Already mutual with ${item.user.name}` : `Cruush ${item.user.name} back`}
-            disabled={item.mutual}
+            aria-label={item.mutual ? `Already mutual with ${item.user.name}` : pendingCruush ? `Sending cruush to ${item.user.name}` : `Cruush ${item.user.name} back`}
+            disabled={item.mutual || pendingCruush}
             onClick={() => onCruushBack(item)}
           >
-            <CruushIcon name="cruush" className={`h-6 w-6 ${item.mutual ? 'opacity-45' : ''}`} variant={item.mutual ? 'white' : 'colored'} />
+            <CruushIcon name="cruush" className={`h-6 w-6 ${item.mutual || pendingCruush ? 'opacity-45' : ''}`} variant={item.mutual || pendingCruush ? 'white' : 'colored'} />
           </Button>
         </div>
       ) : null}
@@ -308,6 +310,7 @@ export default function CruushActivity() {
   const [activeTab, setActiveTab] = useState<ActivityTab>('incoming');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingCruushUserIds, setPendingCruushUserIds] = useState<Set<string>>(() => new Set());
 
   const fetchCruushActivity = async () => {
     setError(null);
@@ -348,10 +351,11 @@ export default function CruushActivity() {
       return;
     }
 
-    if (item.mutual) {
+    if (item.mutual || pendingCruushUserIds.has(item.user.id)) {
       return;
     }
 
+    setPendingCruushUserIds((current) => new Set(current).add(item.user!.id));
     try {
       const cruush = await sendCruush(item.user.id, {
         name: item.user.name,
@@ -363,6 +367,12 @@ export default function CruushActivity() {
       console.error('Error sending cruush:', cruushError);
       notifyCruushSendError(cruushError);
       setError(cruushError instanceof Error ? cruushError.message : 'Failed to send cruush.');
+    } finally {
+      setPendingCruushUserIds((current) => {
+        const next = new Set(current);
+        next.delete(item.user!.id);
+        return next;
+      });
     }
   };
 
@@ -428,7 +438,13 @@ export default function CruushActivity() {
                     <UpgradeBanner count={lockedIncomingCount} label="have a cruush on you" />
                     <ActivitySurface empty={activity.incoming.length === 0} emptyText="No incoming cruushes yet.">
                       {activity.incoming.map((item) => (
-                        <IncomingRow key={item.id} item={item} onCruushBack={handleCruushBack} onOpenProfile={openProfile} />
+                        <IncomingRow
+                          key={item.id}
+                          item={item}
+                          pendingCruush={Boolean(item.user && pendingCruushUserIds.has(item.user.id))}
+                          onCruushBack={handleCruushBack}
+                          onOpenProfile={openProfile}
+                        />
                       ))}
                     </ActivitySurface>
                   </TabsContent>

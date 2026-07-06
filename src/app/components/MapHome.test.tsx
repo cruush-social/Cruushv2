@@ -24,6 +24,10 @@ const { decryptDisplayLocationToken } = vi.hoisted(() => ({
   decryptDisplayLocationToken: vi.fn(),
 }));
 
+const { getMyPrivacySettings } = vi.hoisted(() => ({
+  getMyPrivacySettings: vi.fn(),
+}));
+
 const { useIsMobile } = vi.hoisted(() => ({
   useIsMobile: vi.fn(),
 }));
@@ -58,6 +62,14 @@ vi.mock('../lib/profileApi', async () => {
 vi.mock('../lib/displayLocationTokens', () => ({
   decryptDisplayLocationToken,
 }));
+
+vi.mock('../lib/privacyApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/privacyApi')>('../lib/privacyApi');
+  return {
+    ...actual,
+    getMyPrivacySettings,
+  };
+});
 
 vi.mock('./ui/use-mobile', () => ({
   useIsMobile,
@@ -155,6 +167,7 @@ describe('MapHome', () => {
     getMyProfile.mockReset();
     getProfileById.mockReset();
     decryptDisplayLocationToken.mockReset();
+    getMyPrivacySettings.mockReset();
     useIsMobile.mockReset();
     mapControls.setCenter.mockReset();
     mapControls.setZoom.mockReset();
@@ -261,6 +274,16 @@ describe('MapHome', () => {
       latitude: 40.7128,
       longitude: -74.006,
     });
+    getMyPrivacySettings.mockResolvedValue({
+      baseMode: 'PUBLIC_PRECISE',
+      ghostModeEnabled: false,
+      ghostRadiusMeters: 1609,
+      ghostRadiusLabel: '1 mi',
+      preciseToMutualCruushes: false,
+      preciseToMutualCrowds: [],
+      preciseLocationVisibility: 'none',
+      updatedAtMs: 0,
+    });
     Object.defineProperty(global.navigator, 'geolocation', {
       configurable: true,
       value: {
@@ -292,9 +315,38 @@ describe('MapHome', () => {
     expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-[6.25rem]');
     expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-[7.03125rem]');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
+  });
+
+  it('keeps the recently active button visible above the mobile bottom nav', async () => {
+    useIsMobile.mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+
+    const recentPanel = screen.getByTestId('recently-active-panel');
+    const recentToggle = screen.getByRole('button', { name: 'Show recently active bar' });
+
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
+    expect(recentPanel).toHaveClass('max-w-max', 'p-0');
+    expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
+
+    fireEvent.click(recentToggle);
+
+    expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
+    expect(recentPanel).toHaveClass('w-full', 'max-w-full', 'p-2');
+    expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
+    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
   });
 
   it('renders 25 percent larger Cruush icons on the map controls', async () => {
@@ -337,7 +389,7 @@ describe('MapHome', () => {
 
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-0', 'right-4', 'pl-4', 'pr-0');
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('pointer-events-none');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('pointer-events-auto');
   });
 
@@ -414,7 +466,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-subtle')).not.toBeInTheDocument();
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(23rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
     expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
@@ -426,21 +478,6 @@ describe('MapHome', () => {
     expect(screen.getByText('Switch')).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
-  });
-
-  it('right-aligns recently active when the desktop own profile preview is open', async () => {
-    useIsMobile.mockReturnValue(false);
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <MapHome isOwnProfilePreviewOpen />
-      </MemoryRouter>
-    );
-
-    await screen.findByRole('button', { name: 'Open Jordan profile' });
-
-    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(23rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
   });
 
   it('refreshes map users after sending a cruush from the popup without a browser alert', async () => {
@@ -465,6 +502,39 @@ describe('MapHome', () => {
     expect(alertSpy).not.toHaveBeenCalled();
 
     alertSpy.mockRestore();
+  });
+
+  it('locks the map profile cruush button while the request is pending', async () => {
+    useIsMobile.mockReturnValue(false);
+    let resolveCruush: (value: unknown) => void = () => {};
+    sendCruush.mockReturnValue(new Promise((resolve) => {
+      resolveCruush = resolve;
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
+    const cruushButton = await screen.findByRole('button', { name: /send cruush/i });
+
+    fireEvent.click(cruushButton);
+    fireEvent.click(cruushButton);
+
+    expect(sendCruush).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Sending cruush' })).toBeDisabled();
+
+    resolveCruush({
+      id: 'cruush-1',
+      fromUserId: 'me',
+      toUserId: 'user-1',
+      createdAt: '2026-04-29T12:00:00.000Z',
+      mutual: false,
+    });
   });
 
   it('requests geolocation on map entry after sign-in and uses approximate coordinates', async () => {
@@ -601,6 +671,16 @@ describe('MapHome', () => {
       latitude: 40.7128,
       longitude: -74.006,
     });
+    getMyPrivacySettings.mockResolvedValueOnce({
+      baseMode: 'GHOST',
+      ghostModeEnabled: true,
+      ghostRadiusMeters: 1609,
+      ghostRadiusLabel: '1 mi',
+      preciseToMutualCruushes: false,
+      preciseToMutualCrowds: [],
+      preciseLocationVisibility: 'none',
+      updatedAtMs: Date.now(),
+    });
 
     render(
       <MemoryRouter initialEntries={['/map']}>
@@ -621,6 +701,12 @@ describe('MapHome', () => {
       undefined,
       { limit: 50 },
     ]);
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-display-mode', 'GHOST');
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lat', '40.7128');
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lng', '-74.006');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '1609');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lat', '40.7128');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lng', '-74.006');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'true');
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
@@ -794,7 +880,7 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveAccessibleName('Show recently active bar');
     expect(recentToggle).toHaveTextContent('Recently Active');
     expect(recentToggle).toHaveStyle({ background: 'rgba(0, 0, 0, 0.82)' });
-    expect(recentPanel).toHaveClass('w-full', 'max-w-max', 'p-0');
+    expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(recentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
 
