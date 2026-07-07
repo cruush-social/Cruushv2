@@ -36,10 +36,6 @@ vi.mock('./components/FiltersPanel', () => ({
   default: () => <div>Mock Filters</div>
 }));
 
-vi.mock('./components/SafetyCenter', () => ({
-  default: () => <div>Mock Safety</div>
-}));
-
 vi.mock('./components/GroupDetail', () => ({
   default: () => <div>Mock Group</div>
 }));
@@ -112,6 +108,10 @@ vi.mock('./components/ResetPassword', () => ({
 
 vi.mock('./components/Settings', () => ({
   default: () => <div>Mock Settings</div>
+}));
+
+vi.mock('./components/GhostModeSettings', () => ({
+  default: () => <div>Mock Ghost Mode Settings</div>
 }));
 
 vi.mock('./components/FeelingLucky', () => ({
@@ -245,6 +245,50 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Report')).toBeInTheDocument();
+  });
+
+  it('renders Ghost Mode settings as the dedicated privacy route', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+    });
+    window.history.replaceState({}, '', '/privacy/ghost-mode');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Ghost Mode Settings')).toBeInTheDocument();
+  });
+
+  it('does not expose the retired Safety Center route', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+    });
+    window.history.replaceState({}, '', '/safety');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Map')).toBeInTheDocument();
   });
 
   it('renders the reset password route while onboarding is required', async () => {

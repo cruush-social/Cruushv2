@@ -6,7 +6,6 @@ import ProfileView from './components/ProfileView';
 import ProfileEdit from './components/ProfileEdit';
 import ProfileOnboarding from './components/ProfileOnboarding';
 import FiltersPanel from './components/FiltersPanel';
-import SafetyCenter from './components/SafetyCenter';
 import GroupDetail from './components/GroupDetail';
 import EventDetail from './components/EventDetail';
 import PlaceDetail from './components/PlaceDetail';
@@ -16,6 +15,7 @@ import ReportPage from './components/ReportPage';
 import CruushActivity from './components/CruushActivity';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
+import GhostModeSettings from './components/GhostModeSettings';
 import PrivacyAudit from './components/PrivacyAudit';
 import FeelingLucky from './components/FeelingLucky';
 import RequestsDashboard from './components/RequestsDashboard';
@@ -205,7 +205,6 @@ export default function App() {
             <Route path="/profile/:userId" element={<ProfileView />} />
             <Route path="/profile/edit" element={<ProfileEdit />} />
             <Route path="/filters" element={<FiltersPanel />} />
-            <Route path="/safety" element={<SafetyCenter />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/groups/:groupId" element={<GroupDetail />} />
@@ -217,6 +216,7 @@ export default function App() {
             <Route path="/report" element={<ReportPage />} />
             <Route path="/cruush" element={<CruushActivity />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
             <Route path="/privacy/audit" element={<PrivacyAudit />} />
             <Route path="/lucky" element={<FeelingLucky />} />
             <Route path="/requests" element={<RequestsDashboard />} />

@@ -349,29 +349,38 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
   });
 
-  it('renders 25 percent larger Cruush icons on the map controls', async () => {
+  it('renders 25 percent larger Cruush icons on the map controls and opens Ghost Mode settings from the Safety Center slot', async () => {
     useIsMobile.mockReturnValue(false);
 
     render(
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<MapHome />} />
+          <Route path="/privacy/ghost-mode" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     );
 
     const luckyIcon = screen.getByRole('button', { name: "I'm Feeling Lucky" }).querySelector('img');
+    const ghostModeButton = screen.getByRole('button', { name: 'Ghost Mode Settings' });
+    const ghostModeIcon = ghostModeButton.querySelector('img');
     const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
     const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
 
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
     expect(screen.getByTestId('map-top-actions')).toHaveClass('pointer-events-auto');
+    expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-[1.5625rem]', 'w-[1.5625rem]');
+    expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
+
+    fireEvent.click(ghostModeButton);
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/ghost-mode');
   });
 
   it('floats recently active to the right side on desktop without a profile preview', async () => {
@@ -708,6 +717,8 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lat', '40.7128');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lng', '-74.006');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'true');
+    expect(decodeURIComponent(screen.getByRole('button', { name: 'Ghost Mode Settings' }).querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
+    expect(decodeURIComponent(screen.getByText('Ghost Mode Active').querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 

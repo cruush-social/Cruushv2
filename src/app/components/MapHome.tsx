@@ -34,9 +34,10 @@ import {
 } from '../lib/locationPrivacy';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
+import ghostIconColored from '../assets/ui-icons/ghost-colored.svg';
+import ghostIconWhite from '../assets/ui-icons/ghost-white.svg';
 import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
 import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
-import safetyIconWhite from '../assets/ui-icons/safety-white.png';
 import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 import visibilityIconWhite from '../assets/ui-icons/visibility-white.png';
 
@@ -872,12 +873,12 @@ export default function MapHome() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/safety')}
-              aria-label="Safety Center"
-              title="Safety Center"
+              onClick={() => navigate('/privacy/ghost-mode')}
+              aria-label="Ghost Mode Settings"
+              title="Ghost Mode Settings"
               className="rounded-full text-white/90 hover:bg-white/10"
             >
-              <CruushIconImage src={safetyIconWhite} />
+              <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} />
             </Button>
             <Button
               variant="ghost"
@@ -957,7 +958,7 @@ export default function MapHome() {
         <div className="pointer-events-auto absolute right-4 top-28 z-30 flex flex-col items-end gap-2">
           {privacySettings.ghostModeEnabled ? (
             <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
-              <CruushIconImage src={visibilityIconWhite} className="h-4 w-4" />
+              <CruushIconImage src={ghostIconColored} className="h-4 w-4" />
               Ghost Mode Active
             </div>
           ) : null}

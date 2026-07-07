@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import Settings from './Settings';
@@ -70,40 +70,16 @@ describe('Settings', () => {
     saveMyPrivacySettings.mockImplementation((settings) => Promise.resolve(settings));
   });
 
-  it('persists Ghost Mode and precise mutual location settings', async () => {
+  it('does not expose Safety Center or Ghost Mode controls in the general settings menu', async () => {
     render(
       <MemoryRouter>
         <Settings />
       </MemoryRouter>
     );
 
-    const preciseSwitch = await screen.findByRole('switch', {
-      name: 'Toggle precise location for mutual cruushes',
-    });
-    const ghostSwitch = screen.getByRole('switch', {
-      name: 'Toggle Ghost Mode',
-    });
-
-    await waitFor(() => expect(preciseSwitch).not.toBeDisabled());
-    fireEvent.click(preciseSwitch);
-
-    await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenCalledWith(expect.objectContaining({
-      baseMode: 'PUBLIC_PRECISE',
-      ghostModeEnabled: false,
-      ghostRadiusMeters: 1609,
-      preciseLocationVisibility: 'mutual_cruushes',
-      preciseToMutualCruushes: true,
-    })));
-
-    await waitFor(() => expect(ghostSwitch).not.toBeDisabled());
-    fireEvent.click(ghostSwitch);
-
-    await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenLastCalledWith(expect.objectContaining({
-      baseMode: 'GHOST',
-      ghostModeEnabled: true,
-      ghostRadiusMeters: 1609,
-      preciseLocationVisibility: 'mutual_cruushes',
-      preciseToMutualCruushes: true,
-    })));
+    expect(await screen.findByText('Edit Profile')).toBeInTheDocument();
+    expect(screen.queryByText('Privacy & Safety')).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Toggle Ghost Mode' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Toggle precise location for mutual cruushes' })).not.toBeInTheDocument();
   });
 });
