@@ -47,10 +47,23 @@ Latest redeploy follow-up check on 2026-07-07 at 21:37 UTC:
 - `DELETE /api/posts/:postId` is deployed; an unauthenticated probe returns `401 AUTH_REQUIRED`, confirming the route exists and is auth-gated.
 - Frontend `Last-Modified` header is `2026-07-07 21:28 UTC`, consistent with the latest redeploy.
 
+Latest profile-photo proof attempt on 2026-07-07 at 21:45 UTC:
+
+- `main` is pushed at `6d51810 Update staging readiness after redeploy`.
+- `https://api-staging.cruush.app/health`: `HTTP 200`
+- `https://api-staging.cruush.app/api/meta`: `HTTP 200`
+- `https://staging.cruush.app/`: `HTTP 200`
+- Frontend `Last-Modified` header remains `2026-07-07 21:28 UTC`.
+- `POST https://api-staging.cruush.app/api/profile-photos` without auth returns expected `401 AUTH_REQUIRED`, confirming the upload route is deployed and auth-gated.
+- Chrome had an authenticated staging smoke session. `https://staging.cruush.app/profile` loaded the `Codex Smoke` profile, and `https://staging.cruush.app/profile/edit` loaded the profile editor.
+- The Photos tab loaded with the upload control and existing profile photo controls.
+- Attempting to upload the invalid non-human fixture `src/app/assets/ui-icons/feed-colored.png` through Chrome was blocked by the Codex Chrome extension file-upload bridge before the file reached the app. This does not prove either rejection or acceptance by cruush.
+- To finish the proof through automation, enable Chrome extension file upload access: go to `chrome://extensions`, open Details for the Codex extension, and enable `Allow access to file URLs`.
+
 ## Not Yet Proven
 
 - Banned public/profile coded-language rejection was not tested on the active staging smoke user because those attempts intentionally create trust evidence and may restrict the account.
-- Profile photo upload was not tested in this run. This is now the top bank-readiness blocker because profile photos must reject non-human/gradient images while accepting adult-human/body images.
+- Profile photo upload reached the authenticated edit UI, but the fixture upload did not reach the app because Chrome file upload access is not enabled for the Codex extension. This remains the top bank-readiness blocker because profile photos must reject non-human/gradient images while accepting adult-human/body images.
 - DM and group message writes were not tested in this run because the visible staging UI did not expose a ready conversation fixture.
 - Group messaging backend routes exist, but the full Signal-style frontend admin/member UI is still incomplete.
 - PhotoDNA remains disabled. Do not tell a bank or payment processor that PhotoDNA is active until the adapter is verified against Microsoft sample requests and responses.
@@ -93,7 +106,7 @@ Minimum bank smoke script:
 
 ## Immediate Engineering Next Steps
 
-1. Finish profile photo upload staging verification with safe adult-human and invalid-image fixtures.
+1. Enable Chrome extension file upload access or manually run the upload proof in Chrome, then finish profile photo upload staging verification with safe adult-human and invalid-image fixtures.
 2. Confirm Stream image moderation is configured to return positive adult-human/body proof or reject non-human profile photos. cruush now fails closed when the provider is silent.
 3. Create a disposable staging bank reviewer account for destructive moderation tests.
 4. Run banned feed/profile coded-language tests only on that disposable account.
