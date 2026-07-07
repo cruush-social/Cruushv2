@@ -16,4 +16,12 @@ describe("migration runner", () => {
 
     expect(listedFiles).toEqual(sqlFiles);
   });
+
+  it("keeps cruush+ billing ownership on app users before profile onboarding", async () => {
+    const billingSql = await readFile(path.join(serverRoot, "sql", "027_cruush_plus_billing.sql"), "utf8");
+
+    expect(billingSql).not.toContain("references profiles(id)");
+    expect(billingSql).toContain("user_entitlements_user_id_fkey");
+    expect(billingSql).toContain("foreign key (user_id) references app_users(id) on delete cascade");
+  });
 });

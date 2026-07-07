@@ -5,7 +5,10 @@ import { loadConfig, type AppConfig } from "./config.js";
 import { createPool, type DbClient } from "./db.js";
 import { syncDevelopmentLocationPrivacy } from "./development-admin.js";
 
-export const REVIEWER_TEST_ACCOUNT_COUNT = 2;
+export const REVIEWER_TEST_ACCOUNT_COUNT = 3;
+type ReviewerTestAccountPasswordConfigKey =
+  | "REVIEWER_TEST_ACCOUNT_PASSWORD"
+  | "PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD";
 
 type ReviewerSeedContext = {
   config: AppConfig;
@@ -18,11 +21,13 @@ export type ReviewerTestAccountSeedConfig = {
   APP_URL: string;
   REVIEWER_TEST_ACCOUNTS_ENABLED?: string | boolean;
   REVIEWER_TEST_ACCOUNT_PASSWORD?: string;
+  PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD?: string;
 };
 
 export type ReviewerTestAccount = {
   email: string;
   displayName: string;
+  passwordConfigKey: ReviewerTestAccountPasswordConfigKey;
   pronouns: string[];
   yearOfBirth: number;
   identities: string[];
@@ -67,6 +72,10 @@ export function assertReviewerTestAccountConfig(config: ReviewerTestAccountSeedC
     throw new Error("Set REVIEWER_TEST_ACCOUNT_PASSWORD to a non-empty password with at least 12 characters.");
   }
 
+  if ((config.PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD ?? "").trim().length < 12) {
+    throw new Error("Set PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD to a non-empty password with at least 12 characters.");
+  }
+
   if (config.NODE_ENV === "production" && !isStagingAppUrl(config.APP_URL)) {
     throw new Error("Refusing to seed reviewer test accounts on a production host. Use a staging APP_URL.");
   }
@@ -77,6 +86,7 @@ export function buildReviewerTestAccounts(now = new Date()): ReviewerTestAccount
     {
       email: "codeveloper-nyc@cruush.local",
       displayName: "codev nyc",
+      passwordConfigKey: "REVIEWER_TEST_ACCOUNT_PASSWORD",
       pronouns: ["they/them"],
       yearOfBirth: 1994,
       identities: ["Queer"],
@@ -97,6 +107,7 @@ export function buildReviewerTestAccounts(now = new Date()): ReviewerTestAccount
     {
       email: "bank-reviewer-nyc@cruush.local",
       displayName: "bank reviewer",
+      passwordConfigKey: "REVIEWER_TEST_ACCOUNT_PASSWORD",
       pronouns: ["they/them"],
       yearOfBirth: 1991,
       identities: ["Queer"],
@@ -113,6 +124,27 @@ export function buildReviewerTestAccounts(now = new Date()): ReviewerTestAccount
       fuzzyLat: 40.7332,
       fuzzyLng: -74.0031,
       updatedAt: new Date(now.getTime() - 7 * 60 * 1000)
+    },
+    {
+      email: "payment@cruush.local",
+      displayName: "payment reviewer",
+      passwordConfigKey: "PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD",
+      pronouns: ["they/them"],
+      yearOfBirth: 1990,
+      identities: ["Queer"],
+      presentation: ["Classic"],
+      sexuality: ["Queer"],
+      lookingFor: ["Testing", "Payment review"],
+      availability: ["This week"],
+      hostingTravel: ["Can Travel"],
+      vibes: ["NYC beta", "spoof location", "payment review"],
+      position: ["Versatile"],
+      role: [],
+      lat: 40.7282,
+      lng: -73.9942,
+      fuzzyLat: 40.7286,
+      fuzzyLng: -73.9938,
+      updatedAt: new Date(now.getTime() - 14 * 60 * 1000)
     }
   ];
 }
@@ -233,14 +265,17 @@ export async function seedReviewerTestAccountsWithDb(context: ReviewerSeedContex
   assertReviewerTestAccountConfig(context.seedConfig);
 
   const accounts = buildReviewerTestAccounts();
-  const passwordHash = await hashPassword(context.seedConfig.REVIEWER_TEST_ACCOUNT_PASSWORD ?? "");
+  const passwordHashes: Record<ReviewerTestAccountPasswordConfigKey, string> = {
+    REVIEWER_TEST_ACCOUNT_PASSWORD: await hashPassword(context.seedConfig.REVIEWER_TEST_ACCOUNT_PASSWORD ?? ""),
+    PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD: await hashPassword(context.seedConfig.PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD ?? "")
+  };
   const createdAccounts: Array<{ email: string; displayName: string; userId: string }> = [];
 
   await context.db.query("begin");
 
   try {
     for (const account of accounts) {
-      const userId = await upsertReviewerTestAccount(context, account, passwordHash);
+      const userId = await upsertReviewerTestAccount(context, account, passwordHashes[account.passwordConfigKey]);
       createdAccounts.push({
         email: account.email,
         displayName: account.displayName,
@@ -319,7 +354,8 @@ export function loadReviewerSeedContext() {
       NODE_ENV: config.NODE_ENV,
       APP_URL: config.APP_URL,
       REVIEWER_TEST_ACCOUNTS_ENABLED: serverEnv.REVIEWER_TEST_ACCOUNTS_ENABLED,
-      REVIEWER_TEST_ACCOUNT_PASSWORD: serverEnv.REVIEWER_TEST_ACCOUNT_PASSWORD
+      REVIEWER_TEST_ACCOUNT_PASSWORD: serverEnv.REVIEWER_TEST_ACCOUNT_PASSWORD,
+      PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD: serverEnv.PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD
     }
   };
 }

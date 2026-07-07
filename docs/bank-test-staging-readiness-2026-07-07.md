@@ -90,7 +90,7 @@ Use a dedicated disposable reviewer account, not the existing smoke account, for
 Minimum bank smoke script:
 
 1. Open `https://staging.cruush.app`.
-2. Create or use the bank reviewer account. See `docs/nyc-reviewer-test-logins.md` for the seeded NYC login details and the difference between the bank and codeveloper accounts.
+2. Create or use the bank reviewer account. For payment checkout review, use `payment@cruush.local` with the dedicated payment password. See `docs/nyc-reviewer-test-logins.md` for the seeded NYC login details and the difference between the bank, payment, and codeveloper accounts.
 3. Confirm signup/login works with Turnstile and email verification behavior expected for staging.
 4. Edit profile basics and bio with allowed text.
 5. Attempt a public/profile banned term on the disposable account and verify the write is rejected.

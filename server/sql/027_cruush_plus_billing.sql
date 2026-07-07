@@ -28,8 +28,15 @@ create index if not exists billing_checkout_sessions_user_created_at_idx
 create index if not exists billing_checkout_sessions_status_expires_idx
   on billing_checkout_sessions (status, expires_at);
 
+alter table if exists user_entitlements
+  drop constraint if exists user_entitlements_user_id_fkey;
+
+alter table if exists user_entitlements
+  add constraint user_entitlements_user_id_fkey
+  foreign key (user_id) references app_users(id) on delete cascade;
+
 create table if not exists cruush_plus_subscriptions (
-  user_id uuid primary key references profiles(id) on delete cascade,
+  user_id uuid primary key references app_users(id) on delete cascade,
   checkout_session_id uuid references billing_checkout_sessions(id) on delete set null,
   plan_id text not null,
   status text not null default 'active',
@@ -47,7 +54,7 @@ create index if not exists cruush_plus_subscriptions_period_idx
   where status = 'active';
 
 create table if not exists cruush_plus_lifetime_access (
-  user_id uuid primary key references profiles(id) on delete cascade,
+  user_id uuid primary key references app_users(id) on delete cascade,
   checkout_session_id uuid references billing_checkout_sessions(id) on delete set null,
   plan_id text not null,
   test_mode boolean not null default true,
@@ -56,7 +63,7 @@ create table if not exists cruush_plus_lifetime_access (
 
 create table if not exists founder_redemptions (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references profiles(id) on delete cascade,
+  user_id uuid not null references app_users(id) on delete cascade,
   checkout_session_id uuid references billing_checkout_sessions(id) on delete set null,
   plan_id text not null,
   amount_cents integer not null,
@@ -70,7 +77,7 @@ create index if not exists founder_redemptions_real_supply_idx
   where test_mode = false;
 
 create table if not exists user_badges (
-  user_id uuid not null references profiles(id) on delete cascade,
+  user_id uuid not null references app_users(id) on delete cascade,
   badge_key text not null,
   source_plan_id text,
   permanent boolean not null default true,
@@ -82,3 +89,31 @@ create table if not exists user_badges (
 
 create index if not exists user_badges_user_awarded_at_idx
   on user_badges (user_id, awarded_at);
+
+alter table if exists cruush_plus_subscriptions
+  drop constraint if exists cruush_plus_subscriptions_user_id_fkey;
+
+alter table if exists cruush_plus_subscriptions
+  add constraint cruush_plus_subscriptions_user_id_fkey
+  foreign key (user_id) references app_users(id) on delete cascade;
+
+alter table if exists cruush_plus_lifetime_access
+  drop constraint if exists cruush_plus_lifetime_access_user_id_fkey;
+
+alter table if exists cruush_plus_lifetime_access
+  add constraint cruush_plus_lifetime_access_user_id_fkey
+  foreign key (user_id) references app_users(id) on delete cascade;
+
+alter table if exists founder_redemptions
+  drop constraint if exists founder_redemptions_user_id_fkey;
+
+alter table if exists founder_redemptions
+  add constraint founder_redemptions_user_id_fkey
+  foreign key (user_id) references app_users(id) on delete cascade;
+
+alter table if exists user_badges
+  drop constraint if exists user_badges_user_id_fkey;
+
+alter table if exists user_badges
+  add constraint user_badges_user_id_fkey
+  foreign key (user_id) references app_users(id) on delete cascade;

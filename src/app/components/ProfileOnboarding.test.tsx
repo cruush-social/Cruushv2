@@ -25,19 +25,10 @@ vi.mock('../lib/sessionUser', () => ({
   persistCurrentUser,
 }));
 
-function chooseMultiSelect(label: string, value: string) {
-  const container = screen.getByText(label).closest('div');
-  const select = container?.querySelector('select');
-
-  if (!select) {
-    throw new Error(`Unable to find ${label} select.`);
-  }
-
-  for (const option of Array.from(select.options)) {
-    option.selected = option.value === value;
-  }
-
-  fireEvent.change(select);
+async function chooseMultiSelect(label: string, value: string) {
+  fireEvent.click(screen.getByRole('button', { name: label }));
+  fireEvent.click(await screen.findByRole('option', { name: value }));
+  fireEvent.click(screen.getByRole('button', { name: label }));
 }
 
 function renderConductOnboarding(onComplete = vi.fn()) {
@@ -65,16 +56,16 @@ async function fillProfileRites() {
   fireEvent.change(screen.getByPlaceholderText('e.g. 2000'), { target: { value: '1998' } });
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-  chooseMultiSelect('Pronouns', 'they/them');
+  await chooseMultiSelect('Pronouns', 'they/them');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-  chooseMultiSelect('Gender Identity', 'nonbinary');
+  await chooseMultiSelect('Gender Identity', 'nonbinary');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-  chooseMultiSelect('Looking For', 'cruise');
+  await chooseMultiSelect('Looking For', 'cruise');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-  chooseMultiSelect('Vibes', 'Goth');
+  await chooseMultiSelect('Vibes', 'Goth');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
   fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
@@ -117,6 +108,43 @@ describe('ProfileOnboarding', () => {
     expect(enterButton).not.toBeDisabled();
   });
 
+  it('keeps the same rites while using profile edit option menus', async () => {
+    renderConductOnboarding();
+
+    expect(screen.getByText('speak your name')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText('prove you may enter')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('e.g. 2000'), { target: { value: '1998' } });
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText('choose your invocation')).toBeInTheDocument();
+    await chooseMultiSelect('Pronouns', 'they/them');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText('name your form')).toBeInTheDocument();
+    await chooseMultiSelect('Gender Identity', 'nonbinary');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText('declare your hunger')).toBeInTheDocument();
+    await chooseMultiSelect('Looking For', 'right now');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText('reveal your aura')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
+    expect(await screen.findByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Style & Energy' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
+    expect(await screen.findByRole('option', { name: 'Bear' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Archetypes' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Daddy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText('leave your confession')).toBeInTheDocument();
+  });
+
   it('saves the profile, accepts the conduct version, then completes onboarding', async () => {
     const onComplete = renderConductOnboarding();
 
@@ -128,6 +156,30 @@ describe('ProfileOnboarding', () => {
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
     expect(saveMyProfile).toHaveBeenCalledTimes(1);
+    expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      display_name: 'River',
+      looking_for: ['cruise'],
+      vibes: ['Goth'],
+      bio: 'Velvet trouble.',
+      pronouns: ['they/them'],
+      year_of_birth: 1998,
+      identities: ['nonbinary'],
+      availability: [],
+      hosting_travel: [],
+      presentation: [],
+      sexuality: [],
+      body_type: [],
+      position: [],
+      role: [],
+      kinks: [],
+      hiv_status: [],
+      condoms: [],
+      prep: [],
+      doxypep: [],
+      covid_vaccine: [],
+      mpox_vaccine: [],
+      substance_boundaries: [],
+    }));
     expect(acceptCodeOfConduct).toHaveBeenCalledWith('2026-07-07');
     expect(saveMyProfile.mock.invocationCallOrder[0]).toBeLessThan(acceptCodeOfConduct.mock.invocationCallOrder[0]);
   });

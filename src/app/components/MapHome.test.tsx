@@ -172,6 +172,7 @@ describe('MapHome', () => {
     expect(canUseDeveloperMapToolsEmail('admin@cruush.local')).toBe(true);
     expect(canUseDeveloperMapToolsEmail(' codeveloper-nyc@cruush.local ')).toBe(true);
     expect(canUseDeveloperMapToolsEmail('bank-reviewer-nyc@cruush.local')).toBe(false);
+    expect(canUseDeveloperMapToolsEmail('payment@cruush.local')).toBe(false);
     expect(canUseDeveloperMapToolsEmail(null)).toBe(false);
   });
 

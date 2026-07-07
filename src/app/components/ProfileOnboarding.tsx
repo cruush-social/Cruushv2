@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { IDENTITIES, LOOKING_FOR, PRONOUNS, VIBES } from '../lib/profileOptions';
+import { IDENTITIES, LOOKING_FOR, PRONOUNS, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -7,6 +7,7 @@ import { acceptCodeOfConduct, type AuthSessionPayload } from '../lib/authApi';
 import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
 import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload } from '../lib/profileApi';
 import { persistCurrentUser } from '../lib/sessionUser';
+import MultiSelect from './MultiSelect';
 
 interface ProfileOnboardingProps {
   onComplete: (session?: AuthSessionPayload) => void;
@@ -68,6 +69,10 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
     detail: 'Every member agrees to the cruush code of conduct.',
   },
 };
+
+function limitToThree(values: string[]) {
+  return values.slice(0, 3);
+}
 
 type OnboardingProfileState = {
   name: string;
@@ -289,12 +294,12 @@ export default function ProfileOnboarding({
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#050505] p-4 text-foreground">
       <header className="mb-6 text-center">
         <h1 className="cruush-logo-text text-5xl font-bold mb-2">cruush</h1>
-        <p className="text-center text-muted-foreground mt-2">the seven rites</p>
+        <p className="text-center text-white/58 mt-2">the seven rites</p>
       </header>
-      <div className="w-full max-w-md rounded-lg border border-white/10 bg-card p-6 shadow space-y-8">
+      <div className="w-full max-w-md rounded-lg border border-white/12 bg-black/82 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur space-y-8">
         {saveError ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {saveError}
@@ -304,7 +309,7 @@ export default function ProfileOnboarding({
           {steps.map((_, i) => (
             <div
               key={i}
-              className={`flex-1 h-1.5 rounded-full ${i <= step ? 'bg-primary' : 'bg-muted'}`}
+              className={`flex-1 h-1.5 rounded-full ${i <= step ? 'bg-primary' : 'bg-white/10'}`}
             />
           ))}
         </div>
@@ -313,8 +318,8 @@ export default function ProfileOnboarding({
             {STEP_COPY[steps[step]].rite}
           </p>
           <h2 className="text-xl font-semibold text-foreground">{STEP_COPY[steps[step]].title}</h2>
-          <p className="text-sm text-muted-foreground">{STEP_COPY[steps[step]].detail}</p>
-          <p className="text-xs text-muted-foreground">Rite {step + 1} of {steps.length}</p>
+          <p className="text-sm text-white/62">{STEP_COPY[steps[step]].detail}</p>
+          <p className="text-xs text-white/42">Rite {step + 1} of {steps.length}</p>
         </div>
         {/* Step content */}
         {(() => {
@@ -363,69 +368,53 @@ export default function ProfileOnboarding({
             case 'pronouns':
               return (
                 <div>
-                  <label className="text-sm mb-2 block">Pronouns</label>
-                  <select
-                    multiple
+                  <label className="text-sm mb-2 block text-white/82">Pronouns</label>
+                  <MultiSelect
+                    ariaLabel="Pronouns"
+                    options={PRONOUNS}
                     value={profile.pronouns}
-                    onChange={e => setProfileField('pronouns', Array.from(e.target.selectedOptions, o => o.value).slice(0, 3))}
-                    className="w-full h-10 px-3 rounded-md bg-input-background border border-input"
-                  >
-                    {PRONOUNS.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1">Select up to 3</p>
+                    onChange={(values) => setProfileField('pronouns', limitToThree(values))}
+                  />
+                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
                 </div>
               );
             case 'identities':
               return (
                 <div>
-                  <label className="text-sm mb-2 block">Gender Identity</label>
-                  <select
-                    multiple
+                  <label className="text-sm mb-2 block text-white/82">Gender Identity</label>
+                  <MultiSelect
+                    ariaLabel="Gender Identity"
+                    options={IDENTITIES}
                     value={profile.identities}
-                    onChange={e => setProfileField('identities', Array.from(e.target.selectedOptions, o => o.value).slice(0, 3))}
-                    className="w-full h-10 px-3 rounded-md bg-input-background border border-input"
-                  >
-                    {IDENTITIES.map((i) => (
-                      <option key={i} value={i}>{i}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1">Select up to 3</p>
+                    onChange={(values) => setProfileField('identities', limitToThree(values))}
+                  />
+                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
                 </div>
               );
             case 'lookingFor':
               return (
                 <div>
-                  <label className="text-sm mb-2 block">Looking For</label>
-                  <select
-                    multiple
+                  <label className="text-sm mb-2 block text-white/82">Looking For</label>
+                  <MultiSelect
+                    ariaLabel="Looking For"
+                    options={LOOKING_FOR}
                     value={profile.lookingFor}
-                    onChange={e => setProfileField('lookingFor', Array.from(e.target.selectedOptions, o => o.value).slice(0, 3))}
-                    className="w-full h-10 px-3 rounded-md bg-input-background border border-input"
-                  >
-                    {LOOKING_FOR.map((l) => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1">Select up to 3</p>
+                    onChange={(values) => setProfileField('lookingFor', limitToThree(values))}
+                  />
+                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
                 </div>
               );
             case 'vibes':
               return (
                 <div>
-                  <label className="text-sm mb-2 block">Vibes</label>
-                  <select
-                    multiple
+                  <label className="text-sm mb-2 block text-white/82">Vibes</label>
+                  <MultiSelect
+                    ariaLabel="Vibes"
+                    optionGroups={VIBE_GROUPS}
                     value={profile.vibes}
-                    onChange={e => setProfileField('vibes', Array.from(e.target.selectedOptions, o => o.value).slice(0, 3))}
-                    className="w-full h-10 px-3 rounded-md bg-input-background border border-input"
-                  >
-                    {VIBES.map((v) => (
-                      <option key={v} value={v}>{v}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1">Select up to 3</p>
+                    onChange={(values) => setProfileField('vibes', limitToThree(values))}
+                  />
+                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
                 </div>
               );
             case 'bio':
@@ -447,7 +436,7 @@ export default function ProfileOnboarding({
                     <ShieldCheck className="h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">This agreement is required before entering cruush.</p>
                   </div>
-                  <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+                  <div className="rounded-lg border border-white/10 bg-black/60 p-4">
                     <ul className="space-y-3 text-sm leading-6 text-white/72">
                       {CODE_OF_CONDUCT_ITEMS.map((item) => (
                         <li key={item} className="flex gap-3">
@@ -457,7 +446,7 @@ export default function ProfileOnboarding({
                       ))}
                     </ul>
                   </div>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-card/70 p-4 text-sm leading-6 text-white/80">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-black/55 p-4 text-sm leading-6 text-white/80">
                     <input
                       type="checkbox"
                       checked={oathAccepted}

@@ -119,6 +119,7 @@
   ```bash
   REVIEWER_TEST_ACCOUNTS_ENABLED=true
   REVIEWER_TEST_ACCOUNT_PASSWORD=<share-this-out-of-band>
+  PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD=paymentpaytest
   ```
 
   Then run:
@@ -127,7 +128,7 @@
   npm --prefix server run seed:reviewer-accounts
   ```
 
-  The command creates or updates `codeveloper-nyc@cruush.local` and `bank-reviewer-nyc@cruush.local` with verified email status and saved NYC profile locations. It refuses a plain production host; if `NODE_ENV=production`, `APP_URL` must be a staging/test/local host.
+  The command creates or updates `codeveloper-nyc@cruush.local`, `bank-reviewer-nyc@cruush.local`, and `payment@cruush.local` with verified email status and saved NYC profile locations. The payment reviewer account uses `PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD` so the bank checkout login can be shared without sharing the internal codeveloper password. It refuses a plain production host; if `NODE_ENV=production`, `APP_URL` must be a staging/test/local host.
 
   ### 7. If you want auth emails to return to staging
 

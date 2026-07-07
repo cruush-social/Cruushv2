@@ -109,19 +109,19 @@ export default function LocalFeed() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center gap-4 z-10">
+    <div className="min-h-screen bg-[#050505] pb-20 text-foreground">
+      <header className="sticky top-0 bg-black/88 backdrop-blur-sm border-b border-white/10 p-4 flex items-center gap-4 z-10">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
           <h2 className="text-xl">Local Feed</h2>
-          <p className="text-xs text-muted-foreground">Nearby posts expire after 24h</p>
+          <p className="text-xs text-white/58">Nearby posts expire after 24h</p>
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto">
-        <div className="p-4 bg-card border-b border-border">
+      <div className="max-w-2xl mx-auto px-3 pt-4">
+        <div className="rounded-2xl border border-white/10 bg-black/82 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur">
           {error ? (
             <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
@@ -193,15 +193,15 @@ export default function LocalFeed() {
         </div>
 
         {loading ? (
-          <div className="p-12 text-center">
-            <p className="text-muted-foreground">Loading nearby posts...</p>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
+            <p className="text-white/58">Loading nearby posts...</p>
           </div>
         ) : null}
 
         {!loading ? (
-          <div className="divide-y divide-border">
+          <div className="mt-4 space-y-3">
           {posts.map((post) => (
-            <div key={post.id} className="p-4 hover:bg-accent/50 transition-colors">
+            <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
               <div className="flex gap-3">
                 <HeartPhoto
                   className="w-14 flex-shrink-0"
@@ -216,9 +216,9 @@ export default function LocalFeed() {
                       <p className="flex flex-wrap items-center gap-2">
                         <span>{post.user.name}</span>
                         <CruushBadge badges={post.user.badges} compact />
-                        <span className="text-sm text-muted-foreground">{post.user.pronouns}</span>
+                        <span className="text-sm text-white/58">{post.user.pronouns}</span>
                       </p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3 text-xs text-white/52">
                         <span className="flex items-center gap-1">
                           <CruushIcon name="map" className="h-3 w-3 opacity-70" />
                           {post.distance}
@@ -227,7 +227,7 @@ export default function LocalFeed() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1 text-xs text-white/52">
                         <Clock className="w-3 h-3" />
                         <span>{post.expiresIn}</span>
                       </div>
@@ -256,9 +256,9 @@ export default function LocalFeed() {
         ) : null}
 
         {!loading && posts.length === 0 && (
-          <div className="p-12 text-center">
-            <p className="text-muted-foreground">No posts nearby yet.</p>
-            <p className="text-sm text-muted-foreground mt-2">Be the first to share something!</p>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
+            <p className="text-white/68">No posts nearby yet.</p>
+            <p className="text-sm text-white/50 mt-2">Be the first to share something!</p>
           </div>
         )}
       </div>
