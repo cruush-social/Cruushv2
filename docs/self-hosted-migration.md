@@ -8,13 +8,14 @@ This repo started with Supabase doing three different jobs:
 
 If the goal is the cheapest scalable path, the first move is not "replace Supabase with another hosted service." The first move is to own the backend surface area.
 
-## Recommended cheap architecture
+## Recommended open beta architecture
 
-- One VPS
+- One production VPS sized for city beta traffic
 - Coolify installed on that VPS
 - One PostgreSQL instance
 - One Node API service
 - Static frontend deployed separately or through Coolify
+- Private S3-compatible object storage for encrypted media
 - Backups to S3-compatible object storage
 
 ## Why this is the cheap path
@@ -95,13 +96,14 @@ Status:
 
 ### Phase 4
 
-Add object storage only when photo upload is ready to move.
+Add object storage for open beta media.
 
-Cheapest usual choice:
+Recommended default:
 
-- S3-compatible bucket
-- keep originals private
-- serve resized/public variants through the app or CDN later
+- Cloudflare R2 Standard private buckets
+- keep original encrypted objects private
+- serve photos through authenticated API routes
+- use the API server to encrypt media bytes before upload
 
 ## Coolify role
 
@@ -126,7 +128,7 @@ The `server/` folder is the first slice:
 
 ## Next step: Coolify
 
-The next work is operational:
+The next work is operational. For city beta, use a US-East production VPS, preferably Ashburn, VA, with at least `8 vCPU / 16 GB RAM / 160 GB SSD`. Use `4 vCPU / 8 GB` only for staging or very early testing.
 
 1. Provision three services in Coolify
    - frontend
@@ -141,6 +143,13 @@ The next work is operational:
    - `APP_URL`
    - `MAIL_FROM`
    - `RESEND_API_KEY`
+   - `MEDIA_OBJECT_STORAGE_DRIVER=s3`
+   - `MEDIA_S3_BUCKET`
+   - `MEDIA_S3_ENDPOINT`
+   - `MEDIA_S3_REGION=auto`
+   - `MEDIA_S3_ACCESS_KEY_ID`
+   - `MEDIA_S3_SECRET_ACCESS_KEY`
+   - all server-side encryption keys documented in `server/.env.example`
 
 3. Apply SQL migrations in order
    - `server/sql/003_profiles_migration_slice.sql`
@@ -158,6 +167,7 @@ The next work is operational:
    - `server/sql/015_profile_sensitive_tokens.sql`
    - `server/sql/016_profile_visibility_rules.sql`
    - `server/sql/017_rate_limit_buckets.sql`
+   - newer checked-in migrations through `server/sql/024_open_beta_storage_messaging.sql`
 
    The server Docker image runs `npm run migrate` before `npm run start`, so normal container deploys apply the checked-in idempotent migrations automatically. If staging is already running an older image or a custom start command, run `npm --prefix server run migrate` once with the staging `DATABASE_URL`.
 
@@ -174,6 +184,16 @@ The next work is operational:
    - send cruush
    - open DM
    - send message
+   - upload profile photo through encrypted object storage
+   - create group chat
+   - verify banned feed/profile language is rejected
+   - verify backups run and one restore drill succeeds
+
+6. Configure backups
+   - daily Postgres backups to private S3/R2-compatible storage
+   - 14-30 day retention for open beta
+   - disk alerts before beta
+   - VPS snapshots as secondary recovery only
 
 ## Local development
 

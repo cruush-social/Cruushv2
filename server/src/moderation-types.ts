@@ -38,7 +38,15 @@ export type ModerationSeverity = "none" | "low" | "medium" | "high" | "critical"
 export type PolicyDecisionType = "allow" | "reject" | "quarantine" | "remove_existing";
 
 export type FeatureRestriction = {
-  feature: "feed_posting" | "direct_messages" | "group_messages" | "photo_uploads" | "map_visibility" | "crowd_visibility";
+  feature:
+    | "feed_posting"
+    | "direct_messages"
+    | "group_messages"
+    | "group_creation"
+    | "profile_updates"
+    | "photo_uploads"
+    | "map_visibility"
+    | "crowd_visibility";
   scope?: "global" | "t4t" | "sapphic" | "gay" | string;
   reasonCode: string;
   durationDays?: number;

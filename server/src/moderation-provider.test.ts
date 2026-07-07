@@ -66,6 +66,71 @@ describe("moderation provider", () => {
     expect(result.labels).toEqual([]);
   });
 
+  it("labels coded public drug language on feed/profile surfaces", async () => {
+    const provider = new MockModerationProvider();
+    const result = await provider.moderateText({
+      userId: "user-1",
+      surface: "feed",
+      text: "party later ❄️ tina skiing"
+    });
+
+    expect(result.labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        normalized_label: "pnp_discussion",
+        provider_label: "public_coded_drug_language"
+      })
+    ]));
+  });
+
+  it("keeps private drug discussion out of the public coded-language rule", async () => {
+    const provider = new MockModerationProvider();
+    const result = await provider.moderateText({
+      userId: "user-1",
+      surface: "direct_message",
+      text: "I want to talk about tina and recovery boundaries."
+    });
+
+    expect(result.labels).toEqual([]);
+  });
+
+  it("labels coded commercial sex language on profiles", async () => {
+    const provider = new MockModerationProvider();
+    const result = await provider.moderateText({
+      userId: "user-1",
+      surface: "profile",
+      text: "generous 🌹 only"
+    });
+
+    expect(result.labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        normalized_label: "commercial_sex",
+        provider_label: "public_coded_commercial_sex_language"
+      })
+    ]));
+  });
+
+  it("labels coded bestiality language on public surfaces without banning unrelated kink language", async () => {
+    const provider = new MockModerationProvider();
+    const allowed = await provider.moderateText({
+      userId: "user-1",
+      surface: "profile",
+      text: "pup handler into rope classes and consent"
+    });
+    const blocked = await provider.moderateText({
+      userId: "user-1",
+      surface: "profile",
+      text: "k 9 taboo 🐕"
+    });
+
+    expect(allowed.labels).toEqual([]);
+    expect(blocked.labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        normalized_label: "bestiality",
+        provider_label: "public_coded_bestiality_language"
+      })
+    ]));
+  });
+
   it("fails clearly when Stream moderation is enabled without secrets", () => {
     expect(() => createModerationProvider({
       MODERATION_PROVIDER: "mock",

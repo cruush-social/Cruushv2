@@ -176,12 +176,13 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
       });
     }
 
+    const restrictedFeature = surface === "profile" ? "profile_updates" : "feed_posting";
     return thresholdedReject(label, {
       evidenceValue: 10,
       trustImpact: 0,
       reasonCode: "public_pnp_discussion",
       featureRestrictions: [{
-        feature: "feed_posting",
+        feature: restrictedFeature,
         scope: "global",
         reasonCode: "public_pnp_discussion",
         durationDays: 7

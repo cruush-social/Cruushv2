@@ -48,4 +48,38 @@ describe('DirectMessages', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.queryByText('Preview mode')).not.toBeInTheDocument();
   });
+
+  it('shows group admin role and disappearing timer metadata', async () => {
+    getConversations.mockResolvedValue([{
+      id: 'group-1',
+      kind: 'group',
+      user: {
+        id: 'group-1',
+        name: 'Beta crew',
+        pronouns: '',
+        photo: null,
+      },
+      distance: 'Nearby',
+      updatedAt: new Date().toISOString(),
+      lastMessage: 'see you there',
+      unreadCount: 0,
+      pinned: false,
+      muted: false,
+      membersLabel: '3 people',
+      currentUserRole: 'owner',
+      disappearingTimer: '24h',
+      closed: false,
+      tags: [],
+    }]);
+
+    render(
+      <MemoryRouter>
+        <DirectMessages />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Beta crew')).toBeInTheDocument();
+    expect(screen.getByText('owner')).toBeInTheDocument();
+    expect(screen.getByText('24h')).toBeInTheDocument();
+  });
 });

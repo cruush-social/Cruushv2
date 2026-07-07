@@ -119,6 +119,7 @@ create table if not exists feature_restrictions (
     'direct_messages',
     'group_messages',
     'group_creation',
+    'profile_updates',
     'photo_uploads',
     'map_visibility',
     'crowd_visibility'

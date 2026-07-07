@@ -49,7 +49,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
 
       callback(null, false);
     },
-    methods: ["GET", "POST", "PUT", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true
   });
   mkdirSync(mediaStorageDir, { recursive: true });

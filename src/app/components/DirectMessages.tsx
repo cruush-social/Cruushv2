@@ -50,6 +50,9 @@ function normalizeConversation(raw: any): ConversationThread {
     muted: typeof raw?.muted === 'boolean' ? raw.muted : false,
     mutual: typeof raw?.mutual === 'boolean' ? raw.mutual : false,
     membersLabel: raw?.membersLabel ?? undefined,
+    currentUserRole: ['owner', 'admin', 'member'].includes(raw?.currentUserRole) ? raw.currentUserRole : undefined,
+    disappearingTimer: ['off', '24h', '7d', '30d'].includes(raw?.disappearingTimer) ? raw.disappearingTimer : undefined,
+    closed: typeof raw?.closed === 'boolean' ? raw.closed : undefined,
     tags: Array.isArray(raw?.tags) ? raw.tags : [],
   };
 }
@@ -244,6 +247,11 @@ export default function DirectMessages() {
                             Group
                           </Badge>
                         ) : null}
+                        {conversation.currentUserRole && conversation.currentUserRole !== 'member' ? (
+                          <Badge variant="outline" className="border-primary/20 bg-primary/10 text-[10px] uppercase tracking-[0.18em] text-primary">
+                            {conversation.currentUserRole}
+                          </Badge>
+                        ) : null}
                         {conversation.muted ? (
                           <Badge variant="outline" className="border-border/80 bg-background/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                             Quiet
@@ -282,6 +290,16 @@ export default function DirectMessages() {
                         {tag}
                       </Badge>
                     ))}
+                    {conversation.disappearingTimer && conversation.disappearingTimer !== 'off' ? (
+                      <Badge variant="outline" className="border-border/80 bg-background/60 text-[11px] text-muted-foreground">
+                        {conversation.disappearingTimer}
+                      </Badge>
+                    ) : null}
+                    {conversation.closed ? (
+                      <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-[11px] text-destructive">
+                        Closed
+                      </Badge>
+                    ) : null}
                   </div>
                 </div>
               </div>

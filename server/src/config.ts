@@ -62,6 +62,12 @@ const configSchema = z.object({
   APP_URL: z.string().url().default("https://localhost:5173"),
   MEDIA_STORAGE_DIR: z.string().trim().min(1).optional().default("media"),
   MEDIA_PUBLIC_BASE_URL: z.string().url().optional().or(z.literal("")).default(""),
+  MEDIA_OBJECT_STORAGE_DRIVER: z.enum(["local", "s3"]).optional().default("local"),
+  MEDIA_S3_BUCKET: z.string().trim().optional().default(""),
+  MEDIA_S3_ENDPOINT: z.string().url().optional().or(z.literal("")).default(""),
+  MEDIA_S3_REGION: z.string().trim().min(1).optional().default("auto"),
+  MEDIA_S3_ACCESS_KEY_ID: z.string().optional().default(""),
+  MEDIA_S3_SECRET_ACCESS_KEY: z.string().optional().default(""),
   MODERATION_PROVIDER: z.enum(["mock"]).optional().default("mock"),
   MODERATION_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
   STREAM_MODERATION_ENABLED: booleanEnvSchema,
@@ -71,6 +77,7 @@ const configSchema = z.object({
   STREAM_MODERATION_CONFIG_KEY: z.string().trim().regex(/^[\w:-]*$/, "STREAM_MODERATION_CONFIG_KEY may only contain letters, numbers, underscores, dashes, and colons.").optional().default(""),
   PHOTODNA_ENABLED: booleanEnvSchema,
   PHOTODNA_API_URL: z.string().url().optional().or(z.literal("")).default(""),
+  PHOTODNA_OPERATION_PATH: z.string().trim().optional().default(""),
   PHOTODNA_SUBSCRIPTION_KEY: z.string().optional().default(""),
   PHOTODNA_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
   INTERNAL_API_SECRET: z.string().optional().default(""),
@@ -90,6 +97,12 @@ const configSchema = z.object({
   MATCH_TOKEN_ENCRYPTION_KEY: z.string().optional().default(""),
   MATCH_TOKEN_SIGNING_KEY: z.string().optional().default(""),
   MATCH_TOKEN_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  MESSAGE_ENCRYPTION_KEY: z.string().optional().default(""),
+  MESSAGE_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  FEED_ENCRYPTION_KEY: z.string().optional().default(""),
+  FEED_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  MEDIA_ENCRYPTION_KEY: z.string().optional().default(""),
+  MEDIA_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   LOCATION_ENCRYPTION_KEY: z.string().optional().default(""),
   LOCATION_INDEX_KEY: z.string().optional().default(""),
   VISIBILITY_POLICY_ENCRYPTION_KEY: z.string().optional().default(""),
@@ -114,11 +127,23 @@ const configSchema = z.object({
   }
 
   if (config.PHOTODNA_ENABLED) {
-    for (const keyName of ["PHOTODNA_API_URL", "PHOTODNA_SUBSCRIPTION_KEY"] as const) {
+    for (const keyName of ["PHOTODNA_API_URL", "PHOTODNA_OPERATION_PATH", "PHOTODNA_SUBSCRIPTION_KEY"] as const) {
       if (!config[keyName]) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `${keyName} is required when PHOTODNA_ENABLED=true.`,
+          path: [keyName]
+        });
+      }
+    }
+  }
+
+  if (config.MEDIA_OBJECT_STORAGE_DRIVER === "s3") {
+    for (const keyName of ["MEDIA_S3_BUCKET", "MEDIA_S3_ENDPOINT", "MEDIA_S3_ACCESS_KEY_ID", "MEDIA_S3_SECRET_ACCESS_KEY"] as const) {
+      if (!config[keyName]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${keyName} is required when MEDIA_OBJECT_STORAGE_DRIVER=s3.`,
           path: [keyName]
         });
       }
@@ -142,6 +167,14 @@ const configSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "EMAIL_PREVIEW_ENABLED must be disabled in production.",
       path: ["EMAIL_PREVIEW_ENABLED"]
+    });
+  }
+
+  if (config.MEDIA_OBJECT_STORAGE_DRIVER !== "s3") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "MEDIA_OBJECT_STORAGE_DRIVER must be s3 in production.",
+      path: ["MEDIA_OBJECT_STORAGE_DRIVER"]
     });
   }
 
@@ -194,6 +227,20 @@ const configSchema = z.object({
   }
 
   for (const keyName of [
+    "MESSAGE_ENCRYPTION_KEY",
+    "FEED_ENCRYPTION_KEY",
+    "MEDIA_ENCRYPTION_KEY"
+  ] as const) {
+    if (!config[keyName] || config[keyName].length < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${keyName} is required in production.`,
+        path: [keyName]
+      });
+    }
+  }
+
+  for (const keyName of [
     "LOCATION_ENCRYPTION_KEY",
     "LOCATION_INDEX_KEY",
     "VISIBILITY_POLICY_ENCRYPTION_KEY",
@@ -225,6 +272,12 @@ type GhostModeConfigKey =
 type ModerationConfigKey =
   | "MEDIA_STORAGE_DIR"
   | "MEDIA_PUBLIC_BASE_URL"
+  | "MEDIA_OBJECT_STORAGE_DRIVER"
+  | "MEDIA_S3_BUCKET"
+  | "MEDIA_S3_ENDPOINT"
+  | "MEDIA_S3_REGION"
+  | "MEDIA_S3_ACCESS_KEY_ID"
+  | "MEDIA_S3_SECRET_ACCESS_KEY"
   | "MODERATION_PROVIDER"
   | "MODERATION_TIMEOUT_MS"
   | "STREAM_MODERATION_ENABLED"
@@ -234,9 +287,16 @@ type ModerationConfigKey =
   | "STREAM_MODERATION_CONFIG_KEY"
   | "PHOTODNA_ENABLED"
   | "PHOTODNA_API_URL"
+  | "PHOTODNA_OPERATION_PATH"
   | "PHOTODNA_SUBSCRIPTION_KEY"
   | "PHOTODNA_TIMEOUT_MS"
-  | "INTERNAL_API_SECRET";
+  | "INTERNAL_API_SECRET"
+  | "MESSAGE_ENCRYPTION_KEY"
+  | "MESSAGE_ENCRYPTION_KEY_VERSION"
+  | "FEED_ENCRYPTION_KEY"
+  | "FEED_ENCRYPTION_KEY_VERSION"
+  | "MEDIA_ENCRYPTION_KEY"
+  | "MEDIA_ENCRYPTION_KEY_VERSION";
 
 export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey> &
   Partial<Pick<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey>>;
