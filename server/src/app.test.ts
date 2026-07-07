@@ -2384,7 +2384,7 @@ describe("server", () => {
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
     const multipart = multipartFilePayload({
       fieldName: "photo",
-      filename: "profile.png",
+      filename: "adult-human-profile.png",
       contentType: "image/png",
       content: png
     });
@@ -2414,6 +2414,45 @@ describe("server", () => {
     expect(query.mock.calls[2]?.[0]).toContain("insert into profiles (id, photos, updated_at)");
     expect(query.mock.calls[2]?.[0]).toContain("array_append(profiles.photos, $2)");
     expect(query.mock.calls[2]?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
+  });
+
+  it("rejects profile photos without adult human body proof before storage", async () => {
+    query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
+      rows: String(_sql).includes("select photos from profiles")
+        ? [{ photos: [] }]
+        : [{ photos: [params[1]] }]
+    }));
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "profile.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "Profile photo must show an adult human body.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
 
   it("rejects profile photo uploads when the profile already has 9 photos", async () => {

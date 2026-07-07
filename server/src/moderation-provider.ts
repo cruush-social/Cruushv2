@@ -249,9 +249,31 @@ function makeResult(
   };
 }
 
+function stringsFromUnknown(value: unknown): string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap(stringsFromUnknown);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value).flatMap(stringsFromUnknown);
+  }
+
+  return [];
+}
+
 function labelsFromFilename(filename: string | undefined): ProviderLabel[] {
   const normalized = filename?.toLowerCase() ?? "";
   const mappings: Array<[string, NormalizedModerationLabel, ProviderLabel["severity"], number]> = [
+    ["adult-human", "adult_human_body", "low", 0.95],
+    ["human-body", "adult_human_body", "low", 0.95],
+    ["adult-body", "adult_human_body", "low", 0.95],
+    ["non-human", "profile_photo_not_adult_human", "high", 0.96],
+    ["no-human", "profile_photo_not_adult_human", "high", 0.96],
+    ["gradient", "profile_photo_not_adult_human", "high", 0.96],
     ["underage", "underage_sexual", "critical", 0.98],
     ["bestiality", "bestiality", "critical", 0.98],
     ["revenge", "revenge_porn", "critical", 0.97],
@@ -413,6 +435,14 @@ function normalizeStreamLabel(label: string): NormalizedModerationLabel | null {
     return null;
   }
 
+  if (/\b(?:adult human|human body|adult body|body part|person|people|face|torso|chest|abdomen|skin|portrait)\b/i.test(normalized)) {
+    return "adult_human_body";
+  }
+
+  if (/\b(?:no human|non human|not human|no person|no people|animal|object|landscape|abstract|gradient|logo|text only|screenshot|cartoon|drawing|illustration)\b/i.test(normalized)) {
+    return "profile_photo_not_adult_human";
+  }
+
   if (/(csam|child|minor|underage|teen sexual|sexual minor)/i.test(normalized)) {
     return "underage_sexual";
   }
@@ -482,6 +512,7 @@ function streamLabelsFromResponse(response: StreamCheckResponse): ProviderLabel[
     const rawLabels = [
       ...(flag.labels ?? []),
       ...((flag.result ?? []).flatMap((result) => Object.values(result).map(String))),
+      ...stringsFromUnknown(flag.custom),
       flag.type,
       flag.reason
     ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);

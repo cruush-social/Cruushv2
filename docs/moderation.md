@@ -69,6 +69,7 @@ Rejected before save/publish:
 - Feed posts with adult explicit labels, PnP/chemsex discussion, drug sales, hate, threats, harassment, doxxing, location privacy abuse, scams, spam, commercial sex solicitation, non-consensual sexual content, minor/CSAM references, bestiality, revenge porn, or gore.
 - Profile and message content with zero-tolerance labels such as minor/CSAM references, bestiality, revenge porn, credible threats, or drug sales.
 - Profile photos that Stream or later PhotoDNA cannot approve.
+- Profile photos that do not have positive adult-human/body proof from the image moderation provider. A silent image moderation allow is not enough for profile photos.
 
 If Stream is unavailable, partial, pending, or returns an error, content is not saved. The request fails closed with `MODERATION_UNAVAILABLE`.
 
@@ -94,7 +95,9 @@ In Stream dashboard:
 4. Configure severe categories for remove/block: threats, hate, non-consensual sexual content, minor/CSAM references, doxxing, scams, impersonation, drug sales, bestiality, and severe harassment.
 5. Configure borderline categories to flag only when cruush should reject or fail closed without human review.
 6. Avoid blocklists that treat queer identity terms, trans terms, kink terms, or consensual adult dating language as violations by themselves.
-7. For profile image moderation, reject anything not confidently an adult human profile photo. PhotoDNA must be enabled with the verified Microsoft operation path before bank/payment-processor staging review.
+7. For profile image moderation, reject anything not confidently an adult human profile photo. cruush expects a positive adult-human/body signal and rejects profile photos when the provider is silent.
+8. Configure non-human/abstract/object/logo/animal/cartoon/screenshot/image-without-person outcomes to remove or return labels such as `non_human`, `no_person`, `object`, `abstract`, `gradient`, `logo`, or equivalent.
+9. PhotoDNA must be enabled with the verified Microsoft operation path before bank/payment-processor staging review.
 
 ## Open Beta Storage Direction
 
@@ -140,8 +143,9 @@ Manual checks:
 - Create a feed post with chemsex/PnP language and confirm it is rejected.
 - Send a DM with chemsex/PnP language and confirm it is allowed.
 - Send a threat or drug-sales message and confirm it is rejected before message storage.
-- Upload a safe profile photo and confirm it appears in `profiles.photos`.
-- Upload an image filename containing `underage` in mock mode and confirm the file is rejected and removed.
+- Upload a safe profile photo that mock mode can identify, such as a fixture filename containing `adult-human`, and confirm it appears in `profiles.photos`.
+- Upload a non-human or gradient profile photo and confirm it is rejected before encrypted storage.
+- Upload an image filename containing `underage` in mock mode and confirm the file is rejected before encrypted storage.
 - Submit a report and confirm an evidence signal is created for the reported user.
 
 ## Remaining Bank-Readiness Gaps

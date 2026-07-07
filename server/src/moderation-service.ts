@@ -199,6 +199,10 @@ async function recordContentReview(app: FastifyInstance, input: ContentReviewInp
 }
 
 function userMessageForDecision(decision: PolicyDecision) {
+  if (decision.user_message_code === "profile_photo_not_adult_human") {
+    return "Profile photo must show an adult human body.";
+  }
+
   if (decision.user_message_code === "content_pending_review") {
     return "This content could not be saved because automated moderation could not approve it.";
   }
@@ -216,6 +220,50 @@ function userMessageForDecision(decision: PolicyDecision) {
   }
 
   return "This content violates Cruush safety rules and cannot be saved.";
+}
+
+function hasAdultHumanBodyProof(providerResult: ProviderModerationResult) {
+  return providerResult.labels.some((label) =>
+    label.normalized_label === "adult_human_body" &&
+    label.confidence >= 0.7
+  );
+}
+
+function rejectProfilePhotoWithoutAdultHuman(providerResult: ProviderModerationResult): {
+  providerResult: ProviderModerationResult;
+  decision: PolicyDecision;
+} {
+  return {
+    providerResult: {
+      ...providerResult,
+      labels: [
+        ...providerResult.labels,
+        {
+          provider_label: "cruush_profile_photo_missing_adult_human_body",
+          normalized_label: "profile_photo_not_adult_human",
+          confidence: 1,
+          severity: "high"
+        }
+      ],
+      raw_result: {
+        ...(providerResult.raw_result ?? {}),
+        cruush_profile_photo_gate: "missing_adult_human_body"
+      }
+    },
+    decision: {
+      decision: "reject",
+      category: "profile_photo_not_adult_human",
+      severity: "high",
+      confidence: 1,
+      create_evidence_event: false,
+      evidence_value: 0,
+      trust_impact: 0,
+      penalty_decays: true,
+      moderation_history_required: true,
+      reason_code: "profile_photo_not_adult_human",
+      user_message_code: "profile_photo_not_adult_human"
+    }
+  };
 }
 
 function moderationStatusForReview(status: ContentReviewInput["status"], decision: PolicyDecision) {
@@ -315,13 +363,24 @@ export async function moderateTextOrReject(app: FastifyInstance, input: Moderate
 export async function moderateImageOrReject(app: FastifyInstance, input: ModerateImageInput) {
   const provider = createModerationProvider(app.config);
   const providerResult = await provider.moderateImage(input);
-  const decision = mapProviderResultToPolicy({
+  let decision = mapProviderResultToPolicy({
     surface: input.surface,
     contentType: "image",
     providerResult
   });
+  let resolvedProviderResult = providerResult;
 
-  return handlePolicyDecision(app, input.userId, input.surface, "image", providerResult, decision, {
+  if (
+    input.surface === "profile_photo" &&
+    decision.decision === "allow" &&
+    !hasAdultHumanBodyProof(providerResult)
+  ) {
+    const rejection = rejectProfilePhotoWithoutAdultHuman(providerResult);
+    decision = rejection.decision;
+    resolvedProviderResult = rejection.providerResult;
+  }
+
+  return handlePolicyDecision(app, input.userId, input.surface, "image", resolvedProviderResult, decision, {
     contentId: input.contentId,
     contentRef: input.contentRef
   });

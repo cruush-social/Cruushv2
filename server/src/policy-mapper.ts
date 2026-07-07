@@ -138,8 +138,37 @@ function zeroTolerance(label: ProviderLabel, reasonCode: string): PolicyDecision
   });
 }
 
+function rejectProfilePhotoWithoutAdultHuman(label: ProviderLabel): PolicyDecision {
+  return baseDecision({
+    decision: "reject",
+    category: "profile_photo_not_adult_human",
+    severity: label.severity ?? "high",
+    confidence: label.confidence,
+    create_evidence_event: false,
+    evidence_value: 0,
+    trust_impact: 0,
+    penalty_decays: true,
+    moderation_history_required: true,
+    reason_code: "profile_photo_not_adult_human",
+    user_message_code: "profile_photo_not_adult_human"
+  });
+}
+
 function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType: ModerationContentType): PolicyDecision {
   const normalizedLabel: NormalizedModerationLabel = label.normalized_label;
+
+  if (normalizedLabel === "adult_human_body") {
+    return baseDecision({
+      category: normalizedLabel,
+      severity: label.severity ?? "low",
+      confidence: label.confidence,
+      reason_code: "adult_human_profile_photo_allowed"
+    });
+  }
+
+  if (normalizedLabel === "profile_photo_not_adult_human") {
+    return rejectProfilePhotoWithoutAdultHuman(label);
+  }
 
   if (normalizedLabel === "adult_nudity" || normalizedLabel === "adult_explicit") {
     if (surface === "feed" && label.confidence >= 0.85) {
