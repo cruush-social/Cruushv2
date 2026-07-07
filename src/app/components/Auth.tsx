@@ -33,6 +33,12 @@ export default function Auth({ onAuth }: AuthProps) {
   const handleCaptchaTokenChange = useCallback((token: string) => {
     setCaptchaToken(token);
   }, []);
+  const handleCaptchaError = useCallback((message: string) => {
+    setCaptchaToken('');
+    setError(message);
+    setNotice('');
+    setVerificationRetryAvailable(false);
+  }, []);
 
   const resetCaptcha = () => {
     setCaptchaToken('');
@@ -317,7 +323,11 @@ export default function Auth({ onAuth }: AuthProps) {
           )}
 
           {!isForgotPassword && (
-            <Turnstile onTokenChange={handleCaptchaTokenChange} resetKey={captchaResetKey} />
+            <Turnstile
+              onTokenChange={handleCaptchaTokenChange}
+              onError={handleCaptchaError}
+              resetKey={captchaResetKey}
+            />
           )}
 
           <button
