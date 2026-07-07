@@ -38,10 +38,19 @@ Latest public endpoint check on 2026-07-07 at 20:42 UTC:
 - `https://api-staging.cruush.app/api/meta`: `HTTP 200`
 - `https://staging.cruush.app/`: `HTTP 200`
 
+Latest redeploy follow-up check on 2026-07-07 at 21:37 UTC:
+
+- `main` is pushed at `86c87fb Move Ghost Mode settings into map shortcut`.
+- `https://api-staging.cruush.app/health`: `HTTP 200`
+- `https://api-staging.cruush.app/api/meta`: `HTTP 200`
+- `https://staging.cruush.app/`: `HTTP 200`
+- `DELETE /api/posts/:postId` is deployed; an unauthenticated probe returns `401 AUTH_REQUIRED`, confirming the route exists and is auth-gated.
+- Frontend `Last-Modified` header is `2026-07-07 21:28 UTC`, consistent with the latest redeploy.
+
 ## Not Yet Proven
 
 - Banned public/profile coded-language rejection was not tested on the active staging smoke user because those attempts intentionally create trust evidence and may restrict the account.
-- Profile photo upload was not tested in this run.
+- Profile photo upload was not tested in this run. This is now the top bank-readiness blocker because profile photos must reject non-human/gradient images while accepting adult-human/body images.
 - DM and group message writes were not tested in this run because the visible staging UI did not expose a ready conversation fixture.
 - Group messaging backend routes exist, but the full Signal-style frontend admin/member UI is still incomplete.
 - PhotoDNA remains disabled. Do not tell a bank or payment processor that PhotoDNA is active until the adapter is verified against Microsoft sample requests and responses.
@@ -84,14 +93,16 @@ Minimum bank smoke script:
 
 ## Immediate Engineering Next Steps
 
-1. Create a disposable staging bank reviewer account for destructive moderation tests.
-2. Run banned feed/profile coded-language tests only on that disposable account.
-3. Finish profile photo upload staging verification with safe adult-human and invalid-image fixtures.
-4. Add frontend helpers and UI for group remove member, demote admin, close group, rename group, member management, and disappearing timer controls.
-5. Add a staging conversation fixture so DM/group smoke tests do not depend on random existing users.
-6. Update or verify the PhotoDNA adapter before enabling `PHOTODNA_ENABLED=true`.
-7. Keep PhotoDNA disabled until that adapter verification passes.
-8. Add an automated bank smoke-test checklist or script that can be rerun before every staging review.
+1. Finish profile photo upload staging verification with safe adult-human and invalid-image fixtures.
+2. Confirm Stream image moderation is configured to return positive adult-human/body proof or reject non-human profile photos. cruush now fails closed when the provider is silent.
+3. Create a disposable staging bank reviewer account for destructive moderation tests.
+4. Run banned feed/profile coded-language tests only on that disposable account.
+5. Verify feed post delete on the bank reviewer account now that `DELETE /api/posts/:postId` is deployed.
+6. Add frontend helpers and UI for group remove member, demote admin, close group, rename group, member management, and disappearing timer controls.
+7. Add a staging conversation fixture so DM/group smoke tests do not depend on random existing users.
+8. Update or verify the PhotoDNA adapter before enabling `PHOTODNA_ENABLED=true`.
+9. Keep PhotoDNA disabled until that adapter verification passes.
+10. Add an automated bank smoke-test checklist or script that can be rerun before every staging review.
 
 ## Bank-Facing Statement
 
