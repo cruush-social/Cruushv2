@@ -38,10 +38,77 @@ type TextRule = {
   confidence: number;
   severity: ProviderLabel["severity"];
   patterns: RegExp[];
+  surfaces?: ModerationSurface[];
   skip?: (text: string) => boolean;
 };
 
+const publicProfileSurfaces: ModerationSurface[] = ["feed", "profile"];
+
+function normalizeModerationText(text: string) {
+  return text
+    .normalize("NFKC")
+    .replace(/\ufe0f/g, "")
+    .toLowerCase()
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function publicSurfacePattern(pattern: RegExp) {
+  return pattern;
+}
+
 const textRules: TextRule[] = [
+  {
+    providerLabel: "public_coded_drug_language",
+    normalizedLabel: "pnp_discussion",
+    confidence: 0.94,
+    severity: "high",
+    surfaces: publicProfileSurfaces,
+    patterns: [
+      publicSurfacePattern(/\b(?:tina|snow|ski|skiing|skii|skiiing|spun|point|pointing|party|pnp|chem|chemsex|ice|crystal)\b/i),
+      publicSurfacePattern(/\bparty\s+(?:and|n)\s+play\b/i),
+      /[💨🎉🥳💊🎈🌀🧊⛷❄]/
+    ]
+  },
+  {
+    providerLabel: "public_coded_commercial_sex_language",
+    normalizedLabel: "commercial_sex",
+    confidence: 0.9,
+    severity: "high",
+    surfaces: publicProfileSurfaces,
+    patterns: [
+      /\b(?:gen|generous|roses?)\b/i,
+      /[🎁🌹]/,
+      /\b(?:donation|tribute|rates?|menu|cashapp|venmo|zelle|paypal)\b.{0,48}\b(?:meet|session|hour|hh|hookup|sex)\b/i,
+      /\b(?:meet|session|hour|hh|hookup|sex)\b.{0,48}\b(?:donation|tribute|rates?|menu|cashapp|venmo|zelle|paypal)\b/i
+    ]
+  },
+  {
+    providerLabel: "public_coded_underage_language",
+    normalizedLabel: "underage_sexual",
+    confidence: 0.98,
+    severity: "critical",
+    surfaces: publicProfileSurfaces,
+    patterns: [
+      /\b(?:underage|pedo)\b/i,
+      /🏈/,
+      /\b(?:minor|minors|teen|teens|barely legal)\b.{0,80}\b(?:sex|nudes?|hook ?up|explicit|porn|meet)\b/i,
+      /\b(?:sex|nudes?|hook ?up|explicit|porn|meet)\b.{0,80}\b(?:minor|minors|teen|teens|barely legal)\b/i,
+      /\b(?:1[0-7])\s?(?:yo|y\/o|years? old)?\b.{0,80}\b(?:sex|nudes?|hook ?up|explicit|porn|meet)\b/i
+    ]
+  },
+  {
+    providerLabel: "public_coded_bestiality_language",
+    normalizedLabel: "bestiality",
+    confidence: 0.98,
+    severity: "critical",
+    surfaces: publicProfileSurfaces,
+    patterns: [
+      /\b(?:knot|knotting|k\s*9|taboo|zoophilia|zoophile|bestiality|beastiality|canine)\b/i,
+      /[🪢🐕]/
+    ]
+  },
   {
     providerLabel: "drug_sale_or_menu",
     normalizedLabel: "drug_sales",
@@ -212,12 +279,17 @@ export class MockModerationProvider implements ModerationProvider {
 
   async moderateText(input: TextModerationInput): Promise<ProviderModerationResult> {
     const startedAt = Date.now();
+    const normalizedText = normalizeModerationText(input.text);
     const labels = textRules.flatMap((rule) => {
+      if (rule.surfaces && !rule.surfaces.includes(input.surface)) {
+        return [];
+      }
+
       if (rule.skip?.(input.text)) {
         return [];
       }
 
-      if (!rule.patterns.some((pattern) => pattern.test(input.text))) {
+      if (!rule.patterns.some((pattern) => pattern.test(input.text) || pattern.test(normalizedText))) {
         return [];
       }
 

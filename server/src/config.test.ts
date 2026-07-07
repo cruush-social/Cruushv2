@@ -85,10 +85,12 @@ describe("loadConfig", () => {
       SESSION_SECRET: "local-dev-secret",
       PHOTODNA_ENABLED: "true",
       PHOTODNA_API_URL: "https://photodna.example.test/hash",
+      PHOTODNA_OPERATION_PATH: "/match",
       PHOTODNA_SUBSCRIPTION_KEY: "photo-dna-key"
     })).toMatchObject({
       PHOTODNA_ENABLED: true,
       PHOTODNA_API_URL: "https://photodna.example.test/hash",
+      PHOTODNA_OPERATION_PATH: "/match",
       PHOTODNA_SUBSCRIPTION_KEY: "photo-dna-key"
     });
   });
@@ -107,6 +109,9 @@ describe("loadConfig", () => {
       RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
       MATCH_TOKEN_SIGNING_KEY: strongSecret,
+      MESSAGE_ENCRYPTION_KEY: strongSecret,
+      FEED_ENCRYPTION_KEY: strongSecret,
+      MEDIA_ENCRYPTION_KEY: strongSecret,
       LOCATION_ENCRYPTION_KEY: strongSecret,
       LOCATION_INDEX_KEY: strongSecret,
       VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
@@ -121,6 +126,9 @@ describe("loadConfig", () => {
       RELATIONSHIP_INDEX_KEY: strongSecret,
       MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
       MATCH_TOKEN_SIGNING_KEY: strongSecret,
+      MESSAGE_ENCRYPTION_KEY: strongSecret,
+      FEED_ENCRYPTION_KEY: strongSecret,
+      MEDIA_ENCRYPTION_KEY: strongSecret,
       LOCATION_ENCRYPTION_KEY: strongSecret,
       LOCATION_INDEX_KEY: strongSecret,
       VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,

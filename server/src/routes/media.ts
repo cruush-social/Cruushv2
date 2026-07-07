@@ -1,11 +1,15 @@
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "../errors.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
-import { getProfilePhotoStorageDir, PROFILE_PHOTO_MEDIA_PREFIX } from "../media-storage.js";
+import { decryptMediaBytes, encryptMediaBytes } from "../media-encryption.js";
+import {
+  ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX,
+  readEncryptedMediaObject,
+  writeEncryptedMediaObject
+} from "../media-storage.js";
 import { approvedContentReviewCte, moderateImageOrReject } from "../moderation-service.js";
+import { checkPhotoDna } from "../photodna.js";
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const PROFILE_PHOTO_MIME_TYPES = {
@@ -49,15 +53,74 @@ function toUploadError(error: unknown) {
   return error;
 }
 
-async function removeStoredFile(filePath: string) {
-  try {
-    await unlink(filePath);
-  } catch {
-    // Best effort cleanup; the request should still report the database error.
+const profilePhotoParamsSchema = {
+  parse(params: unknown) {
+    const filename = (params as { filename?: unknown }).filename;
+
+    if (
+      typeof filename !== "string" ||
+      !/^[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(jpg|png|webp)$/i.test(filename)
+    ) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Invalid media path.");
+    }
+
+    return { filename };
   }
-}
+};
 
 export async function registerMediaRoutes(app: FastifyInstance) {
+  app.get("/api/media/profile-photos/:filename", async (request, reply) => {
+    await getAuthenticatedUserId(request);
+    const { filename } = profilePhotoParamsSchema.parse(request.params);
+    const publicUrl = `${ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
+    const result = await app.db.query<{
+      object_key: string;
+      mime_type: string;
+      encrypted_data_key: string;
+      data_key_nonce: string;
+      data_key_auth_tag: string;
+      content_nonce: string;
+      content_auth_tag: string;
+      key_version: string;
+    }>(
+      `select
+         object_key,
+         mime_type,
+         encrypted_data_key,
+         data_key_nonce,
+         data_key_auth_tag,
+         content_nonce,
+         content_auth_tag,
+         key_version
+       from media_objects
+       where public_url = $1
+         and deleted_at is null
+       limit 1`,
+      [publicUrl]
+    );
+    const mediaObject = result.rows[0];
+
+    if (!mediaObject) {
+      throw new ApiError(404, "NOT_FOUND", "Media not found.");
+    }
+
+    const encryptedBytes = await readEncryptedMediaObject(app.config, mediaObject.object_key);
+    const bytes = decryptMediaBytes(app.config, {
+      ciphertext: encryptedBytes,
+      nonce: mediaObject.content_nonce,
+      authTag: mediaObject.content_auth_tag,
+      encryptedDataKey: mediaObject.encrypted_data_key,
+      dataKeyNonce: mediaObject.data_key_nonce,
+      dataKeyAuthTag: mediaObject.data_key_auth_tag,
+      keyVersion: mediaObject.key_version
+    });
+
+    return reply
+      .type(mediaObject.mime_type)
+      .header("cache-control", "private, max-age=300")
+      .send(bytes);
+  });
+
   app.post("/api/profile-photos", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
 
@@ -122,36 +185,75 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "You can add up to 9 photos.");
     }
 
-    const storageDir = getProfilePhotoStorageDir(app.config);
-    await mkdir(storageDir, { recursive: true });
-
     const filename = `${userId}-${randomUUID()}.${extension}`;
-    const filePath = path.join(storageDir, filename);
-    const url = `${PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
+    const objectKey = `profile-photos/${filename}.enc`;
+    const url = `${ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
     const publicImageUrl = new URL(url, app.config.MEDIA_PUBLIC_BASE_URL || app.config.APP_URL).toString();
-    await writeFile(filePath, buffer, { flag: "wx" });
+    const photoDnaResult = await checkPhotoDna(app.config, buffer);
+
+    if (photoDnaResult.status === "blocked") {
+      throw new ApiError(400, "CONTENT_REJECTED", "This photo violates Cruush safety rules and cannot be saved.");
+    }
 
     let moderation;
 
-    try {
-      moderation = await moderateImageOrReject(app, {
-        userId,
-        surface: "profile_photo",
+    moderation = await moderateImageOrReject(app, {
+      userId,
+      surface: "profile_photo",
+      mimeType,
+      filename: upload.filename,
+      imageUrl: publicImageUrl,
+      contentId: url,
+      contentRef: {
+        url,
+        objectKey,
+        originalFilename: upload.filename,
         mimeType,
-        filename: upload.filename,
-        imageUrl: publicImageUrl,
-        contentId: url,
-        contentRef: {
-          url,
-          originalFilename: upload.filename,
-          mimeType
-        },
-        bytes: buffer
-      });
-    } catch (error) {
-      await removeStoredFile(filePath);
-      throw error;
-    }
+        photoDnaStatus: photoDnaResult.status
+      },
+      bytes: buffer
+    });
+
+    const encryptedMedia = encryptMediaBytes(app.config, buffer);
+    await writeEncryptedMediaObject(app.config, objectKey, encryptedMedia.ciphertext);
+
+    await app.db.query(
+      `insert into media_objects (
+         owner_user_id,
+         surface,
+         object_key,
+         public_url,
+         media_type,
+         mime_type,
+         byte_size,
+         encrypted_data_key,
+         data_key_nonce,
+         data_key_auth_tag,
+         content_nonce,
+         content_auth_tag,
+         key_version,
+         moderation_status,
+         photodna_status,
+         photodna_provider_request_id
+       )
+       values ($1, 'profile_photo', $2, $3, 'image', $4, $5, $6, $7, $8, $9, $10, $11, 'allowed', $12, $13)
+       on conflict (public_url) do nothing`,
+      [
+        userId,
+        objectKey,
+        url,
+        mimeType,
+        buffer.length,
+        encryptedMedia.encryptedDataKey,
+        encryptedMedia.dataKeyNonce,
+        encryptedMedia.dataKeyAuthTag,
+        encryptedMedia.nonce,
+        encryptedMedia.authTag,
+        encryptedMedia.keyVersion,
+        photoDnaResult.status,
+        photoDnaResult.providerRequestId ?? null
+      ]
+    );
 
     const savedPhotoResult = await app.db.query<{ photos: string[] | null }>(
       `with eligible_user as (
@@ -212,13 +314,9 @@ export async function registerMediaRoutes(app: FastifyInstance) {
         null,
         JSON.stringify(moderation.providerResult.raw_result ?? {})
       ]
-    ).catch(async (error) => {
-      await removeStoredFile(filePath);
-      throw error;
-    });
+    );
 
     if (!savedPhotoResult?.rows?.[0]) {
-      await removeStoredFile(filePath);
       throw new ApiError(400, "VALIDATION_ERROR", "You can add up to 9 photos.");
     }
 

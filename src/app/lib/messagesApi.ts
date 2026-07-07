@@ -17,6 +17,9 @@ export type ConversationThread = {
   muted?: boolean;
   mutual?: boolean;
   membersLabel?: string;
+  currentUserRole?: 'owner' | 'admin' | 'member';
+  disappearingTimer?: 'off' | '24h' | '7d' | '30d';
+  closed?: boolean;
   tags: string[];
 };
 
@@ -25,6 +28,7 @@ export type ChatMessageRecord = {
   author: 'self' | 'other' | 'system';
   content: string;
   timestamp: string;
+  expiresAt?: string;
 };
 
 export type RemoteChatMessage = {
@@ -32,6 +36,7 @@ export type RemoteChatMessage = {
   userId: string;
   content: string;
   timestamp: string;
+  expiresAt?: string;
 };
 
 export type ConversationMessagesPayload = {
@@ -49,6 +54,41 @@ export function openDirectConversation(otherUserId: string) {
     body: JSON.stringify({
       otherUserId,
     }),
+  });
+}
+
+export function createGroupConversation(input: {
+  title: string;
+  memberIds: string[];
+  disappearingTimer?: 'off' | '24h' | '7d' | '30d';
+}) {
+  return requestApi<ConversationThread>('/api/conversations/groups', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateGroupConversation(conversationId: string, input: {
+  title?: string;
+  disappearingTimer?: 'off' | '24h' | '7d' | '30d';
+}) {
+  return requestApi<ConversationThread>(`/api/conversations/groups/${conversationId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export function addGroupMember(conversationId: string, userId: string) {
+  return requestApi<void>(`/api/conversations/groups/${conversationId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export function promoteGroupAdmin(conversationId: string, userId: string) {
+  return requestApi<void>(`/api/conversations/groups/${conversationId}/admins`, {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
   });
 }
 

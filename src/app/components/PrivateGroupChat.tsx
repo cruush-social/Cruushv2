@@ -19,6 +19,12 @@ function formatMessageTime(isoTimestamp: string) {
   return new Date(isoTimestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
+function formatExpirationTime(isoTimestamp: string) {
+  const expiresAt = new Date(isoTimestamp);
+
+  return `expires ${expiresAt.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+}
+
 function getConversationInitials(name: string) {
   return name
     .split(/\s+/)
@@ -34,6 +40,7 @@ function normalizeRemoteMessage(message: RemoteChatMessage, activeUserId: string
     author: message.userId === activeUserId ? 'self' : 'other',
     content: String(message.content ?? ''),
     timestamp: String(message.timestamp ?? new Date().toISOString()),
+    expiresAt: message.expiresAt ? String(message.expiresAt) : undefined,
   };
 }
 
@@ -323,7 +330,10 @@ export default function PrivateGroupChat() {
                   >
                     {msg.content}
                   </div>
-                  <span className="px-1 text-[11px] text-muted-foreground">{formatMessageTime(msg.timestamp)}</span>
+                  <span className="px-1 text-[11px] text-muted-foreground">
+                    {formatMessageTime(msg.timestamp)}
+                    {msg.expiresAt ? ` · ${formatExpirationTime(msg.expiresAt)}` : ''}
+                  </span>
                 </div>
               </div>
             );

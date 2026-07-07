@@ -43,6 +43,20 @@ describe("policy mapper", () => {
     expect(decision.feature_restrictions?.[0]?.feature).toBe("feed_posting");
   });
 
+  it("rejects public/profile coded drug language from profiles with profile write restrictions", () => {
+    const decision = map("pnp_discussion", "profile");
+
+    expect(decision.decision).toBe("reject");
+    expect(decision.create_evidence_event).toBe(true);
+    expect(decision.trust_impact).toBe(0);
+    expect(decision.feature_restrictions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        feature: "profile_updates",
+        reasonCode: "public_pnp_discussion"
+      })
+    ]));
+  });
+
   it("suspends and caps trust for drug sales", () => {
     const decision = map("drug_sales", "direct_message", 0.97);
 
