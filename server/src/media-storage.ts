@@ -7,6 +7,7 @@ import type { AppConfig } from "./config.js";
 export const MEDIA_ROUTE_PREFIX = "/media";
 export const PROFILE_PHOTO_MEDIA_PREFIX = `${MEDIA_ROUTE_PREFIX}/profile-photos`;
 export const ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX = "/api/media/profile-photos";
+export const MESSAGE_PHOTO_MEDIA_PREFIX = "/api/media/message-photos";
 
 type MediaObjectStorageConfig = Pick<
   AppConfig,

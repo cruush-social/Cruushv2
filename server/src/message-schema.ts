@@ -8,6 +8,11 @@ export const createMessagePayloadSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 4000 })
 }).strict();
 
+export const createMessagePhotoFieldsSchema = z.object({
+  conversationId: uuidSchema,
+  content: multilineTextSchema({ max: 4000 }).optional().default("")
+}).strict();
+
 export const openDirectConversationPayloadSchema = z.object({
   otherUserId: uuidSchema
 }).strict();
@@ -30,3 +35,4 @@ export const groupMemberPayloadSchema = z.object({
 }).strict();
 
 export type CreateMessagePayload = z.infer<typeof createMessagePayloadSchema>;
+export type CreateMessagePhotoFields = z.infer<typeof createMessagePhotoFieldsSchema>;

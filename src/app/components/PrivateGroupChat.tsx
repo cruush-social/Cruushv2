@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, CornerDownLeft, Image as ImageIcon, MoreHorizontal } from 'lucide-react';
 import { Button } from './ui/button';
@@ -9,11 +10,13 @@ import { Textarea } from './ui/textarea';
 import { getCurrentUserId } from '../lib/sessionUser';
 import {
   createMessage,
+  createMessagePhoto,
   getConversationMessages,
   type ChatMessageRecord,
   type ConversationThread,
   type RemoteChatMessage,
 } from '../lib/messagesApi';
+import { resolveMediaUrl } from '../lib/apiClient';
 
 function formatMessageTime(isoTimestamp: string) {
   return new Date(isoTimestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -41,6 +44,7 @@ function normalizeRemoteMessage(message: RemoteChatMessage, activeUserId: string
     content: String(message.content ?? ''),
     timestamp: String(message.timestamp ?? new Date().toISOString()),
     expiresAt: message.expiresAt ? String(message.expiresAt) : undefined,
+    attachments: Array.isArray(message.attachments) ? message.attachments : undefined,
   };
 }
 
@@ -57,6 +61,8 @@ export default function PrivateGroupChat() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const quickPrompts = useMemo(() => {
     if (conversation?.kind === 'group') {
@@ -148,6 +154,30 @@ export default function PrivateGroupChat() {
       console.error('Error sending message:', error);
       setMessages((prev) => prev.filter((item) => item.id !== optimisticId));
       setError(error instanceof Error ? error.message : 'Failed to send message.');
+    }
+  };
+
+  const handlePhotoSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+
+    if (!file || !chatId || !conversation || photoUploading) {
+      return;
+    }
+
+    const caption = message.trim();
+    setPhotoUploading(true);
+
+    try {
+      const createdMessage = await createMessagePhoto(chatId, file, caption);
+      setMessages((prev) => [...prev, normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)]);
+      setMessage('');
+      setError(null);
+    } catch (error) {
+      console.error('Error sending message photo:', error);
+      setError(error instanceof Error ? error.message : 'Failed to send photo.');
+    } finally {
+      setPhotoUploading(false);
     }
   };
 
@@ -320,16 +350,32 @@ export default function PrivateGroupChat() {
                 ) : null}
 
                 <div className={`max-w-[78%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                  <div
-                    className={`rounded-[22px] px-4 py-3 text-sm leading-relaxed ${
-                      isOwn
-                        ? 'text-white'
-                        : 'border border-border bg-card text-foreground'
-                    }`}
-                    style={isOwn ? { background: 'var(--cruush-gradient)' } : undefined}
-                  >
-                    {msg.content}
-                  </div>
+                  {msg.attachments?.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className={`overflow-hidden rounded-[22px] border ${
+                        isOwn ? 'border-primary/30 bg-primary/10' : 'border-border bg-card'
+                      }`}
+                    >
+                      <img
+                        alt="Message photo"
+                        src={resolveMediaUrl(attachment.url)}
+                        className="block max-h-80 w-full max-w-xs object-cover"
+                      />
+                    </div>
+                  ))}
+                  {msg.content ? (
+                    <div
+                      className={`rounded-[22px] px-4 py-3 text-sm leading-relaxed ${
+                        isOwn
+                          ? 'text-white'
+                          : 'border border-border bg-card text-foreground'
+                      }`}
+                      style={isOwn ? { background: 'var(--cruush-gradient)' } : undefined}
+                    >
+                      {msg.content}
+                    </div>
+                  ) : null}
                   <span className="px-1 text-[11px] text-muted-foreground">
                     {formatMessageTime(msg.timestamp)}
                     {msg.expiresAt ? ` · ${formatExpirationTime(msg.expiresAt)}` : ''}
@@ -371,6 +417,24 @@ export default function PrivateGroupChat() {
                     className="min-h-[60px] border-0 bg-transparent px-0 py-1 focus-visible:ring-0"
                   />
                   <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      aria-label="Choose message photo"
+                      className="sr-only"
+                      onChange={(event) => void handlePhotoSelected(event)}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Attach photo"
+                      aria-label="Attach photo"
+                      disabled={photoUploading}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <ImageIcon className="size-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" title="Quick reply" aria-label="Insert quick reply">
                       <CornerDownLeft className="size-4" />
                     </Button>

@@ -29,7 +29,8 @@ const migrationFiles = [
   "021_reports.sql",
   "022_moderation_foundation.sql",
   "023_stream_moderation.sql",
-  "024_open_beta_storage_messaging.sql"
+  "024_open_beta_storage_messaging.sql",
+  "025_message_media_attachments.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

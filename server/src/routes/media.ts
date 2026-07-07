@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { ApiError } from "../errors.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { decryptMediaBytes, encryptMediaBytes } from "../media-encryption.js";
 import {
   ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX,
+  MESSAGE_PHOTO_MEDIA_PREFIX,
   readEncryptedMediaObject,
   writeEncryptedMediaObject
 } from "../media-storage.js";
@@ -68,21 +69,56 @@ const profilePhotoParamsSchema = {
   }
 };
 
+const messagePhotoParamsSchema = {
+  parse(params: unknown) {
+    const filename = (params as { filename?: unknown }).filename;
+
+    if (
+      typeof filename !== "string" ||
+      !/^[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(jpg|png|webp)$/i.test(filename)
+    ) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Invalid media path.");
+    }
+
+    return { filename };
+  }
+};
+
+type EncryptedMediaRow = {
+  object_key: string;
+  mime_type: string;
+  encrypted_data_key: string;
+  data_key_nonce: string;
+  data_key_auth_tag: string;
+  content_nonce: string;
+  content_auth_tag: string;
+  key_version: string;
+};
+
+async function sendEncryptedMedia(app: FastifyInstance, reply: FastifyReply, mediaObject: EncryptedMediaRow) {
+  const encryptedBytes = await readEncryptedMediaObject(app.config, mediaObject.object_key);
+  const bytes = decryptMediaBytes(app.config, {
+    ciphertext: encryptedBytes,
+    nonce: mediaObject.content_nonce,
+    authTag: mediaObject.content_auth_tag,
+    encryptedDataKey: mediaObject.encrypted_data_key,
+    dataKeyNonce: mediaObject.data_key_nonce,
+    dataKeyAuthTag: mediaObject.data_key_auth_tag,
+    keyVersion: mediaObject.key_version
+  });
+
+  return reply
+    .type(mediaObject.mime_type)
+    .header("cache-control", "private, max-age=300")
+    .send(bytes);
+}
+
 export async function registerMediaRoutes(app: FastifyInstance) {
   app.get("/api/media/profile-photos/:filename", async (request, reply) => {
     await getAuthenticatedUserId(request);
     const { filename } = profilePhotoParamsSchema.parse(request.params);
     const publicUrl = `${ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
-    const result = await app.db.query<{
-      object_key: string;
-      mime_type: string;
-      encrypted_data_key: string;
-      data_key_nonce: string;
-      data_key_auth_tag: string;
-      content_nonce: string;
-      content_auth_tag: string;
-      key_version: string;
-    }>(
+    const result = await app.db.query<EncryptedMediaRow>(
       `select
          object_key,
          mime_type,
@@ -104,21 +140,42 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Media not found.");
     }
 
-    const encryptedBytes = await readEncryptedMediaObject(app.config, mediaObject.object_key);
-    const bytes = decryptMediaBytes(app.config, {
-      ciphertext: encryptedBytes,
-      nonce: mediaObject.content_nonce,
-      authTag: mediaObject.content_auth_tag,
-      encryptedDataKey: mediaObject.encrypted_data_key,
-      dataKeyNonce: mediaObject.data_key_nonce,
-      dataKeyAuthTag: mediaObject.data_key_auth_tag,
-      keyVersion: mediaObject.key_version
-    });
+    return sendEncryptedMedia(app, reply, mediaObject);
+  });
 
-    return reply
-      .type(mediaObject.mime_type)
-      .header("cache-control", "private, max-age=300")
-      .send(bytes);
+  app.get("/api/media/message-photos/:filename", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { filename } = messagePhotoParamsSchema.parse(request.params);
+    const publicUrl = `${MESSAGE_PHOTO_MEDIA_PREFIX}/${filename}`;
+    const result = await app.db.query<EncryptedMediaRow>(
+      `select
+         media.object_key,
+         media.mime_type,
+         media.encrypted_data_key,
+         media.data_key_nonce,
+         media.data_key_auth_tag,
+         media.content_nonce,
+         media.content_auth_tag,
+         media.key_version
+       from media_objects media
+       join message_media_attachments attachment on attachment.media_object_id = media.id
+       join messages message on message.id = attachment.message_id
+       join conversation_members member
+         on member.conversation_id = message.conversation_id
+        and member.user_id = $2
+       where media.public_url = $1
+         and media.deleted_at is null
+         and (message.expires_at is null or message.expires_at > now())
+       limit 1`,
+      [publicUrl, userId]
+    );
+    const mediaObject = result.rows[0];
+
+    if (!mediaObject) {
+      throw new ApiError(404, "NOT_FOUND", "Media not found.");
+    }
+
+    return sendEncryptedMedia(app, reply, mediaObject);
   });
 
   app.post("/api/profile-photos", async (request, reply) => {

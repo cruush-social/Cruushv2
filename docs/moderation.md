@@ -105,12 +105,12 @@ Current branch state:
 - Development and tests use local encrypted object storage; production config requires S3-compatible object storage.
 - Server-side encryption exists for selected sensitive profile/location/relationship fields, message text, feed text, and profile photo bytes.
 
-Recommended next slice if vendor-managed server-side encryption is acceptable:
+Recommended next slice:
 
-- Move chat messages, DM image attachments, and media uploads into Stream Chat/media.
-- Move expiring feed posts into Stream Feeds or keep Postgres until the feed substrate migration is ready.
-- Use Stream retention policies for message/feed expiry where possible.
-- Keep cruush Postgres as the source for account, trust score, profile privacy, encrypted sensitive profile fields, and payment/compliance state.
+- Keep chat messages, feed text, profile photo bytes, and DM/group image attachments in cruush-controlled encrypted storage.
+- Move production media bytes from local encrypted object storage to private S3-compatible object storage.
+- Keep Stream as a moderation signal and possible notification/chat substrate, but do not make it the only plaintext source of truth for sensitive user content.
+- Keep cruush Postgres as the source for account, trust score, profile privacy, encrypted content metadata, sensitive profile fields, and payment/compliance state.
 - Keep PhotoDNA and trust-score enforcement server-side before media becomes visible.
 
 Recommended beta storage setup:
@@ -147,6 +147,6 @@ Manual checks:
 ## Remaining Bank-Readiness Gaps
 
 - PhotoDNA is wired through a configurable adapter, but it still needs Microsoft portal endpoint/path/response verification before staging.
-- DM image attachments are not implemented yet.
+- DM and group image attachments use the encrypted media object flow.
 - Stream does not yet replace the app database as the chat/feed/media substrate; this slice keeps the current Postgres routes and adds moderation gates.
 - Private photos are represented in moderation surfaces but no separate private-photo product flow exists yet.

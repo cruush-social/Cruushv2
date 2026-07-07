@@ -1,16 +1,21 @@
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
+import { encryptMediaBytes } from "../media-encryption.js";
+import { MESSAGE_PHOTO_MEDIA_PREFIX, writeEncryptedMediaObject } from "../media-storage.js";
 import { ApiError } from "../errors.js";
 import { hasActiveMutualMessagePermission } from "../match-relationships.js";
 import {
   createGroupConversationPayloadSchema,
+  createMessagePhotoFieldsSchema,
   createMessagePayloadSchema,
   groupMemberPayloadSchema,
   openDirectConversationPayloadSchema,
   updateGroupConversationPayloadSchema
 } from "../message-schema.js";
-import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
+import { approvedContentReviewCte, moderateImageOrReject, moderateTextOrReject } from "../moderation-service.js";
+import { checkPhotoDna } from "../photodna.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 
 const conversationParamsSchema = z.object({
@@ -23,6 +28,12 @@ const groupMemberParamsSchema = z.object({
 }).strict();
 
 const adminRoles = new Set(["owner", "admin"]);
+const MAX_MESSAGE_PHOTO_BYTES = 5 * 1024 * 1024;
+const MESSAGE_PHOTO_MIME_TYPES = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp"
+} as const;
 
 type ConversationRow = {
   id: string;
@@ -63,11 +74,71 @@ type MessageRow = {
   content_key_version?: string | null;
   created_at: string | Date;
   expires_at?: string | Date | null;
+  attachments?: MessageAttachment[] | string | null;
 };
 
 type ExistingUserRow = {
   id: string;
 };
+
+type MessageAttachment = {
+  id: string;
+  url: string;
+  mediaType: string;
+  mimeType: string;
+};
+
+function hasValidImageSignature(buffer: Buffer, mimeType: keyof typeof MESSAGE_PHOTO_MIME_TYPES) {
+  if (mimeType === "image/jpeg") {
+    return buffer.length >= 3 &&
+      buffer[0] === 0xff &&
+      buffer[1] === 0xd8 &&
+      buffer[2] === 0xff;
+  }
+
+  if (mimeType === "image/png") {
+    return buffer.length >= 8 &&
+      buffer[0] === 0x89 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x4e &&
+      buffer[3] === 0x47 &&
+      buffer[4] === 0x0d &&
+      buffer[5] === 0x0a &&
+      buffer[6] === 0x1a &&
+      buffer[7] === 0x0a;
+  }
+
+  return buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP";
+}
+
+function toMessagePhotoUploadError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+
+  if (message.includes("request file too large") || message.includes("file size")) {
+    return new ApiError(400, "VALIDATION_ERROR", "Message photo must be 5 MB or smaller.");
+  }
+
+  return error;
+}
+
+function normalizeMessageAttachments(value: MessageRow["attachments"]): MessageAttachment[] {
+  if (!value) {
+    return [];
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed) ? parsed as MessageAttachment[] : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return Array.isArray(value) ? value : [];
+}
 
 function mapConversationRow(app: FastifyInstance, row: ConversationRow) {
   const isGroup = row.kind === "group";
@@ -105,6 +176,8 @@ function mapConversationRow(app: FastifyInstance, row: ConversationRow) {
 }
 
 function mapMessageRow(app: FastifyInstance, row: MessageRow) {
+  const attachments = normalizeMessageAttachments(row.attachments);
+
   return {
     id: row.id,
     userId: row.user_id,
@@ -115,7 +188,8 @@ function mapMessageRow(app: FastifyInstance, row: MessageRow) {
       keyVersion: row.content_key_version ?? undefined
     }, row.content),
     timestamp: new Date(row.created_at).toISOString(),
-    ...(row.expires_at ? { expiresAt: new Date(row.expires_at).toISOString() } : {})
+    ...(row.expires_at ? { expiresAt: new Date(row.expires_at).toISOString() } : {}),
+    ...(attachments.length > 0 ? { attachments } : {})
   };
 }
 
@@ -550,8 +624,21 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          m.content_auth_tag,
          m.content_key_version,
          m.created_at,
-         m.expires_at
+         m.expires_at,
+         coalesce(message_attachments.attachments, '[]'::jsonb) as attachments
        from messages m
+       left join lateral (
+         select jsonb_agg(jsonb_build_object(
+           'id', media.id::text,
+           'url', media.public_url,
+           'mediaType', media.media_type,
+           'mimeType', media.mime_type
+         ) order by attachment.created_at asc) as attachments
+         from message_media_attachments attachment
+         join media_objects media on media.id = attachment.media_object_id
+         where attachment.message_id = m.id
+           and media.deleted_at is null
+       ) as message_attachments on true
        where m.conversation_id::text = $1
          and (m.expires_at is null or m.expires_at > now())
        order by m.created_at asc`,
@@ -571,6 +658,343 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         }),
         messages: messagesResult.rows.map((row) => mapMessageRow(app, row))
       }
+    });
+  });
+
+  app.post("/api/messages/photos", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+
+    await app.rateLimiter.assert({
+      key: `message-photo-upload:${userId}`,
+      max: 20,
+      windowMs: 60 * 1000,
+      message: "Too many message photo uploads. Try again later."
+    });
+
+    const fields: Record<string, string> = {};
+    let upload: {
+      filename: string;
+      mimetype: string;
+      buffer: Buffer;
+      truncated: boolean;
+    } | null = null;
+
+    try {
+      for await (const part of request.parts({
+        limits: {
+          fileSize: MAX_MESSAGE_PHOTO_BYTES,
+          files: 1,
+          fields: 2
+        }
+      })) {
+        if (part.type === "file") {
+          if (part.fieldname !== "photo") {
+            throw new ApiError(400, "VALIDATION_ERROR", "Upload a message photo in the photo field.");
+          }
+
+          upload = {
+            filename: part.filename,
+            mimetype: part.mimetype,
+            buffer: await part.toBuffer(),
+            truncated: part.file.truncated
+          };
+          continue;
+        }
+
+        if (part.fieldname === "conversationId" || part.fieldname === "content") {
+          fields[part.fieldname] = String(part.value ?? "");
+        }
+      }
+    } catch (error) {
+      throw toMessagePhotoUploadError(error);
+    }
+
+    const payload = createMessagePhotoFieldsSchema.parse(fields);
+
+    if (!upload) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Upload a message photo in the photo field.");
+    }
+
+    const mimeType = upload.mimetype as keyof typeof MESSAGE_PHOTO_MIME_TYPES;
+    const extension = MESSAGE_PHOTO_MIME_TYPES[mimeType];
+
+    if (!extension) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Message photo must be a JPEG, PNG, or WebP image.");
+    }
+
+    if (upload.buffer.length === 0) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Message photo cannot be empty.");
+    }
+
+    if (upload.buffer.length > MAX_MESSAGE_PHOTO_BYTES || upload.truncated) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Message photo must be 5 MB or smaller.");
+    }
+
+    if (!hasValidImageSignature(upload.buffer, mimeType)) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Message photo content does not match its image type.");
+    }
+
+    const conversationResult = await app.db.query<ConversationRow>(
+      `${CONVERSATION_SELECT}
+       where cm.user_id = $1
+         and c.id::text = $2
+       limit 1`,
+      [userId, payload.conversationId]
+    );
+    const conversation = conversationResult.rows[0];
+
+    if (!conversation) {
+      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+    }
+
+    if (
+      conversation.kind === "dm" &&
+      conversation.other_user_id &&
+      !await hasActiveMutualMessagePermission(app, userId, conversation.other_user_id)
+    ) {
+      throw new ApiError(
+        403,
+        "MUTUAL_CRUUSH_REQUIRED",
+        "You can message after a mutual cruush."
+      );
+    }
+
+    const moderationSurface = conversation.kind === "group" ? "group_message" : "direct_message";
+    const restrictedFeature = conversation.kind === "group" ? "group_messages" : "direct_messages";
+    const filename = `${userId}-${randomUUID()}.${extension}`;
+    const objectKey = `message-photos/${filename}.enc`;
+    const url = `${MESSAGE_PHOTO_MEDIA_PREFIX}/${filename}`;
+    const publicImageUrl = new URL(url, app.config.MEDIA_PUBLIC_BASE_URL || app.config.APP_URL).toString();
+
+    if (payload.content) {
+      await moderateTextOrReject(app, {
+        userId,
+        surface: moderationSurface,
+        text: payload.content
+      });
+    }
+
+    const photoDnaResult = await checkPhotoDna(app.config, upload.buffer);
+
+    if (photoDnaResult.status === "blocked") {
+      throw new ApiError(400, "CONTENT_REJECTED", "This photo violates Cruush safety rules and cannot be saved.");
+    }
+
+    const imageModeration = await moderateImageOrReject(app, {
+      userId,
+      surface: moderationSurface,
+      mimeType,
+      filename: upload.filename,
+      imageUrl: publicImageUrl,
+      contentId: url,
+      contentRef: {
+        url,
+        objectKey,
+        originalFilename: upload.filename,
+        mimeType,
+        photoDnaStatus: photoDnaResult.status
+      },
+      bytes: upload.buffer
+    });
+    const encryptedMedia = encryptMediaBytes(app.config, upload.buffer);
+    await writeEncryptedMediaObject(app.config, objectKey, encryptedMedia.ciphertext);
+
+    const mediaResult = await app.db.query<{ id: string }>(
+      `insert into media_objects (
+         owner_user_id,
+         surface,
+         object_key,
+         public_url,
+         media_type,
+         mime_type,
+         byte_size,
+         encrypted_data_key,
+         data_key_nonce,
+         data_key_auth_tag,
+         content_nonce,
+         content_auth_tag,
+         key_version,
+         moderation_status,
+         photodna_status,
+         photodna_provider_request_id
+       )
+       values ($1, 'message_photo', $2, $3, 'image', $4, $5, $6, $7, $8, $9, $10, $11, 'allowed', $12, $13)
+       returning id::text as id`,
+      [
+        userId,
+        objectKey,
+        url,
+        mimeType,
+        upload.buffer.length,
+        encryptedMedia.encryptedDataKey,
+        encryptedMedia.dataKeyNonce,
+        encryptedMedia.dataKeyAuthTag,
+        encryptedMedia.nonce,
+        encryptedMedia.authTag,
+        encryptedMedia.keyVersion,
+        photoDnaResult.status,
+        photoDnaResult.providerRequestId ?? null
+      ]
+    );
+    const mediaObjectId = mediaResult.rows[0]?.id;
+
+    if (!mediaObjectId) {
+      throw new ApiError(500, "INTERNAL_ERROR", "Failed to store message photo.");
+    }
+
+    const encryptedContent = encryptTextContent(app.config, "message", payload.content);
+    const disappearingTimer = conversation.disappearing_timer ?? "off";
+    const result = await app.db.query<MessageRow>(
+      `with membership as (
+         select c.id
+         from conversations c
+         join conversation_members cm on cm.conversation_id = c.id
+         where c.id::text = $1
+           and cm.user_id = $2
+         limit 1
+       ), eligible_sender as (
+         select u.id
+         from app_users u
+         left join user_trust_profiles trust on trust.user_id = u.id
+         where u.id = $2
+           and coalesce(trust.is_suspended, false) = false
+           and coalesce(trust.trust_score, 50) > 20
+           and not exists (
+             select 1
+             from suspensions suspension
+             where suspension.user_id = u.id
+               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+           )
+           and not exists (
+             select 1
+             from feature_restrictions restriction
+             where restriction.user_id = u.id
+               and restriction.feature = '${restrictedFeature}'
+               and (restriction.ends_at is null or restriction.ends_at > now())
+           )
+       ), ${approvedContentReviewCte({
+         userIdParam: "$2",
+         surface: moderationSurface,
+         contentType: "image",
+         fromCte: "eligible_sender",
+         providerParam: "$8",
+         providerRequestIdParam: "$9",
+         normalizedLabelsParam: "$10",
+         policyDecisionParam: "$11",
+         moderationStatusParam: "$12",
+         flaggedReasonParam: "$13",
+         moderationRawResultParam: "$14"
+       })}, inserted as (
+         insert into messages (
+           conversation_id,
+           user_id,
+           content,
+           content_ciphertext,
+           content_nonce,
+           content_auth_tag,
+           content_key_version,
+           expires_at
+         )
+         select
+           membership.id,
+           eligible_sender.id,
+           '[encrypted]',
+           $3,
+           $4,
+           $5,
+           $6,
+           case
+             when $15 = '24h' then now() + interval '24 hours'
+             when $15 = '7d' then now() + interval '7 days'
+             when $15 = '30d' then now() + interval '30 days'
+             else null
+           end
+         from membership
+         join eligible_sender on true
+         join moderation_review on true
+         returning
+           id::text as id,
+           user_id::text as user_id,
+           content,
+           content_ciphertext,
+           content_nonce,
+           content_auth_tag,
+           content_key_version,
+           created_at,
+           expires_at,
+           conversation_id
+       ), attached as (
+         insert into message_media_attachments (message_id, media_object_id)
+         select inserted.id::uuid, $7::uuid
+         from inserted
+         returning message_id, media_object_id
+       ), updated_conversation as (
+         update conversations c
+         set updated_at = now()
+         from inserted
+         where c.id = inserted.conversation_id
+       ), updated_member as (
+         update conversation_members cm
+         set last_read_at = now()
+         from inserted
+         where cm.conversation_id = inserted.conversation_id
+           and cm.user_id = $2
+       )
+       select
+         inserted.id,
+         inserted.user_id,
+         inserted.content,
+         inserted.content_ciphertext,
+         inserted.content_nonce,
+         inserted.content_auth_tag,
+         inserted.content_key_version,
+         inserted.created_at,
+         inserted.expires_at,
+         coalesce(jsonb_agg(jsonb_build_object(
+           'id', media.id::text,
+           'url', media.public_url,
+           'mediaType', media.media_type,
+           'mimeType', media.mime_type
+         ) order by attached.media_object_id), '[]'::jsonb) as attachments
+       from inserted
+       join attached on attached.message_id = inserted.id::uuid
+       join media_objects media on media.id = attached.media_object_id
+       group by
+         inserted.id,
+         inserted.user_id,
+         inserted.content,
+         inserted.content_ciphertext,
+         inserted.content_nonce,
+         inserted.content_auth_tag,
+         inserted.content_key_version,
+         inserted.created_at,
+         inserted.expires_at`,
+      [
+        payload.conversationId,
+        userId,
+        encryptedContent.ciphertext,
+        encryptedContent.nonce,
+        encryptedContent.authTag,
+        encryptedContent.keyVersion,
+        mediaObjectId,
+        imageModeration.providerResult.provider,
+        imageModeration.providerResult.provider_request_id,
+        JSON.stringify(imageModeration.providerResult.labels),
+        JSON.stringify(imageModeration.decision),
+        "allowed",
+        null,
+        JSON.stringify(imageModeration.providerResult.raw_result ?? {}),
+        disappearingTimer
+      ]
+    );
+    const created = result.rows[0];
+
+    if (!created) {
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
+    }
+
+    return reply.code(201).send({
+      data: mapMessageRow(app, created)
     });
   });
 
@@ -713,7 +1137,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          content_auth_tag,
          content_key_version,
          created_at,
-         expires_at
+         expires_at,
+         '[]'::jsonb as attachments
        from inserted`,
       [
         payload.conversationId,

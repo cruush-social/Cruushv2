@@ -432,8 +432,14 @@ function multipartFilePayload(input: {
   filename: string;
   contentType: string;
   content: Buffer;
+  fields?: Array<{ name: string; value: string }>;
 }) {
   const boundary = `----cruush-test-${Date.now()}`;
+  const fields = input.fields?.map((field) => Buffer.from(
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="${field.name}"\r\n\r\n` +
+    `${field.value}\r\n`
+  )) ?? [];
   const head = Buffer.from(
     `--${boundary}\r\n` +
     `Content-Disposition: form-data; name="${input.fieldName}"; filename="${input.filename}"\r\n` +
@@ -442,7 +448,7 @@ function multipartFilePayload(input: {
   const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
 
   return {
-    payload: Buffer.concat([head, input.content, tail]),
+    payload: Buffer.concat([...fields, head, input.content, tail]),
     contentType: `multipart/form-data; boundary=${boundary}`
   };
 }
@@ -1928,6 +1934,150 @@ describe("server", () => {
       content: "see you there",
       expiresAt: "2026-04-30T12:10:00.000Z"
     });
+  });
+
+  it("creates a photo message with encrypted media on POST /api/messages/photos", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "group",
+          title: "Beta crew",
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: null,
+          other_user_name: null,
+          other_user_pronouns: null,
+          other_user_photo: null,
+          member_count: 3,
+          current_user_role: "member",
+          disappearing_timer: "24h",
+          closed_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "media-1"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "msg-photo-1",
+          user_id: userId,
+          content: "photo caption",
+          created_at: "2026-04-29T12:10:00.000Z",
+          expires_at: "2026-04-30T12:10:00.000Z",
+          attachments: [{
+            id: "media-1",
+            url: `/api/media/message-photos/${userId}-photo-id.png`,
+            mediaType: "image",
+            mimeType: "image/png"
+          }]
+        }]
+      });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "message.png",
+      contentType: "image/png",
+      content: png,
+      fields: [
+        { name: "conversationId", value: conversationId },
+        { name: "content", value: "photo caption" }
+      ]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages/photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[1]?.[0]).toContain("insert into media_objects");
+    expect(query.mock.calls[1]?.[0]).toContain("message_photo");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[2]?.[0]).toContain("message_media_attachments");
+    expect(response.json()).toEqual({
+      data: {
+        id: "msg-photo-1",
+        userId,
+        content: "photo caption",
+        timestamp: "2026-04-29T12:10:00.000Z",
+        expiresAt: "2026-04-30T12:10:00.000Z",
+        attachments: [{
+          id: "media-1",
+          url: `/api/media/message-photos/${userId}-photo-id.png`,
+          mediaType: "image",
+          mimeType: "image/png"
+        }]
+      }
+    });
+  });
+
+  it("rejects prohibited message photos before storage", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: conversationId,
+        kind: "group",
+        title: "Beta crew",
+        tags: [],
+        updated_at: "2026-04-29T12:00:00.000Z",
+        last_message: "",
+        unread_count: 0,
+        pinned: false,
+        muted: false,
+        other_user_id: null,
+        other_user_name: null,
+        other_user_pronouns: null,
+        other_user_photo: null,
+        member_count: 3,
+        current_user_role: "member",
+        disappearing_timer: "off",
+        closed_at: null
+      }]
+    });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "drug-sales.png",
+      contentType: "image/png",
+      content: png,
+      fields: [
+        { name: "conversationId", value: conversationId }
+      ]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages/photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This content violates Cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("message_media_attachments"))).toBe(false);
   });
 
   it("rejects prohibited message content before storage", async () => {

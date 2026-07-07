@@ -108,6 +108,7 @@ Run this after staging deploys from the reviewed branch:
 - Rejected profile photo does not become visible.
 - Feed post works for allowed text and rejects banned feed language.
 - DM text works, including allowed drug discussion without sales.
+- DM/group photo messages upload, render, and stay unavailable to non-members.
 - Group creation works, creator is owner/admin, admin can add/promote members, and disappearing timer labels appear.
 - Reports can be submitted, including fetishization/chaser report reason.
 - Expired messages do not return from the messages API.

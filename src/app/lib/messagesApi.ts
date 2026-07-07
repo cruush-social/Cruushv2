@@ -29,6 +29,7 @@ export type ChatMessageRecord = {
   content: string;
   timestamp: string;
   expiresAt?: string;
+  attachments?: MessageAttachment[];
 };
 
 export type RemoteChatMessage = {
@@ -37,6 +38,14 @@ export type RemoteChatMessage = {
   content: string;
   timestamp: string;
   expiresAt?: string;
+  attachments?: MessageAttachment[];
+};
+
+export type MessageAttachment = {
+  id: string;
+  url: string;
+  mediaType: string;
+  mimeType: string;
 };
 
 export type ConversationMessagesPayload = {
@@ -103,5 +112,17 @@ export function createMessage(conversationId: string, content: string) {
       conversationId,
       content,
     }),
+  });
+}
+
+export function createMessagePhoto(conversationId: string, photo: File, content = '') {
+  const body = new FormData();
+  body.set('conversationId', conversationId);
+  body.set('content', content);
+  body.set('photo', photo);
+
+  return requestApi<RemoteChatMessage>('/api/messages/photos', {
+    method: 'POST',
+    body,
   });
 }
