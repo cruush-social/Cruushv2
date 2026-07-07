@@ -1,0 +1,261 @@
+# Coolify Open Beta Environment Template
+
+Last updated: 2026-07-07
+
+Use this when configuring Coolify for the cruush app frontend and API. Do not paste placeholder values literally. Do not commit real values.
+
+## How To Use
+
+Create separate Coolify resources/projects for staging and production:
+
+- staging frontend
+- staging API
+- staging Postgres
+- production frontend
+- production API
+- production Postgres
+
+Set frontend variables only on the frontend resource. Set backend/API variables only on the API resource.
+
+Secrets must be generated or pasted directly into Coolify. Do not paste real secrets into chat, repo files, screenshots, or terminal logs.
+
+## Staging API Variables
+
+Use this block for the staging API resource.
+
+```env
+NODE_ENV=production
+PORT=3001
+HOST=0.0.0.0
+DATABASE_URL=<coolify-staging-postgres-internal-url>
+CORS_ORIGIN=https://staging.cruush.app
+SESSION_SECRET=<generate-secret-32-plus-chars>
+APP_URL=https://staging.cruush.app
+
+MEDIA_STORAGE_DIR=media
+MEDIA_PUBLIC_BASE_URL=https://api-staging.cruush.app
+MEDIA_OBJECT_STORAGE_DRIVER=s3
+MEDIA_S3_BUCKET=cruush-media-staging
+MEDIA_S3_ENDPOINT=https://<cloudflare-account-id>.r2.cloudflarestorage.com
+MEDIA_S3_REGION=auto
+MEDIA_S3_ACCESS_KEY_ID=<staging-r2-access-key-id>
+MEDIA_S3_SECRET_ACCESS_KEY=<staging-r2-secret-access-key>
+
+MODERATION_PROVIDER=mock
+MODERATION_TIMEOUT_MS=5000
+STREAM_MODERATION_ENABLED=true
+STREAM_API_KEY=<stream-api-key>
+STREAM_API_SECRET=<stream-api-secret>
+STREAM_APP_ID=<stream-app-id>
+STREAM_MODERATION_CONFIG_KEY=<stream-moderation-config-key>
+
+PHOTODNA_ENABLED=false
+PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
+PHOTODNA_OPERATION_PATH=<microsoft-photodna-operation-path>
+PHOTODNA_SUBSCRIPTION_KEY=<microsoft-photodna-subscription-key>
+PHOTODNA_TIMEOUT_MS=5000
+
+INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
+MAIL_FROM=Cruush <hello@cruush.app>
+RESEND_API_KEY=<resend-api-key>
+EMAIL_PREVIEW_ENABLED=false
+DEVELOPMENT_ADMIN_ENABLED=false
+DEVELOPMENT_ADMIN_PASSWORD=
+TURNSTILE_SECRET_KEY=<turnstile-secret-key-or-empty-if-disabled>
+
+PROFILE_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+PROFILE_TOKEN_KEY=<generate-secret-32-plus-chars>
+PROFILE_TOKEN_KEY_VERSION=v1
+RELATIONSHIP_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+RELATIONSHIP_INDEX_KEY=<generate-secret-32-plus-chars>
+RELATIONSHIP_ENCRYPTION_KEY_VERSION=v1
+RELATIONSHIP_INDEX_KEY_VERSION=v1
+MATCH_TOKEN_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+MATCH_TOKEN_SIGNING_KEY=<generate-secret-32-plus-chars>
+MATCH_TOKEN_KEY_VERSION=v1
+MESSAGE_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+MESSAGE_ENCRYPTION_KEY_VERSION=v1
+FEED_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+FEED_ENCRYPTION_KEY_VERSION=v1
+MEDIA_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+MEDIA_ENCRYPTION_KEY_VERSION=v1
+LOCATION_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+LOCATION_INDEX_KEY=<generate-secret-32-plus-chars>
+VISIBILITY_POLICY_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+GHOST_DERIVATION_KEY=<generate-secret-32-plus-chars>
+DISPLAY_TOKEN_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+LOCATION_ENCRYPTION_KEY_VERSION=v1
+LOCATION_INDEX_KEY_VERSION=v1
+VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION=v1
+GHOST_DERIVATION_KEY_VERSION=v1
+DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION=v1
+```
+
+Keep `PHOTODNA_ENABLED=false` until the Microsoft API Management operation path and sample allowed/blocked responses are verified. Once verified, set it to `true`.
+
+## Staging Frontend Variables
+
+Use this block for the staging frontend resource.
+
+```env
+VITE_API_BASE_URL=https://api-staging.cruush.app
+VITE_TURNSTILE_SITE_KEY=<turnstile-site-key-or-empty-if-disabled>
+VITE_MAP_STYLE_URL=
+VITE_MAP_VECTOR_TILEJSON_URL=https://tiles.openfreemap.org/planet
+VITE_MAP_GLYPHS_URL=
+VITE_MAP_TILE_URL=https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png
+VITE_MAP_ATTRIBUTION=&copy; CARTO &copy; OpenStreetMap contributors
+```
+
+If the frontend and API are deployed same-origin behind the same proxy, `VITE_API_BASE_URL` may be blank. If the API is on `api-staging.cruush.app`, keep it set to that API origin.
+
+## Production API Variables
+
+Use this block for the production API resource.
+
+```env
+NODE_ENV=production
+PORT=3001
+HOST=0.0.0.0
+DATABASE_URL=<coolify-production-postgres-internal-url>
+CORS_ORIGIN=https://cruush.app,https://www.cruush.app
+SESSION_SECRET=<generate-secret-32-plus-chars>
+APP_URL=https://cruush.app
+
+MEDIA_STORAGE_DIR=media
+MEDIA_PUBLIC_BASE_URL=https://api.cruush.app
+MEDIA_OBJECT_STORAGE_DRIVER=s3
+MEDIA_S3_BUCKET=cruush-media-prod
+MEDIA_S3_ENDPOINT=https://<cloudflare-account-id>.r2.cloudflarestorage.com
+MEDIA_S3_REGION=auto
+MEDIA_S3_ACCESS_KEY_ID=<production-r2-access-key-id>
+MEDIA_S3_SECRET_ACCESS_KEY=<production-r2-secret-access-key>
+
+MODERATION_PROVIDER=mock
+MODERATION_TIMEOUT_MS=5000
+STREAM_MODERATION_ENABLED=true
+STREAM_API_KEY=<stream-api-key>
+STREAM_API_SECRET=<stream-api-secret>
+STREAM_APP_ID=<stream-app-id>
+STREAM_MODERATION_CONFIG_KEY=<stream-moderation-config-key>
+
+PHOTODNA_ENABLED=false
+PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
+PHOTODNA_OPERATION_PATH=<microsoft-photodna-operation-path>
+PHOTODNA_SUBSCRIPTION_KEY=<microsoft-photodna-subscription-key>
+PHOTODNA_TIMEOUT_MS=5000
+
+INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
+MAIL_FROM=Cruush <hello@cruush.app>
+RESEND_API_KEY=<resend-api-key>
+EMAIL_PREVIEW_ENABLED=false
+DEVELOPMENT_ADMIN_ENABLED=false
+DEVELOPMENT_ADMIN_PASSWORD=
+TURNSTILE_SECRET_KEY=<turnstile-secret-key-or-empty-if-disabled>
+
+PROFILE_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+PROFILE_TOKEN_KEY=<generate-secret-32-plus-chars>
+PROFILE_TOKEN_KEY_VERSION=v1
+RELATIONSHIP_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+RELATIONSHIP_INDEX_KEY=<generate-secret-32-plus-chars>
+RELATIONSHIP_ENCRYPTION_KEY_VERSION=v1
+RELATIONSHIP_INDEX_KEY_VERSION=v1
+MATCH_TOKEN_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+MATCH_TOKEN_SIGNING_KEY=<generate-secret-32-plus-chars>
+MATCH_TOKEN_KEY_VERSION=v1
+MESSAGE_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+MESSAGE_ENCRYPTION_KEY_VERSION=v1
+FEED_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+FEED_ENCRYPTION_KEY_VERSION=v1
+MEDIA_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+MEDIA_ENCRYPTION_KEY_VERSION=v1
+LOCATION_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+LOCATION_INDEX_KEY=<generate-secret-32-plus-chars>
+VISIBILITY_POLICY_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+GHOST_DERIVATION_KEY=<generate-secret-32-plus-chars>
+DISPLAY_TOKEN_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
+LOCATION_ENCRYPTION_KEY_VERSION=v1
+LOCATION_INDEX_KEY_VERSION=v1
+VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION=v1
+GHOST_DERIVATION_KEY_VERSION=v1
+DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION=v1
+```
+
+Do not reuse staging secrets in production. Production must have fresh keys.
+
+## Production Frontend Variables
+
+Use this block for the production frontend resource.
+
+```env
+VITE_API_BASE_URL=https://api.cruush.app
+VITE_TURNSTILE_SITE_KEY=<turnstile-site-key-or-empty-if-disabled>
+VITE_MAP_STYLE_URL=
+VITE_MAP_VECTOR_TILEJSON_URL=https://tiles.openfreemap.org/planet
+VITE_MAP_GLYPHS_URL=
+VITE_MAP_TILE_URL=https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png
+VITE_MAP_ATTRIBUTION=&copy; CARTO &copy; OpenStreetMap contributors
+```
+
+If the frontend and API are deployed same-origin behind the same proxy, `VITE_API_BASE_URL` may be blank. If the API is on `api.cruush.app`, keep it set to that API origin.
+
+## What I Can Safely Add Without Seeing Secrets
+
+These values are safe to add directly if the domains/buckets are correct:
+
+- `NODE_ENV=production`
+- `PORT=3001`
+- `HOST=0.0.0.0`
+- `CORS_ORIGIN`
+- `APP_URL`
+- `MEDIA_STORAGE_DIR=media`
+- `MEDIA_PUBLIC_BASE_URL`
+- `MEDIA_OBJECT_STORAGE_DRIVER=s3`
+- `MEDIA_S3_BUCKET`
+- `MEDIA_S3_REGION=auto`
+- `MODERATION_PROVIDER=mock`
+- `MODERATION_TIMEOUT_MS=5000`
+- `STREAM_MODERATION_ENABLED=true`
+- `PHOTODNA_ENABLED=false` until verified
+- `PHOTODNA_TIMEOUT_MS=5000`
+- `EMAIL_PREVIEW_ENABLED=false`
+- `DEVELOPMENT_ADMIN_ENABLED=false`
+- all `*_KEY_VERSION=v1`
+- frontend map defaults
+- frontend API base URL
+
+These require secret values or dashboard-generated values:
+
+- `DATABASE_URL`
+- `SESSION_SECRET`
+- `MEDIA_S3_ENDPOINT`
+- `MEDIA_S3_ACCESS_KEY_ID`
+- `MEDIA_S3_SECRET_ACCESS_KEY`
+- `STREAM_API_KEY`
+- `STREAM_API_SECRET`
+- `STREAM_APP_ID`
+- `STREAM_MODERATION_CONFIG_KEY`
+- `PHOTODNA_API_URL`
+- `PHOTODNA_OPERATION_PATH`
+- `PHOTODNA_SUBSCRIPTION_KEY`
+- `INTERNAL_API_SECRET`
+- `RESEND_API_KEY`
+- `TURNSTILE_SECRET_KEY`
+- `VITE_TURNSTILE_SITE_KEY`
+- every encryption/index/signing key
+
+## Coolify Verification After Save
+
+After env vars are saved and the service redeploys:
+
+1. API health returns `200` at `/health`.
+2. Frontend can call `/api/auth/me` without CORS errors.
+3. Signup/login works.
+4. Email verification works or test login is already verified.
+5. Profile edit works.
+6. Profile photo upload stores encrypted media through R2/S3.
+7. Feed accepts safe text and rejects public/profile coded-language terms.
+8. DM text works.
+9. DM/group photo upload works.
+10. Report submission works.
+11. Logs show no missing required env variable errors.
