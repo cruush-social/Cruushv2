@@ -11,6 +11,12 @@ Use mock moderation for local development and tests:
 ```env
 MEDIA_STORAGE_DIR=media
 MEDIA_PUBLIC_BASE_URL=https://localhost:5173
+MEDIA_OBJECT_STORAGE_DRIVER=local
+MEDIA_S3_BUCKET=
+MEDIA_S3_ENDPOINT=
+MEDIA_S3_REGION=auto
+MEDIA_S3_ACCESS_KEY_ID=
+MEDIA_S3_SECRET_ACCESS_KEY=
 MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=false
@@ -26,9 +32,11 @@ PHOTODNA_TIMEOUT_MS=5000
 
 When `STREAM_MODERATION_ENABLED=true`, `STREAM_API_KEY`, `STREAM_API_SECRET`, and `STREAM_MODERATION_CONFIG_KEY` are required at server startup.
 
-When `PHOTODNA_ENABLED=true`, `PHOTODNA_API_URL` and `PHOTODNA_SUBSCRIPTION_KEY` are required at server startup. The actual PhotoDNA request adapter still needs the Microsoft API Management Portal operation path and sample request/response before it should be enabled for staging.
+When `PHOTODNA_ENABLED=true`, `PHOTODNA_API_URL`, `PHOTODNA_OPERATION_PATH`, and `PHOTODNA_SUBSCRIPTION_KEY` are required at server startup. The current adapter posts image bytes to the configured Microsoft API Management endpoint and blocks configured match responses. Verify the exact operation path and sample response from the Microsoft portal before enabling it for staging.
 
-For staging, set `MEDIA_PUBLIC_BASE_URL` to the public API origin that serves `/media`, for example `https://api-staging.cruush.app`. `APP_URL` should remain the user-facing app origin used by auth emails.
+When `MEDIA_OBJECT_STORAGE_DRIVER=s3`, `MEDIA_S3_BUCKET`, `MEDIA_S3_ENDPOINT`, `MEDIA_S3_ACCESS_KEY_ID`, and `MEDIA_S3_SECRET_ACCESS_KEY` are required at server startup. For Cloudflare R2, use `MEDIA_S3_REGION=auto`.
+
+For staging, set `MEDIA_PUBLIC_BASE_URL` to the public API origin that serves authenticated media routes, for example `https://api-staging.cruush.app`. `APP_URL` should remain the user-facing app origin used by auth emails.
 
 ## Moderated Surfaces
 
@@ -86,15 +94,16 @@ In Stream dashboard:
 4. Configure severe categories for remove/block: threats, hate, non-consensual sexual content, minor/CSAM references, doxxing, scams, impersonation, drug sales, bestiality, and severe harassment.
 5. Configure borderline categories to flag only when cruush should reject or fail closed without human review.
 6. Avoid blocklists that treat queer identity terms, trans terms, kink terms, or consensual adult dating language as violations by themselves.
-7. For profile image moderation, reject anything not confidently an adult human profile photo. PhotoDNA still must be added before bank/payment-processor staging review.
+7. For profile image moderation, reject anything not confidently an adult human profile photo. PhotoDNA must be enabled with the verified Microsoft operation path before bank/payment-processor staging review.
 
 ## Open Beta Storage Direction
 
 Current branch state:
 
 - Messages and feed posts are stored in Postgres.
-- Profile photos upload to server filesystem media storage.
-- Server-side encryption exists for selected sensitive profile/location/relationship fields, but message text, feed text, and profile photo bytes are not yet encrypted by cruush-controlled application keys.
+- Profile photos upload as cruush-encrypted object bytes.
+- Development and tests use local encrypted object storage; production config requires S3-compatible object storage.
+- Server-side encryption exists for selected sensitive profile/location/relationship fields, message text, feed text, and profile photo bytes.
 
 Recommended next slice if vendor-managed server-side encryption is acceptable:
 
@@ -104,14 +113,14 @@ Recommended next slice if vendor-managed server-side encryption is acceptable:
 - Keep cruush Postgres as the source for account, trust score, profile privacy, encrypted sensitive profile fields, and payment/compliance state.
 - Keep PhotoDNA and trust-score enforcement server-side before media becomes visible.
 
-Recommended next slice if cruush-controlled server-side object encryption is required:
+Recommended beta storage setup:
 
 - Add private S3-compatible object storage such as Cloudflare R2 or AWS S3.
 - Encrypt photo bytes on the API server before upload using envelope encryption.
 - Store only object keys, ciphertext metadata, moderation status, and key version in Postgres.
 - Serve media through authenticated API routes or short-lived signed URLs, not public buckets.
 
-Do not rely on the current single API container filesystem for open beta media. It is fine for local testing, but it is not durable enough for beta users unless the deployment provides a persistent volume, backups, restore testing, and capacity monitoring.
+Do not rely on the API container filesystem for open beta media. Local filesystem media is only for local development and tests.
 
 ## Local Testing
 
@@ -137,7 +146,7 @@ Manual checks:
 
 ## Remaining Bank-Readiness Gaps
 
-- PhotoDNA is configured but not yet called. Implement the Microsoft adapter after the portal sample request/response is available.
+- PhotoDNA is wired through a configurable adapter, but it still needs Microsoft portal endpoint/path/response verification before staging.
 - DM image attachments are not implemented yet.
 - Stream does not yet replace the app database as the chat/feed/media substrate; this slice keeps the current Postgres routes and adds moderation gates.
 - Private photos are represented in moderation surfaces but no separate private-photo product flow exists yet.

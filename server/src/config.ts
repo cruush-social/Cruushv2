@@ -62,6 +62,12 @@ const configSchema = z.object({
   APP_URL: z.string().url().default("https://localhost:5173"),
   MEDIA_STORAGE_DIR: z.string().trim().min(1).optional().default("media"),
   MEDIA_PUBLIC_BASE_URL: z.string().url().optional().or(z.literal("")).default(""),
+  MEDIA_OBJECT_STORAGE_DRIVER: z.enum(["local", "s3"]).optional().default("local"),
+  MEDIA_S3_BUCKET: z.string().trim().optional().default(""),
+  MEDIA_S3_ENDPOINT: z.string().url().optional().or(z.literal("")).default(""),
+  MEDIA_S3_REGION: z.string().trim().min(1).optional().default("auto"),
+  MEDIA_S3_ACCESS_KEY_ID: z.string().optional().default(""),
+  MEDIA_S3_SECRET_ACCESS_KEY: z.string().optional().default(""),
   MODERATION_PROVIDER: z.enum(["mock"]).optional().default("mock"),
   MODERATION_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
   STREAM_MODERATION_ENABLED: booleanEnvSchema,
@@ -132,6 +138,18 @@ const configSchema = z.object({
     }
   }
 
+  if (config.MEDIA_OBJECT_STORAGE_DRIVER === "s3") {
+    for (const keyName of ["MEDIA_S3_BUCKET", "MEDIA_S3_ENDPOINT", "MEDIA_S3_ACCESS_KEY_ID", "MEDIA_S3_SECRET_ACCESS_KEY"] as const) {
+      if (!config[keyName]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${keyName} is required when MEDIA_OBJECT_STORAGE_DRIVER=s3.`,
+          path: [keyName]
+        });
+      }
+    }
+  }
+
   if (config.NODE_ENV !== "production") {
     return;
   }
@@ -149,6 +167,14 @@ const configSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "EMAIL_PREVIEW_ENABLED must be disabled in production.",
       path: ["EMAIL_PREVIEW_ENABLED"]
+    });
+  }
+
+  if (config.MEDIA_OBJECT_STORAGE_DRIVER !== "s3") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "MEDIA_OBJECT_STORAGE_DRIVER must be s3 in production.",
+      path: ["MEDIA_OBJECT_STORAGE_DRIVER"]
     });
   }
 
@@ -246,6 +272,12 @@ type GhostModeConfigKey =
 type ModerationConfigKey =
   | "MEDIA_STORAGE_DIR"
   | "MEDIA_PUBLIC_BASE_URL"
+  | "MEDIA_OBJECT_STORAGE_DRIVER"
+  | "MEDIA_S3_BUCKET"
+  | "MEDIA_S3_ENDPOINT"
+  | "MEDIA_S3_REGION"
+  | "MEDIA_S3_ACCESS_KEY_ID"
+  | "MEDIA_S3_SECRET_ACCESS_KEY"
   | "MODERATION_PROVIDER"
   | "MODERATION_TIMEOUT_MS"
   | "STREAM_MODERATION_ENABLED"

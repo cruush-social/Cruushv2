@@ -95,8 +95,34 @@ describe("loadConfig", () => {
     });
   });
 
-  it("accepts production config with strong secrets and preview disabled", () => {
+  it("requires R2/S3 media storage details when S3 media storage is enabled", () => {
+    expect(() => loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      MEDIA_OBJECT_STORAGE_DRIVER: "s3"
+    })).toThrow();
+
     expect(loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      MEDIA_OBJECT_STORAGE_DRIVER: "s3",
+      MEDIA_S3_BUCKET: "cruush-media-staging",
+      MEDIA_S3_ENDPOINT: "https://account-id.r2.cloudflarestorage.com",
+      MEDIA_S3_REGION: "auto",
+      MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
+      MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key"
+    })).toMatchObject({
+      MEDIA_OBJECT_STORAGE_DRIVER: "s3",
+      MEDIA_S3_BUCKET: "cruush-media-staging",
+      MEDIA_S3_ENDPOINT: "https://account-id.r2.cloudflarestorage.com",
+      MEDIA_S3_REGION: "auto",
+      MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
+      MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key"
+    });
+  });
+
+  it("rejects production config that would store beta media on the API filesystem", () => {
+    expect(() => loadConfig({
       NODE_ENV: "production",
       DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
       SESSION_SECRET: strongSecret,
@@ -116,6 +142,38 @@ describe("loadConfig", () => {
       LOCATION_INDEX_KEY: strongSecret,
       VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
       GHOST_DERIVATION_KEY: strongSecret,
+      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret,
+      MEDIA_OBJECT_STORAGE_DRIVER: "local"
+    })).toThrow();
+  });
+
+  it("accepts production config with strong secrets and preview disabled", () => {
+    expect(loadConfig({
+      NODE_ENV: "production",
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: strongSecret,
+      CORS_ORIGIN: "https://staging.cruush.app",
+      APP_URL: "https://staging.cruush.app",
+      EMAIL_PREVIEW_ENABLED: "false",
+      PROFILE_ENCRYPTION_KEY: strongSecret,
+      PROFILE_TOKEN_KEY: strongSecret,
+      RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
+      RELATIONSHIP_INDEX_KEY: strongSecret,
+      MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
+      MATCH_TOKEN_SIGNING_KEY: strongSecret,
+      MESSAGE_ENCRYPTION_KEY: strongSecret,
+      FEED_ENCRYPTION_KEY: strongSecret,
+      MEDIA_ENCRYPTION_KEY: strongSecret,
+      MEDIA_OBJECT_STORAGE_DRIVER: "s3",
+      MEDIA_S3_BUCKET: "cruush-media-staging",
+      MEDIA_S3_ENDPOINT: "https://account-id.r2.cloudflarestorage.com",
+      MEDIA_S3_REGION: "auto",
+      MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
+      MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key",
+      LOCATION_ENCRYPTION_KEY: strongSecret,
+      LOCATION_INDEX_KEY: strongSecret,
+      VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
+      GHOST_DERIVATION_KEY: strongSecret,
       DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
     })).toMatchObject({
       NODE_ENV: "production",
@@ -129,6 +187,7 @@ describe("loadConfig", () => {
       MESSAGE_ENCRYPTION_KEY: strongSecret,
       FEED_ENCRYPTION_KEY: strongSecret,
       MEDIA_ENCRYPTION_KEY: strongSecret,
+      MEDIA_OBJECT_STORAGE_DRIVER: "s3",
       LOCATION_ENCRYPTION_KEY: strongSecret,
       LOCATION_INDEX_KEY: strongSecret,
       VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
