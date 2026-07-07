@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Clock } from 'lucide-react';
+import { ArrowLeft, Clock, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
-import { createFeedPost, getFeedPosts, type FeedPost, type FeedPostExpiry } from '../lib/postApi';
+import { createFeedPost, deleteFeedPost, getFeedPosts, type FeedPost, type FeedPostExpiry } from '../lib/postApi';
+import { getCurrentUserId } from '../lib/sessionUser';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -37,10 +38,15 @@ export default function LocalFeed() {
   const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('6h');
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchPosts();
+    void getCurrentUserId()
+      .then(setCurrentUserId)
+      .catch(() => setCurrentUserId(null));
   }, []);
 
   const fetchPosts = async () => {
@@ -72,6 +78,21 @@ export default function LocalFeed() {
       setError(error instanceof Error ? error.message : 'Failed to create post.');
     } finally {
       setPosting(false);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    setDeletingPostId(postId);
+    setError(null);
+
+    try {
+      await deleteFeedPost(postId);
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete post.');
+    } finally {
+      setDeletingPostId(null);
     }
   };
 
@@ -172,9 +193,24 @@ export default function LocalFeed() {
                         <span>{formatRelativeTime(post.createdAt)}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      <span>{post.expiresIn}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="w-3 h-3" />
+                        <span>{post.expiresIn}</span>
+                      </div>
+                      {currentUserId && post.user.id === currentUserId ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          aria-label={`Delete feed post: ${post.content.slice(0, 48)}`}
+                          title="Delete post"
+                          disabled={deletingPostId === post.id}
+                          onClick={() => void handleDeletePost(post.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
 

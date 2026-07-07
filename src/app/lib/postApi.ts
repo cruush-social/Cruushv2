@@ -32,3 +32,9 @@ export async function createFeedPost(payload: CreateFeedPostPayload) {
     body: JSON.stringify(payload),
   });
 }
+
+export async function deleteFeedPost(postId: string) {
+  return requestApi<void>(`/api/posts/${postId}`, {
+    method: 'DELETE',
+  });
+}

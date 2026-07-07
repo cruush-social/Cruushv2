@@ -3471,6 +3471,55 @@ describe("server", () => {
     });
   });
 
+  it("deletes the current user's feed post on DELETE /api/posts/:postId", async () => {
+    const postId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
+    query.mockResolvedValueOnce({
+      rows: [{ id: postId }]
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/posts/${postId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.body).toBe("");
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("delete from posts");
+    expect(query.mock.calls[0]?.[0]).toContain("user_id = $1");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, postId]);
+  });
+
+  it("does not delete another user's feed post on DELETE /api/posts/:postId", async () => {
+    const postId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
+    query.mockResolvedValueOnce({
+      rows: []
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/posts/${postId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Feed post not found.",
+        details: null
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("delete from posts");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, postId]);
+  });
+
   it("rejects prohibited feed content before storing a post", async () => {
     const response = await app.inject({
       method: "POST",

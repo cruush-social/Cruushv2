@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { ApiError } from "../errors.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
@@ -58,6 +59,10 @@ const POST_COLUMNS = `
   pr.pronouns,
   pr.photos
 `;
+
+const postParamsSchema = z.object({
+  postId: z.uuid()
+});
 
 export async function registerPostRoutes(app: FastifyInstance) {
   app.get("/api/posts", async (request, reply) => {
@@ -201,5 +206,23 @@ export async function registerPostRoutes(app: FastifyInstance) {
     return reply.code(201).send({
       data: mapPostRow(app, row)
     });
+  });
+
+  app.delete("/api/posts/:postId", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { postId } = postParamsSchema.parse(request.params);
+    const result = await app.db.query<{ id: string }>(
+      `delete from posts
+       where user_id = $1
+         and id = $2
+       returning id`,
+      [userId, postId]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Feed post not found.");
+    }
+
+    return reply.code(204).send();
   });
 }
