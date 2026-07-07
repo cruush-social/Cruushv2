@@ -55,6 +55,10 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    minify: 'esbuild',
+    sourcemap: false,
+  },
   resolve: {
     alias: {
       // Alias @ to the src directory

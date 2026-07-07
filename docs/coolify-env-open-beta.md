@@ -19,6 +19,8 @@ Set frontend variables only on the frontend resource. Set backend/API variables 
 
 Secrets must be generated or pasted directly into Coolify. Do not paste real secrets into chat, repo files, screenshots, or terminal logs.
 
+Frontend safety rule: never add backend/API secrets to a frontend Coolify resource. The only frontend variables should be public `VITE_*` values. Vite embeds `VITE_*` values into browser JavaScript by design, so `VITE_*` values must never contain Stream secrets, PhotoDNA keys, database URLs, session secrets, encryption keys, R2 secret keys, Resend keys, or backend Turnstile secret keys.
+
 ## Staging API Variables
 
 Use this block for the staging API resource.
@@ -198,6 +200,12 @@ VITE_MAP_ATTRIBUTION=&copy; CARTO &copy; OpenStreetMap contributors
 ```
 
 If the frontend and API are deployed same-origin behind the same proxy, `VITE_API_BASE_URL` may be blank. If the API is on `api.cruush.app`, keep it set to that API origin.
+
+## Frontend Source Visibility
+
+Browser JavaScript cannot be truly hidden from users. Production Vite builds are bundled and minified, and this repo explicitly disables production source maps, so users should not see readable TypeScript source files in DevTools. They can still download and inspect the bundled JavaScript because the browser must receive it to run the app.
+
+This is why all secrets and privileged logic must stay on the API server. Do not rely on obfuscation for security.
 
 ## What I Can Safely Add Without Seeing Secrets
 

@@ -149,6 +149,9 @@ Frontend conventions:
 - Use `resolveMediaUrl` for app-owned media paths.
 - Keep `credentials: 'include'` for API calls.
 - Do not put secrets in frontend env vars.
+- Only `VITE_*` variables are allowed on the frontend Coolify resource, and every `VITE_*` value is public in browser JavaScript.
+- Do not add Stream secrets, PhotoDNA keys, database URLs, session secrets, encryption keys, R2 secret keys, Resend keys, or backend Turnstile secrets to frontend resources.
+- Production frontend builds are bundled and minified with source maps disabled, but browser JavaScript cannot be truly hidden from users.
 - Keep phone browser UX first.
 - Keep bottom nav routes stable unless the product model changes.
 - If adding group admin UI, add API helper functions in `src/app/lib/messagesApi.ts` first, then UI/tests.
