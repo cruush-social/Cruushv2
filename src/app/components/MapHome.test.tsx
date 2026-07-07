@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import MapHome from './MapHome';
+import MapHome, { canUseDeveloperMapToolsEmail } from './MapHome';
 
 const { getNearbyUsers } = vi.hoisted(() => ({
   getNearbyUsers: vi.fn(),
@@ -160,6 +160,13 @@ function LocationProbe() {
 }
 
 describe('MapHome', () => {
+  it('allows the codeveloper NYC account to use developer-only map tools without bank reviewer access', () => {
+    expect(canUseDeveloperMapToolsEmail('admin@cruush.local')).toBe(true);
+    expect(canUseDeveloperMapToolsEmail(' codeveloper-nyc@cruush.local ')).toBe(true);
+    expect(canUseDeveloperMapToolsEmail('bank-reviewer-nyc@cruush.local')).toBe(false);
+    expect(canUseDeveloperMapToolsEmail(null)).toBe(false);
+  });
+
   beforeEach(() => {
     getNearbyUsers.mockReset();
     getMutualCruushMap.mockReset();
@@ -326,7 +333,7 @@ describe('MapHome', () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
-          <Route path="/map" element={<MapHome />} />
+          <Route path="/map" element={<MapHome developerToolsEnabled />} />
         </Routes>
       </MemoryRouter>
     );
@@ -355,7 +362,7 @@ describe('MapHome', () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
-          <Route path="/map" element={<MapHome />} />
+          <Route path="/map" element={<MapHome developerToolsEnabled />} />
           <Route path="/privacy/ghost-mode" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
@@ -371,6 +378,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-top-actions')).toHaveClass('pointer-events-auto');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-[1.5625rem]', 'w-[1.5625rem]');
+    expect(ghostModeIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
@@ -381,6 +389,63 @@ describe('MapHome', () => {
     fireEvent.click(ghostModeButton);
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/ghost-mode');
+  });
+
+  it('opens the desktop own-profile side panel from router state', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={[{
+        pathname: '/map',
+        state: { openOwnProfilePanel: true },
+      }]}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Your profile')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit profile' })).toBeInTheDocument();
+  });
+
+  it("opens an eligible map-discovered profile in the desktop side panel from I'm Feeling Lucky", async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
+          <Route path="/lucky" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+
+    fireEvent.click(screen.getByRole('button', { name: "I'm Feeling Lucky" }));
+
+    expect(screen.getByText('Nearby now')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
+    expect(getProfileById).toHaveBeenCalledWith('user-1');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+  });
+
+  it("keeps I'm Feeling Lucky as a full page route on mobile", async () => {
+    useIsMobile.mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
+          <Route path="/lucky" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: "I'm Feeling Lucky" }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/lucky');
   });
 
   it('floats recently active to the right side on desktop without a profile preview', async () => {
@@ -638,6 +703,43 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
   });
 
+  it('uses a saved NYC account location on entry without prompting for browser geolocation', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMyProfile.mockResolvedValue({
+      photos: ['https://example.com/me.jpg'],
+      position: ['Bottom'],
+      location: {
+        id: 'me',
+        lat: 40.7128,
+        lng: -74.006,
+        fuzzy_lat: 40.713,
+        fuzzy_lng: -74.005,
+        fuzz_radius_meters: 250,
+        location_updated_at: '2026-06-02T12:00:00.000Z',
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lat', '40.713');
+      expect(getNearbyUsers).toHaveBeenLastCalledWith({
+        lat: 40.713,
+        lng: -74.005,
+      }, undefined, { limit: 50 });
+    });
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Saved area');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.713');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-74.005');
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+  });
+
   it('uses the saved display-token location for initial discovery', async () => {
     useIsMobile.mockReturnValue(false);
     window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
@@ -722,7 +824,7 @@ describe('MapHome', () => {
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
-  it('toggles the NPC Ghost Test discovery flag and shows the owner radius circle without the real Ghost badge', async () => {
+  it('toggles the developer-only NPC Ghost Test discovery flag and shows the owner radius circle without the real Ghost badge', async () => {
     useIsMobile.mockReturnValue(false);
     window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
     const normalDiscoveryUsers = [{
@@ -776,7 +878,7 @@ describe('MapHome', () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
-          <Route path="/map" element={<MapHome />} />
+          <Route path="/map" element={<MapHome developerToolsEnabled />} />
         </Routes>
       </MemoryRouter>
     );
@@ -902,6 +1004,26 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveTextContent('Recently Active');
     expect(recentPanel).toHaveClass('max-w-[29.5rem]', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
+  });
+
+  it('hides developer-only map demo tools for regular users and bank reviewers', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+    getNearbyUsers.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(getNearbyUsers).toHaveBeenCalled());
+
+    expect(screen.queryByRole('switch', { name: 'NPC Ghost Test' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
   });
 
   it('greys mutual discovery markers and disables the popup cruush action', async () => {
@@ -1030,14 +1152,14 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
   });
 
-  it('shows a fully designed demo NYC pin when discovery returns no nearby users', async () => {
+  it('shows a fully designed developer-only demo NYC pin when discovery returns no nearby users', async () => {
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([]);
 
     render(
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
-          <Route path="/map" element={<MapHome />} />
+          <Route path="/map" element={<MapHome developerToolsEnabled />} />
         </Routes>
       </MemoryRouter>
     );

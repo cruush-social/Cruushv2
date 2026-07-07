@@ -112,7 +112,24 @@
 
   The seed command refuses to run in production. It creates or updates the local development admin at `admin@cruush.local`, seeds test profiles, and creates cruush activity toward that admin account. Use the password from `DEVELOPMENT_ADMIN_PASSWORD` to sign in locally.
 
-  ### 6. If you want auth emails to return to staging
+  ### 6. Optional: seed NYC reviewer accounts
+
+  To create dedicated NYC-located reviewer accounts for a non-NYC codeveloper or bank reviewer, set:
+
+  ```bash
+  REVIEWER_TEST_ACCOUNTS_ENABLED=true
+  REVIEWER_TEST_ACCOUNT_PASSWORD=<share-this-out-of-band>
+  ```
+
+  Then run:
+
+  ```bash
+  npm --prefix server run seed:reviewer-accounts
+  ```
+
+  The command creates or updates `codeveloper-nyc@cruush.local` and `bank-reviewer-nyc@cruush.local` with verified email status and saved NYC profile locations. It refuses a plain production host; if `NODE_ENV=production`, `APP_URL` must be a staging/test/local host.
+
+  ### 7. If you want auth emails to return to staging
 
   Set this in `server/.env.local`:
 
@@ -122,7 +139,7 @@
 
   That changes the callback target only. It does not change the staging deployment itself.
 
-  ### 7. Staging deployment CORS
+  ### 8. Staging deployment CORS
 
   The staging API must allow the exact browser origin that serves the app. Set the backend deployment env to include:
 
@@ -137,13 +154,14 @@
   CORS_ORIGIN=https://www.cruush.app,https://staging.cruush.app
   ```
 
-  ### 8. Useful manual commands
+  ### 9. Useful manual commands
 
   ```bash
   npm run dev
   npm --prefix server run dev
   npm --prefix server run migrate:dev
   npm --prefix server run seed:dev-profiles
+  npm --prefix server run seed:reviewer-accounts
   npm run dev:local:seeded
   ```
 

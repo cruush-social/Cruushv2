@@ -2721,7 +2721,7 @@ describe("server", () => {
     expect(response.json().data.profiles).toHaveLength(20);
   });
 
-  it("ghosts exactly half of seeded NPC discovery profiles when the dev demo flag is enabled", async () => {
+  it("ghosts exactly half of seeded NPC discovery profiles when the codeveloper dev demo flag is enabled", async () => {
     const seededRows = Array.from({ length: 20 }, (_, index) => {
       const seedNumber = index + 1;
       return {
@@ -2783,6 +2783,14 @@ describe("server", () => {
 
       if (normalizedSql.includes("from encrypted_location_envelopes")) {
         return Promise.resolve({ rows: locationRows });
+      }
+
+      if (normalizedSql.includes("from app_users")) {
+        return Promise.resolve({
+          rows: [{
+            email: "codeveloper-nyc@cruush.local"
+          }]
+        });
       }
 
       return Promise.resolve({ rows: [] });
@@ -2853,6 +2861,99 @@ describe("server", () => {
         (normalizedSql.includes("encrypted_visibility_tokens") || normalizedSql.includes("user_privacy_settings"))
       );
     })).toBe(false);
+  });
+
+  it("ignores the NPC Ghost demo flag for non-admin discovery users", async () => {
+    const evenNpcRow = {
+      id: "00000000-0000-4000-8000-000000000002",
+      email: "test-cruush-02@cruush.local",
+      display_name: "Test Cruush 2",
+      year_of_birth: 1998,
+      pronouns: ["they/them"],
+      looking_for: ["Testing"],
+      vibes: ["Map pin"],
+      scenes: [],
+      archetypes: [],
+      position: ["Top"],
+      role: [],
+      hosting_travel: [],
+      photos: [],
+      identities: [],
+      presentation: [],
+      sexuality: [],
+      body_type: [],
+      availability: [],
+      hobbies: [],
+      substance_boundaries: [],
+      profile_sensitive_ciphertext: null,
+      profile_sensitive_nonce: null,
+      profile_sensitive_auth_tag: null,
+      profile_sensitive_key_version: "v1",
+      profile_visibility_ciphertext: null,
+      profile_visibility_nonce: null,
+      profile_visibility_auth_tag: null,
+      profile_visibility_key_version: "v1",
+      lat: null,
+      lng: null,
+      fuzzy_lat: null,
+      fuzzy_lng: null,
+      updated_at: "2026-04-28T12:00:00.000Z"
+    };
+    const locationRow = await encryptedLocationEnvelopeRow({
+      subjectUserId: evenNpcRow.id,
+      lat: 40.7128,
+      lng: -74.006,
+      accuracyM: 25
+    });
+
+    query.mockImplementation((sql: string) => {
+      const normalizedSql = sql.toLowerCase();
+
+      if (normalizedSql.includes("from app_users")) {
+        return Promise.resolve({
+          rows: [{
+            email: "bank-reviewer-nyc@cruush.local"
+          }]
+        });
+      }
+
+      if (normalizedSql.includes("join encrypted_location_envelopes")) {
+        return Promise.resolve({ rows: [evenNpcRow] });
+      }
+
+      if (normalizedSql.includes("from encrypted_location_envelopes")) {
+        return Promise.resolve({ rows: [locationRow] });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    const displayKeyResponse = await app.inject({
+      method: "GET",
+      url: "/api/location/display-key",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const displayKey = displayKeyResponse.json().data;
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006&npcGhostDemo=1",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const profile = response.json().data.profiles[0];
+    const payload = decryptDisplayLocationTokenForTest({
+      key: displayKey.key,
+      token: profile.displayLocationToken
+    });
+
+    expect(payload.displayMode).toBe("PRECISE");
+    expect(profile.demoDisplayMode).toBeUndefined();
+    expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase().includes("insert into ghost_rotation_tokens"))).toBe(false);
   });
 
   it("ignores the NPC Ghost demo flag in production discovery", async () => {

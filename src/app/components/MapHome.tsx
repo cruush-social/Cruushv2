@@ -2,7 +2,7 @@
 /// <reference types="vite/client" />
 import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './MapView';
 import { Filter, MapPin, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
@@ -43,6 +43,12 @@ import visibilityIconWhite from '../assets/ui-icons/visibility-white.png';
 
 const DISCOVERY_MAP_LIMIT = 50;
 const LOCATION_PROMPT_SESSION_KEY = 'cruush-location-permission-prompted';
+const DEVELOPMENT_ADMIN_EMAIL = 'admin@cruush.local';
+const CODEVELOPER_NYC_EMAIL = 'codeveloper-nyc@cruush.local';
+const DEVELOPER_MAP_TOOL_EMAILS = new Set([
+  DEVELOPMENT_ADMIN_EMAIL,
+  CODEVELOPER_NYC_EMAIL,
+]);
 
 const DEMO_NYC_PROFILE_PHOTO = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
@@ -296,7 +302,16 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
   };
 }
 
-export default function MapHome() {
+type MapHomeProps = {
+  developerToolsEnabled?: boolean;
+};
+
+export function canUseDeveloperMapToolsEmail(email?: string | null) {
+  return DEVELOPER_MAP_TOOL_EMAILS.has(email?.trim().toLowerCase() ?? '');
+}
+
+export default function MapHome({ developerToolsEnabled = false }: MapHomeProps = {}) {
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
@@ -320,6 +335,7 @@ export default function MapHome() {
   const [npcGhostDemoEnabled, setNpcGhostDemoEnabled] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
+  const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
   const shouldAlignRecentlyActiveWithPreview = !isMobile && Boolean(selectedUser);
   const recentlyActiveDragRef = useRef({
     hasPointerCapture: false,
@@ -331,6 +347,10 @@ export default function MapHome() {
   });
   const isMutualMapMode = searchParams.get('mode') === 'mutuals';
   const focusUserId = searchParams.get('focusUserId');
+  const canUseDeveloperMapTools = developerToolsEnabled;
+  const effectiveNpcGhostDemoEnabled = canUseDeveloperMapTools && npcGhostDemoEnabled;
+  const routeState = location.state as { openOwnProfilePanel?: boolean } | null;
+  const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
 
   const openProfile = (user: DiscoveryUser) => {
     if (user.isDemo) {
@@ -395,6 +415,15 @@ export default function MapHome() {
               privacyRadiusMeters: displayPayload.accuracyDisplayM,
             });
           }
+        } else {
+          const savedProfileLocation = profileLocationToApproximateCoordinates(profile);
+
+          if (savedProfileLocation) {
+            initialFetchCoordinates = {
+              lat: savedProfileLocation.approximateLatitude,
+              lng: savedProfileLocation.approximateLongitude,
+            };
+          }
         }
 
         if (isMounted) {
@@ -429,15 +458,15 @@ export default function MapHome() {
     void fetchUsers(getCurrentFetchCoordinates(), filters);
   }, [isMutualMapMode]);
 
-  const discoveryRequestOptions = (npcGhostDemo = npcGhostDemoEnabled) => ({
+  const discoveryRequestOptions = (npcGhostDemo = effectiveNpcGhostDemoEnabled) => ({
     limit: DISCOVERY_MAP_LIMIT,
-    ...(npcGhostDemo ? { npcGhostDemo: true } : {}),
+    ...(canUseDeveloperMapTools && npcGhostDemo ? { npcGhostDemo: true } : {}),
   });
 
   const fetchUsers = async (
     coordinates: { lat: number; lng: number } | null,
     filterParams?: FilterState,
-    npcGhostDemoOverride = npcGhostDemoEnabled,
+    npcGhostDemoOverride = effectiveNpcGhostDemoEnabled,
   ) => {
     setLoading(true);
     setError(null);
@@ -478,7 +507,7 @@ export default function MapHome() {
       setSelectedUser((currentUser) => currentUser?.id === payload.targetUserId ? null : currentUser);
       void fetchUsers(getCurrentFetchCoordinates(), filters);
     });
-  }, [filters, isMutualMapMode, npcGhostDemoEnabled, userApproximateLocation]);
+  }, [effectiveNpcGhostDemoEnabled, filters, isMutualMapMode, userApproximateLocation]);
 
   const requestUserLocation = (centerAfterUpdate = false) => {
     setLocationError(null);
@@ -522,10 +551,13 @@ export default function MapHome() {
   };
 
   useEffect(() => {
+    const savedProfileLocation = profileLocationToApproximateCoordinates(currentProfile);
+
     if (
       !profileLoaded ||
       isMutualMapMode ||
       userApproximateLocation ||
+      savedProfileLocation ||
       locationStatus !== 'idle' ||
       !claimLocationPromptForSession()
     ) {
@@ -533,7 +565,7 @@ export default function MapHome() {
     }
 
     requestUserLocation();
-  }, [isMutualMapMode, locationStatus, profileLoaded, userApproximateLocation]);
+  }, [currentProfile, isMutualMapMode, locationStatus, profileLoaded, userApproximateLocation]);
 
   const hasActiveFilters =
     isMutualMapMode ||
@@ -601,6 +633,10 @@ export default function MapHome() {
     : null;
 
   const handleNpcGhostDemoChange = (enabled: boolean) => {
+    if (!canUseDeveloperMapTools) {
+      return;
+    }
+
     setNpcGhostDemoEnabled(enabled);
 
     if (!isMutualMapMode) {
@@ -655,12 +691,72 @@ export default function MapHome() {
     }
   };
 
-  const shouldShowDemoUser = !isMutualMapMode && !loading && !error && users.length === 0;
+  const shouldShowDemoUser = canUseDeveloperMapTools && !isMutualMapMode && !loading && !error && users.length === 0;
   const displayedUsers = shouldShowDemoUser ? [DEMO_NYC_DISCOVERY_USER] : filteredUsers;
-  const currentUserMapLocation = useMemo(
-    () => userApproximateLocation ?? profileLocationToApproximateCoordinates(currentProfile),
-    [currentProfile, userApproximateLocation],
+  const savedProfileMapLocation = useMemo(
+    () => profileLocationToApproximateCoordinates(currentProfile),
+    [currentProfile],
   );
+  const currentUserMapLocation = useMemo(
+    () => userApproximateLocation ?? savedProfileMapLocation,
+    [savedProfileMapLocation, userApproximateLocation],
+  );
+  const ownProfilePreviewUser = useMemo<DiscoveryUser | null>(() => {
+    if (!currentProfile) {
+      return null;
+    }
+
+    return {
+      id: currentProfile.id || 'me',
+      name: currentProfile.display_name || 'Your profile',
+      display_name: currentProfile.display_name || 'Your profile',
+      age: currentProfile.year_of_birth ? new Date().getFullYear() - currentProfile.year_of_birth : null,
+      pronouns: (currentProfile.pronouns ?? []).join(', ') || 'Ask me',
+      lat: currentUserMapLocation?.approximateLatitude ?? 40.7128,
+      lng: currentUserMapLocation?.approximateLongitude ?? -74.006,
+      lastActive: currentProfile.location?.location_updated_at ? 'Saved area' : 'Now',
+      distance: 'You',
+      lookingFor: currentProfile.looking_for ?? [],
+      vibes: currentProfile.vibes ?? [],
+      scenes: currentProfile.scenes ?? [],
+      archetypes: currentProfile.archetypes ?? [],
+      position: currentProfile.position ?? [],
+      role: currentProfile.role ?? [],
+      hostingTravel: currentProfile.hosting_travel ?? [],
+      photo: currentProfile.photos?.[0] ?? null,
+      isCurrentUser: true,
+    };
+  }, [currentProfile, currentUserMapLocation]);
+
+  useEffect(() => {
+    if (!shouldOpenOwnProfilePanel) {
+      lastOwnProfilePanelRequestKeyRef.current = null;
+      return;
+    }
+
+    if (!ownProfilePreviewUser || lastOwnProfilePanelRequestKeyRef.current === location.key) {
+      return;
+    }
+
+    setSelectedUser(ownProfilePreviewUser);
+    lastOwnProfilePanelRequestKeyRef.current = location.key;
+  }, [location.key, ownProfilePreviewUser, shouldOpenOwnProfilePanel]);
+
+  const handleFeelingLucky = () => {
+    if (isMobile) {
+      navigate('/lucky');
+      return;
+    }
+
+    const eligibleUsers = displayedUsers.filter((user) => !user.isDemo && !user.isCurrentUser);
+
+    if (eligibleUsers.length === 0) {
+      return;
+    }
+
+    const luckyUser = eligibleUsers[Math.floor(Math.random() * eligibleUsers.length)];
+    setSelectedUser(luckyUser);
+  };
 
   const handleCenterMyLocation = () => {
     if (currentUserMapLocation) {
@@ -722,7 +818,7 @@ export default function MapHome() {
   }, [currentProfile, currentUserMapLocation, displayedUsers, privacySettings, userApproximateLocation]);
 
   const npcGhostDemoRadiusCircles = useMemo(() => {
-    if (!npcGhostDemoEnabled) {
+    if (!effectiveNpcGhostDemoEnabled) {
       return [];
     }
 
@@ -735,7 +831,7 @@ export default function MapHome() {
         },
         radiusMeters: privacySettings.ghostRadiusMeters,
       }));
-  }, [displayedUsers, npcGhostDemoEnabled, privacySettings.ghostRadiusMeters]);
+  }, [displayedUsers, effectiveNpcGhostDemoEnabled, privacySettings.ghostRadiusMeters]);
 
   const focusedMutualMapLocation = useMemo(() => {
     if (!isMutualMapMode || !focusUserId) {
@@ -863,7 +959,7 @@ export default function MapHome() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/lucky')}
+              onClick={handleFeelingLucky}
               aria-label="I'm Feeling Lucky"
               title="I'm Feeling Lucky"
               className="rounded-full text-white/90 hover:bg-white/10"
@@ -878,7 +974,7 @@ export default function MapHome() {
               title="Ghost Mode Settings"
               className="rounded-full text-white/90 hover:bg-white/10"
             >
-              <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} />
+              <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -910,7 +1006,7 @@ export default function MapHome() {
           markers={mapMarkers}
           fitToMarkers={!isMutualMapMode && !focusUserId}
           focusCoordinates={focusedMutualMapLocation ?? currentUserMapLocation}
-          radiusCircle={(privacySettings.ghostModeEnabled || npcGhostDemoEnabled) && currentUserMapLocation
+          radiusCircle={(privacySettings.ghostModeEnabled || effectiveNpcGhostDemoEnabled) && currentUserMapLocation
             ? {
                 center: currentUserMapLocation,
                 radiusMeters: privacySettings.ghostRadiusMeters,
@@ -952,6 +1048,8 @@ export default function MapHome() {
           <MapProfilePopup
             user={selectedUser}
             onClose={() => setSelectedUser(null)}
+            fixed={selectedUser.isCurrentUser === true}
+            isOwnProfile={selectedUser.isCurrentUser === true}
           />
         ) : null}
 
@@ -963,7 +1061,7 @@ export default function MapHome() {
             </div>
           ) : null}
 
-          {!isMutualMapMode ? (
+          {canUseDeveloperMapTools && !isMutualMapMode ? (
             <label className="inline-flex h-8 items-center gap-3 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
               <span>NPC Ghost Test</span>
               <Switch

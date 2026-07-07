@@ -20,6 +20,7 @@ import {
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { normalizeSingleLineText } from "../input-schema.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
+import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   createCoarseIndexTokens,
@@ -69,8 +70,17 @@ type DiscoveryProfileRow = {
   updated_at: string | Date;
 };
 
+const CODEVELOPER_NYC_EMAIL = "codeveloper-nyc@cruush.local";
+const NPC_GHOST_DEMO_EMAILS = new Set([
+  DEVELOPMENT_ADMIN_EMAIL,
+  CODEVELOPER_NYC_EMAIL
+]);
 
 type DiscoveryViewerRow = Omit<DiscoveryProfileRow, "id" | "email" | "display_name" | "photos" | "updated_at">;
+
+type DiscoveryToolUserRow = {
+  email: string | null;
+};
 
 type LegacyDiscoveryProfileRow = {
   id: string;
@@ -724,6 +734,23 @@ function shouldApplyNpcGhostDemo(app: FastifyInstance, row: DiscoveryProfileRow,
   return seedNumber !== null && seedNumber % 2 === 0;
 }
 
+async function canUseNpcGhostDemo(app: FastifyInstance, currentUserId: string, requested: boolean) {
+  if (!requested || app.config.NODE_ENV === "production") {
+    return false;
+  }
+
+  const result = await app.db.query<DiscoveryToolUserRow>(
+    `select email
+     from app_users
+     where id = $1
+     limit 1`,
+    [currentUserId]
+  );
+  const email = result.rows[0]?.email ?? "";
+
+  return NPC_GHOST_DEMO_EMAILS.has(email.trim().toLowerCase());
+}
+
 export async function registerUserRoutes(app: FastifyInstance) {
   app.get("/api/users", async (request, reply) => {
     const currentUserId = await getAuthenticatedUserId(request);
@@ -736,7 +763,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
     });
     const centerLat = parsedQuery.lat ?? DEFAULT_CENTER.lat;
     const centerLng = parsedQuery.lng ?? DEFAULT_CENTER.lng;
-    const npcGhostDemoEnabled = app.config.NODE_ENV !== "production" && parsedQuery.npcGhostDemo;
+    const npcGhostDemoEnabled = await canUseNpcGhostDemo(app, currentUserId, parsedQuery.npcGhostDemo);
 
     const usedIds = new Set<string>();
     const discoveryViewer = await loadDiscoveryViewer(app, currentUserId);

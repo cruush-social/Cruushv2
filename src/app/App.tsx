@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { useEffect, useState } from 'react';
-import MapHome from './components/MapHome';
+import MapHome, { canUseDeveloperMapToolsEmail } from './components/MapHome';
 import LocalFeed from './components/LocalFeed';
 import ProfileView from './components/ProfileView';
 import ProfileEdit from './components/ProfileEdit';
@@ -199,7 +199,7 @@ export default function App() {
         <div className="min-h-screen bg-background text-foreground">
           <Routes>
             <Route path="/" element={<Navigate to="/map" replace />} />
-            <Route path="/map" element={<MapHome />} />
+            <Route path="/map" element={<MapHome developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />} />
             <Route path="/feed" element={<LocalFeed />} />
             <Route path="/profile" element={<ProfileView />} />
             <Route path="/profile/:userId" element={<ProfileView />} />
