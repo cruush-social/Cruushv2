@@ -13,6 +13,7 @@ import { approvedContentReviewCte, moderateImageOrReject } from "../moderation-s
 import { checkPhotoDna } from "../photodna.js";
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
+const MAX_PROFILE_PHOTOS = 4;
 const PROFILE_PHOTO_MIME_TYPES = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -160,12 +161,15 @@ export async function registerMediaRoutes(app: FastifyInstance) {
        from media_objects media
        join message_media_attachments attachment on attachment.media_object_id = media.id
        join messages message on message.id = attachment.message_id
+       join conversations conversation on conversation.id = message.conversation_id
        join conversation_members member
          on member.conversation_id = message.conversation_id
         and member.user_id = $2
        where media.public_url = $1
          and media.deleted_at is null
+         and attachment.view_once = false
          and (message.expires_at is null or message.expires_at > now())
+         and (conversation.cleared_at is null or message.created_at > conversation.cleared_at)
        limit 1`,
       [publicUrl, userId]
     );
@@ -238,8 +242,8 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     );
     const currentPhotos = currentPhotoResult?.rows?.[0]?.photos ?? [];
 
-    if (currentPhotos.length >= 9) {
-      throw new ApiError(400, "VALIDATION_ERROR", "You can add up to 9 photos.");
+    if (currentPhotos.length >= MAX_PROFILE_PHOTOS) {
+      throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
     }
 
     const filename = `${userId}-${randomUUID()}.${extension}`;
@@ -358,7 +362,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
        end,
        updated_at = now()
        where array_position(profiles.photos, $2) is not null
-          or coalesce(array_length(profiles.photos, 1), 0) < 9
+          or coalesce(array_length(profiles.photos, 1), 0) < ${MAX_PROFILE_PHOTOS}
        returning photos`,
       [
         userId,
@@ -374,7 +378,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     );
 
     if (!savedPhotoResult?.rows?.[0]) {
-      throw new ApiError(400, "VALIDATION_ERROR", "You can add up to 9 photos.");
+      throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
     }
 
     return reply.code(201).send({

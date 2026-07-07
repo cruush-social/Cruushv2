@@ -1,14 +1,27 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import BottomNav from './BottomNav';
+
+const { useIsMobile } = vi.hoisted(() => ({
+  useIsMobile: vi.fn(),
+}));
+
+vi.mock('./ui/use-mobile', () => ({
+  useIsMobile,
+}));
 
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location-probe">{location.pathname}</div>;
+  return <div data-testid="location-probe">{location.pathname}:{JSON.stringify(location.state ?? null)}</div>;
 }
 
 describe('BottomNav', () => {
+  beforeEach(() => {
+    useIsMobile.mockReset();
+    useIsMobile.mockReturnValue(false);
+  });
+
   it('navigates to /map when the map button is pressed', () => {
     render(
       <MemoryRouter initialEntries={['/feed']}>
@@ -124,7 +137,7 @@ describe('BottomNav', () => {
     expect(inactiveMapIcon?.getAttribute('src')).toContain('map-white');
   });
 
-  it('navigates to the profile page from the profile icon on the map', () => {
+  it('opens the desktop profile side panel from the profile icon on the map', () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
         <BottomNav />
@@ -134,10 +147,10 @@ describe('BottomNav', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /profile/i }));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map:{"openOwnProfilePanel":true}');
   });
 
-  it('navigates to the profile page from the profile icon on non-map pages', () => {
+  it('opens the desktop profile side panel from the profile icon on non-map pages', () => {
     render(
       <MemoryRouter initialEntries={['/messages']}>
         <BottomNav />
@@ -147,6 +160,21 @@ describe('BottomNav', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /profile/i }));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map:{"openOwnProfilePanel":true}');
+  });
+
+  it('navigates to the full profile page from the profile icon on mobile', () => {
+    useIsMobile.mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <BottomNav />
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /profile/i }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile:null');
   });
 });

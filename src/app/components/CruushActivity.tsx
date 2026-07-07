@@ -4,6 +4,7 @@ import {
   Lock,
 } from 'lucide-react';
 import HeartPhoto from './HeartPhoto';
+import CruushBadge from './CruushBadge';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -79,9 +80,11 @@ function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem
 function UpgradeBanner({
   count,
   label,
+  onUpgrade,
 }: {
   count: number;
   label: string;
+  onUpgrade: () => void;
 }) {
   if (count <= 0) {
     return null;
@@ -106,6 +109,7 @@ function UpgradeBanner({
           type="button"
           className="h-10 shrink-0 rounded-lg px-4 text-white"
           style={{ background: 'var(--cruush-gradient)' }}
+          onClick={onUpgrade}
         >
           cruush+
         </Button>
@@ -138,6 +142,7 @@ function IncomingRow({
       >
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-base text-white">{unlocked ? item.user.name : 'Someone new'}</p>
+          {unlocked ? <CruushBadge badges={item.user.badges} compact /> : null}
           {item.mutual ? <ActivityBadge>Mutual</ActivityBadge> : null}
         </div>
         <p className="mt-1 text-sm text-white/64">
@@ -192,6 +197,7 @@ function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; on
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-base text-white">{item.user.name}</p>
+          <CruushBadge badges={item.user.badges} compact />
           <ActivityBadge>{item.mutual ? 'Mutual' : 'Pending'}</ActivityBadge>
         </div>
         <p className="mt-1 text-sm text-white/62">{item.user.pronouns || 'Ask me'} - {formatRelativeTime(item.createdAt)}</p>
@@ -228,6 +234,7 @@ function MutualRow({
       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpenProfile(item.user.id)}>
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-base text-white">{item.user.name}</p>
+          <CruushBadge badges={item.user.badges} compact />
           {item.canRevealPreciseLocation ? <ActivityBadge>Precise</ActivityBadge> : null}
         </div>
         <p className="mt-1 text-sm text-white/62">
@@ -283,6 +290,7 @@ function ViewRow({ item, onOpenProfile }: { item: ProfileViewActivityItem; onOpe
         onClick={() => unlocked && onOpenProfile(item.user!.id)}
       >
         <p className="truncate text-base text-white">{unlocked ? item.user.name : 'Someone new'}</p>
+        {unlocked ? <CruushBadge badges={item.user.badges} compact /> : null}
         <p className="mt-1 text-sm text-white/62">
           {unlocked ? `Viewed you ${formatRelativeTime(item.viewedAt)}` : `Viewed your profile - ${formatRelativeTime(item.viewedAt)}`}
         </p>
@@ -435,7 +443,7 @@ export default function CruushActivity() {
               {!loading && activity ? (
                 <>
                   <TabsContent value="incoming" className="mt-0 space-y-4">
-                    <UpgradeBanner count={lockedIncomingCount} label="have a cruush on you" />
+                    <UpgradeBanner count={lockedIncomingCount} label="have a cruush on you" onUpgrade={() => navigate('/upgrade')} />
                     <ActivitySurface empty={activity.incoming.length === 0} emptyText="No incoming cruushes yet.">
                       {activity.incoming.map((item) => (
                         <IncomingRow
@@ -473,7 +481,7 @@ export default function CruushActivity() {
                   </TabsContent>
 
                   <TabsContent value="views" className="mt-0 space-y-4">
-                    <UpgradeBanner count={lockedViewsCount} label="viewed your profile" />
+                    <UpgradeBanner count={lockedViewsCount} label="viewed your profile" onUpgrade={() => navigate('/upgrade')} />
                     <ActivitySurface empty={activity.views.length === 0} emptyText="No profile views yet.">
                       {activity.views.map((item) => (
                         <ViewRow key={item.id} item={item} onOpenProfile={openProfile} />

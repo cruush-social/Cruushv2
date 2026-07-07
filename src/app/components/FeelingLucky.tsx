@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import ProfileCard from './ProfileCard';
+import { getMyBillingStatus } from '../lib/billingApi';
 
 export default function FeelingLucky() {
   const navigate = useNavigate();
+  const [isCruushPlus, setIsCruushPlus] = useState<boolean | null>(null);
   const [currentUser, setCurrentUser] = useState({
     id: 1,
     name: 'Alex',
@@ -17,6 +19,12 @@ export default function FeelingLucky() {
     lookingFor: ['hookup', 'chat'],
     vibes: ['Alt', 'Artsy'],
   });
+
+  useEffect(() => {
+    getMyBillingStatus()
+      .then((status) => setIsCruushPlus(status.cruushPlus))
+      .catch(() => setIsCruushPlus(null));
+  }, []);
 
   const handleReroll = () => {
     const randomUsers = [
@@ -57,6 +65,23 @@ export default function FeelingLucky() {
       </header>
 
       <div className="max-w-2xl mx-auto p-6 space-y-6">
+        {isCruushPlus === false ? (
+          <div className="rounded-lg border border-primary/25 bg-primary/10 p-4 text-center">
+            <p className="text-white">I'm Feeling Lucky is included with cruush+.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Unlock premium discovery when you want it.</p>
+            <Button
+              type="button"
+              className="mt-4 rounded-lg text-white"
+              style={{ background: 'var(--cruush-gradient)' }}
+              onClick={() => navigate('/upgrade')}
+            >
+              Get cruush+
+            </Button>
+          </div>
+        ) : null}
+
+        {isCruushPlus !== false ? (
+          <>
         <div className="text-center space-y-2 mb-8">
           <p className="text-muted-foreground">
             Discover someone random nearby who matches your filters
@@ -81,6 +106,8 @@ export default function FeelingLucky() {
           <RefreshCw className="w-4 h-4 mr-2" />
           Show Me Someone Else
         </Button>
+          </>
+        ) : null}
       </div>
     </div>
   );

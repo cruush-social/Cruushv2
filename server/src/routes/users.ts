@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { hasPremiumDiscoveryFilters, requireCruushPlus } from "../billing.js";
 import {
   formatDistanceMiles,
   formatLastActiveFromDate,
@@ -68,6 +69,7 @@ type DiscoveryProfileRow = {
   fuzzy_lat: number | null;
   fuzzy_lng: number | null;
   updated_at: string | Date;
+  badges?: string[] | null;
 };
 
 const CODEVELOPER_NYC_EMAIL = "codeveloper-nyc@cruush.local";
@@ -505,6 +507,11 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          null::double precision as lng,
          null::double precision as fuzzy_lat,
          null::double precision as fuzzy_lng,
+         coalesce((
+           select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
+           from user_badges
+           where user_badges.user_id = profiles.id
+         ), '{}'::text[]) as badges,
          profiles.updated_at
        from profiles
        join app_users
@@ -679,6 +686,7 @@ async function mapModernDiscoveryRow(
     role: coerceStringArray(row.role),
     hostingTravel: coerceStringArray(row.hosting_travel),
     photo: row.photos?.[0] ?? null,
+    ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     relationship: relationship?.isMutualCruush
       ? {
           mutualCruush: true,
@@ -755,6 +763,10 @@ export async function registerUserRoutes(app: FastifyInstance) {
   app.get("/api/users", async (request, reply) => {
     const currentUserId = await getAuthenticatedUserId(request);
     const parsedQuery = discoveryQuerySchema.parse(request.query);
+    if (hasPremiumDiscoveryFilters(parsedQuery)) {
+      await requireCruushPlus(app, currentUserId, "Upgrade to cruush+ to use all seeking filters.");
+    }
+
     await app.rateLimiter.assert({
       key: `discovery-read:${currentUserId}`,
       max: 30,

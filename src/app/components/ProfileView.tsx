@@ -4,14 +4,14 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Flag } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
+import ProfilePhotoGallery from './ProfilePhotoGallery';
 import { sendCruush } from '../lib/cruushApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { handleCruushSendSuccess, notifyCruushSendError, notifyMutualCruushRequired } from '../lib/cruushNotifications';
-import { resolveMediaUrl } from '../lib/apiClient';
 import { emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
-import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
 
 type ProfileLocationState = {
   distance?: string;
@@ -26,6 +26,7 @@ export type ProfileViewModel = {
   distance: string | null;
   lastActive: string | null;
   photos: string[];
+  badges: ProfileRecord['badges'];
   bio: string;
   identities: string[];
   presentation: string[];
@@ -72,6 +73,7 @@ export function profileRecordToProfileView(
     distance: previewState?.distance ?? null,
     lastActive: previewState?.lastActive ?? null,
     photos: profile.photos,
+    badges: profile.badges ?? [],
     bio: profile.bio,
     identities: profile.identities,
     presentation: profile.presentation,
@@ -327,24 +329,7 @@ export default function ProfileView() {
       </header>
 
       <div className="mx-auto max-w-2xl">
-        <div
-          data-testid="profile-hero-media"
-          className="relative w-full overflow-hidden"
-          style={{ ...PROFILE_HERO_ASPECT_STYLE, background: 'var(--cruush-gradient)' }}
-        >
-          {profileView.photos.length > 0 ? (
-            <img
-              src={resolveMediaUrl(profileView.photos[0])}
-              alt={profileView.name}
-              className="h-full w-full object-cover"
-              style={PROFILE_HERO_ASPECT_STYLE}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <CruushIcon name="cruush" className="h-32 w-32 opacity-20" />
-            </div>
-          )}
-        </div>
+        <ProfilePhotoGallery name={profileView.name} photos={profileView.photos} />
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-6">
@@ -355,6 +340,7 @@ export default function ProfileView() {
                 {profileView.name}
                 {profileView.age ? <span>, {profileView.age}</span> : null}
               </h1>
+              <CruushBadge badges={profileView.badges} />
               <p className="text-muted-foreground">{profileView.pronouns}</p>
               {profileView.distance ? (
                 <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">

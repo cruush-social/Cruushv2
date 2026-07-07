@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { z } from "zod";
 import { ApiError } from "../errors.js";
 import {
   createClearedSessionCookie,
@@ -35,6 +36,8 @@ type AuthUserRow = {
   created_at: string | Date;
   profile_display_name: string | null;
   year_of_birth: number | null;
+  code_of_conduct_accepted_version: string | null;
+  code_of_conduct_accepted_at: string | Date | null;
 };
 
 type CreatedUserRow = {
@@ -76,11 +79,17 @@ type PasswordResetLookupRow = {
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const AUTH_ATTEMPT_MAX = 5;
 const AUTH_ATTEMPT_WINDOW_MS = FIFTEEN_MINUTES_MS;
+const CURRENT_CODE_OF_CONDUCT_VERSION = "2026-07-07";
+
+const acceptCodeOfConductPayloadSchema = z.object({
+  version: z.string().min(1)
+}).strict();
 
 function mapSessionRow(row: AuthUserRow) {
   const displayName = row.app_display_name?.trim() || row.profile_display_name?.trim() || row.email;
   const profileDisplayName = row.profile_display_name?.trim() || null;
   const needsOnboarding = !profileDisplayName || !row.year_of_birth;
+  const acceptedCodeOfConductVersion = row.code_of_conduct_accepted_version?.trim() || null;
 
   return {
     user: {
@@ -97,6 +106,12 @@ function mapSessionRow(row: AuthUserRow) {
         }
       : null,
     needsOnboarding,
+    needsCodeOfConduct: acceptedCodeOfConductVersion !== CURRENT_CODE_OF_CONDUCT_VERSION,
+    codeOfConductVersion: CURRENT_CODE_OF_CONDUCT_VERSION,
+    acceptedCodeOfConductVersion,
+    codeOfConductAcceptedAt: row.code_of_conduct_accepted_at
+      ? new Date(row.code_of_conduct_accepted_at).toISOString()
+      : null,
   };
 }
 
@@ -170,7 +185,9 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
        u.email_verified_at,
        u.created_at,
        p.display_name as profile_display_name,
-       p.year_of_birth
+       p.year_of_birth,
+       u.code_of_conduct_accepted_version,
+       u.code_of_conduct_accepted_at
      from app_users u
      left join profiles p on p.id = u.id
      where u.id = $1`,
@@ -608,6 +625,32 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.get("/api/auth/me", async (request, reply) => {
     const userId = await resolveSessionUserId(request);
+
+    return reply.send({
+      data: await loadAuthSession(app, userId)
+    });
+  });
+
+  app.post("/api/auth/code-of-conduct/accept", async (request, reply) => {
+    const userId = await resolveSessionUserId(request);
+    const payload = acceptCodeOfConductPayloadSchema.parse(request.body);
+
+    if (payload.version !== CURRENT_CODE_OF_CONDUCT_VERSION) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Code of conduct version is out of date.");
+    }
+
+    const result = await app.db.query<{ id: string }>(
+      `update app_users
+       set code_of_conduct_accepted_version = $1,
+           code_of_conduct_accepted_at = now()
+       where id = $2
+       returning id`,
+      [CURRENT_CODE_OF_CONDUCT_VERSION, userId]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+    }
 
     return reply.send({
       data: await loadAuthSession(app, userId)

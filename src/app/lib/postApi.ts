@@ -1,4 +1,5 @@
 import { requestApi } from './apiClient';
+import type { CruushBadge } from './billingApi';
 
 export type FeedPostExpiry = '1h' | '6h' | '24h';
 
@@ -14,6 +15,7 @@ export type FeedPost = {
     name: string;
     pronouns: string;
     photo: string | null;
+    badges?: CruushBadge[];
   };
 };
 

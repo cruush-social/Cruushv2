@@ -19,7 +19,10 @@ import GhostModeSettings from './components/GhostModeSettings';
 import PrivacyAudit from './components/PrivacyAudit';
 import FeelingLucky from './components/FeelingLucky';
 import RequestsDashboard from './components/RequestsDashboard';
-import ReportPage from './components/ReportPage';
+import CodeOfConductGate from './components/CodeOfConductGate';
+import CruushPlusUpgrade from './components/CruushPlusUpgrade';
+import CruushPlusCheckout from './components/CruushPlusCheckout';
+import CruushPlusSuccess from './components/CruushPlusSuccess';
 import VerifyEmail from './components/VerifyEmail';
 import EmailVerificationGate from './components/EmailVerificationGate';
 import ResetPassword from './components/ResetPassword';
@@ -113,9 +116,19 @@ export default function App() {
     setAuthStatus('signed_out');
   };
 
-  const handleOnboardingComplete = () => {
+  const handleOnboardingComplete = (nextSession?: AuthSessionPayload) => {
+    if (nextSession) {
+      setSession(nextSession);
+      setNeedsOnboarding(nextSession.needsOnboarding);
+    } else {
+      setNeedsOnboarding(false);
+    }
     redirectToMap();
-    setNeedsOnboarding(false);
+  };
+
+  const handleCodeOfConductAccepted = (nextSession: AuthSessionPayload) => {
+    setSession(nextSession);
+    setNeedsOnboarding(nextSession.needsOnboarding);
   };
 
   if (authStatus === 'loading') {
@@ -187,7 +200,36 @@ export default function App() {
         <Routes>
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="*" element={<ProfileOnboarding onComplete={handleOnboardingComplete} />} />
+          <Route
+            path="*"
+            element={(
+              <ProfileOnboarding
+                onComplete={handleOnboardingComplete}
+                needsCodeOfConduct={Boolean(session?.needsCodeOfConduct)}
+                codeOfConductVersion={session?.codeOfConductVersion ?? ''}
+              />
+            )}
+          />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  if (session?.needsCodeOfConduct) {
+    return (
+      <BrowserRouter key="code-of-conduct-router">
+        <Routes>
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route
+            path="*"
+            element={(
+              <CodeOfConductGate
+                version={session.codeOfConductVersion}
+                onAccepted={handleCodeOfConductAccepted}
+              />
+            )}
+          />
         </Routes>
       </BrowserRouter>
     );
@@ -220,7 +262,9 @@ export default function App() {
             <Route path="/privacy/audit" element={<PrivacyAudit />} />
             <Route path="/lucky" element={<FeelingLucky />} />
             <Route path="/requests" element={<RequestsDashboard />} />
-            <Route path="/report" element={<ReportPage />} />
+            <Route path="/upgrade" element={<CruushPlusUpgrade />} />
+            <Route path="/checkout/success" element={<CruushPlusSuccess />} />
+            <Route path="/checkout/:sessionId" element={<CruushPlusCheckout />} />
             <Route path="*" element={<Navigate to="/map" replace />} />
           </Routes>
           <BottomNav />

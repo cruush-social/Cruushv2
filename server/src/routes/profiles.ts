@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { requireCruushPlus } from "../billing.js";
 import { ApiError } from "../errors.js";
 import {
   getRelationshipPermissions,
@@ -145,6 +146,7 @@ type ProfileRow = {
   fuzzy_lng?: number | null;
   location_fuzz_radius_meters?: number | null;
   location_updated_at?: string | Date | null;
+  badges?: string[] | null;
   updated_at: string | Date;
 };
 
@@ -177,6 +179,28 @@ type VisibilitySubjectRow = {
 
 type ProfileVisibility = "public" | "mutual_cruushes" | "mutual_crowds";
 
+function hasPremiumPrivacySettings(input: {
+  baseMode: VisibilityBaseMode;
+  preciseToMutualCruushes: boolean;
+  preciseToMutualCrowds: CrowdPrecisionPolicy[];
+}) {
+  return input.baseMode === "STEALTH" ||
+    input.preciseToMutualCruushes ||
+    input.preciseToMutualCrowds.some((policy) => policy.precisionEnabled);
+}
+
+function premiumPrivacyMessage(input: {
+  baseMode: VisibilityBaseMode;
+  preciseToMutualCruushes: boolean;
+  preciseToMutualCrowds: CrowdPrecisionPolicy[];
+}) {
+  if (input.baseMode === "STEALTH") {
+    return "Upgrade to cruush+ to use stealth mode.";
+  }
+
+  return "Upgrade to cruush+ to use all visibility controls.";
+}
+
 type ProfileKinkInterest = {
   kink_id: string;
   label?: string;
@@ -197,6 +221,7 @@ type ProfileLocationRow = {
   fuzzy_lng: number | null;
   location_fuzz_radius_meters: number | null;
   location_updated_at: string | Date | null;
+  badges?: string[] | null;
 };
 
 const PROFILE_COLUMNS = [
@@ -428,6 +453,7 @@ function mapProfileRow(
     mpox_vaccine: row.mpox_vaccine ?? [],
     custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
     substance_boundaries: row.substance_boundaries ?? [],
+    ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     visibility_rules: includePrivateSensitive ? visibilityRules ?? emptyProfile.visibility_rules : emptyProfile.visibility_rules,
     updated_at: new Date(row.updated_at).toISOString(),
     ...(options.relationship ? {
@@ -910,6 +936,11 @@ async function loadProfileData(
             fuzzy_lng,
             location_fuzz_radius_meters,
             location_updated_at,
+            coalesce((
+              select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
+              from user_badges
+              where user_badges.user_id = profiles.id
+            ), '{}'::text[]) as badges,
             updated_at
      from profiles
      where id = $1`,
@@ -1044,6 +1075,9 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       createdAtMs: policy.createdAtMs ?? Date.now(),
       revokedAtMs: policy.revokedAtMs ?? null
     }));
+    if (hasPremiumPrivacySettings({ baseMode, preciseToMutualCruushes, preciseToMutualCrowds })) {
+      await requireCruushPlus(app, userId, premiumPrivacyMessage({ baseMode, preciseToMutualCruushes, preciseToMutualCrowds }));
+    }
 
     return reply.send({
       data: publicPrivacySettings(await saveVisibilityPolicy(app, userId, {
@@ -1075,6 +1109,10 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.put("/api/profiles/me", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = profilePayloadSchema.parse(request.body);
+    if (!visibilityRulesArePublic(payload.visibility_rules)) {
+      await requireCruushPlus(app, userId, "Upgrade to cruush+ to use all visibility controls.");
+    }
+
     const kinkInterests = normalizeKinkInterests(payload);
     const sensitiveProfile = buildSensitiveProfile(payload, kinkInterests);
     await moderateProfileOrReject(app, {

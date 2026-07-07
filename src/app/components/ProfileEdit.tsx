@@ -1,7 +1,7 @@
-import type { ChangeEvent } from 'react';
-import { useState, useEffect } from 'react';
+import type { ChangeEvent, PointerEvent } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Star, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, RotateCcw, RotateCw, Star, Trash2, Upload } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
@@ -49,7 +49,14 @@ import {
   VIBE_GROUPS,
 } from '../lib/profileOptions';
 
+const MAX_PROFILE_PHOTOS = 4;
+
 const VISIBILITY_OPTION_LABELS = PROFILE_VISIBILITY_OPTIONS.map((option) => option.label);
+
+type PendingProfilePhoto = {
+  file: File;
+  url: string;
+};
 
 function getVisibilityLabel(value: ProfileVisibility): string {
   return PROFILE_VISIBILITY_OPTIONS.find((option) => option.value === value)?.label ?? 'Public';
@@ -73,6 +80,180 @@ function getSaveDisplayName(profile: ProfilePayload) {
 
 function uniqueValues(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function canvasToJpegFile(canvas: HTMLCanvasElement) {
+  return new Promise<File>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('Could not crop profile photo.'));
+        return;
+      }
+
+      resolve(new File([blob], 'profile-crop.jpg', { type: 'image/jpeg' }));
+    }, 'image/jpeg', 0.92);
+  });
+}
+
+function ProfilePhotoCropper({
+  onCancel,
+  onConfirm,
+  processing,
+  sourceUrl,
+}: {
+  onCancel: () => void;
+  onConfirm: (file: File) => Promise<void>;
+  processing: boolean;
+  sourceUrl: string;
+}) {
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const dragRef = useRef<{ x: number; y: number } | null>(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [rotation, setRotation] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [cropError, setCropError] = useState<string | null>(null);
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    dragRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragRef.current.x;
+    const deltaY = event.clientY - dragRef.current.y;
+    dragRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+    setOffset((current) => ({
+      x: Math.max(-180, Math.min(180, current.x + deltaX)),
+      y: Math.max(-225, Math.min(225, current.y + deltaY)),
+    }));
+  };
+
+  const handlePointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    dragRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  };
+
+  const handleConfirm = async () => {
+    const image = imageRef.current;
+    if (!image) {
+      return;
+    }
+
+    setCropError(null);
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1200;
+      canvas.height = 1500;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        throw new Error('Could not crop profile photo.');
+      }
+
+      const imageWidth = image.naturalWidth || image.width || canvas.width;
+      const imageHeight = image.naturalHeight || image.height || canvas.height;
+      const baseScale = Math.max(canvas.width / imageWidth, canvas.height / imageHeight);
+      const drawScale = baseScale * zoom;
+      const drawWidth = imageWidth * drawScale;
+      const drawHeight = imageHeight * drawScale;
+
+      context.fillStyle = '#000';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.save();
+      context.translate(canvas.width / 2 + offset.x * 2, canvas.height / 2 + offset.y * 2);
+      context.rotate((rotation * Math.PI) / 180);
+      context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+      context.restore();
+
+      await onConfirm(await canvasToJpegFile(canvas));
+    } catch (error) {
+      setCropError(error instanceof Error ? error.message : 'Could not crop profile photo.');
+    }
+  };
+
+  return (
+    <div
+      aria-label="Crop profile photo"
+      aria-modal="true"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/78 p-4 backdrop-blur-md"
+      role="dialog"
+    >
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/12 bg-background text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.52)]">
+        <div
+          className="relative mx-auto aspect-[4/5] w-full max-w-sm touch-none overflow-hidden bg-black"
+          onPointerCancel={handlePointerEnd}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+        >
+          <img
+            ref={imageRef}
+            alt="Profile crop preview"
+            className="h-full w-full select-none object-cover"
+            draggable={false}
+            src={sourceUrl}
+            style={{
+              transform: `translate(${offset.x}px, ${offset.y}px) rotate(${rotation}deg) scale(${zoom})`,
+            }}
+          />
+        </div>
+
+        <div className="space-y-4 p-4">
+          {cropError ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              {cropError}
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <Label htmlFor="profile-photo-zoom">Zoom</Label>
+            <input
+              aria-label="Zoom profile photo"
+              className="w-full accent-primary"
+              id="profile-photo-zoom"
+              max="2.5"
+              min="1"
+              onChange={(event) => setZoom(Number(event.target.value))}
+              step="0.05"
+              type="range"
+              value={zoom}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex gap-2">
+              <Button aria-label="Rotate left" onClick={() => setRotation((value) => value - 90)} type="button" variant="outline">
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+              <Button aria-label="Rotate right" onClick={() => setRotation((value) => value + 90)} type="button" variant="outline">
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={onCancel} type="button" variant="outline">
+                Cancel
+              </Button>
+              <Button disabled={processing} onClick={handleConfirm} type="button">
+                {processing ? 'Uploading...' : 'Use cropped photo'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function mergeCategorizedVibes(profile: ProfilePayload) {
@@ -204,6 +385,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('profile');
+  const [pendingPhoto, setPendingPhoto] = useState<PendingProfilePhoto | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -227,6 +409,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     };
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pendingPhoto) {
+        URL.revokeObjectURL(pendingPhoto.url);
+      }
+    };
+  }, [pendingPhoto]);
 
   const handleChange = <K extends keyof ProfilePayload>(field: K, value: ProfilePayload[K]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -297,7 +487,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     }
   };
 
-  const handlePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
 
@@ -305,20 +495,33 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       return;
     }
 
-    if ((profile.photos ?? []).length >= 9) {
-      setError('You can add up to 9 photos.');
+    if ((profile.photos ?? []).length >= MAX_PROFILE_PHOTOS) {
+      setError(`You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
       return;
     }
 
+    setPendingPhoto({
+      file,
+      url: URL.createObjectURL(file),
+    });
+    setError(null);
+  };
+
+  const handleCancelCrop = () => {
+    setPendingPhoto(null);
+  };
+
+  const handleConfirmCrop = async (croppedFile: File) => {
     setUploadingPhoto(true);
     setError(null);
 
     try {
-      const uploaded = await uploadProfilePhoto(file);
+      const uploaded = await uploadProfilePhoto(croppedFile);
       setProfile((prev) => ({
         ...prev,
-        photos: [...(prev.photos ?? []), uploaded.url].slice(0, 9),
+        photos: [...(prev.photos ?? []), uploaded.url].slice(0, MAX_PROFILE_PHOTOS),
       }));
+      setPendingPhoto(null);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload profile photo.');
     } finally {
@@ -329,7 +532,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const handleSetPrimaryPhoto = (photo: string) => {
     setProfile((prev) => ({
       ...prev,
-      photos: [photo, ...(prev.photos ?? []).filter((item) => item !== photo)],
+      photos: [photo, ...(prev.photos ?? []).filter((item) => item !== photo)].slice(0, MAX_PROFILE_PHOTOS),
     }));
   };
 
@@ -354,7 +557,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
   const normalizedProfile: ProfilePayload = {
     ...profile,
-    photos: profile.photos || [],
+    photos: (profile.photos || []).slice(0, MAX_PROFILE_PHOTOS),
     pronouns: profile.pronouns || [],
     identities: profile.identities || [],
     presentation: profile.presentation || [],
@@ -461,7 +664,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 </div>
               ))}
 
-              {normalizedProfile.photos.length < 9 ? (
+              {normalizedProfile.photos.length < MAX_PROFILE_PHOTOS ? (
                 <label className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/60 p-4 text-center transition-colors hover:bg-accent/50">
                   <Upload className="h-7 w-7 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">{uploadingPhoto ? 'Uploading...' : 'Upload photo'}</span>
@@ -475,7 +678,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 </label>
               ) : null}
             </div>
-            <p className="text-sm text-muted-foreground">Add up to 9 photos. Your first photo will be your profile picture.</p>
+            <p className="text-sm text-muted-foreground">Add up to {MAX_PROFILE_PHOTOS} photos. Your first photo will be your profile picture.</p>
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-6 mt-6">
@@ -731,6 +934,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </TabsContent>
         </Tabs>
       </div>
+      {pendingPhoto ? (
+        <ProfilePhotoCropper
+          onCancel={handleCancelCrop}
+          onConfirm={handleConfirmCrop}
+          processing={uploadingPhoto}
+          sourceUrl={pendingPhoto.url}
+        />
+      ) : null}
     </div>
   );
 }

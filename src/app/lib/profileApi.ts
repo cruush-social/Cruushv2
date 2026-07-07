@@ -1,4 +1,5 @@
 import { ApiClientError, requestApi } from './apiClient';
+import type { CruushBadge } from './billingApi';
 import type { DisplayLocationToken } from './displayLocationTokens';
 
 export type ProfileVisibility = 'public' | 'mutual_cruushes' | 'mutual_crowds';
@@ -79,6 +80,7 @@ export type ProfilePayload = {
 export type ProfileRecord = ProfilePayload & {
   id: string;
   updated_at: string;
+  badges?: CruushBadge[];
   location?: {
     id: string;
     display_location_token?: DisplayLocationToken;

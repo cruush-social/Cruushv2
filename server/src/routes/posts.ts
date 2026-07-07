@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { requireCruushPlus } from "../billing.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { ApiError } from "../errors.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
@@ -20,6 +21,7 @@ type PostRow = {
   display_name: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
+  badges?: string[] | null;
 };
 
 function mapPostRow(app: FastifyInstance, row: PostRow) {
@@ -39,7 +41,8 @@ function mapPostRow(app: FastifyInstance, row: PostRow) {
       id: row.user_id,
       name: row.display_name?.trim() || "Cruush user",
       pronouns: row.pronouns?.join(", ") ?? "",
-      photo: row.photos?.[0] ?? null
+      photo: row.photos?.[0] ?? null,
+      ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
     }
   };
 }
@@ -57,7 +60,12 @@ const POST_COLUMNS = `
   p.created_at,
   pr.display_name,
   pr.pronouns,
-  pr.photos
+  pr.photos,
+  coalesce((
+    select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
+    from user_badges
+    where user_badges.user_id = p.user_id
+  ), '{}'::text[]) as badges
 `;
 
 const postParamsSchema = z.object({
@@ -85,6 +93,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
   app.post("/api/posts", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
+    await requireCruushPlus(app, userId, "Upgrade to cruush+ to post on the local feed.");
     const moderation = await moderateTextOrReject(app, {
       userId,
       surface: "feed",

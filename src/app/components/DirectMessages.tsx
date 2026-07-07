@@ -1,13 +1,27 @@
 import { useDeferredValue, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ChevronRight, Pin, Search } from 'lucide-react';
+import { ChevronRight, Pin, Plus, Search, X } from 'lucide-react';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { getConversations, type ConversationThread } from '../lib/messagesApi';
+import {
+  createGroupConversation,
+  getConversations,
+  type ConversationThread,
+  type ConversationTimer,
+} from '../lib/messagesApi';
+import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
+
+const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
+  { value: 'off', label: 'Off' },
+  { value: '1h', label: '1 hour' },
+  { value: '24h', label: '24 hours' },
+  { value: '7d', label: '7 days' },
+  { value: '30d', label: '30 days' },
+];
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -64,6 +78,14 @@ export default function DirectMessages() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'groups'>('all');
   const [error, setError] = useState<string | null>(null);
+  const [groupComposerOpen, setGroupComposerOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupTimer, setGroupTimer] = useState<ConversationTimer>('24h');
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [mutualOptions, setMutualOptions] = useState<MutualCruushActivityItem[]>([]);
+  const [groupError, setGroupError] = useState<string | null>(null);
+  const [groupLoading, setGroupLoading] = useState(false);
+  const [groupCreating, setGroupCreating] = useState(false);
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
   useEffect(() => {
@@ -114,6 +136,63 @@ export default function DirectMessages() {
   const unreadCount = conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0);
   const activeNowCount = conversations.filter((conversation) => formatRelativeTime(conversation.updatedAt).includes('m')).length;
 
+  const openGroupComposer = async () => {
+    setGroupComposerOpen(true);
+    setGroupError(null);
+    setGroupLoading(true);
+
+    try {
+      const activity = await getMyCruushActivity();
+      setMutualOptions((activity.mutual ?? []).filter((item) => item.canMessage !== false));
+    } catch (error) {
+      console.error('Error loading mutual cruushes:', error);
+      setMutualOptions([]);
+      setGroupError(error instanceof Error ? error.message : 'Failed to load mutual cruushes.');
+    } finally {
+      setGroupLoading(false);
+    }
+  };
+
+  const toggleSelectedMember = (userId: string) => {
+    setSelectedMemberIds((prev) => (
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    ));
+  };
+
+  const resetGroupComposer = () => {
+    setGroupComposerOpen(false);
+    setGroupName('');
+    setGroupTimer('24h');
+    setSelectedMemberIds([]);
+    setGroupError(null);
+  };
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim() || selectedMemberIds.length === 0 || groupCreating) {
+      return;
+    }
+
+    setGroupCreating(true);
+    setGroupError(null);
+
+    try {
+      const created = await createGroupConversation({
+        title: groupName.trim(),
+        memberIds: selectedMemberIds,
+        disappearingTimer: groupTimer,
+      });
+      resetGroupComposer();
+      navigate(`/chat/${created.id}`);
+    } catch (error) {
+      console.error('Error creating group conversation:', error);
+      setGroupError(error instanceof Error ? error.message : 'Failed to create group.');
+    } finally {
+      setGroupCreating(false);
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-background pb-20">
       <header className="sticky top-0 z-10 border-b border-border bg-background/88 px-4 pb-4 pt-4 backdrop-blur-md">
@@ -123,6 +202,15 @@ export default function DirectMessages() {
               <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Nearby chat</p>
               <h2 className="text-3xl leading-none">Messages</h2>
             </div>
+            <Button
+              type="button"
+              size="icon"
+              aria-label="Create group chat"
+              title="Create group chat"
+              onClick={() => void openGroupComposer()}
+            >
+              <Plus className="size-4" />
+            </Button>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -159,6 +247,99 @@ export default function DirectMessages() {
           </Tabs>
         </div>
       </header>
+
+      {groupComposerOpen ? (
+        <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
+          <div className="mx-auto max-w-2xl space-y-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Group chat</p>
+                <h3 className="text-2xl">New group</h3>
+              </div>
+              <Button type="button" variant="ghost" size="icon" aria-label="Close group composer" onClick={resetGroupComposer}>
+                <X className="size-4" />
+              </Button>
+            </div>
+
+            {groupError ? (
+              <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {groupError}
+              </div>
+            ) : null}
+
+            <label className="block space-y-2">
+              <span className="text-sm text-muted-foreground">Group name</span>
+              <Input
+                aria-label="Group name"
+                value={groupName}
+                onChange={(event) => setGroupName(event.target.value)}
+                placeholder="Beta crew"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm text-muted-foreground">Disappearing timer</span>
+              <select
+                aria-label="Disappearing timer"
+                value={groupTimer}
+                onChange={(event) => setGroupTimer(event.target.value as ConversationTimer)}
+                className="h-11 w-full rounded-md border border-border bg-input-background px-3 text-sm"
+              >
+                {timerOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Mutual cruushes</p>
+              {groupLoading ? (
+                <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
+                  Loading mutuals...
+                </div>
+              ) : null}
+              {!groupLoading && mutualOptions.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
+                  No mutual cruushes available.
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                {mutualOptions.map((item) => (
+                  <label
+                    key={item.user.id}
+                    className="flex items-center gap-3 rounded-2xl border border-border bg-card/70 p-3"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedMemberIds.includes(item.user.id)}
+                      onChange={() => toggleSelectedMember(item.user.id)}
+                    />
+                    <HeartPhoto
+                      className="w-10 shrink-0"
+                      label={`${item.user.name} avatar`}
+                      photo={item.user.photo}
+                      fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate">{item.user.name}</span>
+                      <span className="block text-xs text-muted-foreground">{item.distance}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              className="w-full"
+              disabled={!groupName.trim() || selectedMemberIds.length === 0 || groupCreating}
+              onClick={() => void handleCreateGroup()}
+            >
+              Create group
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="relative mx-auto max-w-2xl px-4 pb-8 pt-4">
         {pinnedConversations.length > 0 ? (

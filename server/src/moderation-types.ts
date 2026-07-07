@@ -21,6 +21,7 @@ export type NormalizedModerationLabel =
   | "commercial_sex"
   | "underage_sexual"
   | "bestiality"
+  | "scat"
   | "gore"
   | "hate_symbol"
   | "hate_speech"

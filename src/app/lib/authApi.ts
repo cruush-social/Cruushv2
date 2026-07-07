@@ -13,6 +13,10 @@ export type AuthSessionPayload = {
     yearOfBirth: number | null;
   } | null;
   needsOnboarding: boolean;
+  needsCodeOfConduct: boolean;
+  codeOfConductVersion: string;
+  acceptedCodeOfConductVersion: string | null;
+  codeOfConductAcceptedAt: string | null;
 };
 
 export type VerificationDeliveryPayload = {
@@ -57,6 +61,13 @@ export function signIn(payload: { email: string; password: string; captchaToken?
 export function signOut() {
   return requestApi<void>('/api/auth/logout', {
     method: 'POST',
+  });
+}
+
+export function acceptCodeOfConduct(version: string) {
+  return requestApi<AuthSessionPayload>('/api/auth/code-of-conduct/accept', {
+    method: 'POST',
+    body: JSON.stringify({ version }),
   });
 }
 

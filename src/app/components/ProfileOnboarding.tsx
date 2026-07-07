@@ -1,14 +1,73 @@
 import { useState } from 'react';
 import { IDENTITIES, LOOKING_FOR, PRONOUNS, VIBES } from '../lib/profileOptions';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { acceptCodeOfConduct, type AuthSessionPayload } from '../lib/authApi';
+import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
 import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload } from '../lib/profileApi';
 import { persistCurrentUser } from '../lib/sessionUser';
 
 interface ProfileOnboardingProps {
-  onComplete: () => void;
+  onComplete: (session?: AuthSessionPayload) => void;
+  needsCodeOfConduct?: boolean;
+  codeOfConductVersion?: string;
 }
+
+type OnboardingStep = 'name' | 'age' | 'pronouns' | 'identities' | 'lookingFor' | 'vibes' | 'bio' | 'oath';
+
+const PROFILE_STEPS: OnboardingStep[] = [
+  'name',
+  'age',
+  'pronouns',
+  'identities',
+  'lookingFor',
+  'vibes',
+  'bio',
+];
+
+const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: string }> = {
+  name: {
+    rite: 'speak your name',
+    title: 'What should the room call you?',
+    detail: 'This is the name other members see first.',
+  },
+  age: {
+    rite: 'prove you may enter',
+    title: 'The gates are adults only.',
+    detail: 'Your birth year keeps cruush 18+.',
+  },
+  pronouns: {
+    rite: 'choose your invocation',
+    title: 'How should people refer to you?',
+    detail: 'Pick up to three.',
+  },
+  identities: {
+    rite: 'name your form',
+    title: 'Choose the words that fit.',
+    detail: 'Pick up to three.',
+  },
+  lookingFor: {
+    rite: 'declare your hunger',
+    title: 'What are you seeking tonight?',
+    detail: 'Pick up to three.',
+  },
+  vibes: {
+    rite: 'reveal your aura',
+    title: 'Set the signal around you.',
+    detail: 'Pick up to three.',
+  },
+  bio: {
+    rite: 'leave your confession',
+    title: 'Give them a reason to look twice.',
+    detail: 'Keep it real, specific, and safe.',
+  },
+  oath: {
+    rite: 'take the oath',
+    title: 'Before the map opens.',
+    detail: 'Every member agrees to the cruush code of conduct.',
+  },
+};
 
 type OnboardingProfileState = {
   name: string;
@@ -55,17 +114,13 @@ type OnboardingProfileState = {
   sexuality: string[];
 };
 
-export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps) {
+export default function ProfileOnboarding({
+  onComplete,
+  needsCodeOfConduct = false,
+  codeOfConductVersion = '',
+}: ProfileOnboardingProps) {
   // Minimal onboarding steps, but state includes all schema fields for upsert
-  const steps = [
-    'name',
-    'age',
-    'pronouns',
-    'identities',
-    'lookingFor',
-    'vibes',
-    'bio',
-  ] as const;
+  const steps = needsCodeOfConduct ? [...PROFILE_STEPS, 'oath'] : PROFILE_STEPS;
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<OnboardingProfileState>({
     name: '',
@@ -112,6 +167,7 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
     sexuality: [],
   });
   const [ageError, setAgeError] = useState<string | null>(null);
+  const [oathAccepted, setOathAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -145,6 +201,8 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
         return profile.vibes.length > 0;
       case 'bio':
         return profile.bio.trim().length > 0;
+      case 'oath':
+        return oathAccepted;
       default:
         return true;
     }
@@ -218,7 +276,10 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
         age: savedProfile.year_of_birth ? new Date().getFullYear() - savedProfile.year_of_birth : null,
         year_of_birth: savedProfile.year_of_birth,
       });
-      onComplete();
+      const nextSession = needsCodeOfConduct
+        ? await acceptCodeOfConduct(codeOfConductVersion)
+        : undefined;
+      onComplete(nextSession);
     } catch (error) {
       console.error('Error saving profile:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to save profile.');
@@ -230,10 +291,10 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <header className="mb-6 text-center">
-        <h1 className="cruush-logo-text text-4xl font-bold mb-2">cruush</h1>
-        <p className="text-center text-muted-foreground mt-2">Set up your profile</p>
+        <h1 className="cruush-logo-text text-5xl font-bold mb-2">cruush</h1>
+        <p className="text-center text-muted-foreground mt-2">the seven rites</p>
       </header>
-      <div className="w-full max-w-md bg-card p-6 rounded-lg shadow space-y-8">
+      <div className="w-full max-w-md rounded-lg border border-white/10 bg-card p-6 shadow space-y-8">
         {saveError ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {saveError}
@@ -247,7 +308,14 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
             />
           ))}
         </div>
-        <p className="text-sm text-muted-foreground text-center mb-4">Step {step + 1} of {steps.length}</p>
+        <div className="space-y-2 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            {STEP_COPY[steps[step]].rite}
+          </p>
+          <h2 className="text-xl font-semibold text-foreground">{STEP_COPY[steps[step]].title}</h2>
+          <p className="text-sm text-muted-foreground">{STEP_COPY[steps[step]].detail}</p>
+          <p className="text-xs text-muted-foreground">Rite {step + 1} of {steps.length}</p>
+        </div>
         {/* Step content */}
         {(() => {
           const field = steps[step];
@@ -372,6 +440,34 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
                   />
                 </div>
               );
+            case 'oath':
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/10 p-3 text-primary">
+                    <ShieldCheck className="h-5 w-5 shrink-0" />
+                    <p className="text-sm font-medium">This agreement is required before entering cruush.</p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+                    <ul className="space-y-3 text-sm leading-6 text-white/72">
+                      {CODE_OF_CONDUCT_ITEMS.map((item) => (
+                        <li key={item} className="flex gap-3">
+                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-card/70 p-4 text-sm leading-6 text-white/80">
+                    <input
+                      type="checkbox"
+                      checked={oathAccepted}
+                      onChange={(event) => setOathAccepted(event.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-white/25 bg-input-background accent-primary"
+                    />
+                    <span>I have read and agree to the cruush code of conduct.</span>
+                  </label>
+                </div>
+              );
             default:
               return null;
           }
@@ -382,11 +478,11 @@ export default function ProfileOnboarding({ onComplete }: ProfileOnboardingProps
           </Button>
           {step < steps.length - 1 ? (
             <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed()}>
-              Next <ArrowRight className="ml-2 w-4 h-4" />
+              Next rite <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           ) : (
             <Button onClick={handleComplete} disabled={!canProceed() || saving}>
-              Finish <Check className="ml-2 w-4 h-4" />
+              {needsCodeOfConduct ? 'I agree and enter' : 'Enter cruush'} <Check className="ml-2 w-4 h-4" />
             </Button>
           )}
         </div>

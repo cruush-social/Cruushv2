@@ -107,6 +107,7 @@ type MutualCruushRow = {
   display_name: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
+  badges?: string[] | null;
   updated_at: string | Date;
   lat: number | null;
   lng: number | null;
@@ -141,6 +142,7 @@ type ActivityProfileRow = {
   display_name: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
+  badges?: string[] | null;
   updated_at: string | Date;
   lat: number | null;
   lng: number | null;
@@ -228,12 +230,14 @@ function mapActivityPerson(row: {
   fallbackName?: string | null;
   fallbackPronouns?: string | null;
   fallbackPhoto?: string | null;
+  badges?: string[] | null;
 }) {
   return {
     id: row.userId,
     name: row.displayName?.trim() || row.fallbackName?.trim() || "Cruush user",
     pronouns: row.pronouns?.join(", ") ?? row.fallbackPronouns ?? "",
-    photo: row.photos?.[0] ?? row.fallbackPhoto ?? null
+    photo: row.photos?.[0] ?? row.fallbackPhoto ?? null,
+    ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
   };
 }
 
@@ -326,7 +330,12 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
        profiles.profile_sensitive_auth_tag,
        profiles.profile_sensitive_key_version,
        null::boolean as ghost_mode_enabled,
-       null::text as precise_location_visibility
+       null::text as precise_location_visibility,
+       coalesce((
+         select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
+         from user_badges
+         where user_badges.user_id = profiles.id
+       ), '{}'::text[]) as badges
      from profiles
      where profiles.id = any($1::uuid[])`,
     [uniqueUserIds]
@@ -376,6 +385,7 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       display_name: profile.display_name,
       pronouns: profile.pronouns,
       photos: profile.photos,
+      badges: profile.badges,
       updated_at: profile.updated_at,
       lat: profile.lat,
       lng: profile.lng,
@@ -472,7 +482,8 @@ async function mapTokenizedMutualCruushRow(
       userId: row.other_user_id,
       displayName: row.display_name,
       pronouns: row.pronouns,
-      photos: row.photos
+      photos: row.photos,
+      badges: row.badges ?? null
     }),
     mutualCrowds: sharedCrowds,
     vibes,
@@ -530,7 +541,8 @@ function mapMutualCruushRow(
       userId: row.other_user_id,
       displayName: row.display_name,
       pronouns: row.pronouns,
-      photos: row.photos
+      photos: row.photos,
+      badges: row.badges ?? null
     }),
     mutualCrowds: sharedCrowds,
     vibes,
@@ -601,7 +613,8 @@ async function mapIncomingCruushRecords(
         userId: senderUserId,
         displayName: senderProfile?.display_name ?? null,
         pronouns: senderProfile?.pronouns ?? null,
-        photos: senderProfile?.photos ?? null
+        photos: senderProfile?.photos ?? null,
+        badges: senderProfile?.badges ?? null
       })
     };
   }));
@@ -632,7 +645,8 @@ async function mapSentCruushRecords(
         photos: targetProfile?.photos ?? null,
         fallbackName: snapshot?.name ?? null,
         fallbackPronouns: snapshot?.pronouns ?? null,
-        fallbackPhoto: snapshot?.photo ?? null
+        fallbackPhoto: snapshot?.photo ?? null,
+        badges: targetProfile?.badges ?? null
       })
     };
   }));
@@ -660,7 +674,8 @@ function mapProfileViewRecords(
           userId: viewerUserId,
           displayName: viewerProfile?.display_name ?? null,
           pronouns: viewerProfile?.pronouns ?? null,
-          photos: viewerProfile?.photos ?? null
+          photos: viewerProfile?.photos ?? null,
+          badges: viewerProfile?.badges ?? null
         })
       };
     })

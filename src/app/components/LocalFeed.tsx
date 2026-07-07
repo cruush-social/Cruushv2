@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Clock, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
+import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
+import { getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { createFeedPost, deleteFeedPost, getFeedPosts, type FeedPost, type FeedPostExpiry } from '../lib/postApi';
 import { getCurrentUserId } from '../lib/sessionUser';
 
@@ -39,6 +41,7 @@ export default function LocalFeed() {
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +50,9 @@ export default function LocalFeed() {
     void getCurrentUserId()
       .then(setCurrentUserId)
       .catch(() => setCurrentUserId(null));
+    void getMyBillingStatus()
+      .then(setBillingStatus)
+      .catch(() => setBillingStatus(null));
   }, []);
 
   const fetchPosts = async () => {
@@ -63,6 +69,10 @@ export default function LocalFeed() {
 
   const handlePost = async () => {
     if (!newPost.trim()) return;
+    if (billingStatus && !billingStatus.cruushPlus) {
+      navigate('/upgrade');
+      return;
+    }
 
     setPosting(true);
     setError(null);
@@ -80,6 +90,8 @@ export default function LocalFeed() {
       setPosting(false);
     }
   };
+
+  const canPost = billingStatus?.cruushPlus !== false;
 
   const handleDeletePost = async (postId: string) => {
     setDeletingPostId(postId);
@@ -118,15 +130,33 @@ export default function LocalFeed() {
           <Textarea
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
-            placeholder="Share something with nearby people..."
+            placeholder={canPost ? 'Share something with nearby people...' : 'Post on the local feed with cruush+.'}
             className="bg-input-background mb-3 min-h-[100px]"
+            disabled={!canPost}
           />
+          {!canPost ? (
+            <div className="mb-3 flex flex-col gap-3 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-white/78 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-white">Post on the local feed with cruush+.</p>
+                <p className="mt-1 text-xs text-white/58">Free users can still read nearby posts.</p>
+              </div>
+              <Button
+                type="button"
+                className="h-10 shrink-0 rounded-lg text-white"
+                style={{ background: 'var(--cruush-gradient)' }}
+                onClick={() => navigate('/upgrade')}
+              >
+                Get cruush+
+              </Button>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
               <Button
                 variant={expiresIn === '1h' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setExpiresIn('1h')}
+                disabled={!canPost}
               >
                 1h
               </Button>
@@ -134,6 +164,7 @@ export default function LocalFeed() {
                 variant={expiresIn === '6h' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setExpiresIn('6h')}
+                disabled={!canPost}
               >
                 6h
               </Button>
@@ -141,13 +172,14 @@ export default function LocalFeed() {
                 variant={expiresIn === '24h' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setExpiresIn('24h')}
+                disabled={!canPost}
               >
                 24h
               </Button>
             </div>
             <Button
               onClick={handlePost}
-              disabled={!newPost.trim() || posting}
+              disabled={!canPost || !newPost.trim() || posting}
               style={{
                 background: newPost.trim()
                   ? 'var(--cruush-gradient)'
@@ -181,8 +213,9 @@ export default function LocalFeed() {
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p>
-                        {post.user.name}{' '}
+                      <p className="flex flex-wrap items-center gap-2">
+                        <span>{post.user.name}</span>
+                        <CruushBadge badges={post.user.badges} compact />
                         <span className="text-sm text-muted-foreground">{post.user.pronouns}</span>
                       </p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">

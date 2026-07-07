@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
 import { createSessionCookie, generateSessionToken, hashPassword, hashSessionToken } from "./auth.js";
 import type { DbClient } from "./db.js";
-import { DEVELOPMENT_ADMIN_LOCATION } from "./development-admin.js";
+import { DEVELOPMENT_ADMIN_EMAIL, DEVELOPMENT_ADMIN_LOCATION } from "./development-admin.js";
 import {
   buildEncryptedRelationshipPayload,
   issueEncryptedRelationshipToken,
@@ -18,6 +18,8 @@ import {
   storeLocationEnvelope,
   type VisibilityBaseMode
 } from "./location-privacy.js";
+import { encryptMediaBytes } from "./media-encryption.js";
+import { writeEncryptedMediaObject } from "./media-storage.js";
 
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
@@ -475,6 +477,127 @@ describe("server", () => {
     });
   });
 
+  it("returns the open beta cruush+ plan catalog", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/billing/plans",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      data: {
+        processor: "fake",
+        testCheckout: true,
+        currency: "USD",
+        plans: expect.arrayContaining([
+          expect.objectContaining({ id: "plus_weekly", amountCents: 999, interval: "week" }),
+          expect.objectContaining({ id: "plus_monthly", amountCents: 1899, interval: "month" }),
+          expect.objectContaining({ id: "plus_3_month", amountCents: 3597, interval: "3_months" }),
+          expect.objectContaining({ id: "plus_6_month", amountCents: 5994, interval: "6_months" }),
+          expect.objectContaining({ id: "plus_annual", amountCents: 11999, interval: "year" }),
+          expect.objectContaining({ id: "founder_annual", amountCents: 9900, interval: "year", supplyLimit: 1000 }),
+          expect.objectContaining({ id: "lifetime_founder", amountCents: 99900, interval: "lifetime", supplyLimit: 250 })
+        ])
+      }
+    });
+  });
+
+  it("creates and completes a visible fake lifetime founder checkout without consuming real founder supply", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "7d39c89e-e816-4684-82e0-b48e3f8127d4",
+          user_id: userId,
+          plan_id: "lifetime_founder",
+          processor: "fake",
+          status: "pending",
+          test_mode: true,
+          amount_cents: 99900,
+          currency: "USD",
+          created_at: "2026-07-07T12:00:00.000Z",
+          expires_at: "2026-07-07T12:30:00.000Z",
+          completed_at: null
+        }]
+      });
+
+    const checkoutResponse = await app.inject({
+      method: "POST",
+      url: "/api/billing/checkout-sessions",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        planId: "lifetime_founder"
+      }
+    });
+
+    expect(checkoutResponse.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("insert into billing_checkout_sessions");
+    expect(checkoutResponse.json()).toMatchObject({
+      data: {
+        id: "7d39c89e-e816-4684-82e0-b48e3f8127d4",
+        planId: "lifetime_founder",
+        processor: "fake",
+        testMode: true,
+        testWarning: "TEST CHECKOUT - no real payment will be collected."
+      }
+    });
+
+    query.mockReset();
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "7d39c89e-e816-4684-82e0-b48e3f8127d4",
+          user_id: userId,
+          plan_id: "lifetime_founder",
+          processor: "fake",
+          status: "pending",
+          test_mode: true,
+          amount_cents: 99900,
+          currency: "USD"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const completeResponse = await app.inject({
+      method: "POST",
+      url: "/api/billing/checkout-sessions/7d39c89e-e816-4684-82e0-b48e3f8127d4/complete-test",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(completeResponse.statusCode).toBe(200);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into cruush_plus_lifetime_access"))).toBe(true);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into user_entitlements"))).toBe(true);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into founder_redemptions"))).toBe(true);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into user_badges"))).toBe(true);
+    expect(query.mock.calls.find((call) => String(call[0]).includes("insert into founder_redemptions"))?.[1]).toContain(true);
+    expect(completeResponse.json()).toMatchObject({
+      data: {
+        cruushPlus: true,
+        expiresAt: null,
+        badges: expect.arrayContaining(["lifetime_founder"]),
+        testMode: true
+      }
+    });
+  });
+
   it("redirects legacy verification page links to the root verification token route", async () => {
     const response = await app.inject({
       method: "GET",
@@ -892,7 +1015,11 @@ describe("server", () => {
           displayName: "Admin",
           yearOfBirth: 1990
         },
-        needsOnboarding: false
+        needsOnboarding: false,
+        needsCodeOfConduct: true,
+        codeOfConductVersion: "2026-07-07",
+        acceptedCodeOfConductVersion: null,
+        codeOfConductAcceptedAt: null
       }
     });
   });
@@ -1173,7 +1300,9 @@ describe("server", () => {
           email_verified_at: null,
           created_at: "2026-04-28T12:00:00.000Z",
           profile_display_name: "River",
-          year_of_birth: 1998
+          year_of_birth: 1998,
+          code_of_conduct_accepted_version: null,
+          code_of_conduct_accepted_at: null
         }]
       });
 
@@ -1200,8 +1329,142 @@ describe("server", () => {
           displayName: "River",
           yearOfBirth: 1998
         },
-        needsOnboarding: false
+        needsOnboarding: false,
+        needsCodeOfConduct: true,
+        codeOfConductVersion: "2026-07-07",
+        acceptedCodeOfConductVersion: null,
+        codeOfConductAcceptedAt: null
       }
+    });
+  });
+
+  it("marks the current session as having accepted the current code of conduct", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          app_display_name: "River",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          profile_display_name: "River",
+          year_of_birth: 1998,
+          code_of_conduct_accepted_version: "2026-07-07",
+          code_of_conduct_accepted_at: "2026-07-07T15:00:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toMatchObject({
+      needsOnboarding: false,
+      needsCodeOfConduct: false,
+      codeOfConductVersion: "2026-07-07",
+      acceptedCodeOfConductVersion: "2026-07-07",
+      codeOfConductAcceptedAt: "2026-07-07T15:00:00.000Z"
+    });
+  });
+
+  it("requires authentication before accepting the code of conduct", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/code-of-conduct/accept",
+      payload: {
+        version: "2026-07-07"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale code of conduct acceptance versions", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        user_id: userId
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/code-of-conduct/accept",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        version: "2026-01-01"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Code of conduct version is out of date.",
+        details: null
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores code of conduct acceptance and returns a refreshed session", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          app_display_name: "River",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          profile_display_name: "River",
+          year_of_birth: 1998,
+          code_of_conduct_accepted_version: "2026-07-07",
+          code_of_conduct_accepted_at: "2026-07-07T15:00:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/code-of-conduct/accept",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        version: "2026-07-07"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("update app_users");
+    expect(query.mock.calls[1]?.[0]).toContain("code_of_conduct_accepted_version");
+    expect(query.mock.calls[1]?.[1]).toEqual(["2026-07-07", userId]);
+    expect(response.json().data).toMatchObject({
+      needsCodeOfConduct: false,
+      codeOfConductVersion: "2026-07-07",
+      acceptedCodeOfConductVersion: "2026-07-07",
+      codeOfConductAcceptedAt: "2026-07-07T15:00:00.000Z"
     });
   });
 
@@ -1523,7 +1786,26 @@ describe("server", () => {
   });
 
   it("creates a group conversation with the creator as owner", async () => {
+    const memberId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-group-1",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: memberId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-group-1",
+      userOneId: userId,
+      userTwoId: memberId
+    });
+
     query.mockResolvedValueOnce({
+      rows: [matchRecord]
+    })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({
       rows: [{
         id: conversationId,
         kind: "group",
@@ -1538,7 +1820,7 @@ describe("server", () => {
         other_user_name: null,
         other_user_pronouns: null,
         other_user_photo: null,
-        member_count: 3,
+        member_count: 2,
         current_user_role: "owner",
         disappearing_timer: "24h",
         closed_at: null
@@ -1554,25 +1836,57 @@ describe("server", () => {
       payload: {
         title: "Beta crew",
         memberIds: [
-          "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          "8f707f0b-81aa-470d-b0e1-321d493d04d2"
+          memberId
         ],
         disappearingTimer: "24h"
       }
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[0]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[0]?.[0]).toContain("insert into conversation_members");
-    expect(query.mock.calls[0]?.[0]).toContain("'owner'");
+    expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
+    expect(query.mock.calls[3]?.[0]).toContain("encrypted_relationship_tokens");
+    expect(query.mock.calls[4]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[4]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[4]?.[0]).toContain("'owner'");
     expect(response.json().data).toMatchObject({
       id: conversationId,
       kind: "group",
       currentUserRole: "owner",
       disappearingTimer: "24h",
       closed: false,
-      membersLabel: "3 people"
+      membersLabel: "2 people"
     });
+  });
+
+  it("rejects non-mutual users before creating a group conversation", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/conversations/groups",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        title: "Beta crew",
+        memberIds: ["53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"],
+        disappearingTimer: "24h"
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "MUTUAL_CRUUSH_REQUIRED",
+        message: "Groups can only include mutual cruushes.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into conversations"))).toBe(false);
   });
 
   it("lets group admins update title and disappearing timer", async () => {
@@ -1627,7 +1941,190 @@ describe("server", () => {
     });
   });
 
+  it("lets a dm participant change the disappearing timer to 1h", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2,
+          disappearing_timer: "off",
+          closed_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:05:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2,
+          disappearing_timer: "1h",
+          closed_at: null
+        }]
+      });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/conversations/${conversationId}/disappearing-timer`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        disappearingTimer: "1h"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("disappearing_timer");
+    expect(response.json().data).toMatchObject({
+      id: conversationId,
+      kind: "dm",
+      disappearingTimer: "1h"
+    });
+  });
+
+  it("does not let group members change the disappearing timer", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: conversationId,
+        kind: "group",
+        title: "Beta crew",
+        tags: [],
+        updated_at: "2026-04-29T12:00:00.000Z",
+        last_message: "",
+        unread_count: 0,
+        pinned: false,
+        muted: false,
+        other_user_id: null,
+        other_user_name: null,
+        other_user_pronouns: null,
+        other_user_photo: null,
+        member_count: 3,
+        current_user_role: "member",
+        disappearing_timer: "24h",
+        closed_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/conversations/${conversationId}/disappearing-timer`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        disappearingTimer: "1h"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Only group admins can manage this group.",
+        details: null
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears a dm conversation for everyone without hard-deleting messages", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "old message",
+          unread_count: 1,
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2,
+          disappearing_timer: "24h",
+          closed_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:05:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2,
+          disappearing_timer: "24h",
+          closed_at: null,
+          cleared_at: "2026-04-29T12:05:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/conversations/${conversationId}/clear-for-everyone`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const updateSql = String(query.mock.calls[1]?.[0] ?? "");
+
+    expect(response.statusCode).toBe(200);
+    expect(updateSql).toContain("cleared_at");
+    expect(updateSql).not.toContain("delete from messages");
+    expect(response.json().data).toMatchObject({
+      id: conversationId,
+      lastMessage: ""
+    });
+  });
+
   it("lets group admins add members", async () => {
+    const memberId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-add-member-1",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: memberId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-add-member-1",
+      userOneId: userId,
+      userTwoId: memberId
+    });
+
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -1635,7 +2132,41 @@ describe("server", () => {
           closed_at: null
         }]
       })
-      .mockResolvedValueOnce({ rows: [{ id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97" }] });
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [{ id: memberId }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/conversations/groups/${conversationId}/members`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId: memberId
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
+    expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[5]?.[0]).toContain("'member'");
+  });
+
+  it("rejects non-mutual users before adding them to a group", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "admin",
+          closed_at: null
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -1647,10 +2178,17 @@ describe("server", () => {
         userId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
       }
     });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
 
-    expect(response.statusCode).toBe(204);
-    expect(query.mock.calls[1]?.[0]).toContain("insert into conversation_members");
-    expect(query.mock.calls[1]?.[0]).toContain("'member'");
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "MUTUAL_CRUUSH_REQUIRED",
+        message: "Groups can only include mutual cruushes.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into conversation_members"))).toBe(false);
   });
 
   it("lets group admins promote members", async () => {
@@ -1881,7 +2419,7 @@ describe("server", () => {
     });
   });
 
-  it("applies a group conversation timer to new messages", async () => {
+  it("applies a 1h group conversation timer to new messages", async () => {
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -1900,7 +2438,7 @@ describe("server", () => {
           other_user_photo: null,
           member_count: 3,
           current_user_role: "member",
-          disappearing_timer: "24h",
+          disappearing_timer: "1h",
           closed_at: null
         }]
       })
@@ -1910,7 +2448,7 @@ describe("server", () => {
           user_id: userId,
           content: "see you there",
           created_at: "2026-04-29T12:10:00.000Z",
-          expires_at: "2026-04-30T12:10:00.000Z"
+          expires_at: "2026-04-29T13:10:00.000Z"
         }]
       });
 
@@ -1928,15 +2466,15 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[1]?.[0]).toContain("expires_at");
-    expect(query.mock.calls[1]?.[0]).toContain("interval '24 hours'");
+    expect(query.mock.calls[1]?.[0]).toContain("interval '1 hour'");
     expect(response.json().data).toMatchObject({
       id: "msg-group-1",
       content: "see you there",
-      expiresAt: "2026-04-30T12:10:00.000Z"
+      expiresAt: "2026-04-29T13:10:00.000Z"
     });
   });
 
-  it("creates a photo message with encrypted media on POST /api/messages/photos", async () => {
+  it("creates a view-once photo message with encrypted media on POST /api/messages/photos", async () => {
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -1975,7 +2513,8 @@ describe("server", () => {
             id: "media-1",
             url: `/api/media/message-photos/${userId}-photo-id.png`,
             mediaType: "image",
-            mimeType: "image/png"
+            mimeType: "image/png",
+            viewOnce: true
           }]
         }]
       });
@@ -1987,7 +2526,8 @@ describe("server", () => {
       content: png,
       fields: [
         { name: "conversationId", value: conversationId },
-        { name: "content", value: "photo caption" }
+        { name: "content", value: "photo caption" },
+        { name: "viewOnce", value: "true" }
       ]
     });
 
@@ -2006,6 +2546,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("message_photo");
     expect(query.mock.calls[2]?.[0]).toContain("insert into messages");
     expect(query.mock.calls[2]?.[0]).toContain("message_media_attachments");
+    expect(query.mock.calls[2]?.[0]).toContain("view_once");
     expect(response.json()).toEqual({
       data: {
         id: "msg-photo-1",
@@ -2017,8 +2558,68 @@ describe("server", () => {
           id: "media-1",
           url: `/api/media/message-photos/${userId}-photo-id.png`,
           mediaType: "image",
-          mimeType: "image/png"
+          mimeType: "image/png",
+          viewOnce: true
         }]
+      }
+    });
+  });
+
+  it("opens a view-once photo once and records the view before returning bytes", async () => {
+    const plaintext = Buffer.from("view-once-photo-bytes");
+    const encrypted = encryptMediaBytes(app.config, plaintext);
+    const objectKey = `message-photos/${userId}-${Date.now()}-view-once-test.png.enc`;
+    const messageId = "28bbd9a5-e48e-46ea-8a43-9ef80ed9473d";
+    const mediaObjectId = "cb4dc89b-8732-4c22-9452-bb2d06159355";
+
+    await writeEncryptedMediaObject(app.config, objectKey, encrypted.ciphertext);
+
+    query.mockResolvedValueOnce({
+      rows: [{
+        object_key: objectKey,
+        mime_type: "image/png",
+        encrypted_data_key: encrypted.encryptedDataKey,
+        data_key_nonce: encrypted.dataKeyNonce,
+        data_key_auth_tag: encrypted.dataKeyAuthTag,
+        content_nonce: encrypted.nonce,
+        content_auth_tag: encrypted.authTag,
+        key_version: encrypted.keyVersion
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/messages/${messageId}/attachments/${mediaObjectId}/view`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("insert into message_media_views");
+    expect(response.headers["content-type"]).toContain("image/png");
+    expect(response.body).toBe(plaintext.toString());
+  });
+
+  it("denies a view-once photo after it has already been viewed", async () => {
+    const messageId = "28bbd9a5-e48e-46ea-8a43-9ef80ed9473d";
+    const mediaObjectId = "cb4dc89b-8732-4c22-9452-bb2d06159355";
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/messages/${messageId}/attachments/${mediaObjectId}/view`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Media not found.",
+        details: null
       }
     });
   });
@@ -2455,10 +3056,10 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
 
-  it("rejects profile photo uploads when the profile already has 9 photos", async () => {
+  it("rejects profile photo uploads when the profile already has 4 photos", async () => {
     query.mockResolvedValueOnce({
       rows: [{
-        photos: Array.from({ length: 9 }, (_, index) => `https://example.com/photo-${index}.jpg`)
+        photos: Array.from({ length: 4 }, (_, index) => `https://example.com/photo-${index}.jpg`)
       }]
     });
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
@@ -2483,11 +3084,43 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message: "You can add up to 9 photos.",
+        message: "You can add up to 4 photos.",
         details: null
       }
     });
     expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects scat profile photos before storage", async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-scat-profile.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This content violates Cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
   it("rejects prohibited profile photos before storage", async () => {
@@ -2666,6 +3299,34 @@ describe("server", () => {
     });
     expect(body.data.profiles[0].distanceLabel).toMatch(/ mi$/);
     expect(body.data.profiles[0].lastActive).toMatch(/ago$/);
+  });
+
+  it("requires cruush+ before applying premium discovery filters", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: false,
+        cruush_plus_expires_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006&kinks=leather",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("from user_entitlements");
+    expect(response.json()).toEqual({
+      error: {
+        code: "CRUUSH_PLUS_REQUIRED",
+        message: "Upgrade to cruush+ to use all seeking filters.",
+        details: null
+      }
+    });
   });
 
   it("honors a bounded discovery limit on GET /api/users", async () => {
@@ -3522,18 +4183,11 @@ describe("server", () => {
     });
   });
 
-  it("creates a post on POST /api/posts", async () => {
+  it("requires cruush+ before posting to the local feed", async () => {
     query.mockResolvedValueOnce({
       rows: [{
-        id: "post-2",
-        user_id: userId,
-        content: "Hosting tonight",
-        expires_in: "1h",
-        expires_at: "2026-04-28T13:00:00.000Z",
-        created_at: "2026-04-28T12:10:00.000Z",
-        display_name: "Cruusher",
-        pronouns: ["they/them"],
-        photos: []
+        cruush_plus_enabled: false,
+        cruush_plus_expires_at: null
       }]
     });
 
@@ -3549,11 +4203,57 @@ describe("server", () => {
       }
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(402);
     expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0]?.[0]).toContain("insert into posts");
-    expect(query.mock.calls[0]?.[0]).toContain("content_ciphertext");
-    expect(query.mock.calls[0]?.[1]).not.toContain("Hosting tonight");
+    expect(query.mock.calls[0]?.[0]).toContain("from user_entitlements");
+    expect(response.json()).toEqual({
+      error: {
+        code: "CRUUSH_PLUS_REQUIRED",
+        message: "Upgrade to cruush+ to post on the local feed.",
+        details: null
+      }
+    });
+  });
+
+  it("creates a post on POST /api/posts", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-2",
+          user_id: userId,
+          content: "Hosting tonight",
+          expires_in: "1h",
+          expires_at: "2026-04-28T13:00:00.000Z",
+          created_at: "2026-04-28T12:10:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: []
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Hosting tonight",
+        expiresIn: "1h"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1]?.[0]).toContain("insert into posts");
+    expect(query.mock.calls[1]?.[0]).toContain("content_ciphertext");
+    expect(query.mock.calls[1]?.[1]).not.toContain("Hosting tonight");
     expect(response.json()).toEqual({
       data: {
         id: "post-2",
@@ -3622,6 +4322,13 @@ describe("server", () => {
   });
 
   it("rejects prohibited feed content before storing a post", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: true,
+        cruush_plus_expires_at: null
+      }]
+    });
+
     const response = await app.inject({
       method: "POST",
       url: "/api/posts",
@@ -3651,6 +4358,13 @@ describe("server", () => {
   });
 
   it("rejects public coded drug language before storing a feed post", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: true,
+        cruush_plus_expires_at: null
+      }]
+    });
+
     const response = await app.inject({
       method: "POST",
       url: "/api/posts",
@@ -3672,19 +4386,26 @@ describe("server", () => {
   });
 
   it("normalizes post text before storing it", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "post-1",
-        user_id: userId,
-        content: "Hosting now",
-        expires_in: "6h",
-        expires_at: "2026-04-28T18:00:00.000Z",
-        created_at: "2026-04-28T12:00:00.000Z",
-        display_name: "Cruusher",
-        pronouns: ["they/them"],
-        photos: []
-      }]
-    });
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-1",
+          user_id: userId,
+          content: "Hosting now",
+          expires_in: "6h",
+          expires_at: "2026-04-28T18:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: []
+        }]
+      });
 
     const response = await app.inject({
       method: "POST",
@@ -3699,8 +4420,8 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[0]?.[1]).not.toContain("Hosting now");
-    expect(query.mock.calls[0]?.[1]).not.toContain(" \u0000Hosting\u0007 now\u0000 ");
+    expect(query.mock.calls[1]?.[1]).not.toContain("Hosting now");
+    expect(query.mock.calls[1]?.[1]).not.toContain(" \u0000Hosting\u0007 now\u0000 ");
   });
 
   it("forbids reading another user's cruush activity", async () => {
@@ -4356,6 +5077,37 @@ describe("server", () => {
         code: "AUTH_REQUIRED",
         message: "Authentication required.",
         details: expect.any(Object)
+      }
+    });
+  });
+
+  it("requires cruush+ before enabling stealth mode", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: false,
+        cruush_plus_expires_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/privacy-settings",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        baseMode: "STEALTH"
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("from user_entitlements");
+    expect(response.json()).toEqual({
+      error: {
+        code: "CRUUSH_PLUS_REQUIRED",
+        message: "Upgrade to cruush+ to use stealth mode.",
+        details: null
       }
     });
   });
@@ -5406,6 +6158,12 @@ describe("server", () => {
   });
 
   it("stores profile visibility rules and active crowd modes through encrypted storage and blind tokens", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: true,
+        cruush_plus_expires_at: null
+      }]
+    });
     query.mockResolvedValue({
       rows: [{
         id: userId,

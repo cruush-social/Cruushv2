@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
-import { encryptMediaBytes } from "../media-encryption.js";
-import { MESSAGE_PHOTO_MEDIA_PREFIX, writeEncryptedMediaObject } from "../media-storage.js";
+import { decryptMediaBytes, encryptMediaBytes } from "../media-encryption.js";
+import { MESSAGE_PHOTO_MEDIA_PREFIX, readEncryptedMediaObject, writeEncryptedMediaObject } from "../media-storage.js";
 import { ApiError } from "../errors.js";
 import { hasActiveMutualMessagePermission } from "../match-relationships.js";
 import {
+  conversationTimerSchema,
   createGroupConversationPayloadSchema,
   createMessagePhotoFieldsSchema,
   createMessagePayloadSchema,
@@ -20,6 +21,15 @@ import { getAuthenticatedUserId } from "../request-auth.js";
 
 const conversationParamsSchema = z.object({
   conversationId: z.uuid()
+}).strict();
+
+const messageAttachmentViewParamsSchema = z.object({
+  messageId: z.uuid(),
+  mediaObjectId: z.uuid()
+}).strict();
+
+const updateConversationTimerPayloadSchema = z.object({
+  disappearingTimer: conversationTimerSchema
 }).strict();
 
 const groupMemberParamsSchema = z.object({
@@ -41,8 +51,9 @@ type ConversationRow = {
   title: string | null;
   tags: string[] | null;
   current_user_role?: "owner" | "admin" | "member" | null;
-  disappearing_timer?: "off" | "24h" | "7d" | "30d" | null;
+  disappearing_timer?: "off" | "1h" | "24h" | "7d" | "30d" | null;
   closed_at?: string | Date | null;
+  cleared_at?: string | Date | null;
   updated_at: string | Date;
   last_message: string | null;
   last_message_ciphertext: string | null;
@@ -86,6 +97,28 @@ type MessageAttachment = {
   url: string;
   mediaType: string;
   mimeType: string;
+  viewOnce?: boolean;
+  viewedAt?: string | null;
+};
+
+type GroupMemberRow = {
+  id: string;
+  name: string | null;
+  pronouns: string[] | null;
+  photo: string | null;
+  role: "owner" | "admin" | "member";
+  joined_at: string | Date;
+};
+
+type EncryptedMessageMediaRow = {
+  object_key: string;
+  mime_type: string;
+  encrypted_data_key: string;
+  data_key_nonce: string;
+  data_key_auth_tag: string;
+  content_nonce: string;
+  content_auth_tag: string;
+  key_version: string;
 };
 
 function hasValidImageSignature(buffer: Buffer, mimeType: keyof typeof MESSAGE_PHOTO_MIME_TYPES) {
@@ -206,6 +239,7 @@ const CONVERSATION_SELECT = `
     cm.role as current_user_role,
     c.disappearing_timer,
     c.closed_at,
+    c.cleared_at,
     c.updated_at,
     coalesce(last_message.content, '') as last_message,
     last_message.content_ciphertext as last_message_ciphertext,
@@ -236,6 +270,7 @@ const CONVERSATION_SELECT = `
     from messages m
     where m.conversation_id = c.id
       and (m.expires_at is null or m.expires_at > now())
+      and (c.cleared_at is null or m.created_at > c.cleared_at)
     order by m.created_at desc
     limit 1
   ) as last_message on true
@@ -246,6 +281,7 @@ const CONVERSATION_SELECT = `
       and m.user_id <> $1
       and m.created_at > coalesce(cm.last_read_at, to_timestamp(0))
       and (m.expires_at is null or m.expires_at > now())
+      and (c.cleared_at is null or m.created_at > c.cleared_at)
   ) as unread_counts on true
   left join lateral (
     select count(*)::int as member_count
@@ -298,6 +334,56 @@ async function assertGroupAdmin(app: FastifyInstance, userId: string, conversati
   }
 
   return access;
+}
+
+async function assertMutualGroupInvitees(app: FastifyInstance, userId: string, memberIds: string[]) {
+  for (const memberId of memberIds) {
+    if (!await hasActiveMutualMessagePermission(app, userId, memberId)) {
+      throw new ApiError(403, "MUTUAL_CRUUSH_REQUIRED", "Groups can only include mutual cruushes.");
+    }
+  }
+}
+
+function assertCanManageConversation(conversation: ConversationRow, action: "timer" | "clear") {
+  if (conversation.kind !== "group") {
+    return;
+  }
+
+  if (!conversation.current_user_role || !adminRoles.has(conversation.current_user_role)) {
+    throw new ApiError(403, "FORBIDDEN", "Only group admins can manage this group.");
+  }
+
+  if (action === "timer" && conversation.closed_at) {
+    throw new ApiError(400, "FEATURE_RESTRICTED", "This group is closed.");
+  }
+}
+
+function expirationSql(timerParam: string) {
+  return `case
+             when ${timerParam} = '1h' then now() + interval '1 hour'
+             when ${timerParam} = '24h' then now() + interval '24 hours'
+             when ${timerParam} = '7d' then now() + interval '7 days'
+             when ${timerParam} = '30d' then now() + interval '30 days'
+             else null
+           end`;
+}
+
+async function sendEncryptedMessageMedia(app: FastifyInstance, reply: FastifyReply, mediaObject: EncryptedMessageMediaRow) {
+  const encryptedBytes = await readEncryptedMediaObject(app.config, mediaObject.object_key);
+  const bytes = decryptMediaBytes(app.config, {
+    ciphertext: encryptedBytes,
+    nonce: mediaObject.content_nonce,
+    authTag: mediaObject.content_auth_tag,
+    encryptedDataKey: mediaObject.encrypted_data_key,
+    dataKeyNonce: mediaObject.data_key_nonce,
+    dataKeyAuthTag: mediaObject.data_key_auth_tag,
+    keyVersion: mediaObject.key_version
+  });
+
+  return reply
+    .type(mediaObject.mime_type)
+    .header("cache-control", "no-store")
+    .send(bytes);
 }
 
 export async function registerMessageRoutes(app: FastifyInstance) {
@@ -375,6 +461,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const userId = await getAuthenticatedUserId(request);
     const payload = createGroupConversationPayloadSchema.parse(request.body);
     const memberIds = [...new Set(payload.memberIds.filter((memberId) => memberId !== userId))];
+
+    await assertMutualGroupInvitees(app, userId, memberIds);
 
     const result = await app.db.query<ConversationRow>(
       `with eligible_creator as (
@@ -476,6 +564,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const { conversationId } = conversationParamsSchema.parse(request.params);
     const payload = groupMemberPayloadSchema.parse(request.body);
     await assertGroupAdmin(app, userId, conversationId);
+    await assertMutualGroupInvitees(app, userId, [payload.userId]);
 
     const result = await app.db.query<{ id: string }>(
       `insert into conversation_members (conversation_id, user_id, role)
@@ -581,6 +670,119 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
+  app.patch("/api/conversations/:conversationId/disappearing-timer", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { conversationId } = conversationParamsSchema.parse(request.params);
+    const payload = updateConversationTimerPayloadSchema.parse(request.body);
+    const conversation = await loadConversationForUser(app, userId, conversationId);
+
+    if (!conversation) {
+      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+    }
+
+    assertCanManageConversation(conversation, "timer");
+
+    const result = await app.db.query<ConversationRow>(
+      `with updated as (
+         update conversations
+         set disappearing_timer = $3,
+             updated_at = now()
+         where id::text = $1
+         returning id
+       )
+       ${CONVERSATION_SELECT}
+       where cm.user_id = $2
+         and c.id = (select id from updated)
+       limit 1`,
+      [conversationId, userId, payload.disappearingTimer]
+    );
+    const updated = result.rows[0];
+
+    if (!updated) {
+      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+    }
+
+    return reply.send({
+      data: mapConversationRow(app, updated)
+    });
+  });
+
+  app.post("/api/conversations/:conversationId/clear-for-everyone", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { conversationId } = conversationParamsSchema.parse(request.params);
+    const conversation = await loadConversationForUser(app, userId, conversationId);
+
+    if (!conversation) {
+      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+    }
+
+    assertCanManageConversation(conversation, "clear");
+
+    const result = await app.db.query<ConversationRow>(
+      `with updated as (
+         update conversations
+         set cleared_at = now(),
+             cleared_by = $2,
+             updated_at = now()
+         where id::text = $1
+         returning id
+       )
+       ${CONVERSATION_SELECT}
+       where cm.user_id = $2
+         and c.id = (select id from updated)
+       limit 1`,
+      [conversationId, userId]
+    );
+    const updated = result.rows[0];
+
+    if (!updated) {
+      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+    }
+
+    return reply.send({
+      data: mapConversationRow(app, updated)
+    });
+  });
+
+  app.get("/api/conversations/groups/:conversationId/members", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { conversationId } = conversationParamsSchema.parse(request.params);
+    const conversation = await loadConversationForUser(app, userId, conversationId);
+
+    if (!conversation || conversation.kind !== "group") {
+      throw new ApiError(404, "NOT_FOUND", "Group conversation not found.");
+    }
+
+    const result = await app.db.query<GroupMemberRow>(
+      `select
+         member.user_id::text as id,
+         coalesce(profile.display_name, app_user.display_name, app_user.email) as name,
+         profile.pronouns,
+         profile.photos[1] as photo,
+         member.role,
+         member.joined_at
+       from conversation_members member
+       join app_users app_user on app_user.id = member.user_id
+       left join profiles profile on profile.id = member.user_id
+       where member.conversation_id::text = $1
+       order by
+         case member.role when 'owner' then 0 when 'admin' then 1 else 2 end,
+         member.joined_at asc`,
+      [conversationId]
+    );
+
+    return reply.send({
+      data: result.rows.map((row) => ({
+        id: row.id,
+        name: row.name?.trim() || "Cruush user",
+        pronouns: row.pronouns?.join(", ") ?? "",
+        photo: row.photo ?? null,
+        role: row.role,
+        joinedAt: new Date(row.joined_at).toISOString()
+      }))
+    });
+  });
+
   app.get("/api/conversations", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
 
@@ -627,22 +829,30 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          m.expires_at,
          coalesce(message_attachments.attachments, '[]'::jsonb) as attachments
        from messages m
+       join conversations c on c.id = m.conversation_id
        left join lateral (
          select jsonb_agg(jsonb_build_object(
            'id', media.id::text,
            'url', media.public_url,
            'mediaType', media.media_type,
-           'mimeType', media.mime_type
+           'mimeType', media.mime_type,
+           'viewOnce', attachment.view_once,
+           'viewedAt', viewed.viewed_at
          ) order by attachment.created_at asc) as attachments
          from message_media_attachments attachment
          join media_objects media on media.id = attachment.media_object_id
+         left join message_media_views viewed
+           on viewed.message_id = attachment.message_id
+          and viewed.media_object_id = attachment.media_object_id
+          and viewed.user_id = $2
          where attachment.message_id = m.id
            and media.deleted_at is null
        ) as message_attachments on true
        where m.conversation_id::text = $1
          and (m.expires_at is null or m.expires_at > now())
+         and (c.cleared_at is null or m.created_at > c.cleared_at)
        order by m.created_at asc`,
-      [conversationId]
+      [conversationId, userId]
     );
 
     return reply.send({
@@ -659,6 +869,61 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         messages: messagesResult.rows.map((row) => mapMessageRow(app, row))
       }
     });
+  });
+
+  app.post("/api/messages/:messageId/attachments/:mediaObjectId/view", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { messageId, mediaObjectId } = messageAttachmentViewParamsSchema.parse(request.params);
+    const result = await app.db.query<EncryptedMessageMediaRow>(
+      `with target as (
+         select
+           media.object_key,
+           media.mime_type,
+           media.encrypted_data_key,
+           media.data_key_nonce,
+           media.data_key_auth_tag,
+           media.content_nonce,
+           media.content_auth_tag,
+           media.key_version
+         from message_media_attachments attachment
+         join media_objects media on media.id = attachment.media_object_id
+         join messages message on message.id = attachment.message_id
+         join conversations conversation on conversation.id = message.conversation_id
+         join conversation_members member
+           on member.conversation_id = message.conversation_id
+          and member.user_id = $3
+         where attachment.message_id = $1
+           and attachment.media_object_id = $2
+           and attachment.view_once = true
+           and media.deleted_at is null
+           and (message.expires_at is null or message.expires_at > now())
+           and (conversation.cleared_at is null or message.created_at > conversation.cleared_at)
+       ), inserted_view as (
+         insert into message_media_views (message_id, media_object_id, user_id)
+         select $1, $2, $3
+         from target
+         where not exists (
+           select 1
+           from message_media_views existing_view
+           where existing_view.message_id = $1
+             and existing_view.media_object_id = $2
+             and existing_view.user_id = $3
+         )
+         returning message_id
+       )
+       select target.*
+       from target
+       join inserted_view on true
+       limit 1`,
+      [messageId, mediaObjectId, userId]
+    );
+    const mediaObject = result.rows[0];
+
+    if (!mediaObject) {
+      throw new ApiError(404, "NOT_FOUND", "Media not found.");
+    }
+
+    return sendEncryptedMessageMedia(app, reply, mediaObject);
   });
 
   app.post("/api/messages/photos", async (request, reply) => {
@@ -684,7 +949,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         limits: {
           fileSize: MAX_MESSAGE_PHOTO_BYTES,
           files: 1,
-          fields: 2
+          fields: 3
         }
       })) {
         if (part.type === "file") {
@@ -701,7 +966,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
           continue;
         }
 
-        if (part.fieldname === "conversationId" || part.fieldname === "content") {
+        if (part.fieldname === "conversationId" || part.fieldname === "content" || part.fieldname === "viewOnce") {
           fields[part.fieldname] = String(part.value ?? "");
         }
       }
@@ -851,6 +1116,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          join conversation_members cm on cm.conversation_id = c.id
          where c.id::text = $1
            and cm.user_id = $2
+           and c.closed_at is null
          limit 1
        ), eligible_sender as (
          select u.id
@@ -903,12 +1169,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            $4,
            $5,
            $6,
-           case
-             when $15 = '24h' then now() + interval '24 hours'
-             when $15 = '7d' then now() + interval '7 days'
-             when $15 = '30d' then now() + interval '30 days'
-             else null
-           end
+           ${expirationSql("$15")}
          from membership
          join eligible_sender on true
          join moderation_review on true
@@ -924,10 +1185,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            expires_at,
            conversation_id
        ), attached as (
-         insert into message_media_attachments (message_id, media_object_id)
-         select inserted.id::uuid, $7::uuid
+         insert into message_media_attachments (message_id, media_object_id, view_once)
+         select inserted.id::uuid, $7::uuid, $16
          from inserted
-         returning message_id, media_object_id
+         returning message_id, media_object_id, view_once
        ), updated_conversation as (
          update conversations c
          set updated_at = now()
@@ -951,11 +1212,13 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          inserted.created_at,
          inserted.expires_at,
          coalesce(jsonb_agg(jsonb_build_object(
-           'id', media.id::text,
-           'url', media.public_url,
-           'mediaType', media.media_type,
-           'mimeType', media.mime_type
-         ) order by attached.media_object_id), '[]'::jsonb) as attachments
+          'id', media.id::text,
+          'url', media.public_url,
+          'mediaType', media.media_type,
+          'mimeType', media.mime_type,
+          'viewOnce', attached.view_once,
+          'viewedAt', null
+        ) order by attached.media_object_id), '[]'::jsonb) as attachments
        from inserted
        join attached on attached.message_id = inserted.id::uuid
        join media_objects media on media.id = attached.media_object_id
@@ -984,7 +1247,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         "allowed",
         null,
         JSON.stringify(imageModeration.providerResult.raw_result ?? {}),
-        disappearingTimer
+        disappearingTimer,
+        payload.viewOnce
       ]
     );
     const created = result.rows[0];
@@ -1044,6 +1308,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          join conversation_members cm on cm.conversation_id = c.id
          where c.id::text = $1
            and cm.user_id = $2
+           and c.closed_at is null
          limit 1
        ), eligible_sender as (
          select u.id
@@ -1096,12 +1361,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            $4,
            $5,
            $6,
-           case
-             when $14 = '24h' then now() + interval '24 hours'
-             when $14 = '7d' then now() + interval '7 days'
-             when $14 = '30d' then now() + interval '30 days'
-             else null
-           end
+           ${expirationSql("$14")}
          from membership
          join eligible_sender on true
          join moderation_review on true

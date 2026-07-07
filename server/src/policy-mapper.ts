@@ -247,6 +247,23 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
     return zeroTolerance(label, "bestiality_content");
   }
 
+  if (normalizedLabel === "scat") {
+    if (contentType !== "image") {
+      return baseDecision({
+        category: normalizedLabel,
+        severity: label.severity ?? "low",
+        confidence: label.confidence,
+        reason_code: "scat_text_not_blocked"
+      });
+    }
+
+    return thresholdedReject(label, {
+      evidenceValue: 100,
+      trustImpact: surface === "profile_photo" ? -25 : 0,
+      reasonCode: "scat_image_content"
+    });
+  }
+
   if (normalizedLabel === "revenge_porn") {
     return zeroTolerance(label, "revenge_porn");
   }

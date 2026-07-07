@@ -279,6 +279,10 @@ function labelsFromFilename(filename: string | undefined): ProviderLabel[] {
     ["revenge", "revenge_porn", "critical", 0.97],
     ["drug-sales", "drug_sales", "critical", 0.97],
     ["commercial-sex", "commercial_sex", "high", 0.93],
+    ["excrement", "scat", "high", 0.95],
+    ["feces", "scat", "high", 0.95],
+    ["fecal", "scat", "high", 0.95],
+    ["scat", "scat", "high", 0.95],
     ["gore", "gore", "high", 0.92],
     ["hate-symbol", "hate_symbol", "high", 0.91],
     ["adult", "adult_nudity", "low", 0.9],
@@ -453,6 +457,10 @@ function normalizeStreamLabel(label: string): NormalizedModerationLabel | null {
 
   if (/(bestiality|zoophilia)/i.test(normalized)) {
     return "bestiality";
+  }
+
+  if (/(scat|excrement|feces|fecal matter|human waste)/i.test(normalized)) {
+    return "scat";
   }
 
   if (/(threat|violent threat|incitement|weapon)/i.test(normalized)) {

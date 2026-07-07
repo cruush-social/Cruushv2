@@ -1,7 +1,19 @@
 import { z } from "zod";
 import { multilineTextSchema, uuidSchema } from "./input-schema.js";
 
-export const conversationTimerSchema = z.enum(["off", "24h", "7d", "30d"]);
+export const conversationTimerSchema = z.enum(["off", "1h", "24h", "7d", "30d"]);
+
+const booleanishSchema = z.preprocess((value) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+  }
+
+  return false;
+}, z.boolean());
 
 export const createMessagePayloadSchema = z.object({
   conversationId: uuidSchema,
@@ -10,7 +22,8 @@ export const createMessagePayloadSchema = z.object({
 
 export const createMessagePhotoFieldsSchema = z.object({
   conversationId: uuidSchema,
-  content: multilineTextSchema({ max: 4000 }).optional().default("")
+  content: multilineTextSchema({ max: 4000 }).optional().default(""),
+  viewOnce: booleanishSchema.optional().default(false)
 }).strict();
 
 export const openDirectConversationPayloadSchema = z.object({

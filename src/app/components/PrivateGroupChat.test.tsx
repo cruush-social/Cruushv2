@@ -3,11 +3,24 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PrivateGroupChat from './PrivateGroupChat';
 
-const { createMessage, createMessagePhoto, getConversationMessages, getCurrentUserId } = vi.hoisted(() => ({
+const {
+  clearConversationForEveryone,
+  createMessage,
+  createMessagePhoto,
+  getConversationMessages,
+  getCurrentUserId,
+  getGroupMembers,
+  setConversationDisappearingTimer,
+  viewMessageAttachment,
+} = vi.hoisted(() => ({
+  clearConversationForEveryone: vi.fn(),
   createMessage: vi.fn(),
   createMessagePhoto: vi.fn(),
   getConversationMessages: vi.fn(),
   getCurrentUserId: vi.fn(),
+  getGroupMembers: vi.fn(),
+  setConversationDisappearingTimer: vi.fn(),
+  viewMessageAttachment: vi.fn(),
 }));
 
 vi.mock('../lib/sessionUser', () => ({
@@ -19,19 +32,28 @@ vi.mock('../lib/messagesApi', async () => {
 
   return {
     ...actual,
+    clearConversationForEveryone,
     createMessage,
     createMessagePhoto,
     getConversationMessages,
+    getGroupMembers,
+    setConversationDisappearingTimer,
+    viewMessageAttachment,
   };
 });
 
 describe('PrivateGroupChat', () => {
   beforeEach(() => {
+    clearConversationForEveryone.mockReset();
     createMessage.mockReset();
     createMessagePhoto.mockReset();
     getConversationMessages.mockReset();
     getCurrentUserId.mockReset();
+    getGroupMembers.mockReset();
+    setConversationDisappearingTimer.mockReset();
+    viewMessageAttachment.mockReset();
     getCurrentUserId.mockResolvedValue('user-1');
+    getGroupMembers.mockResolvedValue([]);
   });
 
   it('shows an empty live chat without preview messages', async () => {
@@ -251,9 +273,196 @@ describe('PrivateGroupChat', () => {
     });
 
     await waitFor(() => {
-      expect(createMessagePhoto).toHaveBeenCalledWith(conversationId, file, 'meet here');
+      expect(createMessagePhoto).toHaveBeenCalledWith(conversationId, file, 'meet here', { viewOnce: false });
     });
     expect(await screen.findByAltText('Message photo')).toHaveAttribute('src', '/api/media/message-photos/photo.png');
     expect(screen.getByText('meet here')).toBeInTheDocument();
+  });
+
+  it('lets group admins change timers and clear history from conversation settings', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: 'old plan',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: '24h',
+      },
+      messages: [{
+        id: 'msg-1',
+        userId: 'user-2',
+        content: 'old plan',
+        timestamp: '2026-04-29T12:00:00.000Z',
+      }],
+    });
+    setConversationDisappearingTimer.mockResolvedValue({
+      id: conversationId,
+      kind: 'group',
+      user: {
+        id: 'group-1',
+        name: 'Beta crew',
+        pronouns: '',
+        photo: null,
+      },
+      distance: 'Nearby',
+      updatedAt: '2026-04-29T12:01:00.000Z',
+      lastMessage: 'old plan',
+      unreadCount: 0,
+      pinned: false,
+      tags: [],
+      membersLabel: '3 people',
+      currentUserRole: 'owner',
+      disappearingTimer: '1h',
+    });
+    clearConversationForEveryone.mockResolvedValue({
+      id: conversationId,
+      kind: 'group',
+      user: {
+        id: 'group-1',
+        name: 'Beta crew',
+        pronouns: '',
+        photo: null,
+      },
+      distance: 'Nearby',
+      updatedAt: '2026-04-29T12:02:00.000Z',
+      lastMessage: '',
+      unreadCount: 0,
+      pinned: false,
+      tags: [],
+      membersLabel: '3 people',
+      currentUserRole: 'owner',
+      disappearingTimer: '1h',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.change(await screen.findByLabelText('Disappearing timer'), {
+      target: { value: '1h' },
+    });
+
+    await waitFor(() => {
+      expect(setConversationDisappearingTimer).toHaveBeenCalledWith(conversationId, '1h');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear chat for everyone' }));
+    await waitFor(() => {
+      expect(clearConversationForEveryone).toHaveBeenCalledWith(conversationId);
+    });
+    expect(screen.queryByText('old plan')).not.toBeInTheDocument();
+  });
+
+  it('opens a view-once photo only after the user taps it', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: 'photo',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'member',
+        disappearingTimer: '24h',
+      },
+      messages: [{
+        id: 'msg-photo',
+        userId: 'user-2',
+        content: '',
+        timestamp: '2026-04-29T12:00:00.000Z',
+        attachments: [{
+          id: 'media-1',
+          url: '/api/media/message-photos/photo.png',
+          mediaType: 'image',
+          mimeType: 'image/png',
+          viewOnce: true,
+        }],
+      }],
+    });
+    viewMessageAttachment.mockResolvedValue('blob:view-once-photo');
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Open view-once photo' })).toBeInTheDocument();
+    expect(screen.queryByAltText('View-once photo')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open view-once photo' }));
+
+    await waitFor(() => {
+      expect(viewMessageAttachment).toHaveBeenCalledWith('msg-photo', 'media-1');
+    });
+    expect(await screen.findByAltText('View-once photo')).toHaveAttribute('src', 'blob:view-once-photo');
+  });
+
+  it('disables the composer when a group is closed', async () => {
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: 'off',
+        closed: true,
+      },
+      messages: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('This group is closed.')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Group closed')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
   });
 });

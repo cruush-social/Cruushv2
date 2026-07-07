@@ -1,5 +1,6 @@
 import { getCurrentUserId } from './sessionUser';
 import { requestApi } from './apiClient';
+import type { CruushBadge } from './billingApi';
 import {
   decryptDisplayLocationToken,
   type DisplayAnimationHint,
@@ -31,6 +32,7 @@ export type CruushActivityItem = CruushRecord & {
     name: string;
     pronouns: string;
     photo: string | null;
+    badges?: CruushBadge[];
   };
 };
 
@@ -39,6 +41,7 @@ export type CruushActivityPerson = {
   name: string;
   pronouns: string;
   photo: string | null;
+  badges?: CruushBadge[];
 };
 
 export type CruushLockableActivityItem = {

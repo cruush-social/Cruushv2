@@ -26,6 +26,23 @@ describe('ProfileEdit', () => {
     getMyProfile.mockReset();
     saveMyProfile.mockReset();
     uploadProfilePhoto.mockReset();
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:profile-crop-preview'),
+      revokeObjectURL: vi.fn(),
+    });
+    HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
+      clearRect: vi.fn(),
+      drawImage: vi.fn(),
+      fillRect: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      rotate: vi.fn(),
+      scale: vi.fn(),
+    })) as unknown as HTMLCanvasElement['getContext'];
+    HTMLCanvasElement.prototype.toBlob = vi.fn((callback) => {
+      callback(new Blob(['cropped-profile-photo'], { type: 'image/jpeg' }));
+    });
 
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const profile = {
@@ -116,7 +133,7 @@ describe('ProfileEdit', () => {
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('visibility');
   }, 10000);
 
-  it('uploads, promotes, removes, and saves profile photos', async () => {
+  it('crops, uploads, promotes, removes, and saves profile photos', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const uploadedPhoto = '/media/profile-photos/d271f6da-c51d-4d73-a322-d9c56f45d4fa-7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2.png';
 
@@ -150,7 +167,20 @@ describe('ProfileEdit', () => {
       },
     });
 
+    expect(await screen.findByRole('dialog', { name: 'Crop profile photo' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+    fireEvent.change(screen.getByLabelText('Zoom profile photo'), {
+      target: {
+        value: '1.4',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));
+
     await waitFor(() => expect(uploadProfilePhoto).toHaveBeenCalledTimes(1));
+    const uploadedFile = uploadProfilePhoto.mock.calls[0]?.[0] as File;
+    expect(uploadedFile).toBeInstanceOf(File);
+    expect(uploadedFile.name).toBe('profile-crop.jpg');
+    expect(uploadedFile.type).toBe('image/jpeg');
 
     fireEvent.click(screen.getByRole('button', { name: 'Make photo 2 primary' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove photo 2' }));
@@ -184,6 +214,7 @@ describe('ProfileEdit', () => {
         files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })],
       },
     });
+    fireEvent.click(await screen.findByRole('button', { name: 'Use cropped photo' }));
 
     const uploadedImage = await screen.findByAltText('Primary profile photo');
     expect(uploadedImage).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
@@ -194,6 +225,34 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(photosTab);
     expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
+  });
+
+  it('hides profile photo upload when the profile already has 4 photos', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+    getMyProfile.mockResolvedValueOnce({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: 'Jordan',
+      year_of_birth: 1998,
+      photos: [
+        'https://example.com/one.jpg',
+        'https://example.com/two.jpg',
+        'https://example.com/three.jpg',
+        'https://example.com/four.jpg',
+      ],
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+
+    expect(screen.queryByText('Upload photo')).not.toBeInTheDocument();
+    expect(screen.getByText('Add up to 4 photos. Your first photo will be your profile picture.')).toBeInTheDocument();
   });
 
   it('lets users set trans status, crowds, categorized vibes, and HIV visibility', async () => {

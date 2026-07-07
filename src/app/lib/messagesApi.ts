@@ -1,4 +1,7 @@
 import { requestApi } from './apiClient';
+import { ApiClientError, getApiBaseUrl } from './apiClient';
+
+export type ConversationTimer = 'off' | '1h' | '24h' | '7d' | '30d';
 
 export type ConversationThread = {
   id: string;
@@ -18,7 +21,7 @@ export type ConversationThread = {
   mutual?: boolean;
   membersLabel?: string;
   currentUserRole?: 'owner' | 'admin' | 'member';
-  disappearingTimer?: 'off' | '24h' | '7d' | '30d';
+  disappearingTimer?: ConversationTimer;
   closed?: boolean;
   tags: string[];
 };
@@ -46,6 +49,17 @@ export type MessageAttachment = {
   url: string;
   mediaType: string;
   mimeType: string;
+  viewOnce?: boolean;
+  viewedAt?: string | null;
+};
+
+export type GroupMemberRecord = {
+  id: string;
+  name: string;
+  pronouns: string;
+  photo: string | null;
+  role: 'owner' | 'admin' | 'member';
+  joinedAt: string;
 };
 
 export type ConversationMessagesPayload = {
@@ -69,7 +83,7 @@ export function openDirectConversation(otherUserId: string) {
 export function createGroupConversation(input: {
   title: string;
   memberIds: string[];
-  disappearingTimer?: 'off' | '24h' | '7d' | '30d';
+  disappearingTimer?: ConversationTimer;
 }) {
   return requestApi<ConversationThread>('/api/conversations/groups', {
     method: 'POST',
@@ -79,7 +93,7 @@ export function createGroupConversation(input: {
 
 export function updateGroupConversation(conversationId: string, input: {
   title?: string;
-  disappearingTimer?: 'off' | '24h' | '7d' | '30d';
+  disappearingTimer?: ConversationTimer;
 }) {
   return requestApi<ConversationThread>(`/api/conversations/groups/${conversationId}`, {
     method: 'PATCH',
@@ -94,10 +108,45 @@ export function addGroupMember(conversationId: string, userId: string) {
   });
 }
 
+export function getGroupMembers(conversationId: string) {
+  return requestApi<GroupMemberRecord[]>(`/api/conversations/groups/${conversationId}/members`);
+}
+
+export function removeGroupMember(conversationId: string, userId: string) {
+  return requestApi<void>(`/api/conversations/groups/${conversationId}/members/${userId}`, {
+    method: 'DELETE',
+  });
+}
+
 export function promoteGroupAdmin(conversationId: string, userId: string) {
   return requestApi<void>(`/api/conversations/groups/${conversationId}/admins`, {
     method: 'POST',
     body: JSON.stringify({ userId }),
+  });
+}
+
+export function demoteGroupAdmin(conversationId: string, userId: string) {
+  return requestApi<void>(`/api/conversations/groups/${conversationId}/admins/${userId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function closeGroupConversation(conversationId: string) {
+  return requestApi<void>(`/api/conversations/groups/${conversationId}/close`, {
+    method: 'POST',
+  });
+}
+
+export function setConversationDisappearingTimer(conversationId: string, disappearingTimer: ConversationTimer) {
+  return requestApi<ConversationThread>(`/api/conversations/${conversationId}/disappearing-timer`, {
+    method: 'PATCH',
+    body: JSON.stringify({ disappearingTimer }),
+  });
+}
+
+export function clearConversationForEveryone(conversationId: string) {
+  return requestApi<ConversationThread>(`/api/conversations/${conversationId}/clear-for-everyone`, {
+    method: 'POST',
   });
 }
 
@@ -115,14 +164,46 @@ export function createMessage(conversationId: string, content: string) {
   });
 }
 
-export function createMessagePhoto(conversationId: string, photo: File, content = '') {
+export function createMessagePhoto(
+  conversationId: string,
+  photo: File,
+  content = '',
+  options: { viewOnce?: boolean } = {},
+) {
   const body = new FormData();
   body.set('conversationId', conversationId);
   body.set('content', content);
+  body.set('viewOnce', options.viewOnce ? 'true' : 'false');
   body.set('photo', photo);
 
   return requestApi<RemoteChatMessage>('/api/messages/photos', {
     method: 'POST',
     body,
   });
+}
+
+export async function viewMessageAttachment(messageId: string, mediaObjectId: string) {
+  const response = await fetch(`${getApiBaseUrl()}/api/messages/${messageId}/attachments/${mediaObjectId}/view`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    let apiError: { error?: { code?: string; message?: string; details?: unknown } } = {};
+
+    try {
+      apiError = await response.json();
+    } catch {
+      apiError = {};
+    }
+
+    throw new ApiClientError(
+      response.status,
+      apiError.error?.code ?? 'INTERNAL_ERROR',
+      apiError.error?.message ?? 'Request failed.',
+      apiError.error?.details ?? null,
+    );
+  }
+
+  return URL.createObjectURL(await response.blob());
 }

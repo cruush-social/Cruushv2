@@ -13,7 +13,9 @@ vi.mock('./lib/sessionUser', () => ({
 }));
 
 vi.mock('./components/MapHome', () => ({
-  default: () => <div>Mock Map</div>
+  default: () => <div>Mock Map</div>,
+  canUseDeveloperMapToolsEmail: () => false,
+  isDevelopmentAdminEmail: () => false,
 }));
 
 vi.mock('./components/LocalFeed', () => ({
@@ -30,6 +32,10 @@ vi.mock('./components/ProfileEdit', () => ({
 
 vi.mock('./components/ProfileOnboarding', () => ({
   default: () => <div>Mock Onboarding</div>
+}));
+
+vi.mock('./components/CodeOfConductGate', () => ({
+  default: () => <div>Mock Code Gate</div>
 }));
 
 vi.mock('./components/FiltersPanel', () => ({
@@ -75,6 +81,10 @@ vi.mock('./components/Auth', () => ({
     };
     profile: null;
     needsOnboarding: boolean;
+    needsCodeOfConduct: boolean;
+    codeOfConductVersion: string;
+    acceptedCodeOfConductVersion: string | null;
+    codeOfConductAcceptedAt: string | null;
   }) => void }) => (
     <button
       onClick={() => onAuth({
@@ -87,6 +97,10 @@ vi.mock('./components/Auth', () => ({
         },
         profile: null,
         needsOnboarding: false,
+        needsCodeOfConduct: false,
+        codeOfConductVersion: '2026-07-07',
+        acceptedCodeOfConductVersion: '2026-07-07',
+        codeOfConductAcceptedAt: '2026-07-07T15:00:00.000Z',
       })}
     >
       Mock Auth
@@ -118,6 +132,18 @@ vi.mock('./components/FeelingLucky', () => ({
   default: () => <div>Mock Lucky</div>
 }));
 
+vi.mock('./components/CruushPlusUpgrade', () => ({
+  default: () => <div>Mock Upgrade</div>
+}));
+
+vi.mock('./components/CruushPlusCheckout', () => ({
+  default: () => <div>Mock Checkout</div>
+}));
+
+vi.mock('./components/CruushPlusSuccess', () => ({
+  default: () => <div>Mock Checkout Success</div>
+}));
+
 vi.mock('./components/RequestsDashboard', () => ({
   default: () => <div>Mock Requests</div>
 }));
@@ -135,6 +161,13 @@ vi.mock('./components/ui/sonner', () => ({
 }));
 
 describe('App', () => {
+  const acceptedConductSession = {
+    needsCodeOfConduct: false,
+    codeOfConductVersion: '2026-07-07',
+    acceptedCodeOfConductVersion: '2026-07-07',
+    codeOfConductAcceptedAt: '2026-07-07T15:00:00.000Z',
+  };
+
   beforeEach(() => {
     localStorage.clear();
     window.history.replaceState({}, '', '/');
@@ -156,6 +189,7 @@ describe('App', () => {
         yearOfBirth: 1998,
       },
       needsOnboarding: false,
+      ...acceptedConductSession,
     });
 
     render(<App />);
@@ -217,6 +251,7 @@ describe('App', () => {
         yearOfBirth: 1998,
       },
       needsOnboarding: false,
+      ...acceptedConductSession,
     });
     window.history.replaceState({}, '', '/reset-password?token=reset-token-1234567890');
 
@@ -239,6 +274,7 @@ describe('App', () => {
         yearOfBirth: 1998,
       },
       needsOnboarding: false,
+      ...acceptedConductSession,
     });
     window.history.replaceState({}, '', '/report');
 
@@ -261,12 +297,65 @@ describe('App', () => {
         yearOfBirth: 1998,
       },
       needsOnboarding: false,
+      ...acceptedConductSession,
     });
     window.history.replaceState({}, '', '/privacy/ghost-mode');
 
     render(<App />);
 
     expect(await screen.findByText('Mock Ghost Mode Settings')).toBeInTheDocument();
+  });
+
+  it('renders the cruush+ upgrade route while signed in', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    window.history.replaceState({}, '', '/upgrade');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Upgrade')).toBeInTheDocument();
+  });
+
+  it('renders the fake cruush+ checkout and success routes while signed in', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    window.history.replaceState({}, '', '/checkout/7d39c89e-e816-4684-82e0-b48e3f8127d4');
+
+    const { unmount } = render(<App />);
+
+    expect(await screen.findByText('Mock Checkout')).toBeInTheDocument();
+
+    unmount();
+    window.history.replaceState({}, '', '/checkout/success');
+    render(<App />);
+
+    expect(await screen.findByText('Mock Checkout Success')).toBeInTheDocument();
   });
 
   it('does not expose the retired Safety Center route', async () => {
@@ -283,6 +372,7 @@ describe('App', () => {
         yearOfBirth: 1998,
       },
       needsOnboarding: false,
+      ...acceptedConductSession,
     });
     window.history.replaceState({}, '', '/safety');
 
@@ -302,11 +392,38 @@ describe('App', () => {
       },
       profile: null,
       needsOnboarding: true,
+      ...acceptedConductSession,
     });
     window.history.replaceState({}, '', '/reset-password?token=reset-token-1234567890');
 
     render(<App />);
 
     expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
+  });
+
+  it('shows the code of conduct gate for onboarded verified users who have not accepted it', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      needsCodeOfConduct: true,
+      codeOfConductVersion: '2026-07-07',
+      acceptedCodeOfConductVersion: null,
+      codeOfConductAcceptedAt: null,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Code Gate')).toBeInTheDocument();
+    expect(screen.queryByText('Mock Map')).not.toBeInTheDocument();
   });
 });

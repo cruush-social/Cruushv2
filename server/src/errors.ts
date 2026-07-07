@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 
 export type ErrorCode =
   | "AUTH_REQUIRED"
+  | "CRUUSH_PLUS_REQUIRED"
   | "EMAIL_VERIFICATION_REQUIRED"
   | "CONTENT_REJECTED"
   | "FORBIDDEN"

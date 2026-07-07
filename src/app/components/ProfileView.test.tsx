@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileView from './ProfileView';
@@ -140,6 +140,38 @@ describe('ProfileView', () => {
     expect(screen.getByText('Role')).toBeInTheDocument();
     expect(screen.getByText('Switch')).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
+  });
+
+  it('renders heart previews and swaps the active profile photo without saving order', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      photos: [
+        'https://example.com/main.jpg',
+        'https://example.com/two.jpg',
+        'https://example.com/three.jpg',
+        'https://example.com/four.jpg',
+      ],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const hero = await screen.findByTestId('profile-hero-media');
+    expect(within(hero).getByAltText('Jordan')).toHaveAttribute('src', 'https://example.com/main.jpg');
+    expect(screen.getByRole('button', { name: 'Show profile photo 2' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show profile photo 3' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show profile photo 4' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show profile photo 3' }));
+
+    expect(within(hero).getByAltText('Jordan')).toHaveAttribute('src', 'https://example.com/three.jpg');
+    expect(screen.getByRole('button', { name: 'Show profile photo 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show profile photo 2' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show profile photo 4' })).toBeInTheDocument();
   });
 
   it('shows visible shared crowds when another profile includes them', async () => {

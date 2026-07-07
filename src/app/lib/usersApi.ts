@@ -1,4 +1,5 @@
 import { requestApi } from './apiClient';
+import type { CruushBadge } from './billingApi';
 import {
   decryptDisplayLocationToken,
   type DisplayAnimationHint,
@@ -24,7 +25,9 @@ export type DiscoveryUser = {
   role: string[];
   hostingTravel: string[];
   photo: string | null;
+  badges?: CruushBadge[];
   isDemo?: boolean;
+  isCurrentUser?: boolean;
   displayMode?: DisplayMode;
   animationHint?: DisplayAnimationHint;
   displayExpiresAtMs?: number;
@@ -85,6 +88,7 @@ type TokenizedDiscoveryProfile = {
   role: string[];
   hostingTravel: string[];
   photo: string | null;
+  badges?: CruushBadge[];
   relationship?: DiscoveryUser['relationship'];
 };
 
@@ -165,6 +169,7 @@ export async function getNearbyUsers(
       role: profile.role,
       hostingTravel: profile.hostingTravel,
       photo: profile.photo,
+      badges: profile.badges,
       displayMode: displayPayload.displayMode,
       animationHint: profile.animationHint ?? displayPayload.animationHint,
       displayExpiresAtMs: profile.displayExpiresAtMs,

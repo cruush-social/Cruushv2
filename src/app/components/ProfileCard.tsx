@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
 import { sendCruush } from '../lib/cruushApi';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
-import { resolveMediaUrl } from '../lib/apiClient';
 import { PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
 
 interface ProfileCardProps {
@@ -87,6 +87,7 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
           <h3 className="text-2xl">
             {user.name}, {user.age}
           </h3>
+          <CruushBadge badges={user.badges} compact />
           <p className="text-sm text-white/80">{user.pronouns}</p>
         </div>
       </div>

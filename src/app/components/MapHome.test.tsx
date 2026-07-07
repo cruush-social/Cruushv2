@@ -28,6 +28,10 @@ const { getMyPrivacySettings } = vi.hoisted(() => ({
   getMyPrivacySettings: vi.fn(),
 }));
 
+const { getMyBillingStatus } = vi.hoisted(() => ({
+  getMyBillingStatus: vi.fn(),
+}));
+
 const { useIsMobile } = vi.hoisted(() => ({
   useIsMobile: vi.fn(),
 }));
@@ -70,6 +74,10 @@ vi.mock('../lib/privacyApi', async () => {
     getMyPrivacySettings,
   };
 });
+
+vi.mock('../lib/billingApi', () => ({
+  getMyBillingStatus,
+}));
 
 vi.mock('./ui/use-mobile', () => ({
   useIsMobile,
@@ -175,6 +183,7 @@ describe('MapHome', () => {
     getProfileById.mockReset();
     decryptDisplayLocationToken.mockReset();
     getMyPrivacySettings.mockReset();
+    getMyBillingStatus.mockReset();
     useIsMobile.mockReset();
     mapControls.setCenter.mockReset();
     mapControls.setZoom.mockReset();
@@ -290,6 +299,13 @@ describe('MapHome', () => {
       preciseToMutualCrowds: [],
       preciseLocationVisibility: 'none',
       updatedAtMs: 0,
+    });
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: true,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
     });
     Object.defineProperty(global.navigator, 'geolocation', {
       configurable: true,
@@ -446,6 +462,32 @@ describe('MapHome', () => {
     fireEvent.click(screen.getByRole('button', { name: "I'm Feeling Lucky" }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/lucky');
+  });
+
+  it('routes free users to cruush+ from premium map actions', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: false,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
+          <Route path="/upgrade" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'cruush+' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: "I'm Feeling Lucky" }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/upgrade');
   });
 
   it('floats recently active to the right side on desktop without a profile preview', async () => {

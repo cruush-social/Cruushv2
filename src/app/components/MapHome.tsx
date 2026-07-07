@@ -16,6 +16,7 @@ import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlS
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
+import { getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { resolveMediaUrl } from '../lib/apiClient';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
@@ -291,6 +292,7 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
     role: [],
     hostingTravel: [],
     photo: item.user.photo,
+    badges: item.user.badges,
     displayMode: item.coordinates?.precision === 'precise' ? 'PRECISE' : 'GHOST',
     animationHint: item.animationHint,
     displayExpiresAtMs: item.displayExpiresAtMs,
@@ -332,6 +334,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [npcGhostDemoEnabled, setNpcGhostDemoEnabled] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
@@ -351,6 +354,27 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   const effectiveNpcGhostDemoEnabled = canUseDeveloperMapTools && npcGhostDemoEnabled;
   const routeState = location.state as { openOwnProfilePanel?: boolean } | null;
   const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
+  const hasCruushPlus = billingStatus?.cruushPlus !== false;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getMyBillingStatus()
+      .then((loadedBillingStatus) => {
+        if (isMounted) {
+          setBillingStatus(loadedBillingStatus);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setBillingStatus(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const openProfile = (user: DiscoveryUser) => {
     if (user.isDemo) {
@@ -724,6 +748,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
       role: currentProfile.role ?? [],
       hostingTravel: currentProfile.hosting_travel ?? [],
       photo: currentProfile.photos?.[0] ?? null,
+      badges: currentProfile.badges ?? [],
       isCurrentUser: true,
     };
   }, [currentProfile, currentUserMapLocation]);
@@ -743,6 +768,11 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   }, [location.key, ownProfilePreviewUser, shouldOpenOwnProfilePanel]);
 
   const handleFeelingLucky = () => {
+    if (!hasCruushPlus) {
+      navigate('/upgrade');
+      return;
+    }
+
     if (isMobile) {
       navigate('/lucky');
       return;
@@ -956,6 +986,18 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
             className="pointer-events-auto mt-11 flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md"
             data-testid="map-top-actions"
           >
+            {!hasCruushPlus ? (
+              <Button
+                type="button"
+                onClick={() => navigate('/upgrade')}
+                aria-label="cruush+"
+                title="cruush+"
+                className="rounded-full px-3 text-xs font-medium text-white"
+                style={{ background: 'var(--cruush-gradient)' }}
+              >
+                cruush+
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"
@@ -1080,7 +1122,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
                 : 'border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
             }`}
             style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
-            onClick={() => setIsFiltersOpen(true)}
+            onClick={() => hasCruushPlus ? setIsFiltersOpen(true) : navigate('/upgrade')}
           >
             <Filter className="w-4 h-4 mr-2" />
             {isMutualMapMode ? 'MUTUALS' : 'SEEKING'}
@@ -1089,6 +1131,11 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
           <Button
             type="button"
             onClick={() => {
+              if (!hasCruushPlus) {
+                navigate('/upgrade');
+                return;
+              }
+
               setVisibilityError(null);
               setIsVisibilityOpen(true);
             }}

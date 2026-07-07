@@ -2,15 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
+import CruushBadge from './CruushBadge';
 import CruushIconImage from './CruushIconImage';
+import ProfilePhotoGallery from './ProfilePhotoGallery';
 import ProfileEdit from './ProfileEdit';
 import { ProfileDetailsTabs, profileRecordToProfileView } from './ProfileView';
 import { sendCruush } from '../lib/cruushApi';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
-import { resolveMediaUrl } from '../lib/apiClient';
 import { emptyProfilePayload, getMyProfile, getProfileById, type ProfileRecord } from '../lib/profileApi';
-import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import sendIconWhite from '../assets/ui-icons/send-white.png';
@@ -101,6 +101,8 @@ export default function MapProfilePopup({ user, onClose, fixed = false, isOwnPro
   const displayAge = profileView?.age ?? user.age;
   const displayPronouns = profileView?.pronouns ?? user.pronouns;
   const displayPhoto = profileView?.photos[0] ?? user.photo;
+  const displayPhotos = profileView?.photos ?? (user.photo ? [user.photo] : []);
+  const displayBadges = profileView?.badges ?? user.badges;
   const displayDistance = profileView?.distance ?? user.distance;
   const displayLastActive = profileView?.lastActive ?? user.lastActive;
   const isAlreadyMutual = !isOwnProfile && (cruushBecameMutual || profileView?.relationship?.mutual_cruush === true || user.relationship?.mutualCruush === true);
@@ -166,23 +168,8 @@ export default function MapProfilePopup({ user, onClose, fixed = false, isOwnPro
   return (
     <aside className={popupClassName}>
       <div className="scrollbar-hide h-full overflow-y-auto">
-        <div
-          className="relative overflow-hidden"
-          style={{ ...PROFILE_HERO_ASPECT_STYLE, background: 'var(--cruush-gradient)' }}
-        >
-          {displayPhoto ? (
-            <img
-              src={resolveMediaUrl(displayPhoto)}
-              alt={displayName}
-              className="h-full w-full object-cover"
-              style={PROFILE_HERO_ASPECT_STYLE}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <CruushIconImage src={cruushIconWhite} className="h-24 w-24 opacity-15" />
-            </div>
-          )}
-
+        <div className="relative overflow-hidden">
+          <ProfilePhotoGallery name={displayName} photos={displayPhotos} />
           <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
             <div className="rounded-full border border-white/10 bg-black/45 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/80 backdrop-blur-sm">
               {isOwnProfile ? 'Your profile' : 'Nearby now'}
@@ -215,6 +202,9 @@ export default function MapProfilePopup({ user, onClose, fixed = false, isOwnPro
                   {displayName}
                   {displayAge ? <span className="text-white/80">, {displayAge}</span> : null}
                 </h3>
+                <div className="mt-1">
+                  <CruushBadge badges={displayBadges} compact />
+                </div>
                 <p className="mt-1 text-sm text-white/80">{displayPronouns}</p>
               </div>
               {displayLastActive ? (
