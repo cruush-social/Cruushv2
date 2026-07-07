@@ -2,6 +2,8 @@
 
 This is the canonical product and design guide for cruush. If older pasted design prompts, generated docs, or implementation details conflict with this file, this file wins unless a newer explicit product decision says otherwise.
 
+Engineering handoff and implementation order live in `docs/master-architecture.md`. Use this file for product/design intent and `docs/master-architecture.md` for current runtime architecture, backend/frontend surfaces, moderation/encryption/storage decisions, infrastructure direction, and co-developer next steps.
+
 ## Product North Star
 
 cruush is a web-first queer cruising website for finding nearby people who are available now. The primary use case is opening cruush in a phone browser while out, not installing a native app. The primary product job is immediate local intent: who is around, who is looking right here and right now, and how to coordinate discreetly and safely.
