@@ -1,6 +1,7 @@
 import { ZodError } from "zod";
 
 export type ErrorCode =
+  | "ACCOUNT_UNDER_REVIEW"
   | "AUTH_REQUIRED"
   | "CRUUSH_PLUS_REQUIRED"
   | "EMAIL_VERIFICATION_REQUIRED"

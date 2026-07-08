@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accountCanAuthenticate, normalizeAccountStatus } from "./account-status.js";
+import { accountCanAuthenticate, accountCanPerformUnsafeAction, normalizeAccountStatus } from "./account-status.js";
 
 describe("account status", () => {
   it("normalizes unknown values to active for backwards compatibility", () => {
@@ -16,5 +16,11 @@ describe("account status", () => {
     expect(accountCanAuthenticate("suspended")).toBe(false);
     expect(accountCanAuthenticate("deleted")).toBe(false);
   });
-});
 
+  it("allows only active accounts to perform unsafe actions", () => {
+    expect(accountCanPerformUnsafeAction("active")).toBe(true);
+    expect(accountCanPerformUnsafeAction("under_review")).toBe(false);
+    expect(accountCanPerformUnsafeAction("suspended")).toBe(false);
+    expect(accountCanPerformUnsafeAction("deleted")).toBe(false);
+  });
+});

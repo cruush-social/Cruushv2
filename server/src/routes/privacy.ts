@@ -21,7 +21,7 @@ import {
   listEncryptedRelationshipRecordsByParticipant,
   type EncryptedRelationshipRecord
 } from "../encrypted-relationships.js";
-import { getAuthenticatedUserId } from "../request-auth.js";
+import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 type AuditProfileRow = {
   id: string;
@@ -185,7 +185,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/privacy/ghost-mode", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const payload = ghostModePayloadSchema.parse(request.body);
     const enabled = payload.enabled ?? payload.ghostModeEnabled;
     const baseMode: VisibilityBaseMode = payload.baseMode ??

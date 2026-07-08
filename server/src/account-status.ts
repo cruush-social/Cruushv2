@@ -18,3 +18,6 @@ export function accountCanAuthenticate(value: unknown) {
   return status === "active" || status === "under_review";
 }
 
+export function accountCanPerformUnsafeAction(value: unknown) {
+  return normalizeAccountStatus(value) === "active";
+}

@@ -9,7 +9,7 @@ import {
   getUserBillingStatus,
   loadCheckoutSession
 } from "../billing.js";
-import { getAuthenticatedUserId } from "../request-auth.js";
+import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 const checkoutSessionPayloadSchema = z.object({
   planId: z.string().min(1)
@@ -47,7 +47,7 @@ export async function registerBillingRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/billing/checkout-sessions", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const payload = checkoutSessionPayloadSchema.parse(request.body);
 
     return reply.code(201).send({
@@ -65,7 +65,7 @@ export async function registerBillingRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/billing/checkout-sessions/:sessionId/complete-test", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { sessionId } = checkoutSessionParamsSchema.parse(request.params);
 
     return reply.send({

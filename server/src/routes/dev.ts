@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
 import { getCruushEntitlement, setCruushEntitlement } from "../match-relationships.js";
-import { getAuthenticatedUserId } from "../request-auth.js";
+import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 const debugCruushPlusPayloadSchema = z.object({
   enabled: z.boolean()
@@ -27,7 +27,7 @@ export async function registerDevRoutes(app: FastifyInstance) {
 
   app.put("/api/dev/cruush-plus", async (request, reply) => {
     assertDevelopmentRoute(app);
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const payload = debugCruushPlusPayloadSchema.parse(request.body);
 
     return reply.send({
