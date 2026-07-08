@@ -92,7 +92,8 @@ Generate fresh production values for:
 - `DISPLAY_TOKEN_ENCRYPTION_KEY`
 - Stream API key, secret, app ID, and moderation config key.
 - PhotoDNA endpoint, operation path, and subscription key.
-- Resend API key and verified `MAIL_FROM`.
+- Resend API key and verified `MAIL_FROM` for account email and support inbox notifications.
+- `SUPPORT_INBOX_EMAIL` for support requests submitted from login/signup and Settings.
 - Turnstile frontend site key and backend `TURNSTILE_SECRET_KEY` if signup captcha is enabled.
 
 Use deployment secrets first. Move to KMS/Vault later only if operational complexity is justified.

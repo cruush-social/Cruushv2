@@ -8,6 +8,8 @@ import {
 } from '../lib/authApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import { CruushIcon } from './CruushIconImage';
+import PublicPolicyLinks from './PublicPolicyLinks';
+import SupportRequestForm from './SupportRequestForm';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 
 interface AuthProps {
@@ -192,7 +194,7 @@ export default function Auth({ onAuth }: AuthProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden overflow-y-auto">
       <div className="w-full max-w-md space-y-12 relative z-10">
         {/* Logo and tagline */}
         <div className="text-center space-y-6">
@@ -392,9 +394,33 @@ export default function Auth({ onAuth }: AuthProps) {
 
         <p className="text-xs text-center text-white/30">
           By continuing, you agree to our{' '}
-          <button className="underline hover:text-white/50">Terms of Service</button> and{' '}
-          <button className="underline hover:text-white/50">Privacy Policy</button>
+          <a
+            className="underline hover:text-white/50"
+            href="https://www.cruush.app/terms"
+            rel="noreferrer"
+            target="_blank"
+          >
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a
+            className="underline hover:text-white/50"
+            href="https://www.cruush.app/privacy"
+            rel="noreferrer"
+            target="_blank"
+          >
+            Privacy Policy
+          </a>
         </p>
+
+        <div className="space-y-4">
+          <SupportRequestForm
+            className="border-white/10 bg-white/5"
+            requireContactEmail
+            source="auth"
+          />
+          <PublicPolicyLinks className="border-white/10 bg-white/5" />
+        </div>
       </div>
     </div>
   );

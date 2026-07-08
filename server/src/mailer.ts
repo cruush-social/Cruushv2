@@ -16,6 +16,24 @@ type PasswordResetEmailInput = {
   resetUrl: string;
 };
 
+export type SupportRequestEmailInput = {
+  category: string;
+  contactEmail: string | null;
+  createdAt: string;
+  id: string;
+  message: string;
+  pageUrl: string;
+  requesterUserId: string | null;
+  source: string;
+  subject: string;
+};
+
+type SupportRequestInboxEmailInput = {
+  config: AppConfig;
+  logger: FastifyBaseLogger;
+  request: SupportRequestEmailInput;
+};
+
 export type VerificationDeliveryResult = {
   previewUrl: string | null;
 };
@@ -42,11 +60,12 @@ async function sendResendEmail(input: {
   email: string;
   html: string;
   logger: FastifyBaseLogger;
+  replyTo?: string | null;
   subject: string;
   text: string;
   failureMessage: string;
 }) {
-  const { config, email, failureMessage, html, logger, subject, text } = input;
+  const { config, email, failureMessage, html, logger, replyTo, subject, text } = input;
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -59,7 +78,8 @@ async function sendResendEmail(input: {
       to: [email],
       subject,
       html,
-      text
+      text,
+      ...(replyTo ? { reply_to: replyTo } : {})
     })
   });
 
@@ -132,4 +152,45 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
   return {
     previewUrl: resetUrl
   };
+}
+
+export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEmailInput) {
+  const { config, logger, request } = input;
+  const supportInboxEmail = config.SUPPORT_INBOX_EMAIL ?? "";
+
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM || !supportInboxEmail) {
+    throw new ApiError(500, "INTERNAL_ERROR", "Support inbox email is not configured.");
+  }
+
+  const fields = [
+    ["Request ID", request.id],
+    ["Category", request.category],
+    ["Source", request.source],
+    ["Requester user ID", request.requesterUserId ?? "signed out"],
+    ["Reply email", request.contactEmail ?? "none provided"],
+    ["Page", request.pageUrl || "unknown"],
+    ["Created at", request.createdAt]
+  ];
+  const htmlRows = fields
+    .map(([label, value]) => `<tr><th align="left">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`)
+    .join("");
+  const escapedMessage = escapeHtml(request.message).replace(/\n/g, "<br>");
+  const text = [
+    "New cruush support request",
+    "",
+    ...fields.map(([label, value]) => `${label}: ${value}`),
+    "",
+    request.message
+  ].join("\n");
+
+  await sendResendEmail({
+    config,
+    email: supportInboxEmail,
+    logger,
+    replyTo: request.contactEmail,
+    subject: `[support] ${request.category}: ${request.subject}`,
+    html: `<p>New cruush support request.</p><table>${htmlRows}</table><h2>${escapeHtml(request.subject)}</h2><p>${escapedMessage}</p>`,
+    text,
+    failureMessage: "support inbox email delivery failed"
+  });
 }

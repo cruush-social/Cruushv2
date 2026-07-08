@@ -43,3 +43,29 @@ export async function getAuthenticatedUserId(request: FastifyRequest) {
     sessionToken || parsedHeaders.success ? null : parsedHeaders.error.flatten()
   );
 }
+
+export async function getOptionalAuthenticatedUserId(request: FastifyRequest) {
+  const sessionToken = getSessionTokenFromRequest(request);
+  const parsedHeaders = userIdHeaderSchema.safeParse(request.headers);
+
+  if (sessionToken) {
+    const sessionLookup = await request.server.db.query<SessionLookupRow>(
+      `select user_id
+       from app_sessions s
+       where s.token_hash = $1
+         and s.expires_at > now()
+       limit 1`,
+      [hashSessionToken(sessionToken)]
+    );
+
+    if (sessionLookup.rows[0]?.user_id) {
+      return sessionLookup.rows[0].user_id;
+    }
+  }
+
+  if (request.server.config.NODE_ENV === "test" && parsedHeaders.success) {
+    return parsedHeaders.data["x-user-id"];
+  }
+
+  return null;
+}

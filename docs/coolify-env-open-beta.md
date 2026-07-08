@@ -56,6 +56,7 @@ PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
 PHOTODNA_OPERATION_PATH=<microsoft-photodna-operation-path>
 PHOTODNA_SUBSCRIPTION_KEY=<microsoft-photodna-subscription-key>
 PHOTODNA_TIMEOUT_MS=5000
+SUPPORT_INBOX_EMAIL=<private-support-inbox>
 
 INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
 MAIL_FROM=Cruush <hello@cruush.app>
@@ -146,6 +147,7 @@ PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
 PHOTODNA_OPERATION_PATH=<microsoft-photodna-operation-path>
 PHOTODNA_SUBSCRIPTION_KEY=<microsoft-photodna-subscription-key>
 PHOTODNA_TIMEOUT_MS=5000
+SUPPORT_INBOX_EMAIL=<private-support-inbox>
 
 INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
 MAIL_FROM=Cruush <hello@cruush.app>

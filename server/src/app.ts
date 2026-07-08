@@ -17,6 +17,7 @@ import { registerPostRoutes } from "./routes/posts.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerReportRoutes } from "./routes/reports.js";
+import { registerSupportRoutes } from "./routes/support.js";
 import { registerUserRoutes } from "./routes/users.js";
 import { registerDevRoutes } from "./routes/dev.js";
 import { createPostgresRateLimiter, type RateLimiter } from "./rate-limit.js";
@@ -135,6 +136,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerProfileRoutes(app);
   void registerPrivacyRoutes(app);
   void registerReportRoutes(app);
+  void registerSupportRoutes(app);
   void registerInternalRoutes(app);
   if (config.NODE_ENV !== "production") {
     void registerDevRoutes(app);

@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import Settings from './Settings';
 
@@ -68,6 +68,18 @@ describe('Settings', () => {
       preciseLocationVisibility: 'none',
     });
     saveMyPrivacySettings.mockImplementation((settings) => Promise.resolve(settings));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: {
+        id: 'support-2',
+        status: 'open',
+        aiTriageStatus: 'pending',
+        createdAt: '2026-07-07T12:00:00.000Z',
+      },
+    }), { status: 201 })));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('does not expose Safety Center or Ghost Mode controls in the general settings menu', async () => {
@@ -81,5 +93,42 @@ describe('Settings', () => {
     expect(screen.queryByText('Privacy & Safety')).not.toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: 'Toggle Ghost Mode' })).not.toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: 'Toggle precise location for mutual cruushes' })).not.toBeInTheDocument();
+  });
+
+  it('lets signed-in users contact support from settings and reach public policy pages', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('link', { name: 'Human trafficking policy' })).toHaveAttribute(
+      'href',
+      'https://www.cruush.app/human-trafficking-policy',
+    );
+    expect(screen.getByRole('link', { name: 'Report or request removal of content' })).toHaveAttribute(
+      'href',
+      'https://www.cruush.app/content-removal',
+    );
+
+    fireEvent.change(screen.getByLabelText('Support subject'), {
+      target: { value: 'Settings bug' },
+    });
+    fireEvent.change(screen.getByLabelText('Support message'), {
+      target: { value: 'The settings screen got stuck after opening support.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send to support' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/support-requests', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        category: 'question',
+        subject: 'Settings bug',
+        message: 'The settings screen got stuck after opening support.',
+        source: 'settings',
+        pageUrl: '/',
+      }),
+    })));
+    expect(await screen.findByText('Support request sent')).toBeInTheDocument();
   });
 });

@@ -80,6 +80,7 @@ const configSchema = z.object({
   PHOTODNA_OPERATION_PATH: z.string().trim().optional().default(""),
   PHOTODNA_SUBSCRIPTION_KEY: z.string().optional().default(""),
   PHOTODNA_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
+  SUPPORT_INBOX_EMAIL: z.string().trim().email().optional().or(z.literal("")).default(""),
   INTERNAL_API_SECRET: z.string().optional().default(""),
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default(""),
@@ -290,6 +291,7 @@ type ModerationConfigKey =
   | "PHOTODNA_OPERATION_PATH"
   | "PHOTODNA_SUBSCRIPTION_KEY"
   | "PHOTODNA_TIMEOUT_MS"
+  | "SUPPORT_INBOX_EMAIL"
   | "INTERNAL_API_SECRET"
   | "MESSAGE_ENCRYPTION_KEY"
   | "MESSAGE_ENCRYPTION_KEY_VERSION"

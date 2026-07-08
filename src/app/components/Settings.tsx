@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router';
 import { useMemo, useState } from 'react';
-import { ArrowLeft, HelpCircle, LogOut, ChevronRight, ExternalLink } from 'lucide-react';
+import { ArrowLeft, LogOut, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
+import PublicPolicyLinks from './PublicPolicyLinks';
+import SupportRequestForm from './SupportRequestForm';
 import { sendVerificationEmail, signOut } from '../lib/authApi';
 import {
   clearCurrentUser,
@@ -29,12 +31,6 @@ export default function Settings() {
       items: [
         { iconName: 'profile' as const, label: 'Edit Profile', action: () => navigate('/profile/edit') },
         { iconName: 'notifications' as const, label: 'Notifications', action: () => {} },
-      ],
-    },
-    {
-      title: 'Support',
-      items: [
-        { icon: HelpCircle, label: 'Help & Support', action: () => {} },
       ],
     },
   ];
@@ -172,6 +168,11 @@ export default function Settings() {
             </div>
           </div>
         ))}
+
+        <div className="space-y-4">
+          <SupportRequestForm source="settings" />
+          <PublicPolicyLinks />
+        </div>
 
         <Button
           variant="outline"

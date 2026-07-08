@@ -43,6 +43,14 @@ describe('ProfileEdit', () => {
     HTMLCanvasElement.prototype.toBlob = vi.fn((callback) => {
       callback(new Blob(['cropped-profile-photo'], { type: 'image/jpeg' }));
     });
+    Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', {
+      configurable: true,
+      get: () => 1200,
+    });
+    Object.defineProperty(HTMLImageElement.prototype, 'naturalHeight', {
+      configurable: true,
+      get: () => 1500,
+    });
 
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const profile = {
@@ -168,6 +176,7 @@ describe('ProfileEdit', () => {
     });
 
     expect(await screen.findByRole('dialog', { name: 'Crop profile photo' })).toBeInTheDocument();
+    fireEvent.load(screen.getByAltText('Profile crop preview'));
     fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
     fireEvent.change(screen.getByLabelText('Zoom profile photo'), {
       target: {
@@ -214,6 +223,7 @@ describe('ProfileEdit', () => {
         files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })],
       },
     });
+    fireEvent.load(await screen.findByAltText('Profile crop preview'));
     fireEvent.click(await screen.findByRole('button', { name: 'Use cropped photo' }));
 
     const uploadedImage = await screen.findByAltText('Primary profile photo');
@@ -253,6 +263,32 @@ describe('ProfileEdit', () => {
 
     expect(screen.queryByText('Upload photo')).not.toBeInTheDocument();
     expect(screen.getByText('Add up to 4 photos. Your first photo will be your profile picture.')).toBeInTheDocument();
+  });
+
+  it('does not try to crop a broken profile photo preview', async () => {
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+
+    const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+
+    fireEvent.change(uploadInput as HTMLInputElement, {
+      target: {
+        files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })],
+      },
+    });
+
+    const preview = await screen.findByAltText('Profile crop preview');
+    fireEvent.error(preview);
+
+    expect(await screen.findByText('This image could not be loaded. Try a JPG, PNG, or WebP file.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use cropped photo' })).toBeDisabled();
+    expect(uploadProfilePhoto).not.toHaveBeenCalled();
   });
 
   it('lets users set trans status, crowds, categorized vibes, and HIV visibility', async () => {

@@ -111,7 +111,13 @@ function ProfilePhotoCropper({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
+  const [imageStatus, setImageStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [cropError, setCropError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setImageStatus('loading');
+    setCropError(null);
+  }, [sourceUrl]);
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     dragRef.current = {
@@ -161,6 +167,10 @@ function ProfilePhotoCropper({
         throw new Error('Could not crop profile photo.');
       }
 
+      if (imageStatus !== 'ready' || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+        throw new Error('This image could not be loaded. Try a JPG, PNG, or WebP file.');
+      }
+
       const imageWidth = image.naturalWidth || image.width || canvas.width;
       const imageHeight = image.naturalHeight || image.height || canvas.height;
       const baseScale = Math.max(canvas.width / imageWidth, canvas.height / imageHeight);
@@ -202,6 +212,20 @@ function ProfilePhotoCropper({
             alt="Profile crop preview"
             className="h-full w-full select-none object-cover"
             draggable={false}
+            onError={() => {
+              setImageStatus('error');
+              setCropError('This image could not be loaded. Try a JPG, PNG, or WebP file.');
+            }}
+            onLoad={(event) => {
+              const loadedImage = event.currentTarget;
+              if (loadedImage.naturalWidth > 0 && loadedImage.naturalHeight > 0) {
+                setImageStatus('ready');
+                setCropError(null);
+              } else {
+                setImageStatus('error');
+                setCropError('This image could not be loaded. Try a JPG, PNG, or WebP file.');
+              }
+            }}
             src={sourceUrl}
             style={{
               transform: `translate(${offset.x}px, ${offset.y}px) rotate(${rotation}deg) scale(${zoom})`,
@@ -245,7 +269,7 @@ function ProfilePhotoCropper({
               <Button onClick={onCancel} type="button" variant="outline">
                 Cancel
               </Button>
-              <Button disabled={processing} onClick={handleConfirm} type="button">
+              <Button disabled={processing || imageStatus !== 'ready'} onClick={handleConfirm} type="button">
                 {processing ? 'Uploading...' : 'Use cropped photo'}
               </Button>
             </div>
