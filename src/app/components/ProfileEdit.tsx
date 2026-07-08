@@ -95,6 +95,12 @@ function canvasToJpegFile(canvas: HTMLCanvasElement) {
   });
 }
 
+export function getPhotoUploadRejectedMessage(uploadError: unknown) {
+  const reason = uploadError instanceof Error ? uploadError.message : 'Failed to upload profile photo.';
+
+  return `Photo rejected: ${reason}`;
+}
+
 function ProfilePhotoCropper({
   onCancel,
   onConfirm,
@@ -408,6 +414,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [pendingPhoto, setPendingPhoto] = useState<PendingProfilePhoto | null>(null);
 
@@ -520,7 +527,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     }
 
     if ((profile.photos ?? []).length >= MAX_PROFILE_PHOTOS) {
-      setError(`You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
+      setPhotoUploadError(`Photo rejected: You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
       return;
     }
 
@@ -528,6 +535,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       file,
       url: URL.createObjectURL(file),
     });
+    setPhotoUploadError(null);
     setError(null);
   };
 
@@ -546,8 +554,9 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
         photos: [...(prev.photos ?? []), uploaded.url].slice(0, MAX_PROFILE_PHOTOS),
       }));
       setPendingPhoto(null);
+      setPhotoUploadError(null);
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload profile photo.');
+      setPhotoUploadError(getPhotoUploadRejectedMessage(uploadError));
     } finally {
       setUploadingPhoto(false);
     }
@@ -649,6 +658,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </TabsList>
 
           <TabsContent value="photos" className="space-y-4 mt-6">
+            <div className="rounded-md border border-border bg-card/70 p-3 text-sm text-muted-foreground">
+              Photos need to be of you only. Use a photo of your human body or body part; your face is optional, and clothed or naked is okay. No group photos, pets, memes, screenshots, or objects.
+            </div>
+            {photoUploadError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {photoUploadError}
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {normalizedProfile.photos.map((photo, index) => (
                 <div key={photo} className="group overflow-hidden rounded-lg border border-border bg-card/70">

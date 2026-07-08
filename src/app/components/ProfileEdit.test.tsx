@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import ProfileEdit from './ProfileEdit';
+import ProfileEdit, { getPhotoUploadRejectedMessage } from './ProfileEdit';
 
 const { getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   getMyProfile: vi.fn(),
@@ -263,6 +263,25 @@ describe('ProfileEdit', () => {
 
     expect(screen.queryByText('Upload photo')).not.toBeInTheDocument();
     expect(screen.getByText('Add up to 4 photos. Your first photo will be your profile picture.')).toBeInTheDocument();
+  });
+
+  it('explains profile photo requirements', async () => {
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+
+    expect(screen.getByText(/Photos need to be of you only/i)).toBeInTheDocument();
+    expect(screen.getByText(/human body or body part/i)).toBeInTheDocument();
+  });
+
+  it('formats profile photo rejection reasons', () => {
+    expect(getPhotoUploadRejectedMessage(new Error('Profile photo must show an adult human body.'))).toBe(
+      'Photo rejected: Profile photo must show an adult human body.',
+    );
   });
 
   it('does not try to crop a broken profile photo preview', async () => {
