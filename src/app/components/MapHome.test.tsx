@@ -20,6 +20,10 @@ const { getMyProfile, getProfileById } = vi.hoisted(() => ({
   getProfileById: vi.fn(),
 }));
 
+const { blockUser } = vi.hoisted(() => ({
+  blockUser: vi.fn(),
+}));
+
 const { decryptDisplayLocationToken } = vi.hoisted(() => ({
   decryptDisplayLocationToken: vi.fn(),
 }));
@@ -45,6 +49,18 @@ const { mapControls } = vi.hoisted(() => ({
   },
 }));
 
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: toastSuccess,
+    error: toastError,
+  },
+}));
+
 vi.mock('../lib/usersApi', () => ({
   getNearbyUsers,
 }));
@@ -62,6 +78,10 @@ vi.mock('../lib/profileApi', async () => {
     getProfileById,
   };
 });
+
+vi.mock('../lib/blockApi', () => ({
+  blockUser,
+}));
 
 vi.mock('../lib/displayLocationTokens', () => ({
   decryptDisplayLocationToken,
@@ -182,6 +202,7 @@ describe('MapHome', () => {
     sendCruush.mockReset();
     getMyProfile.mockReset();
     getProfileById.mockReset();
+    blockUser.mockReset();
     decryptDisplayLocationToken.mockReset();
     getMyPrivacySettings.mockReset();
     getMyBillingStatus.mockReset();
@@ -190,6 +211,8 @@ describe('MapHome', () => {
     mapControls.setZoom.mockReset();
     mapControls.zoomIn.mockReset();
     mapControls.zoomOut.mockReset();
+    toastSuccess.mockReset();
+    toastError.mockReset();
     window.sessionStorage.clear();
 
     getMyProfile.mockResolvedValue({
@@ -267,6 +290,10 @@ describe('MapHome', () => {
       },
     ]);
     getMutualCruushMap.mockResolvedValue([]);
+    blockUser.mockResolvedValue({
+      userId: 'user-1',
+      blocked: true,
+    });
     sendCruush.mockResolvedValue({
       id: 'cruush-1',
       fromUserId: 'me',
@@ -595,6 +622,30 @@ describe('MapHome', () => {
     expect(screen.getByText('Switch')).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+  });
+
+  it('blocks a selected desktop map popup user and removes them from the current map state', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
+    expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Block Jordan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Block' }));
+
+    await waitFor(() => expect(blockUser).toHaveBeenCalledWith('user-1'));
+    await waitFor(() => expect(screen.queryByRole('complementary')).not.toBeInTheDocument());
+    expect(screen.queryByTestId('marker-user-1')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open Jordan profile' })).not.toBeInTheDocument();
+    expect(toastSuccess).toHaveBeenCalledWith('Jordan blocked.');
   });
 
   it('refreshes map users after sending a cruush from the popup without a browser alert', async () => {

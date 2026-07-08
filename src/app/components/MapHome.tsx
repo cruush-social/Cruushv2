@@ -403,6 +403,11 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
     setSelectedUser(user);
   };
 
+  const handleBlockedUser = (blockedUserId: string) => {
+    setUsers((currentUsers) => currentUsers.filter((user) => user.id !== blockedUserId));
+    setSelectedUser((currentUser) => currentUser?.id === blockedUserId ? null : currentUser);
+  };
+
   useEffect(() => {
     if (isMobile && selectedUser) {
       setSelectedUser(null);
@@ -1092,6 +1097,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
             onClose={() => setSelectedUser(null)}
             fixed={selectedUser.isCurrentUser === true}
             isOwnProfile={selectedUser.isCurrentUser === true}
+            onBlockedUser={handleBlockedUser}
           />
         ) : null}
 

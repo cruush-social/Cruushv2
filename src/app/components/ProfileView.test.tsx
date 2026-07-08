@@ -12,6 +12,10 @@ const { getMyProfile, getProfileById } = vi.hoisted(() => ({
   getProfileById: vi.fn(),
 }));
 
+const { blockUser } = vi.hoisted(() => ({
+  blockUser: vi.fn(),
+}));
+
 const { toastSuccess, toastError, toastInfo } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -44,6 +48,10 @@ vi.mock('../lib/profileApi', async () => {
     getProfileById,
   };
 });
+
+vi.mock('../lib/blockApi', () => ({
+  blockUser,
+}));
 
 function createProfileFixture(overrides: Record<string, unknown> = {}) {
   return {
@@ -99,11 +107,16 @@ describe('ProfileView', () => {
     sendCruush.mockReset();
     getMyProfile.mockReset();
     getProfileById.mockReset();
+    blockUser.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
     toastInfo.mockReset();
 
     getProfileById.mockResolvedValue(createProfileFixture());
+    blockUser.mockResolvedValue({
+      userId: 'user-1',
+      blocked: true,
+    });
     sendCruush.mockResolvedValue({
       id: 'cruush-1',
       fromUserId: 'me',
@@ -313,5 +326,47 @@ describe('ProfileView', () => {
 
     fireEvent.click(cruushButton);
     expect(sendCruush).not.toHaveBeenCalled();
+  });
+
+  it('confirms before blocking another profile and hides it after success', async () => {
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Block Jordan' }));
+
+    expect(screen.getByText('Block Jordan?')).toBeInTheDocument();
+    expect(screen.getByText(/They will no longer be able to interact with you/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Block' }));
+
+    await waitFor(() => expect(blockUser).toHaveBeenCalledWith('user-1'));
+    await waitFor(() => expect(screen.getByText('That profile is unavailable.')).toBeInTheDocument());
+    expect(toastSuccess).toHaveBeenCalledWith('Jordan blocked.');
+  });
+
+  it('keeps the profile visible and shows a generic error when blocking fails', async () => {
+    blockUser.mockRejectedValue(new Error('backend details'));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Jordan')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Block Jordan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Block' }));
+
+    await waitFor(() => expect(blockUser).toHaveBeenCalledWith('user-1'));
+    expect(toastError).toHaveBeenCalledWith('Unable to block this user right now.');
+    expect(screen.getByText('Jordan')).toBeInTheDocument();
   });
 });

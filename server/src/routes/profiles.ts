@@ -38,6 +38,7 @@ import {
   type SensitiveProfileToken
 } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
+import { assertUsersNotBlocked } from "../user-blocks.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
@@ -955,6 +956,9 @@ async function loadProfileData(
   const relationship = !options.includePrivateSensitive && options.viewerUserId
     ? await getRelationshipPermissions(app, options.viewerUserId, userId)
     : null;
+  if (relationship?.isBlocked) {
+    throw new ApiError(404, "NOT_FOUND", "Profile not found");
+  }
   const needsMutualCrowd =
     row.kinks_visibility === "mutual_crowds" ||
     row.trans_status_visibility === "mutual_crowds" ||
@@ -1100,6 +1104,13 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       windowMs: 60 * 1000,
       message: "Too many profile requests. Try again later."
     });
+    if (authenticatedUserId !== userId) {
+      await assertUsersNotBlocked(app, authenticatedUserId, userId, {
+        statusCode: 404,
+        code: "NOT_FOUND",
+        message: "Profile not found"
+      });
+    }
 
     return reply.send({
       data: await loadProfileData(app, userId, { includePrivateSensitive: false, viewerUserId: authenticatedUserId })

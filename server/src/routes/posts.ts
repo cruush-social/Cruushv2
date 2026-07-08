@@ -74,15 +74,22 @@ const postParamsSchema = z.object({
 
 export async function registerPostRoutes(app: FastifyInstance) {
   app.get("/api/posts", async (request, reply) => {
-    await getAuthenticatedUserId(request);
+    const userId = await getAuthenticatedUserId(request);
 
     const result = await app.db.query<PostRow>(
       `select ${POST_COLUMNS}
        from posts p
        left join profiles pr on pr.id = p.user_id
        where p.expires_at > now()
+         and not exists (
+           select 1
+           from user_blocks block
+           where (block.blocker_user_id = $1 and block.blocked_user_id = p.user_id)
+              or (block.blocker_user_id = p.user_id and block.blocked_user_id = $1)
+         )
        order by p.created_at desc
-       limit 100`
+       limit 100`,
+      [userId]
     );
 
     return reply.send({

@@ -5,6 +5,7 @@ import { ArrowLeft, CornerDownLeft, Eye, Image as ImageIcon, MoreHorizontal, Tra
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
+import BlockUserAction from './BlockUserAction';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
@@ -543,6 +544,18 @@ export default function PrivateGroupChat() {
               <Trash2 className="size-4" />
               Clear chat for everyone
             </Button>
+
+            {conversation.kind === 'dm' ? (
+              <BlockUserAction
+                userId={conversation.user.id}
+                displayName={conversation.user.name}
+                iconOnly={false}
+                size="default"
+                variant="outline"
+                className="w-full justify-center border-destructive/30 text-destructive hover:bg-destructive/10"
+                onBlocked={() => navigate('/messages')}
+              />
+            ) : null}
 
             {conversation.kind === 'group' ? (
               <div className="space-y-4 border-t border-border pt-4">

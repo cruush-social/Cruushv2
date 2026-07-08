@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
+import BlockUserAction from './BlockUserAction';
 import CruushBadge from './CruushBadge';
 import CruushIconImage from './CruushIconImage';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
@@ -20,9 +21,16 @@ interface MapProfilePopupProps {
   onClose: () => void;
   fixed?: boolean;
   isOwnProfile?: boolean;
+  onBlockedUser?: (userId: string) => void;
 }
 
-export default function MapProfilePopup({ user, onClose, fixed = false, isOwnProfile = false }: MapProfilePopupProps) {
+export default function MapProfilePopup({
+  user,
+  onClose,
+  fixed = false,
+  isOwnProfile = false,
+  onBlockedUser,
+}: MapProfilePopupProps) {
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
@@ -183,6 +191,17 @@ export default function MapProfilePopup({ user, onClose, fixed = false, isOwnPro
                 >
                   Edit profile
                 </button>
+              ) : null}
+              {!isOwnProfile && !isDemo ? (
+                <BlockUserAction
+                  userId={user.id}
+                  displayName={displayName}
+                  className="h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
+                  onBlocked={(blockedUserId) => {
+                    onBlockedUser?.(blockedUserId);
+                    onClose();
+                  }}
+                />
               ) : null}
               <button
                 type="button"

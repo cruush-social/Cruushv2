@@ -21,6 +21,7 @@ import {
 import { formatDistanceMiles, formatLastActiveFromDate } from "../discovery-users.js";
 import { decryptSensitiveProfile } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
+import { assertUsersNotBlocked, loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import {
   buildDefaultVisibilityPolicy,
   formatDistanceLabel,
@@ -367,9 +368,11 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
     participantUserId: userId,
     type: "mutual_cruush"
   });
-  const otherUserIds = records.map((record) => otherUserIdForRecord(record, userId));
+  const blockedUserIds = await loadBlockedRelationshipUserIds(app, userId);
+  const visibleRecords = records.filter((record) => !blockedUserIds.has(otherUserIdForRecord(record, userId)));
+  const otherUserIds = visibleRecords.map((record) => otherUserIdForRecord(record, userId));
   const profilesById = await loadActivityProfiles(app, otherUserIds);
-  const rows = await Promise.all(records.map(async (record): Promise<MutualCruushRow | null> => {
+  const rows = await Promise.all(visibleRecords.map(async (record): Promise<MutualCruushRow | null> => {
     const otherUserId = otherUserIdForRecord(record, userId);
     const profile = profilesById.get(otherUserId);
 
@@ -575,17 +578,21 @@ async function loadCruushActivityRecords(app: FastifyInstance, userId: string) {
       type: "profile_view"
     })
   ]);
+  const blockedUserIds = await loadBlockedRelationshipUserIds(app, userId);
+  const visibleIncomingRecords = incomingRecords.filter((record) => !blockedUserIds.has(record.payload.actorUserId));
+  const visibleSentRecords = sentRecords.filter((record) => !blockedUserIds.has(record.payload.targetUserId));
+  const visibleViewRecords = viewRecords.filter((record) => !blockedUserIds.has(record.payload.actorUserId));
   const profileIds = [
-    ...incomingRecords.map((record) => record.payload.actorUserId),
-    ...sentRecords.map((record) => record.payload.targetUserId),
-    ...viewRecords.map((record) => record.payload.actorUserId)
+    ...visibleIncomingRecords.map((record) => record.payload.actorUserId),
+    ...visibleSentRecords.map((record) => record.payload.targetUserId),
+    ...visibleViewRecords.map((record) => record.payload.actorUserId)
   ];
   const profilesById = await loadActivityProfiles(app, profileIds);
 
   return {
-    incomingRecords,
-    sentRecords,
-    viewRecords,
+    incomingRecords: visibleIncomingRecords,
+    sentRecords: visibleSentRecords,
+    viewRecords: visibleViewRecords,
     profilesById
   };
 }
@@ -822,6 +829,12 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       type: "mutual_cruush",
       actorUserId: authenticatedUserId,
       targetUserId: payload.toUserId
+    });
+
+    await assertUsersNotBlocked(app, authenticatedUserId, payload.toUserId, {
+      statusCode: 404,
+      code: "NOT_FOUND",
+      message: "User not found."
     });
 
     if (existingMutual) {

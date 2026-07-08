@@ -21,6 +21,7 @@ import {
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { normalizeSingleLineText } from "../input-schema.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
+import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
@@ -450,6 +451,12 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     ];
     const where = [
       "profiles.id <> $1",
+      `not exists (
+        select 1
+        from user_blocks block
+        where (block.blocker_user_id = $1 and block.blocked_user_id = profiles.id)
+           or (block.blocker_user_id = profiles.id and block.blocked_user_id = $1)
+      )`,
       "location_envelopes.expires_at_ms > (extract(epoch from now()) * 1000)::bigint",
       "location_envelopes.coarse_index_tokens && $2::text[]"
     ];
@@ -553,9 +560,11 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
       [filters.limit]
     );
 
+    const blockedUserIds = await loadBlockedRelationshipUserIds(app, currentUserId);
+
     return {
       mode: "legacy" as const,
-      rows: legacyRows.rows
+      rows: legacyRows.rows.filter((row) => !blockedUserIds.has(row.id))
     };
   }
 }

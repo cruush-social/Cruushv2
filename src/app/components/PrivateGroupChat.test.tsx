@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PrivateGroupChat from './PrivateGroupChat';
 
@@ -23,6 +23,22 @@ const {
   viewMessageAttachment: vi.fn(),
 }));
 
+const { blockUser } = vi.hoisted(() => ({
+  blockUser: vi.fn(),
+}));
+
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: toastSuccess,
+    error: toastError,
+  },
+}));
+
 vi.mock('../lib/sessionUser', () => ({
   getCurrentUserId,
 }));
@@ -42,6 +58,15 @@ vi.mock('../lib/messagesApi', async () => {
   };
 });
 
+vi.mock('../lib/blockApi', () => ({
+  blockUser,
+}));
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}</div>;
+}
+
 describe('PrivateGroupChat', () => {
   beforeEach(() => {
     clearConversationForEveryone.mockReset();
@@ -52,8 +77,15 @@ describe('PrivateGroupChat', () => {
     getGroupMembers.mockReset();
     setConversationDisappearingTimer.mockReset();
     viewMessageAttachment.mockReset();
+    blockUser.mockReset();
+    toastSuccess.mockReset();
+    toastError.mockReset();
     getCurrentUserId.mockResolvedValue('user-1');
     getGroupMembers.mockResolvedValue([]);
+    blockUser.mockResolvedValue({
+      userId: 'user-2',
+      blocked: true,
+    });
   });
 
   it('shows an empty live chat without preview messages', async () => {
@@ -125,6 +157,85 @@ describe('PrivateGroupChat', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Report conversation' }));
 
     expect(await screen.findByText('Report route')).toBeInTheDocument();
+  });
+
+  it('lets users block a DM partner from conversation settings and returns to messages', async () => {
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+      },
+      messages: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<><PrivateGroupChat /><LocationProbe /></>} />
+          <Route path="/messages" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Block River' }));
+
+    expect(screen.getByText('Block River?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Block' }));
+
+    await waitFor(() => expect(blockUser).toHaveBeenCalledWith('user-2'));
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('/messages'));
+    expect(toastSuccess).toHaveBeenCalledWith('River blocked.');
+  });
+
+  it('does not show a single-user block action for group conversations', async () => {
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+
+    expect(screen.queryByRole('button', { name: /Block/ })).not.toBeInTheDocument();
   });
 
   it('renders expiring message metadata', async () => {

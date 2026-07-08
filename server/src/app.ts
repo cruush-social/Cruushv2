@@ -6,6 +6,7 @@ import { mkdirSync } from "node:fs";
 import { createPool, type DbClient } from "./db.js";
 import type { AppConfig } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
+import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerBillingRoutes } from "./routes/billing.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
 import { ApiError, formatError, toApiError } from "./errors.js";
@@ -155,6 +156,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   });
 
   void registerAuthRoutes(app);
+  void registerBlockRoutes(app);
   void registerBillingRoutes(app);
   void registerMediaRoutes(app);
   void registerMessageRoutes(app);

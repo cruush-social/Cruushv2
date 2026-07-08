@@ -1610,6 +1610,213 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[1]).toEqual([hashSessionToken("deleted-session-token")]);
   });
 
+  it("blocks a user through POST /api/blocks", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId: targetUserId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_users");
+    expect(query.mock.calls[1]?.[0]).toContain("insert into user_blocks");
+    expect(query.mock.calls[1]?.[0]).toContain("on conflict");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, targetUserId]);
+    expect(response.json()).toEqual({
+      data: {
+        userId: targetUserId,
+        blocked: true
+      }
+    });
+  });
+
+  it("treats repeated block requests as idempotent", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const firstResponse = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId: targetUserId
+      }
+    });
+    const secondResponse = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId: targetUserId
+      }
+    });
+
+    expect(firstResponse.statusCode).toBe(200);
+    expect(secondResponse.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("on conflict");
+    expect(query.mock.calls[3]?.[0]).toContain("on conflict");
+  });
+
+  it("unblocks a user through DELETE /api/blocks/:userId idempotently", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/blocks/${targetUserId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("delete from user_blocks");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, targetUserId]);
+  });
+
+  it("rejects self-block attempts before querying", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "You cannot block yourself.",
+        details: null
+      }
+    });
+  });
+
+  it("rejects block attempts for nonexistent or deleted users", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId: targetUserId
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(query.mock.calls[0]?.[0]).toContain("coalesce(account_status, 'active') <> 'deleted'");
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "User not found.",
+        details: null
+      }
+    });
+  });
+
+  it("lists blocked users without private fields", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: targetUserId,
+        display_name: "Alex",
+        photo: "https://example.com/alex.jpg",
+        created_at: "2026-04-28T12:00:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from user_blocks block");
+    expect(query.mock.calls[0]?.[0]).not.toContain("email");
+    expect(response.json()).toEqual({
+      data: {
+        blockedUsers: [{
+          userId: targetUserId,
+          displayName: "Alex",
+          photo: "https://example.com/alex.jpg",
+          createdAt: "2026-04-28T12:00:00.000Z"
+        }]
+      }
+    });
+    expect(JSON.stringify(response.json())).not.toContain("account_status");
+  });
+
+  it("blocks under-review cookie-backed sessions from block mutations", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          account_status: "under_review"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          account_status: "under_review"
+        }]
+      });
+
+    const blockResponse = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      cookies: {
+        cruush_session: "under-review-block-session"
+      },
+      payload: {
+        userId: targetUserId
+      }
+    });
+    const unblockResponse = await app.inject({
+      method: "DELETE",
+      url: `/api/blocks/${targetUserId}`,
+      cookies: {
+        cruush_session: "under-review-unblock-session"
+      }
+    });
+
+    expect(blockResponse.statusCode).toBe(403);
+    expect(unblockResponse.statusCode).toBe(403);
+    expect(query.mock.calls.every(([sql]) => !String(sql).includes("insert into user_blocks"))).toBe(true);
+    expect(query.mock.calls.every(([sql]) => !String(sql).includes("delete from user_blocks"))).toBe(true);
+  });
+
   it("marks the current session as having accepted the current code of conduct", async () => {
     query
       .mockResolvedValueOnce({
@@ -1986,6 +2193,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
@@ -2032,8 +2240,8 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[3]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[5]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[6]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[6]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[7]?.[0]).toContain("insert into conversation_members");
     expect(response.json()).toEqual({
       data: {
         id: conversationId,
@@ -2077,6 +2285,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
       rows: [{
         id: conversationId,
@@ -2097,7 +2306,8 @@ describe("server", () => {
         disappearing_timer: "24h",
         closed_at: null
       }]
-    });
+    })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -2117,9 +2327,9 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[3]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[4]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[4]?.[0]).toContain("insert into conversation_members");
-    expect(query.mock.calls[4]?.[0]).toContain("'owner'");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[5]?.[0]).toContain("'owner'");
     expect(response.json().data).toMatchObject({
       id: conversationId,
       kind: "group",
@@ -2408,6 +2618,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: memberId }] });
 
     const response = await app.inject({
@@ -2424,8 +2635,8 @@ describe("server", () => {
     expect(response.statusCode).toBe(204);
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[5]?.[0]).toContain("insert into conversation_members");
-    expect(query.mock.calls[5]?.[0]).toContain("'member'");
+    expect(query.mock.calls[6]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[6]?.[0]).toContain("'member'");
   });
 
   it("rejects non-mutual users before adding them to a group", async () => {
@@ -2507,6 +2718,52 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "MUTUAL_CRUUSH_REQUIRED",
+        message: "You can message after a mutual cruush.",
+        details: null
+      }
+    });
+  });
+
+  it("blocks dm conversation creation when either user blocked the other", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-blocked-dm",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: otherUserId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-blocked-dm",
+      userOneId: userId,
+      userTwoId: otherUserId
+    });
+
+    query
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [{ exists: true }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/conversations/dm",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        otherUserId
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(query.mock.calls[4]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[4]?.[1]).toEqual([userId, otherUserId]);
+    expect(queries.some((sql) => sql.includes("insert into conversations"))).toBe(false);
     expect(response.json()).toEqual({
       error: {
         code: "MUTUAL_CRUUSH_REQUIRED",
@@ -2653,6 +2910,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "msg-3",
@@ -2678,15 +2936,80 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[5]?.[0]).toContain("insert into messages");
-    expect(query.mock.calls[5]?.[0]).toContain("content_ciphertext");
-    expect(query.mock.calls[5]?.[1]).not.toContain("on my way");
+    expect(query.mock.calls[6]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[6]?.[0]).toContain("content_ciphertext");
+    expect(query.mock.calls[6]?.[1]).not.toContain("on my way");
     expect(response.json()).toEqual({
       data: {
         id: "msg-3",
         userId: userId,
         content: "on my way",
         timestamp: "2026-04-29T12:10:00.000Z"
+      }
+    });
+  });
+
+  it("blocks dm message sends when either user blocked the other", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-blocked-send",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: otherUserId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-blocked-send",
+      userOneId: userId,
+      userTwoId: otherUserId
+    });
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: otherUserId,
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [{ exists: true }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "are you around?"
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(query.mock.calls[5]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[5]?.[1]).toEqual([userId, otherUserId]);
+    expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
+    expect(response.json()).toEqual({
+      error: {
+        code: "MUTUAL_CRUUSH_REQUIRED",
+        message: "You can message after a mutual cruush.",
+        details: null
       }
     });
   });
@@ -2712,8 +3035,9 @@ describe("server", () => {
           current_user_role: "member",
           disappearing_timer: "1h",
           closed_at: null
-        }]
-      })
+      }]
+    })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "msg-group-1",
@@ -2737,12 +3061,67 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[1]?.[0]).toContain("expires_at");
-    expect(query.mock.calls[1]?.[0]).toContain("interval '1 hour'");
+    expect(query.mock.calls[2]?.[0]).toContain("expires_at");
+    expect(query.mock.calls[2]?.[0]).toContain("interval '1 hour'");
     expect(response.json().data).toMatchObject({
       id: "msg-group-1",
       content: "see you there",
       expiresAt: "2026-04-29T13:10:00.000Z"
+    });
+  });
+
+  it("blocks group message sends when a member has a block relationship with the sender", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "group",
+          title: "Beta crew",
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: null,
+          other_user_name: null,
+          other_user_pronouns: null,
+          other_user_photo: null,
+          member_count: 3,
+          current_user_role: "member",
+          disappearing_timer: "1h",
+          closed_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "see you there"
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(query.mock.calls[1]?.[0]).toContain("join user_blocks block");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, conversationId]);
+    expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
+    expect(response.json()).toEqual({
+      error: {
+        code: "MUTUAL_CRUUSH_REQUIRED",
+        message: "You can message after a mutual cruush.",
+        details: null
+      }
     });
   });
 
@@ -2767,8 +3146,9 @@ describe("server", () => {
           current_user_role: "member",
           disappearing_timer: "24h",
           closed_at: null
-        }]
-      })
+      }]
+    })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "media-1"
@@ -2814,11 +3194,11 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[1]?.[0]).toContain("insert into media_objects");
-    expect(query.mock.calls[1]?.[0]).toContain("message_photo");
-    expect(query.mock.calls[2]?.[0]).toContain("insert into messages");
-    expect(query.mock.calls[2]?.[0]).toContain("message_media_attachments");
-    expect(query.mock.calls[2]?.[0]).toContain("view_once");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into media_objects");
+    expect(query.mock.calls[2]?.[0]).toContain("message_photo");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[3]?.[0]).toContain("message_media_attachments");
+    expect(query.mock.calls[3]?.[0]).toContain("view_once");
     expect(response.json()).toEqual({
       data: {
         id: "msg-photo-1",
@@ -2917,7 +3297,8 @@ describe("server", () => {
         disappearing_timer: "off",
         closed_at: null
       }]
-    });
+    })
+      .mockResolvedValueOnce({ rows: [] });
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -2971,7 +3352,8 @@ describe("server", () => {
         other_user_photo: null,
         member_count: 4
       }]
-    });
+    })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -3533,7 +3915,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(8);
+    expect(query).toHaveBeenCalledTimes(9);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
@@ -3571,6 +3953,65 @@ describe("server", () => {
     });
     expect(body.data.profiles[0].distanceLabel).toMatch(/ mi$/);
     expect(body.data.profiles[0].lastActive).toMatch(/ago$/);
+  });
+
+  it("excludes blocked users from discovery results", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockRejectedValueOnce({
+        code: "42703",
+        message: 'column "year_of_birth" does not exist'
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "27",
+          display_name: "Blocked user",
+          age: 29,
+          pronouns: "they/them",
+          looking_for: ["Dates"],
+          legacy_vibe_tags: ["Goth"],
+          primary_photo_url: "https://example.com/blocked.jpg",
+          last_active: "2026-04-28T12:00:00.000Z",
+          lat: 40.71,
+          lng: -74.0,
+          fuzzy_lat: 40.7105,
+          fuzzy_lng: -74.0005
+        }, {
+          id: "28",
+          display_name: "Visible user",
+          age: 31,
+          pronouns: "she/they",
+          looking_for: ["Friends"],
+          legacy_vibe_tags: ["Coffee"],
+          primary_photo_url: "https://example.com/visible.jpg",
+          last_active: "2026-04-28T12:05:00.000Z",
+          lat: 40.72,
+          lng: -74.01,
+          fuzzy_lat: 40.7205,
+          fuzzy_lng: -74.0105
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: "27"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.profiles).toHaveLength(1);
+    expect(response.json().data.profiles[0]).toMatchObject({
+      profileToken: "28",
+      name: "Visible user"
+    });
   });
 
   it("requires cruush+ before applying premium discovery filters", async () => {
@@ -4342,7 +4783,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(4);
+    expect(query).toHaveBeenCalledTimes(5);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
 
     expect(response.json()).toEqual({
@@ -4430,6 +4871,30 @@ describe("server", () => {
         }
       }]
     });
+  });
+
+  it("filters blocked relationships from GET /api/posts at the query boundary", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/posts",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("from user_blocks block");
+    expect(query.mock.calls[1]?.[0]).toContain("blocker_user_id = $1");
+    expect(query.mock.calls[1]?.[0]).toContain("blocked_user_id = p.user_id");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId]);
   });
 
   it("validates the payload on POST /api/posts", async () => {
@@ -4760,6 +5225,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [incomingRecord] })
       .mockResolvedValueOnce({ rows: [sentRecord] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -4781,10 +5247,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(6);
+    expect(query).toHaveBeenCalledTimes(7);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
-    expect(query.mock.calls[3]?.[0]).toContain("from profiles");
+    expect(query.mock.calls[4]?.[0]).toContain("from profiles");
     expect(response.json()).toEqual({
       data: {
         received: [{
@@ -4813,6 +5279,55 @@ describe("server", () => {
             photo: null
           }
         }]
+      }
+    });
+  });
+
+  it("filters blocked users out of cruush activity", async () => {
+    const incomingUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const sentTargetUserId = "8f707f0b-81aa-470d-b0e1-321d493d04d2";
+    const incomingRecord = await encryptedRelationshipRecordRow({
+      id: "blocked-incoming",
+      type: "cruush",
+      actorUserId: incomingUserId,
+      targetUserId: userId,
+      createdAt: "2026-04-28T12:00:00.000Z"
+    });
+    const sentRecord = await encryptedRelationshipRecordRow({
+      id: "blocked-sent",
+      type: "cruush",
+      actorUserId: userId,
+      targetUserId: sentTargetUserId,
+      createdAt: "2026-04-28T12:05:00.000Z"
+    });
+
+    query
+      .mockResolvedValueOnce({ rows: [incomingRecord] })
+      .mockResolvedValueOnce({ rows: [sentRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: incomingUserId
+        }, {
+          user_id: sentTargetUserId
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/cruush/${userId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(query.mock.calls[3]?.[0]).toContain("from user_blocks");
+    expect(response.json()).toEqual({
+      data: {
+        received: [],
+        sent: []
       }
     });
   });
@@ -4874,6 +5389,8 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [incomingOne, incomingTwo] })
       .mockResolvedValueOnce({ rows: [sentOne] })
       .mockResolvedValueOnce({ rows: [viewOne, viewTwo] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -5072,8 +5589,49 @@ describe("server", () => {
     expect(response.json().data.profiles[0]).not.toHaveProperty("lng");
   });
 
+  it("filters blocked users out of the mutual cruush map", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "blocked-match-map",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: otherUserId
+    });
+
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: otherUserId
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/cruush/mutual-map",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(query.mock.calls[3]?.[0]).toContain("from user_blocks");
+    expect(queries.some((sql) => sql.includes("where profiles.id = any"))).toBe(false);
+    expect(response.json()).toEqual({
+      data: {
+        mapEpochMs: expect.any(Number),
+        profiles: []
+      }
+    });
+  });
+
   it("creates or updates a cruush on POST /api/cruush", async () => {
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -5102,11 +5660,11 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query).toHaveBeenCalledTimes(3);
+    expect(query).toHaveBeenCalledTimes(4);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
-    expect(query.mock.calls[1]?.[0]).toContain("insert into encrypted_relationship_records");
-    expect(JSON.stringify(query.mock.calls[1]?.[1])).not.toContain("Jordan");
-    expect(JSON.stringify(query.mock.calls[1]?.[1])).not.toContain("53fd68d7-24fc-4cff-8cd7-a97ec0cadf97");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(JSON.stringify(query.mock.calls[2]?.[1])).not.toContain("Jordan");
+    expect(JSON.stringify(query.mock.calls[2]?.[1])).not.toContain("53fd68d7-24fc-4cff-8cd7-a97ec0cadf97");
     expect(response.json()).toEqual({
       data: {
         id: "cruush-3",
@@ -5114,6 +5672,42 @@ describe("server", () => {
         toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
         createdAt: expect.any(String),
         mutual: false
+      }
+    });
+  });
+
+  it("blocks cruush creation when either user blocked the other", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ exists: true }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/cruush",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        toUserId: otherUserId,
+        targetUser: {
+          name: "Jordan",
+          pronouns: "they/them",
+          photo: null
+        }
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(404);
+    expect(query.mock.calls[1]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, otherUserId]);
+    expect(queries.some((sql) => sql.includes("insert into encrypted_relationship_records"))).toBe(false);
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "User not found.",
+        details: null
       }
     });
   });
@@ -5171,6 +5765,7 @@ describe("server", () => {
 
     query
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "cruush-4",
@@ -5192,7 +5787,8 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [matchToken]
-      });
+      })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -5211,9 +5807,9 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[3]?.[0]).toContain("insert into encrypted_relationship_records");
-    expect(query.mock.calls[4]?.[0]).toContain("insert into encrypted_relationship_tokens");
-    expect(query.mock.calls[8]?.[0]).toContain("encrypted_relationship_tokens");
+    expect(query.mock.calls[4]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into encrypted_relationship_tokens");
+    expect(query.mock.calls[9]?.[0]).toContain("encrypted_relationship_tokens");
     expect(response.json()).toEqual({
       data: {
         id: "cruush-4",
@@ -5253,11 +5849,13 @@ describe("server", () => {
 
     query
       .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [existingCruush] })
       .mockResolvedValueOnce({ rows: [matchRecord] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [matchToken] });
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -5276,7 +5874,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(6);
+    expect(query).toHaveBeenCalledTimes(8);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls.map((call) => call[0]).join("\n")).not.toContain("insert into encrypted_relationship_tokens");
     expect(response.json()).toEqual({
@@ -5566,47 +6164,50 @@ describe("server", () => {
       token_hash: token.token_hash
     }));
 
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-        display_name: "Alex",
-        photos: ["https://example.com/alex.jpg"],
-        bio: "Nearby now",
-        pronouns: ["they/them"],
-        custom_pronouns: "",
-        year_of_birth: 1998,
-        ethnicity: ["Latinx"],
-        identities: ["Non-binary"],
-        presentation: ["Femme"],
-        sexuality: ["Queer"],
-        body_type: ["Athletic"],
-        height: "5'8\"",
-        weight: "155 lbs",
-        position: ["Vers"],
-        availability: ["Now"],
-        hosting_travel: ["Hosting"],
-        kinks: ["Leather"],
-        vibes: ["Playful"],
-        hobbies: ["Hiking"],
-        custom_hobby: "",
-        looking_for: ["Dates"],
-        hiv_status: ["Negative"],
-        custom_hiv_status: "",
-        condoms: ["Always"],
-        custom_condoms: "",
-        prep: ["Daily"],
-        custom_prep: "",
-        doxypep: ["Sometimes"],
-        custom_doxypep: "",
-        covid_vaccine: ["Boosted"],
-        custom_covid_vaccine: "",
-        mpox_vaccine: ["Vaccinated"],
-        custom_mpox_vaccine: "",
-        substance_boundaries: ["No alcohol involved", "Let's discuss"],
-        ...targetSensitiveProfile,
-        updated_at: "2026-04-28T12:00:00.000Z"
-      }]
-    })
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          photos: ["https://example.com/alex.jpg"],
+          bio: "Nearby now",
+          pronouns: ["they/them"],
+          custom_pronouns: "",
+          year_of_birth: 1998,
+          ethnicity: ["Latinx"],
+          identities: ["Non-binary"],
+          presentation: ["Femme"],
+          sexuality: ["Queer"],
+          body_type: ["Athletic"],
+          height: "5'8\"",
+          weight: "155 lbs",
+          position: ["Vers"],
+          availability: ["Now"],
+          hosting_travel: ["Hosting"],
+          kinks: ["Leather"],
+          vibes: ["Playful"],
+          hobbies: ["Hiking"],
+          custom_hobby: "",
+          looking_for: ["Dates"],
+          hiv_status: ["Negative"],
+          custom_hiv_status: "",
+          condoms: ["Always"],
+          custom_condoms: "",
+          prep: ["Daily"],
+          custom_prep: "",
+          doxypep: ["Sometimes"],
+          custom_doxypep: "",
+          covid_vaccine: ["Boosted"],
+          custom_covid_vaccine: "",
+          mpox_vaccine: ["Vaccinated"],
+          custom_mpox_vaccine: "",
+          substance_boundaries: ["No alcohol involved", "Let's discuss"],
+          ...targetSensitiveProfile,
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
@@ -5635,6 +6236,31 @@ describe("server", () => {
       })
     });
     expect(response.json().data.crowds).not.toContain("Sapphic");
+  });
+
+  it("returns 404 for profile detail when either user has blocked the other", async () => {
+    query.mockResolvedValueOnce({ rows: [{ exists: true }] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"]);
+    expect(query.mock.calls.map(([sql]) => String(sql)).join("\n")).not.toContain("from profiles");
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Profile not found",
+        details: null
+      }
+    });
   });
 
   it("rejects invalid profile ids before querying profiles", async () => {
@@ -5672,6 +6298,7 @@ describe("server", () => {
     });
 
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -5730,6 +6357,7 @@ describe("server", () => {
 
   it("hides another user's kinks when the field is not public", async () => {
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -5783,6 +6411,7 @@ describe("server", () => {
     });
 
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -5803,6 +6432,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           kink_id: "leather",
@@ -5820,7 +6450,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[5]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(query.mock.calls[7]?.[0]).toContain("insert into encrypted_relationship_records");
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         kinks: ["Leather"],
@@ -5843,6 +6473,7 @@ describe("server", () => {
 
   it("does not log profile views when the viewer has Ghost Mode enabled", async () => {
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -5896,6 +6527,7 @@ describe("server", () => {
     });
 
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",

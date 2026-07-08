@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Flag } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import BlockUserAction from './BlockUserAction';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
@@ -308,6 +309,16 @@ export default function ProfileView() {
               </Button>
             ) : (
               <>
+                {userId ? (
+                  <BlockUserAction
+                    userId={userId}
+                    displayName={profileView.name}
+                    onBlocked={() => {
+                      setProfile(null);
+                      setError('That profile is unavailable.');
+                    }}
+                  />
+                ) : null}
                 <Button
                   variant="ghost"
                   size="icon"

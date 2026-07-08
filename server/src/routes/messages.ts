@@ -344,6 +344,26 @@ async function assertMutualGroupInvitees(app: FastifyInstance, userId: string, m
   }
 }
 
+async function assertNoBlockedConversationMembers(app: FastifyInstance, userId: string, conversationId: string) {
+  const result = await app.db.query<{ user_id: string }>(
+    `select member.user_id::text as user_id
+     from conversation_members member
+     join user_blocks block
+       on (
+         (block.blocker_user_id = $1 and block.blocked_user_id = member.user_id)
+         or (block.blocker_user_id = member.user_id and block.blocked_user_id = $1)
+       )
+     where member.conversation_id::text = $2
+       and member.user_id <> $1
+     limit 1`,
+    [userId, conversationId]
+  );
+
+  if (result.rows[0]) {
+    throw new ApiError(403, "MUTUAL_CRUUSH_REQUIRED", "You can message after a mutual cruush.");
+  }
+}
+
 function assertCanManageConversation(conversation: ConversationRow, action: "timer" | "clear") {
   if (conversation.kind !== "group") {
     return;
@@ -1023,6 +1043,9 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         "You can message after a mutual cruush."
       );
     }
+    if (conversation.kind === "group") {
+      await assertNoBlockedConversationMembers(app, userId, payload.conversationId);
+    }
 
     const moderationSurface = conversation.kind === "group" ? "group_message" : "direct_message";
     const restrictedFeature = conversation.kind === "group" ? "group_messages" : "direct_messages";
@@ -1289,6 +1312,9 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         "MUTUAL_CRUUSH_REQUIRED",
         "You can message after a mutual cruush."
       );
+    }
+    if (conversation.kind === "group") {
+      await assertNoBlockedConversationMembers(app, userId, payload.conversationId);
     }
 
     const moderationSurface = conversation.kind === "group" ? "group_message" : "direct_message";
