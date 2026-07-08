@@ -50,12 +50,14 @@ import {
 } from '../lib/profileOptions';
 
 const MAX_PROFILE_PHOTOS = 4;
+const PROFILE_PHOTO_LOAD_ERROR = 'This image could not be loaded. Try a JPG, PNG, or WebP file.';
 
 const VISIBILITY_OPTION_LABELS = PROFILE_VISIBILITY_OPTIONS.map((option) => option.label);
+const FIXED_PRIVATE_PROFILE_VISIBILITY: ProfileVisibility = 'mutual_cruushes';
 
 type PendingProfilePhoto = {
-  file: File;
   url: string;
+  objectUrl?: string;
 };
 
 function getVisibilityLabel(value: ProfileVisibility): string {
@@ -92,6 +94,33 @@ function canvasToJpegFile(canvas: HTMLCanvasElement) {
 
       resolve(new File([blob], 'profile-crop.jpg', { type: 'image/jpeg' }));
     }, 'image/jpeg', 0.92);
+  });
+}
+
+function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
+  return new Promise((resolve, reject) => {
+    if (typeof FileReader === 'undefined') {
+      const objectUrl = URL.createObjectURL(file);
+      resolve({
+        url: objectUrl,
+        objectUrl,
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
+    reader.onload = () => {
+      if (typeof reader.result === 'string' && reader.result.startsWith('data:image/')) {
+        resolve({
+          url: reader.result,
+        });
+        return;
+      }
+
+      reject(new Error(PROFILE_PHOTO_LOAD_ERROR));
+    };
+    reader.readAsDataURL(file);
   });
 }
 
@@ -174,7 +203,7 @@ function ProfilePhotoCropper({
       }
 
       if (imageStatus !== 'ready' || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
-        throw new Error('This image could not be loaded. Try a JPG, PNG, or WebP file.');
+        throw new Error(PROFILE_PHOTO_LOAD_ERROR);
       }
 
       const imageWidth = image.naturalWidth || image.width || canvas.width;
@@ -220,7 +249,7 @@ function ProfilePhotoCropper({
             draggable={false}
             onError={() => {
               setImageStatus('error');
-              setCropError('This image could not be loaded. Try a JPG, PNG, or WebP file.');
+              setCropError(PROFILE_PHOTO_LOAD_ERROR);
             }}
             onLoad={(event) => {
               const loadedImage = event.currentTarget;
@@ -229,7 +258,7 @@ function ProfilePhotoCropper({
                 setCropError(null);
               } else {
                 setImageStatus('error');
-                setCropError('This image could not be loaded. Try a JPG, PNG, or WebP file.');
+                setCropError(PROFILE_PHOTO_LOAD_ERROR);
               }
             }}
             src={sourceUrl}
@@ -370,7 +399,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     position: profile.position ?? [],
     role: profile.role ?? [],
     is_trans: profile.is_trans ?? null,
-    trans_status_visibility: profile.trans_status_visibility ?? 'public',
+    trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
     availability: profile.availability ?? [],
     hosting_travel: profile.hosting_travel ?? [],
@@ -384,7 +413,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     custom_hobby: (profile.custom_hobby ?? '').trim(),
     looking_for: profile.looking_for ?? [],
     hiv_status: profile.hiv_status ?? [],
-    hiv_status_visibility: profile.hiv_status_visibility ?? 'mutual_cruushes',
+    hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     custom_hiv_status: (profile.custom_hiv_status ?? '').trim(),
     condoms: profile.condoms ?? [],
     custom_condoms: (profile.custom_condoms ?? '').trim(),
@@ -417,6 +446,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [pendingPhoto, setPendingPhoto] = useState<PendingProfilePhoto | null>(null);
+  const photoPreviewRequestRef = useRef(0);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -443,8 +473,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
   useEffect(() => {
     return () => {
-      if (pendingPhoto) {
-        URL.revokeObjectURL(pendingPhoto.url);
+      if (pendingPhoto?.objectUrl) {
+        URL.revokeObjectURL(pendingPhoto.objectUrl);
       }
     };
   }, [pendingPhoto]);
@@ -518,7 +548,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     }
   };
 
-  const handlePhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
 
@@ -531,12 +561,26 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       return;
     }
 
-    setPendingPhoto({
-      file,
-      url: URL.createObjectURL(file),
-    });
+    const requestId = photoPreviewRequestRef.current + 1;
+    photoPreviewRequestRef.current = requestId;
     setPhotoUploadError(null);
     setError(null);
+
+    try {
+      const pendingPreview = await readProfilePhotoPreviewUrl(file);
+      if (photoPreviewRequestRef.current !== requestId) {
+        if (pendingPreview.objectUrl) {
+          URL.revokeObjectURL(pendingPreview.objectUrl);
+        }
+        return;
+      }
+
+      setPendingPhoto(pendingPreview);
+    } catch (previewError) {
+      if (photoPreviewRequestRef.current === requestId) {
+        setPhotoUploadError(previewError instanceof Error ? previewError.message : PROFILE_PHOTO_LOAD_ERROR);
+      }
+    }
   };
 
   const handleCancelCrop = () => {
@@ -599,7 +643,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     position: profile.position || [],
     role: profile.role || [],
     is_trans: profile.is_trans ?? null,
-    trans_status_visibility: profile.trans_status_visibility || 'public',
+    trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
     availability: profile.availability || [],
     hosting_travel: profile.hosting_travel || [],
@@ -612,7 +656,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     hobbies: profile.hobbies || [],
     looking_for: profile.looking_for || [],
     hiv_status: profile.hiv_status || [],
-    hiv_status_visibility: profile.hiv_status_visibility || 'mutual_cruushes',
+    hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     condoms: profile.condoms || [],
     prep: profile.prep || [],
     doxypep: profile.doxypep || [],
@@ -827,18 +871,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               </div>
 
               <div className="space-y-2">
-                <Label>Trans status visibility</Label>
-                <MultiSelect
-                  ariaLabel="Trans status visibility"
-                  options={VISIBILITY_OPTION_LABELS}
-                  value={[getVisibilityLabel(normalizedProfile.trans_status_visibility)]}
-                  onChange={(values) => handleChange('trans_status_visibility', getVisibilityValue(values[0]))}
-                  selectionMode="single"
-                  placeholder="Select visibility..."
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label>Crowds</Label>
                 <MultiSelect
                   ariaLabel="Crowds"
@@ -928,17 +960,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             <div className="space-y-2">
               <Label>HIV Status</Label>
               <MultiSelect ariaLabel="HIV Status" options={HIV_STATUS} value={normalizedProfile.hiv_status} onChange={vals => handleChange('hiv_status', vals)} />
-            </div>
-            <div className="space-y-2">
-              <Label>HIV status visibility</Label>
-              <MultiSelect
-                ariaLabel="HIV status visibility"
-                options={VISIBILITY_OPTION_LABELS}
-                value={[getVisibilityLabel(normalizedProfile.hiv_status_visibility)]}
-                onChange={(values) => handleChange('hiv_status_visibility', getVisibilityValue(values[0]))}
-                selectionMode="single"
-                placeholder="Select visibility..."
-              />
             </div>
             <div className="space-y-2">
               <Label>Condoms</Label>

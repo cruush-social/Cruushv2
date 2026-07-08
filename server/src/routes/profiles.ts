@@ -13,6 +13,7 @@ import {
   emptyProfile,
   profileLocationPayloadSchema,
   profilePayloadSchema,
+  profileVisibilityRulesSchema,
   type ProfilePayload
 } from "../profile-schema.js";
 import { moderateProfileOrReject } from "../moderation-service.js";
@@ -54,6 +55,17 @@ import {
 
 const profileParamsSchema = z.object({
   userId: z.uuid()
+}).strict();
+
+const visibilitySetParamsSchema = z.object({
+  setId: z.uuid()
+}).strict();
+
+const FIXED_PRIVATE_PROFILE_VISIBILITY: ProfileVisibility = "mutual_cruushes";
+
+const visibilitySetPayloadSchema = z.object({
+  name: z.string().trim().min(1).max(48),
+  visibility_rules: profileVisibilityRulesSchema
 }).strict();
 
 const crowdPrecisionPolicySchema = z.object({
@@ -150,6 +162,15 @@ type ProfileRow = {
   updated_at: string | Date;
 };
 
+type ProfileVisibilitySetRow = EncryptedProfileVisibility & {
+  id: string;
+  user_id?: string | null;
+  name: string;
+  display_order?: number | null;
+  created_at: string | Date;
+  updated_at: string | Date;
+};
+
 type VisibilitySubjectRow = {
   year_of_birth: number | null;
   identities: string[] | null;
@@ -198,7 +219,7 @@ function premiumPrivacyMessage(input: {
     return "Upgrade to cruush+ to use stealth mode.";
   }
 
-  return "Upgrade to cruush+ to use all visibility controls.";
+  return "Upgrade to cruush+ to share precise location with mutuals.";
 }
 
 type ProfileKinkInterest = {
@@ -277,6 +298,20 @@ const PROFILE_COLUMNS = [
   "profile_visibility_key_version",
   "profile_visibility_token_key_version",
   "trans_crowds_changed_at"
+] as const;
+
+const PROFILE_VISIBILITY_SET_COLUMNS = [
+  "id::text as id",
+  "user_id::text as user_id",
+  "name",
+  "profile_visibility_ciphertext",
+  "profile_visibility_nonce",
+  "profile_visibility_auth_tag",
+  "profile_visibility_key_version",
+  "profile_visibility_token_key_version",
+  "display_order",
+  "created_at",
+  "updated_at"
 ] as const;
 
 function toKinkId(value: string) {
@@ -390,8 +425,8 @@ function mapProfileRow(
   const sensitiveProfile = options.sensitiveProfile ?? null;
   const visibilityRules = options.visibilityRules ?? null;
   const showKinks = options.showKinks ?? canShowByVisibility(row.kinks_visibility);
-  const showTransStatus = canShowByVisibility(row.trans_status_visibility);
-  const showHivStatus = canShowByVisibility(row.hiv_status_visibility);
+  const showTransStatus = canShowByVisibility(FIXED_PRIVATE_PROFILE_VISIBILITY);
+  const showHivStatus = canShowByVisibility(FIXED_PRIVATE_PROFILE_VISIBILITY);
   const visibleCrowds = options.visibleCrowds ?? (includePrivateSensitive ? sensitiveProfile?.crowds ?? [] : []);
   const legacyKinks = showKinks ? row.kinks ?? [] : [];
   const sensitiveKinkInterests = showKinks ? sensitiveProfile?.kink_interests ?? [] : [];
@@ -422,7 +457,7 @@ function mapProfileRow(
     position: row.position ?? [],
     role: row.role ?? [],
     is_trans: showTransStatus ? sensitiveProfile?.is_trans ?? null : null,
-    trans_status_visibility: row.trans_status_visibility ?? "public",
+    trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: visibleCrowds,
     availability: row.availability ?? [],
     hosting_travel: row.hosting_travel ?? [],
@@ -440,7 +475,7 @@ function mapProfileRow(
     custom_hobby: row.custom_hobby ?? "",
     looking_for: row.looking_for ?? [],
     hiv_status: showHivStatus ? sensitiveProfile?.hiv_status ?? row.hiv_status ?? [] : [],
-    hiv_status_visibility: row.hiv_status_visibility ?? "mutual_cruushes",
+    hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     custom_hiv_status: showHivStatus ? sensitiveProfile?.custom_hiv_status ?? row.custom_hiv_status ?? "" : "",
     condoms: row.condoms ?? [],
     custom_condoms: row.custom_condoms ?? "",
@@ -465,6 +500,88 @@ function mapProfileRow(
         can_reveal_precise_location: options.relationship.canRevealPreciseLocation
       }
     } : {})
+  };
+}
+
+function mapVisibilitySetRow(
+  app: FastifyInstance,
+  row: ProfileVisibilitySetRow,
+  visibilityRules?: ProfileVisibilityRules
+) {
+  const decryptedRules = visibilityRules ?? decryptProfileVisibility(app.config, row) ?? emptyProfile.visibility_rules;
+
+  return {
+    id: row.id,
+    name: row.name,
+    visibility_rules: decryptedRules,
+    created_at: new Date(row.created_at).toISOString(),
+    updated_at: new Date(row.updated_at).toISOString()
+  };
+}
+
+function fallbackSensitiveProfile(): SensitiveProfileData {
+  return {
+    is_trans: null,
+    crowds: [],
+    kinks: [],
+    kink_interests: [],
+    hiv_status: [],
+    custom_hiv_status: ""
+  };
+}
+
+function profilePayloadFromRow(
+  row: ProfileRow,
+  sensitiveProfile: SensitiveProfileData,
+  kinkInterests: ProfileKinkInterest[],
+  visibilityRules: ProfileVisibilityRules
+): ProfilePayload {
+  return {
+    ...emptyProfile,
+    display_name: row.display_name ?? "",
+    photos: row.photos ?? [],
+    bio: row.bio ?? "",
+    pronouns: row.pronouns ?? [],
+    custom_pronouns: row.custom_pronouns ?? "",
+    year_of_birth: row.year_of_birth,
+    ethnicity: row.ethnicity?.[0] ?? "",
+    identities: row.identities ?? [],
+    presentation: row.presentation ?? [],
+    sexuality: row.sexuality ?? [],
+    body_type: row.body_type ?? [],
+    height: row.height ?? "",
+    weight: row.weight ?? "",
+    position: row.position ?? [],
+    role: row.role ?? [],
+    is_trans: sensitiveProfile.is_trans,
+    trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
+    crowds: sensitiveProfile.crowds,
+    availability: row.availability ?? [],
+    hosting_travel: row.hosting_travel ?? [],
+    kinks: sensitiveProfile.kinks,
+    kink_interests: kinkInterests.length > 0 ? kinkInterests : sensitiveProfile.kink_interests,
+    kinks_visibility: row.kinks_visibility ?? "public",
+    vibes: row.vibes ?? [],
+    scenes: row.scenes ?? [],
+    archetypes: row.archetypes ?? [],
+    hobbies: row.hobbies ?? [],
+    custom_hobby: row.custom_hobby ?? "",
+    looking_for: row.looking_for ?? [],
+    hiv_status: sensitiveProfile.hiv_status,
+    hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
+    custom_hiv_status: sensitiveProfile.custom_hiv_status,
+    condoms: row.condoms ?? [],
+    custom_condoms: row.custom_condoms ?? "",
+    prep: row.prep ?? [],
+    custom_prep: row.custom_prep ?? "",
+    doxypep: row.doxypep ?? [],
+    custom_doxypep: row.custom_doxypep ?? "",
+    covid_vaccine: row.covid_vaccine ?? [],
+    custom_covid_vaccine: row.custom_covid_vaccine ?? "",
+    mpox_vaccine: row.mpox_vaccine ?? [],
+    custom_mpox_vaccine: row.custom_mpox_vaccine ?? "",
+    substance_boundaries: row.substance_boundaries ?? [],
+    visibility_rules: visibilityRules
   };
 }
 
@@ -750,6 +867,65 @@ async function syncSensitiveProfileTokens(app: FastifyInstance, userId: string, 
   }
 }
 
+async function loadOwnerProfileRow(app: FastifyInstance, userId: string) {
+  const result = await app.db.query<ProfileRow>(
+    `select ${PROFILE_COLUMNS.join(", ")}, updated_at
+     from profiles
+     where id = $1`,
+    [userId]
+  );
+  const row = result.rows[0];
+
+  if (!row) {
+    throw new ApiError(404, "NOT_FOUND", "Profile not found");
+  }
+
+  return row;
+}
+
+async function applyProfileVisibilityRules(
+  app: FastifyInstance,
+  userId: string,
+  visibilityRules: ProfileVisibilityRules
+) {
+  const existingRow = await loadOwnerProfileRow(app, userId);
+  const sensitiveProfile = decryptSensitiveProfile(app.config, existingRow) ?? fallbackSensitiveProfile();
+  const kinkInterests = await loadProfileKinkInterests(app, userId);
+  profilePayloadSchema.parse(profilePayloadFromRow(existingRow, sensitiveProfile, kinkInterests, visibilityRules));
+
+  const encryptedProfileVisibility = encryptProfileVisibility(app.config, visibilityRules);
+  const result = await app.db.query<ProfileRow>(
+    `update profiles
+     set profile_visibility_ciphertext = $2,
+         profile_visibility_nonce = $3,
+         profile_visibility_auth_tag = $4,
+         profile_visibility_key_version = $5,
+         profile_visibility_token_key_version = $6,
+         updated_at = now()
+     where id = $1
+     returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
+    [
+      userId,
+      encryptedProfileVisibility.profile_visibility_ciphertext,
+      encryptedProfileVisibility.profile_visibility_nonce,
+      encryptedProfileVisibility.profile_visibility_auth_tag,
+      encryptedProfileVisibility.profile_visibility_key_version,
+      encryptedProfileVisibility.profile_visibility_token_key_version
+    ]
+  );
+
+  await syncSensitiveProfileTokens(app, userId, combineSensitiveTokens(
+    createSensitiveProfileTokens(app.config, sensitiveProfile),
+    createProfileVisibilityTokens(app.config, visibilityRules)
+  ));
+
+  return mapProfileRow(result.rows[0], kinkInterests, {
+    includePrivateSensitive: true,
+    sensitiveProfile,
+    visibilityRules
+  });
+}
+
 async function loadSensitiveProfileTokenHashes(app: FastifyInstance, userId: string) {
   try {
     const result = await app.db.query<{ token_hash: string | null }>(
@@ -956,13 +1132,10 @@ async function loadProfileData(
     ? await getRelationshipPermissions(app, options.viewerUserId, userId)
     : null;
   const needsMutualCrowd =
-    row.kinks_visibility === "mutual_crowds" ||
-    row.trans_status_visibility === "mutual_crowds" ||
-    row.hiv_status_visibility === "mutual_crowds";
+    row.kinks_visibility === "mutual_crowds";
   const needsMutualCruush =
     row.kinks_visibility === "mutual_cruushes" ||
-    row.trans_status_visibility === "mutual_cruushes" ||
-    row.hiv_status_visibility === "mutual_cruushes";
+    FIXED_PRIVATE_PROFILE_VISIBILITY === "mutual_cruushes";
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
   const visibleCrowds = !options.includePrivateSensitive && options.viewerUserId
     ? await loadSharedCrowds(app, options.viewerUserId, sensitiveProfile?.crowds ?? [])
@@ -1091,6 +1264,147 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     });
   });
 
+  app.get("/api/profiles/me/visibility-sets", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+
+    try {
+      const result = await app.db.query<ProfileVisibilitySetRow>(
+        `select ${PROFILE_VISIBILITY_SET_COLUMNS.join(", ")}
+         from profile_visibility_sets
+         where user_id = $1
+         order by display_order asc, updated_at desc`,
+        [userId]
+      );
+
+      return reply.send({
+        data: result.rows.map((row) => mapVisibilitySetRow(app, row))
+      });
+    } catch (error) {
+      if (isSchemaCompatibilityError(error)) {
+        return reply.send({ data: [] });
+      }
+
+      throw error;
+    }
+  });
+
+  app.post("/api/profiles/me/visibility-sets", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    await requireCruushPlus(app, userId, "Upgrade to cruush+ to save visibility sets.");
+    const payload = visibilitySetPayloadSchema.parse(request.body);
+    const encryptedProfileVisibility = encryptProfileVisibility(app.config, payload.visibility_rules);
+    const result = await app.db.query<ProfileVisibilitySetRow>(
+      `insert into profile_visibility_sets (
+         user_id,
+         name,
+         profile_visibility_ciphertext,
+         profile_visibility_nonce,
+         profile_visibility_auth_tag,
+         profile_visibility_key_version,
+         profile_visibility_token_key_version
+       )
+       values ($1, $2, $3, $4, $5, $6, $7)
+       returning ${PROFILE_VISIBILITY_SET_COLUMNS.join(", ")}`,
+      [
+        userId,
+        payload.name,
+        encryptedProfileVisibility.profile_visibility_ciphertext,
+        encryptedProfileVisibility.profile_visibility_nonce,
+        encryptedProfileVisibility.profile_visibility_auth_tag,
+        encryptedProfileVisibility.profile_visibility_key_version,
+        encryptedProfileVisibility.profile_visibility_token_key_version
+      ]
+    );
+
+    return reply.code(201).send({
+      data: mapVisibilitySetRow(app, result.rows[0], payload.visibility_rules)
+    });
+  });
+
+  app.put("/api/profiles/me/visibility-sets/:setId", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { setId } = visibilitySetParamsSchema.parse(request.params);
+    await requireCruushPlus(app, userId, "Upgrade to cruush+ to save visibility sets.");
+    const payload = visibilitySetPayloadSchema.parse(request.body);
+    const encryptedProfileVisibility = encryptProfileVisibility(app.config, payload.visibility_rules);
+    const result = await app.db.query<ProfileVisibilitySetRow>(
+      `update profile_visibility_sets
+       set name = $3,
+           profile_visibility_ciphertext = $4,
+           profile_visibility_nonce = $5,
+           profile_visibility_auth_tag = $6,
+           profile_visibility_key_version = $7,
+           profile_visibility_token_key_version = $8,
+           updated_at = now()
+       where user_id = $1 and id = $2
+       returning ${PROFILE_VISIBILITY_SET_COLUMNS.join(", ")}`,
+      [
+        userId,
+        setId,
+        payload.name,
+        encryptedProfileVisibility.profile_visibility_ciphertext,
+        encryptedProfileVisibility.profile_visibility_nonce,
+        encryptedProfileVisibility.profile_visibility_auth_tag,
+        encryptedProfileVisibility.profile_visibility_key_version,
+        encryptedProfileVisibility.profile_visibility_token_key_version
+      ]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Visibility set not found.");
+    }
+
+    return reply.send({
+      data: mapVisibilitySetRow(app, result.rows[0], payload.visibility_rules)
+    });
+  });
+
+  app.delete("/api/profiles/me/visibility-sets/:setId", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { setId } = visibilitySetParamsSchema.parse(request.params);
+    await requireCruushPlus(app, userId, "Upgrade to cruush+ to save visibility sets.");
+    const result = await app.db.query<{ id: string }>(
+      `delete from profile_visibility_sets
+       where user_id = $1 and id = $2
+       returning id::text as id`,
+      [userId, setId]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Visibility set not found.");
+    }
+
+    return reply.send({
+      data: {
+        deleted: true,
+        id: result.rows[0].id
+      }
+    });
+  });
+
+  app.post("/api/profiles/me/visibility-sets/:setId/apply", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const { setId } = visibilitySetParamsSchema.parse(request.params);
+    await requireCruushPlus(app, userId, "Upgrade to cruush+ to use saved visibility sets.");
+    const result = await app.db.query<ProfileVisibilitySetRow>(
+      `select ${PROFILE_VISIBILITY_SET_COLUMNS.join(", ")}
+       from profile_visibility_sets
+       where user_id = $1 and id = $2
+       limit 1`,
+      [userId, setId]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Visibility set not found.");
+    }
+
+    const visibilityRules = decryptProfileVisibility(app.config, result.rows[0]) ?? emptyProfile.visibility_rules;
+
+    return reply.send({
+      data: await applyProfileVisibilityRules(app, userId, visibilityRules)
+    });
+  });
+
   app.get("/api/profiles/:userId", async (request, reply) => {
     const authenticatedUserId = await getAuthenticatedUserId(request);
     const { userId } = profileParamsSchema.parse(request.params);
@@ -1108,10 +1422,12 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
   app.put("/api/profiles/me", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
-    const payload = profilePayloadSchema.parse(request.body);
-    if (!visibilityRulesArePublic(payload.visibility_rules)) {
-      await requireCruushPlus(app, userId, "Upgrade to cruush+ to use all visibility controls.");
-    }
+    const parsedPayload = profilePayloadSchema.parse(request.body);
+    const payload: ProfilePayload = {
+      ...parsedPayload,
+      trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
+      hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY
+    };
 
     const kinkInterests = normalizeKinkInterests(payload);
     const sensitiveProfile = buildSensitiveProfile(payload, kinkInterests);

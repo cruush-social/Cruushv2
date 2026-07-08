@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as messagesApi from './messagesApi';
 import {
   clearConversationForEveryone,
   closeGroupConversation,
@@ -61,6 +62,10 @@ describe('messagesApi', () => {
     expect(body.get('conversationId')).toBe('conversation-1');
     expect(body.get('content')).toBe('caption');
     expect(body.get('viewOnce')).toBe('true');
+  });
+
+  it('does not expose a generic message media upload helper', () => {
+    expect(messagesApi).not.toHaveProperty('createMessageMedia');
   });
 
   it('opens view-once attachments through the binary view endpoint', async () => {

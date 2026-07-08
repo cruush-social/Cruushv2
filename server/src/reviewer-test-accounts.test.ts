@@ -131,6 +131,30 @@ describe("reviewer test account seeding", () => {
         };
       }
 
+      if (normalizedSql.includes("insert into encrypted_relationship_records")) {
+        return {
+          rows: [{
+            id: "20000000-0000-4000-8000-000000000001"
+          }]
+        };
+      }
+
+      if (normalizedSql.includes("insert into conversations (kind, dm_key, created_by, disappearing_timer)")) {
+        return {
+          rows: [{
+            id: "30000000-0000-4000-8000-000000000001"
+          }]
+        };
+      }
+
+      if (normalizedSql.includes("with existing_conversation")) {
+        return {
+          rows: [{
+            id: "30000000-0000-4000-8000-000000000002"
+          }]
+        };
+      }
+
       return {
         rows: []
       };
@@ -179,6 +203,37 @@ describe("reviewer test account seeding", () => {
     const userPasswordHashes = userUpserts.map(([, params]) => String(params?.[1] ?? ""));
     expect(userPasswordHashes[0]).toBe(userPasswordHashes[1]);
     expect(userPasswordHashes[2]).not.toBe(userPasswordHashes[0]);
+    expect(result).toHaveProperty("conversationFixtures", [
+      {
+        kind: "dm",
+        conversationId: "30000000-0000-4000-8000-000000000001",
+        memberEmails: ["bank-reviewer-nyc@cruush.local", "payment@cruush.local"]
+      },
+      {
+        kind: "group",
+        conversationId: "30000000-0000-4000-8000-000000000002",
+        title: "Bank/payment reviewer smoke group",
+        memberEmails: ["bank-reviewer-nyc@cruush.local", "payment@cruush.local"]
+      }
+    ]);
+    expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_relationship_records"))).toHaveLength(1);
+    expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_relationship_tokens"))).toHaveLength(1);
+    const dmConversationUpserts = query.mock.calls.filter(([sql]) =>
+      String(sql).includes("insert into conversations (kind, dm_key, created_by, disappearing_timer)")
+    );
+    expect(dmConversationUpserts).toHaveLength(1);
+    expect(dmConversationUpserts[0]?.[1]).toEqual([
+      `${seededReviewerUserId(2)}:${seededReviewerUserId(3)}`,
+      seededReviewerUserId(2)
+    ]);
+    const groupConversationUpserts = query.mock.calls.filter(([sql]) => String(sql).includes("with existing_conversation"));
+    expect(groupConversationUpserts).toHaveLength(1);
+    expect(groupConversationUpserts[0]?.[1]).toEqual([
+      seededReviewerUserId(2),
+      "Bank/payment reviewer smoke group",
+      ["reviewer-test-fixture", "bank-payment-smoke"],
+      "24h"
+    ]);
     expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase() === "commit")).toBe(true);
   });
 });

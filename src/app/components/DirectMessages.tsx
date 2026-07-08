@@ -65,7 +65,7 @@ function normalizeConversation(raw: any): ConversationThread {
     mutual: typeof raw?.mutual === 'boolean' ? raw.mutual : false,
     membersLabel: raw?.membersLabel ?? undefined,
     currentUserRole: ['owner', 'admin', 'member'].includes(raw?.currentUserRole) ? raw.currentUserRole : undefined,
-    disappearingTimer: ['off', '24h', '7d', '30d'].includes(raw?.disappearingTimer) ? raw.disappearingTimer : undefined,
+    disappearingTimer: ['off', '1h', '24h', '7d', '30d'].includes(raw?.disappearingTimer) ? raw.disappearingTimer : undefined,
     closed: typeof raw?.closed === 'boolean' ? raw.closed : undefined,
     tags: Array.isArray(raw?.tags) ? raw.tags : [],
   };

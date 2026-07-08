@@ -255,6 +255,10 @@
     filter: none;
   }
 
+  .cruush-logo-font {
+    font-family: 'UnifrakturMaguntia', serif;
+  }
+
   /* Pulse animation for map pins */
   @keyframes pulse {
     0%, 100% {

@@ -91,8 +91,9 @@ Generate fresh production values for:
 - `GHOST_DERIVATION_KEY`
 - `DISPLAY_TOKEN_ENCRYPTION_KEY`
 - Stream API key, secret, app ID, and moderation config key.
-- PhotoDNA endpoint, operation path, and subscription key.
-- Resend API key and verified `MAIL_FROM` for account email and support inbox notifications.
+- PhotoDNA endpoint, operation path, and subscription key. Keep `PHOTODNA_ENABLED=false` until CSAM reporting is configured and verified.
+- CSAM reporting settings: `CSAM_REPORTING_ENABLED`, `CSAM_REPORTING_MODE`, `CSAM_REPORTING_TEST_MODE`, and `TRUST_SAFETY_ALERT_EMAIL`.
+- Resend API key and verified `MAIL_FROM` for account email, trust/safety alerts, and support inbox notifications.
 - `SUPPORT_INBOX_EMAIL` for support requests submitted from login/signup and Settings.
 - Turnstile frontend site key and backend `TURNSTILE_SECRET_KEY` if signup captcha is enabled.
 

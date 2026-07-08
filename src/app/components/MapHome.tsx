@@ -22,10 +22,16 @@ import { resolveMediaUrl } from '../lib/apiClient';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
   emptyProfilePayload,
+  applyMyVisibilitySet,
+  deleteMyVisibilitySet,
   getMyProfile,
+  getMyVisibilitySets,
+  saveMyVisibilitySet,
   saveMyProfile,
+  updateMyVisibilitySet,
   type ProfilePayload,
   type ProfileRecord,
+  type ProfileVisibilitySet,
   type ProfileVisibilityRules,
 } from '../lib/profileApi';
 import { CROWDS } from '../lib/profileOptions';
@@ -332,6 +338,9 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   const [visibility, setVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [savingVisibility, setSavingVisibility] = useState(false);
+  const [savingVisibilitySet, setSavingVisibilitySet] = useState(false);
+  const [savedVisibilitySetName, setSavedVisibilitySetName] = useState('');
+  const [visibilitySets, setVisibilitySets] = useState<ProfileVisibilitySet[]>([]);
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
@@ -368,6 +377,26 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
       .catch(() => {
         if (isMounted) {
           setBillingStatus(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getMyVisibilitySets()
+      .then((sets) => {
+        if (isMounted) {
+          setVisibilitySets(sets);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setVisibilitySets([]);
         }
       });
 
@@ -715,6 +744,109 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
     }
   };
 
+  const handleSaveVisibilitySet = async () => {
+    if (!hasCruushPlus) {
+      navigate('/upgrade');
+      return;
+    }
+
+    const name = savedVisibilitySetName.trim();
+
+    if (!name) {
+      setVisibilityError('Name this visibility set before saving.');
+      return;
+    }
+
+    const visibilityRules = visibilityStateToRules(safeVisibility);
+
+    setSavingVisibilitySet(true);
+    setVisibilityError(null);
+    try {
+      const savedSet = await saveMyVisibilitySet({
+        name,
+        visibility_rules: visibilityRules,
+      });
+      setVisibilitySets((sets) => [savedSet, ...sets.filter((set) => set.id !== savedSet.id)]);
+      setSavedVisibilitySetName('');
+    } catch (saveError) {
+      setVisibilityError(saveError instanceof Error ? saveError.message : 'Failed to save visibility set.');
+    } finally {
+      setSavingVisibilitySet(false);
+    }
+  };
+
+  const handleApplyVisibilitySet = async (setId: string) => {
+    if (!hasCruushPlus) {
+      navigate('/upgrade');
+      return;
+    }
+
+    setSavingVisibility(true);
+    setVisibilityError(null);
+    try {
+      const savedProfile = await applyMyVisibilitySet(setId);
+      setCurrentProfile(savedProfile);
+      setVisibility(visibilityRulesToState(savedProfile.visibility_rules));
+      setIsVisibilityOpen(false);
+      void fetchUsers(getCurrentFetchCoordinates(), filters);
+    } catch (applyError) {
+      setVisibilityError(applyError instanceof Error ? applyError.message : 'Failed to apply visibility set.');
+    } finally {
+      setSavingVisibility(false);
+    }
+  };
+
+  const handleRenameVisibilitySet = async (setId: string, currentName: string) => {
+    if (!hasCruushPlus) {
+      navigate('/upgrade');
+      return;
+    }
+
+    const nextName = window.prompt('Saved set name', currentName)?.trim();
+
+    if (!nextName) {
+      return;
+    }
+
+    const targetSet = visibilitySets.find((set) => set.id === setId);
+
+    if (!targetSet) {
+      return;
+    }
+
+    setSavingVisibilitySet(true);
+    setVisibilityError(null);
+    try {
+      const updatedSet = await updateMyVisibilitySet(setId, {
+        name: nextName,
+        visibility_rules: targetSet.visibility_rules,
+      });
+      setVisibilitySets((sets) => sets.map((set) => set.id === setId ? updatedSet : set));
+    } catch (renameError) {
+      setVisibilityError(renameError instanceof Error ? renameError.message : 'Failed to rename visibility set.');
+    } finally {
+      setSavingVisibilitySet(false);
+    }
+  };
+
+  const handleDeleteVisibilitySet = async (setId: string) => {
+    if (!hasCruushPlus) {
+      navigate('/upgrade');
+      return;
+    }
+
+    setSavingVisibilitySet(true);
+    setVisibilityError(null);
+    try {
+      await deleteMyVisibilitySet(setId);
+      setVisibilitySets((sets) => sets.filter((set) => set.id !== setId));
+    } catch (deleteError) {
+      setVisibilityError(deleteError instanceof Error ? deleteError.message : 'Failed to delete visibility set.');
+    } finally {
+      setSavingVisibilitySet(false);
+    }
+  };
+
   const shouldShowDemoUser = canUseDeveloperMapTools && !isMutualMapMode && !loading && !error && users.length === 0;
   const displayedUsers = shouldShowDemoUser ? [DEMO_NYC_DISCOVERY_USER] : filteredUsers;
   const savedProfileMapLocation = useMemo(
@@ -983,7 +1115,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
           </div>
 
           <div
-            className="pointer-events-auto mt-11 flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md"
+            className="pointer-events-auto mt-0 flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md"
             data-testid="map-top-actions"
           >
             {!hasCruushPlus ? (
@@ -992,7 +1124,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
                 onClick={() => navigate('/upgrade')}
                 aria-label="cruush+"
                 title="cruush+"
-                className="rounded-full px-3 text-xs font-medium text-white"
+                className="cruush-logo-font rounded-full px-3 text-lg font-normal leading-none tracking-normal normal-case text-white"
                 style={{ background: 'var(--cruush-gradient)' }}
               >
                 cruush+
@@ -1122,7 +1254,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
                 : 'border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
             }`}
             style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
-            onClick={() => hasCruushPlus ? setIsFiltersOpen(true) : navigate('/upgrade')}
+            onClick={() => setIsFiltersOpen(true)}
           >
             <Filter className="w-4 h-4 mr-2" />
             {isMutualMapMode ? 'MUTUALS' : 'SEEKING'}
@@ -1131,11 +1263,6 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
           <Button
             type="button"
             onClick={() => {
-              if (!hasCruushPlus) {
-                navigate('/upgrade');
-                return;
-              }
-
               setVisibilityError(null);
               setIsVisibilityOpen(true);
             }}
@@ -1302,10 +1429,20 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
           value={safeVisibility}
           availableCrowdModes={availableCrowdModes}
           saving={savingVisibility}
+          savingSet={savingVisibilitySet}
           error={visibilityError}
+          hasCruushPlus={hasCruushPlus}
+          savedSetName={savedVisibilitySetName}
+          savedSets={visibilitySets}
           onChange={handleVisibilityChange}
           onClear={handleClearVisibility}
           onApply={handleApplyVisibility}
+          onApplySet={handleApplyVisibilitySet}
+          onDeleteSet={handleDeleteVisibilitySet}
+          onRenameSet={handleRenameVisibilitySet}
+          onSaveSet={handleSaveVisibilitySet}
+          onSavedSetNameChange={setSavedVisibilitySetName}
+          onUpgradeSavedSets={() => navigate('/upgrade')}
         />
       </div>
     </div>

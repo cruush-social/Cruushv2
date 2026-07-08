@@ -128,7 +128,7 @@
   npm --prefix server run seed:reviewer-accounts
   ```
 
-  The command creates or updates `codeveloper-nyc@cruush.local`, `bank-reviewer-nyc@cruush.local`, and `payment@cruush.local` with verified email status and saved NYC profile locations. The payment reviewer account uses `PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD` so the bank checkout login can be shared without sharing the internal codeveloper password. It refuses a plain production host; if `NODE_ENV=production`, `APP_URL` must be a staging/test/local host.
+  The command creates or updates `codeveloper-nyc@cruush.local`, `bank-reviewer-nyc@cruush.local`, and `payment@cruush.local` with verified email status and saved NYC profile locations. It also creates a bank/payment mutual cruush, DM conversation, and `Bank/payment reviewer smoke group` fixture with a `24h` disappearing timer. The payment reviewer account uses `PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD` so the bank checkout login can be shared without sharing the internal codeveloper password. It refuses a plain production host; if `NODE_ENV=production`, `APP_URL` must be a staging/test/local host.
 
   ### 7. If you want auth emails to return to staging
 

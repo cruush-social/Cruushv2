@@ -92,6 +92,43 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByText('hosting for another hour if you still want to swing by')).not.toBeInTheDocument();
   });
 
+  it('does not show suggested reply chips or a quick-reply action', async () => {
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        muted: false,
+        mutual: true,
+        tags: [],
+      },
+      messages: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+    expect(screen.queryByText('you around now?')).not.toBeInTheDocument();
+    expect(screen.queryByText('hosting or traveling?')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Insert quick reply' })).not.toBeInTheDocument();
+  });
+
   it('navigates to the report page from the conversation safety action', async () => {
     getConversationMessages.mockResolvedValue({
       conversation: {
@@ -122,7 +159,9 @@ describe('PrivateGroupChat', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Report conversation' }));
+    const reportButton = await screen.findByRole('button', { name: 'Report conversation' });
+    await waitFor(() => expect(reportButton).not.toBeDisabled());
+    fireEvent.click(reportButton);
 
     expect(await screen.findByText('Report route')).toBeInTheDocument();
   });
@@ -268,6 +307,9 @@ describe('PrivateGroupChat', () => {
     });
 
     const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' });
+    expect(screen.getByLabelText('Choose message photo')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
+    expect(screen.getByRole('button', { name: 'Attach photo' })).toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText('Choose message photo'), {
       target: { files: [file] },
     });
@@ -277,6 +319,44 @@ describe('PrivateGroupChat', () => {
     });
     expect(await screen.findByAltText('Message photo')).toHaveAttribute('src', '/api/media/message-photos/photo.png');
     expect(screen.getByText('meet here')).toBeInTheDocument();
+  });
+
+  it('does not offer video upload from the message composer', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        mutual: true,
+        disappearingTimer: '24h',
+      },
+      messages: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Choose message media')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Message video')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Attach photo or video' })).not.toBeInTheDocument();
   });
 
   it('lets group admins change timers and clear history from conversation settings', async () => {
@@ -369,6 +449,67 @@ describe('PrivateGroupChat', () => {
       expect(clearConversationForEveryone).toHaveBeenCalledWith(conversationId);
     });
     expect(screen.queryByText('old plan')).not.toBeInTheDocument();
+  });
+
+  it('lets users change the disappearing timer from the composer', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        mutual: true,
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+    setConversationDisappearingTimer.mockResolvedValue({
+      id: conversationId,
+      kind: 'dm',
+      user: {
+        id: 'user-2',
+        name: 'River',
+        pronouns: '',
+        photo: null,
+      },
+      distance: 'Nearby',
+      updatedAt: '2026-04-29T12:01:00.000Z',
+      lastMessage: '',
+      unreadCount: 0,
+      pinned: false,
+      tags: [],
+      mutual: true,
+      disappearingTimer: '1h',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Message disappearing timer'), {
+      target: { value: '1h' },
+    });
+
+    await waitFor(() => {
+      expect(setConversationDisappearingTimer).toHaveBeenCalledWith(conversationId, '1h');
+    });
   });
 
   it('opens a view-once photo only after the user taps it', async () => {

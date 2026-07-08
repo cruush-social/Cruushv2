@@ -15,6 +15,7 @@ import ReportPage from './components/ReportPage';
 import CruushActivity from './components/CruushActivity';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
+import SupportPage from './components/SupportPage';
 import GhostModeSettings from './components/GhostModeSettings';
 import PrivacyAudit from './components/PrivacyAudit';
 import FeelingLucky from './components/FeelingLucky';
@@ -258,6 +259,7 @@ export default function App() {
             <Route path="/report" element={<ReportPage />} />
             <Route path="/cruush" element={<CruushActivity />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/support" element={<SupportPage />} />
             <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
             <Route path="/privacy/audit" element={<PrivacyAudit />} />
             <Route path="/lucky" element={<FeelingLucky />} />

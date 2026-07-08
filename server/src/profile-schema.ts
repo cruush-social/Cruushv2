@@ -70,7 +70,7 @@ const appOwnedProfilePhotoPathSchema = z.string()
     "Photo paths must be uploaded Cruush profile photos."
   );
 
-const profileVisibilityRulesSchema = z.object({
+export const profileVisibilityRulesSchema = z.object({
   active_crowd_modes: z.array(crowdSchema).max(3).optional().default([]),
   age_range: z.tuple([
     z.number().int().min(18).max(99),
@@ -124,7 +124,7 @@ export const profilePayloadSchema = z.object({
   position: arrayField,
   role: arrayField,
   is_trans: transStatusSchema,
-  trans_status_visibility: profileVisibilitySchema.optional().default("public"),
+  trans_status_visibility: profileVisibilitySchema.optional().default("mutual_cruushes"),
   crowds: z.array(crowdSchema).max(3).optional().default([]),
   availability: arrayField,
   hosting_travel: arrayField,
@@ -226,7 +226,7 @@ export const emptyProfile = {
   position: [],
   role: [],
   is_trans: null,
-  trans_status_visibility: "public",
+  trans_status_visibility: "mutual_cruushes",
   crowds: [],
   availability: [],
   hosting_travel: [],

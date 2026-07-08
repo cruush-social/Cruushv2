@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { sendPasswordResetEmail, sendVerificationEmail } from "./mailer.js";
+import {
+  sendPasswordResetEmail,
+  sendSupportRequestInboxEmail,
+  sendTrustSafetyAlertEmail,
+  sendVerificationEmail
+} from "./mailer.js";
 import type { AppConfig } from "./config.js";
 
 const config: AppConfig = {
@@ -70,5 +75,76 @@ describe("mailer", () => {
     expect(body.html).toContain("abc&amp;next=&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(body.html).not.toContain("<script>");
     expect(body.text).toContain("<script>alert(1)</script>");
+  });
+
+  it("sends PhotoDNA match alerts without evidence bytes or media object details", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendTrustSafetyAlertEmail({
+      config: {
+        ...config,
+        TRUST_SAFETY_ALERT_EMAIL: "trust-safety@cruush.test"
+      },
+      logger,
+      incident: {
+        id: "11111111-1111-4111-8111-111111111111",
+        userId: "22222222-2222-4222-8222-222222222222",
+        userEmail: "river@example.com",
+        surface: "profile_photo",
+        environment: "test",
+        testMode: true,
+        providerRequestId: "photodna-match-1",
+        createdAt: "2026-07-07T12:00:00.000Z",
+        internalReviewUrl: "https://cruush.test/api/internal/csam-incidents/11111111-1111-4111-8111-111111111111"
+      }
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+
+    expect(body.to).toEqual(["trust-safety@cruush.test"]);
+    expect(body.subject).toBe("[TEST] PhotoDNA match incident 11111111-1111-4111-8111-111111111111");
+    expect(body.html).toContain("photodna-match-1");
+    expect(body.text).toContain("river@example.com");
+    expect(body.html).not.toContain("object_key");
+    expect(body.html).not.toContain("csam-evidence");
+    expect(body.text).not.toContain("csam-evidence");
+    expect(body.html).not.toContain("data:image");
+  });
+
+  it("sends support requests to the configured support inbox with reply-to", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendSupportRequestInboxEmail({
+      config: {
+        ...config,
+        SUPPORT_INBOX_EMAIL: "support@cruush.app"
+      },
+      logger,
+      request: {
+        id: "support-1",
+        category: "question",
+        contactEmail: "founder@example.com",
+        createdAt: "2026-07-07T12:00:00.000Z",
+        message: "Can AI answer most support questions?",
+        pageUrl: "/settings",
+        requesterUserId: "user-1",
+        source: "settings",
+        subject: "Support inbox"
+      }
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+
+    expect(body.to).toEqual(["support@cruush.app"]);
+    expect(body.reply_to).toBe("founder@example.com");
+    expect(body.subject).toBe("[support] question: Support inbox");
+    expect(body.html).toContain("support-1");
+    expect(body.text).toContain("Can AI answer most support questions?");
   });
 });

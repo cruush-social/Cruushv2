@@ -5,8 +5,10 @@ import {
   buildEncryptedRelationshipPayload,
   createRelationshipBlindIndex,
   decryptRelationshipPayload,
+  findEncryptedRelationshipRecord,
   hasActiveEncryptedRelationshipToken,
   issueEncryptedRelationshipToken,
+  listEncryptedRelationshipRecordsByActor,
   upsertEncryptedRelationshipRecord,
   verifyEncryptedRelationshipToken
 } from "./encrypted-relationships.js";
@@ -121,6 +123,45 @@ describe("encrypted relationship storage", () => {
     })).toThrow();
   });
 
+  it("skips unreadable relationship records in public lookup helpers", async () => {
+    const db = createRecordReturningDb();
+    const payload = buildEncryptedRelationshipPayload({
+      type: "cruush",
+      actorUserId: "d271f6da-c51d-4d73-a322-d9c56f45d4fa",
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      createdAt: "2026-06-02T12:00:00.000Z"
+    });
+    const record = await upsertEncryptedRelationshipRecord({ config, db }, payload);
+    const unreadableRecord = {
+      ...record!,
+      id: "unreadable-record",
+      record_auth_tag: Buffer.alloc(16).toString("base64")
+    };
+    const listDb = {
+      query: vi.fn(async () => ({ rows: [unreadableRecord, record] }))
+    } as unknown as Pick<DbClient, "query">;
+    const findDb = {
+      query: vi.fn(async () => ({ rows: [unreadableRecord] }))
+    } as unknown as Pick<DbClient, "query">;
+
+    await expect(listEncryptedRelationshipRecordsByActor({
+      config,
+      db: listDb
+    }, {
+      actorUserId: "d271f6da-c51d-4d73-a322-d9c56f45d4fa",
+      type: "cruush"
+    })).resolves.toEqual([record]);
+
+    await expect(findEncryptedRelationshipRecord({
+      config,
+      db: findDb
+    }, {
+      actorUserId: "d271f6da-c51d-4d73-a322-d9c56f45d4fa",
+      targetUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      type: "cruush"
+    })).resolves.toBeNull();
+  });
+
   it("verifies encrypted match tokens and rejects tampered, expired, or revoked rows", async () => {
     const tokenQuery = vi.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [] }));
     const tokenDb = { query: tokenQuery } as unknown as Pick<DbClient, "query">;
@@ -159,6 +200,10 @@ describe("encrypted relationship storage", () => {
       ...tokenRow,
       token_signature: "0".repeat(64)
     })).toBeNull();
+    expect(verifyEncryptedRelationshipToken({
+      ...config,
+      MATCH_TOKEN_ENCRYPTION_KEY: "rotated-match-token-encryption-key"
+    }, tokenRow)).toBeNull();
 
     const activeDb = {
       query: vi.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [tokenRow] }))

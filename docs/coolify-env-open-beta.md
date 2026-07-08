@@ -56,6 +56,10 @@ PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
 PHOTODNA_OPERATION_PATH=<microsoft-photodna-operation-path>
 PHOTODNA_SUBSCRIPTION_KEY=<microsoft-photodna-subscription-key>
 PHOTODNA_TIMEOUT_MS=5000
+CSAM_REPORTING_ENABLED=false
+CSAM_REPORTING_MODE=manual_packet
+CSAM_REPORTING_TEST_MODE=true
+TRUST_SAFETY_ALERT_EMAIL=<private-trust-safety-inbox>
 SUPPORT_INBOX_EMAIL=<private-support-inbox>
 
 INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
@@ -147,6 +151,10 @@ PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
 PHOTODNA_OPERATION_PATH=<microsoft-photodna-operation-path>
 PHOTODNA_SUBSCRIPTION_KEY=<microsoft-photodna-subscription-key>
 PHOTODNA_TIMEOUT_MS=5000
+CSAM_REPORTING_ENABLED=false
+CSAM_REPORTING_MODE=manual_packet
+CSAM_REPORTING_TEST_MODE=false
+TRUST_SAFETY_ALERT_EMAIL=<private-trust-safety-inbox>
 SUPPORT_INBOX_EMAIL=<private-support-inbox>
 
 INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>

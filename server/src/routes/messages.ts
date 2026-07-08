@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
+import { checkPhotoDnaForUploadOrReject } from "../csam-reporting.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { decryptMediaBytes, encryptMediaBytes } from "../media-encryption.js";
 import { MESSAGE_PHOTO_MEDIA_PREFIX, readEncryptedMediaObject, writeEncryptedMediaObject } from "../media-storage.js";
@@ -16,7 +17,6 @@ import {
   updateGroupConversationPayloadSchema
 } from "../message-schema.js";
 import { approvedContentReviewCte, moderateImageOrReject, moderateTextOrReject } from "../moderation-service.js";
-import { checkPhotoDna } from "../photodna.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 
 const conversationParamsSchema = z.object({
@@ -1039,11 +1039,25 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       });
     }
 
-    const photoDnaResult = await checkPhotoDna(app.config, upload.buffer);
-
-    if (photoDnaResult.status === "blocked") {
-      throw new ApiError(400, "CONTENT_REJECTED", "This photo violates Cruush safety rules and cannot be saved.");
-    }
+    const userAgent = request.headers["user-agent"];
+    const photoDnaResult = await checkPhotoDnaForUploadOrReject(app, {
+      userId,
+      surface: moderationSurface,
+      imageBytes: upload.buffer,
+      mimeType,
+      filename: upload.filename,
+      sourceRoute: "POST /api/messages/photos",
+      requestIp: request.ip,
+      userAgent: Array.isArray(userAgent) ? userAgent.join(" ") : userAgent,
+      contentId: url,
+      contentRef: {
+        url,
+        objectKey,
+        conversationId: conversation.id,
+        originalFilename: upload.filename,
+        mimeType
+      }
+    });
 
     const imageModeration = await moderateImageOrReject(app, {
       userId,

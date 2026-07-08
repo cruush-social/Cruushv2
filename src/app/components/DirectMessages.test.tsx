@@ -63,7 +63,7 @@ describe('DirectMessages', () => {
     expect(screen.queryByText('Preview mode')).not.toBeInTheDocument();
   });
 
-  it('shows group admin role and disappearing timer metadata', async () => {
+  it('shows group admin role and 1h disappearing timer metadata', async () => {
     getConversations.mockResolvedValue([{
       id: 'group-1',
       kind: 'group',
@@ -81,7 +81,7 @@ describe('DirectMessages', () => {
       muted: false,
       membersLabel: '3 people',
       currentUserRole: 'owner',
-      disappearingTimer: '24h',
+      disappearingTimer: '1h',
       closed: false,
       tags: [],
     }]);
@@ -94,7 +94,7 @@ describe('DirectMessages', () => {
 
     expect(await screen.findByText('Beta crew')).toBeInTheDocument();
     expect(screen.getByText('owner')).toBeInTheDocument();
-    expect(screen.getByText('24h')).toBeInTheDocument();
+    expect(screen.getByText('1h')).toBeInTheDocument();
   });
 
   it('creates a group from mutual cruushes only', async () => {

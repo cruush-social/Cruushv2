@@ -788,6 +788,8 @@ Profile product model:
 - Edit sections: Photos, Profile, Basics, Intimacy, Health & Safety.
 - Public/queryable fields remain relational for filtering and discovery.
 - Sensitive/free-text/private fields use encrypted payloads and blind tokens where needed.
+- HIV status, raw trans status, and ethnicity are display/profile data only. They are not seeking filters, visibility-rule predicates, saved visibility set fields, or blind-token filter signals.
+- T4T remains available as a self-selected crowd and crowd-mode gate; it is not a raw trans-status filter.
 
 Important frontend files:
 
@@ -815,14 +817,14 @@ Profile write path:
 - Backend splits sensitive profile data.
 - Backend encrypts sensitive payload.
 - Backend encrypts visibility rules.
-- Backend creates blind tokens for protected searchable/matchable values.
+- Backend creates blind tokens only for protected searchable/matchable values such as crowds, kinks, and active crowd modes.
 - Backend writes profile row and syncs token rows.
 
 Discovery path:
 
 - Frontend calls `GET /api/users`.
 - Backend applies filters and location/privacy rules.
-- Protected sensitive filter values use blind token matching.
+- Protected crowd and kink filter values use blind token matching.
 - Backend performs viewer-specific visibility checks before returning profile data.
 
 Do not:

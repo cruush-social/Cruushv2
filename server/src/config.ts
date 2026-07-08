@@ -80,6 +80,10 @@ const configSchema = z.object({
   PHOTODNA_OPERATION_PATH: z.string().trim().optional().default(""),
   PHOTODNA_SUBSCRIPTION_KEY: z.string().optional().default(""),
   PHOTODNA_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
+  CSAM_REPORTING_ENABLED: booleanEnvSchema,
+  CSAM_REPORTING_MODE: z.enum(["manual_packet", "ncmec_direct"]).optional().default("manual_packet"),
+  CSAM_REPORTING_TEST_MODE: booleanEnvSchema,
+  TRUST_SAFETY_ALERT_EMAIL: z.string().trim().email().optional().or(z.literal("")).default(""),
   SUPPORT_INBOX_EMAIL: z.string().trim().email().optional().or(z.literal("")).default(""),
   INTERNAL_API_SECRET: z.string().optional().default(""),
   RESEND_API_KEY: z.string().optional().default(""),
@@ -153,6 +157,32 @@ const configSchema = z.object({
 
   if (config.NODE_ENV !== "production") {
     return;
+  }
+
+  if (config.PHOTODNA_ENABLED) {
+    if (!config.CSAM_REPORTING_ENABLED) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "CSAM_REPORTING_ENABLED is required when PHOTODNA_ENABLED=true in production.",
+        path: ["CSAM_REPORTING_ENABLED"]
+      });
+    }
+
+    if (!config.TRUST_SAFETY_ALERT_EMAIL) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "TRUST_SAFETY_ALERT_EMAIL is required when PHOTODNA_ENABLED=true in production.",
+        path: ["TRUST_SAFETY_ALERT_EMAIL"]
+      });
+    }
+
+    if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "RESEND_API_KEY and MAIL_FROM are required for production CSAM alerting.",
+        path: ["RESEND_API_KEY"]
+      });
+    }
   }
 
   if (config.SESSION_SECRET.length < 32 || config.SESSION_SECRET === "change-me") {
@@ -291,6 +321,10 @@ type ModerationConfigKey =
   | "PHOTODNA_OPERATION_PATH"
   | "PHOTODNA_SUBSCRIPTION_KEY"
   | "PHOTODNA_TIMEOUT_MS"
+  | "CSAM_REPORTING_ENABLED"
+  | "CSAM_REPORTING_MODE"
+  | "CSAM_REPORTING_TEST_MODE"
+  | "TRUST_SAFETY_ALERT_EMAIL"
   | "SUPPORT_INBOX_EMAIL"
   | "INTERNAL_API_SECRET"
   | "MESSAGE_ENCRYPTION_KEY"

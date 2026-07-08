@@ -1,6 +1,7 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildServer } from "./app.js";
 import { createSessionCookie, generateSessionToken, hashPassword, hashSessionToken } from "./auth.js";
+import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
 import { DEVELOPMENT_ADMIN_EMAIL, DEVELOPMENT_ADMIN_LOCATION } from "./development-admin.js";
 import {
@@ -10,7 +11,7 @@ import {
   type EncryptedRelationshipRecordRow
 } from "./encrypted-relationships.js";
 import { emptyProfile } from "./profile-schema.js";
-import { createCrowdTokens, encryptProfileVisibility, encryptSensitiveProfile } from "./profile-sensitive.js";
+import { createCrowdTokens, encryptProfileVisibility, encryptSensitiveProfile, type ProfileVisibilityRules } from "./profile-sensitive.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
 import {
   decryptDisplayLocationTokenForTest,
@@ -19,7 +20,7 @@ import {
   type VisibilityBaseMode
 } from "./location-privacy.js";
 import { encryptMediaBytes } from "./media-encryption.js";
-import { writeEncryptedMediaObject } from "./media-storage.js";
+import { readEncryptedMediaObject, writeEncryptedMediaObject } from "./media-storage.js";
 
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
@@ -265,6 +266,10 @@ beforeEach(() => {
   rateLimiter.reset?.();
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 async function encryptedRelationshipRecordRow(input: {
   id: string;
   type: Parameters<typeof buildEncryptedRelationshipPayload>[0]["type"];
@@ -455,9 +460,125 @@ function multipartFilePayload(input: {
   };
 }
 
+function buildCsamTestApp(overrides: Partial<AppConfig> = {}) {
+  return buildServer({
+    ...app.config,
+    PHOTODNA_ENABLED: true,
+    PHOTODNA_API_URL: "https://photodna.example.test",
+    PHOTODNA_OPERATION_PATH: "/match",
+    PHOTODNA_SUBSCRIPTION_KEY: "photo-dna-key",
+    CSAM_REPORTING_ENABLED: true,
+    CSAM_REPORTING_MODE: "manual_packet",
+    CSAM_REPORTING_TEST_MODE: true,
+    TRUST_SAFETY_ALERT_EMAIL: "trust-safety@cruush.test",
+    RESEND_API_KEY: "re_test",
+    MAIL_FROM: "cruush <hello@cruush.test>",
+    INTERNAL_API_SECRET: "internal-secret",
+    ...overrides
+  } as AppConfig, {
+    db: {
+      query,
+      end
+    },
+    rateLimiter
+  });
+}
+
 describe("server", () => {
   const userId = "d271f6da-c51d-4d73-a322-d9c56f45d4fa";
   const conversationId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
+  const csamIncidentId = "11111111-1111-4111-8111-111111111111";
+  const csamEvidenceId = "22222222-2222-4222-8222-222222222222";
+
+  function mockPhotoDnaMatchAndAlert() {
+    const fetchMock = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
+      const url = input.toString();
+
+      if (url.startsWith("https://photodna.example.test")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            isMatch: true,
+            trackingId: "photodna-match-1",
+            status: "matched"
+          })
+        };
+      }
+
+      if (url === "https://api.resend.com/emails") {
+        return {
+          ok: true,
+          status: 200,
+          text: async () => ""
+        };
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  function mockCsamIncidentQueries(options: { conversation?: boolean } = {}) {
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      const text = String(sql);
+
+      if (text.includes("select photos from profiles")) {
+        return { rows: [{ photos: [] }] };
+      }
+
+      if (text.includes("join conversations c")) {
+        return {
+          rows: options.conversation
+            ? [{
+              id: conversationId,
+              kind: "group",
+              title: "Beta crew",
+              tags: [],
+              updated_at: "2026-04-29T12:00:00.000Z",
+              last_message: "",
+              unread_count: 0,
+              pinned: false,
+              muted: false,
+              other_user_id: null,
+              other_user_name: null,
+              other_user_pronouns: null,
+              other_user_photo: null,
+              member_count: 3,
+              current_user_role: "member",
+              disappearing_timer: "off",
+              closed_at: null
+            }]
+            : []
+        };
+      }
+
+      if (text.includes("select email, display_name from app_users")) {
+        return { rows: [{ email: "river@example.com", display_name: "River" }] };
+      }
+
+      if (text.includes("insert into csam_incidents")) {
+        return {
+          rows: [{
+            id: csamIncidentId,
+            created_at: "2026-07-07T12:00:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("insert into csam_incident_evidence")) {
+        return { rows: [{ id: csamEvidenceId }] };
+      }
+
+      if (text.includes("insert into content_reviews")) {
+        return { rows: [{ id: "33333333-3333-4333-8333-333333333333" }] };
+      }
+
+      return { rows: [{ id: params[0] ?? "row-id" }] };
+    });
+  }
 
   it("returns metadata from /api/meta", async () => {
     const response = await app.inject({
@@ -475,6 +596,146 @@ describe("server", () => {
       storage: "postgres",
       migratedFromSupabase: true
     });
+  });
+
+  it("requires the internal secret before returning a CSAM incident", async () => {
+    const csamApp = buildCsamTestApp();
+
+    const response = await csamApp.inject({
+      method: "GET",
+      url: `/api/internal/csam-incidents/${csamIncidentId}`
+    });
+    await csamApp.close();
+
+    expect(response.statusCode).toBe(403);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("returns a CyberTipline-ready CSAM report packet through internal access", async () => {
+    const csamApp = buildCsamTestApp();
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from csam_incidents")) {
+        return {
+          rows: [{
+            id: csamIncidentId,
+            user_id: userId,
+            user_email: "river@example.com",
+            user_display_name: "River",
+            surface: "profile_photo",
+            status: "awaiting_submission",
+            reporting_mode: "manual_packet",
+            test_mode: true,
+            environment: "test",
+            provider: "photodna",
+            provider_request_id: "photodna-match-1",
+            photodna_result: { isMatch: true },
+            alert_status: "sent",
+            alert_error: null,
+            cybertipline_report_id: null,
+            ncmec_reported_at: null,
+            created_at: "2026-07-07T12:00:00.000Z",
+            updated_at: "2026-07-07T12:00:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("from csam_incident_evidence")) {
+        return {
+          rows: [{
+            id: csamEvidenceId,
+            object_key: `csam-evidence/${csamIncidentId}/evidence.png.enc`,
+            sha256_hex: "a".repeat(64),
+            original_filename: "profile.png",
+            mime_type: "image/png",
+            byte_size: 10,
+            source_route: "POST /api/profile-photos",
+            request_ip: "127.0.0.1",
+            user_agent: "vitest",
+            created_at: "2026-07-07T12:00:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("from csam_incident_events")) {
+        return {
+          rows: [{
+            id: "44444444-4444-4444-8444-444444444444",
+            event_type: "match_detected",
+            metadata: {},
+            created_at: "2026-07-07T12:00:00.000Z"
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await csamApp.inject({
+      method: "GET",
+      url: `/api/internal/csam-incidents/${csamIncidentId}/report-packet`,
+      headers: {
+        "x-internal-secret": "internal-secret"
+      }
+    });
+    await csamApp.close();
+    const body = response.json();
+
+    expect(response.statusCode).toBe(200);
+    expect(body.data.incident.id).toBe(csamIncidentId);
+    expect(body.data.reporting.destination).toBe("NCMEC CyberTipline");
+    expect(body.data.reporting.mode).toBe("manual_packet");
+    expect(body.data.evidence[0]).toMatchObject({
+      objectKey: `csam-evidence/${csamIncidentId}/evidence.png.enc`,
+      sha256Hex: "a".repeat(64),
+      mimeType: "image/png"
+    });
+    expect(JSON.stringify(body)).not.toContain("decrypted");
+    expect(JSON.stringify(body)).not.toContain("data:image");
+  });
+
+  it("marks a CSAM incident as submitted through internal access", async () => {
+    const csamApp = buildCsamTestApp();
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("update csam_incidents")) {
+        return {
+          rows: [{
+            id: csamIncidentId,
+            status: "submitted",
+            cybertipline_report_id: "ncmec-123",
+            ncmec_reported_at: "2026-07-07T13:00:00.000Z"
+          }]
+        };
+      }
+
+      return { rows: [{ id: "event-id" }] };
+    });
+
+    const response = await csamApp.inject({
+      method: "POST",
+      url: `/api/internal/csam-incidents/${csamIncidentId}/mark-submitted`,
+      headers: {
+        "x-internal-secret": "internal-secret"
+      },
+      payload: {
+        cyberTiplineReportId: "ncmec-123",
+        submittedBy: "ops@cruush.app"
+      }
+    });
+    await csamApp.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      data: {
+        id: csamIncidentId,
+        status: "submitted",
+        cyberTiplineReportId: "ncmec-123"
+      }
+    });
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into csam_incident_events"))).toBe(true);
   });
 
   it("returns the open beta cruush+ plan catalog", async () => {
@@ -1249,6 +1510,154 @@ describe("server", () => {
     });
   });
 
+  it("changes the current user's password and keeps the current session active", async () => {
+    const sessionToken = "test-session-token";
+    const passwordHash = await hashPassword("current-password");
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          password_hash: passwordHash
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/password/change",
+      cookies: {
+        cruush_session: sessionToken
+      },
+      payload: {
+        currentPassword: "current-password",
+        newPassword: "new-password-123"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
+    expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken(sessionToken)]);
+    expect(query.mock.calls[1]?.[0]).toContain("from app_users");
+    expect(query.mock.calls[2]?.[0]).toContain("update app_users");
+    expect(query.mock.calls[2]?.[1]?.[0]).not.toBe("new-password-123");
+    expect(query.mock.calls[3]?.[0]).toContain("delete from password_reset_tokens");
+    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[4]?.[1]).toEqual([userId, hashSessionToken(sessionToken)]);
+    expect(response.json()).toEqual({
+      data: {
+        changed: true
+      }
+    });
+  });
+
+  it("rejects password changes when the current password is wrong", async () => {
+    const passwordHash = await hashPassword("current-password");
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          password_hash: passwordHash
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/password/change",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        currentPassword: "wrong-password",
+        newPassword: "new-password-123"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      error: {
+        code: "AUTH_REQUIRED",
+        message: "Current password is incorrect.",
+        details: null
+      }
+    });
+    expect(query.mock.calls.map((call) => String(call[0])).join("\n")).not.toContain("update app_users");
+  });
+
+  it("rate limits repeated password change attempts", async () => {
+    const passwordHash = await hashPassword("current-password");
+    query.mockImplementation((sql) => {
+      const text = String(sql);
+
+      if (text.includes("from app_sessions s")) {
+        return Promise.resolve({
+          rows: [{
+            user_id: userId
+          }]
+        });
+      }
+
+      if (text.includes("from app_users") && text.includes("password_hash")) {
+        return Promise.resolve({
+          rows: [{
+            id: userId,
+            password_hash: passwordHash
+          }]
+        });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/password/change",
+        cookies: {
+          cruush_session: "test-session-token"
+        },
+        payload: {
+          currentPassword: "wrong-password",
+          newPassword: "new-password-123"
+        }
+      });
+
+      expect(response.statusCode).toBe(401);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/password/change",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        currentPassword: "wrong-password",
+        newPassword: "new-password-123"
+      }
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many password change attempts. Try again later.",
+        details: expect.any(Object)
+      }
+    });
+  });
+
   it("rate limits repeated password reset token attempts", async () => {
     query.mockResolvedValue({ rows: [] });
 
@@ -1336,6 +1745,184 @@ describe("server", () => {
         codeOfConductAcceptedAt: null
       }
     });
+  });
+
+  it("deletes the current user's account, media objects, sessions, and session cookie", async () => {
+    const sessionToken = "test-session-token";
+    const passwordHash = await hashPassword("current-password");
+    const objectKey = `profile-photos/${userId}/delete-account-test.enc`;
+    await writeEncryptedMediaObject(app.config, objectKey, Buffer.from("encrypted"));
+    await expect(readEncryptedMediaObject(app.config, objectKey)).resolves.toEqual(Buffer.from("encrypted"));
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          password_hash: passwordHash
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          object_key: objectKey
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: sessionToken
+      },
+      payload: {
+        password: "current-password",
+        confirmation: "DELETE"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    await expect(readEncryptedMediaObject(app.config, objectKey)).rejects.toThrow();
+    expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
+    expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken(sessionToken)]);
+    expect(query.mock.calls[2]?.[0]).toContain("from media_objects");
+    expect(query.mock.calls[3]?.[0]).toBe("begin");
+    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
+    expect(query.mock.calls[6]?.[0]).toBe("commit");
+    expect(response.headers["set-cookie"]).toContain("cruush_session=");
+    expect(response.headers["set-cookie"]).toContain("Max-Age=0");
+  });
+
+  it("requires authentication before deleting an account", async () => {
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/auth/me",
+      payload: {
+        password: "current-password",
+        confirmation: "DELETE"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("requires the exact account deletion confirmation", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        user_id: userId
+      }]
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        password: "current-password",
+        confirmation: "delete"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed"
+      }
+    });
+  });
+
+  it("rejects account deletion when the password is wrong", async () => {
+    const passwordHash = await hashPassword("current-password");
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          password_hash: passwordHash
+        }]
+      });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        password: "wrong-password",
+        confirmation: "DELETE"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      error: {
+        code: "AUTH_REQUIRED",
+        message: "Password is incorrect.",
+        details: null
+      }
+    });
+    expect(query.mock.calls.map((call) => String(call[0])).join("\n")).not.toContain("delete from app_users");
+  });
+
+  it("rolls back the account deletion transaction when the user row is missing", async () => {
+    const passwordHash = await hashPassword("current-password");
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          password_hash: passwordHash
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        password: "current-password",
+        confirmation: "DELETE"
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(query.mock.calls[3]?.[0]).toBe("begin");
+    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
+    expect(query.mock.calls[6]?.[0]).toBe("rollback");
   });
 
   it("marks the current session as having accepted the current code of conduct", async () => {
@@ -1692,6 +2279,45 @@ describe("server", () => {
         tags: ["Hosting", "Now"]
       }]
     });
+  });
+
+  it("falls back to plaintext message previews when encrypted message metadata is unreadable", async () => {
+    const invalidNonce = Buffer.alloc(12).toString("base64");
+    const invalidAuthTag = Buffer.alloc(16).toString("base64");
+
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: conversationId,
+        kind: "dm",
+        title: null,
+        tags: [],
+        updated_at: "2026-04-29T12:00:00.000Z",
+        last_message: "legacy preview",
+        last_message_ciphertext: Buffer.from("bad-preview").toString("base64"),
+        last_message_nonce: invalidNonce,
+        last_message_auth_tag: invalidAuthTag,
+        last_message_key_version: "v1",
+        unread_count: 0,
+        pinned: false,
+        muted: false,
+        other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        other_user_name: "Alex",
+        other_user_pronouns: ["they/them"],
+        other_user_photo: null,
+        member_count: 2
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/conversations",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data[0].lastMessage).toBe("legacy preview");
   });
 
   it("opens or creates a dm conversation on POST /api/conversations/dm", async () => {
@@ -2323,6 +2949,52 @@ describe("server", () => {
     });
   });
 
+  it("falls back to plaintext message content when encrypted message metadata is unreadable", async () => {
+    const invalidNonce = Buffer.alloc(12).toString("base64");
+    const invalidAuthTag = Buffer.alloc(16).toString("base64");
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "msg-legacy",
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          content: "legacy body",
+          content_ciphertext: Buffer.from("bad-body").toString("base64"),
+          content_nonce: invalidNonce,
+          content_auth_tag: invalidAuthTag,
+          content_key_version: "v1",
+          created_at: "2026-04-29T12:05:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/messages/${conversationId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.messages[0].content).toBe("legacy body");
+  });
+
   it("rejects invalid conversation ids before querying messages", async () => {
     const response = await app.inject({
       method: "GET",
@@ -2563,6 +3235,81 @@ describe("server", () => {
         }]
       }
     });
+  });
+
+  it("does not expose a generic video media upload endpoint", async () => {
+    const mp4 = Buffer.from([
+      0x00, 0x00, 0x00, 0x18,
+      0x66, 0x74, 0x79, 0x70,
+      0x69, 0x73, 0x6f, 0x6d,
+      0x00, 0x00, 0x02, 0x00
+    ]);
+    const multipart = multipartFilePayload({
+      fieldName: "media",
+      filename: "clip.mp4",
+      contentType: "video/mp4",
+      content: mp4,
+      fields: [
+        { name: "conversationId", value: conversationId },
+        { name: "content", value: "video caption" },
+        { name: "viewOnce", value: "true" }
+      ]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages/media",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("creates a CSAM incident and does not store a message photo on a PhotoDNA match", async () => {
+    const csamApp = buildCsamTestApp();
+    mockPhotoDnaMatchAndAlert();
+    mockCsamIncidentQueries({ conversation: true });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "message.png",
+      contentType: "image/png",
+      content: png,
+      fields: [
+        { name: "conversationId", value: conversationId }
+      ]
+    });
+
+    const response = await csamApp.inject({
+      method: "POST",
+      url: "/api/messages/photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    await csamApp.close();
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This photo violates cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into csam_incidents"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into csam_incident_evidence"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("message_media_attachments"))).toBe(false);
   });
 
   it("opens a view-once photo once and records the view before returning bytes", async () => {
@@ -2976,6 +3723,229 @@ describe("server", () => {
     });
   });
 
+  it("creates an anonymous support request with contact email on POST /api/support-requests", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "support-1",
+        status: "open",
+        ai_triage_status: "pending",
+        created_at: "2026-07-07T12:00:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/support-requests",
+      headers: {
+        "user-agent": "vitest"
+      },
+      payload: {
+        category: "question",
+        subject: "Question about account access",
+        message: "Can support help me understand the bank reviewer login path?",
+        contactEmail: "reviewer@example.com",
+        source: "auth",
+        pageUrl: "https://cruush.test/"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("insert into support_requests");
+    expect(query.mock.calls[0]?.[1]).toEqual([
+      null,
+      "reviewer@example.com",
+      "question",
+      "Question about account access",
+      "Can support help me understand the bank reviewer login path?",
+      "auth",
+      "https://cruush.test/",
+      expect.objectContaining({
+        userAgent: "vitest",
+        aiSupport: expect.objectContaining({ status: "pending" })
+      })
+    ]);
+    expect(response.json()).toEqual({
+      data: {
+        id: "support-1",
+        status: "open",
+        aiTriageStatus: "pending",
+        createdAt: "2026-07-07T12:00:00.000Z"
+      }
+    });
+  });
+
+  it("requires a reply email for signed-out support requests", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/support-requests",
+      payload: {
+        category: "bug",
+        subject: "Map issue",
+        message: "The map did not load after sign in.",
+        source: "auth"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Enter an email so support can reply.",
+        details: null
+      }
+    });
+  });
+
+  it("creates a signed-in support request without requiring contact email", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "support-2",
+        status: "open",
+        ai_triage_status: "pending",
+        created_at: "2026-07-07T12:05:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/support-requests",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        category: "bug",
+        subject: "Settings bug",
+        message: "The settings screen got stuck after opening support.",
+        source: "settings"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[1]).toEqual([
+      userId,
+      null,
+      "bug",
+      "Settings bug",
+      "The settings screen got stuck after opening support.",
+      "settings",
+      "",
+      expect.objectContaining({
+        userAgent: expect.any(String),
+        aiSupport: expect.objectContaining({ status: "pending" })
+      })
+    ]);
+  });
+
+  it("forwards support requests to the configured support inbox", async () => {
+    const supportApp = buildServer({
+      ...app.config,
+      RESEND_API_KEY: "re_test",
+      MAIL_FROM: "cruush <hello@cruush.test>",
+      SUPPORT_INBOX_EMAIL: "support@cruush.app"
+    }, {
+      db: {
+        query,
+        end
+      },
+      rateLimiter
+    });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => ""
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "support-3",
+        status: "open",
+        ai_triage_status: "pending",
+        created_at: "2026-07-07T12:10:00.000Z"
+      }]
+    });
+
+    const response = await supportApp.inject({
+      method: "POST",
+      url: "/api/support-requests",
+      headers: {
+        "user-agent": "vitest"
+      },
+      payload: {
+        category: "question",
+        subject: "Can AI answer support?",
+        message: "I want to know how most support replies will be handled.",
+        contactEmail: "founder@example.com",
+        source: "auth",
+        pageUrl: "/"
+      }
+    });
+    await supportApp.close();
+
+    expect(response.statusCode).toBe(201);
+    expect(fetchMock).toHaveBeenCalledWith("https://api.resend.com/emails", expect.any(Object));
+    const emailBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
+    expect(emailBody.to).toEqual(["support@cruush.app"]);
+    expect(emailBody.reply_to).toBe("founder@example.com");
+    expect(emailBody.subject).toBe("[support] question: Can AI answer support?");
+    expect(emailBody.html).toContain("support-3");
+    expect(emailBody.html).toContain("I want to know how most support replies will be handled.");
+  });
+
+  it("keeps support requests saved when support inbox delivery fails", async () => {
+    const supportApp = buildServer({
+      ...app.config,
+      RESEND_API_KEY: "re_test",
+      MAIL_FROM: "cruush <hello@cruush.test>",
+      SUPPORT_INBOX_EMAIL: "support@cruush.app"
+    }, {
+      db: {
+        query,
+        end
+      },
+      rateLimiter
+    });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      text: async () => "bad gateway"
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "support-4",
+        status: "open",
+        ai_triage_status: "pending",
+        created_at: "2026-07-07T12:15:00.000Z"
+      }]
+    });
+
+    const response = await supportApp.inject({
+      method: "POST",
+      url: "/api/support-requests",
+      payload: {
+        category: "bug",
+        subject: "Inbox failure should not block",
+        message: "The DB record should still be returned even if Resend fails.",
+        contactEmail: "founder@example.com",
+        source: "auth"
+      }
+    });
+    await supportApp.close();
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("insert into support_requests");
+    expect(fetchMock).toHaveBeenCalledWith("https://api.resend.com/emails", expect.any(Object));
+    expect(response.json()).toEqual({
+      data: {
+        id: "support-4",
+        status: "open",
+        aiTriageStatus: "pending",
+        createdAt: "2026-07-07T12:15:00.000Z"
+      }
+    });
+  });
+
   it("uploads a profile photo on POST /api/profile-photos", async () => {
     query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
       rows: String(_sql).includes("select photos from profiles")
@@ -3015,6 +3985,99 @@ describe("server", () => {
     expect(query.mock.calls[2]?.[0]).toContain("insert into profiles (id, photos, updated_at)");
     expect(query.mock.calls[2]?.[0]).toContain("array_append(profiles.photos, $2)");
     expect(query.mock.calls[2]?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
+  });
+
+  it("creates a CSAM incident, preserves encrypted evidence, and locks the account on a PhotoDNA profile-photo match", async () => {
+    const csamApp = buildCsamTestApp();
+    const fetchMock = mockPhotoDnaMatchAndAlert();
+    mockCsamIncidentQueries();
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-profile.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await csamApp.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType,
+        "user-agent": "vitest"
+      },
+      payload: multipart.payload
+    });
+    await csamApp.close();
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+    const resendBody = JSON.parse(fetchMock.mock.calls.find(([url]) => String(url) === "https://api.resend.com/emails")?.[1]?.body as string);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "This photo violates cruush safety rules and cannot be saved.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into csam_incidents"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into csam_incident_evidence"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into suspensions"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into feature_restrictions"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(resendBody.subject).toBe(`[TEST] PhotoDNA match incident ${csamIncidentId}`);
+    expect(resendBody.html).toContain("photodna-match-1");
+    expect(resendBody.html).not.toContain("csam-evidence");
+  });
+
+  it("fails closed without creating a CSAM incident when PhotoDNA is unavailable", async () => {
+    const csamApp = buildCsamTestApp();
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      if (input.toString().startsWith("https://photodna.example.test")) {
+        return {
+          ok: false,
+          status: 502,
+          text: async () => "bad gateway"
+        };
+      }
+
+      throw new Error(`Unexpected fetch URL: ${input.toString()}`);
+    }));
+    query.mockResolvedValue({ rows: [{ photos: [] }] });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-profile.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await csamApp.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    await csamApp.close();
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({
+      error: {
+        code: "MODERATION_UNAVAILABLE",
+        message: "Automated photo safety checks are temporarily unavailable. Try again later.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into csam_incidents"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
   it("rejects profile photos without adult human body proof before storage", async () => {
@@ -3301,7 +4364,30 @@ describe("server", () => {
     expect(body.data.profiles[0].lastActive).toMatch(/ago$/);
   });
 
-  it("requires cruush+ before applying premium discovery filters", async () => {
+  it("allows free users to apply up to three seeking filter categories", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006&lookingFor=hookup&vibes=Goth&kinks=leather",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("from user_entitlements"))).toBe(false);
+    expect(query.mock.calls[1]?.[0]).toContain("from profiles");
+    expect(response.json()).toMatchObject({
+      data: {
+        profiles: []
+      }
+    });
+  });
+
+  it("requires cruush+ before applying more than three seeking filter categories", async () => {
     query.mockResolvedValueOnce({
       rows: [{
         cruush_plus_enabled: false,
@@ -3311,7 +4397,7 @@ describe("server", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/users?lat=40.7128&lng=-74.006&kinks=leather",
+      url: "/api/users?lat=40.7128&lng=-74.006&lookingFor=hookup&vibes=Goth&kinks=leather&roles=dominant",
       headers: {
         "x-user-id": userId
       }
@@ -5132,7 +6218,7 @@ describe("server", () => {
         position: ["Vers"],
         role: ["Switch"],
         is_trans: null,
-        trans_status_visibility: "public",
+        trans_status_visibility: "mutual_cruushes",
         crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
@@ -5201,7 +6287,7 @@ describe("server", () => {
         position: ["Vers"],
         role: ["Switch"],
         is_trans: null,
-        trans_status_visibility: "public",
+        trans_status_visibility: "mutual_cruushes",
         crowds: [],
         availability: ["Tonight"],
         hosting_travel: ["Hosting"],
@@ -5941,7 +7027,7 @@ describe("server", () => {
         id: userId,
         ...payload,
         is_trans: null,
-        trans_status_visibility: "public",
+        trans_status_visibility: "mutual_cruushes",
         crowds: [],
         scenes: [],
         archetypes: [],
@@ -6068,7 +7154,7 @@ describe("server", () => {
         hosting_travel: [],
         kinks: [],
         kinks_visibility: "mutual_crowds",
-        trans_status_visibility: "mutual_crowds",
+        trans_status_visibility: "mutual_cruushes",
         hiv_status: [],
         hiv_status_visibility: "mutual_cruushes",
         vibes: ["Goth"],
@@ -6145,7 +7231,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         is_trans: true,
-        trans_status_visibility: "mutual_crowds",
+        trans_status_visibility: "mutual_cruushes",
         crowds: ["T4T", "Sapphic"],
         kinks: ["leather"],
         kinks_visibility: "mutual_crowds",
@@ -6274,6 +7360,466 @@ describe("server", () => {
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         visibility_rules: payload.visibility_rules
+      })
+    });
+  });
+
+  it("allows free users to save visibility control filters without a cap", async () => {
+    query.mockResolvedValue({
+      rows: [{
+        id: userId,
+        display_name: "Cruusher",
+        photos: [],
+        bio: "Updated bio",
+        pronouns: [],
+        custom_pronouns: "",
+        year_of_birth: 1994,
+        ethnicity: [],
+        identities: [],
+        presentation: [],
+        sexuality: [],
+        body_type: [],
+        height: "",
+        weight: "",
+        position: [],
+        role: [],
+        availability: [],
+        hosting_travel: [],
+        kinks: [],
+        kinks_visibility: "public",
+        trans_status_visibility: "public",
+        hiv_status: [],
+        hiv_status_visibility: "mutual_cruushes",
+        vibes: [],
+        scenes: [],
+        archetypes: [],
+        hobbies: [],
+        custom_hobby: "",
+        looking_for: [],
+        custom_hiv_status: "",
+        condoms: [],
+        custom_condoms: "",
+        prep: [],
+        custom_prep: "",
+        doxypep: [],
+        custom_doxypep: "",
+        covid_vaccine: [],
+        custom_covid_vaccine: "",
+        mpox_vaccine: [],
+        custom_mpox_vaccine: "",
+        substance_boundaries: [],
+        profile_sensitive_ciphertext: null,
+        profile_sensitive_nonce: null,
+        profile_sensitive_auth_tag: null,
+        profile_sensitive_key_version: null,
+        profile_visibility_ciphertext: "encrypted-visibility",
+        profile_visibility_nonce: "visibility-nonce",
+        profile_visibility_auth_tag: "visibility-tag",
+        profile_visibility_key_version: "v1",
+        profile_visibility_token_key_version: "v1",
+        trans_crowds_changed_at: null,
+        updated_at: "2026-04-28T12:05:00.000Z"
+      }]
+    });
+
+    const visibilityRules = {
+      ...emptyProfile.visibility_rules,
+      distance: 25,
+      identities: ["nonbinary"],
+      looking_for: ["hookup"],
+      kinks: ["leather"]
+    };
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        year_of_birth: 1994,
+        visibility_rules: visibilityRules
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("from user_entitlements"))).toBe(false);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        visibility_rules: visibilityRules
+      })
+    });
+  });
+
+  it("requires cruush+ before creating saved visibility sets", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: false,
+        cruush_plus_expires_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profiles/me/visibility-sets",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        name: "Night out",
+        visibility_rules: {
+          ...emptyProfile.visibility_rules,
+          distance: 25
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CRUUSH_PLUS_REQUIRED",
+        message: "Upgrade to cruush+ to save visibility sets.",
+        details: null
+      }
+    });
+  });
+
+  it("rejects saved visibility set predicates for HIV status, trans status, and ethnicity", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: true,
+        cruush_plus_expires_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profiles/me/visibility-sets",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        name: "Blocked fields",
+        visibility_rules: {
+          ...emptyProfile.visibility_rules,
+          hiv_status: ["undetectable"],
+          trans_status: [true],
+          ethnicity: ["Latinx"]
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into profile_visibility_sets"))).toBe(false);
+  });
+
+  it("lets cruush+ users create, list, update, and delete saved visibility sets", async () => {
+    const savedSetId = "9a58ce18-7b9c-4da0-b6ef-183414c41ed8";
+    const savedRules = {
+      ...emptyProfile.visibility_rules,
+      distance: 25,
+      looking_for: ["hookup"],
+      kinks: ["leather"]
+    };
+    const updatedRules = {
+      ...emptyProfile.visibility_rules,
+      active_crowd_modes: ["T4T"],
+      distance: 10
+    };
+    const encryptedSavedRules = encryptProfileVisibility(app.config, savedRules);
+
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from user_entitlements")) {
+        return {
+          rows: [{
+            cruush_plus_enabled: true,
+            cruush_plus_expires_at: null
+          }]
+        };
+      }
+
+      if (text.includes("insert into profile_visibility_sets")) {
+        return {
+          rows: [{
+            id: savedSetId,
+            name: "Night out",
+            created_at: "2026-07-08T12:00:00.000Z",
+            updated_at: "2026-07-08T12:00:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("from profile_visibility_sets") && text.includes("order by")) {
+        return {
+          rows: [{
+            id: savedSetId,
+            user_id: userId,
+            name: "Night out",
+            ...encryptedSavedRules,
+            created_at: "2026-07-08T12:00:00.000Z",
+            updated_at: "2026-07-08T12:00:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("update profile_visibility_sets")) {
+        return {
+          rows: [{
+            id: savedSetId,
+            name: "T4T close",
+            created_at: "2026-07-08T12:00:00.000Z",
+            updated_at: "2026-07-08T12:05:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("delete from profile_visibility_sets")) {
+        return { rows: [{ id: savedSetId }] };
+      }
+
+      return { rows: [] };
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/profiles/me/visibility-sets",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        name: "Night out",
+        visibility_rules: savedRules
+      }
+    });
+    expect(createResponse.statusCode).toBe(201);
+    expect(createResponse.json()).toEqual({
+      data: expect.objectContaining({
+        id: savedSetId,
+        name: "Night out",
+        visibility_rules: savedRules
+      })
+    });
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/api/profiles/me/visibility-sets",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json()).toEqual({
+      data: [expect.objectContaining({
+        id: savedSetId,
+        name: "Night out",
+        visibility_rules: savedRules
+      })]
+    });
+
+    const updateResponse = await app.inject({
+      method: "PUT",
+      url: `/api/profiles/me/visibility-sets/${savedSetId}`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        name: "T4T close",
+        visibility_rules: updatedRules
+      }
+    });
+    expect(updateResponse.statusCode).toBe(200);
+    expect(updateResponse.json()).toEqual({
+      data: expect.objectContaining({
+        id: savedSetId,
+        name: "T4T close",
+        visibility_rules: updatedRules
+      })
+    });
+
+    const deleteResponse = await app.inject({
+      method: "DELETE",
+      url: `/api/profiles/me/visibility-sets/${savedSetId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    expect(deleteResponse.statusCode).toBe(200);
+    expect(deleteResponse.json()).toEqual({
+      data: {
+        deleted: true,
+        id: savedSetId
+      }
+    });
+  });
+
+  it("applies a saved visibility set through the normal profile visibility save path", async () => {
+    const savedSetId = "9a58ce18-7b9c-4da0-b6ef-183414c41ed8";
+    const savedRules: ProfileVisibilityRules = {
+      ...emptyProfile.visibility_rules,
+      active_crowd_modes: ["T4T"],
+      distance: 10
+    };
+    const encryptedSavedRules = encryptProfileVisibility(app.config, savedRules);
+    const encryptedSensitiveProfile = encryptSensitiveProfile(app.config, {
+      is_trans: true,
+      crowds: ["T4T"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+    const encryptedProfileVisibility = encryptProfileVisibility(app.config, savedRules);
+
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from user_entitlements")) {
+        return {
+          rows: [{
+            cruush_plus_enabled: true,
+            cruush_plus_expires_at: null
+          }]
+        };
+      }
+
+      if (text.includes("from profile_visibility_sets") && text.includes("where user_id = $1")) {
+        return {
+          rows: [{
+            id: savedSetId,
+            user_id: userId,
+            name: "T4T close",
+            ...encryptedSavedRules,
+            created_at: "2026-07-08T12:00:00.000Z",
+            updated_at: "2026-07-08T12:00:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("from profiles") && text.includes("where id = $1")) {
+        return {
+          rows: [{
+            id: userId,
+            display_name: "Cruusher",
+            photos: [],
+            bio: "",
+            pronouns: [],
+            custom_pronouns: "",
+            year_of_birth: 1994,
+            ethnicity: [],
+            identities: [],
+            presentation: [],
+            sexuality: [],
+            body_type: [],
+            height: "",
+            weight: "",
+            position: [],
+            role: [],
+            availability: [],
+            hosting_travel: [],
+            kinks: [],
+            kinks_visibility: "public",
+            trans_status_visibility: "mutual_cruushes",
+            hiv_status: [],
+            hiv_status_visibility: "mutual_cruushes",
+            vibes: [],
+            scenes: [],
+            archetypes: [],
+            hobbies: [],
+            custom_hobby: "",
+            looking_for: [],
+            custom_hiv_status: "",
+            condoms: [],
+            custom_condoms: "",
+            prep: [],
+            custom_prep: "",
+            doxypep: [],
+            custom_doxypep: "",
+            covid_vaccine: [],
+            custom_covid_vaccine: "",
+            mpox_vaccine: [],
+            custom_mpox_vaccine: "",
+            substance_boundaries: [],
+            ...encryptedSensitiveProfile,
+            ...encryptedProfileVisibility,
+            trans_crowds_changed_at: null,
+            updated_at: "2026-07-08T12:05:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("update profiles")) {
+        return {
+          rows: [{
+            id: userId,
+            display_name: "Cruusher",
+            photos: [],
+            bio: "",
+            pronouns: [],
+            custom_pronouns: "",
+            year_of_birth: 1994,
+            ethnicity: [],
+            identities: [],
+            presentation: [],
+            sexuality: [],
+            body_type: [],
+            height: "",
+            weight: "",
+            position: [],
+            role: [],
+            availability: [],
+            hosting_travel: [],
+            kinks: [],
+            kinks_visibility: "public",
+            trans_status_visibility: "mutual_cruushes",
+            hiv_status: [],
+            hiv_status_visibility: "mutual_cruushes",
+            vibes: [],
+            scenes: [],
+            archetypes: [],
+            hobbies: [],
+            custom_hobby: "",
+            looking_for: [],
+            custom_hiv_status: "",
+            condoms: [],
+            custom_condoms: "",
+            prep: [],
+            custom_prep: "",
+            doxypep: [],
+            custom_doxypep: "",
+            covid_vaccine: [],
+            custom_covid_vaccine: "",
+            mpox_vaccine: [],
+            custom_mpox_vaccine: "",
+            substance_boundaries: [],
+            ...encryptedSensitiveProfile,
+            ...encryptedProfileVisibility,
+            trans_crowds_changed_at: null,
+            updated_at: "2026-07-08T12:05:00.000Z"
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/profiles/me/visibility-sets/${savedSetId}/apply`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("update profiles"))).toBe(true);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into profile_sensitive_tokens"))).toBe(true);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        visibility_rules: savedRules
       })
     });
   });

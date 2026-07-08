@@ -10,7 +10,7 @@ This is not end-to-end encryption. The backend can decrypt protected profile pay
 
 ## Product problem
 
-cruush relies on fast local discovery. Users need to filter and reveal profiles by identity, crowds, kinks, and health-related choices, and some of those choices are sensitive. The backend also needs enough metadata to enforce safety rules, visibility settings, moderation, rate limits, abuse prevention, deletion, and data export.
+cruush relies on fast local discovery. Users need to filter and reveal profiles by identity, crowds, kinks, and other intentional matching choices, and some of those choices are sensitive. HIV status, raw trans status, and ethnicity are profile/display fields only and are not filter or visibility predicates. The backend also needs enough metadata to enforce safety rules, visibility settings, moderation, rate limits, abuse prevention, deletion, and data export.
 
 The privacy goal is not to make every database column opaque. The goal is to prevent sensitive profile facts from being stored or queried as plaintext unless they are intentionally public, while still letting the backend enforce rules such as:
 
@@ -41,12 +41,12 @@ The current sensitive encrypted payload contains:
 - HIV status
 - custom HIV status
 
+HIV status and raw trans status stay in the encrypted payload for private profile rendering and fixed audience handling. They do not produce queryable filter tokens. T4T remains represented through the self-selected crowd value, not a raw trans-status token.
+
 The current blind token set can represent:
 
-- `trans:true`
 - `crowd:<normalized-crowd>`
 - `kink:<normalized-kink>`
-- `hiv:<normalized-status>`
 - `crowd-mode:<normalized-crowd>:<yyyy-mm-dd>`
 
 The crowd-mode token is the rotating portion: the token value includes today's date bucket and the previous day's date bucket. That gives the backend a short overlap window for active crowd visibility without keeping a long-lived plain query key for the active mode.
@@ -88,7 +88,7 @@ profile_sensitive_tokens (
 )
 ```
 
-Each token hash is an HMAC-SHA-256 output generated from a normalized token value and a server-side token key. The database never stores `T4T`, `leather`, `undetectable`, or similar raw values in the token table. Query code generates the same token hash for a selected filter and checks whether a row exists.
+Each token hash is an HMAC-SHA-256 output generated from a normalized token value and a server-side token key. The database never stores `T4T`, `leather`, or similar raw values in the token table. Query code generates the same token hash for a selected filter and checks whether a row exists. HIV status, raw trans status, and ethnicity are deliberately excluded from this lookup layer.
 
 ### 3. Public and operational envelope
 
@@ -273,4 +273,3 @@ The long-term architecture should use:
 - viewer-specific authorization before plaintext leaves the backend
 
 This gives cruush a practical privacy model: sensitive user facts are not casually readable from the database, discovery still works, and the system has a path to rotate keys and reduce the lifetime of queryable protected signals.
-

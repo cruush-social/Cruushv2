@@ -8,7 +8,9 @@ const { getMyPrivacySettings, saveMyPrivacySettings } = vi.hoisted(() => ({
   saveMyPrivacySettings: vi.fn(),
 }));
 
-const { sendVerificationEmail, signOut } = vi.hoisted(() => ({
+const { changePassword, deleteAccount, sendVerificationEmail, signOut } = vi.hoisted(() => ({
+  changePassword: vi.fn(),
+  deleteAccount: vi.fn(),
   sendVerificationEmail: vi.fn(),
   signOut: vi.fn(),
 }));
@@ -36,6 +38,8 @@ vi.mock('../lib/privacyApi', async () => {
 });
 
 vi.mock('../lib/authApi', () => ({
+  changePassword,
+  deleteAccount,
   sendVerificationEmail,
   signOut,
 }));
@@ -51,6 +55,8 @@ describe('Settings', () => {
   beforeEach(() => {
     getMyPrivacySettings.mockReset();
     saveMyPrivacySettings.mockReset();
+    changePassword.mockReset();
+    deleteAccount.mockReset();
     sendVerificationEmail.mockReset();
     signOut.mockReset();
     clearCurrentUser.mockReset();
@@ -68,6 +74,8 @@ describe('Settings', () => {
       preciseLocationVisibility: 'none',
     });
     saveMyPrivacySettings.mockImplementation((settings) => Promise.resolve(settings));
+    changePassword.mockResolvedValue({ changed: true });
+    deleteAccount.mockResolvedValue(undefined);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       data: {
         id: 'support-2',
@@ -95,7 +103,7 @@ describe('Settings', () => {
     expect(screen.queryByRole('switch', { name: 'Toggle precise location for mutual cruushes' })).not.toBeInTheDocument();
   });
 
-  it('lets signed-in users contact support from settings and reach public policy pages', async () => {
+  it('links signed-in users to support and public policy pages without rendering the support form inline', async () => {
     render(
       <MemoryRouter>
         <Settings />
@@ -110,25 +118,57 @@ describe('Settings', () => {
       'href',
       'https://www.cruush.app/content-removal',
     );
+    expect(screen.getByRole('button', { name: 'Contact support' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Contact support')).not.toBeInTheDocument();
+  });
 
-    fireEvent.change(screen.getByLabelText('Support subject'), {
-      target: { value: 'Settings bug' },
-    });
-    fireEvent.change(screen.getByLabelText('Support message'), {
-      target: { value: 'The settings screen got stuck after opening support.' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Send to support' }));
+  it('lets signed-in users change their password from settings', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/support-requests', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({
-        category: 'question',
-        subject: 'Settings bug',
-        message: 'The settings screen got stuck after opening support.',
-        source: 'settings',
-        pageUrl: '/',
-      }),
-    })));
-    expect(await screen.findByText('Support request sent')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Change password' }));
+    fireEvent.change(screen.getByLabelText('Current password'), {
+      target: { value: 'current-password' },
+    });
+    fireEvent.change(screen.getByLabelText('New password'), {
+      target: { value: 'new-password-123' },
+    });
+    fireEvent.change(screen.getByLabelText('Confirm new password'), {
+      target: { value: 'new-password-123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
+
+    await waitFor(() => expect(changePassword).toHaveBeenCalledWith({
+      currentPassword: 'current-password',
+      newPassword: 'new-password-123',
+    }));
+    expect(await screen.findByText('Password updated.')).toBeInTheDocument();
+  });
+
+  it('requires explicit confirmation before deleting the account', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete account' }));
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'current-password' },
+    });
+    fireEvent.change(screen.getByLabelText('Type DELETE'), {
+      target: { value: 'DELETE' },
+    });
+    const deleteButtons = screen.getAllByRole('button', { name: 'Delete account' });
+    fireEvent.click(deleteButtons[deleteButtons.length - 1]);
+
+    await waitFor(() => expect(deleteAccount).toHaveBeenCalledWith({
+      password: 'current-password',
+      confirmation: 'DELETE',
+    }));
+    expect(clearCurrentUser).toHaveBeenCalled();
   });
 });

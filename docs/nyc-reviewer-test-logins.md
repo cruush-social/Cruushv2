@@ -20,6 +20,12 @@ npm --prefix server run seed:reviewer-accounts
 
 The seeder creates verified-login accounts. It resets `codeveloper-nyc@cruush.local` and `bank-reviewer-nyc@cruush.local` to `REVIEWER_TEST_ACCOUNT_PASSWORD`, and resets `payment@cruush.local` to `PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD`.
 
+It also creates a deterministic bank/payment messaging fixture:
+
+- A mutual cruush permission between `bank-reviewer-nyc@cruush.local` and `payment@cruush.local`.
+- A DM conversation between those two accounts.
+- A group conversation titled `Bank/payment reviewer smoke group` with `bank-reviewer-nyc@cruush.local` as owner, `payment@cruush.local` as member, and a `24h` disappearing timer.
+
 ## Accounts
 
 | Audience | Login email | NYC spoof? | Saved area | Purpose |

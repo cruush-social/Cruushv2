@@ -78,5 +78,9 @@ export function decryptTextContentOrFallback(
     return fallback;
   }
 
-  return decryptTextContent(config, purpose, encrypted as EncryptedTextContent);
+  try {
+    return decryptTextContent(config, purpose, encrypted as EncryptedTextContent);
+  } catch {
+    return fallback;
+  }
 }

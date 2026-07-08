@@ -261,6 +261,14 @@ function withPayload(config: AppConfig, row: EncryptedRelationshipRecordRow): En
   };
 }
 
+function withPayloadOrNull(config: AppConfig, row: EncryptedRelationshipRecordRow) {
+  try {
+    return withPayload(config, row);
+  } catch {
+    return null;
+  }
+}
+
 function isEncryptedRelationshipRecordRow(row: EncryptedRelationshipRecordRow | undefined | null) {
   return Boolean(row?.record_ciphertext && row.record_nonce && row.record_auth_tag && row.encryption_key_version);
 }
@@ -507,7 +515,7 @@ export async function findEncryptedRelationshipRecord(
 
   const row = result?.rows?.[0];
 
-  return isEncryptedRelationshipRecordRow(row) ? withPayload(context.config, row) : null;
+  return isEncryptedRelationshipRecordRow(row) ? withPayloadOrNull(context.config, row) : null;
 }
 
 export async function listEncryptedRelationshipRecordsByActor(
@@ -553,7 +561,8 @@ export async function listEncryptedRelationshipRecordsByActor(
 
   return (result?.rows ?? [])
     .filter(isEncryptedRelationshipRecordRow)
-    .map((row) => withPayload(context.config, row));
+    .map((row) => withPayloadOrNull(context.config, row))
+    .filter((record): record is EncryptedRelationshipRecord => record !== null);
 }
 
 export async function listEncryptedRelationshipRecordsByTarget(
@@ -599,7 +608,8 @@ export async function listEncryptedRelationshipRecordsByTarget(
 
   return (result?.rows ?? [])
     .filter(isEncryptedRelationshipRecordRow)
-    .map((row) => withPayload(context.config, row));
+    .map((row) => withPayloadOrNull(context.config, row))
+    .filter((record): record is EncryptedRelationshipRecord => record !== null);
 }
 
 export async function listEncryptedRelationshipRecordsByParticipant(
@@ -645,7 +655,8 @@ export async function listEncryptedRelationshipRecordsByParticipant(
 
   return (result?.rows ?? [])
     .filter(isEncryptedRelationshipRecordRow)
-    .map((row) => withPayload(context.config, row));
+    .map((row) => withPayloadOrNull(context.config, row))
+    .filter((record): record is EncryptedRelationshipRecord => record !== null);
 }
 
 export async function updateEncryptedRelationshipRecordStatus(
@@ -862,7 +873,11 @@ export function verifyEncryptedRelationshipToken(
     return null;
   }
 
-  return decryptMatchTokenPayload(config, row);
+  try {
+    return decryptMatchTokenPayload(config, row);
+  } catch {
+    return null;
+  }
 }
 
 export async function hasActiveEncryptedRelationshipToken(

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileEdit, { getPhotoUploadRejectedMessage } from './ProfileEdit';
 
 const { getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
@@ -21,6 +21,10 @@ vi.mock('../lib/profileApi', async () => {
 });
 
 describe('ProfileEdit', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(async () => {
     localStorage.clear();
     getMyProfile.mockReset();
@@ -237,6 +241,53 @@ describe('ProfileEdit', () => {
     expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
   });
 
+  it('previews selected profile photos as data URLs before cropping', async () => {
+    const previewDataUrl = 'data:image/png;base64,cHJvZmlsZQ==';
+    const readAsDataURL = vi.fn();
+
+    class MockFileReader {
+      result: FileReader['result'] = null;
+      onload: FileReader['onload'] = null;
+      onerror: FileReader['onerror'] = null;
+
+      readAsDataURL(file: Blob) {
+        readAsDataURL(file);
+        this.result = previewDataUrl;
+        this.onload?.call(this as unknown as FileReader, new ProgressEvent('load') as ProgressEvent<FileReader>);
+      }
+    }
+
+    vi.stubGlobal('FileReader', MockFileReader);
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+
+    const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+
+    const selectedFile = new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' });
+    fireEvent.change(uploadInput as HTMLInputElement, {
+      target: {
+        files: [selectedFile],
+      },
+    });
+
+    const preview = await screen.findByAltText('Profile crop preview');
+    expect(readAsDataURL).toHaveBeenCalledWith(selectedFile);
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(preview).toHaveAttribute('src', previewDataUrl);
+
+    fireEvent.load(preview);
+    fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));
+
+    await waitFor(() => expect(uploadProfilePhoto).toHaveBeenCalledTimes(1));
+  });
+
   it('hides profile photo upload when the profile already has 4 photos', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
     getMyProfile.mockResolvedValueOnce({
@@ -310,7 +361,7 @@ describe('ProfileEdit', () => {
     expect(uploadProfilePhoto).not.toHaveBeenCalled();
   });
 
-  it('lets users set trans status, crowds, categorized vibes, and HIV visibility', async () => {
+  it('lets users set trans status, crowds, categorized vibes, and HIV status without visibility controls', async () => {
     render(
       <MemoryRouter>
         <ProfileEdit />
@@ -336,8 +387,7 @@ describe('ProfileEdit', () => {
     fireEvent.click(basicsTab);
     fireEvent.click(screen.getByRole('checkbox', { name: 'I am trans' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Trans status visibility' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Mutual Crowds' }));
+    expect(screen.queryByRole('button', { name: 'Trans status visibility' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
     fireEvent.click(screen.getByRole('option', { name: 'T4T' }));
@@ -349,14 +399,13 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'undetectable' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'HIV status visibility' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Mutual Cruushes' }));
+    expect(screen.queryByRole('button', { name: 'HIV status visibility' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       is_trans: true,
-      trans_status_visibility: 'mutual_crowds',
+      trans_status_visibility: 'mutual_cruushes',
       crowds: ['T4T', 'Sapphic'],
       vibes: ['Bear', 'Daddy'],
       scenes: [],

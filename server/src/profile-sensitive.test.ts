@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AppConfig } from "./config.js";
 import {
+  createSensitiveProfileTokens,
   createSensitiveProfileToken,
   decryptProfileVisibility,
   decryptSensitiveProfile,
@@ -108,13 +109,31 @@ describe("profile-sensitive encryption", () => {
   });
 
   it("keeps blind token key versions explicit and stable until index rotation is planned", () => {
-    const first = createSensitiveProfileToken(config, "trans:true");
-    const second = createSensitiveProfileToken(config, "trans:true");
-    const rotated = createSensitiveProfileToken(config, "trans:true", "v2");
+    const first = createSensitiveProfileToken(config, "crowd:t4t");
+    const second = createSensitiveProfileToken(config, "crowd:t4t");
+    const rotated = createSensitiveProfileToken(config, "crowd:t4t", "v2");
 
     expect(first.token_key_version).toBe("v1");
     expect(first).toEqual(second);
     expect(rotated.token_key_version).toBe("v2");
     expect(rotated.token_hash).not.toBe(first.token_hash);
+  });
+
+  it("does not create filter tokens for HIV status or raw trans status", () => {
+    const tokens = createSensitiveProfileTokens(config, {
+      is_trans: true,
+      crowds: ["T4T"],
+      kinks: ["leather"],
+      kink_interests: [{ kink_id: "leather", label: "Leather" }],
+      hiv_status: ["undetectable"],
+      custom_hiv_status: "private note"
+    });
+
+    const tokenHashes = new Set(tokens.map((token) => token.token_hash));
+
+    expect(tokenHashes.has(createSensitiveProfileToken(config, "trans:true").token_hash)).toBe(false);
+    expect(tokenHashes.has(createSensitiveProfileToken(config, "hiv:undetectable").token_hash)).toBe(false);
+    expect(tokenHashes.has(createSensitiveProfileToken(config, "crowd:t4t").token_hash)).toBe(true);
+    expect(tokenHashes.has(createSensitiveProfileToken(config, "kink:leather").token_hash)).toBe(true);
   });
 });

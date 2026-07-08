@@ -15,9 +15,24 @@ const { sendCruush } = vi.hoisted(() => ({
   sendCruush: vi.fn(),
 }));
 
-const { getMyProfile, getProfileById } = vi.hoisted(() => ({
+const {
+  applyMyVisibilitySet,
+  deleteMyVisibilitySet,
+  getMyProfile,
+  getMyVisibilitySets,
+  getProfileById,
+  saveMyProfile,
+  saveMyVisibilitySet,
+  updateMyVisibilitySet,
+} = vi.hoisted(() => ({
+  applyMyVisibilitySet: vi.fn(),
+  deleteMyVisibilitySet: vi.fn(),
   getMyProfile: vi.fn(),
+  getMyVisibilitySets: vi.fn(),
   getProfileById: vi.fn(),
+  saveMyProfile: vi.fn(),
+  saveMyVisibilitySet: vi.fn(),
+  updateMyVisibilitySet: vi.fn(),
 }));
 
 const { decryptDisplayLocationToken } = vi.hoisted(() => ({
@@ -58,8 +73,14 @@ vi.mock('../lib/profileApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi');
   return {
     ...actual,
+    applyMyVisibilitySet,
+    deleteMyVisibilitySet,
     getMyProfile,
+    getMyVisibilitySets,
     getProfileById,
+    saveMyProfile,
+    saveMyVisibilitySet,
+    updateMyVisibilitySet,
   };
 });
 
@@ -176,12 +197,18 @@ describe('MapHome', () => {
     expect(canUseDeveloperMapToolsEmail(null)).toBe(false);
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     getNearbyUsers.mockReset();
     getMutualCruushMap.mockReset();
     sendCruush.mockReset();
     getMyProfile.mockReset();
+    getMyVisibilitySets.mockReset();
     getProfileById.mockReset();
+    saveMyProfile.mockReset();
+    saveMyVisibilitySet.mockReset();
+    updateMyVisibilitySet.mockReset();
+    deleteMyVisibilitySet.mockReset();
+    applyMyVisibilitySet.mockReset();
     decryptDisplayLocationToken.mockReset();
     getMyPrivacySettings.mockReset();
     getMyBillingStatus.mockReset();
@@ -193,8 +220,37 @@ describe('MapHome', () => {
     window.sessionStorage.clear();
 
     getMyProfile.mockResolvedValue({
+      ...((await import('../lib/profileApi')).emptyProfilePayload),
+      id: 'me',
+      display_name: 'Me',
       photos: ['https://example.com/me.jpg'],
+      year_of_birth: 1994,
       position: ['Bottom'],
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+    getMyVisibilitySets.mockResolvedValue([]);
+    saveMyProfile.mockImplementation(async (payload) => ({
+      ...payload,
+      id: 'me',
+      updated_at: '2026-04-29T12:00:00.000Z',
+    }));
+    saveMyVisibilitySet.mockImplementation(async (payload) => ({
+      id: 'set-new',
+      name: payload.name,
+      visibility_rules: payload.visibility_rules,
+      created_at: '2026-07-08T12:00:00.000Z',
+      updated_at: '2026-07-08T12:00:00.000Z',
+    }));
+    updateMyVisibilitySet.mockImplementation(async (id, payload) => ({
+      id,
+      name: payload.name,
+      visibility_rules: payload.visibility_rules,
+      created_at: '2026-07-08T12:00:00.000Z',
+      updated_at: '2026-07-08T12:05:00.000Z',
+    }));
+    deleteMyVisibilitySet.mockResolvedValue({
+      id: 'set-1',
+      deleted: true,
     });
     getProfileById.mockResolvedValue({
       id: 'user-1',
@@ -375,6 +431,13 @@ describe('MapHome', () => {
 
   it('renders 25 percent larger Cruush icons on the map controls and opens Ghost Mode settings from the Safety Center slot', async () => {
     useIsMobile.mockReturnValue(false);
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: false,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
 
     render(
       <MemoryRouter initialEntries={['/map']}>
@@ -391,8 +454,13 @@ describe('MapHome', () => {
     const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
     const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
 
+    const topActions = screen.getByTestId('map-top-actions');
+    const cruushPlusButton = await screen.findByRole('button', { name: 'cruush+' });
+
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
-    expect(screen.getByTestId('map-top-actions')).toHaveClass('pointer-events-auto');
+    expect(topActions).toHaveClass('pointer-events-auto', 'mt-0');
+    expect(topActions).not.toHaveClass('mt-11');
+    expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-lg');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-[1.5625rem]', 'w-[1.5625rem]');
     expect(ghostModeIcon).toHaveClass('h-4', 'w-4');
@@ -489,6 +557,125 @@ describe('MapHome', () => {
     fireEvent.click(screen.getByRole('button', { name: "I'm Feeling Lucky" }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/upgrade');
+  });
+
+  it('lets free users open seeking and visibility controls from the map', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: false,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
+          <Route path="/upgrade" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'cruush+' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^seeking$/i }));
+
+    expect(screen.getByRole('heading', { name: 'Seeking' })).toBeInTheDocument();
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+
+    unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
+          <Route path="/upgrade" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: /^visibility$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^visibility$/i }));
+
+    expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+  });
+
+  it('shows saved visibility sets as a cruush+ affordance while keeping manual controls free', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: false,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
+          <Route path="/upgrade" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: /^visibility$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^visibility$/i }));
+
+    expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
+    expect(screen.getByText('Saved sets')).toBeInTheDocument();
+    expect(screen.getByText('cruush+ saves named visibility sets.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Distance')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upgrade for saved sets' }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/upgrade');
+  });
+
+  it('lets cruush+ users apply saved visibility sets from the visibility sheet', async () => {
+    useIsMobile.mockReturnValue(false);
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+    const savedRules = {
+      ...emptyProfilePayload.visibility_rules,
+      distance: 10,
+      looking_for: ['hookup'],
+    };
+    getMyVisibilitySets.mockResolvedValue([{
+      id: 'set-1',
+      name: 'Night out',
+      visibility_rules: savedRules,
+      created_at: '2026-07-08T12:00:00.000Z',
+      updated_at: '2026-07-08T12:00:00.000Z',
+    }]);
+    applyMyVisibilitySet.mockResolvedValue({
+      ...emptyProfilePayload,
+      id: 'me',
+      display_name: 'Me',
+      year_of_birth: 1994,
+      visibility_rules: savedRules,
+      updated_at: '2026-07-08T12:05:00.000Z',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: /^visibility$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^visibility$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply Night out' }));
+
+    await waitFor(() => expect(applyMyVisibilitySet).toHaveBeenCalledWith('set-1'));
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Visibility' })).not.toBeInTheDocument());
   });
 
   it('floats recently active to the right side on desktop without a profile preview', async () => {

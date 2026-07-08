@@ -16,6 +16,24 @@ type PasswordResetEmailInput = {
   resetUrl: string;
 };
 
+export type TrustSafetyAlertIncident = {
+  id: string;
+  userId: string;
+  userEmail: string | null;
+  surface: string;
+  environment: string;
+  testMode: boolean;
+  providerRequestId: string | null;
+  createdAt: string;
+  internalReviewUrl: string;
+};
+
+type TrustSafetyAlertEmailInput = {
+  config: AppConfig;
+  incident: TrustSafetyAlertIncident;
+  logger: FastifyBaseLogger;
+};
+
 export type SupportRequestEmailInput = {
   category: string;
   contactEmail: string | null;
@@ -152,6 +170,45 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
   return {
     previewUrl: resetUrl
   };
+}
+
+export async function sendTrustSafetyAlertEmail(input: TrustSafetyAlertEmailInput) {
+  const { config, incident, logger } = input;
+  const alertEmail = config.TRUST_SAFETY_ALERT_EMAIL ?? "";
+
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM || !alertEmail) {
+    throw new ApiError(500, "INTERNAL_ERROR", "Trust safety alert email is not configured.");
+  }
+
+  const prefix = incident.testMode ? "[TEST]" : "[CRITICAL]";
+  const subject = `${prefix} PhotoDNA match incident ${incident.id}`;
+  const fields = [
+    ["Incident ID", incident.id],
+    ["Environment", incident.environment],
+    ["Test mode", String(incident.testMode)],
+    ["User ID", incident.userId],
+    ["User email", incident.userEmail ?? "unknown"],
+    ["Surface", incident.surface],
+    ["PhotoDNA request ID", incident.providerRequestId ?? "unknown"],
+    ["Created at", incident.createdAt],
+    ["Internal review", incident.internalReviewUrl]
+  ];
+  const htmlRows = fields
+    .map(([label, value]) => `<tr><th align="left">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`)
+    .join("");
+  const text = fields
+    .map(([label, value]) => `${label}: ${value}`)
+    .join("\n");
+
+  await sendResendEmail({
+    config,
+    email: alertEmail,
+    logger,
+    subject,
+    html: `<p>PhotoDNA returned a match. Review the incident internally and follow the CyberTipline workflow.</p><table>${htmlRows}</table>`,
+    text: `PhotoDNA returned a match. Review the incident internally and follow the CyberTipline workflow.\n\n${text}`,
+    failureMessage: "trust safety alert email delivery failed"
+  });
 }
 
 export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEmailInput) {

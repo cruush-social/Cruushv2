@@ -161,6 +161,8 @@ export const PREMIUM_DISCOVERY_FILTER_KEYS = [
   "substanceBoundaries"
 ] as const;
 
+export const FREE_DISCOVERY_FILTER_LIMIT = 3;
+
 function isSchemaCompatibilityError(error: unknown) {
   const code = typeof error === "object" && error !== null && "code" in error
     ? String((error as { code?: string }).code)
@@ -222,11 +224,15 @@ export function getCruushPlusPlan(planId: string): CruushPlusPlan {
   return plan;
 }
 
-export function hasPremiumDiscoveryFilters(query: Record<string, unknown>) {
-  return PREMIUM_DISCOVERY_FILTER_KEYS.some((key) => {
+export function countActivePremiumDiscoveryFilters(query: Record<string, unknown>) {
+  return PREMIUM_DISCOVERY_FILTER_KEYS.reduce((count, key) => {
     const value = query[key];
-    return Array.isArray(value) && value.length > 0;
-  });
+    return Array.isArray(value) && value.length > 0 ? count + 1 : count;
+  }, 0);
+}
+
+export function hasPremiumDiscoveryFilters(query: Record<string, unknown>) {
+  return countActivePremiumDiscoveryFilters(query) > FREE_DISCOVERY_FILTER_LIMIT;
 }
 
 export async function requireCruushPlus(app: FastifyInstance, userId: string, message: string) {

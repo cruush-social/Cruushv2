@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, CornerDownLeft, Eye, Image as ImageIcon, MoreHorizontal, Trash2 } from 'lucide-react';
+import { ArrowLeft, Clock3, Eye, Image as ImageIcon, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
@@ -96,14 +96,6 @@ export default function PrivateGroupChat() {
   const [viewedAttachmentUrls, setViewedAttachmentUrls] = useState<Record<string, string>>({});
   const [viewingAttachmentIds, setViewingAttachmentIds] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const quickPrompts = useMemo(() => {
-    if (conversation?.kind === 'group') {
-      return ['still in', 'hosting pregame', 'share cross streets later', 'what time are we landing?'];
-    }
-
-    return ['you around now?', 'hosting or traveling?', 'what vibe are you after?', 'send cross streets later'];
-  }, [conversation?.kind]);
 
   useEffect(() => {
     let active = true;
@@ -484,7 +476,7 @@ export default function PrivateGroupChat() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" title="Media states" aria-label="Open media options" disabled={!conversation}>
+            <Button variant="ghost" size="icon" title="Photo states" aria-label="Open photo options" disabled={!conversation}>
               <ImageIcon className="w-5 h-5" />
             </Button>
             <Button variant="ghost" size="icon" title="Report conversation" aria-label="Report conversation" disabled={!conversation} onClick={openReport}>
@@ -717,7 +709,6 @@ export default function PrivateGroupChat() {
                   {msg.attachments?.map((attachment) => {
                     const attachmentKey = `${msg.id}:${attachment.id}`;
                     const openedViewOnceUrl = viewedAttachmentUrls[attachmentKey];
-
                     if (attachment.viewOnce) {
                       if (openedViewOnceUrl) {
                         return (
@@ -809,18 +800,19 @@ export default function PrivateGroupChat() {
                 </div>
               ) : null}
 
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                {quickPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    disabled={composerDisabled}
-                    onClick={() => setMessage(prompt)}
-                    className="rounded-full border border-border bg-card/80 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    {prompt}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
+                <Clock3 className="size-4 text-muted-foreground" />
+                <select
+                  aria-label="Message disappearing timer"
+                  value={conversation.disappearingTimer ?? 'off'}
+                  disabled={!canManageConversation || settingsSaving || composerDisabled}
+                  onChange={(event) => void handleTimerChange(event.target.value as ConversationTimer)}
+                  className="h-9 rounded-md border border-border bg-card/85 px-2 text-sm text-muted-foreground disabled:opacity-60"
+                >
+                  {timerOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="rounded-[28px] border border-border bg-card/85 p-3 shadow-lg shadow-black/20">
@@ -866,9 +858,6 @@ export default function PrivateGroupChat() {
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <ImageIcon className="size-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" title="Quick reply" aria-label="Insert quick reply" disabled={composerDisabled}>
-                      <CornerDownLeft className="size-4" />
                     </Button>
                     <Button
                       onClick={() => void handleSend()}

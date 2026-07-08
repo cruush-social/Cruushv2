@@ -14,6 +14,8 @@ import {
 } from "../auth.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../mailer.js";
 import {
+  changePasswordPayloadSchema,
+  deleteAccountPayloadSchema,
   forgotPasswordPayloadSchema,
   resetPasswordPayloadSchema,
   resendVerificationPayloadSchema,
@@ -21,7 +23,9 @@ import {
   signUpPayloadSchema,
   verifyEmailPayloadSchema
 } from "../auth-schema.js";
+import { runTransaction } from "../db.js";
 import { ensureDevelopmentAdminUser, isDevelopmentAdminLogin } from "../development-admin.js";
+import { deleteEncryptedMediaObject } from "../media-storage.js";
 import { verifyTurnstileToken } from "../turnstile.js";
 
 type SessionLookupRow = {
@@ -74,6 +78,15 @@ type PasswordResetUserRow = {
 
 type PasswordResetLookupRow = {
   user_id: string;
+};
+
+type PasswordCredentialRow = {
+  id: string;
+  password_hash: string;
+};
+
+type MediaObjectKeyRow = {
+  object_key: string;
 };
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
@@ -203,7 +216,7 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
   return mapSessionRow(row);
 }
 
-async function resolveSessionUserId(request: FastifyRequest) {
+async function resolveCurrentSession(request: FastifyRequest) {
   const token = getSessionTokenFromRequest(request);
 
   if (!token) {
@@ -226,7 +239,15 @@ async function resolveSessionUserId(request: FastifyRequest) {
     throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
-  return session.user_id;
+  return {
+    userId: session.user_id,
+    tokenHash
+  };
+}
+
+async function resolveSessionUserId(request: FastifyRequest) {
+  const session = await resolveCurrentSession(request);
+  return session.userId;
 }
 
 function setSessionCookie(reply: FastifyReply, request: FastifyRequest, token: string, expiresAt: Date) {
@@ -564,6 +585,120 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         reset: true
       }
     });
+  });
+
+  app.post("/api/auth/password/change", async (request, reply) => {
+    const session = await resolveCurrentSession(request);
+    const payload = changePasswordPayloadSchema.parse(request.body);
+    await applyRateLimits(app, [{
+      key: `password-change:user:${session.userId}`,
+      max: AUTH_ATTEMPT_MAX,
+      windowMs: AUTH_ATTEMPT_WINDOW_MS,
+      message: "Too many password change attempts. Try again later."
+    }]);
+
+    const userResult = await app.db.query<PasswordCredentialRow>(
+      `select id, password_hash
+       from app_users
+       where id = $1
+       limit 1`,
+      [session.userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+    }
+
+    if (!(await verifyPassword(payload.currentPassword, user.password_hash))) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Current password is incorrect.");
+    }
+
+    const passwordHash = await hashPassword(payload.newPassword);
+
+    await app.db.query(
+      `update app_users
+       set password_hash = $1
+       where id = $2`,
+      [passwordHash, session.userId]
+    );
+
+    await app.db.query(
+      "delete from password_reset_tokens where user_id = $1",
+      [session.userId]
+    );
+
+    await app.db.query(
+      "delete from app_sessions where user_id = $1 and token_hash <> $2",
+      [session.userId, session.tokenHash]
+    );
+
+    return reply.send({
+      data: {
+        changed: true
+      }
+    });
+  });
+
+  app.delete("/api/auth/me", async (request, reply) => {
+    const session = await resolveCurrentSession(request);
+    const payload = deleteAccountPayloadSchema.parse(request.body);
+    await applyRateLimits(app, [{
+      key: `account-delete:user:${session.userId}`,
+      max: AUTH_ATTEMPT_MAX,
+      windowMs: AUTH_ATTEMPT_WINDOW_MS,
+      message: "Too many account deletion attempts. Try again later."
+    }]);
+
+    const userResult = await app.db.query<PasswordCredentialRow>(
+      `select id, password_hash
+       from app_users
+       where id = $1
+       limit 1`,
+      [session.userId]
+    );
+    const user = userResult.rows[0];
+
+    if (!user) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+    }
+
+    if (!(await verifyPassword(payload.password, user.password_hash))) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Password is incorrect.");
+    }
+
+    const mediaObjects = await app.db.query<MediaObjectKeyRow>(
+      `select object_key
+       from media_objects
+       where owner_user_id = $1`,
+      [session.userId]
+    );
+
+    for (const mediaObject of mediaObjects.rows) {
+      await deleteEncryptedMediaObject(request.server.config, mediaObject.object_key);
+    }
+
+    await runTransaction(app.db, async (db) => {
+      await db.query(
+        "delete from app_sessions where user_id = $1",
+        [session.userId]
+      );
+
+      const deletedUser = await db.query<{ id: string }>(
+        `delete from app_users
+         where id = $1
+         returning id`,
+        [session.userId]
+      );
+
+      if (!deletedUser.rows[0]) {
+        throw new ApiError(404, "NOT_FOUND", "Account not found.");
+      }
+    });
+
+    clearSessionCookie(reply, request);
+
+    return reply.code(204).send();
   });
 
   app.post("/api/auth/verification/resend", async (request, reply) => {

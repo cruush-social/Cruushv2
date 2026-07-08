@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { ApiError } from "../errors.js";
+import { checkPhotoDnaForUploadOrReject } from "../csam-reporting.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { decryptMediaBytes, encryptMediaBytes } from "../media-encryption.js";
 import {
@@ -10,7 +11,6 @@ import {
   writeEncryptedMediaObject
 } from "../media-storage.js";
 import { approvedContentReviewCte, moderateImageOrReject } from "../moderation-service.js";
-import { checkPhotoDna } from "../photodna.js";
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const MAX_PROFILE_PHOTOS = 4;
@@ -114,6 +114,41 @@ async function sendEncryptedMedia(app: FastifyInstance, reply: FastifyReply, med
     .send(bytes);
 }
 
+async function sendMessageMediaByPublicUrl(app: FastifyInstance, reply: FastifyReply, userId: string, publicUrl: string) {
+  const result = await app.db.query<EncryptedMediaRow>(
+    `select
+       media.object_key,
+       media.mime_type,
+       media.encrypted_data_key,
+       media.data_key_nonce,
+       media.data_key_auth_tag,
+       media.content_nonce,
+       media.content_auth_tag,
+       media.key_version
+     from media_objects media
+     join message_media_attachments attachment on attachment.media_object_id = media.id
+     join messages message on message.id = attachment.message_id
+     join conversations conversation on conversation.id = message.conversation_id
+     join conversation_members member
+       on member.conversation_id = message.conversation_id
+      and member.user_id = $2
+     where media.public_url = $1
+       and media.deleted_at is null
+       and attachment.view_once = false
+       and (message.expires_at is null or message.expires_at > now())
+       and (conversation.cleared_at is null or message.created_at > conversation.cleared_at)
+     limit 1`,
+    [publicUrl, userId]
+  );
+  const mediaObject = result.rows[0];
+
+  if (!mediaObject) {
+    throw new ApiError(404, "NOT_FOUND", "Media not found.");
+  }
+
+  return sendEncryptedMedia(app, reply, mediaObject);
+}
+
 export async function registerMediaRoutes(app: FastifyInstance) {
   app.get("/api/media/profile-photos/:filename", async (request, reply) => {
     await getAuthenticatedUserId(request);
@@ -148,38 +183,8 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     const userId = await getAuthenticatedUserId(request);
     const { filename } = messagePhotoParamsSchema.parse(request.params);
     const publicUrl = `${MESSAGE_PHOTO_MEDIA_PREFIX}/${filename}`;
-    const result = await app.db.query<EncryptedMediaRow>(
-      `select
-         media.object_key,
-         media.mime_type,
-         media.encrypted_data_key,
-         media.data_key_nonce,
-         media.data_key_auth_tag,
-         media.content_nonce,
-         media.content_auth_tag,
-         media.key_version
-       from media_objects media
-       join message_media_attachments attachment on attachment.media_object_id = media.id
-       join messages message on message.id = attachment.message_id
-       join conversations conversation on conversation.id = message.conversation_id
-       join conversation_members member
-         on member.conversation_id = message.conversation_id
-        and member.user_id = $2
-       where media.public_url = $1
-         and media.deleted_at is null
-         and attachment.view_once = false
-         and (message.expires_at is null or message.expires_at > now())
-         and (conversation.cleared_at is null or message.created_at > conversation.cleared_at)
-       limit 1`,
-      [publicUrl, userId]
-    );
-    const mediaObject = result.rows[0];
 
-    if (!mediaObject) {
-      throw new ApiError(404, "NOT_FOUND", "Media not found.");
-    }
-
-    return sendEncryptedMedia(app, reply, mediaObject);
+    return sendMessageMediaByPublicUrl(app, reply, userId, publicUrl);
   });
 
   app.post("/api/profile-photos", async (request, reply) => {
@@ -250,11 +255,24 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     const objectKey = `profile-photos/${filename}.enc`;
     const url = `${ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
     const publicImageUrl = new URL(url, app.config.MEDIA_PUBLIC_BASE_URL || app.config.APP_URL).toString();
-    const photoDnaResult = await checkPhotoDna(app.config, buffer);
-
-    if (photoDnaResult.status === "blocked") {
-      throw new ApiError(400, "CONTENT_REJECTED", "This photo violates Cruush safety rules and cannot be saved.");
-    }
+    const userAgent = request.headers["user-agent"];
+    const photoDnaResult = await checkPhotoDnaForUploadOrReject(app, {
+      userId,
+      surface: "profile_photo",
+      imageBytes: buffer,
+      mimeType,
+      filename: upload.filename,
+      sourceRoute: "POST /api/profile-photos",
+      requestIp: request.ip,
+      userAgent: Array.isArray(userAgent) ? userAgent.join(" ") : userAgent,
+      contentId: url,
+      contentRef: {
+        url,
+        objectKey,
+        originalFilename: upload.filename,
+        mimeType
+      }
+    });
 
     let moderation;
 

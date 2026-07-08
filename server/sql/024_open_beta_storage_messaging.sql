@@ -100,3 +100,19 @@ create index if not exists idx_media_objects_owner_created
 create index if not exists idx_media_objects_public_url
   on media_objects (public_url)
   where deleted_at is null;
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'media_objects_surface_check'
+  ) then
+    alter table media_objects
+      drop constraint media_objects_surface_check;
+  end if;
+end $$;
+
+alter table media_objects
+  add constraint media_objects_surface_check
+  check (surface in ('profile_photo', 'private_photo', 'message_photo', 'message_media'));

@@ -266,10 +266,6 @@ export function createSensitiveProfileTokens(
 ): SensitiveProfileToken[] {
   const tokenValues = new Set<string>();
 
-  if (sensitiveProfile.is_trans === true) {
-    tokenValues.add("trans:true");
-  }
-
   for (const crowd of sensitiveProfile.crowds) {
     const normalizedCrowd = normalizeTokenValue(crowd);
 
@@ -285,14 +281,6 @@ export function createSensitiveProfileTokens(
 
     if (normalizedKink) {
       tokenValues.add(`kink:${normalizedKink}`);
-    }
-  }
-
-  for (const hivStatus of sensitiveProfile.hiv_status) {
-    const normalizedHivStatus = normalizeTokenValue(hivStatus);
-
-    if (normalizedHivStatus) {
-      tokenValues.add(`hiv:${normalizedHivStatus}`);
     }
   }
 

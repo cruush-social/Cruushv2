@@ -40,6 +40,10 @@ export type PasswordResetPayload = {
   reset: true;
 };
 
+export type PasswordChangePayload = {
+  changed: true;
+};
+
 export function getAuthSession() {
   return requestApi<AuthSessionPayload>('/api/auth/me');
 }
@@ -101,6 +105,20 @@ export function requestPasswordReset(email: string) {
 export function resetPassword(payload: { token: string; password: string }) {
   return requestApi<PasswordResetPayload>('/api/auth/password/reset', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function changePassword(payload: { currentPassword: string; newPassword: string }) {
+  return requestApi<PasswordChangePayload>('/api/auth/password/change', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAccount(payload: { password: string; confirmation: 'DELETE' }) {
+  return requestApi<void>('/api/auth/me', {
+    method: 'DELETE',
     body: JSON.stringify(payload),
   });
 }

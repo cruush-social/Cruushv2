@@ -261,6 +261,8 @@ Mutable taxonomy source:
 - Position is the top/bottom/versatile-style field, including vers top, vers bottom, pillow princess, and stone top. Role is the dominant/submissive/switch-style field, including service.
 - Kinks and fetishes use a catalog-backed tap-to-select list. The whole Kinks & Fetishes field has one visibility setting instead of per-kink role or seeking controls.
 - Visibility options should use the same vocabulary across profile fields: public, mutual Cruushes, and mutual crowds.
+- HIV status, raw trans status, and ethnicity are profile/display fields only. They must not be used as seeking filters, visibility predicates, saved visibility set predicates, or blind-token filter signals.
+- T4T is the explicit exception as a self-selected crowd and crowd-mode audience gate. Do not treat T4T as a raw trans-status filter.
 - Dropdown/selectable-control rule for future implementation: do not create one-off dropdown UI or raw `<select>` controls for profile, filter, or visibility taxonomies. Use the existing shared `MultiSelect` control for multi-select and single-select taxonomy pickers; extend that component if the app needs new dropdown behavior.
 
 ## Filter Architecture

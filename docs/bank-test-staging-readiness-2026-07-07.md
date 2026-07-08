@@ -60,11 +60,20 @@ Latest profile-photo proof attempt on 2026-07-07 at 21:45 UTC:
 - Attempting to upload the invalid non-human fixture `src/app/assets/ui-icons/feed-colored.png` through Chrome was blocked by the Codex Chrome extension file-upload bridge before the file reached the app. This does not prove either rejection or acceptance by cruush.
 - To finish the proof through automation, enable Chrome extension file upload access: go to `chrome://extensions`, open Details for the Codex extension, and enable `Allow access to file URLs`.
 
+Follow-up profile-photo proof attempt on 2026-07-08 at 16:45 UTC:
+
+- `https://api-staging.cruush.app/health`: `HTTP 200`
+- `https://api-staging.cruush.app/api/meta`: `HTTP 200`
+- Direct API login for `payment@cruush.local` with the documented staging password returned `400 VALIDATION_ERROR` / `Captcha verification is required.`, so curl could not mint a staging session cookie.
+- Chrome loaded `https://staging.cruush.app/profile/edit` as an authenticated staging session and the Photos tab mounted one JPEG/PNG/WebP-only file input.
+- Uploading `/private/tmp/seed-photo-01.jpg` and a re-encoded `/private/tmp/profile-proof-adult-human.png` through Chrome reached the crop modal, but the Codex Chrome extension file bridge produced a blob with `naturalWidth=0`, and the app showed `This image could not be loaded. Try a JPG, PNG, or WebP file.` The file still did not reach `/api/profile-photos`.
+- The backend route is still not proven on staging with authenticated image bytes. Enable Chrome extension file upload access or run the upload manually in Chrome to finish safe adult-human acceptance and invalid non-human rejection proof.
+
 ## Not Yet Proven
 
 - Banned public/profile coded-language rejection was not tested on the active staging smoke user because those attempts intentionally create trust evidence and may restrict the account.
 - Profile photo upload reached the authenticated edit UI, but the fixture upload did not reach the app because Chrome file upload access is not enabled for the Codex extension. This remains the top bank-readiness blocker because profile photos must reject non-human/gradient images while accepting adult-human/body images.
-- DM and group message writes were not tested in this run because the visible staging UI did not expose a ready conversation fixture.
+- DM and group message writes were not tested in this run because the visible staging UI did not expose a ready conversation fixture. The reviewer-account seeder now creates a deterministic bank/payment DM and group fixture; rerun `npm --prefix server run seed:reviewer-accounts` on staging after deploy.
 - Group messaging backend routes exist, but the full Signal-style frontend admin/member UI is still incomplete.
 - PhotoDNA remains disabled. Do not tell a bank or payment processor that PhotoDNA is active until the adapter is verified against Microsoft sample requests and responses.
 
@@ -112,7 +121,7 @@ Minimum bank smoke script:
 4. Run banned feed/profile coded-language tests only on that disposable account.
 5. Verify feed post delete on the bank reviewer account now that `DELETE /api/posts/:postId` is deployed.
 6. Add frontend helpers and UI for group remove member, demote admin, close group, rename group, member management, and disappearing timer controls.
-7. Add a staging conversation fixture so DM/group smoke tests do not depend on random existing users.
+7. Deploy and rerun the reviewer-account seeder so DM/group smoke tests use the deterministic bank/payment fixture instead of random existing users.
 8. Update or verify the PhotoDNA adapter before enabling `PHOTODNA_ENABLED=true`.
 9. Keep PhotoDNA disabled until that adapter verification passes.
 10. Add an automated bank smoke-test checklist or script that can be rerun before every staging review.

@@ -95,6 +95,61 @@ describe("loadConfig", () => {
     });
   });
 
+  it("requires CSAM reporting guardrails before enabling PhotoDNA in production", () => {
+    const productionPhotoDnaConfig = {
+      NODE_ENV: "production",
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: strongSecret,
+      CORS_ORIGIN: "https://staging.cruush.app",
+      APP_URL: "https://staging.cruush.app",
+      EMAIL_PREVIEW_ENABLED: "false",
+      PROFILE_ENCRYPTION_KEY: strongSecret,
+      PROFILE_TOKEN_KEY: strongSecret,
+      RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
+      RELATIONSHIP_INDEX_KEY: strongSecret,
+      MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
+      MATCH_TOKEN_SIGNING_KEY: strongSecret,
+      MESSAGE_ENCRYPTION_KEY: strongSecret,
+      FEED_ENCRYPTION_KEY: strongSecret,
+      MEDIA_ENCRYPTION_KEY: strongSecret,
+      MEDIA_OBJECT_STORAGE_DRIVER: "s3",
+      MEDIA_S3_BUCKET: "cruush-media-staging",
+      MEDIA_S3_ENDPOINT: "https://account-id.r2.cloudflarestorage.com",
+      MEDIA_S3_REGION: "auto",
+      MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
+      MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key",
+      LOCATION_ENCRYPTION_KEY: strongSecret,
+      LOCATION_INDEX_KEY: strongSecret,
+      VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
+      GHOST_DERIVATION_KEY: strongSecret,
+      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret,
+      PHOTODNA_ENABLED: "true",
+      PHOTODNA_API_URL: "https://photodna.example.test/hash",
+      PHOTODNA_OPERATION_PATH: "/match",
+      PHOTODNA_SUBSCRIPTION_KEY: "photo-dna-key"
+    };
+
+    expect(() => loadConfig(productionPhotoDnaConfig)).toThrow(/CSAM_REPORTING_ENABLED/);
+    expect(() => loadConfig({
+      ...productionPhotoDnaConfig,
+      CSAM_REPORTING_ENABLED: "true"
+    })).toThrow(/TRUST_SAFETY_ALERT_EMAIL/);
+
+    expect(loadConfig({
+      ...productionPhotoDnaConfig,
+      CSAM_REPORTING_ENABLED: "true",
+      CSAM_REPORTING_MODE: "manual_packet",
+      TRUST_SAFETY_ALERT_EMAIL: "trust-safety@cruush.app",
+      RESEND_API_KEY: "re_test",
+      MAIL_FROM: "cruush <hello@cruush.app>"
+    })).toMatchObject({
+      PHOTODNA_ENABLED: true,
+      CSAM_REPORTING_ENABLED: true,
+      CSAM_REPORTING_MODE: "manual_packet",
+      TRUST_SAFETY_ALERT_EMAIL: "trust-safety@cruush.app"
+    });
+  });
+
   it("requires R2/S3 media storage details when S3 media storage is enabled", () => {
     expect(() => loadConfig({
       DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",

@@ -103,6 +103,19 @@ export type ProfileRecord = ProfilePayload & {
   };
 };
 
+export type ProfileVisibilitySet = {
+  id: string;
+  name: string;
+  visibility_rules: ProfileVisibilityRules;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProfileVisibilitySetPayload = {
+  name: string;
+  visibility_rules: ProfileVisibilityRules;
+};
+
 export const emptyProfilePayload: ProfilePayload = {
   display_name: '',
   photos: [],
@@ -120,7 +133,7 @@ export const emptyProfilePayload: ProfilePayload = {
   position: [],
   role: [],
   is_trans: null,
-  trans_status_visibility: 'public',
+  trans_status_visibility: 'mutual_cruushes',
   crowds: [],
   availability: [],
   hosting_travel: [],
@@ -197,6 +210,36 @@ export async function saveMyProfile(profile: ProfilePayload) {
   return requestApi<ProfileRecord>('/api/profiles/me', {
     method: 'PUT',
     body: JSON.stringify(profile),
+  });
+}
+
+export function getMyVisibilitySets() {
+  return requestApi<ProfileVisibilitySet[]>('/api/profiles/me/visibility-sets');
+}
+
+export function saveMyVisibilitySet(payload: ProfileVisibilitySetPayload) {
+  return requestApi<ProfileVisibilitySet>('/api/profiles/me/visibility-sets', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateMyVisibilitySet(id: string, payload: ProfileVisibilitySetPayload) {
+  return requestApi<ProfileVisibilitySet>(`/api/profiles/me/visibility-sets/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteMyVisibilitySet(id: string) {
+  return requestApi<{ deleted: true; id: string }>(`/api/profiles/me/visibility-sets/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export function applyMyVisibilitySet(id: string) {
+  return requestApi<ProfileRecord>(`/api/profiles/me/visibility-sets/${id}/apply`, {
+    method: 'POST',
   });
 }
 

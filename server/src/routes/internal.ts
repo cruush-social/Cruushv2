@@ -1,9 +1,24 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import {
+  buildCsamReportPacket,
+  getCsamIncidentDetails,
+  markCsamIncidentSubmitted
+} from "../csam-reporting.js";
 import { ApiError } from "../errors.js";
 
 const internalUserParamsSchema = z.object({
   userId: z.uuid()
+}).strict();
+
+const internalCsamIncidentParamsSchema = z.object({
+  incidentId: z.uuid()
+}).strict();
+
+const markCsamIncidentSubmittedPayloadSchema = z.object({
+  cyberTiplineReportId: z.string().trim().min(1).max(128),
+  submittedBy: z.string().trim().max(320).optional(),
+  notes: z.string().trim().max(4000).optional()
 }).strict();
 
 function assertInternalAccess(app: FastifyInstance, headerValue: string | string[] | undefined) {
@@ -16,6 +31,42 @@ function assertInternalAccess(app: FastifyInstance, headerValue: string | string
 }
 
 export async function registerInternalRoutes(app: FastifyInstance) {
+  app.get("/api/internal/csam-incidents/:incidentId", async (request, reply) => {
+    assertInternalAccess(app, request.headers["x-internal-secret"]);
+    const { incidentId } = internalCsamIncidentParamsSchema.parse(request.params);
+    const details = await getCsamIncidentDetails(app, incidentId);
+
+    return reply.send({
+      data: details
+    });
+  });
+
+  app.get("/api/internal/csam-incidents/:incidentId/report-packet", async (request, reply) => {
+    assertInternalAccess(app, request.headers["x-internal-secret"]);
+    const { incidentId } = internalCsamIncidentParamsSchema.parse(request.params);
+    const packet = await buildCsamReportPacket(app, incidentId);
+
+    return reply.send({
+      data: packet
+    });
+  });
+
+  app.post("/api/internal/csam-incidents/:incidentId/mark-submitted", async (request, reply) => {
+    assertInternalAccess(app, request.headers["x-internal-secret"]);
+    const { incidentId } = internalCsamIncidentParamsSchema.parse(request.params);
+    const payload = markCsamIncidentSubmittedPayloadSchema.parse(request.body);
+    const result = await markCsamIncidentSubmitted(app, {
+      incidentId,
+      cyberTiplineReportId: payload.cyberTiplineReportId,
+      submittedBy: payload.submittedBy,
+      notes: payload.notes
+    });
+
+    return reply.send({
+      data: result
+    });
+  });
+
   app.get("/api/internal/users/:userId/trust", async (request, reply) => {
     assertInternalAccess(app, request.headers["x-internal-secret"]);
     const { userId } = internalUserParamsSchema.parse(request.params);

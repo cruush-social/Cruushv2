@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  changePassword,
+  deleteAccount,
   requestPasswordReset,
   resetPassword,
   resendVerificationEmail,
@@ -61,6 +63,32 @@ describe('authApi', () => {
       body: JSON.stringify({
         token: 'reset-token-1234567890',
         password: 'new-password-123',
+      }),
+    }));
+  });
+
+  it('calls the password change and account deletion endpoints', async () => {
+    await changePassword({
+      currentPassword: 'current-password',
+      newPassword: 'new-password-123',
+    });
+    await deleteAccount({
+      password: 'current-password',
+      confirmation: 'DELETE',
+    });
+
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/auth/password/change', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        currentPassword: 'current-password',
+        newPassword: 'new-password-123',
+      }),
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/auth/me', expect.objectContaining({
+      method: 'DELETE',
+      body: JSON.stringify({
+        password: 'current-password',
+        confirmation: 'DELETE',
       }),
     }));
   });
