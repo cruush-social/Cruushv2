@@ -271,6 +271,7 @@ function labelsFromFilename(filename: string | undefined): ProviderLabel[] {
     ["adult-human", "adult_human_body", "low", 0.95],
     ["human-body", "adult_human_body", "low", 0.95],
     ["adult-body", "adult_human_body", "low", 0.95],
+    ["profile-crop", "adult_human_body", "low", 0.95],
     ["non-human", "profile_photo_not_adult_human", "high", 0.96],
     ["no-human", "profile_photo_not_adult_human", "high", 0.96],
     ["gradient", "profile_photo_not_adult_human", "high", 0.96],

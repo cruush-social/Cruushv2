@@ -367,33 +367,33 @@ async function upsertReviewerGroupFixture(
   bankReviewer: SeededReviewerAccount,
   paymentReviewer: SeededReviewerAccount
 ): Promise<ReviewerConversationFixture> {
-  const result = await context.db.query<{ id: string }>(
-    `with existing_conversation as (
-       select id
-       from conversations
-       where kind = 'group'
-         and created_by = $1
-         and tags @> $3::text[]
-       limit 1
-     ), inserted_conversation as (
-       insert into conversations (kind, title, tags, created_by, disappearing_timer)
-       select 'group', $2, $3::text[], $1, $4
-       where not exists (select 1 from existing_conversation)
-       returning id
-     ), selected_conversation as (
-       select id from inserted_conversation
-       union all
-       select id from existing_conversation
-     )
-     update conversations
-     set title = $2,
-         tags = $3::text[],
-         disappearing_timer = $4,
-         updated_at = now()
-     where id = (select id from selected_conversation limit 1)
-     returning id::text as id`,
-    [bankReviewer.userId, REVIEWER_TEST_GROUP_TITLE, REVIEWER_TEST_GROUP_TAGS, "24h"]
+  const existingResult = await context.db.query<{ id: string }>(
+    `select id::text as id
+     from conversations
+     where kind = 'group'
+       and created_by = $1
+       and tags @> $2::text[]
+     limit 1`,
+    [bankReviewer.userId, REVIEWER_TEST_GROUP_TAGS]
   );
+  const existingConversationId = existingResult.rows[0]?.id;
+  const result = existingConversationId
+    ? await context.db.query<{ id: string }>(
+      `update conversations
+       set title = $2,
+           tags = $3::text[],
+           disappearing_timer = $4,
+           updated_at = now()
+       where id = $1
+       returning id::text as id`,
+      [existingConversationId, REVIEWER_TEST_GROUP_TITLE, REVIEWER_TEST_GROUP_TAGS, "24h"]
+    )
+    : await context.db.query<{ id: string }>(
+      `insert into conversations (kind, title, tags, created_by, disappearing_timer)
+       values ('group', $1, $2::text[], $3, $4)
+       returning id::text as id`,
+      [REVIEWER_TEST_GROUP_TITLE, REVIEWER_TEST_GROUP_TAGS, bankReviewer.userId, "24h"]
+    );
   const conversationId = result.rows[0]?.id;
 
   if (!conversationId) {

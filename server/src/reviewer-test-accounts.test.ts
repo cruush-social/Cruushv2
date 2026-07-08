@@ -147,7 +147,13 @@ describe("reviewer test account seeding", () => {
         };
       }
 
-      if (normalizedSql.includes("with existing_conversation")) {
+      if (normalizedSql.includes("select id::text as id") && normalizedSql.includes("from conversations")) {
+        return {
+          rows: []
+        };
+      }
+
+      if (normalizedSql.includes("insert into conversations (kind, title, tags, created_by, disappearing_timer)")) {
         return {
           rows: [{
             id: "30000000-0000-4000-8000-000000000002"
@@ -226,12 +232,14 @@ describe("reviewer test account seeding", () => {
       `${seededReviewerUserId(2)}:${seededReviewerUserId(3)}`,
       seededReviewerUserId(2)
     ]);
-    const groupConversationUpserts = query.mock.calls.filter(([sql]) => String(sql).includes("with existing_conversation"));
+    const groupConversationUpserts = query.mock.calls.filter(([sql]) =>
+      String(sql).includes("insert into conversations (kind, title, tags, created_by, disappearing_timer)")
+    );
     expect(groupConversationUpserts).toHaveLength(1);
     expect(groupConversationUpserts[0]?.[1]).toEqual([
-      seededReviewerUserId(2),
       "Bank/payment reviewer smoke group",
       ["reviewer-test-fixture", "bank-payment-smoke"],
+      seededReviewerUserId(2),
       "24h"
     ]);
     expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase() === "commit")).toBe(true);

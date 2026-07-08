@@ -3357,6 +3357,7 @@ describe("server", () => {
     expect(query.mock.calls[5]?.[0]).toContain("insert into messages");
     expect(query.mock.calls[5]?.[0]).toContain("content_ciphertext");
     expect(query.mock.calls[5]?.[1]).not.toContain("on my way");
+    expect(query.mock.calls[5]?.[1]).toContain("keyword_prefilter");
     expect(response.json()).toEqual({
       data: {
         id: "msg-3",
@@ -3365,6 +3366,59 @@ describe("server", () => {
         timestamp: "2026-04-29T12:10:00.000Z"
       }
     });
+  });
+
+  it("rejects severe-safety message text before inserting the message", async () => {
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from conversation_members cm")) {
+        return {
+          rows: [{
+            id: conversationId,
+            kind: "group",
+            title: "Beta crew",
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: null,
+            other_user_name: null,
+            other_user_pronouns: null,
+            other_user_photo: null,
+            member_count: 3,
+            current_user_role: "member",
+            disappearing_timer: "off",
+            closed_at: null
+          }]
+        };
+      }
+
+      if (text.includes("insert into content_reviews")) {
+        return { rows: [{ id: "33333333-3333-4333-8333-333333333333" }] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "I am going to hurt you"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().error.code).toBe("CONTENT_REJECTED");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into messages"))).toBe(false);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into content_reviews"))).toBe(true);
   });
 
   it("applies a 1h group conversation timer to new messages", async () => {
@@ -3511,6 +3565,68 @@ describe("server", () => {
         }]
       }
     });
+  });
+
+  it("rejects severe-safety message photo captions before storing media", async () => {
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from conversation_members cm")) {
+        return {
+          rows: [{
+            id: conversationId,
+            kind: "group",
+            title: "Beta crew",
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: null,
+            other_user_name: null,
+            other_user_pronouns: null,
+            other_user_photo: null,
+            member_count: 3,
+            current_user_role: "member",
+            disappearing_timer: "24h",
+            closed_at: null
+          }]
+        };
+      }
+
+      if (text.includes("insert into content_reviews")) {
+        return { rows: [{ id: "33333333-3333-4333-8333-333333333333" }] };
+      }
+
+      return { rows: [] };
+    });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "message.png",
+      contentType: "image/png",
+      content: png,
+      fields: [
+        { name: "conversationId", value: conversationId },
+        { name: "content", value: "I am going to hurt you" }
+      ]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages/photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().error.code).toBe("CONTENT_REJECTED");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into media_objects"))).toBe(false);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into messages"))).toBe(false);
   });
 
   it("does not expose a generic video media upload endpoint", async () => {

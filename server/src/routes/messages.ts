@@ -16,7 +16,7 @@ import {
   openDirectConversationPayloadSchema,
   updateGroupConversationPayloadSchema
 } from "../message-schema.js";
-import { approvedContentReviewCte, moderateImageOrReject, moderateTextOrReject } from "../moderation-service.js";
+import { approvedContentReviewCte, moderateImageOrReject, moderateMessageTextOrAllowByKeyword } from "../moderation-service.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 const conversationParamsSchema = z.object({
@@ -1032,7 +1032,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const publicImageUrl = new URL(url, app.config.MEDIA_PUBLIC_BASE_URL || app.config.APP_URL).toString();
 
     if (payload.content) {
-      await moderateTextOrReject(app, {
+      await moderateMessageTextOrAllowByKeyword(app, {
         userId,
         surface: moderationSurface,
         text: payload.content
@@ -1307,7 +1307,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
     const moderationSurface = conversation.kind === "group" ? "group_message" : "direct_message";
     const restrictedFeature = conversation.kind === "group" ? "group_messages" : "direct_messages";
-    const moderation = await moderateTextOrReject(app, {
+    const moderation = await moderateMessageTextOrAllowByKeyword(app, {
       userId,
       surface: moderationSurface,
       text: payload.content

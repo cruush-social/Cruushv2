@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
+import { shouldModerateMessageTextWithProvider } from "./message-keyword-prefilter.js";
 import { createModerationProvider } from "./moderation-provider.js";
 import type {
   ModerationContentType,
@@ -358,6 +359,38 @@ export async function moderateTextOrReject(app: FastifyInstance, input: Moderate
     contentId: input.contentId,
     contentRef: input.contentRef
   });
+}
+
+export async function moderateMessageTextOrAllowByKeyword(app: FastifyInstance, input: ModerateTextInput) {
+  const prefilter = shouldModerateMessageTextWithProvider(input.text);
+
+  if (prefilter.shouldModerate) {
+    return moderateTextOrReject(app, input);
+  }
+
+  return {
+    decision: {
+      decision: "allow",
+      severity: "none",
+      confidence: 1,
+      create_evidence_event: false,
+      evidence_value: 0,
+      trust_impact: 0,
+      penalty_decays: true,
+      moderation_history_required: false,
+      reason_code: "content_allowed"
+    } as PolicyDecision,
+    providerResult: {
+      provider: "keyword_prefilter",
+      provider_request_id: "keyword-prefilter-allow",
+      labels: [],
+      latency_ms: 0,
+      raw_result: {
+        matchedCategories: prefilter.matchedCategories,
+        streamCallSkipped: true
+      }
+    } as ProviderModerationResult
+  };
 }
 
 export async function moderateImageOrReject(app: FastifyInstance, input: ModerateImageInput) {
