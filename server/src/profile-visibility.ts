@@ -44,6 +44,20 @@ function includesAny(requiredValues: string[], actualValues: string[] | null | u
   return requiredValues.some((value) => actualSet.has(normalize(value)));
 }
 
+function excludesAny(excludedValues: string[], actualValues: string[] | null | undefined) {
+  if (excludedValues.length === 0) {
+    return true;
+  }
+
+  const actualSet = new Set((actualValues ?? []).map(normalize));
+
+  if (actualSet.size === 0) {
+    return true;
+  }
+
+  return !excludedValues.some((value) => actualSet.has(normalize(value)));
+}
+
 function getAge(yearOfBirth: number | null | undefined) {
   return yearOfBirth ? new Date().getFullYear() - yearOfBirth : null;
 }
@@ -89,6 +103,31 @@ export function visibilityRulesArePublic(rules: ProfileVisibilityRules | null | 
     rules.substance_boundaries.length === 0;
 }
 
+export function countVisibilityExclusionFilters(rules: ProfileVisibilityRules | null | undefined) {
+  if (!rules) {
+    return 0;
+  }
+
+  return [
+    rules.age_range !== null,
+    rules.distance !== null,
+    rules.identities.length > 0,
+    rules.presentations.length > 0,
+    rules.looking_for.length > 0,
+    rules.timing.length > 0,
+    rules.hosting.length > 0,
+    rules.vibes.length > 0,
+    rules.crowds.length > 0,
+    rules.hobbies.length > 0,
+    rules.positions.length > 0,
+    rules.roles.length > 0,
+    rules.kinks.length > 0,
+    rules.body_types.length > 0,
+    rules.sexuality.length > 0,
+    rules.substance_boundaries.length > 0
+  ].filter(Boolean).length;
+}
+
 export function canSubjectViewProfile(
   rules: ProfileVisibilityRules | null | undefined,
   subject: VisibilitySubjectProfile,
@@ -121,22 +160,22 @@ export function canSubjectViewProfile(
   }
 
   return includesAny(rules.active_crowd_modes, subject.crowds) &&
-    includesAny(rules.identities, subject.identities) &&
-    includesAny(rules.presentations, subject.presentations) &&
-    includesAny(rules.looking_for, subject.looking_for) &&
-    includesAny(rules.timing, subject.timing) &&
-    includesAny(rules.hosting, subject.hosting) &&
-    includesAny(rules.vibes, [
+    excludesAny(rules.identities, subject.identities) &&
+    excludesAny(rules.presentations, subject.presentations) &&
+    excludesAny(rules.looking_for, subject.looking_for) &&
+    excludesAny(rules.timing, subject.timing) &&
+    excludesAny(rules.hosting, subject.hosting) &&
+    excludesAny(rules.vibes, [
       ...(subject.vibes ?? []),
       ...(subject.scenes ?? []),
       ...(subject.archetypes ?? [])
     ]) &&
-    includesAny(rules.crowds, subject.crowds) &&
-    includesAny(rules.hobbies, subject.hobbies) &&
-    includesAny(rules.positions, subject.positions) &&
-    includesAny(rules.roles, subject.roles) &&
-    includesAny(rules.kinks, subject.kinks) &&
-    includesAny(rules.body_types, subject.body_types) &&
-    includesAny(rules.sexuality, subject.sexuality) &&
-    includesAny(rules.substance_boundaries, subject.substance_boundaries);
+    excludesAny(rules.crowds, subject.crowds) &&
+    excludesAny(rules.hobbies, subject.hobbies) &&
+    excludesAny(rules.positions, subject.positions) &&
+    excludesAny(rules.roles, subject.roles) &&
+    excludesAny(rules.kinks, subject.kinks) &&
+    excludesAny(rules.body_types, subject.body_types) &&
+    excludesAny(rules.sexuality, subject.sexuality) &&
+    excludesAny(rules.substance_boundaries, subject.substance_boundaries);
 }

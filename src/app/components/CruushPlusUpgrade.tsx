@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import CruushPlusWord from './CruushPlusWord';
 import { createCheckoutSession, getBillingPlans, type CruushPlusPlan } from '../lib/billingApi';
 
 function formatPrice(plan: CruushPlusPlan) {
@@ -64,7 +65,7 @@ export default function CruushPlusUpgrade() {
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-xl font-semibold">cruush+</h1>
+        <h1 className="text-xl font-semibold"><CruushPlusWord /></h1>
       </header>
 
       <section className="mx-auto max-w-3xl px-5 py-8">

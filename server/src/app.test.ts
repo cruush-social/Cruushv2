@@ -270,6 +270,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function appNotificationRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "notification-1",
+    user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+    type: "direct_message",
+    title: "New notification",
+    body: "Open cruush to check it.",
+    link_url: "/notifications",
+    actor_user_id: null,
+    conversation_id: null,
+    metadata: {},
+    read_at: null,
+    created_at: "2026-04-29T12:11:00.000Z",
+    ...overrides
+  };
+}
+
 async function encryptedRelationshipRecordRow(input: {
   id: string;
   type: Parameters<typeof buildEncryptedRelationshipPayload>[0]["type"];
@@ -3366,6 +3383,92 @@ describe("server", () => {
         timestamp: "2026-04-29T12:10:00.000Z"
       }
     });
+  });
+
+  it("creates a dm message when a participant privacy policy cannot be decrypted", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-privacy-unreadable",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: otherUserId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-privacy-unreadable",
+      userOneId: userId,
+      userTwoId: otherUserId
+    });
+    const privacyDecryptError = new Error("Unsupported state or unable to authenticate data");
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: otherUserId,
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: "https://example.com/alex.jpg",
+          member_count: 2
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockRejectedValueOnce(privacyDecryptError)
+      .mockRejectedValueOnce(privacyDecryptError)
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "msg-privacy-unreadable",
+          user_id: userId,
+          content: "still sending",
+          created_at: "2026-04-29T12:10:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: otherUserId,
+          muted: false,
+          sender_name: "Jordan",
+          conversation_title: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [appNotificationRow({
+          user_id: otherUserId,
+          title: "Jordan sent you a message",
+          link_url: `/chat/${conversationId}`,
+          actor_user_id: userId,
+          conversation_id: conversationId,
+          metadata: { conversationKind: "dm" }
+        })]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "still sending"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into messages");
+    expect(response.json().data).toEqual(expect.objectContaining({
+      id: "msg-privacy-unreadable",
+      content: "still sending"
+    }));
   });
 
   it("rejects severe-safety message text before inserting the message", async () => {
@@ -7756,7 +7859,7 @@ describe("server", () => {
     });
   });
 
-  it("allows free users to save visibility control filters without a cap", async () => {
+  it("allows free users to save up to three visibility exclusion filters without checking entitlements", async () => {
     query.mockResolvedValue({
       rows: [{
         id: userId,
@@ -7818,8 +7921,7 @@ describe("server", () => {
       ...emptyProfile.visibility_rules,
       distance: 25,
       identities: ["nonbinary"],
-      looking_for: ["hookup"],
-      kinks: ["leather"]
+      looking_for: ["hookup"]
     };
 
     const response = await app.inject({
@@ -7842,6 +7944,46 @@ describe("server", () => {
       data: expect.objectContaining({
         visibility_rules: visibilityRules
       })
+    });
+  });
+
+  it("requires cruush+ when free users save more than three visibility exclusion filters", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: false,
+        cruush_plus_expires_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        year_of_birth: 1994,
+        visibility_rules: {
+          ...emptyProfile.visibility_rules,
+          distance: 25,
+          identities: ["nonbinary"],
+          looking_for: ["hookup"],
+          kinks: ["leather"]
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(query.mock.calls[0]?.[0]).toContain("from user_entitlements");
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into profiles"))).toBe(false);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CRUUSH_PLUS_REQUIRED",
+        message: "Free accounts can use up to 3 visibility filters. Upgrade to cruush+ for more.",
+        details: null
+      }
     });
   });
 

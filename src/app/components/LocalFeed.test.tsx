@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LocalFeed from './LocalFeed';
@@ -121,7 +121,12 @@ describe('LocalFeed', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('Post on the local feed with cruush+.')).toBeInTheDocument();
+    const notice = await screen.findByTestId('local-feed-cruush-plus-notice');
+    expect(notice).toHaveTextContent('Post on the local feed with cruush+.');
+    expect(within(notice).getAllByText('cruush+')).toHaveLength(2);
+    for (const cruushPlusText of within(notice).getAllByText('cruush+')) {
+      expect(cruushPlusText).toHaveClass('cruush-logo-font');
+    }
 
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
 

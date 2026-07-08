@@ -9,6 +9,7 @@ import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage from './CruushIconImage';
+import CruushPlusWord from './CruushPlusWord';
 import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
@@ -43,10 +44,11 @@ import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import ghostIconColored from '../assets/ui-icons/ghost-colored.svg';
 import ghostIconWhite from '../assets/ui-icons/ghost-white.svg';
+import crowdIconColored from '../assets/ui-icons/crowds-colored.svg';
+import crowdIconWhite from '../assets/ui-icons/crowds-white.svg';
 import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
 import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
 import settingsIconWhite from '../assets/ui-icons/settings-white.png';
-import visibilityIconWhite from '../assets/ui-icons/visibility-white.png';
 
 const DISCOVERY_MAP_LIMIT = 50;
 const LOCATION_PROMPT_SESSION_KEY = 'cruush-location-permission-prompted';
@@ -56,6 +58,12 @@ const DEVELOPER_MAP_TOOL_EMAILS = new Set([
   DEVELOPMENT_ADMIN_EMAIL,
   CODEVELOPER_NYC_EMAIL,
 ]);
+const CROWD_NOTICE_ORDER = ['Sapphic', 'Gay', 'T4T'];
+const CROWD_NOTICE_LABELS: Record<string, string> = {
+  Sapphic: 'Dyke',
+  Gay: 'Gay',
+  T4T: 'T4T',
+};
 
 const DEMO_NYC_PROFILE_PHOTO = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
@@ -255,6 +263,30 @@ function getAvailableCrowdModes(profile: ProfileRecord | null) {
   const profileCrowds = new Set(profile?.crowds ?? []);
 
   return CROWDS.filter((crowd) => profileCrowds.has(crowd) && (crowd !== 'T4T' || profile?.is_trans === true));
+}
+
+function formatActiveCrowdNotice(activeCrowdModes: string[]) {
+  const activeSet = new Set(activeCrowdModes);
+  const orderedCrowds = [
+    ...CROWD_NOTICE_ORDER.filter((crowd) => activeSet.has(crowd)),
+    ...activeCrowdModes.filter((crowd) => !CROWD_NOTICE_ORDER.includes(crowd)),
+  ];
+  const labels = [...new Set(orderedCrowds)].map((crowd) => CROWD_NOTICE_LABELS[crowd] ?? crowd);
+
+  if (labels.length === 0) {
+    return null;
+  }
+
+  const suffix = labels.length === 1 ? 'Crowd Active' : 'Crowds Active';
+  if (labels.length === 1) {
+    return `${labels[0]} ${suffix}`;
+  }
+
+  if (labels.length === 2) {
+    return `${labels[0]} and ${labels[1]} ${suffix}`;
+  }
+
+  return `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]} ${suffix}`;
 }
 
 function hasActiveVisibilityControls(visibility: VisibilityControlState) {
@@ -648,6 +680,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
     activeCrowdModes: visibility.activeCrowdModes.filter((crowd) => availableCrowdModes.includes(crowd)),
   };
   const hasActiveVisibility = hasActiveVisibilityControls(safeVisibility);
+  const activeCrowdNotice = formatActiveCrowdNotice(safeVisibility.activeCrowdModes);
 
   const filteredUsers = users.filter((user) => {
     const distanceMiles = Number.parseFloat(user.distance);
@@ -1127,7 +1160,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
                 className="cruush-logo-font rounded-full px-3 text-lg font-normal leading-none tracking-normal normal-case text-white"
                 style={{ background: 'var(--cruush-gradient)' }}
               >
-                cruush+
+                <CruushPlusWord />
               </Button>
             ) : null}
             <Button
@@ -1227,7 +1260,17 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
           />
         ) : null}
 
-        <div className="pointer-events-auto absolute right-4 top-28 z-30 flex flex-col items-end gap-2">
+        <div
+          className="pointer-events-auto absolute right-3 top-20 z-30 flex flex-col items-end gap-2 sm:right-4"
+          data-testid="map-right-actions"
+        >
+          {activeCrowdNotice ? (
+            <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
+              <CruushIconImage src={crowdIconColored} className="h-4 w-4" />
+              {activeCrowdNotice}
+            </div>
+          ) : null}
+
           {privacySettings.ghostModeEnabled ? (
             <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
               <CruushIconImage src={ghostIconColored} className="h-4 w-4" />
@@ -1273,7 +1316,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
             }`}
             style={hasActiveVisibility ? { background: 'var(--cruush-gradient)' } : undefined}
           >
-            <CruushIconImage src={visibilityIconWhite} className="mr-2 h-4 w-4" />
+            <CruushIconImage src={hasActiveVisibility ? crowdIconColored : crowdIconWhite} className="mr-2 h-4 w-4" />
             VISIBILITY
           </Button>
 

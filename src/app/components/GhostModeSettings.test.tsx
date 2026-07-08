@@ -46,6 +46,8 @@ describe('GhostModeSettings', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
+    expect(screen.getByText('Other people see a shifting location inside your selected radius. You still see your own current map position.')).toBeInTheDocument();
+    expect(screen.getByText('Larger radius gives you more cover; smaller radius keeps your public pin closer to where you are.')).toBeInTheDocument();
 
     const preciseSwitch = await screen.findByRole('switch', {
       name: 'Toggle precise location for mutual cruushes',

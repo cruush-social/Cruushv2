@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
+import CruushPlusWord from './CruushPlusWord';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
 import { getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
@@ -135,9 +136,12 @@ export default function LocalFeed() {
             disabled={!canPost}
           />
           {!canPost ? (
-            <div className="mb-3 flex flex-col gap-3 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-white/78 sm:flex-row sm:items-center sm:justify-between">
+            <div
+              className="mb-3 flex flex-col gap-3 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-white/78 sm:flex-row sm:items-center sm:justify-between"
+              data-testid="local-feed-cruush-plus-notice"
+            >
               <div>
-                <p className="text-white">Post on the local feed with cruush+.</p>
+                <p className="text-white">Post on the local feed with <CruushPlusWord />.</p>
                 <p className="mt-1 text-xs text-white/58">Free users can still read nearby posts.</p>
               </div>
               <Button
@@ -146,7 +150,7 @@ export default function LocalFeed() {
                 style={{ background: 'var(--cruush-gradient)' }}
                 onClick={() => navigate('/upgrade')}
               >
-                Get cruush+
+                Get <CruushPlusWord />
               </Button>
             </div>
           ) : null}

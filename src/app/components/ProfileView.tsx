@@ -61,6 +61,14 @@ function formatJoined(values: string[]) {
   return values.length ? values.join(', ') : null;
 }
 
+function profileIdentityItems(profileView: Pick<ProfileViewModel, 'identities' | 'isTrans'>) {
+  const nonTransIdentities = profileView.identities.filter((item) => item.trim().toLowerCase() !== 'trans');
+
+  return profileView.isTrans === true
+    ? [...nonTransIdentities, 'trans']
+    : nonTransIdentities;
+}
+
 export function profileRecordToProfileView(
   profile: ProfileRecord,
   previewState: ProfileLocationState | null = null,
@@ -426,7 +434,7 @@ export function ProfileDetailsTabs({
         ) : null}
 
         <Section title="Identities" compact={compact}>
-          <BadgeList items={profileView.identities} compact={compact} />
+          <BadgeList items={profileIdentityItems(profileView)} compact={compact} />
         </Section>
 
         <Section title="Presentation" compact={compact}>
@@ -445,11 +453,6 @@ export function ProfileDetailsTabs({
 
         <Section title="Stats" compact={compact}>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <DetailItem
-              label="Trans status"
-              value={profileView.isTrans === true ? 'Yes' : profileView.isTrans === false ? 'No' : null}
-              compact={compact}
-            />
             <DetailItem label="Ethnicity" value={profileView.ethnicity} compact={compact} />
             <DetailItem label="Body" value={profileView.bodyType} compact={compact} />
             <DetailItem label="Height" value={profileView.height} compact={compact} />

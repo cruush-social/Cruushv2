@@ -19,6 +19,8 @@ interface MultiSelectProps {
   placeholder?: string;
   menuPlacement?: 'bottom' | 'top';
   menuPortal?: boolean;
+  disableAddingOptions?: boolean;
+  onAddingDisabled?: () => void;
 }
 
 export default function MultiSelect({
@@ -31,6 +33,8 @@ export default function MultiSelect({
   placeholder = 'Select options...',
   menuPlacement = 'bottom',
   menuPortal = false,
+  disableAddingOptions = false,
+  onAddingDisabled,
 }: MultiSelectProps) {
   const [selected, setSelected] = useState<string[]>(value);
   const [isOpen, setIsOpen] = useState(false);
@@ -89,6 +93,11 @@ export default function MultiSelect({
   }, [isOpen, menuPlacement, menuPortal]);
 
   const toggleOption = (option: string) => {
+    if (selectionMode === 'multiple' && disableAddingOptions && !selected.includes(option)) {
+      onAddingDisabled?.();
+      return;
+    }
+
     const newSelected = selectionMode === 'single'
       ? selected.includes(option) ? [] : [option]
       : selected.includes(option)

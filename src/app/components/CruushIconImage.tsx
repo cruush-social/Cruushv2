@@ -2,6 +2,8 @@ import cruushColored from '../assets/ui-icons/cruush-colored.png';
 import cruushWhite from '../assets/ui-icons/cruush-white.png';
 import cameraColored from '../assets/ui-icons/camera-colored.png';
 import cameraWhite from '../assets/ui-icons/camera-white.png';
+import crowdsColored from '../assets/ui-icons/crowds-colored.svg';
+import crowdsWhite from '../assets/ui-icons/crowds-white.svg';
 import feedColored from '../assets/ui-icons/feed-colored.png';
 import feedWhite from '../assets/ui-icons/feed-white.png';
 import ghostColored from '../assets/ui-icons/ghost-colored.svg';
@@ -33,6 +35,7 @@ interface CruushIconImageProps {
 export type CruushIconName =
   | 'camera'
   | 'cruush'
+  | 'crowds'
   | 'feed'
   | 'ghost'
   | 'lucky'
@@ -55,6 +58,10 @@ const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconVariant, stri
   cruush: {
     colored: cruushColored,
     white: cruushWhite,
+  },
+  crowds: {
+    colored: crowdsColored,
+    white: crowdsWhite,
   },
   feed: {
     colored: feedColored,

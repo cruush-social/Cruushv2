@@ -107,7 +107,7 @@ export default function GhostModeSettings() {
           <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="h-7 w-7" />
           <div>
             <h2 className="text-xl">Ghost Mode</h2>
-            <p className="text-xs text-muted-foreground">Location privacy settings</p>
+            <p className="text-xs text-muted-foreground">Shifting public map location</p>
           </div>
         </div>
       </header>
@@ -125,7 +125,7 @@ export default function GhostModeSettings() {
               <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
               <div>
                 <p>Ghost Mode</p>
-                <p className="text-sm text-muted-foreground">Stay discoverable while public pins render as a nearby protected location.</p>
+                <p className="text-sm text-muted-foreground">Other people see a shifting location inside your selected radius. You still see your own current map position.</p>
               </div>
             </div>
             <Switch
@@ -173,6 +173,7 @@ export default function GhostModeSettings() {
                 <span key={option.label}>{option.label}</span>
               ))}
             </div>
+            <p className="text-sm text-muted-foreground">Larger radius gives you more cover; smaller radius keeps your public pin closer to where you are.</p>
           </div>
 
           <div className="flex items-center justify-between gap-4">
@@ -180,7 +181,7 @@ export default function GhostModeSettings() {
               <CruushIcon name="map" className="mt-1 h-5 w-5 opacity-65" />
               <div>
                 <p>Precise location for mutual cruushes</p>
-                <p className="text-sm text-muted-foreground">Off by default. When on, mutual cruushes can receive an exact live display token.</p>
+                <p className="text-sm text-muted-foreground">Off by default. When on, mutual cruushes can see your precise live location instead of your Ghost location.</p>
               </div>
             </div>
             <Switch
@@ -200,7 +201,7 @@ export default function GhostModeSettings() {
           <div className="space-y-3">
             <div>
               <p>Precise location for mutual crowds</p>
-              <p className="text-sm text-muted-foreground">Each crowd still requires mutual eligibility and can be revoked per person.</p>
+              <p className="text-sm text-muted-foreground">Selected mutual crowds can see your precise location. Everyone else still sees your public or Ghost location.</p>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
               {CROWDS.map((crowd) => {

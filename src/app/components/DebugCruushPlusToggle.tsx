@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CruushIcon } from './CruushIconImage';
+import CruushPlusWord from './CruushPlusWord';
 import { DEBUG_CRUUSH_PLUS_EVENT, getDebugCruushPlus, setDebugCruushPlus } from '../lib/debugApi';
 import type { CruushEntitlement } from '../lib/cruushApi';
 
@@ -74,7 +75,7 @@ export default function DebugCruushPlusToggle() {
       ].join(' ')}
     >
       <CruushIcon name="lucky" className="h-3.5 w-3.5" variant={enabled ? 'colored' : 'white'} />
-      DEV cruush+ {enabled ? 'ON' : 'OFF'}
+      DEV <CruushPlusWord /> {enabled ? 'ON' : 'OFF'}
     </button>
   );
 }

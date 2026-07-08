@@ -6,6 +6,7 @@ import {
 import HeartPhoto from './HeartPhoto';
 import CruushBadge from './CruushBadge';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
+import CruushPlusWord from './CruushPlusWord';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { getMyCruushActivity, sendCruush, type CruushActivity, type CruushLockableActivityItem, type MutualCruushActivityItem, type ProfileViewActivityItem } from '../lib/cruushApi';
@@ -102,7 +103,7 @@ function UpgradeBanner({
           <CruushIcon name="lucky" className="mt-0.5 h-5 w-5" variant="colored" />
           <div>
             <p className="text-sm text-white">{pluralize(count, 'more person', 'more people')} {resolvedLabel}</p>
-            <p className="mt-1 text-xs text-white/68">Upgrade to cruush+ to see them.</p>
+            <p className="mt-1 text-xs text-white/68">Upgrade to <CruushPlusWord /> to see them.</p>
           </div>
         </div>
         <Button
@@ -111,7 +112,7 @@ function UpgradeBanner({
           style={{ background: 'var(--cruush-gradient)' }}
           onClick={onUpgrade}
         >
-          cruush+
+          <CruushPlusWord />
         </Button>
       </div>
     </div>

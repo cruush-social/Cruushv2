@@ -61,6 +61,7 @@ function createProfileFixture(overrides: Record<string, unknown> = {}) {
     body_type: ['Athletic'],
     height: "5'8\"",
     weight: '155 lbs',
+    is_trans: null,
     position: ['Vers'],
     role: ['Switch'],
     crowds: [],
@@ -189,6 +190,30 @@ describe('ProfileView', () => {
 
     expect(await screen.findByText('Crowds')).toBeInTheDocument();
     expect(screen.getByText('T4T')).toBeInTheDocument();
+  });
+
+  it('shows trans beside gender identity only when selected', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      is_trans: true,
+      identities: ['Non-binary', 'Trans'],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Identities');
+
+    const identitiesSection = screen.getByText('Identities').closest('section');
+    expect(identitiesSection).not.toBeNull();
+    expect(within(identitiesSection as HTMLElement).getByText('Non-binary')).toBeInTheDocument();
+    expect(within(identitiesSection as HTMLElement).getAllByText('trans')).toHaveLength(1);
+    expect(within(identitiesSection as HTMLElement).queryByText('Trans')).not.toBeInTheDocument();
+    expect(screen.queryByText('Trans status')).not.toBeInTheDocument();
   });
 
   it('emits cruush changes, refreshes the profile, and avoids browser alerts', async () => {

@@ -455,17 +455,20 @@ describe('MapHome', () => {
     const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
 
     const topActions = screen.getByTestId('map-top-actions');
+    const rightActions = screen.getByTestId('map-right-actions');
     const cruushPlusButton = await screen.findByRole('button', { name: 'cruush+' });
 
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
     expect(topActions).toHaveClass('pointer-events-auto', 'mt-0');
     expect(topActions).not.toHaveClass('mt-11');
+    expect(rightActions).toHaveClass('right-3', 'top-20', 'sm:right-4');
     expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-lg');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-[1.5625rem]', 'w-[1.5625rem]');
     expect(ghostModeIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
+    expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
     expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
 
@@ -474,6 +477,35 @@ describe('MapHome', () => {
     fireEvent.click(ghostModeButton);
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/ghost-mode');
+  });
+
+  it('shows one combined active crowd notice on the map', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMyProfile.mockResolvedValue({
+      ...((await import('../lib/profileApi')).emptyProfilePayload),
+      id: 'me',
+      display_name: 'Me',
+      photos: ['https://example.com/me.jpg'],
+      is_trans: true,
+      crowds: ['Sapphic', 'Gay', 'T4T'],
+      visibility_rules: {
+        active_crowd_modes: ['Gay', 'T4T', 'Sapphic'],
+      },
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Dyke, Gay, and T4T Crowds Active')).toBeInTheDocument();
+    expect(screen.queryByText(/^Dyke Crowd Active$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Gay Crowd Active$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^T4T Crowd Active$/)).not.toBeInTheDocument();
   });
 
   it('opens the desktop own-profile side panel from router state', async () => {
@@ -629,7 +661,7 @@ describe('MapHome', () => {
 
     expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
     expect(screen.getByText('Saved sets')).toBeInTheDocument();
-    expect(screen.getByText('cruush+ saves named visibility sets.')).toBeInTheDocument();
+    expect(screen.getByText('Free accounts can hide from up to 3 filter groups.')).toBeInTheDocument();
     expect(screen.getByLabelText('Distance')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Upgrade for saved sets' }));

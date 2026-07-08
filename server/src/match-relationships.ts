@@ -139,6 +139,28 @@ export async function getPrivacySettings(app: FastifyInstance, userId: string): 
   };
 }
 
+function conservativePrivacySettingsFallback(): PrivacySettings {
+  return {
+    baseMode: "GHOST" as VisibilityBaseMode,
+    ghostModeEnabled: true,
+    ghostRadiusMeters: DEFAULT_GHOST_RADIUS_METERS,
+    ghostRadiusLabel: "1 mi",
+    preciseToMutualCruushes: false,
+    preciseToMutualCrowds: [],
+    preciseLocationVisibility: "none",
+    updatedAtMs: Date.now()
+  };
+}
+
+async function getRelationshipPrivacySettings(app: FastifyInstance, userId: string) {
+  try {
+    return await getPrivacySettings(app, userId);
+  } catch (error) {
+    app.log.warn({ err: error, userId }, "relationship privacy settings unavailable");
+    return conservativePrivacySettingsFallback();
+  }
+}
+
 export async function savePrivacySettings(
   app: FastifyInstance,
   userId: string,
@@ -328,8 +350,8 @@ export async function getRelationshipPermissions(
       actorUserId: userOneId,
       targetUserId: userTwoId
     }),
-    getPrivacySettings(app, viewerUserId),
-    getPrivacySettings(app, targetUserId)
+    getRelationshipPrivacySettings(app, viewerUserId),
+    getRelationshipPrivacySettings(app, targetUserId)
   ]);
   const isMutualCruush = Boolean(match);
   const outgoingCruush = isMutualCruush
