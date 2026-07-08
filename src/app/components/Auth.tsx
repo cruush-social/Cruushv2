@@ -9,7 +9,6 @@ import {
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import { CruushIcon } from './CruushIconImage';
 import PublicPolicyLinks from './PublicPolicyLinks';
-import SupportRequestForm from './SupportRequestForm';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 
 interface AuthProps {
@@ -392,35 +391,7 @@ export default function Auth({ onAuth }: AuthProps) {
           </div>
         </form>
 
-        <p className="text-xs text-center text-white/30">
-          By continuing, you agree to our{' '}
-          <a
-            className="underline hover:text-white/50"
-            href="https://www.cruush.app/terms"
-            rel="noreferrer"
-            target="_blank"
-          >
-            Terms of Service
-          </a>{' '}
-          and{' '}
-          <a
-            className="underline hover:text-white/50"
-            href="https://www.cruush.app/privacy"
-            rel="noreferrer"
-            target="_blank"
-          >
-            Privacy Policy
-          </a>
-        </p>
-
-        <div className="space-y-4">
-          <SupportRequestForm
-            className="border-white/10 bg-white/5"
-            requireContactEmail
-            source="auth"
-          />
-          <PublicPolicyLinks className="border-white/10 bg-white/5" />
-        </div>
+        <PublicPolicyLinks variant="compact" />
       </div>
     </div>
   );

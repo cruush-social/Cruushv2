@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Auth from './Auth';
+import { AUTH_POLICY_LINKS } from './PublicPolicyLinks';
 
 const { signIn, resendVerificationEmail, signUp, requestPasswordReset } = vi.hoisted(() => ({
   signIn: vi.fn(),
@@ -42,14 +43,6 @@ describe('Auth', () => {
       expiresAt: '2026-04-30T12:00:00.000Z',
       previewUrl: 'https://cruush.test/verify-email?token=abc',
     });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      data: {
-        id: 'support-1',
-        status: 'open',
-        aiTriageStatus: 'pending',
-        createdAt: '2026-07-07T12:00:00.000Z',
-      },
-    }), { status: 201 })));
   });
 
   afterEach(() => {
@@ -77,40 +70,21 @@ describe('Auth', () => {
     expect(await screen.findByText('Verification email sent. Check your inbox, then sign in again.')).toBeInTheDocument();
   });
 
-  it('lets signed-out visitors contact support and reach public policy pages', async () => {
+  it('links signed-out visitors to public policy pages without rendering the support form inline', async () => {
     render(<Auth onAuth={vi.fn()} />);
 
-    expect(screen.getByRole('link', { name: 'Human trafficking policy' })).toHaveAttribute(
-      'href',
-      'https://www.cruush.app/human-trafficking-policy',
-    );
-    expect(screen.getByRole('link', { name: 'Report or request removal of content' })).toHaveAttribute(
-      'href',
-      'https://www.cruush.app/content-removal',
-    );
-
-    fireEvent.change(screen.getByLabelText('Reply email'), {
-      target: { value: 'reviewer@example.com' },
-    });
-    fireEvent.change(screen.getByLabelText('Support subject'), {
-      target: { value: 'Question about reviewer access' },
-    });
-    fireEvent.change(screen.getByLabelText('Support message'), {
-      target: { value: 'Can support help answer a bank reviewer question?' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Send to support' }));
-
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/support-requests', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({
-        category: 'question',
-        subject: 'Question about reviewer access',
-        message: 'Can support help answer a bank reviewer question?',
-        contactEmail: 'reviewer@example.com',
-        source: 'auth',
-        pageUrl: '/',
-      }),
-    })));
-    expect(await screen.findByText('Support request sent')).toBeInTheDocument();
+    const legalNotice = screen.getByLabelText('Legal and safety links');
+    expect(legalNotice).toHaveClass('text-xs', 'text-center', 'text-white/30');
+    expect(screen.queryByText('Legal and safety')).not.toBeInTheDocument();
+    for (const link of AUTH_POLICY_LINKS) {
+      expect(within(legalNotice).getByRole('link', { name: link.label })).toHaveAttribute(
+        'href',
+        `https://www.cruush.app${link.path}`,
+      );
+    }
+    expect(screen.queryByLabelText('Contact support')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Reply email')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Support subject')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Support message')).not.toBeInTheDocument();
   });
 });
