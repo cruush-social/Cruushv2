@@ -171,6 +171,22 @@ const configSchema = z.object({
     });
   }
 
+  if (!config.RESEND_API_KEY) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "RESEND_API_KEY is required in production.",
+      path: ["RESEND_API_KEY"]
+    });
+  }
+
+  if (!config.MAIL_FROM) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "MAIL_FROM is required in production.",
+      path: ["MAIL_FROM"]
+    });
+  }
+
   if (config.MEDIA_OBJECT_STORAGE_DRIVER !== "s3") {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

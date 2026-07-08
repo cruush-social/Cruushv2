@@ -1,5 +1,6 @@
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
+import { accountCanAuthenticate } from "./account-status.js";
 import { getSessionTokenFromRequest, hashSessionToken } from "./auth.js";
 import { ApiError } from "./errors.js";
 
@@ -9,6 +10,7 @@ const userIdHeaderSchema = z.object({
 
 type SessionLookupRow = {
   user_id: string;
+  account_status?: string | null;
 };
 
 export async function getAuthenticatedUserId(request: FastifyRequest) {
@@ -16,17 +18,30 @@ export async function getAuthenticatedUserId(request: FastifyRequest) {
   const parsedHeaders = userIdHeaderSchema.safeParse(request.headers);
 
   if (sessionToken) {
+    const tokenHash = hashSessionToken(sessionToken);
     const sessionLookup = await request.server.db.query<SessionLookupRow>(
-      `select user_id
+      `select
+         s.user_id,
+         coalesce(u.account_status, 'active') as account_status
        from app_sessions s
+       join app_users u on u.id = s.user_id
        where s.token_hash = $1
          and s.expires_at > now()
        limit 1`,
-      [hashSessionToken(sessionToken)]
+      [tokenHash]
     );
 
-    if (sessionLookup.rows[0]?.user_id) {
-      return sessionLookup.rows[0].user_id;
+    const session = sessionLookup.rows[0];
+
+    if (session?.user_id) {
+      if (accountCanAuthenticate(session.account_status)) {
+        return session.user_id;
+      }
+
+      await request.server.db.query(
+        "delete from app_sessions where token_hash = $1",
+        [tokenHash]
+      );
     }
   }
 
@@ -49,17 +64,30 @@ export async function getOptionalAuthenticatedUserId(request: FastifyRequest) {
   const parsedHeaders = userIdHeaderSchema.safeParse(request.headers);
 
   if (sessionToken) {
+    const tokenHash = hashSessionToken(sessionToken);
     const sessionLookup = await request.server.db.query<SessionLookupRow>(
-      `select user_id
+      `select
+         s.user_id,
+         coalesce(u.account_status, 'active') as account_status
        from app_sessions s
+       join app_users u on u.id = s.user_id
        where s.token_hash = $1
          and s.expires_at > now()
        limit 1`,
-      [hashSessionToken(sessionToken)]
+      [tokenHash]
     );
 
-    if (sessionLookup.rows[0]?.user_id) {
-      return sessionLookup.rows[0].user_id;
+    const session = sessionLookup.rows[0];
+
+    if (session?.user_id) {
+      if (accountCanAuthenticate(session.account_status)) {
+        return session.user_id;
+      }
+
+      await request.server.db.query(
+        "delete from app_sessions where token_hash = $1",
+        [tokenHash]
+      );
     }
   }
 

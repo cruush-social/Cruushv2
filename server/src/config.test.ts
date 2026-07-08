@@ -51,6 +51,37 @@ describe("loadConfig", () => {
     })).toThrow();
   });
 
+  it("requires Resend delivery settings in production", () => {
+    expect(() => loadConfig({
+      NODE_ENV: "production",
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: strongSecret,
+      CORS_ORIGIN: "https://staging.cruush.app",
+      APP_URL: "https://staging.cruush.app",
+      EMAIL_PREVIEW_ENABLED: "false",
+      PROFILE_ENCRYPTION_KEY: strongSecret,
+      PROFILE_TOKEN_KEY: strongSecret,
+      RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
+      RELATIONSHIP_INDEX_KEY: strongSecret,
+      MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
+      MATCH_TOKEN_SIGNING_KEY: strongSecret,
+      MESSAGE_ENCRYPTION_KEY: strongSecret,
+      FEED_ENCRYPTION_KEY: strongSecret,
+      MEDIA_ENCRYPTION_KEY: strongSecret,
+      MEDIA_OBJECT_STORAGE_DRIVER: "s3",
+      MEDIA_S3_BUCKET: "cruush-media-staging",
+      MEDIA_S3_ENDPOINT: "https://account-id.r2.cloudflarestorage.com",
+      MEDIA_S3_REGION: "auto",
+      MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
+      MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key",
+      LOCATION_ENCRYPTION_KEY: strongSecret,
+      LOCATION_INDEX_KEY: strongSecret,
+      VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
+      GHOST_DERIVATION_KEY: strongSecret,
+      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
+    })).toThrow();
+  });
+
   it("requires Stream credentials when Stream moderation is enabled", () => {
     expect(() => loadConfig({
       DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
@@ -170,6 +201,8 @@ describe("loadConfig", () => {
       MEDIA_S3_REGION: "auto",
       MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
       MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key",
+      RESEND_API_KEY: "resend-key",
+      MAIL_FROM: "Cruush <hello@cruush.app>",
       LOCATION_ENCRYPTION_KEY: strongSecret,
       LOCATION_INDEX_KEY: strongSecret,
       VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
@@ -188,6 +221,8 @@ describe("loadConfig", () => {
       FEED_ENCRYPTION_KEY: strongSecret,
       MEDIA_ENCRYPTION_KEY: strongSecret,
       MEDIA_OBJECT_STORAGE_DRIVER: "s3",
+      RESEND_API_KEY: "resend-key",
+      MAIL_FROM: "Cruush <hello@cruush.app>",
       LOCATION_ENCRYPTION_KEY: strongSecret,
       LOCATION_INDEX_KEY: strongSecret,
       VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,

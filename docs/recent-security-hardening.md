@@ -16,6 +16,7 @@ The recent changes harden three areas:
 - XSS and unsafe URL defense: stricter public URL validation and HTML escaping for email links.
 - Login/session protection: explicit 256-bit session-token entropy and 256-bit stored token hashes.
 - Encrypted storage robustness: HKDF-based key derivation for new encryption versions, tamper-detection tests, nonce tests, and explicit key-version behavior.
+- Cookie-auth CSRF protection: production unsafe methods now require an allowed `Origin` or allowed `Referer` origin.
 
 The app still uses server-side encryption, not end-to-end encryption. The backend can decrypt authorized data because it holds the server-side keys. The main database threat model is protection against database-only disclosure without access to application secrets.
 
@@ -146,6 +147,12 @@ On successful login, the server now has test coverage proving:
 - the session cookie remains `HttpOnly`
 
 The production behavior remains deployment-compatible because this documents and enforces the existing storage shape instead of introducing a new database column or token format.
+
+## Cookie-Auth CSRF Boundary
+
+Cruush uses HttpOnly cookies for browser sessions. For unsafe methods (`POST`, `PUT`, `PATCH`, and `DELETE`), the API rejects requests whose `Origin` is not in `CORS_ORIGIN`.
+
+In production, unsafe requests must include either an allowed `Origin` or a `Referer` whose origin is allowed. Requests with no usable browser origin signal are rejected with `403`. This keeps local development compatible while making production cookie-auth writes explicit.
 
 ## Encryption Key Derivation Hardening
 

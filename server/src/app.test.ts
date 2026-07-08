@@ -702,6 +702,53 @@ describe("server", () => {
     });
   });
 
+  it("rejects production state-changing requests without an origin or referer", async () => {
+    const response = await productionApp.inject({
+      method: "POST",
+      url: "/api/auth/logout"
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Request origin is required.",
+        details: null
+      }
+    });
+  });
+
+  it("allows production state-changing requests with an allowed referer origin", async () => {
+    const response = await productionApp.inject({
+      method: "POST",
+      url: "/api/auth/logout",
+      headers: {
+        referer: "http://localhost:5173/settings"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+  });
+
+  it("rejects production state-changing requests with an untrusted referer origin", async () => {
+    const response = await productionApp.inject({
+      method: "POST",
+      url: "/api/auth/logout",
+      headers: {
+        referer: "https://evil.example/settings"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Request origin is not allowed.",
+        details: null
+      }
+    });
+  });
+
   it("creates a verification token on POST /api/auth/signup without signing in", async () => {
     query
       .mockResolvedValueOnce({
@@ -1009,7 +1056,8 @@ describe("server", () => {
           email: "admin@cruush.local",
           displayName: "Admin",
           emailVerifiedAt: "2026-04-28T12:00:00.000Z",
-          createdAt: "2026-04-28T12:00:00.000Z"
+          createdAt: "2026-04-28T12:00:00.000Z",
+          accountStatus: "active"
         },
         profile: {
           displayName: "Admin",
@@ -1030,6 +1078,9 @@ describe("server", () => {
     const response = await productionApp.inject({
       method: "POST",
       url: "/api/auth/login",
+      headers: {
+        origin: "http://localhost:5173"
+      },
       payload: {
         email: "admin@cruush.local",
         password: "admin-password"
@@ -1056,6 +1107,40 @@ describe("server", () => {
     expect(response.statusCode).toBe(401);
     expect(query).toHaveBeenCalledTimes(1);
     expect(query.mock.calls[0]?.[0]).toContain("from app_users");
+  });
+
+  it("rejects login for suspended accounts without revealing account state", async () => {
+    const passwordHash = await hashPassword("password-123");
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: userId,
+        email: "river@example.com",
+        password_hash: passwordHash,
+        display_name: "River",
+        email_verified_at: "2026-04-28T12:00:00.000Z",
+        created_at: "2026-04-28T12:00:00.000Z",
+        account_status: "suspended"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "river@example.com",
+        password: "password-123"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(response.json()).toEqual({
+      error: {
+        code: "AUTH_REQUIRED",
+        message: "Invalid email or password.",
+        details: null
+      }
+    });
   });
 
   it("requires a valid Turnstile token on login when configured", async () => {
@@ -1323,7 +1408,8 @@ describe("server", () => {
           email: "river@example.com",
           displayName: "River",
           emailVerifiedAt: null,
-          createdAt: "2026-04-28T12:00:00.000Z"
+          createdAt: "2026-04-28T12:00:00.000Z",
+          accountStatus: "active"
         },
         profile: {
           displayName: "River",
@@ -1336,6 +1422,31 @@ describe("server", () => {
         codeOfConductAcceptedAt: null
       }
     });
+  });
+
+  it("revokes the current session when the account is deleted", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          account_status: "deleted"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(query.mock.calls[1]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[1]?.[1]).toEqual([hashSessionToken("test-session-token")]);
   });
 
   it("marks the current session as having accepted the current code of conduct", async () => {

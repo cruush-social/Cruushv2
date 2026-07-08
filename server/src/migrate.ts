@@ -34,7 +34,10 @@ const migrationFiles = [
   "026_chat_beta_controls.sql",
   "027_cruush_plus_billing.sql",
   "028_app_user_code_of_conduct.sql",
-  "029_support_requests.sql"
+  "029_support_requests.sql",
+  "030_account_status_and_moderators.sql",
+  "031_user_blocks_and_report_targets.sql",
+  "032_moderation_actions.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;
