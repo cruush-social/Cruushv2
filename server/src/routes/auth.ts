@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { accountCanAuthenticate, normalizeAccountStatus } from "../account-status.js";
 import { ApiError } from "../errors.js";
 import {
   createClearedSessionCookie,
@@ -30,6 +31,7 @@ import { verifyTurnstileToken } from "../turnstile.js";
 
 type SessionLookupRow = {
   user_id: string;
+  account_status?: string | null;
 };
 
 type AuthUserRow = {
@@ -42,6 +44,7 @@ type AuthUserRow = {
   year_of_birth: number | null;
   code_of_conduct_accepted_version: string | null;
   code_of_conduct_accepted_at: string | Date | null;
+  account_status?: string | null;
 };
 
 type CreatedUserRow = {
@@ -54,6 +57,7 @@ type CreatedUserRow = {
 
 type PasswordUserRow = CreatedUserRow & {
   password_hash: string;
+  account_status?: string | null;
 };
 
 type VerificationUserRow = {
@@ -74,10 +78,12 @@ type VerificationLookupRow = {
 type PasswordResetUserRow = {
   id: string;
   email: string;
+  account_status?: string | null;
 };
 
 type PasswordResetLookupRow = {
   user_id: string;
+  account_status?: string | null;
 };
 
 type PasswordCredentialRow = {
@@ -111,6 +117,7 @@ function mapSessionRow(row: AuthUserRow) {
       displayName,
       emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : null,
       createdAt: new Date(row.created_at).toISOString(),
+      accountStatus: normalizeAccountStatus(row.account_status),
     },
     profile: profileDisplayName || row.year_of_birth
       ? {
@@ -200,7 +207,8 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
        p.display_name as profile_display_name,
        p.year_of_birth,
        u.code_of_conduct_accepted_version,
-       u.code_of_conduct_accepted_at
+       u.code_of_conduct_accepted_at,
+       coalesce(u.account_status, 'active') as account_status
      from app_users u
      left join profiles p on p.id = u.id
      where u.id = $1`,
@@ -210,6 +218,10 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
   const row = result.rows[0];
 
   if (!row) {
+    throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+  }
+
+  if (!accountCanAuthenticate(row.account_status)) {
     throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
@@ -225,8 +237,11 @@ async function resolveCurrentSession(request: FastifyRequest) {
 
   const tokenHash = hashSessionToken(token);
   const result = await request.server.db.query<SessionLookupRow>(
-    `select user_id
+    `select
+       s.user_id,
+       coalesce(u.account_status, 'active') as account_status
      from app_sessions s
+     join app_users u on u.id = s.user_id
      where s.token_hash = $1
        and s.expires_at > now()
      limit 1`,
@@ -236,6 +251,14 @@ async function resolveCurrentSession(request: FastifyRequest) {
   const session = result.rows[0];
 
   if (!session) {
+    throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+  }
+
+  if (!accountCanAuthenticate(session.account_status)) {
+    await request.server.db.query(
+      "delete from app_sessions where token_hash = $1",
+      [tokenHash]
+    );
     throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
@@ -450,7 +473,14 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     await verifyTurnstileToken(request, payload.captchaToken);
     const result = await app.db.query<PasswordUserRow>(
-      `select id, email, password_hash, display_name, email_verified_at, created_at
+      `select
+         id,
+         email,
+         password_hash,
+         display_name,
+         email_verified_at,
+         created_at,
+         coalesce(account_status, 'active') as account_status
        from app_users
        where email = $1
        limit 1`,
@@ -460,6 +490,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const user = result.rows[0];
 
     if (!user || !(await verifyPassword(payload.password, user.password_hash))) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
+    }
+
+    if (!accountCanAuthenticate(user.account_status)) {
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 
@@ -492,7 +526,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       }
     ]);
     const result = await app.db.query<PasswordResetUserRow>(
-      `select id, email
+      `select
+         id,
+         email,
+         coalesce(account_status, 'active') as account_status
        from app_users
        where email = $1
        limit 1`,
@@ -501,7 +538,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     const user = result.rows[0];
 
-    if (!user) {
+    if (!user || !accountCanAuthenticate(user.account_status)) {
       return reply.code(202).send({
         data: {
           accepted: true,
@@ -543,17 +580,20 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     }]);
     const tokenHash = hashSessionToken(payload.token);
     const resetLookup = await app.db.query<PasswordResetLookupRow>(
-      `select user_id
-       from password_reset_tokens
-       where token_hash = $1
-         and expires_at > now()
+      `select
+         tokens.user_id,
+         coalesce(users.account_status, 'active') as account_status
+       from password_reset_tokens tokens
+       join app_users users on users.id = tokens.user_id
+       where tokens.token_hash = $1
+         and tokens.expires_at > now()
        limit 1`,
       [tokenHash]
     );
 
     const resetToken = resetLookup.rows[0];
 
-    if (!resetToken) {
+    if (!resetToken || !accountCanAuthenticate(resetToken.account_status)) {
       throw new ApiError(400, "VALIDATION_ERROR", "Password reset link is invalid or expired.");
     }
 
@@ -718,7 +758,14 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       }
     ]);
     const result = await app.db.query<PasswordUserRow>(
-      `select id, email, password_hash, display_name, email_verified_at, created_at
+      `select
+         id,
+         email,
+         password_hash,
+         display_name,
+         email_verified_at,
+         created_at,
+         coalesce(account_status, 'active') as account_status
        from app_users
        where email = $1
        limit 1`,
@@ -728,6 +775,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const user = result.rows[0];
 
     if (!user || !(await verifyPassword(payload.password, user.password_hash))) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
+    }
+
+    if (!accountCanAuthenticate(user.account_status)) {
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 

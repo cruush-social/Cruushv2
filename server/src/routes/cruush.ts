@@ -20,7 +20,7 @@ import {
 } from "../encrypted-relationships.js";
 import { formatDistanceMiles, formatLastActiveFromDate } from "../discovery-users.js";
 import { decryptSensitiveProfile } from "../profile-sensitive.js";
-import { getAuthenticatedUserId } from "../request-auth.js";
+import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import {
   buildDefaultVisibilityPolicy,
   formatDistanceLabel,
@@ -762,7 +762,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
   });
 
   app.delete("/api/cruush/matches/:otherUserId", async (request, reply) => {
-    const authenticatedUserId = await getAuthenticatedUserId(request);
+    const authenticatedUserId = await getActiveAccountUserId(request);
     const { otherUserId } = revokeMatchParamsSchema.parse(request.params);
 
     await revokeMutualCruushMatch(app, authenticatedUserId, otherUserId);
@@ -811,7 +811,7 @@ export async function registerCruushRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/cruush", async (request, reply) => {
-    const authenticatedUserId = await getAuthenticatedUserId(request);
+    const authenticatedUserId = await getActiveAccountUserId(request);
     const payload = createCruushPayloadSchema.parse(request.body);
 
     if (payload.toUserId === authenticatedUserId) {

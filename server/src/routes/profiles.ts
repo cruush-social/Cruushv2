@@ -38,7 +38,7 @@ import {
   type SensitiveProfileData,
   type SensitiveProfileToken
 } from "../profile-sensitive.js";
-import { getAuthenticatedUserId } from "../request-auth.js";
+import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
@@ -1232,7 +1232,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   });
 
   app.put("/api/profiles/me/privacy-settings", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const payload = privacySettingsPayloadSchema.parse(request.body);
     const baseMode: VisibilityBaseMode = payload.baseMode ??
       (payload.ghostModeEnabled === true ? "GHOST" : payload.ghostModeEnabled === false ? "PUBLIC_PRECISE" : undefined) ??
@@ -1421,7 +1421,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   });
 
   app.put("/api/profiles/me", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const parsedPayload = profilePayloadSchema.parse(request.body);
     const payload: ProfilePayload = {
       ...parsedPayload,
@@ -1503,7 +1503,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   });
 
   app.put("/api/profiles/me/location", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const payload = profileLocationPayloadSchema.parse(request.body);
 
     try {

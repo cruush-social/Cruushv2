@@ -17,7 +17,7 @@ import {
   updateGroupConversationPayloadSchema
 } from "../message-schema.js";
 import { approvedContentReviewCte, moderateImageOrReject, moderateTextOrReject } from "../moderation-service.js";
-import { getAuthenticatedUserId } from "../request-auth.js";
+import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 const conversationParamsSchema = z.object({
   conversationId: z.uuid()
@@ -388,7 +388,7 @@ async function sendEncryptedMessageMedia(app: FastifyInstance, reply: FastifyRep
 
 export async function registerMessageRoutes(app: FastifyInstance) {
   app.post("/api/conversations/dm", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const payload = openDirectConversationPayloadSchema.parse(request.body);
 
     if (payload.otherUserId === userId) {
@@ -458,7 +458,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/conversations/groups", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const payload = createGroupConversationPayloadSchema.parse(request.body);
     const memberIds = [...new Set(payload.memberIds.filter((memberId) => memberId !== userId))];
 
@@ -526,7 +526,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.patch("/api/conversations/groups/:conversationId", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
     const payload = updateGroupConversationPayloadSchema.parse(request.body);
     await assertGroupAdmin(app, userId, conversationId);
@@ -560,7 +560,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/conversations/groups/:conversationId/members", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
     const payload = groupMemberPayloadSchema.parse(request.body);
     await assertGroupAdmin(app, userId, conversationId);
@@ -588,7 +588,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.delete("/api/conversations/groups/:conversationId/members/:targetUserId", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { conversationId, targetUserId } = groupMemberParamsSchema.parse(request.params);
     await assertGroupAdmin(app, userId, conversationId);
 
@@ -609,7 +609,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/conversations/groups/:conversationId/admins", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
     const payload = groupMemberPayloadSchema.parse(request.body);
     await assertGroupAdmin(app, userId, conversationId);
@@ -632,7 +632,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.delete("/api/conversations/groups/:conversationId/admins/:targetUserId", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { conversationId, targetUserId } = groupMemberParamsSchema.parse(request.params);
     await assertGroupAdmin(app, userId, conversationId);
 
@@ -654,7 +654,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/conversations/groups/:conversationId/close", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
     await assertGroupAdmin(app, userId, conversationId);
 
@@ -671,7 +671,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.patch("/api/conversations/:conversationId/disappearing-timer", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
     const payload = updateConversationTimerPayloadSchema.parse(request.body);
     const conversation = await loadConversationForUser(app, userId, conversationId);
@@ -708,7 +708,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/conversations/:conversationId/clear-for-everyone", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
     const conversation = await loadConversationForUser(app, userId, conversationId);
 
@@ -872,7 +872,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/messages/:messageId/attachments/:mediaObjectId/view", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { messageId, mediaObjectId } = messageAttachmentViewParamsSchema.parse(request.params);
     const result = await app.db.query<EncryptedMessageMediaRow>(
       `with target as (
@@ -927,7 +927,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/messages/photos", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
 
     await app.rateLimiter.assert({
       key: `message-photo-upload:${userId}`,
@@ -1277,7 +1277,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/messages", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const payload = createMessagePayloadSchema.parse(request.body);
 
     const conversationResult = await app.db.query<ConversationRow>(

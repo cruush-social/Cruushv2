@@ -36,7 +36,10 @@ const migrationFiles = [
   "028_app_user_code_of_conduct.sql",
   "029_support_requests.sql",
   "030_csam_incident_reporting.sql",
-  "031_profile_visibility_sets.sql"
+  "031_profile_visibility_sets.sql",
+  "032_account_status_and_moderators.sql",
+  "033_user_blocks_and_report_targets.sql",
+  "034_moderation_actions.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

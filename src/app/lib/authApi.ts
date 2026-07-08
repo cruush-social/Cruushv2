@@ -7,6 +7,7 @@ export type AuthSessionPayload = {
     displayName: string;
     emailVerifiedAt: string | null;
     createdAt: string;
+    accountStatus?: 'active' | 'under_review' | 'suspended' | 'deleted';
   };
   profile: {
     displayName: string | null;

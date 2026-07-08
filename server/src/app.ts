@@ -29,6 +29,25 @@ type BuildServerDeps = {
 
 const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+function headerOrigin(value: string | string[] | undefined) {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  return rawValue?.split(",")[0]?.trim() ?? "";
+}
+
+function refererOrigin(value: string | string[] | undefined) {
+  const referer = headerOrigin(value);
+
+  if (!referer) {
+    return "";
+  }
+
+  try {
+    return new URL(referer).origin;
+  } catch {
+    return "";
+  }
+}
+
 export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   const app = Fastify({
     logger: config.NODE_ENV !== "test"
@@ -88,9 +107,18 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     }
 
     const origin = typeof request.headers.origin === "string" ? request.headers.origin : "";
+    const requestOrigin = origin || (
+      config.NODE_ENV === "production"
+        ? refererOrigin(request.headers.referer)
+        : ""
+    );
 
-    if (origin && !allowedCorsOrigins.has(origin)) {
+    if (requestOrigin && !allowedCorsOrigins.has(requestOrigin)) {
       throw new ApiError(403, "FORBIDDEN", "Request origin is not allowed.");
+    }
+
+    if (config.NODE_ENV === "production" && !requestOrigin) {
+      throw new ApiError(403, "FORBIDDEN", "Request origin is required.");
     }
   });
 

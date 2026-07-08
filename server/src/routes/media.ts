@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { ApiError } from "../errors.js";
 import { checkPhotoDnaForUploadOrReject } from "../csam-reporting.js";
-import { getAuthenticatedUserId } from "../request-auth.js";
+import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { decryptMediaBytes, encryptMediaBytes } from "../media-encryption.js";
 import {
   ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX,
@@ -188,7 +188,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/profile-photos", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
 
     await app.rateLimiter.assert({
       key: `profile-photo-upload:${userId}`,

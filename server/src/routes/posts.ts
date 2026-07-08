@@ -5,7 +5,7 @@ import { decryptTextContentOrFallback, encryptTextContent } from "../content-enc
 import { ApiError } from "../errors.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
 import { createPostPayloadSchema } from "../post-schema.js";
-import { getAuthenticatedUserId } from "../request-auth.js";
+import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 type PostRow = {
   id: string;
@@ -91,7 +91,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/posts", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
     await requireCruushPlus(app, userId, "Upgrade to cruush+ to post on the local feed.");
     const moderation = await moderateTextOrReject(app, {
@@ -218,7 +218,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
   });
 
   app.delete("/api/posts/:postId", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
+    const userId = await getActiveAccountUserId(request);
     const { postId } = postParamsSchema.parse(request.params);
     const result = await app.db.query<{ id: string }>(
       `delete from posts
