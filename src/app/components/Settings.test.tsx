@@ -95,7 +95,7 @@ describe('Settings', () => {
     vi.unstubAllGlobals();
   });
 
-  it('does not expose Safety Center or Ghost Mode controls in the general settings menu', async () => {
+  it('does not expose Safety Center or Ghost Mode switches in the general settings menu', async () => {
     render(
       <MemoryRouter>
         <Settings />
@@ -106,6 +106,7 @@ describe('Settings', () => {
     expect(screen.queryByText('Privacy & Safety')).not.toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: 'Toggle Ghost Mode' })).not.toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: 'Toggle precise location for mutual cruushes' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Location privacy/i })).toBeInTheDocument();
   });
 
   it('links signed-in users to support and public policy pages without rendering the support form inline', async () => {
@@ -138,6 +139,19 @@ describe('Settings', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Notifications' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/notifications');
+  });
+
+  it('opens location privacy from settings', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /Location privacy/i }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/ghost-mode');
   });
 
   it('lets signed-in users change their password from settings', async () => {

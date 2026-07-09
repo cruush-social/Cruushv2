@@ -19,6 +19,7 @@ export type ConversationThread = {
   pinned: boolean;
   muted?: boolean;
   mutual?: boolean;
+  canMessage?: boolean;
   membersLabel?: string;
   currentUserRole?: 'owner' | 'admin' | 'member';
   disappearingTimer?: ConversationTimer;

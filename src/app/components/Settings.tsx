@@ -44,6 +44,7 @@ type SettingsItem = {
   icon?: LucideIcon;
   iconName?: CruushIconName;
   label: string;
+  description?: string;
   action: () => void;
   destructive?: boolean;
 };
@@ -152,6 +153,17 @@ export default function Settings() {
         { iconName: 'notifications' as const, label: 'Notifications', action: () => navigate('/settings/notifications') },
         { icon: LifeBuoy, label: 'Contact support', action: () => navigate('/support') },
         { icon: Trash2, label: 'Delete account', action: () => setIsDeleteDialogOpen(true), destructive: true },
+      ],
+    },
+    {
+      title: 'Privacy',
+      items: [
+        {
+          iconName: 'ghost' as const,
+          label: 'Location privacy',
+          description: 'Ghost Mode and precise location access for mutual cruushes.',
+          action: () => navigate('/privacy/ghost-mode'),
+        },
       ],
     },
   ];
@@ -283,7 +295,12 @@ export default function Settings() {
                     ) : Icon ? (
                       <Icon className={`w-5 h-5 ${item.destructive ? '' : 'text-muted-foreground'}`} />
                     ) : null}
-                    <span className="flex-1 text-left">{item.label}</span>
+                    <span className="flex-1 text-left">
+                      <span className="block">{item.label}</span>
+                      {item.description ? (
+                        <span className="mt-1 block text-sm text-muted-foreground">{item.description}</span>
+                      ) : null}
+                    </span>
                     <ChevronRight className="w-5 h-5 text-muted-foreground" />
                   </button>
                 );

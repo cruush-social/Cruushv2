@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PrivateGroupChat from './PrivateGroupChat';
+import { ApiClientError } from '../lib/apiClient';
 
 const {
   clearConversationForEveryone,
@@ -41,6 +42,11 @@ vi.mock('../lib/messagesApi', async () => {
     viewMessageAttachment,
   };
 });
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}</div>;
+}
 
 describe('PrivateGroupChat', () => {
   beforeEach(() => {
@@ -127,6 +133,59 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByText('you around now?')).not.toBeInTheDocument();
     expect(screen.queryByText('hosting or traveling?')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Insert quick reply' })).not.toBeInTheDocument();
+  });
+
+  it('routes blocked non-mutual dm sends back to the profile', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        muted: false,
+        mutual: false,
+        tags: [],
+      },
+      messages: [],
+    });
+    createMessage.mockRejectedValue(new ApiClientError(
+      403,
+      'MUTUAL_CRUUSH_REQUIRED',
+      'You can message after a mutual cruush.',
+    ));
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<><PrivateGroupChat /><LocationProbe /></>} />
+          <Route path="/profile/:userId" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Say what you want...'), {
+      target: { value: 'hey' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    expect(await screen.findByText('You need a mutual cruush before messaging. Open their profile to send a cruush first.')).toBeInTheDocument();
+    expect(screen.getByText('Send a cruush first. Messages open after it is mutual.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open profile' }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2');
   });
 
   it('navigates to the report page from the conversation safety action', async () => {

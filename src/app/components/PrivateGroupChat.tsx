@@ -31,7 +31,7 @@ import {
   viewMessageAttachment,
 } from '../lib/messagesApi';
 import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
-import { resolveMediaUrl } from '../lib/apiClient';
+import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -95,6 +95,7 @@ export default function PrivateGroupChat() {
   const [addMemberId, setAddMemberId] = useState('');
   const [viewedAttachmentUrls, setViewedAttachmentUrls] = useState<Record<string, string>>({});
   const [viewingAttachmentIds, setViewingAttachmentIds] = useState<Record<string, boolean>>({});
+  const [mutualRequiredConversationId, setMutualRequiredConversationId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -128,6 +129,7 @@ export default function PrivateGroupChat() {
 
         setConversation(data.conversation);
         setMessages(Array.isArray(data.messages) ? normalizeRemoteMessages(data.messages, resolvedUserId) : []);
+        setMutualRequiredConversationId(data.conversation.kind === 'dm' && data.conversation.canMessage === false ? data.conversation.id : null);
         setError(null);
       } catch (error) {
         if (!active) {
@@ -159,7 +161,11 @@ export default function PrivateGroupChat() {
   }, [conversation?.kind, conversation?.user.name]);
 
   const canManageConversation = conversation?.kind !== 'group' || ['owner', 'admin'].includes(conversation.currentUserRole ?? '');
-  const composerDisabled = Boolean(conversation?.closed);
+  const dmMessagingBlocked = conversation?.kind === 'dm' && (
+    conversation.canMessage === false ||
+    mutualRequiredConversationId === conversation.id
+  );
+  const composerDisabled = Boolean(conversation?.closed) || dmMessagingBlocked;
 
   const loadGroupSettingsData = async (conversationId: string) => {
     setGroupMembersLoading(true);
@@ -370,7 +376,12 @@ export default function PrivateGroupChat() {
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages((prev) => prev.filter((item) => item.id !== optimisticId));
-      setError(error instanceof Error ? error.message : 'Failed to send message.');
+      if (error instanceof ApiClientError && error.code === 'MUTUAL_CRUUSH_REQUIRED') {
+        setMutualRequiredConversationId(chatId);
+        setError('You need a mutual cruush before messaging. Open their profile to send a cruush first.');
+      } else {
+        setError(error instanceof Error ? error.message : 'Failed to send message.');
+      }
     }
   };
 
@@ -393,10 +404,27 @@ export default function PrivateGroupChat() {
       setError(null);
     } catch (error) {
       console.error('Error sending message photo:', error);
-      setError(error instanceof Error ? error.message : 'Failed to send photo.');
+      if (error instanceof ApiClientError && error.code === 'MUTUAL_CRUUSH_REQUIRED') {
+        setMutualRequiredConversationId(chatId);
+        setError('You need a mutual cruush before messaging. Open their profile to send a cruush first.');
+      } else {
+        setError(error instanceof Error ? error.message : 'Failed to send photo.');
+      }
     } finally {
       setPhotoUploading(false);
     }
+  };
+
+  const openDmProfile = () => {
+    if (!conversation || conversation.kind !== 'dm') {
+      return;
+    }
+
+    navigate(`/profile/${conversation.user.id}`, {
+      state: {
+        distance: conversation.distance,
+      },
+    });
   };
 
   const openReport = () => {
@@ -479,6 +507,17 @@ export default function PrivateGroupChat() {
             <Button variant="ghost" size="icon" title="Photo states" aria-label="Open photo options" disabled={!conversation}>
               <ImageIcon className="w-5 h-5" />
             </Button>
+            {conversation?.kind === 'dm' ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Open profile"
+                aria-label={`Open ${conversation.user.name} profile`}
+                onClick={openDmProfile}
+              >
+                <CruushIcon name="profile" className="h-5 w-5" />
+              </Button>
+            ) : null}
             <Button variant="ghost" size="icon" title="Report conversation" aria-label="Report conversation" disabled={!conversation} onClick={openReport}>
               <CruushIcon name="safety" className="h-5 w-5" />
             </Button>
@@ -491,8 +530,18 @@ export default function PrivateGroupChat() {
 
       <div className="mx-auto flex max-w-2xl flex-col px-4 pb-[calc(8rem+env(safe-area-inset-bottom))] pt-4">
         {error ? (
-          <div className="mb-4 rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
+          <div className="mb-4 space-y-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            <p>{error}</p>
+            {dmMessagingBlocked ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                onClick={openDmProfile}
+              >
+                Open profile
+              </Button>
+            ) : null}
           </div>
         ) : null}
 
@@ -796,7 +845,7 @@ export default function PrivateGroupChat() {
             <div className="mx-auto max-w-2xl space-y-3">
               {composerDisabled ? (
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-muted-foreground">
-                  This group is closed.
+                  {dmMessagingBlocked ? 'Send a cruush first. Messages open after it is mutual.' : 'This group is closed.'}
                 </div>
               ) : null}
 

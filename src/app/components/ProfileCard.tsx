@@ -26,6 +26,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   const [openingMessage, setOpeningMessage] = useState(false);
   const isAlreadyMutual = cruushBecameMutual || user.relationship?.mutualCruush === true;
   const hasSentCruush = cruushed || user.relationship?.outgoingCruush === true;
+  const canMessage = user.relationship?.canMessage !== false;
   const cruushDisabled = sendingCruush || hasSentCruush || isAlreadyMutual;
 
   const handleCruush = async () => {
@@ -53,6 +54,10 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
 
   const handleMessage = async () => {
     if (openingMessage) {
+      return;
+    }
+
+    if (!canMessage) {
       return;
     }
 
@@ -150,7 +155,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
           <Button
             variant="outline"
             className="flex-1"
-            disabled={openingMessage}
+            disabled={openingMessage || !canMessage}
             onClick={() => {
               void handleMessage();
             }}
@@ -160,7 +165,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
             }}
           >
             <CruushIcon name="send" className="mr-2 h-4 w-4" variant="colored" />
-            {openingMessage ? 'Opening...' : 'Message'}
+            {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
           </Button>
         </div>
 
