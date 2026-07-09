@@ -52,4 +52,29 @@ describe('ProfileCard', () => {
     fireEvent.click(cruushButton);
     expect(sendCruush).not.toHaveBeenCalled();
   });
+
+  it('can render inline for page-level feature results', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <ProfileCard
+          placement="inline"
+          user={{
+            id: 'user-1',
+            name: 'Jordan',
+            age: 26,
+            pronouns: 'they/them',
+            distance: '0.2 mi',
+            lookingFor: ['Fun'],
+            vibes: ['Goth'],
+            photo: null,
+          }}
+          onClose={vi.fn()}
+          onViewProfile={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+
+    expect(container.firstElementChild).not.toHaveClass('fixed');
+    expect(screen.getByText('Jordan, 26')).toBeInTheDocument();
+  });
 });

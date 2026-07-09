@@ -2767,6 +2767,18 @@ describe("server", () => {
     expect(query.mock.calls[4]?.[0]).toContain("insert into conversations");
     expect(query.mock.calls[4]?.[0]).toContain("insert into conversation_members");
     expect(query.mock.calls[4]?.[0]).toContain("'owner'");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[5]?.[1]).toEqual([
+      memberId,
+      "group_membership",
+      "You were added to Beta crew",
+      "Open cruush to see the group.",
+      `/chat/group/${conversationId}`,
+      userId,
+      conversationId,
+      `group:created:${conversationId}:${memberId}`,
+      { conversationKind: "group" }
+    ]);
     expect(response.json().data).toMatchObject({
       id: conversationId,
       kind: "group",
@@ -3055,7 +3067,17 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
-      .mockResolvedValueOnce({ rows: [{ id: memberId }] });
+      .mockResolvedValueOnce({ rows: [{ id: memberId }] })
+      .mockResolvedValueOnce({
+        rows: [appNotificationRow({
+          user_id: memberId,
+          type: "group_membership",
+          title: "You were added to Group chat",
+          link_url: `/chat/group/${conversationId}`,
+          actor_user_id: userId,
+          conversation_id: conversationId
+        })]
+      });
 
     const response = await app.inject({
       method: "POST",
@@ -3073,6 +3095,18 @@ describe("server", () => {
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
     expect(query.mock.calls[5]?.[0]).toContain("insert into conversation_members");
     expect(query.mock.calls[5]?.[0]).toContain("'member'");
+    expect(query.mock.calls[6]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[6]?.[1]).toEqual([
+      memberId,
+      "group_membership",
+      "You were added to Group chat",
+      "Open cruush to see the group.",
+      `/chat/group/${conversationId}`,
+      userId,
+      conversationId,
+      `group:member:${conversationId}:${memberId}:${memberId}`,
+      { conversationKind: "group" }
+    ]);
   });
 
   it("rejects non-mutual users before adding them to a group", async () => {
@@ -3353,6 +3387,24 @@ describe("server", () => {
           content: "on my way",
           created_at: "2026-04-29T12:10:00.000Z"
         }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          muted: false,
+          sender_name: "Jordan",
+          conversation_title: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [appNotificationRow({
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          title: "Jordan sent you a message",
+          link_url: `/chat/${conversationId}`,
+          actor_user_id: userId,
+          conversation_id: conversationId,
+          metadata: { conversationKind: "dm" }
+        })]
       });
 
     const response = await app.inject({
@@ -3375,6 +3427,19 @@ describe("server", () => {
     expect(query.mock.calls[5]?.[0]).toContain("content_ciphertext");
     expect(query.mock.calls[5]?.[1]).not.toContain("on my way");
     expect(query.mock.calls[5]?.[1]).toContain("keyword_prefilter");
+    expect(query.mock.calls[6]?.[0]).toContain("from conversation_members cm");
+    expect(query.mock.calls[7]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[7]?.[1]).toEqual([
+      "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      "direct_message",
+      "Jordan sent you a message",
+      "Open cruush to reply.",
+      `/chat/${conversationId}`,
+      userId,
+      conversationId,
+      `message:msg-3:53fd68d7-24fc-4cff-8cd7-a97ec0cadf97`,
+      { conversationKind: "dm" }
+    ]);
     expect(response.json()).toEqual({
       data: {
         id: "msg-3",
@@ -3622,6 +3687,25 @@ describe("server", () => {
             viewOnce: true
           }]
         }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          muted: true,
+          sender_name: "Jordan",
+          conversation_title: "Beta crew"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [appNotificationRow({
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          type: "group_message",
+          title: "New message in Beta crew",
+          link_url: `/chat/group/${conversationId}`,
+          actor_user_id: userId,
+          conversation_id: conversationId,
+          metadata: { conversationKind: "group" }
+        })]
       });
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
     const multipart = multipartFilePayload({
@@ -3652,6 +3736,19 @@ describe("server", () => {
     expect(query.mock.calls[2]?.[0]).toContain("insert into messages");
     expect(query.mock.calls[2]?.[0]).toContain("message_media_attachments");
     expect(query.mock.calls[2]?.[0]).toContain("view_once");
+    expect(query.mock.calls[3]?.[0]).toContain("from conversation_members cm");
+    expect(query.mock.calls[4]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[4]?.[1]).toEqual([
+      "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      "group_message",
+      "New message in Beta crew",
+      "Open cruush to reply.",
+      `/chat/group/${conversationId}`,
+      userId,
+      conversationId,
+      "message:msg-photo-1:53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      { conversationKind: "group" }
+    ]);
     expect(response.json()).toEqual({
       data: {
         id: "msg-photo-1",
@@ -6411,9 +6508,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query).toHaveBeenCalledTimes(3);
+    expect(query).toHaveBeenCalledTimes(4);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[1]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into app_notifications");
     expect(JSON.stringify(query.mock.calls[1]?.[1])).not.toContain("Jordan");
     expect(JSON.stringify(query.mock.calls[1]?.[1])).not.toContain("53fd68d7-24fc-4cff-8cd7-a97ec0cadf97");
     expect(response.json()).toEqual({

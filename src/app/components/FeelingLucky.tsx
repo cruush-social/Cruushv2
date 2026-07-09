@@ -3,112 +3,206 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
+import CruiseCarouselSlot from './CruiseCarouselSlot';
 import ProfileCard from './ProfileCard';
 import { getMyBillingStatus } from '../lib/billingApi';
+import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
+import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
+import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+
+type LuckyStatus = 'checking' | 'spinning' | 'profile' | 'locked' | 'empty' | 'error';
+
+function selectCarouselUser(users: DiscoveryUser[], currentTargetId?: string | null) {
+  const eligibleUsers = users.filter((user) => !user.isDemo && !user.isCurrentUser);
+
+  if (eligibleUsers.length === 0) {
+    return null;
+  }
+
+  const alternateUsers = eligibleUsers.filter((user) => user.id !== currentTargetId);
+  const pool = alternateUsers.length > 0 ? alternateUsers : eligibleUsers;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function profileLocationToCoordinates(profile: ProfileRecord | null) {
+  const location = profile?.location;
+  const latitude = location?.fuzzy_lat ?? location?.lat ?? null;
+  const longitude = location?.fuzzy_lng ?? location?.lng ?? null;
+
+  if (latitude == null || longitude == null) {
+    return null;
+  }
+
+  return {
+    lat: latitude,
+    lng: longitude,
+  };
+}
+
+async function loadProfileDiscoveryCoordinates() {
+  try {
+    const profile = await getMyProfile();
+
+    if (profile.location?.display_location_token) {
+      const displayPayload = await decryptDisplayLocationToken(profile.location.display_location_token);
+      return {
+        lat: displayPayload.latitude,
+        lng: displayPayload.longitude,
+      };
+    }
+
+    return profileLocationToCoordinates(profile);
+  } catch {
+    return null;
+  }
+}
 
 export default function FeelingLucky() {
   const navigate = useNavigate();
-  const [isCruushPlus, setIsCruushPlus] = useState<boolean | null>(null);
-  const [currentUser, setCurrentUser] = useState({
-    id: 1,
-    name: 'Alex',
-    age: 28,
-    pronouns: 'they/them',
-    distance: '0.3 mi',
-    photo: null,
-    lookingFor: ['hookup', 'chat'],
-    vibes: ['Alt', 'Artsy'],
-  });
+  const [status, setStatus] = useState<LuckyStatus>('checking');
+  const [candidateUsers, setCandidateUsers] = useState<DiscoveryUser[]>([]);
+  const [targetUser, setTargetUser] = useState<DiscoveryUser | null>(null);
+  const [spinNonce, setSpinNonce] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  const startSpin = (users: DiscoveryUser[], currentTargetId?: string | null) => {
+    const nextUser = selectCarouselUser(users, currentTargetId);
+    setSpinNonce((nonce) => nonce + 1);
+
+    if (!nextUser) {
+      setTargetUser(null);
+      setStatus('empty');
+      return;
+    }
+
+    setTargetUser(nextUser);
+    setStatus('spinning');
+  };
+
+  const loadCarousel = async () => {
+    setStatus('checking');
+    setError(null);
+    setTargetUser(null);
+
+    let billingStatus;
+    try {
+      billingStatus = await getMyBillingStatus();
+    } catch {
+      setStatus('locked');
+      return;
+    }
+
+    if (!billingStatus.cruushPlus) {
+      setStatus('locked');
+      return;
+    }
+
+    try {
+      const coordinates = await loadProfileDiscoveryCoordinates();
+      const nearbyUsers = await getNearbyUsers(coordinates, undefined, { limit: 20 });
+      setCandidateUsers(nearbyUsers);
+      startSpin(nearbyUsers);
+    } catch (loadError) {
+      console.error('Error loading cruise carousel:', loadError);
+      setCandidateUsers([]);
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load cruise carousel.');
+      setStatus('error');
+    }
+  };
 
   useEffect(() => {
-    getMyBillingStatus()
-      .then((status) => setIsCruushPlus(status.cruushPlus))
-      .catch(() => setIsCruushPlus(null));
+    void loadCarousel();
   }, []);
 
-  const handleReroll = () => {
-    const randomUsers = [
-      {
-        id: 2,
-        name: 'Jordan',
-        age: 25,
-        pronouns: 'she/her',
-        distance: '0.5 mi',
-        photo: null,
-        lookingFor: ['date', 'friends'],
-        vibes: ['Femme', 'Goddess'],
-      },
-      {
-        id: 3,
-        name: 'Sam',
-        age: 32,
-        pronouns: 'he/him',
-        distance: '0.8 mi',
-        photo: null,
-        lookingFor: ['hookup', 'now'],
-        vibes: ['Daddy', 'Leather'],
-      },
-    ];
-    setCurrentUser(randomUsers[Math.floor(Math.random() * randomUsers.length)]);
+  const handleSpinAgain = () => {
+    startSpin(candidateUsers, targetUser?.id);
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 bg-card/80 backdrop-blur-sm border-b border-border p-4 flex items-center gap-4 z-10">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+    <div className="min-h-screen bg-[#050505] pb-24 text-foreground">
+      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-white/10 bg-black/88 p-4 backdrop-blur-sm">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-2">
           <CruushIcon name="lucky" className="h-5 w-5" variant="colored" />
-          <h2 className="text-xl">I'm Feeling Lucky</h2>
+          <h1 className="text-xl">cruise carousel</h1>
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto p-6 space-y-6">
-        {isCruushPlus === false ? (
-          <div className="rounded-lg border border-primary/25 bg-primary/10 p-4 text-center">
-            <p className="text-white">I'm Feeling Lucky is included with cruush+.</p>
-            <p className="mt-1 text-sm text-muted-foreground">Unlock premium discovery when you want it.</p>
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-3 pt-5 sm:px-6">
+        {status === 'checking' ? (
+          <div className="rounded-2xl border border-white/10 bg-black/72 p-5 text-center text-sm text-white/68">
+            Loading cruise carousel...
+          </div>
+        ) : null}
+
+        {status === 'locked' ? (
+          <CruiseCarouselSlot
+            key={`locked-${spinNonce}`}
+            mode="locked"
+            variant="page"
+            onUpgrade={() => navigate('/upgrade')}
+          />
+        ) : null}
+
+        {status === 'spinning' && targetUser ? (
+          <CruiseCarouselSlot
+            key={`profile-${targetUser.id}-${spinNonce}`}
+            mode="profile"
+            targetUser={targetUser}
+            variant="page"
+            onComplete={() => setStatus('profile')}
+          />
+        ) : null}
+
+        {status === 'profile' && targetUser ? (
+          <div className="space-y-4">
+            <ProfileCard
+              placement="inline"
+              user={targetUser}
+              onClose={() => navigate(-1)}
+              onViewProfile={() => navigate(`/profile/${targetUser.id}`)}
+            />
             <Button
-              type="button"
-              className="mt-4 rounded-lg text-white"
-              style={{ background: 'var(--cruush-gradient)' }}
-              onClick={() => navigate('/upgrade')}
+              onClick={handleSpinAgain}
+              variant="outline"
+              className="mx-auto flex h-11 w-full max-w-sm rounded-xl border-white/18 text-white"
             >
-              Get cruush+
+              <RefreshCw className="w-4 h-4" />
+              Spin again
             </Button>
           </div>
         ) : null}
 
-        {isCruushPlus !== false ? (
-          <>
-        <div className="text-center space-y-2 mb-8">
-          <p className="text-muted-foreground">
-            Discover someone random nearby who matches your filters
-          </p>
-        </div>
-
-        <ProfileCard
-          user={currentUser}
-          onClose={() => navigate(-1)}
-          onViewProfile={() => navigate(`/profile/${currentUser.id}`)}
-        />
-
-        <Button
-          onClick={handleReroll}
-          variant="outline"
-          className="w-full"
-          style={{
-            borderColor: 'var(--cruush-purple)',
-            color: 'var(--cruush-purple)',
-          }}
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Show Me Someone Else
-        </Button>
-          </>
+        {status === 'empty' ? (
+          <CruiseCarouselSlot
+            key={`empty-${spinNonce}`}
+            mode="empty"
+            variant="page"
+            onRetry={() => {
+              void loadCarousel();
+            }}
+          />
         ) : null}
-      </div>
+
+        {status === 'error' ? (
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-center">
+            <p className="text-sm text-destructive">{error ?? 'Unable to load cruise carousel.'}</p>
+            <Button
+              type="button"
+              className="mt-4 h-11 rounded-xl text-white"
+              style={{ background: 'var(--cruush-gradient)' }}
+              onClick={() => {
+                void loadCarousel();
+              }}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Try again
+            </Button>
+          </div>
+        ) : null}
+      </main>
     </div>
   );
 }

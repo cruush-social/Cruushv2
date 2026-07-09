@@ -268,4 +268,24 @@
       opacity: 0.5;
     }
   }
+
+  @keyframes cruise-slot-reel-spin {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(-19.5rem);
+    }
+  }
+
+  .cruise-slot-reel-spin {
+    animation: cruise-slot-reel-spin 0.46s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cruise-slot-reel-spin {
+      animation: none;
+      transform: translateY(-14.5rem);
+    }
+  }
 }

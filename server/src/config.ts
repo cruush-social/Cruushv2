@@ -117,8 +117,24 @@ const configSchema = z.object({
   LOCATION_INDEX_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   GHOST_DERIVATION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
-  DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1")
+  DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
+  WEB_PUSH_ENABLED: booleanEnvSchema,
+  WEB_PUSH_VAPID_PUBLIC_KEY: z.string().optional().default(""),
+  WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional().default(""),
+  WEB_PUSH_SUBJECT: z.string().trim().min(1).optional().default("mailto:hello@cruush.app")
 }).superRefine((config, ctx) => {
+  if (config.WEB_PUSH_ENABLED) {
+    for (const keyName of ["WEB_PUSH_VAPID_PUBLIC_KEY", "WEB_PUSH_VAPID_PRIVATE_KEY", "WEB_PUSH_SUBJECT"] as const) {
+      if (!config[keyName]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${keyName} is required when WEB_PUSH_ENABLED=true.`,
+          path: [keyName]
+        });
+      }
+    }
+  }
+
   if (config.STREAM_MODERATION_ENABLED) {
     for (const keyName of ["STREAM_API_KEY", "STREAM_API_SECRET", "STREAM_MODERATION_CONFIG_KEY"] as const) {
       if (!config[keyName]) {
@@ -349,9 +365,14 @@ type ModerationConfigKey =
   | "FEED_ENCRYPTION_KEY_VERSION"
   | "MEDIA_ENCRYPTION_KEY"
   | "MEDIA_ENCRYPTION_KEY_VERSION";
+type WebPushConfigKey =
+  | "WEB_PUSH_ENABLED"
+  | "WEB_PUSH_VAPID_PUBLIC_KEY"
+  | "WEB_PUSH_VAPID_PRIVATE_KEY"
+  | "WEB_PUSH_SUBJECT";
 
-export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey> &
-  Partial<Pick<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey>>;
+export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey> &
+  Partial<Pick<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey>>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return configSchema.parse(env);

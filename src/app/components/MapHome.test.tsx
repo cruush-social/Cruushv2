@@ -218,6 +218,15 @@ describe('MapHome', () => {
     mapControls.zoomIn.mockReset();
     mapControls.zoomOut.mockReset();
     window.sessionStorage.clear();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes('prefers-reduced-motion'),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
 
     getMyProfile.mockResolvedValue({
       ...((await import('../lib/profileApi')).emptyProfilePayload),
@@ -542,7 +551,9 @@ describe('MapHome', () => {
 
     fireEvent.click(screen.getByRole('button', { name: "I'm Feeling Lucky" }));
 
-    expect(screen.getByText('Nearby now')).toBeInTheDocument();
+    expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+    expect(await screen.findByText('Nearby now')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
@@ -565,7 +576,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/lucky');
   });
 
-  it('routes free users to cruush+ from premium map actions', async () => {
+  it('shows the locked cruise carousel side panel for free desktop users', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
@@ -587,6 +598,13 @@ describe('MapHome', () => {
     expect(await screen.findByRole('button', { name: 'cruush+' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: "I'm Feeling Lucky" }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+    expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Get cruush+' })).toBeInTheDocument();
+    expect(screen.queryByText('Nearby now')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/upgrade');
   });

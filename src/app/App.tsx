@@ -11,6 +11,9 @@ import EventDetail from './components/EventDetail';
 import PlaceDetail from './components/PlaceDetail';
 import PrivateGroupChat from './components/PrivateGroupChat';
 import DirectMessages from './components/DirectMessages';
+import NotificationCenter from './components/NotificationCenter';
+import NotificationSettings from './components/NotificationSettings';
+import MobileInstallPrompt from './components/MobileInstallPrompt';
 import ReportPage from './components/ReportPage';
 import CruushActivity from './components/CruushActivity';
 import Auth from './components/Auth';
@@ -256,9 +259,11 @@ export default function App() {
             <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
             <Route path="/chat/group/:chatId" element={<PrivateGroupChat />} />
             <Route path="/messages" element={<DirectMessages />} />
+            <Route path="/notifications" element={<NotificationCenter />} />
             <Route path="/report" element={<ReportPage />} />
             <Route path="/cruush" element={<CruushActivity />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/notifications" element={<NotificationSettings />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
             <Route path="/privacy/audit" element={<PrivacyAudit />} />
@@ -269,6 +274,7 @@ export default function App() {
             <Route path="/checkout/:sessionId" element={<CruushPlusCheckout />} />
             <Route path="*" element={<Navigate to="/map" replace />} />
           </Routes>
+          <MobileInstallPrompt />
           <BottomNav />
           <DebugCruushPlusToggle />
           <Toaster closeButton position="top-center" richColors />

@@ -1,0 +1,278 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Lock, RefreshCw, X } from 'lucide-react';
+import { Button } from './ui/button';
+import { CruushIcon, type CruushIconName } from './CruushIconImage';
+import { resolveMediaUrl } from '../lib/apiClient';
+import type { DiscoveryUser } from '../lib/usersApi';
+
+export type CruiseCarouselSlotMode = 'profile' | 'locked' | 'empty';
+export type CruiseCarouselSlotVariant = 'panel' | 'page';
+
+type SlotItem =
+  | {
+      kind: 'icon';
+      icon: CruushIconName;
+      label: string;
+    }
+  | {
+      kind: 'profile';
+      user: DiscoveryUser;
+      label: string;
+    };
+
+type CruiseCarouselSlotProps = {
+  mode: CruiseCarouselSlotMode;
+  variant: CruiseCarouselSlotVariant;
+  targetUser?: DiscoveryUser | null;
+  onClose?: () => void;
+  onComplete?: () => void;
+  onRetry?: () => void;
+  onUpgrade?: () => void;
+  spinDurationMs?: number;
+};
+
+const DEFAULT_SPIN_DURATION_MS = 1400;
+
+const SLOT_ICONS: SlotItem[] = [
+  { kind: 'icon', icon: 'cruush', label: 'cruush' },
+  { kind: 'icon', icon: 'lucky', label: 'lucky' },
+  { kind: 'icon', icon: 'map', label: 'map' },
+  { kind: 'icon', icon: 'profile', label: 'profile' },
+  { kind: 'icon', icon: 'messages', label: 'messages' },
+  { kind: 'icon', icon: 'feed', label: 'feed' },
+  { kind: 'icon', icon: 'ghost', label: 'ghost mode' },
+  { kind: 'icon', icon: 'visibility', label: 'visibility' },
+];
+
+function usePrefersReducedMotion() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const syncPreference = () => setPrefersReducedMotion(media.matches);
+
+    syncPreference();
+    media.addEventListener?.('change', syncPreference);
+
+    return () => {
+      media.removeEventListener?.('change', syncPreference);
+    };
+  }, []);
+
+  return prefersReducedMotion;
+}
+
+function makeReelItems(reelIndex: number, mode: CruiseCarouselSlotMode, targetUser?: DiscoveryUser | null) {
+  const shiftedIcons = [
+    ...SLOT_ICONS.slice(reelIndex),
+    ...SLOT_ICONS.slice(0, reelIndex),
+    ...SLOT_ICONS.slice(reelIndex),
+  ];
+
+  if (mode === 'profile' && targetUser && reelIndex === 1) {
+    return [
+      ...shiftedIcons,
+      {
+        kind: 'profile',
+        user: targetUser,
+        label: targetUser.name,
+      } satisfies SlotItem,
+    ];
+  }
+
+  const landingIcon = mode === 'locked'
+    ? { kind: 'icon', icon: 'cruush', label: 'cruush+' } satisfies SlotItem
+    : mode === 'empty'
+    ? { kind: 'icon', icon: 'visibility', label: 'no profiles nearby' } satisfies SlotItem
+    : SLOT_ICONS[(reelIndex + 1) % SLOT_ICONS.length];
+
+  return [...shiftedIcons, landingIcon];
+}
+
+function SlotFace({ item, settled }: { item: SlotItem; settled: boolean }) {
+  if (item.kind === 'profile') {
+    const photo = item.user.photo ? resolveMediaUrl(item.user.photo) : null;
+    const initial = item.user.name.trim().charAt(0).toUpperCase() || '?';
+
+    return (
+      <div
+        className={`flex h-[4.75rem] w-[4.75rem] items-center justify-center overflow-hidden rounded-2xl border ${
+          settled ? 'border-white/32 shadow-[0_0_32px_rgba(255,0,114,0.32)]' : 'border-white/12'
+        } bg-white/[0.06]`}
+      >
+        {photo ? (
+          <img
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full object-cover"
+            draggable={false}
+            src={photo}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-3xl text-white" style={{ background: 'var(--cruush-gradient)' }}>
+            {initial}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex h-[4.75rem] w-[4.75rem] items-center justify-center rounded-2xl border ${
+        settled ? 'border-white/28 bg-white/[0.12]' : 'border-white/10 bg-white/[0.06]'
+      }`}
+    >
+      <CruushIcon name={item.icon} className="h-11 w-11" variant={settled ? 'colored' : 'white'} />
+    </div>
+  );
+}
+
+export default function CruiseCarouselSlot({
+  mode,
+  variant,
+  targetUser = null,
+  onClose,
+  onComplete,
+  onRetry,
+  onUpgrade,
+  spinDurationMs = DEFAULT_SPIN_DURATION_MS,
+}: CruiseCarouselSlotProps) {
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const [settled, setSettled] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    setSettled(false);
+
+    const duration = prefersReducedMotion ? 140 : spinDurationMs;
+    const timer = window.setTimeout(() => {
+      setSettled(true);
+      if (mode === 'profile') {
+        onCompleteRef.current?.();
+      }
+    }, duration);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [mode, prefersReducedMotion, spinDurationMs, targetUser?.id]);
+
+  const reels = useMemo(
+    () => [0, 1, 2].map((index) => makeReelItems(index, mode, targetUser)),
+    [mode, targetUser],
+  );
+
+  const title = mode === 'profile'
+    ? 'spinning cruise carousel'
+    : mode === 'locked'
+    ? 'cruise carousel is a cruush+ feature'
+    : 'no profiles nearby';
+  const description = mode === 'profile'
+    ? targetUser
+      ? `Landing on ${targetUser.name}.`
+      : 'Finding someone nearby.'
+    : mode === 'locked'
+    ? 'Unlock the slot reveal for nearby profiles with cruush+.'
+    : 'No eligible nearby profiles are available right now.';
+
+  const content = (
+    <div className="flex h-full flex-col">
+      <div className="flex items-start justify-between gap-3 p-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">cruise carousel</p>
+          <h2 className={`${variant === 'page' ? 'text-3xl' : 'text-2xl'} text-white`}>{title}</h2>
+        </div>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white/80 backdrop-blur-sm transition hover:text-white"
+            aria-label="Close cruise carousel"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
+
+      <div className={`${variant === 'page' ? 'px-3 sm:px-6' : 'px-4'} flex-1`}>
+        <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
+          <div className="pointer-events-none absolute inset-x-3 top-1/2 z-10 h-[5.25rem] -translate-y-1/2 rounded-2xl border border-white/20 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" />
+          <div className="grid grid-cols-3 gap-2">
+            {reels.map((items, reelIndex) => (
+              <div
+                key={reelIndex}
+                className="h-[15rem] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]"
+                aria-hidden="true"
+              >
+                <div className={`flex flex-col items-center gap-3 py-3 ${settled ? 'translate-y-[-14.5rem]' : 'cruise-slot-reel-spin'}`}>
+                  {items.map((item, itemIndex) => (
+                    <SlotFace
+                      key={`${item.kind}-${item.kind === 'icon' ? item.icon : item.user.id}-${itemIndex}`}
+                      item={item}
+                      settled={settled && itemIndex === items.length - 1}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center" aria-live="polite">
+          <p className="text-sm text-white/78">{settled ? description : 'Spinning app signals nearby...'}</p>
+          {settled && mode === 'locked' ? (
+            <Button
+              type="button"
+              className="mt-4 h-11 rounded-xl text-white"
+              style={{ background: 'var(--cruush-gradient)' }}
+              onClick={onUpgrade}
+            >
+              <Lock className="h-4 w-4" />
+              Get cruush+
+            </Button>
+          ) : null}
+          {settled && mode === 'empty' && onRetry ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-4 h-11 rounded-xl border-white/18 text-white"
+              onClick={onRetry}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Spin again
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (variant === 'panel') {
+    return (
+      <aside
+        aria-label="cruise carousel"
+        className="absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-6 top-[8.75rem] z-50 hidden w-[23rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl lg:block"
+      >
+        {content}
+      </aside>
+    );
+  }
+
+  return (
+    <section
+      aria-label="cruise carousel"
+      className="mx-auto w-full max-w-2xl rounded-[28px] border border-white/10 bg-black/78 shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl"
+    >
+      {content}
+    </section>
+  );
+}

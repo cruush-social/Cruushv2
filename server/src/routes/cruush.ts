@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
 import { createCruushPayloadSchema } from "../cruush-schema.js";
+import { createAppNotificationAndPush } from "../notification-service.js";
 import {
   ensureMutualCruushMatch,
   getCruushEntitlement,
@@ -257,6 +258,27 @@ function lockable<T extends { locked?: boolean; user?: unknown }>(
 
 function parseCoordinate(value: number | null | undefined) {
   return Number.isFinite(value) ? value as number : null;
+}
+
+async function notifyCruushEvent(app: FastifyInstance, input: {
+  userId: string;
+  actorUserId: string;
+  type: "incoming_cruush" | "mutual_cruush";
+  dedupeKey: string;
+}) {
+  try {
+    await createAppNotificationAndPush(app, {
+      userId: input.userId,
+      actorUserId: input.actorUserId,
+      type: input.type,
+      title: input.type === "mutual_cruush" ? "It's mutual" : "You got a cruush",
+      body: "Open cruush to check it.",
+      linkUrl: "/cruush",
+      dedupeKey: input.dedupeKey
+    });
+  } catch (error) {
+    app.log.warn({ err: error, userId: input.userId, type: input.type }, "cruush notification dispatch failed");
+  }
 }
 
 function getRowCoordinates(row: Pick<MutualCruushRow | CurrentProfileLocationRow, "lat" | "lng" | "fuzzy_lat" | "fuzzy_lng">, precise = false) {
@@ -877,6 +899,29 @@ export async function registerCruushRoutes(app: FastifyInstance) {
     const relationship = isMutual
       ? await getRelationshipPermissions(app, authenticatedUserId, payload.toUserId)
       : null;
+
+    if (isMutual) {
+      const matchKey = match?.id ?? reciprocalCruush?.id ?? created.id;
+      await notifyCruushEvent(app, {
+        userId: authenticatedUserId,
+        actorUserId: payload.toUserId,
+        type: "mutual_cruush",
+        dedupeKey: `mutual-cruush:${matchKey}:${authenticatedUserId}`
+      });
+      await notifyCruushEvent(app, {
+        userId: payload.toUserId,
+        actorUserId: authenticatedUserId,
+        type: "mutual_cruush",
+        dedupeKey: `mutual-cruush:${matchKey}:${payload.toUserId}`
+      });
+    } else {
+      await notifyCruushEvent(app, {
+        userId: payload.toUserId,
+        actorUserId: authenticatedUserId,
+        type: "incoming_cruush",
+        dedupeKey: `incoming-cruush:${created.id}:${payload.toUserId}`
+      });
+    }
 
     return reply.code(201).send({
       data: {

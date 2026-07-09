@@ -12,6 +12,7 @@ import CruushIconImage from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
+import CruiseCarouselSlot from './CruiseCarouselSlot';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
@@ -19,6 +20,7 @@ import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruush
 import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
 import { getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
+import { addNotificationsChangedListener, getNotificationSummary } from '../lib/notificationsApi';
 import { resolveMediaUrl } from '../lib/apiClient';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
@@ -346,6 +348,17 @@ type MapHomeProps = {
   developerToolsEnabled?: boolean;
 };
 
+type LuckySlotState =
+  | {
+      mode: 'profile';
+      targetUser: DiscoveryUser;
+      nonce: number;
+    }
+  | {
+      mode: 'locked' | 'empty';
+      nonce: number;
+    };
+
 export function canUseDeveloperMapToolsEmail(email?: string | null) {
   return DEVELOPER_MAP_TOOL_EMAILS.has(email?.trim().toLowerCase() ?? '');
 }
@@ -363,6 +376,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   const [mapInstance, setMapInstance] = useState<CruushMapInstance | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
+  const [luckySlot, setLuckySlot] = useState<LuckySlotState | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(() => !isMobile);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
@@ -376,11 +390,12 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const [npcGhostDemoEnabled, setNpcGhostDemoEnabled] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
-  const shouldAlignRecentlyActiveWithPreview = !isMobile && Boolean(selectedUser);
+  const shouldAlignRecentlyActiveWithPreview = !isMobile && Boolean(selectedUser || luckySlot);
   const recentlyActiveDragRef = useRef({
     hasPointerCapture: false,
     isPointerDown: false,
@@ -420,6 +435,31 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   useEffect(() => {
     let isMounted = true;
 
+    getNotificationSummary()
+      .then((summary) => {
+        if (isMounted) {
+          setNotificationUnreadCount(summary.unreadCount);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setNotificationUnreadCount(0);
+        }
+      });
+
+    const removeListener = addNotificationsChangedListener((payload) => {
+      setNotificationUnreadCount(payload.unreadCount);
+    });
+
+    return () => {
+      isMounted = false;
+      removeListener();
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
     getMyVisibilitySets()
       .then((sets) => {
         if (isMounted) {
@@ -451,6 +491,8 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   };
 
   const handleUserSelect = (user: DiscoveryUser) => {
+    setLuckySlot(null);
+
     if (user.isDemo) {
       setSelectedUser(user);
       return;
@@ -468,7 +510,10 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
     if (isMobile && selectedUser) {
       setSelectedUser(null);
     }
-  }, [isMobile, selectedUser]);
+    if (isMobile && luckySlot) {
+      setLuckySlot(null);
+    }
+  }, [isMobile, luckySlot, selectedUser]);
 
   useEffect(() => {
     let isMounted = true;
@@ -932,25 +977,34 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
     lastOwnProfilePanelRequestKeyRef.current = location.key;
   }, [location.key, ownProfilePreviewUser, shouldOpenOwnProfilePanel]);
 
+  const showLuckySlot = (nextSlot: Omit<LuckySlotState, 'nonce'>) => {
+    setSelectedUser(null);
+    setLuckySlot((currentSlot) => ({
+      ...nextSlot,
+      nonce: (currentSlot?.nonce ?? 0) + 1,
+    } as LuckySlotState));
+  };
+
   const handleFeelingLucky = () => {
-    if (!hasCruushPlus) {
-      navigate('/upgrade');
+    if (isMobile) {
+      navigate('/lucky');
       return;
     }
 
-    if (isMobile) {
-      navigate('/lucky');
+    if (billingStatus?.cruushPlus !== true) {
+      showLuckySlot({ mode: 'locked' });
       return;
     }
 
     const eligibleUsers = displayedUsers.filter((user) => !user.isDemo && !user.isCurrentUser);
 
     if (eligibleUsers.length === 0) {
+      showLuckySlot({ mode: 'empty' });
       return;
     }
 
     const luckyUser = eligibleUsers[Math.floor(Math.random() * eligibleUsers.length)];
-    setSelectedUser(luckyUser);
+    showLuckySlot({ mode: 'profile', targetUser: luckyUser });
   };
 
   const handleCenterMyLocation = () => {
@@ -1186,11 +1240,17 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => navigate('/notifications')}
               aria-label="Notifications"
               title="Notifications"
-              className="rounded-full text-white/90 hover:bg-white/10"
+              className="relative rounded-full text-white/90 hover:bg-white/10"
             >
               <CruushIconImage src={notificationsIconWhite} />
+              {notificationUnreadCount > 0 ? (
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
+                  {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
+                </span>
+              ) : null}
             </Button>
               <Button
                 variant="ghost"
@@ -1251,7 +1311,25 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
           </div>
         ) : null}
 
-        {!isMobile && selectedUser ? (
+        {!isMobile && luckySlot ? (
+          <CruiseCarouselSlot
+            key={`map-lucky-${luckySlot.mode}-${luckySlot.nonce}`}
+            mode={luckySlot.mode}
+            targetUser={luckySlot.mode === 'profile' ? luckySlot.targetUser : null}
+            variant="panel"
+            onClose={() => setLuckySlot(null)}
+            onComplete={luckySlot.mode === 'profile'
+              ? () => {
+                  setSelectedUser(luckySlot.targetUser);
+                  setLuckySlot(null);
+                }
+              : undefined}
+            onRetry={handleFeelingLucky}
+            onUpgrade={() => navigate('/upgrade')}
+          />
+        ) : null}
+
+        {!isMobile && selectedUser && !luckySlot ? (
           <MapProfilePopup
             user={selectedUser}
             onClose={() => setSelectedUser(null)}

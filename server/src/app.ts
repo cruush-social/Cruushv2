@@ -13,6 +13,7 @@ import { resolveMediaStorageDir } from "./media-storage.js";
 import { registerMediaRoutes } from "./routes/media.js";
 import { registerMessageRoutes } from "./routes/messages.js";
 import { registerInternalRoutes } from "./routes/internal.js";
+import { registerNotificationRoutes } from "./routes/notifications.js";
 import { registerPostRoutes } from "./routes/posts.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
@@ -158,6 +159,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerBillingRoutes(app);
   void registerMediaRoutes(app);
   void registerMessageRoutes(app);
+  void registerNotificationRoutes(app);
   void registerUserRoutes(app);
   void registerCruushRoutes(app);
   void registerPostRoutes(app);

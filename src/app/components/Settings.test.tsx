@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import Settings from './Settings';
 
 const { getMyPrivacySettings, saveMyPrivacySettings } = vi.hoisted(() => ({
@@ -50,6 +50,11 @@ vi.mock('../lib/sessionUser', () => ({
   getVerificationPreviewUrl,
   setVerificationPreviewUrl,
 }));
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}</div>;
+}
 
 describe('Settings', () => {
   beforeEach(() => {
@@ -120,6 +125,19 @@ describe('Settings', () => {
     );
     expect(screen.getByRole('button', { name: 'Contact support' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Contact support')).not.toBeInTheDocument();
+  });
+
+  it('opens notification settings from the account menu', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Notifications' }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/notifications');
   });
 
   it('lets signed-in users change their password from settings', async () => {

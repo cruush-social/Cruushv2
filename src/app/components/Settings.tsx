@@ -149,7 +149,7 @@ export default function Settings() {
       items: [
         { iconName: 'profile' as const, label: 'Edit Profile', action: () => navigate('/profile/edit') },
         { icon: KeyRound, label: 'Change password', action: () => setIsPasswordDialogOpen(true) },
-        { iconName: 'notifications' as const, label: 'Notifications', action: () => {} },
+        { iconName: 'notifications' as const, label: 'Notifications', action: () => navigate('/settings/notifications') },
         { icon: LifeBuoy, label: 'Contact support', action: () => navigate('/support') },
         { icon: Trash2, label: 'Delete account', action: () => setIsDeleteDialogOpen(true), destructive: true },
       ],

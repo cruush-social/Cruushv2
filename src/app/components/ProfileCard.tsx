@@ -15,9 +15,10 @@ interface ProfileCardProps {
   user: any;
   onClose: () => void;
   onViewProfile: () => void;
+  placement?: 'overlay' | 'inline';
 }
 
-export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCardProps) {
+export default function ProfileCard({ user, onClose, onViewProfile, placement = 'overlay' }: ProfileCardProps) {
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
@@ -62,8 +63,13 @@ export default function ProfileCard({ user, onClose, onViewProfile }: ProfileCar
       setOpeningMessage(false);
     }
   };
+
+  const cardClassName = placement === 'inline'
+    ? 'bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto'
+    : 'bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30';
+
   return (
-    <div className="bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30" style={{ maxHeight: '80vh' }}>
+    <div className={cardClassName} style={{ maxHeight: placement === 'inline' ? undefined : '80vh' }}>
       <div
         className="relative w-full"
         style={{ ...PROFILE_CARD_MEDIA_ASPECT_STYLE, background: 'var(--cruush-gradient)' }}

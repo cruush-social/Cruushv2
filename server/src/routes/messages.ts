@@ -7,6 +7,7 @@ import { decryptMediaBytes, encryptMediaBytes } from "../media-encryption.js";
 import { MESSAGE_PHOTO_MEDIA_PREFIX, readEncryptedMediaObject, writeEncryptedMediaObject } from "../media-storage.js";
 import { ApiError } from "../errors.js";
 import { hasActiveMutualMessagePermission } from "../match-relationships.js";
+import { createAppNotificationAndPush } from "../notification-service.js";
 import {
   conversationTimerSchema,
   createGroupConversationPayloadSchema,
@@ -108,6 +109,13 @@ type GroupMemberRow = {
   photo: string | null;
   role: "owner" | "admin" | "member";
   joined_at: string | Date;
+};
+
+type ConversationNotificationRecipientRow = {
+  user_id: string;
+  muted: boolean;
+  sender_name: string | null;
+  conversation_title: string | null;
 };
 
 type EncryptedMessageMediaRow = {
@@ -224,6 +232,89 @@ function mapMessageRow(app: FastifyInstance, row: MessageRow) {
     ...(row.expires_at ? { expiresAt: new Date(row.expires_at).toISOString() } : {}),
     ...(attachments.length > 0 ? { attachments } : {})
   };
+}
+
+async function notifyConversationMessageRecipients(
+  app: FastifyInstance,
+  input: {
+    conversationId: string;
+    senderUserId: string;
+    messageId: string;
+    conversationKind: "dm" | "group";
+    conversationTitle?: string | null;
+  }
+) {
+  try {
+    const recipients = await app.db.query<ConversationNotificationRecipientRow>(
+      `select
+         cm.user_id::text as user_id,
+         cm.muted,
+         sender_profile.display_name as sender_name,
+         c.title as conversation_title
+       from conversation_members cm
+       join conversations c on c.id = cm.conversation_id
+       left join profiles sender_profile on sender_profile.id = $2
+       where cm.conversation_id::text = $1
+         and cm.user_id <> $2`,
+      [input.conversationId, input.senderUserId]
+    );
+
+    for (const recipient of recipients.rows) {
+      const senderName = recipient.sender_name?.trim() || "Someone";
+      const groupTitle = recipient.conversation_title?.trim() || input.conversationTitle?.trim() || "Group chat";
+      const isGroup = input.conversationKind === "group";
+
+      await createAppNotificationAndPush(app, {
+        userId: recipient.user_id,
+        actorUserId: input.senderUserId,
+        type: isGroup ? "group_message" : "direct_message",
+        title: isGroup ? `New message in ${groupTitle}` : `${senderName} sent you a message`,
+        body: "Open cruush to reply.",
+        linkUrl: isGroup ? `/chat/group/${input.conversationId}` : `/chat/${input.conversationId}`,
+        conversationId: input.conversationId,
+        dedupeKey: `message:${input.messageId}:${recipient.user_id}`,
+        metadata: {
+          conversationKind: input.conversationKind
+        },
+        suppressPush: recipient.muted
+      });
+    }
+  } catch (error) {
+    app.log.warn({ err: error, conversationId: input.conversationId }, "message notification dispatch failed");
+  }
+}
+
+async function notifyGroupMembership(
+  app: FastifyInstance,
+  input: {
+    conversationId: string;
+    actorUserId: string;
+    memberIds: string[];
+    title?: string | null;
+    eventKey: string;
+  }
+) {
+  const groupTitle = input.title?.trim() || "Group chat";
+
+  for (const memberId of input.memberIds) {
+    try {
+      await createAppNotificationAndPush(app, {
+        userId: memberId,
+        actorUserId: input.actorUserId,
+        type: "group_membership",
+        title: `You were added to ${groupTitle}`,
+        body: "Open cruush to see the group.",
+        linkUrl: `/chat/group/${input.conversationId}`,
+        conversationId: input.conversationId,
+        dedupeKey: `group:${input.eventKey}:${memberId}`,
+        metadata: {
+          conversationKind: "group"
+        }
+      });
+    } catch (error) {
+      app.log.warn({ err: error, conversationId: input.conversationId, memberId }, "group membership notification failed");
+    }
+  }
 }
 
 function getDirectMessageKey(userId: string, otherUserId: string) {
@@ -520,6 +611,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Group creation is unavailable for this account.");
     }
 
+    await notifyGroupMembership(app, {
+      conversationId: conversation.id,
+      actorUserId: userId,
+      memberIds,
+      title: conversation.title,
+      eventKey: `created:${conversation.id}`
+    });
+
     return reply.code(201).send({
       data: mapConversationRow(app, conversation)
     });
@@ -583,6 +682,13 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     if (!result.rows[0]) {
       throw new ApiError(404, "NOT_FOUND", "User or group not found.");
     }
+
+    await notifyGroupMembership(app, {
+      conversationId,
+      actorUserId: userId,
+      memberIds: [payload.userId],
+      eventKey: `member:${conversationId}:${payload.userId}`
+    });
 
     return reply.code(204).send();
   });
@@ -1271,6 +1377,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
+    await notifyConversationMessageRecipients(app, {
+      conversationId: payload.conversationId,
+      senderUserId: userId,
+      messageId: created.id,
+      conversationKind: conversation.kind,
+      conversationTitle: conversation.title
+    });
+
     return reply.code(201).send({
       data: mapMessageRow(app, created)
     });
@@ -1437,6 +1551,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     if (!created) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
+
+    await notifyConversationMessageRecipients(app, {
+      conversationId: payload.conversationId,
+      senderUserId: userId,
+      messageId: created.id,
+      conversationKind: conversation.kind,
+      conversationTitle: conversation.title
+    });
 
     return reply.code(201).send({
       data: mapMessageRow(app, created)
