@@ -4579,6 +4579,36 @@ describe("server", () => {
     expect(query.mock.calls[2]?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
   });
 
+  it("accepts fishnet arms as a profile photo of the uploader", async () => {
+    query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
+      rows: String(_sql).includes("select photos from profiles")
+        ? [{ photos: [] }]
+        : [{ photos: [params[1]] }]
+    }));
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "fishnet-arms.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(201);
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(true);
+  });
+
   it("creates a CSAM incident, preserves encrypted evidence, and locks the account on a PhotoDNA profile-photo match", async () => {
     const csamApp = buildCsamTestApp();
     const fetchMock = mockPhotoDnaMatchAndAlert();
@@ -4672,7 +4702,7 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
-  it("rejects profile photos without adult human body proof before storage", async () => {
+  it("rejects profile photos without proof they are of the uploader before storage", async () => {
     query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
       rows: String(_sql).includes("select photos from profiles")
         ? [{ photos: [] }]
@@ -4701,7 +4731,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "Profile photo must show an adult human body.",
+        message: "Profile photo must be of you.",
         details: null
       }
     });

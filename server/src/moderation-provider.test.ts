@@ -55,6 +55,23 @@ describe("moderation provider", () => {
     ]));
   });
 
+  it("labels fishnet arms as profile-photo ownership proof", async () => {
+    const provider = new MockModerationProvider();
+    const result = await provider.moderateImage({
+      userId: "user-1",
+      surface: "profile_photo",
+      mimeType: "image/png",
+      filename: "fishnet-arms.png",
+      bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47])
+    });
+
+    expect(result.labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        normalized_label: "adult_human_body"
+      })
+    ]));
+  });
+
   it("does not label chaser or fetishization language from text rules", async () => {
     const provider = new MockModerationProvider();
     const result = await provider.moderateText({

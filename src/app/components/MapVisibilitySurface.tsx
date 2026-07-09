@@ -231,7 +231,7 @@ export default function MapVisibilitySurface({
                     value={savedSetName}
                     onChange={(event) => onSavedSetNameChange?.(event.target.value)}
                     placeholder="Night out"
-                    className="bg-input-background"
+                    className="bg-input-background select-text"
                   />
                   <Button type="button" onClick={onSaveSet} disabled={savingSet || !savedSetName.trim()}>
                     Save set

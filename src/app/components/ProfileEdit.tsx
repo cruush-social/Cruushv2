@@ -703,7 +703,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
           <TabsContent value="photos" className="space-y-4 mt-6">
             <div className="rounded-md border border-border bg-card/70 p-3 text-sm text-muted-foreground">
-              Photos need to be of you only. Use a photo of your human body or body part; your face is optional, and clothed or naked is okay. No group photos, pets, memes, screenshots, or objects.
+              Photos need to be of you only. No group photos, pets, memes, screenshots, or objects.
             </div>
             {photoUploadError ? (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">

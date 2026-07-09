@@ -1180,7 +1180,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   };
 
   return (
-    <div className="relative h-screen overflow-hidden bg-background">
+    <div className="cruush-map-shell relative overflow-hidden overscroll-none bg-background select-none" data-testid="map-home-shell">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-40 px-3 pb-12 pt-3"
@@ -1271,7 +1271,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
           onPinClick={handleMarkerSelect}
           onMapClick={() => setSelectedUser(null)}
           markers={mapMarkers}
-          fitToMarkers={!isMutualMapMode && !focusUserId}
+          fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
           focusCoordinates={focusedMutualMapLocation ?? currentUserMapLocation}
           radiusCircle={(privacySettings.ghostModeEnabled || effectiveNpcGhostDemoEnabled) && currentUserMapLocation
             ? {

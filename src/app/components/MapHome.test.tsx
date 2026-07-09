@@ -388,6 +388,22 @@ describe('MapHome', () => {
     });
   });
 
+  it('uses a mobile-friendly fullscreen shell without page text selection', async () => {
+    useIsMobile.mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+
+    expect(screen.getByTestId('map-home-shell')).toHaveClass('cruush-map-shell', 'select-none', 'overscroll-none');
+  });
+
   it('navigates directly to the full profile on mobile', async () => {
     useIsMobile.mockReturnValue(true);
 
@@ -1017,6 +1033,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Saved area');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.713');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-74.005');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
@@ -1098,7 +1115,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '1609');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lat', '40.7128');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lng', '-74.006');
-    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'true');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
     expect(decodeURIComponent(screen.getByRole('button', { name: 'Ghost Mode Settings' }).querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
     expect(decodeURIComponent(screen.getByText('Ghost Mode Active').querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();

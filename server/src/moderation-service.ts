@@ -201,7 +201,7 @@ async function recordContentReview(app: FastifyInstance, input: ContentReviewInp
 
 function userMessageForDecision(decision: PolicyDecision) {
   if (decision.user_message_code === "profile_photo_not_adult_human") {
-    return "Profile photo must show an adult human body.";
+    return "Profile photo must be of you.";
   }
 
   if (decision.user_message_code === "content_pending_review") {

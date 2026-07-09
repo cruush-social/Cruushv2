@@ -326,12 +326,15 @@ describe('ProfileEdit', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
 
     expect(screen.getByText(/Photos need to be of you only/i)).toBeInTheDocument();
-    expect(screen.getByText(/human body or body part/i)).toBeInTheDocument();
+    expect(screen.getByText(/No group photos, pets, memes, screenshots, or objects/i)).toBeInTheDocument();
+    expect(screen.queryByText(/face is optional/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/naked/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/body part/i)).not.toBeInTheDocument();
   });
 
   it('formats profile photo rejection reasons', () => {
-    expect(getPhotoUploadRejectedMessage(new Error('Profile photo must show an adult human body.'))).toBe(
-      'Photo rejected: Profile photo must show an adult human body.',
+    expect(getPhotoUploadRejectedMessage(new Error('Profile photo must be of you.'))).toBe(
+      'Photo rejected: Profile photo must be of you.',
     );
   });
 

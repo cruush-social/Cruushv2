@@ -95,7 +95,7 @@ In Stream dashboard:
 4. Configure severe categories for remove/block: threats, hate, non-consensual sexual content, minor/CSAM references, doxxing, scams, impersonation, drug sales, bestiality, and severe harassment.
 5. Configure borderline categories to flag only when cruush should reject or fail closed without human review.
 6. Avoid blocklists that treat queer identity terms, trans terms, kink terms, or consensual adult dating language as violations by themselves.
-7. For profile image moderation, reject anything not confidently an adult human profile photo. cruush expects a positive adult-human/body signal and rejects profile photos when the provider is silent.
+7. For profile image moderation, reject anything that is not confidently a photo of the uploader. cruush expects a positive adult-human/body signal and rejects profile photos when the provider is silent.
 8. Configure non-human/abstract/object/logo/animal/cartoon/screenshot/image-without-person outcomes to remove or return labels such as `non_human`, `no_person`, `object`, `abstract`, `gradient`, `logo`, or equivalent.
 9. PhotoDNA must be enabled with the verified Microsoft operation path before bank/payment-processor staging review.
 
