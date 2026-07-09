@@ -145,6 +145,42 @@ describe('ProfileOnboarding', () => {
     expect(screen.getByText('leave your confession')).toBeInTheDocument();
   });
 
+  it('offers trans man and trans woman while saving up to three gender identities', async () => {
+    render(<ProfileOnboarding onComplete={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. 2000'), { target: { value: '1998' } });
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    await chooseMultiSelect('Pronouns', 'they/them');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
+    expect(await screen.findByRole('option', { name: 'trans man' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'trans woman' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: 'trans man' }));
+    fireEvent.click(screen.getByRole('option', { name: 'trans woman' }));
+    fireEvent.click(screen.getByRole('option', { name: 'nonbinary' }));
+    fireEvent.click(screen.getByRole('option', { name: 'woman' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    await chooseMultiSelect('Looking For', 'cruise');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    await chooseMultiSelect('Vibes', 'Goth');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
+    fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      identities: ['trans man', 'trans woman', 'nonbinary'],
+    })));
+  });
+
   it('saves the profile, accepts the conduct version, then completes onboarding', async () => {
     const onComplete = renderConductOnboarding();
 

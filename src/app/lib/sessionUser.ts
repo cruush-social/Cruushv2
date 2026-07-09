@@ -40,6 +40,7 @@ export function clearCurrentUser() {
   localStorage.removeItem('cruush_auth');
   localStorage.removeItem('cruush_user');
   localStorage.removeItem(VERIFICATION_PREVIEW_URL_KEY);
+  sessionStorage.clear();
 }
 
 export function getStoredUserId() {

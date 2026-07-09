@@ -384,6 +384,7 @@ export default function ProfileOnboarding({
                   <label className="text-sm mb-2 block text-white/82">Gender Identity</label>
                   <MultiSelect
                     ariaLabel="Gender Identity"
+                    maxSelections={3}
                     options={IDENTITIES}
                     value={profile.identities}
                     onChange={(values) => setProfileField('identities', limitToThree(values))}

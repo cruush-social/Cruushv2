@@ -23,32 +23,13 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CruushIcon } from './CruushIconImage';
 import { resolveMediaUrl } from '../lib/apiClient';
+import {
+  createMapMarkerBadge,
+  type MapMarker,
+  type MapMarkerBadge,
+} from '../lib/mapMarkers';
 
-export type MapMarkerBadge = {
-  kind: 'position';
-  label: string;
-  iconName?: string;
-};
-
-export type MapMarker = {
-  id: string;
-  displayName: string;
-  approximateLatitude: number;
-  approximateLongitude: number;
-  lastActiveLabel?: string;
-  photo?: string | null;
-  isCurrentUser?: boolean;
-  displayMode?: 'PRECISE' | 'GHOST';
-  animationHint?: 'NONE' | 'FADE_LAST_MINUTE' | 'SIGNAL_LOSS' | 'REAPPEAR';
-  privacyRadiusMeters?: number;
-  npcGhostDemo?: boolean;
-  badge?: MapMarkerBadge | null;
-  relationship?: {
-    kind: 'mutual_cruush';
-    precision?: 'fuzzy' | 'precise';
-    canMessage: boolean;
-  } | null;
-};
+export { createMapMarkerBadge };
 
 type RadiusCircle = {
   center: {
@@ -424,37 +405,6 @@ const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
   gooner: CircleDot,
 };
 
-const POSITION_BADGE_ALIASES: Record<string, string> = {
-  vers: 'versatile',
-  'versatile bottom': 'vers bottom',
-  'versatile top': 'vers top',
-};
-
-function normalizeBadgeValue(value: string) {
-  const normalizedValue = value.trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
-  return POSITION_BADGE_ALIASES[normalizedValue] ?? normalizedValue;
-}
-
-function findKnownBadgeValue(values: string[] | undefined) {
-  return values
-    ?.map(normalizeBadgeValue)
-    .find((value) => Boolean(POSITION_BADGE_ICONS[value]));
-}
-
-export function createMapMarkerBadge(positionValues: string[] = [], _hostingTravelValues: string[] = []) {
-  const positionValue = findKnownBadgeValue(positionValues);
-
-  if (positionValue) {
-    return {
-      kind: 'position',
-      label: positionValue,
-      iconName: positionValue,
-    } satisfies MapMarkerBadge;
-  }
-
-  return null;
-}
-
 type RenderedMapMarker = {
   marker: MapLibreMarker;
   root: Root;
@@ -654,8 +604,6 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
 
   return { element, root };
 }
-
-export type CruushMapInstance = MapLibreMap;
 
 function createCircleFeature({ center, radiusMeters }: RadiusCircle) {
   const points: number[][] = [];

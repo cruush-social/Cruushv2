@@ -51,6 +51,7 @@ import {
 } from '../lib/profileOptions';
 
 const MAX_PROFILE_PHOTOS = 4;
+const MAX_GENDER_IDENTITIES = 3;
 const PROFILE_PHOTO_LOAD_ERROR = 'This image could not be loaded. Try a JPG, PNG, or WebP file.';
 
 const VISIBILITY_OPTION_LABELS = PROFILE_VISIBILITY_OPTIONS.map((option) => option.label);
@@ -83,6 +84,10 @@ function getSaveDisplayName(profile: ProfilePayload) {
 
 function uniqueValues(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function limitGenderIdentities(values: string[]) {
+  return uniqueValues(values).slice(0, MAX_GENDER_IDENTITIES);
 }
 
 function canvasToJpegFile(canvas: HTMLCanvasElement) {
@@ -391,7 +396,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
     year_of_birth: profile.year_of_birth ?? null,
     ethnicity: profile.ethnicity ?? '',
-    identities: profile.identities ?? [],
+    identities: limitGenderIdentities(profile.identities ?? []),
     presentation: profile.presentation ?? [],
     sexuality: profile.sexuality ?? [],
     body_type: profile.body_type ?? [],
@@ -400,7 +405,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     position: profile.position ?? [],
     role: profile.role ?? [],
     is_trans: profile.is_trans ?? null,
-    trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
+    trans_status_visibility: profile.trans_status_visibility ?? FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
     availability: profile.availability ?? [],
     hosting_travel: profile.hosting_travel ?? [],
@@ -639,14 +644,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     ...profile,
     photos: (profile.photos || []).slice(0, MAX_PROFILE_PHOTOS),
     pronouns: profile.pronouns || [],
-    identities: profile.identities || [],
+    identities: limitGenderIdentities(profile.identities || []),
     presentation: profile.presentation || [],
     sexuality: profile.sexuality || [],
     body_type: profile.body_type || [],
     position: profile.position || [],
     role: profile.role || [],
     is_trans: profile.is_trans ?? null,
-    trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
+    trans_status_visibility: profile.trans_status_visibility ?? FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
     availability: profile.availability || [],
     hosting_travel: profile.hosting_travel || [],
@@ -848,8 +853,15 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
 
             <div className="space-y-2">
-              <Label>Identities</Label>
-              <MultiSelect options={IDENTITIES} value={normalizedProfile.identities} onChange={(vals) => handleChange('identities', vals)} />
+              <Label>Gender Identities</Label>
+              <MultiSelect
+                ariaLabel="Gender Identities"
+                maxSelections={MAX_GENDER_IDENTITIES}
+                options={IDENTITIES}
+                value={normalizedProfile.identities}
+                onChange={(vals) => handleChange('identities', limitGenderIdentities(vals))}
+              />
+              <p className="text-xs text-muted-foreground">Select up to 3</p>
             </div>
 
 
@@ -871,6 +883,18 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   onCheckedChange={(checked) => handleTransChange(checked === true)}
                 />
                 <Label htmlFor="is_trans">I am trans</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Trans status visibility</Label>
+                <MultiSelect
+                  ariaLabel="Trans status visibility"
+                  options={VISIBILITY_OPTION_LABELS}
+                  value={[getVisibilityLabel(normalizedProfile.trans_status_visibility)]}
+                  onChange={(values) => handleChange('trans_status_visibility', getVisibilityValue(values[0]))}
+                  selectionMode="single"
+                  placeholder="Select visibility..."
+                />
               </div>
 
               <div className="space-y-2">

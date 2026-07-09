@@ -364,7 +364,7 @@ describe('ProfileEdit', () => {
     expect(uploadProfilePhoto).not.toHaveBeenCalled();
   });
 
-  it('lets users set trans status, crowds, categorized vibes, and HIV status without visibility controls', async () => {
+  it('lets users set trans status visibility, crowds, gender identities, categorized vibes, and HIV status', async () => {
     render(
       <MemoryRouter>
         <ProfileEdit />
@@ -388,9 +388,20 @@ describe('ProfileEdit', () => {
 
     const basicsTab = screen.getByRole('tab', { name: 'Basics' });
     fireEvent.click(basicsTab);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+    expect(screen.getByRole('option', { name: 'trans man' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'trans woman' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: 'trans man' }));
+    fireEvent.click(screen.getByRole('option', { name: 'trans woman' }));
+    fireEvent.click(screen.getByRole('option', { name: 'nonbinary' }));
+    fireEvent.click(screen.getByRole('option', { name: 'woman' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+
     fireEvent.click(screen.getByRole('checkbox', { name: 'I am trans' }));
 
-    expect(screen.queryByRole('button', { name: 'Trans status visibility' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Trans status visibility' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Mutual Crowds' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
     fireEvent.click(screen.getByRole('option', { name: 'T4T' }));
@@ -407,8 +418,9 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      identities: ['trans man', 'trans woman', 'nonbinary'],
       is_trans: true,
-      trans_status_visibility: 'mutual_cruushes',
+      trans_status_visibility: 'mutual_crowds',
       crowds: ['T4T', 'Dyke'],
       vibes: ['Bear', 'Daddy'],
       scenes: [],

@@ -1,16 +1,14 @@
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
 import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from './MapView';
 import { Filter, MapPin, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
-import MapView from './MapView';
 import MapProfilePopup from './MapProfilePopup';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
@@ -43,6 +41,8 @@ import {
   type ApproximateCoordinates,
 } from '../lib/locationPrivacy';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
+import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
+import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from '../lib/mapMarkers';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import ghostIconColored from '../assets/ui-icons/ghost-colored.svg';
 import ghostIconWhite from '../assets/ui-icons/ghost-white.svg';
@@ -54,18 +54,16 @@ import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 
 const DISCOVERY_MAP_LIMIT = 50;
 const LOCATION_PROMPT_SESSION_KEY = 'cruush-location-permission-prompted';
-const DEVELOPMENT_ADMIN_EMAIL = 'admin@cruush.local';
-const CODEVELOPER_NYC_EMAIL = 'codeveloper-nyc@cruush.local';
-const DEVELOPER_MAP_TOOL_EMAILS = new Set([
-  DEVELOPMENT_ADMIN_EMAIL,
-  CODEVELOPER_NYC_EMAIL,
-]);
 const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
 const CROWD_NOTICE_LABELS: Record<string, string> = {
   Dyke: 'Dyke',
   Gay: 'Gay',
   T4T: 'T4T',
 };
+
+const MapView = lazy(() => import('./MapView'));
+
+export { canUseDeveloperMapToolsEmail };
 
 const DEMO_NYC_PROFILE_PHOTO = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
@@ -360,10 +358,6 @@ type LuckySlotState =
       mode: 'locked' | 'empty';
       nonce: number;
     };
-
-export function canUseDeveloperMapToolsEmail(email?: string | null) {
-  return DEVELOPER_MAP_TOOL_EMAILS.has(email?.trim().toLowerCase() ?? '');
-}
 
 export default function MapHome({ developerToolsEnabled = false }: MapHomeProps = {}) {
   const location = useLocation();
@@ -1269,21 +1263,31 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
         </div>
 
       <div className="absolute inset-0">
-        <MapView
-          onPinClick={handleMarkerSelect}
-          onMapClick={() => setSelectedUser(null)}
-          markers={mapMarkers}
-          fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
-          focusCoordinates={focusedMutualMapLocation ?? currentUserMapLocation}
-          radiusCircle={(privacySettings.ghostModeEnabled || effectiveNpcGhostDemoEnabled) && currentUserMapLocation
-            ? {
-                center: currentUserMapLocation,
-                radiusMeters: privacySettings.ghostRadiusMeters,
-              }
-            : null}
-          demoRadiusCircles={npcGhostDemoRadiusCircles}
-          onMapReady={setMapInstance}
-        />
+        <Suspense
+          fallback={(
+            <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">
+              <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
+                Loading NYC map...
+              </div>
+            </div>
+          )}
+        >
+          <MapView
+            onPinClick={handleMarkerSelect}
+            onMapClick={() => setSelectedUser(null)}
+            markers={mapMarkers}
+            fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
+            focusCoordinates={focusedMutualMapLocation ?? currentUserMapLocation}
+            radiusCircle={(privacySettings.ghostModeEnabled || effectiveNpcGhostDemoEnabled) && currentUserMapLocation
+              ? {
+                  center: currentUserMapLocation,
+                  radiusMeters: privacySettings.ghostRadiusMeters,
+                }
+              : null}
+            demoRadiusCircles={npcGhostDemoRadiusCircles}
+            onMapReady={(map) => setMapInstance(map)}
+          />
+        </Suspense>
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
 
         {error ? (

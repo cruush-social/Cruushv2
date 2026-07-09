@@ -2,9 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
-const { loadCurrentSession, persistSessionUser } = vi.hoisted(() => ({
+const { loadCurrentSession, persistSessionUser, routeModuleLoads } = vi.hoisted(() => ({
   loadCurrentSession: vi.fn(),
   persistSessionUser: vi.fn(),
+  routeModuleLoads: [] as string[],
 }));
 
 vi.mock('./lib/sessionUser', () => ({
@@ -12,23 +13,35 @@ vi.mock('./lib/sessionUser', () => ({
   persistSessionUser,
 }));
 
-vi.mock('./components/MapHome', () => ({
-  default: () => <div>Mock Map</div>,
-  canUseDeveloperMapToolsEmail: () => false,
-  isDevelopmentAdminEmail: () => false,
-}));
+vi.mock('./components/MapHome', () => {
+  routeModuleLoads.push('MapHome');
+  return {
+    default: () => <div>Mock Map</div>,
+    canUseDeveloperMapToolsEmail: () => false,
+    isDevelopmentAdminEmail: () => false,
+  };
+});
 
-vi.mock('./components/LocalFeed', () => ({
-  default: () => <div>Mock Feed</div>
-}));
+vi.mock('./components/LocalFeed', () => {
+  routeModuleLoads.push('LocalFeed');
+  return {
+    default: () => <div>Mock Feed</div>
+  };
+});
 
-vi.mock('./components/ProfileView', () => ({
-  default: () => <div>Mock Profile</div>
-}));
+vi.mock('./components/ProfileView', () => {
+  routeModuleLoads.push('ProfileView');
+  return {
+    default: () => <div>Mock Profile</div>
+  };
+});
 
-vi.mock('./components/ProfileEdit', () => ({
-  default: () => <div>Mock Profile Edit</div>
-}));
+vi.mock('./components/ProfileEdit', () => {
+  routeModuleLoads.push('ProfileEdit');
+  return {
+    default: () => <div>Mock Profile Edit</div>
+  };
+});
 
 vi.mock('./components/ProfileOnboarding', () => ({
   default: () => <div>Mock Onboarding</div>
@@ -173,6 +186,20 @@ describe('App', () => {
     window.history.replaceState({}, '', '/');
     loadCurrentSession.mockReset();
     persistSessionUser.mockReset();
+  });
+
+  it('does not load signed-in route modules before signed-out users authenticate', async () => {
+    loadCurrentSession.mockResolvedValue(null);
+
+    render(<App />);
+
+    expect(await screen.findByRole('button', { name: 'Mock Auth' })).toBeInTheDocument();
+    expect(routeModuleLoads).not.toEqual(expect.arrayContaining([
+      'MapHome',
+      'LocalFeed',
+      'ProfileView',
+      'ProfileEdit',
+    ]));
   });
 
   it('renders the authenticated shell on the map by default', async () => {

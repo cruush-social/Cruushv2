@@ -1,44 +1,54 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
-import { useEffect, useState } from 'react';
-import MapHome, { canUseDeveloperMapToolsEmail } from './components/MapHome';
-import LocalFeed from './components/LocalFeed';
-import ProfileView from './components/ProfileView';
-import ProfileEdit from './components/ProfileEdit';
-import ProfileOnboarding from './components/ProfileOnboarding';
-import FiltersPanel from './components/FiltersPanel';
-import GroupDetail from './components/GroupDetail';
-import EventDetail from './components/EventDetail';
-import PlaceDetail from './components/PlaceDetail';
-import PrivateGroupChat from './components/PrivateGroupChat';
-import DirectMessages from './components/DirectMessages';
-import NotificationCenter from './components/NotificationCenter';
-import NotificationSettings from './components/NotificationSettings';
-import MobileInstallPrompt from './components/MobileInstallPrompt';
-import ReportPage from './components/ReportPage';
-import CruushActivity from './components/CruushActivity';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import Auth from './components/Auth';
-import Settings from './components/Settings';
-import SupportPage from './components/SupportPage';
-import GhostModeSettings from './components/GhostModeSettings';
-import PrivacyAudit from './components/PrivacyAudit';
-import FeelingLucky from './components/FeelingLucky';
-import RequestsDashboard from './components/RequestsDashboard';
-import CodeOfConductGate from './components/CodeOfConductGate';
-import CruushPlusUpgrade from './components/CruushPlusUpgrade';
-import CruushPlusCheckout from './components/CruushPlusCheckout';
-import CruushPlusSuccess from './components/CruushPlusSuccess';
 import VerifyEmail from './components/VerifyEmail';
-import EmailVerificationGate from './components/EmailVerificationGate';
 import ResetPassword from './components/ResetPassword';
-import BottomNav from './components/BottomNav';
 import AppErrorBoundary from './components/AppErrorBoundary';
-import DebugCruushPlusToggle from './components/DebugCruushPlusToggle';
 import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
+import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
 import type { AuthSessionPayload } from './lib/authApi';
+
+const MapHome = lazy(() => import('./components/MapHome'));
+const LocalFeed = lazy(() => import('./components/LocalFeed'));
+const ProfileView = lazy(() => import('./components/ProfileView'));
+const ProfileEdit = lazy(() => import('./components/ProfileEdit'));
+const ProfileOnboarding = lazy(() => import('./components/ProfileOnboarding'));
+const FiltersPanel = lazy(() => import('./components/FiltersPanel'));
+const GroupDetail = lazy(() => import('./components/GroupDetail'));
+const EventDetail = lazy(() => import('./components/EventDetail'));
+const PlaceDetail = lazy(() => import('./components/PlaceDetail'));
+const PrivateGroupChat = lazy(() => import('./components/PrivateGroupChat'));
+const DirectMessages = lazy(() => import('./components/DirectMessages'));
+const NotificationCenter = lazy(() => import('./components/NotificationCenter'));
+const NotificationSettings = lazy(() => import('./components/NotificationSettings'));
+const MobileInstallPrompt = lazy(() => import('./components/MobileInstallPrompt'));
+const ReportPage = lazy(() => import('./components/ReportPage'));
+const CruushActivity = lazy(() => import('./components/CruushActivity'));
+const Settings = lazy(() => import('./components/Settings'));
+const SupportPage = lazy(() => import('./components/SupportPage'));
+const GhostModeSettings = lazy(() => import('./components/GhostModeSettings'));
+const PrivacyAudit = lazy(() => import('./components/PrivacyAudit'));
+const FeelingLucky = lazy(() => import('./components/FeelingLucky'));
+const RequestsDashboard = lazy(() => import('./components/RequestsDashboard'));
+const CodeOfConductGate = lazy(() => import('./components/CodeOfConductGate'));
+const CruushPlusUpgrade = lazy(() => import('./components/CruushPlusUpgrade'));
+const CruushPlusCheckout = lazy(() => import('./components/CruushPlusCheckout'));
+const CruushPlusSuccess = lazy(() => import('./components/CruushPlusSuccess'));
+const EmailVerificationGate = lazy(() => import('./components/EmailVerificationGate'));
+const BottomNav = lazy(() => import('./components/BottomNav'));
+const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 
 function redirectToMap() {
   window.history.replaceState({}, '', '/map');
+}
+
+function RouteLoading() {
+  return (
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+      <div className="text-sm text-muted-foreground">Loading...</div>
+    </div>
+  );
 }
 
 function getTokenLinkType() {
@@ -180,20 +190,22 @@ export default function App() {
   if (!session?.user.emailVerifiedAt) {
     return (
       <BrowserRouter key="verification-router">
-        <Routes>
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route
-            path="*"
-            element={(
-              <EmailVerificationGate
-                email={session?.user.email ?? ''}
-                onSignedOut={handleSignedOut}
-                onVerified={handleVerified}
-              />
-            )}
-          />
-        </Routes>
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="*"
+              element={(
+                <EmailVerificationGate
+                  email={session?.user.email ?? ''}
+                  onSignedOut={handleSignedOut}
+                  onVerified={handleVerified}
+                />
+              )}
+            />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     );
   }
@@ -201,20 +213,22 @@ export default function App() {
   if (needsOnboarding) {
     return (
       <BrowserRouter key="onboarding-router">
-        <Routes>
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route
-            path="*"
-            element={(
-              <ProfileOnboarding
-                onComplete={handleOnboardingComplete}
-                needsCodeOfConduct={Boolean(session?.needsCodeOfConduct)}
-                codeOfConductVersion={session?.codeOfConductVersion ?? ''}
-              />
-            )}
-          />
-        </Routes>
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="*"
+              element={(
+                <ProfileOnboarding
+                  onComplete={handleOnboardingComplete}
+                  needsCodeOfConduct={Boolean(session?.needsCodeOfConduct)}
+                  codeOfConductVersion={session?.codeOfConductVersion ?? ''}
+                />
+              )}
+            />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     );
   }
@@ -222,19 +236,21 @@ export default function App() {
   if (session?.needsCodeOfConduct) {
     return (
       <BrowserRouter key="code-of-conduct-router">
-        <Routes>
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route
-            path="*"
-            element={(
-              <CodeOfConductGate
-                version={session.codeOfConductVersion}
-                onAccepted={handleCodeOfConductAccepted}
-              />
-            )}
-          />
-        </Routes>
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="*"
+              element={(
+                <CodeOfConductGate
+                  version={session.codeOfConductVersion}
+                  onAccepted={handleCodeOfConductAccepted}
+                />
+              )}
+            />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     );
   }
@@ -243,40 +259,42 @@ export default function App() {
     <BrowserRouter key="app-router">
       <AppErrorBoundary>
         <div className="min-h-screen bg-background text-foreground">
-          <Routes>
-            <Route path="/" element={<Navigate to="/map" replace />} />
-            <Route path="/map" element={<MapHome developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />} />
-            <Route path="/feed" element={<LocalFeed />} />
-            <Route path="/profile" element={<ProfileView />} />
-            <Route path="/profile/:userId" element={<ProfileView />} />
-            <Route path="/profile/edit" element={<ProfileEdit />} />
-            <Route path="/filters" element={<FiltersPanel />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/groups/:groupId" element={<GroupDetail />} />
-            <Route path="/events/:eventId" element={<EventDetail />} />
-            <Route path="/places/:placeId" element={<PlaceDetail />} />
-            <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
-            <Route path="/chat/group/:chatId" element={<PrivateGroupChat />} />
-            <Route path="/messages" element={<DirectMessages />} />
-            <Route path="/notifications" element={<NotificationCenter />} />
-            <Route path="/report" element={<ReportPage />} />
-            <Route path="/cruush" element={<CruushActivity />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/settings/notifications" element={<NotificationSettings />} />
-            <Route path="/support" element={<SupportPage />} />
-            <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
-            <Route path="/privacy/audit" element={<PrivacyAudit />} />
-            <Route path="/lucky" element={<FeelingLucky />} />
-            <Route path="/requests" element={<RequestsDashboard />} />
-            <Route path="/upgrade" element={<CruushPlusUpgrade />} />
-            <Route path="/checkout/success" element={<CruushPlusSuccess />} />
-            <Route path="/checkout/:sessionId" element={<CruushPlusCheckout />} />
-            <Route path="*" element={<Navigate to="/map" replace />} />
-          </Routes>
-          <MobileInstallPrompt />
-          <BottomNav />
-          <DebugCruushPlusToggle />
+          <Suspense fallback={<RouteLoading />}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/map" replace />} />
+              <Route path="/map" element={<MapHome developerToolsEnabled={canUseDeveloperMapToolsEmail(session?.user.email)} />} />
+              <Route path="/feed" element={<LocalFeed />} />
+              <Route path="/profile" element={<ProfileView />} />
+              <Route path="/profile/:userId" element={<ProfileView />} />
+              <Route path="/profile/edit" element={<ProfileEdit />} />
+              <Route path="/filters" element={<FiltersPanel />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/groups/:groupId" element={<GroupDetail />} />
+              <Route path="/events/:eventId" element={<EventDetail />} />
+              <Route path="/places/:placeId" element={<PlaceDetail />} />
+              <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+              <Route path="/chat/group/:chatId" element={<PrivateGroupChat />} />
+              <Route path="/messages" element={<DirectMessages />} />
+              <Route path="/notifications" element={<NotificationCenter />} />
+              <Route path="/report" element={<ReportPage />} />
+              <Route path="/cruush" element={<CruushActivity />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/settings/notifications" element={<NotificationSettings />} />
+              <Route path="/support" element={<SupportPage />} />
+              <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+              <Route path="/privacy/audit" element={<PrivacyAudit />} />
+              <Route path="/lucky" element={<FeelingLucky />} />
+              <Route path="/requests" element={<RequestsDashboard />} />
+              <Route path="/upgrade" element={<CruushPlusUpgrade />} />
+              <Route path="/checkout/success" element={<CruushPlusSuccess />} />
+              <Route path="/checkout/:sessionId" element={<CruushPlusCheckout />} />
+              <Route path="*" element={<Navigate to="/map" replace />} />
+            </Routes>
+            <MobileInstallPrompt />
+            <BottomNav />
+            <DebugCruushPlusToggle />
+          </Suspense>
           <Toaster closeButton position="top-center" richColors />
         </div>
       </AppErrorBoundary>

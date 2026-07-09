@@ -1,0 +1,156 @@
+[
+  {
+    "kind": "png",
+    "source": "src/app/assets/nav-icons/cruush-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/nav-cruush-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/nav-icons/feed-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/nav-feed-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/nav-icons/map-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/nav-map-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/nav-icons/messages-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/nav-messages-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/nav-icons/profile-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/nav-profile-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "public/icons/apple-touch-icon.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/public-apple-touch-icon-gradient-black-square.png",
+    "width": 180,
+    "height": 180
+  },
+  {
+    "kind": "png",
+    "source": "public/icons/icon-192.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/public-icon-192-gradient-black-square.png",
+    "width": 192,
+    "height": 192
+  },
+  {
+    "kind": "png",
+    "source": "public/icons/icon-512.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/public-icon-512-gradient-black-square.png",
+    "width": 512,
+    "height": 512
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/camera-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-camera-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "svg",
+    "source": "src/app/assets/ui-icons/crowds-colored.svg",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-crowds-gradient-black-square.svg",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/cruush-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-cruush-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/feed-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-feed-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "svg",
+    "source": "src/app/assets/ui-icons/ghost-colored.svg",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-ghost-gradient-black-square.svg",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/lucky-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-lucky-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/map-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-map-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/messages-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-messages-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/notifications-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-notifications-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/profile-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-profile-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/safety-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-safety-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/send-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-send-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/settings-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-settings-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  },
+  {
+    "kind": "png",
+    "source": "src/app/assets/ui-icons/visibility-colored.png",
+    "output": "src/app/assets/generated-icons/gradient-black-square/ui-visibility-gradient-black-square.png",
+    "width": 256,
+    "height": 256
+  }
+]

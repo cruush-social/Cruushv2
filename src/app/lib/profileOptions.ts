@@ -2,7 +2,7 @@ export const IDENTITIES = [
   'agender', 'androgynous', 'bakla', 'bigender', 'cis man', 'cis woman', 'crossdresser', 'demiboy', 'demigirl',
   'demi-nonbinary', "fa'afafine", 'femme', 'gender nonconforming', 'genderfluid',
   'genderpunk', 'genderqueer', 'hijra', 'intersex', 'kathoey', 'man', 'māhū', 'maverique', 'muxé',
-  'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'travesti',
+  'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'trans man', 'trans woman', 'travesti',
   'two-spirit', 'woman', 'x-gender'
 ];
 

@@ -10,6 +10,7 @@ vi.mock('./authApi', () => ({
 }));
 
 import {
+  clearCurrentUser,
   clearVerificationPreviewUrl,
   getCurrentUserId,
   getStoredCurrentUser,
@@ -21,6 +22,7 @@ import {
 describe('sessionUser', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     getAuthSession.mockReset();
   });
 
@@ -73,6 +75,22 @@ describe('sessionUser', () => {
     clearVerificationPreviewUrl();
 
     expect(getVerificationPreviewUrl()).toBeNull();
+  });
+
+  it('clears auth-owned local state and browser session state without wiping local preferences', () => {
+    localStorage.setItem('cruush_auth', 'legacy-token');
+    localStorage.setItem('cruush_user', JSON.stringify({ id: 'user-local-1' }));
+    localStorage.setItem('cruush_verification_preview_url', 'https://cruush.test/verify-email?token=abc');
+    localStorage.setItem('cruush-install-prompt-dismissed', 'true');
+    sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+
+    clearCurrentUser();
+
+    expect(localStorage.getItem('cruush_auth')).toBeNull();
+    expect(localStorage.getItem('cruush_user')).toBeNull();
+    expect(localStorage.getItem('cruush_verification_preview_url')).toBeNull();
+    expect(localStorage.getItem('cruush-install-prompt-dismissed')).toBe('true');
+    expect(sessionStorage.getItem('cruush-location-permission-prompted')).toBeNull();
   });
 
   it('persists the verification timestamp from the backend session', async () => {
