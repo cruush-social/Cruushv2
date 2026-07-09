@@ -9,7 +9,14 @@ const kinkArrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(5
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
 const transStatusSchema = z.boolean().nullable().optional().default(null);
-const crowdSchema = z.enum(["T4T", "Sapphic", "Gay"]);
+const crowdSchema = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue === "Sapphic" ? "Dyke" : trimmedValue;
+}, z.enum(["T4T", "Dyke", "Gay"]));
 const visibilityArrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(50).optional().default([]);
 
 function isPrivateIpv4(hostname: string) {

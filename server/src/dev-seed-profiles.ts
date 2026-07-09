@@ -64,25 +64,25 @@ type SeedProfileTemplate = readonly [
 
 const seedProfileTemplates: readonly SeedProfileTemplate[] = [
   ["jay", ["he/him"], ["T4T", "Gay"], ["Top"], ["Tonight", "Dates"]],
-  ["mari", ["she/her"], ["Sapphic"], ["Bottom"], ["Coffee", "Cruising"]],
+  ["mari", ["she/her"], ["Dyke"], ["Bottom"], ["Coffee", "Cruising"]],
   ["atlas", ["they/them"], ["T4T", "Gay"], ["Versatile"], ["Friends", "Tonight"]],
-  ["riley", ["she/they"], ["Sapphic"], ["Switch"], ["Dates", "Dancing"]],
+  ["riley", ["she/they"], ["Dyke"], ["Switch"], ["Dates", "Dancing"]],
   ["kai", ["he/they"], ["T4T"], ["Top"], ["Cruising", "Chat"]],
   ["sage", ["they/them"], ["Gay"], ["Bottom"], ["Friends", "Tonight"]],
   ["river", ["they/she"], ["T4T"], ["Versatile"], ["Dates", "Coffee"]],
-  ["cleo", ["she/her"], ["Sapphic"], ["Top"], ["Dancing", "Chat"]],
+  ["cleo", ["she/her"], ["Dyke"], ["Top"], ["Dancing", "Chat"]],
   ["sasha", ["he/him"], ["Gay"], ["Versatile"], ["Tonight", "Cruising"]],
   ["indigo", ["they/them"], ["T4T", "Gay"], ["Switch"], ["Dates", "Friends"]],
-  ["ari", ["she/they"], ["Sapphic"], ["Bottom"], ["Coffee", "Tonight"]],
+  ["ari", ["she/they"], ["Dyke"], ["Bottom"], ["Coffee", "Tonight"]],
   ["fox", ["he/they"], ["T4T"], ["Top"], ["Cruising", "Friends"]],
   ["mars", ["they/them"], ["Gay"], ["Versatile"], ["Chat", "Dates"]],
-  ["jo", ["she/her"], ["Sapphic"], ["Switch"], ["Dancing", "Coffee"]],
-  ["luna", ["they/she"], ["T4T", "Sapphic"], ["Bottom"], ["Tonight", "Dates"]],
+  ["jo", ["she/her"], ["Dyke"], ["Switch"], ["Dancing", "Coffee"]],
+  ["luna", ["they/she"], ["T4T", "Dyke"], ["Bottom"], ["Tonight", "Dates"]],
   ["noor", ["he/him"], ["Gay"], ["Top"], ["Friends", "Cruising"]],
-  ["ember", ["she/they"], ["Sapphic"], ["Versatile"], ["Chat", "Dancing"]],
+  ["ember", ["she/they"], ["Dyke"], ["Versatile"], ["Chat", "Dancing"]],
   ["sol", ["they/them"], ["T4T"], ["Switch"], ["Coffee", "Friends"]],
   ["vale", ["he/they"], ["Gay"], ["Bottom"], ["Tonight", "Dates"]],
-  ["ren", ["they/she"], ["T4T", "Sapphic"], ["Versatile"], ["Cruising", "Chat"]]
+  ["ren", ["they/she"], ["T4T", "Dyke"], ["Versatile"], ["Cruising", "Chat"]]
 ] as const;
 
 const seedCoordinateOffsets = [
@@ -223,7 +223,7 @@ export function buildDevelopmentTestProfiles(now = new Date()): DevelopmentTestP
       yearOfBirth: 1995 - (index % 8),
       identities: crowds.includes("T4T") ? ["Trans"] : ["Queer"],
       presentation: index % 2 === 0 ? ["Alt"] : ["Soft"],
-      sexuality: crowds.includes("Sapphic") ? ["Sapphic"] : ["Queer"],
+      sexuality: crowds.includes("Dyke") ? ["Dyke"] : ["Queer"],
       lookingFor: [...lookingFor],
       availability: index % 3 === 0 ? ["Tonight"] : ["This week"],
       hostingTravel: index % 4 === 0 ? ["Can Host"] : ["Can Travel"],

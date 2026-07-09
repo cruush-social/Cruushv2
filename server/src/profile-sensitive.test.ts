@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AppConfig } from "./config.js";
 import {
+  createCrowdModeTokens,
+  createCrowdTokens,
   createSensitiveProfileTokens,
   createSensitiveProfileToken,
   decryptProfileVisibility,
@@ -41,7 +43,7 @@ describe("profile-sensitive encryption", () => {
   it("encrypts profile-sensitive fields with distinct nonces and decrypts by stored key version", () => {
     const sensitiveProfile: SensitiveProfileData = {
       is_trans: true,
-      crowds: ["T4T", "Sapphic"],
+      crowds: ["T4T", "Dyke"],
       kinks: ["leather"],
       kink_interests: [{ kink_id: "leather", label: "Leather" }],
       hiv_status: ["undetectable"],
@@ -106,6 +108,52 @@ describe("profile-sensitive encryption", () => {
       ...first,
       profile_visibility_ciphertext: second.profile_visibility_ciphertext
     })).toThrow();
+  });
+
+  it("normalizes legacy Sapphic crowd values while keeping old blind tokens matchable", () => {
+    const legacySensitiveProfile = {
+      is_trans: false,
+      crowds: ["Sapphic"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    } as unknown as SensitiveProfileData;
+    const legacyVisibilityRules = {
+      active_crowd_modes: ["Sapphic"],
+      age_range: null,
+      distance: null,
+      identities: [],
+      presentations: [],
+      looking_for: [],
+      timing: [],
+      hosting: [],
+      vibes: [],
+      crowds: ["Sapphic"],
+      hobbies: [],
+      positions: [],
+      roles: [],
+      kinks: [],
+      body_types: [],
+      sexuality: [],
+      substance_boundaries: []
+    } as unknown as ProfileVisibilityRules;
+
+    expect(decryptSensitiveProfile(config, encryptSensitiveProfile(config, legacySensitiveProfile))?.crowds).toEqual(["Dyke"]);
+    expect(decryptProfileVisibility(config, encryptProfileVisibility(config, legacyVisibilityRules))).toEqual({
+      ...legacyVisibilityRules,
+      active_crowd_modes: ["Dyke"],
+      crowds: ["Dyke"]
+    });
+
+    const dykeCrowdTokenHashes = new Set(createCrowdTokens(config, ["Dyke"]).map((token) => token.token_hash));
+    const tokenBucketDate = new Date("2026-04-29T12:00:00.000Z");
+    const dykeVisibilityTokenHashes = new Set(createCrowdModeTokens(config, ["Dyke"], tokenBucketDate).map((token) => token.token_hash));
+
+    expect(dykeCrowdTokenHashes.has(createSensitiveProfileToken(config, "crowd:dyke").token_hash)).toBe(true);
+    expect(dykeCrowdTokenHashes.has(createSensitiveProfileToken(config, "crowd:sapphic").token_hash)).toBe(true);
+    expect(dykeVisibilityTokenHashes.has(createSensitiveProfileToken(config, "crowd-mode:dyke:2026-04-29").token_hash)).toBe(true);
+    expect(dykeVisibilityTokenHashes.has(createSensitiveProfileToken(config, "crowd-mode:sapphic:2026-04-29").token_hash)).toBe(true);
   });
 
   it("keeps blind token key versions explicit and stable until index rotation is planned", () => {

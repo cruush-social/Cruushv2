@@ -21,4 +21,23 @@ describe("profile schema", () => {
       photos: ["data:image/svg+xml,%3Csvg%3E%3C/svg%3E"]
     })).toThrow();
   });
+
+  it("normalizes legacy Sapphic crowd payloads to Dyke", () => {
+    const parsed = profilePayloadSchema.parse({
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994,
+      is_trans: true,
+      crowds: ["T4T", "Sapphic"],
+      visibility_rules: {
+        ...emptyProfile.visibility_rules,
+        active_crowd_modes: ["Sapphic"],
+        crowds: ["Sapphic"]
+      }
+    });
+
+    expect(parsed.crowds).toEqual(["T4T", "Dyke"]);
+    expect(parsed.visibility_rules.active_crowd_modes).toEqual(["Dyke"]);
+    expect(parsed.visibility_rules.crowds).toEqual(["Dyke"]);
+  });
 });

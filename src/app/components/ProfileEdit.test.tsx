@@ -394,7 +394,7 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
     fireEvent.click(screen.getByRole('option', { name: 'T4T' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Sapphic' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Dyke' }));
 
     const healthTab = screen.getByRole('tab', { name: 'Health' });
     fireEvent.click(healthTab);
@@ -409,7 +409,7 @@ describe('ProfileEdit', () => {
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       is_trans: true,
       trans_status_visibility: 'mutual_cruushes',
-      crowds: ['T4T', 'Sapphic'],
+      crowds: ['T4T', 'Dyke'],
       vibes: ['Bear', 'Daddy'],
       scenes: [],
       archetypes: [],
@@ -418,7 +418,7 @@ describe('ProfileEdit', () => {
     })));
   }, 10000);
 
-  it('drops stale T4T crowd membership when trans status is not selected', async () => {
+  it('drops stale T4T crowd membership and normalizes legacy Sapphic when trans status is not selected', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
 
     getMyProfile.mockResolvedValueOnce({
@@ -447,9 +447,9 @@ describe('ProfileEdit', () => {
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       is_trans: false,
-      crowds: ['Sapphic'],
+      crowds: ['Dyke'],
       visibility_rules: expect.objectContaining({
-        active_crowd_modes: ['Sapphic'],
+        active_crowd_modes: ['Dyke'],
         looking_for: ['hookup'],
       }),
     })));
@@ -464,7 +464,7 @@ describe('ProfileEdit', () => {
       display_name: 'Jordan',
       year_of_birth: 1998,
       is_trans: true,
-      crowds: ['T4T', 'Sapphic'],
+      crowds: ['T4T', 'Dyke'],
       visibility_rules: {
         ...emptyProfilePayload.visibility_rules,
         active_crowd_modes: ['T4T'],

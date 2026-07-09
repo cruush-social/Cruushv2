@@ -512,9 +512,9 @@ describe('MapHome', () => {
       display_name: 'Me',
       photos: ['https://example.com/me.jpg'],
       is_trans: true,
-      crowds: ['Sapphic', 'Gay', 'T4T'],
+      crowds: ['Dyke', 'Gay', 'T4T'],
       visibility_rules: {
-        active_crowd_modes: ['Gay', 'T4T', 'Sapphic'],
+        active_crowd_modes: ['Gay', 'T4T', 'Dyke'],
       },
       updated_at: '2026-04-29T12:00:00.000Z',
     });

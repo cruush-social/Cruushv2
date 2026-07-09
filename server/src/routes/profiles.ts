@@ -32,6 +32,7 @@ import {
   decryptProfileVisibility,
   decryptSensitiveProfile,
   encryptProfileVisibility,
+  normalizeCrowdOption,
   type EncryptedProfileVisibility,
   encryptSensitiveProfile,
   type EncryptedSensitiveProfile,
@@ -62,7 +63,7 @@ const visibilitySetParamsSchema = z.object({
   setId: z.uuid()
 }).strict();
 
-const FIXED_PRIVATE_PROFILE_VISIBILITY: ProfileVisibility = "mutual_cruushes";
+const FIXED_PRIVATE_HEALTH_VISIBILITY: ProfileVisibility = "mutual_cruushes";
 
 const visibilitySetPayloadSchema = z.object({
   name: z.string().trim().min(1).max(48),
@@ -71,8 +72,10 @@ const visibilitySetPayloadSchema = z.object({
 const FREE_VISIBILITY_EXCLUSION_LIMIT = 3;
 const VISIBILITY_EXCLUSION_LIMIT_MESSAGE = "Free accounts can use up to 3 visibility filters. Upgrade to cruush+ for more.";
 
+const crowdIdSchema = z.preprocess((value) => normalizeCrowdOption(value) ?? value, z.enum(CROWD_OPTIONS));
+
 const crowdPrecisionPolicySchema = z.object({
-  crowdId: z.enum(["T4T", "Gay", "Sapphic"]),
+  crowdId: crowdIdSchema,
   precisionEnabled: z.boolean(),
   mutualityRequired: z.boolean().optional().default(true),
   minimumTrustLevel: z.enum(["MEMBER", "VERIFIED", "MUTUAL_INTERACTION"]).optional().default("MEMBER"),
@@ -428,8 +431,8 @@ function mapProfileRow(
   const sensitiveProfile = options.sensitiveProfile ?? null;
   const visibilityRules = options.visibilityRules ?? null;
   const showKinks = options.showKinks ?? canShowByVisibility(row.kinks_visibility);
-  const showTransStatus = canShowByVisibility(FIXED_PRIVATE_PROFILE_VISIBILITY);
-  const showHivStatus = canShowByVisibility(FIXED_PRIVATE_PROFILE_VISIBILITY);
+  const showTransStatus = canShowByVisibility(row.trans_status_visibility);
+  const showHivStatus = canShowByVisibility(FIXED_PRIVATE_HEALTH_VISIBILITY);
   const visibleCrowds = options.visibleCrowds ?? (includePrivateSensitive ? sensitiveProfile?.crowds ?? [] : []);
   const legacyKinks = showKinks ? row.kinks ?? [] : [];
   const sensitiveKinkInterests = showKinks ? sensitiveProfile?.kink_interests ?? [] : [];
@@ -460,7 +463,7 @@ function mapProfileRow(
     position: row.position ?? [],
     role: row.role ?? [],
     is_trans: showTransStatus ? sensitiveProfile?.is_trans ?? null : null,
-    trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
+    trans_status_visibility: row.trans_status_visibility ?? "mutual_cruushes",
     crowds: visibleCrowds,
     availability: row.availability ?? [],
     hosting_travel: row.hosting_travel ?? [],
@@ -478,7 +481,7 @@ function mapProfileRow(
     custom_hobby: row.custom_hobby ?? "",
     looking_for: row.looking_for ?? [],
     hiv_status: showHivStatus ? sensitiveProfile?.hiv_status ?? row.hiv_status ?? [] : [],
-    hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
+    hiv_status_visibility: FIXED_PRIVATE_HEALTH_VISIBILITY,
     custom_hiv_status: showHivStatus ? sensitiveProfile?.custom_hiv_status ?? row.custom_hiv_status ?? "" : "",
     condoms: row.condoms ?? [],
     custom_condoms: row.custom_condoms ?? "",
@@ -557,7 +560,7 @@ function profilePayloadFromRow(
     position: row.position ?? [],
     role: row.role ?? [],
     is_trans: sensitiveProfile.is_trans,
-    trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
+    trans_status_visibility: row.trans_status_visibility ?? "mutual_cruushes",
     crowds: sensitiveProfile.crowds,
     availability: row.availability ?? [],
     hosting_travel: row.hosting_travel ?? [],
@@ -571,7 +574,7 @@ function profilePayloadFromRow(
     custom_hobby: row.custom_hobby ?? "",
     looking_for: row.looking_for ?? [],
     hiv_status: sensitiveProfile.hiv_status,
-    hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
+    hiv_status_visibility: FIXED_PRIVATE_HEALTH_VISIBILITY,
     custom_hiv_status: sensitiveProfile.custom_hiv_status,
     condoms: row.condoms ?? [],
     custom_condoms: row.custom_condoms ?? "",
@@ -954,8 +957,8 @@ async function loadSharedCrowds(app: FastifyInstance, viewerUserId: string, targ
   const viewerTokens = await loadSensitiveProfileTokenHashes(app, viewerUserId);
 
   return targetCrowds.filter((crowd) => {
-    const tokenHash = createCrowdTokens(app.config, [crowd])[0]?.token_hash;
-    return Boolean(tokenHash && viewerTokens.has(tokenHash));
+    const tokenHashes = createCrowdTokens(app.config, [crowd]).map((token) => token.token_hash);
+    return tokenHashes.some((tokenHash) => viewerTokens.has(tokenHash));
   });
 }
 
@@ -1135,10 +1138,12 @@ async function loadProfileData(
     ? await getRelationshipPermissions(app, options.viewerUserId, userId)
     : null;
   const needsMutualCrowd =
-    row.kinks_visibility === "mutual_crowds";
+    row.kinks_visibility === "mutual_crowds" ||
+    row.trans_status_visibility === "mutual_crowds";
   const needsMutualCruush =
     row.kinks_visibility === "mutual_cruushes" ||
-    FIXED_PRIVATE_PROFILE_VISIBILITY === "mutual_cruushes";
+    row.trans_status_visibility === "mutual_cruushes" ||
+    FIXED_PRIVATE_HEALTH_VISIBILITY === "mutual_cruushes";
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
   const visibleCrowds = !options.includePrivateSensitive && options.viewerUserId
     ? await loadSharedCrowds(app, options.viewerUserId, sensitiveProfile?.crowds ?? [])
@@ -1153,14 +1158,8 @@ async function loadProfileData(
     : false;
   const visibilityRules = decryptProfileVisibility(app.config, row);
 
-  if (!options.includePrivateSensitive && !visibilityRulesArePublic(visibilityRules)) {
-    const viewerProfile = options.viewerUserId
-      ? await loadVisibilitySubjectProfile(app, options.viewerUserId)
-      : null;
-
-    if (!viewerProfile || !canSubjectViewProfile(visibilityRules, viewerProfile, getProfileCoordinates(row))) {
-      throw new ApiError(404, "NOT_FOUND", "Profile not found");
-    }
+  if (!options.includePrivateSensitive) {
+    await assertProfileRowVisibleToViewer(app, row, options.viewerUserId, visibilityRules);
   }
 
   if (relationship && options.viewerUserId) {
@@ -1199,6 +1198,46 @@ async function loadProfileData(
   }
 
   return mappedProfile;
+}
+
+async function assertProfileRowVisibleToViewer(
+  app: FastifyInstance,
+  row: ProfileRow,
+  viewerUserId: string | undefined,
+  visibilityRules: ProfileVisibilityRules | null
+) {
+  if (visibilityRulesArePublic(visibilityRules)) {
+    return;
+  }
+
+  const viewerProfile = viewerUserId
+    ? await loadVisibilitySubjectProfile(app, viewerUserId)
+    : null;
+
+  if (!viewerProfile || !canSubjectViewProfile(visibilityRules, viewerProfile, getProfileCoordinates(row))) {
+    throw new ApiError(404, "NOT_FOUND", "Profile not found");
+  }
+}
+
+export async function assertProfileVisibleToViewer(app: FastifyInstance, viewerUserId: string, targetUserId: string) {
+  const result = await app.db.query<ProfileRow>(
+    `select ${PROFILE_COLUMNS.join(", ")},
+            lat,
+            lng,
+            fuzzy_lat,
+            fuzzy_lng,
+            updated_at
+     from profiles
+     where id = $1`,
+    [targetUserId]
+  );
+  const row = result.rows[0];
+
+  if (!row) {
+    throw new ApiError(404, "NOT_FOUND", "Profile not found");
+  }
+
+  await assertProfileRowVisibleToViewer(app, row, viewerUserId, decryptProfileVisibility(app.config, row));
 }
 
 export async function registerProfileRoutes(app: FastifyInstance) {
@@ -1428,8 +1467,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     const parsedPayload = profilePayloadSchema.parse(request.body);
     const payload: ProfilePayload = {
       ...parsedPayload,
-      trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
-      hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY
+      hiv_status_visibility: FIXED_PRIVATE_HEALTH_VISIBILITY
     };
 
     if (countVisibilityExclusionFilters(payload.visibility_rules) > FREE_VISIBILITY_EXCLUSION_LIMIT) {

@@ -13,7 +13,7 @@ export const PRESENTATIONS = [
 
 export const PRONOUNS = ['ask me', 'fae/faer', 'he/him', 'she/her', 'they/them', 'xe/xem', 'ze/zir'];
 
-export const SEXUALITY = ['asexual', 'bisexual', 'straight', 'gay', 'queer', 'questioning', 'other', 'pansexual', 'curious', 'demisexual', 'aromantic', 'lesbian', 'sapphic'];
+export const SEXUALITY = ['asexual', 'bisexual', 'straight', 'gay', 'queer', 'questioning', 'other', 'pansexual', 'curious', 'demisexual', 'aromantic', 'lesbian', 'dyke'];
 
 export const ETHNICITIES = ['Black', 'East Asian', 'Indigenous', 'Latino/Latina', 'Middle Eastern', 'Mixed', 'Other', 'Pacific Islander', 'South Asian', 'Southeast Asian', 'White'];
 
@@ -65,7 +65,17 @@ export const VIBE_GROUPS = [
 
 export const VIBES = VIBE_GROUPS.flatMap((group) => group.options).sort();
 
-export const CROWDS = ['Gay', 'Sapphic', 'T4T'].sort();
+export const CROWDS = ['Dyke', 'Gay', 'T4T'].sort();
+
+export function normalizeCrowdOption(value: string) {
+  const trimmedValue = value.trim();
+
+  return trimmedValue === 'Sapphic' ? 'Dyke' : trimmedValue;
+}
+
+export function normalizeCrowdValues(values: string[] = []) {
+  return [...new Set(values.map(normalizeCrowdOption).filter(Boolean))];
+}
 
 export const HIV_STATUS = ['negative', 'positive', 'prefer not to say', 'undetectable', 'unknown'];
 export const CONDOMS = ['always', 'discuss', 'never', 'prefer not to say', 'sometimes'];

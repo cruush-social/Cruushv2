@@ -50,7 +50,7 @@ export type FeatureRestriction = {
     | "photo_uploads"
     | "map_visibility"
     | "crowd_visibility";
-  scope?: "global" | "t4t" | "sapphic" | "gay" | string;
+  scope?: "global" | "t4t" | "dyke" | "gay" | string;
   reasonCode: string;
   durationDays?: number;
 };

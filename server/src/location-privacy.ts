@@ -10,6 +10,7 @@ import type { FastifyRequest } from "fastify";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
 import { getSessionTokenFromRequest, hashSessionToken } from "./auth.js";
+import { normalizeCrowdOption, type CrowdOption } from "./profile-sensitive.js";
 
 export type VisibilityBaseMode = "PUBLIC_PRECISE" | "GHOST" | "STEALTH";
 export type DisplayMode = "PRECISE" | "GHOST";
@@ -17,7 +18,7 @@ export type DisplayAnimationHint = "NONE" | "FADE_LAST_MINUTE" | "SIGNAL_LOSS" |
 export type RelationshipContext = "SELF" | "PUBLIC" | "MUTUAL_CRUUSH" | "MUTUAL_CROWD";
 
 export type CrowdPrecisionPolicy = {
-  crowdId: "T4T" | "Gay" | "Sapphic";
+  crowdId: CrowdOption;
   precisionEnabled: boolean;
   mutualityRequired: boolean;
   minimumTrustLevel: "MEMBER" | "VERIFIED" | "MUTUAL_INTERACTION";
@@ -361,6 +362,16 @@ function toNumber(value: string | number | null | undefined) {
   return typeof value === "number" ? value : Number(value ?? 0);
 }
 
+function normalizeCrowdPrecisionPolicies(policies: CrowdPrecisionPolicy[] = []) {
+  return policies
+    .map((policy) => {
+      const crowdId = normalizeCrowdOption(policy.crowdId);
+
+      return crowdId ? { ...policy, crowdId } : null;
+    })
+    .filter((policy): policy is CrowdPrecisionPolicy => Boolean(policy));
+}
+
 export function buildDefaultVisibilityPolicy(
   config: AppConfig,
   subjectUserId: string,
@@ -414,7 +425,7 @@ export function normalizeVisibilityPolicy(
     baseMode,
     ghostRadiusMeters: input.ghostRadiusMeters ?? previous.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS,
     preciseToMutualCruushes,
-    preciseToMutualCrowds: input.preciseToMutualCrowds ?? previous.preciseToMutualCrowds,
+    preciseToMutualCrowds: normalizeCrowdPrecisionPolicies(input.preciseToMutualCrowds ?? previous.preciseToMutualCrowds),
     auditRequired: input.auditRequired ?? previous.auditRequired,
     updatedAtMs: nowMs,
     expiresAtMs: input.expiresAtMs ?? previous.expiresAtMs,
@@ -429,7 +440,7 @@ export function publicPrivacySettings(policy: VisibilityPolicyPayload) {
     ghostRadiusMeters: policy.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS,
     ghostRadiusLabel: radiusLabelForMeters(policy.ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS),
     preciseToMutualCruushes: policy.preciseToMutualCruushes,
-    preciseToMutualCrowds: policy.preciseToMutualCrowds,
+    preciseToMutualCrowds: normalizeCrowdPrecisionPolicies(policy.preciseToMutualCrowds),
     preciseLocationVisibility: policy.preciseToMutualCruushes ? "mutual_cruushes" as const : "none" as const,
     updatedAtMs: policy.updatedAtMs
   };

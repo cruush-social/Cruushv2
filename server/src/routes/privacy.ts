@@ -22,6 +22,7 @@ import {
   type EncryptedRelationshipRecord
 } from "../encrypted-relationships.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
+import { CROWD_OPTIONS, normalizeCrowdOption } from "../profile-sensitive.js";
 
 type AuditProfileRow = {
   id: string;
@@ -30,8 +31,10 @@ type AuditProfileRow = {
   photos: string[] | null;
 };
 
+const crowdIdSchema = z.preprocess((value) => normalizeCrowdOption(value) ?? value, z.enum(CROWD_OPTIONS));
+
 const crowdPrecisionPolicySchema = z.object({
-  crowdId: z.enum(["T4T", "Gay", "Sapphic"]),
+  crowdId: crowdIdSchema,
   precisionEnabled: z.boolean(),
   mutualityRequired: z.boolean().optional().default(true),
   minimumTrustLevel: z.enum(["MEMBER", "VERIFIED", "MUTUAL_INTERACTION"]).optional().default("MEMBER"),

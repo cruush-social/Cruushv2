@@ -1,7 +1,7 @@
 import { requestApi } from './apiClient';
 
 export type CrowdPrecisionPolicy = {
-  crowdId: 'T4T' | 'Gay' | 'Sapphic';
+  crowdId: 'T4T' | 'Gay' | 'Dyke';
   precisionEnabled: boolean;
   mutualityRequired: boolean;
   minimumTrustLevel: 'MEMBER' | 'VERIFIED' | 'MUTUAL_INTERACTION';

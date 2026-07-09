@@ -3,6 +3,7 @@ import { ApiError } from "../errors.js";
 import { createUserReport } from "../moderation-service.js";
 import { createReportPayloadSchema, type CreateReportPayload, type ReportReason } from "../report-schema.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
+import { assertProfileVisibleToViewer } from "./profiles.js";
 
 type ReportTarget = {
   targetUserId: string | null;
@@ -38,17 +39,7 @@ async function validateProfileReport(app: FastifyInstance, reporterUserId: strin
     throw new ApiError(400, "VALIDATION_ERROR", "Choose another profile to report.");
   }
 
-  const result = await app.db.query<{ id: string }>(
-    `select id::text as id
-     from profiles
-     where id = $1
-     limit 1`,
-    [targetUserId]
-  );
-
-  if (!result.rows[0]) {
-    throw new ApiError(404, "NOT_FOUND", "Profile not found.");
-  }
+  await assertProfileVisibleToViewer(app, reporterUserId, targetUserId);
 
   return {
     targetUserId,

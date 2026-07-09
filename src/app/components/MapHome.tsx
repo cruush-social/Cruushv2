@@ -37,7 +37,7 @@ import {
   type ProfileVisibilitySet,
   type ProfileVisibilityRules,
 } from '../lib/profileApi';
-import { CROWDS } from '../lib/profileOptions';
+import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import {
   approximateDisplayCoordinates,
   type ApproximateCoordinates,
@@ -60,9 +60,9 @@ const DEVELOPER_MAP_TOOL_EMAILS = new Set([
   DEVELOPMENT_ADMIN_EMAIL,
   CODEVELOPER_NYC_EMAIL,
 ]);
-const CROWD_NOTICE_ORDER = ['Sapphic', 'Gay', 'T4T'];
+const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
 const CROWD_NOTICE_LABELS: Record<string, string> = {
-  Sapphic: 'Dyke',
+  Dyke: 'Dyke',
   Gay: 'Gay',
   T4T: 'T4T',
 };
@@ -143,14 +143,14 @@ function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibi
   return {
     ...defaults,
     ...(rules ?? {}),
-    active_crowd_modes: uniqueValues(rules?.active_crowd_modes ?? defaults.active_crowd_modes),
+    active_crowd_modes: normalizeCrowdValues(rules?.active_crowd_modes ?? defaults.active_crowd_modes),
     identities: uniqueValues(rules?.identities ?? defaults.identities),
     presentations: uniqueValues(rules?.presentations ?? defaults.presentations),
     looking_for: uniqueValues(rules?.looking_for ?? defaults.looking_for),
     timing: uniqueValues(rules?.timing ?? defaults.timing),
     hosting: uniqueValues(rules?.hosting ?? defaults.hosting),
     vibes: uniqueValues(rules?.vibes ?? defaults.vibes),
-    crowds: uniqueValues(rules?.crowds ?? defaults.crowds),
+    crowds: normalizeCrowdValues(rules?.crowds ?? defaults.crowds),
     hobbies: uniqueValues(rules?.hobbies ?? defaults.hobbies),
     positions: uniqueValues(rules?.positions ?? defaults.positions),
     roles: uniqueValues(rules?.roles ?? defaults.roles),
@@ -192,7 +192,7 @@ function visibilityRulesToState(rules?: ProfileVisibilityRules): VisibilityContr
 
 function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilityRules {
   return {
-    active_crowd_modes: uniqueValues(state.activeCrowdModes),
+    active_crowd_modes: normalizeCrowdValues(state.activeCrowdModes),
     age_range: state.restrictAge ? state.ageRange : null,
     distance: state.restrictDistance ? state.distance : null,
     identities: uniqueValues(state.identities),
@@ -201,7 +201,7 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     timing: uniqueValues(state.timing),
     hosting: uniqueValues(state.hosting),
     vibes: uniqueValues(state.vibes),
-    crowds: uniqueValues(state.crowds),
+    crowds: normalizeCrowdValues(state.crowds),
     hobbies: uniqueValues(state.hobbies),
     positions: uniqueValues(state.positions),
     roles: uniqueValues(state.roles),
@@ -224,6 +224,7 @@ function profileRecordToPayload(profile: ProfileRecord): ProfilePayload {
   return {
     ...emptyProfilePayload,
     ...payload,
+    crowds: normalizeCrowdValues(payload.crowds ?? emptyProfilePayload.crowds),
     visibility_rules: normalizeVisibilityRules(payload.visibility_rules),
   };
 }
@@ -262,16 +263,17 @@ function claimLocationPromptForSession() {
 }
 
 function getAvailableCrowdModes(profile: ProfileRecord | null) {
-  const profileCrowds = new Set(profile?.crowds ?? []);
+  const profileCrowds = new Set(normalizeCrowdValues(profile?.crowds ?? []));
 
   return CROWDS.filter((crowd) => profileCrowds.has(crowd) && (crowd !== 'T4T' || profile?.is_trans === true));
 }
 
 function formatActiveCrowdNotice(activeCrowdModes: string[]) {
-  const activeSet = new Set(activeCrowdModes);
+  const normalizedActiveCrowdModes = normalizeCrowdValues(activeCrowdModes);
+  const activeSet = new Set(normalizedActiveCrowdModes);
   const orderedCrowds = [
     ...CROWD_NOTICE_ORDER.filter((crowd) => activeSet.has(crowd)),
-    ...activeCrowdModes.filter((crowd) => !CROWD_NOTICE_ORDER.includes(crowd)),
+    ...normalizedActiveCrowdModes.filter((crowd) => !CROWD_NOTICE_ORDER.includes(crowd)),
   ];
   const labels = [...new Set(orderedCrowds)].map((crowd) => CROWD_NOTICE_LABELS[crowd] ?? crowd);
 

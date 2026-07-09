@@ -4189,6 +4189,81 @@ describe("server", () => {
     });
   });
 
+  it("does not create a profile report when the reporter cannot view the target profile", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const targetVisibility = encryptProfileVisibility(app.config, {
+      ...emptyProfile.visibility_rules,
+      active_crowd_modes: ["T4T"]
+    });
+    const viewerSensitiveProfile = encryptSensitiveProfile(app.config, {
+      is_trans: false,
+      crowds: ["Dyke"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          ...targetVisibility,
+          updated_at: "2026-04-29T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          year_of_birth: 1994,
+          identities: [],
+          presentation: [],
+          sexuality: [],
+          body_type: [],
+          looking_for: [],
+          availability: [],
+          hosting_travel: [],
+          vibes: [],
+          scenes: [],
+          archetypes: [],
+          hobbies: [],
+          position: [],
+          role: [],
+          kinks: [],
+          substance_boundaries: [],
+          lat: null,
+          lng: null,
+          fuzzy_lat: null,
+          fuzzy_lng: null,
+          ...viewerSensitiveProfile
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "profile",
+        targetUserId,
+        reason: "harassment",
+        details: "known hidden profile id"
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Profile not found",
+        details: null
+      }
+    });
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into reports"))).toBe(false);
+  });
+
   it("requires conversation membership before creating a conversation report", async () => {
     query.mockResolvedValueOnce({ rows: [] });
 
@@ -5569,6 +5644,26 @@ describe("server", () => {
     expect(query).not.toHaveBeenCalled();
   });
 
+  it("matches Dyke discovery crowd filters against legacy Sapphic blind tokens", async () => {
+    query.mockResolvedValue({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006&crowds=Dyke",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const discoveryCall = query.mock.calls.find(([sql]) => String(sql).includes("from profile_sensitive_tokens pst"));
+    const tokenHashes = discoveryCall?.[1]?.[2] as string[] | undefined;
+    const expectedTokenHashes = createCrowdTokens(app.config, ["Dyke"]).map((token) => token.token_hash);
+
+    expect(tokenHashes).toEqual(expect.arrayContaining(expectedTokenHashes));
+    expect(tokenHashes).toHaveLength(expectedTokenHashes.length);
+  });
+
   it("filters discovery by the current user's active crowd modes", async () => {
     const viewerVisibility = encryptProfileVisibility(app.config, {
       ...emptyProfile.visibility_rules,
@@ -5590,9 +5685,9 @@ describe("server", () => {
       hiv_status: [],
       custom_hiv_status: ""
     });
-    const sapphicSensitive = encryptSensitiveProfile(app.config, {
+    const dykeSensitive = encryptSensitiveProfile(app.config, {
       is_trans: false,
-      crowds: ["Sapphic"],
+      crowds: ["Dyke"],
       kinks: [],
       kink_interests: [],
       hiv_status: [],
@@ -5606,7 +5701,7 @@ describe("server", () => {
         accuracyM: 50
       }),
       encryptedLocationEnvelopeRow({
-        subjectUserId: "sapphic-user",
+        subjectUserId: "dyke-user",
         lat: 40.711,
         lng: -74.002,
         accuracyM: 50
@@ -5683,8 +5778,8 @@ describe("server", () => {
             updated_at: "2026-04-28T12:00:00.000Z"
           },
           {
-            id: "sapphic-user",
-            display_name: "Sapphic River",
+            id: "dyke-user",
+            display_name: "Dyke River",
             year_of_birth: 1998,
             pronouns: ["she/her"],
             looking_for: ["Fun"],
@@ -5694,12 +5789,12 @@ describe("server", () => {
             position: ["Top"],
             role: [],
             hosting_travel: ["Can Host"],
-            photos: ["https://example.com/sapphic.jpg"],
+            photos: ["https://example.com/dyke.jpg"],
             lat: 40.711,
             lng: -74.002,
             fuzzy_lat: 40.7115,
             fuzzy_lng: -74.0025,
-            ...sapphicSensitive,
+            ...dykeSensitive,
             profile_visibility_ciphertext: null,
             profile_visibility_nonce: null,
             profile_visibility_auth_tag: null,
@@ -6993,7 +7088,7 @@ describe("server", () => {
   it("returns another user's profile on GET /api/profiles/:userId", async () => {
     const targetSensitiveProfile = encryptSensitiveProfile(app.config, {
       is_trans: true,
-      crowds: ["T4T", "Sapphic"],
+      crowds: ["T4T", "Dyke"],
       kinks: [],
       kink_interests: [],
       hiv_status: [],
@@ -7071,7 +7166,7 @@ describe("server", () => {
         crowds: ["T4T"]
       })
     });
-    expect(response.json().data.crowds).not.toContain("Sapphic");
+    expect(response.json().data.crowds).not.toContain("Dyke");
   });
 
   it("rejects invalid profile ids before querying profiles", async () => {
@@ -7101,7 +7196,7 @@ describe("server", () => {
     });
     const viewerSensitiveProfile = encryptSensitiveProfile(app.config, {
       is_trans: true,
-      crowds: ["Sapphic"],
+      crowds: ["Dyke"],
       kinks: [],
       kink_interests: [],
       hiv_status: [],
@@ -7777,7 +7872,7 @@ describe("server", () => {
         hosting_travel: [],
         kinks: [],
         kinks_visibility: "mutual_crowds",
-        trans_status_visibility: "mutual_cruushes",
+        trans_status_visibility: "mutual_crowds",
         hiv_status: [],
         hiv_status_visibility: "mutual_cruushes",
         vibes: ["Goth"],
@@ -7813,7 +7908,7 @@ describe("server", () => {
       year_of_birth: 1994,
       is_trans: true,
       trans_status_visibility: "mutual_crowds",
-      crowds: ["T4T", "Sapphic"],
+      crowds: ["T4T", "Dyke"],
       kinks: ["leather"],
       kink_interests: [{
         kink_id: "leather",
@@ -7843,7 +7938,7 @@ describe("server", () => {
     expect(profileInsertCall?.[1]).not.toContain("leather");
     expect(profileInsertCall?.[1]).not.toContain("undetectable");
     expect(profileInsertCall?.[1]).not.toContain("T4T");
-    expect(profileInsertCall?.[1]).not.toContain("Sapphic");
+    expect(profileInsertCall?.[1]).not.toContain("Dyke");
     expect(profileInsertCall?.[1]).not.toContain(true);
 
     const tokenInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profile_sensitive_tokens"));
@@ -7854,8 +7949,8 @@ describe("server", () => {
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         is_trans: true,
-        trans_status_visibility: "mutual_cruushes",
-        crowds: ["T4T", "Sapphic"],
+        trans_status_visibility: "mutual_crowds",
+        crowds: ["T4T", "Dyke"],
         kinks: ["leather"],
         kinks_visibility: "mutual_crowds",
         hiv_status: ["undetectable"],
@@ -7936,9 +8031,9 @@ describe("server", () => {
       display_name: "Cruusher",
       year_of_birth: 1994,
       is_trans: true,
-      crowds: ["T4T", "Sapphic"],
+      crowds: ["T4T", "Dyke"],
       visibility_rules: {
-        active_crowd_modes: ["T4T", "Sapphic"],
+        active_crowd_modes: ["T4T", "Dyke"],
         age_range: [25, 45],
         distance: 25,
         identities: ["nonbinary"],
@@ -7947,7 +8042,7 @@ describe("server", () => {
         timing: [],
         hosting: [],
         vibes: ["Bear"],
-        crowds: ["Sapphic"],
+        crowds: ["Dyke"],
         hobbies: [],
         positions: [],
         roles: [],
@@ -7972,12 +8067,12 @@ describe("server", () => {
     expect(profileInsertCall?.[0]).toContain("profile_visibility_ciphertext");
     expect(profileInsertCall?.[0]).toContain("profile_visibility_token_key_version");
     expect(profileInsertCall?.[1]).not.toContain("T4T");
-    expect(profileInsertCall?.[1]).not.toContain("Sapphic");
+    expect(profileInsertCall?.[1]).not.toContain("Dyke");
     expect(profileInsertCall?.[1]).not.toContain("leather");
 
     const tokenInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profile_sensitive_tokens"));
     expect(tokenInsertCall?.[1]?.[1]).not.toContain("T4T");
-    expect(tokenInsertCall?.[1]?.[1]).not.toContain("Sapphic");
+    expect(tokenInsertCall?.[1]?.[1]).not.toContain("Dyke");
     expect(tokenInsertCall?.[1]?.[1]).not.toContain("crowd-mode");
 
     expect(response.json()).toEqual({
@@ -8514,7 +8609,7 @@ describe("server", () => {
         display_name: "Cruusher",
         year_of_birth: 1994,
         is_trans: true,
-        crowds: ["T4T", "Sapphic"]
+        crowds: ["T4T", "Dyke"]
       }
     });
 

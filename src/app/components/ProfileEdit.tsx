@@ -38,6 +38,7 @@ import {
   KINK_GROUPS,
   LOOKING_FOR,
   MPOX_VACCINE,
+  normalizeCrowdValues,
   POSITIONS,
   PREP,
   PRESENTATIONS,
@@ -326,7 +327,7 @@ function mergeCategorizedVibes(profile: ProfilePayload) {
 function sanitizeCrowds(profile: ProfilePayload) {
   const allowedCrowds = new Set(profile.is_trans === true ? CROWDS : CROWDS.filter((crowd) => crowd !== 'T4T'));
 
-  return uniqueValues(profile.crowds ?? []).filter((crowd) => allowedCrowds.has(crowd));
+  return normalizeCrowdValues(profile.crowds ?? []).filter((crowd) => allowedCrowds.has(crowd));
 }
 
 function sanitizeKinkInterests(profile: ProfilePayload): ProfilePayload['kink_interests'] {
@@ -361,14 +362,14 @@ function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRule
   return {
     ...emptyProfilePayload.visibility_rules,
     ...rules,
-    active_crowd_modes: uniqueValues(rules.active_crowd_modes ?? []).filter((crowd) => allowedActiveCrowds.has(crowd)),
+    active_crowd_modes: normalizeCrowdValues(rules.active_crowd_modes ?? []).filter((crowd) => allowedActiveCrowds.has(crowd)),
     identities: uniqueValues(rules.identities ?? []),
     presentations: uniqueValues(rules.presentations ?? []),
     looking_for: uniqueValues(rules.looking_for ?? []),
     timing: uniqueValues(rules.timing ?? []),
     hosting: uniqueValues(rules.hosting ?? []),
     vibes: uniqueValues(rules.vibes ?? []),
-    crowds: uniqueValues(rules.crowds ?? []),
+    crowds: normalizeCrowdValues(rules.crowds ?? []),
     hobbies: uniqueValues(rules.hobbies ?? []),
     positions: uniqueValues(rules.positions ?? []),
     roles: uniqueValues(rules.roles ?? []),
@@ -498,12 +499,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
 
   const handleCrowdsChange = (crowds: string[]) => {
+    const normalizedCrowds = normalizeCrowdValues(crowds);
+
     setProfile((prev) => ({
       ...prev,
-      crowds,
+      crowds: normalizedCrowds,
       visibility_rules: {
         ...(prev.visibility_rules ?? emptyProfilePayload.visibility_rules),
-        active_crowd_modes: (prev.visibility_rules?.active_crowd_modes ?? []).filter((crowd) => crowds.includes(crowd)),
+        active_crowd_modes: normalizeCrowdValues(prev.visibility_rules?.active_crowd_modes ?? []).filter((crowd) => normalizedCrowds.includes(crowd)),
       },
     }));
   };

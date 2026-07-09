@@ -41,10 +41,30 @@ export type SensitiveProfileToken = {
   token_key_version: string;
 };
 
-export const CROWD_OPTIONS = ["T4T", "Sapphic", "Gay"] as const;
+export const CROWD_OPTIONS = ["T4T", "Dyke", "Gay"] as const;
+export type CrowdOption = typeof CROWD_OPTIONS[number];
 
-function isCrowdOption(value: unknown): value is SensitiveProfileData["crowds"][number] {
-  return typeof value === "string" && CROWD_OPTIONS.includes(value as SensitiveProfileData["crowds"][number]);
+export function normalizeCrowdOption(value: unknown): CrowdOption | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+  const canonicalValue = trimmedValue === "Sapphic" ? "Dyke" : trimmedValue;
+
+  return CROWD_OPTIONS.includes(canonicalValue as CrowdOption)
+    ? canonicalValue as CrowdOption
+    : null;
+}
+
+function normalizeCrowdOptions(values: unknown): SensitiveProfileData["crowds"] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map(normalizeCrowdOption)
+    .filter((value): value is CrowdOption => Boolean(value));
 }
 
 function normalizeTokenValue(value: string) {
@@ -132,7 +152,7 @@ export function decryptSensitiveProfile(
 
   return {
     is_trans: typeof parsed.is_trans === "boolean" ? parsed.is_trans : null,
-    crowds: Array.isArray(parsed.crowds) ? parsed.crowds.filter(isCrowdOption) : [],
+    crowds: normalizeCrowdOptions(parsed.crowds),
     kinks: Array.isArray(parsed.kinks) ? parsed.kinks.filter((value): value is string => typeof value === "string") : [],
     kink_interests: Array.isArray(parsed.kink_interests) ? parsed.kink_interests as SensitiveProfileData["kink_interests"] : [],
     hiv_status: Array.isArray(parsed.hiv_status) ? parsed.hiv_status.filter((value): value is string => typeof value === "string") : [],
@@ -196,7 +216,7 @@ export function decryptProfileVisibility(
   const parsed = JSON.parse(plaintext) as Partial<ProfileVisibilityRules>;
 
   return {
-    active_crowd_modes: Array.isArray(parsed.active_crowd_modes) ? parsed.active_crowd_modes.filter(isCrowdOption) : [],
+    active_crowd_modes: normalizeCrowdOptions(parsed.active_crowd_modes),
     age_range: Array.isArray(parsed.age_range) && parsed.age_range.length === 2 && parsed.age_range.every((value) => typeof value === "number")
       ? [parsed.age_range[0], parsed.age_range[1]]
       : null,
@@ -207,7 +227,7 @@ export function decryptProfileVisibility(
     timing: Array.isArray(parsed.timing) ? parsed.timing.filter((value): value is string => typeof value === "string") : [],
     hosting: Array.isArray(parsed.hosting) ? parsed.hosting.filter((value): value is string => typeof value === "string") : [],
     vibes: Array.isArray(parsed.vibes) ? parsed.vibes.filter((value): value is string => typeof value === "string") : [],
-    crowds: Array.isArray(parsed.crowds) ? parsed.crowds.filter(isCrowdOption) : [],
+    crowds: normalizeCrowdOptions(parsed.crowds),
     hobbies: Array.isArray(parsed.hobbies) ? parsed.hobbies.filter((value): value is string => typeof value === "string") : [],
     positions: Array.isArray(parsed.positions) ? parsed.positions.filter((value): value is string => typeof value === "string") : [],
     roles: Array.isArray(parsed.roles) ? parsed.roles.filter((value): value is string => typeof value === "string") : [],
@@ -237,19 +257,27 @@ function getCrowdModeTokenBuckets(now = new Date()) {
   return [now, new Date(now.getTime() - oneDayMs)].map((date) => date.toISOString().slice(0, 10));
 }
 
+function getCrowdTokenAliases(crowd: string) {
+  const normalizedCrowd = normalizeTokenValue(crowd);
+
+  if (!normalizedCrowd) {
+    return [];
+  }
+
+  return normalizedCrowd === "dyke" || normalizedCrowd === "sapphic"
+    ? ["dyke", "sapphic"]
+    : [normalizedCrowd];
+}
+
 export function createCrowdModeTokens(config: AppConfig, activeCrowdModes: string[], now = new Date()) {
   const tokenKeyVersion = getSensitiveProfileTokenKeyVersion(config);
   const tokenValues = new Set<string>();
 
   for (const crowdMode of activeCrowdModes) {
-    const normalizedCrowdMode = normalizeTokenValue(crowdMode);
-
-    if (!normalizedCrowdMode) {
-      continue;
-    }
-
-    for (const bucket of getCrowdModeTokenBuckets(now)) {
-      tokenValues.add(`crowd-mode:${normalizedCrowdMode}:${bucket}`);
+    for (const crowdAlias of getCrowdTokenAliases(crowdMode)) {
+      for (const bucket of getCrowdModeTokenBuckets(now)) {
+        tokenValues.add(`crowd-mode:${crowdAlias}:${bucket}`);
+      }
     }
   }
 
@@ -267,10 +295,8 @@ export function createSensitiveProfileTokens(
   const tokenValues = new Set<string>();
 
   for (const crowd of sensitiveProfile.crowds) {
-    const normalizedCrowd = normalizeTokenValue(crowd);
-
-    if (normalizedCrowd) {
-      tokenValues.add(`crowd:${normalizedCrowd}`);
+    for (const crowdAlias of getCrowdTokenAliases(crowd)) {
+      tokenValues.add(`crowd:${crowdAlias}`);
     }
   }
 
@@ -288,8 +314,13 @@ export function createSensitiveProfileTokens(
 }
 
 export function createCrowdTokens(config: AppConfig, crowds: string[]) {
-  return crowds
-    .map((crowd) => normalizeTokenValue(crowd))
-    .filter(Boolean)
-    .map((crowd) => createSensitiveProfileToken(config, `crowd:${crowd}`));
+  const tokenValues = new Set<string>();
+
+  for (const crowd of crowds) {
+    for (const crowdAlias of getCrowdTokenAliases(crowd)) {
+      tokenValues.add(`crowd:${crowdAlias}`);
+    }
+  }
+
+  return [...tokenValues].map((tokenValue) => createSensitiveProfileToken(config, tokenValue));
 }

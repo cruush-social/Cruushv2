@@ -8,10 +8,13 @@ import {
   getDiscoveryCoordinates
 } from "../discovery-users.js";
 import {
+  CROWD_OPTIONS,
+  createCrowdTokens,
   createSensitiveProfileToken,
   decryptProfileVisibility,
   decryptSensitiveProfile,
-  getSensitiveProfileTokenKeyVersion
+  getSensitiveProfileTokenKeyVersion,
+  normalizeCrowdOption
 } from "../profile-sensitive.js";
 import {
   canSubjectViewProfile,
@@ -119,9 +122,12 @@ const crowdQueryArrayField = z.preprocess((value) => {
   const values = Array.isArray(value) ? value : [value];
 
   return values.flatMap((item) => typeof item === "string"
-    ? item.split(",").map((part) => part.trim()).filter(Boolean)
+    ? item.split(",").map((part) => {
+      const crowd = part.trim();
+      return normalizeCrowdOption(crowd) ?? crowd;
+    }).filter(Boolean)
     : []);
-}, z.array(z.enum(["T4T", "Sapphic", "Gay"])).max(3).default([]));
+}, z.array(z.enum(CROWD_OPTIONS)).max(3).default([]));
 
 const booleanQueryFlag = z.preprocess((value) => {
   if (value === undefined) {
@@ -266,10 +272,12 @@ function addSensitiveTokenFilter(
   }
 
   const tokenKeyVersion = getSensitiveProfileTokenKeyVersion(app.config);
-  const tokenHashes = selectedValues
-    .map((value) => normalizeFilterTokenValue(value))
-    .filter(Boolean)
-    .map((value) => createSensitiveProfileToken(app.config, `${tokenKind}:${value}`, tokenKeyVersion).token_hash);
+  const tokenHashes = tokenKind === "crowd"
+    ? uniqueStrings(selectedValues.flatMap((value) => createCrowdTokens(app.config, [value]).map((token) => token.token_hash)))
+    : selectedValues
+      .map((value) => normalizeFilterTokenValue(value))
+      .filter(Boolean)
+      .map((value) => createSensitiveProfileToken(app.config, `${tokenKind}:${value}`, tokenKeyVersion).token_hash);
 
   if (tokenHashes.length === 0) {
     return;
