@@ -70,7 +70,7 @@ describe('FeelingLucky', () => {
     vi.restoreAllMocks();
   });
 
-  it('shows the locked slot result for free users without fetching profiles', async () => {
+  it('shows the locked carousel result for free users without fetching profiles', async () => {
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
       expiresAt: null,
@@ -130,7 +130,7 @@ describe('FeelingLucky', () => {
       { limit: 20 },
     ));
     expect(await screen.findByText(/Jordan/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Spin again' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Browse again' })).toBeInTheDocument();
   });
 
   it('treats billing failures as locked and does not reveal profile data', async () => {

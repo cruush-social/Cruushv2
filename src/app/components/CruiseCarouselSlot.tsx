@@ -8,7 +8,7 @@ import type { DiscoveryUser } from '../lib/usersApi';
 export type CruiseCarouselSlotMode = 'profile' | 'locked' | 'empty';
 export type CruiseCarouselSlotVariant = 'panel' | 'page';
 
-type SlotItem =
+type CarouselItem =
   | {
       kind: 'icon';
       icon: CruushIconName;
@@ -28,12 +28,13 @@ type CruiseCarouselSlotProps = {
   onComplete?: () => void;
   onRetry?: () => void;
   onUpgrade?: () => void;
-  spinDurationMs?: number;
+  browseDurationMs?: number;
 };
 
-const DEFAULT_SPIN_DURATION_MS = 1400;
+const DEFAULT_BROWSE_DURATION_MS = 1100;
+const FEATURED_ITEM_INDEX = 2;
 
-const SLOT_ICONS: SlotItem[] = [
+const CAROUSEL_ICONS: CarouselItem[] = [
   { kind: 'icon', icon: 'cruush', label: 'cruush' },
   { kind: 'icon', icon: 'lucky', label: 'lucky' },
   { kind: 'icon', icon: 'map', label: 'map' },
@@ -66,43 +67,41 @@ function usePrefersReducedMotion() {
   return prefersReducedMotion;
 }
 
-function makeReelItems(reelIndex: number, mode: CruiseCarouselSlotMode, targetUser?: DiscoveryUser | null) {
-  const shiftedIcons = [
-    ...SLOT_ICONS.slice(reelIndex),
-    ...SLOT_ICONS.slice(0, reelIndex),
-    ...SLOT_ICONS.slice(reelIndex),
-  ];
-
-  if (mode === 'profile' && targetUser && reelIndex === 1) {
-    return [
-      ...shiftedIcons,
-      {
+function makeBrowseItems(mode: CruiseCarouselSlotMode, targetUser?: DiscoveryUser | null) {
+  const featuredItem: CarouselItem = mode === 'profile' && targetUser
+    ? {
         kind: 'profile',
         user: targetUser,
         label: targetUser.name,
-      } satisfies SlotItem,
-    ];
-  }
-
-  const landingIcon = mode === 'locked'
-    ? { kind: 'icon', icon: 'cruush', label: 'cruush+' } satisfies SlotItem
+      }
+    : mode === 'locked'
+    ? { kind: 'icon', icon: 'cruush', label: 'cruush+' }
     : mode === 'empty'
-    ? { kind: 'icon', icon: 'visibility', label: 'no profiles nearby' } satisfies SlotItem
-    : SLOT_ICONS[(reelIndex + 1) % SLOT_ICONS.length];
+    ? { kind: 'icon', icon: 'visibility', label: 'no profiles nearby' }
+    : { kind: 'icon', icon: 'profile', label: 'nearby profile' };
 
-  return [...shiftedIcons, landingIcon];
+  return [
+    CAROUSEL_ICONS[2],
+    CAROUSEL_ICONS[7],
+    featuredItem,
+    CAROUSEL_ICONS[3],
+    CAROUSEL_ICONS[4],
+  ];
 }
 
-function SlotFace({ item, settled }: { item: SlotItem; settled: boolean }) {
+function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolean }) {
+  const sizeClass = featured ? 'h-[6.25rem] w-[6.25rem]' : 'h-[5rem] w-[5rem]';
+  const frameClass = featured
+    ? 'border-white/34 bg-white/[0.12] shadow-[0_0_34px_rgba(255,0,114,0.26)]'
+    : 'border-white/12 bg-white/[0.055]';
+
   if (item.kind === 'profile') {
     const photo = item.user.photo ? resolveMediaUrl(item.user.photo) : null;
     const initial = item.user.name.trim().charAt(0).toUpperCase() || '?';
 
     return (
       <div
-        className={`flex h-[4.75rem] w-[4.75rem] items-center justify-center overflow-hidden rounded-2xl border ${
-          settled ? 'border-white/32 shadow-[0_0_32px_rgba(255,0,114,0.32)]' : 'border-white/12'
-        } bg-white/[0.06]`}
+        className={`flex ${sizeClass} shrink-0 items-center justify-center overflow-hidden rounded-[1.375rem] border ${frameClass} transition-all duration-500`}
       >
         {photo ? (
           <img
@@ -123,11 +122,9 @@ function SlotFace({ item, settled }: { item: SlotItem; settled: boolean }) {
 
   return (
     <div
-      className={`flex h-[4.75rem] w-[4.75rem] items-center justify-center rounded-2xl border ${
-        settled ? 'border-white/28 bg-white/[0.12]' : 'border-white/10 bg-white/[0.06]'
-      }`}
+      className={`flex ${sizeClass} shrink-0 items-center justify-center rounded-[1.375rem] border ${frameClass} transition-all duration-500`}
     >
-      <CruushIcon name={item.icon} className="h-11 w-11" variant={settled ? 'colored' : 'white'} />
+      <CruushIcon name={item.icon} className={featured ? 'h-12 w-12' : 'h-10 w-10'} variant={featured ? 'colored' : 'white'} />
     </div>
   );
 }
@@ -140,7 +137,7 @@ export default function CruiseCarouselSlot({
   onComplete,
   onRetry,
   onUpgrade,
-  spinDurationMs = DEFAULT_SPIN_DURATION_MS,
+  browseDurationMs = DEFAULT_BROWSE_DURATION_MS,
 }: CruiseCarouselSlotProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
   const [settled, setSettled] = useState(false);
@@ -153,7 +150,7 @@ export default function CruiseCarouselSlot({
   useEffect(() => {
     setSettled(false);
 
-    const duration = prefersReducedMotion ? 140 : spinDurationMs;
+    const duration = prefersReducedMotion ? 140 : browseDurationMs;
     const timer = window.setTimeout(() => {
       setSettled(true);
       if (mode === 'profile') {
@@ -164,24 +161,24 @@ export default function CruiseCarouselSlot({
     return () => {
       window.clearTimeout(timer);
     };
-  }, [mode, prefersReducedMotion, spinDurationMs, targetUser?.id]);
+  }, [browseDurationMs, mode, prefersReducedMotion, targetUser?.id]);
 
-  const reels = useMemo(
-    () => [0, 1, 2].map((index) => makeReelItems(index, mode, targetUser)),
+  const browseItems = useMemo(
+    () => makeBrowseItems(mode, targetUser),
     [mode, targetUser],
   );
 
   const title = mode === 'profile'
-    ? 'spinning cruise carousel'
+    ? 'browsing nearby profiles'
     : mode === 'locked'
     ? 'cruise carousel is a cruush+ feature'
     : 'no profiles nearby';
   const description = mode === 'profile'
     ? targetUser
-      ? `Landing on ${targetUser.name}.`
-      : 'Finding someone nearby.'
+      ? `Found ${targetUser.name} nearby.`
+      : 'Looking for someone nearby.'
     : mode === 'locked'
-    ? 'Unlock the slot reveal for nearby profiles with cruush+.'
+    ? 'Browse nearby profiles with cruush+.'
     : 'No eligible nearby profiles are available right now.';
 
   const content = (
@@ -204,31 +201,25 @@ export default function CruiseCarouselSlot({
       </div>
 
       <div className={`${variant === 'page' ? 'px-3 sm:px-6' : 'px-4'} flex-1`}>
-        <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
-          <div className="pointer-events-none absolute inset-x-3 top-1/2 z-10 h-[5.25rem] -translate-y-1/2 rounded-2xl border border-white/20 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" />
-          <div className="grid grid-cols-3 gap-2">
-            {reels.map((items, reelIndex) => (
-              <div
-                key={reelIndex}
-                className="h-[15rem] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]"
-                aria-hidden="true"
-              >
-                <div className={`flex flex-col items-center gap-3 py-3 ${settled ? 'translate-y-[-14.5rem]' : 'cruise-slot-reel-spin'}`}>
-                  {items.map((item, itemIndex) => (
-                    <SlotFace
-                      key={`${item.kind}-${item.kind === 'icon' ? item.icon : item.user.id}-${itemIndex}`}
-                      item={item}
-                      settled={settled && itemIndex === items.length - 1}
-                    />
-                  ))}
-                </div>
-              </div>
+        <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
+          <div className="pointer-events-none absolute inset-y-4 left-0 z-10 w-14 bg-gradient-to-r from-black/75 to-transparent" />
+          <div className="pointer-events-none absolute inset-y-4 right-0 z-10 w-14 bg-gradient-to-l from-black/75 to-transparent" />
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-[7rem] w-[7rem] -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" />
+          <div className="relative flex h-[9rem] items-center justify-center overflow-hidden" aria-hidden="true">
+            <div className={`flex items-center gap-3 transition-transform duration-500 ease-out ${settled ? '' : 'cruise-carousel-browse'}`}>
+              {browseItems.map((item, itemIndex) => (
+                <CarouselTile
+                  key={`${item.kind}-${item.kind === 'icon' ? item.icon : item.user.id}-${itemIndex}`}
+                  item={item}
+                  featured={settled && itemIndex === FEATURED_ITEM_INDEX}
+                />
             ))}
+            </div>
           </div>
         </div>
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-center" aria-live="polite">
-          <p className="text-sm text-white/78">{settled ? description : 'Spinning app signals nearby...'}</p>
+          <p className="text-sm text-white/78">{settled ? description : 'Browsing nearby profiles...'}</p>
           {settled && mode === 'locked' ? (
             <Button
               type="button"
@@ -248,7 +239,7 @@ export default function CruiseCarouselSlot({
               onClick={onRetry}
             >
               <RefreshCw className="h-4 w-4" />
-              Spin again
+              Browse again
             </Button>
           ) : null}
         </div>

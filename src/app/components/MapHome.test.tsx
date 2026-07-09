@@ -457,7 +457,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    const luckyIcon = screen.getByRole('button', { name: "I'm Feeling Lucky" }).querySelector('img');
+    const luckyIcon = screen.getByRole('button', { name: 'Cruise Carousel' }).querySelector('img');
     const ghostModeButton = screen.getByRole('button', { name: 'Ghost Mode Settings' });
     const ghostModeIcon = ghostModeButton.querySelector('img');
     const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
@@ -535,7 +535,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('button', { name: 'Edit profile' })).toBeInTheDocument();
   });
 
-  it("opens an eligible map-discovered profile in the desktop side panel from I'm Feeling Lucky", async () => {
+  it('opens an eligible map-discovered profile in the desktop side panel from Cruise Carousel', async () => {
     useIsMobile.mockReturnValue(false);
 
     render(
@@ -549,7 +549,7 @@ describe('MapHome', () => {
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
-    fireEvent.click(screen.getByRole('button', { name: "I'm Feeling Lucky" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cruise Carousel' }));
 
     expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
@@ -559,7 +559,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 
-  it("keeps I'm Feeling Lucky as a full page route on mobile", async () => {
+  it('keeps Cruise Carousel as a full page route on mobile', async () => {
     useIsMobile.mockReturnValue(true);
 
     render(
@@ -571,7 +571,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: "I'm Feeling Lucky" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cruise Carousel' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/lucky');
   });
@@ -597,7 +597,7 @@ describe('MapHome', () => {
 
     expect(await screen.findByRole('button', { name: 'cruush+' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: "I'm Feeling Lucky" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cruise Carousel' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
     expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();

@@ -10,7 +10,7 @@ import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 
-type LuckyStatus = 'checking' | 'spinning' | 'profile' | 'locked' | 'empty' | 'error';
+type LuckyStatus = 'checking' | 'browsing' | 'profile' | 'locked' | 'empty' | 'error';
 
 function selectCarouselUser(users: DiscoveryUser[], currentTargetId?: string | null) {
   const eligibleUsers = users.filter((user) => !user.isDemo && !user.isCurrentUser);
@@ -62,12 +62,12 @@ export default function FeelingLucky() {
   const [status, setStatus] = useState<LuckyStatus>('checking');
   const [candidateUsers, setCandidateUsers] = useState<DiscoveryUser[]>([]);
   const [targetUser, setTargetUser] = useState<DiscoveryUser | null>(null);
-  const [spinNonce, setSpinNonce] = useState(0);
+  const [browseNonce, setBrowseNonce] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const startSpin = (users: DiscoveryUser[], currentTargetId?: string | null) => {
+  const startBrowse = (users: DiscoveryUser[], currentTargetId?: string | null) => {
     const nextUser = selectCarouselUser(users, currentTargetId);
-    setSpinNonce((nonce) => nonce + 1);
+    setBrowseNonce((nonce) => nonce + 1);
 
     if (!nextUser) {
       setTargetUser(null);
@@ -76,7 +76,7 @@ export default function FeelingLucky() {
     }
 
     setTargetUser(nextUser);
-    setStatus('spinning');
+    setStatus('browsing');
   };
 
   const loadCarousel = async () => {
@@ -101,7 +101,7 @@ export default function FeelingLucky() {
       const coordinates = await loadProfileDiscoveryCoordinates();
       const nearbyUsers = await getNearbyUsers(coordinates, undefined, { limit: 20 });
       setCandidateUsers(nearbyUsers);
-      startSpin(nearbyUsers);
+      startBrowse(nearbyUsers);
     } catch (loadError) {
       console.error('Error loading cruise carousel:', loadError);
       setCandidateUsers([]);
@@ -114,8 +114,8 @@ export default function FeelingLucky() {
     void loadCarousel();
   }, []);
 
-  const handleSpinAgain = () => {
-    startSpin(candidateUsers, targetUser?.id);
+  const handleBrowseAgain = () => {
+    startBrowse(candidateUsers, targetUser?.id);
   };
 
   return (
@@ -139,16 +139,16 @@ export default function FeelingLucky() {
 
         {status === 'locked' ? (
           <CruiseCarouselSlot
-            key={`locked-${spinNonce}`}
+            key={`locked-${browseNonce}`}
             mode="locked"
             variant="page"
             onUpgrade={() => navigate('/upgrade')}
           />
         ) : null}
 
-        {status === 'spinning' && targetUser ? (
+        {status === 'browsing' && targetUser ? (
           <CruiseCarouselSlot
-            key={`profile-${targetUser.id}-${spinNonce}`}
+            key={`profile-${targetUser.id}-${browseNonce}`}
             mode="profile"
             targetUser={targetUser}
             variant="page"
@@ -165,19 +165,19 @@ export default function FeelingLucky() {
               onViewProfile={() => navigate(`/profile/${targetUser.id}`)}
             />
             <Button
-              onClick={handleSpinAgain}
+              onClick={handleBrowseAgain}
               variant="outline"
               className="mx-auto flex h-11 w-full max-w-sm rounded-xl border-white/18 text-white"
             >
               <RefreshCw className="w-4 h-4" />
-              Spin again
+              Browse again
             </Button>
           </div>
         ) : null}
 
         {status === 'empty' ? (
           <CruiseCarouselSlot
-            key={`empty-${spinNonce}`}
+            key={`empty-${browseNonce}`}
             mode="empty"
             variant="page"
             onRetry={() => {

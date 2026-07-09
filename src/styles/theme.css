@@ -269,23 +269,23 @@
     }
   }
 
-  @keyframes cruise-slot-reel-spin {
-    0% {
-      transform: translateY(0);
+  @keyframes cruise-carousel-browse {
+    0%, 100% {
+      transform: translateX(-0.625rem);
     }
-    100% {
-      transform: translateY(-19.5rem);
+    50% {
+      transform: translateX(0.625rem);
     }
   }
 
-  .cruise-slot-reel-spin {
-    animation: cruise-slot-reel-spin 0.46s linear infinite;
+  .cruise-carousel-browse {
+    animation: cruise-carousel-browse 1.2s ease-in-out infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .cruise-slot-reel-spin {
+    .cruise-carousel-browse {
       animation: none;
-      transform: translateY(-14.5rem);
+      transform: translateX(0);
     }
   }
 }

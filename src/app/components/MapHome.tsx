@@ -1221,8 +1221,8 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
               variant="ghost"
               size="icon"
               onClick={handleFeelingLucky}
-              aria-label="I'm Feeling Lucky"
-              title="I'm Feeling Lucky"
+              aria-label="Cruise Carousel"
+              title="Cruise Carousel"
               className="rounded-full text-white/90 hover:bg-white/10"
             >
               <CruushIconImage src={luckyIconWhite} />
