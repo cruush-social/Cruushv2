@@ -112,14 +112,13 @@
 
   The seed command refuses to run in production. It creates or updates the local development admin at `admin@cruush.local`, seeds test profiles, and creates cruush activity toward that admin account. Use the password from `DEVELOPMENT_ADMIN_PASSWORD` to sign in locally.
 
-  ### 6. Optional: seed NYC reviewer accounts
+  ### 6. Optional: seed the internal NYC codeveloper account
 
-  To create dedicated NYC-located reviewer accounts for a non-NYC codeveloper or bank reviewer, set:
+  To create the dedicated NYC-located account for a non-NYC codeveloper, set:
 
   ```bash
   REVIEWER_TEST_ACCOUNTS_ENABLED=true
   REVIEWER_TEST_ACCOUNT_PASSWORD=<share-this-out-of-band>
-  PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD=paymentpaytest
   ```
 
   Then run:
@@ -128,7 +127,9 @@
   npm --prefix server run seed:reviewer-accounts
   ```
 
-  The command creates or updates `codeveloper-nyc@cruush.local`, `bank-reviewer-nyc@cruush.local`, and `payment@cruush.local` with verified email status and saved NYC profile locations. It also creates a bank/payment mutual cruush, DM conversation, and `Bank/payment reviewer smoke group` fixture with a `24h` disappearing timer. The payment reviewer account uses `PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD` so the bank checkout login can be shared without sharing the internal codeveloper password. It refuses a plain production host; if `NODE_ENV=production`, `APP_URL` must be a staging/test/local host.
+  The command creates or updates only `codeveloper-nyc@cruush.local` with verified email status and a saved NYC profile location for internal codeveloper testing. It does not create bank/payment reviewer accounts, fake profiles, fake messages, mutual cruushes, DMs, or group fixtures. It also removes the legacy seeded `bank-reviewer-nyc@cruush.local` and `payment@cruush.local` accounts and any conversations tied to them. It refuses a plain production host; if `NODE_ENV=production`, `APP_URL` must be a staging/test/local host.
+
+  Bank/payment review must use real accounts created through the normal app flow. Do not seed fake bank accounts or fake bank messages.
 
   ### 7. If you want auth emails to return to staging
 

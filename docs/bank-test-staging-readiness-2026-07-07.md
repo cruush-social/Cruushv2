@@ -64,7 +64,7 @@ Follow-up profile-photo proof attempt on 2026-07-08 at 16:45 UTC:
 
 - `https://api-staging.cruush.app/health`: `HTTP 200`
 - `https://api-staging.cruush.app/api/meta`: `HTTP 200`
-- Direct API login for `payment@cruush.local` with the documented staging password returned `400 VALIDATION_ERROR` / `Captcha verification is required.`, so curl could not mint a staging session cookie.
+- Direct API login tests without Turnstile proof returned `400 VALIDATION_ERROR` / `Captcha verification is required.`, so curl could not mint a staging session cookie for bank-review proof.
 - Chrome loaded `https://staging.cruush.app/profile/edit` as an authenticated staging session and the Photos tab mounted one JPEG/PNG/WebP-only file input.
 - Uploading `/private/tmp/seed-photo-01.jpg` and a re-encoded `/private/tmp/profile-proof-adult-human.png` through Chrome reached the crop modal, but the Codex Chrome extension file bridge produced a blob with `naturalWidth=0`, and the app showed `This image could not be loaded. Try a JPG, PNG, or WebP file.` The file still did not reach `/api/profile-photos`.
 - The backend route is still not proven on staging with authenticated image bytes. Enable Chrome extension file upload access or run the upload manually in Chrome to finish safe adult-human acceptance and invalid non-human rejection proof.
@@ -73,7 +73,7 @@ Follow-up profile-photo proof attempt on 2026-07-08 at 16:45 UTC:
 
 - Banned public/profile coded-language rejection was not tested on the active staging smoke user because those attempts intentionally create trust evidence and may restrict the account.
 - Profile photo upload reached the authenticated edit UI, but the fixture upload did not reach the app because Chrome file upload access is not enabled for the Codex extension. This remains the top bank-readiness blocker because profile photos must reject non-human/gradient images while accepting adult-human/body images.
-- DM and group message writes were not tested in this run because the visible staging UI did not expose a ready conversation fixture. The reviewer-account seeder now creates a deterministic bank/payment DM and group fixture; rerun `npm --prefix server run seed:reviewer-accounts` on staging after deploy.
+- DM and group message writes were not tested in this run. Bank review must not use seeded/fake messages, fake DMs, fake groups, or seeded bank/payment accounts; test those flows only through real tester-owned accounts during the review.
 - Group messaging backend routes exist, but the full Signal-style frontend admin/member UI is still incomplete.
 - PhotoDNA remains disabled. Do not tell a bank or payment processor that PhotoDNA is active until the adapter is verified against Microsoft sample requests and responses.
 
@@ -94,21 +94,21 @@ The PhotoDNA keys were visible in a screenshot during setup. Rotate them before 
 
 ## Bank Test Account Plan
 
-Use a dedicated disposable reviewer account, not the existing smoke account, for moderation rejection tests.
+Use real accounts created through the normal app flow. Do not seed fake bank/payment accounts or pre-create fake bank-review messages, DMs, mutual cruushes, groups, profile photos, or profile data.
 
 Minimum bank smoke script:
 
 1. Open `https://staging.cruush.app`.
-2. Create or use the bank reviewer account. For payment checkout review, use `payment@cruush.local` with the dedicated payment password. See `docs/nyc-reviewer-test-logins.md` for the seeded NYC login details and the difference between the bank, payment, and codeveloper accounts.
+2. Create or use a real bank reviewer account through signup or another normal production-path account creation flow. See `docs/nyc-reviewer-test-logins.md` for the rule separating bank review from the internal codeveloper login.
 3. Confirm signup/login works with Turnstile and email verification behavior expected for staging.
 4. Edit profile basics and bio with allowed text.
 5. Attempt a public/profile banned term on the disposable account and verify the write is rejected.
 6. Upload an allowed adult human profile photo and verify the approved/pending state.
-7. Attempt a clearly invalid profile image fixture and verify rejection without publishing it.
-8. Create or use a second test account for DMs.
-9. Send an allowed DM.
+7. Attempt a clearly invalid profile image and verify rejection without publishing it.
+8. Create or use a second real tester-owned account for DMs.
+9. Send an allowed DM during review.
 10. Verify drug discussion is allowed in DMs, but sale/solicitation language is rejected.
-11. Create a group conversation fixture.
+11. Create a group conversation through the visible app flow during review.
 12. Verify group owner/admin/member permissions once the UI is complete.
 13. Create a report with the fetishization reason and verify it records report evidence.
 14. Verify expired feed posts/messages are hidden or removed according to the configured timer.
@@ -117,11 +117,11 @@ Minimum bank smoke script:
 
 1. Enable Chrome extension file upload access or manually run the upload proof in Chrome, then finish profile photo upload staging verification with safe adult-human and invalid-image fixtures.
 2. Confirm Stream image moderation is configured to return positive adult-human/body proof or reject non-human profile photos. cruush now fails closed when the provider is silent.
-3. Create a disposable staging bank reviewer account for destructive moderation tests.
+3. Create a real disposable staging account through the normal app flow for destructive moderation tests.
 4. Run banned feed/profile coded-language tests only on that disposable account.
 5. Verify feed post delete on the bank reviewer account now that `DELETE /api/posts/:postId` is deployed.
 6. Add frontend helpers and UI for group remove member, demote admin, close group, rename group, member management, and disappearing timer controls.
-7. Deploy and rerun the reviewer-account seeder so DM/group smoke tests use the deterministic bank/payment fixture instead of random existing users.
+7. Do not use the reviewer-account seeder for bank/payment smoke tests; DM/group smoke tests must use real tester-owned accounts and review-time actions.
 8. Update or verify the PhotoDNA adapter before enabling `PHOTODNA_ENABLED=true`.
 9. Keep PhotoDNA disabled until that adapter verification passes.
 10. Add an automated bank smoke-test checklist or script that can be rerun before every staging review.

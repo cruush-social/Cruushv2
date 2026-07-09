@@ -102,15 +102,15 @@ Checked on 2026-07-08 at about 23:24 UTC:
 
 ## Bank Test Readiness
 
+Superseded on 2026-07-09: bank/payment review must use real accounts created through the normal app flow. Do not use seeded bank/payment reviewer accounts, fake messages, fake mutual cruushes, fake DMs, or fake groups. The reviewer-account seeder now only maintains the internal codeveloper account and removes legacy bank/payment seed artifacts.
+
 The commit itself is ready for staging review, and the public staging surfaces are online.
 
 Do not treat the full bank/payment-processor smoke as complete until these checks are rerun on staging:
 
 - Confirm staging is serving commit `9bfe083` on both frontend and API paths.
-- Rerun or confirm the reviewer-account seeder after deploy.
-- Login with the bank/payment reviewer accounts.
-- Confirm the bank/payment DM and `Bank/payment reviewer smoke group` fixture.
-- Send a DM from the reviewer fixture to verify the message 500 fix on staging.
+- Create or use real bank/payment reviewer accounts through the normal app flow.
+- Send DMs and create groups only during review with real tester-owned accounts.
 - Smoke the visibility menu and map Crowd Mode notice with an account that has crowd memberships.
 - Confirm profile photo upload acceptance/rejection manually; this was previously the top unresolved bank-readiness proof.
 - Keep PhotoDNA disabled unless the exact Microsoft operation path and request/response behavior have been verified.
@@ -119,10 +119,8 @@ Do not treat the full bank/payment-processor smoke as complete until these check
 
 Use `docs/nyc-reviewer-test-logins.md` as the source of truth.
 
-- Bank reviewer email: `bank-reviewer-nyc@cruush.local`
-- Payment reviewer email: `payment@cruush.local`
 - Codeveloper email: `codeveloper-nyc@cruush.local`
-- `bank-reviewer-nyc@cruush.local` and `codeveloper-nyc@cruush.local` use `REVIEWER_TEST_ACCOUNT_PASSWORD`.
-- `payment@cruush.local` uses `PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD`.
+- Bank/payment reviewers must use real accounts created through the normal app flow.
+- `codeveloper-nyc@cruush.local` uses `REVIEWER_TEST_ACCOUNT_PASSWORD` and is internal-only.
 
-Do not paste reviewer or payment passwords into docs or chat. Share the actual password values out of band.
+Do not paste reviewer passwords into docs or chat. Share the actual internal password values out of band.

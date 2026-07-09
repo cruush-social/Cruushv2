@@ -49,66 +49,52 @@ function seededReviewerUserId(index: number) {
 }
 
 describe("reviewer test account seeding", () => {
-  it("builds dedicated codeveloper, bank reviewer, and payment reviewer NYC accounts", () => {
+  it("builds only the internal codeveloper NYC account and no bank/payment reviewer accounts", () => {
     const accounts = buildReviewerTestAccounts(new Date("2026-07-07T12:00:00.000Z"));
     const emails = accounts.map((account) => account.email);
 
     expect(accounts).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
-    expect(emails).toEqual([
-      "codeveloper-nyc@cruush.local",
-      "bank-reviewer-nyc@cruush.local",
-      "payment@cruush.local"
-    ]);
+    expect(emails).toEqual(["codeveloper-nyc@cruush.local"]);
+    expect(emails).not.toContain("bank-reviewer-nyc@cruush.local");
+    expect(emails).not.toContain("payment@cruush.local");
     expect(accounts.every((account) => account.lat >= 40.35 && account.lat <= 41.08)).toBe(true);
     expect(accounts.every((account) => account.lng >= -74.65 && account.lng <= -73.45)).toBe(true);
     expect(accounts.every((account) => account.fuzzyLat >= 40.35 && account.fuzzyLat <= 41.08)).toBe(true);
     expect(accounts.every((account) => account.fuzzyLng >= -74.65 && account.fuzzyLng <= -73.45)).toBe(true);
-    expect(accounts.find((account) => account.email === "payment@cruush.local")).toMatchObject({
-      displayName: "payment reviewer",
-      passwordConfigKey: "PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD",
-      vibes: expect.arrayContaining(["NYC beta", "spoof location", "payment review"])
+    expect(accounts[0]).toMatchObject({
+      displayName: "codev nyc",
+      passwordConfigKey: "REVIEWER_TEST_ACCOUNT_PASSWORD",
+      vibes: expect.arrayContaining(["NYC beta", "spoof location", "codeveloper"])
     });
   });
 
-  it("requires an explicit enabled flag and password, and refuses the public production host", () => {
+  it("requires an explicit enabled flag and internal codeveloper password, and refuses the public production host", () => {
     expect(() => assertReviewerTestAccountConfig({
       NODE_ENV: "development",
       APP_URL: "https://cruush.test",
       REVIEWER_TEST_ACCOUNTS_ENABLED: "false",
-      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123",
-      PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD: "paymentpaytest"
+      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123"
     })).toThrow(/REVIEWER_TEST_ACCOUNTS_ENABLED/);
 
     expect(() => assertReviewerTestAccountConfig({
       NODE_ENV: "development",
       APP_URL: "https://cruush.test",
       REVIEWER_TEST_ACCOUNTS_ENABLED: "true",
-      REVIEWER_TEST_ACCOUNT_PASSWORD: "",
-      PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD: "paymentpaytest"
+      REVIEWER_TEST_ACCOUNT_PASSWORD: ""
     })).toThrow(/REVIEWER_TEST_ACCOUNT_PASSWORD/);
-
-    expect(() => assertReviewerTestAccountConfig({
-      NODE_ENV: "development",
-      APP_URL: "https://cruush.test",
-      REVIEWER_TEST_ACCOUNTS_ENABLED: "true",
-      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123",
-      PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD: ""
-    })).toThrow(/PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD/);
 
     expect(() => assertReviewerTestAccountConfig({
       NODE_ENV: "production",
       APP_URL: "https://cruush.app",
       REVIEWER_TEST_ACCOUNTS_ENABLED: "true",
-      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123",
-      PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD: "paymentpaytest"
+      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123"
     })).toThrow(/production/i);
 
     expect(() => assertReviewerTestAccountConfig({
       NODE_ENV: "production",
       APP_URL: "https://staging.cruush.app",
       REVIEWER_TEST_ACCOUNTS_ENABLED: "true",
-      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123",
-      PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD: "paymentpaytest"
+      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123"
     })).not.toThrow();
   });
 
@@ -177,8 +163,7 @@ describe("reviewer test account seeding", () => {
         NODE_ENV: "development",
         APP_URL: "https://cruush.test",
         REVIEWER_TEST_ACCOUNTS_ENABLED: "true",
-        REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123",
-        PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD: "paymentpaytest"
+        REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123"
       }
     });
 
@@ -187,13 +172,13 @@ describe("reviewer test account seeding", () => {
     const encryptedLocationCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_location_envelopes"));
     const encryptedPolicyCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"));
     const legacyPrivacyCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into user_privacy_settings"));
+    const conversationDeletes = query.mock.calls.filter(([sql]) => String(sql).toLowerCase().includes("delete from conversations"));
+    const fakeUserDeletes = query.mock.calls.filter(([sql]) => String(sql).toLowerCase().includes("delete from app_users"));
 
     expect(result.accountCount).toBe(REVIEWER_TEST_ACCOUNT_COUNT);
-    expect(result.accounts.map((account) => account.email)).toEqual([
-      "codeveloper-nyc@cruush.local",
-      "bank-reviewer-nyc@cruush.local",
-      "payment@cruush.local"
-    ]);
+    expect(result.accounts.map((account) => account.email)).toEqual(["codeveloper-nyc@cruush.local"]);
+    expect(result.accounts.map((account) => account.email)).not.toContain("bank-reviewer-nyc@cruush.local");
+    expect(result.accounts.map((account) => account.email)).not.toContain("payment@cruush.local");
     expect(userUpserts).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
     expect(profileUpserts).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
     expect(encryptedLocationCalls).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
@@ -206,42 +191,25 @@ describe("reviewer test account seeding", () => {
     expect(encryptedLocationParams).not.toContain("-74.0027");
     expect(encryptedLocationParams).not.toContain("40.7282");
     expect(encryptedLocationParams).not.toContain("-73.9942");
-    const userPasswordHashes = userUpserts.map(([, params]) => String(params?.[1] ?? ""));
-    expect(userPasswordHashes[0]).toBe(userPasswordHashes[1]);
-    expect(userPasswordHashes[2]).not.toBe(userPasswordHashes[0]);
-    expect(result).toHaveProperty("conversationFixtures", [
-      {
-        kind: "dm",
-        conversationId: "30000000-0000-4000-8000-000000000001",
-        memberEmails: ["bank-reviewer-nyc@cruush.local", "payment@cruush.local"]
-      },
-      {
-        kind: "group",
-        conversationId: "30000000-0000-4000-8000-000000000002",
-        title: "Bank/payment reviewer smoke group",
-        memberEmails: ["bank-reviewer-nyc@cruush.local", "payment@cruush.local"]
-      }
-    ]);
-    expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_relationship_records"))).toHaveLength(1);
-    expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_relationship_tokens"))).toHaveLength(1);
+    expect(result).toHaveProperty("conversationFixtures", []);
+    expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_relationship_records"))).toHaveLength(0);
+    expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_relationship_tokens"))).toHaveLength(0);
     const dmConversationUpserts = query.mock.calls.filter(([sql]) =>
       String(sql).includes("insert into conversations (kind, dm_key, created_by, disappearing_timer)")
     );
-    expect(dmConversationUpserts).toHaveLength(1);
-    expect(dmConversationUpserts[0]?.[1]).toEqual([
-      `${seededReviewerUserId(2)}:${seededReviewerUserId(3)}`,
-      seededReviewerUserId(2)
-    ]);
+    expect(dmConversationUpserts).toHaveLength(0);
     const groupConversationUpserts = query.mock.calls.filter(([sql]) =>
       String(sql).includes("insert into conversations (kind, title, tags, created_by, disappearing_timer)")
     );
-    expect(groupConversationUpserts).toHaveLength(1);
-    expect(groupConversationUpserts[0]?.[1]).toEqual([
-      "Bank/payment reviewer smoke group",
+    expect(groupConversationUpserts).toHaveLength(0);
+    expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase().includes("insert into messages"))).toBe(false);
+    expect(conversationDeletes).toHaveLength(1);
+    expect(conversationDeletes[0]?.[1]).toEqual([
       ["reviewer-test-fixture", "bank-payment-smoke"],
-      seededReviewerUserId(2),
-      "24h"
+      ["bank-reviewer-nyc@cruush.local", "payment@cruush.local"]
     ]);
+    expect(fakeUserDeletes).toHaveLength(1);
+    expect(fakeUserDeletes[0]?.[1]).toEqual([["bank-reviewer-nyc@cruush.local", "payment@cruush.local"]]);
     expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase() === "commit")).toBe(true);
   });
 });

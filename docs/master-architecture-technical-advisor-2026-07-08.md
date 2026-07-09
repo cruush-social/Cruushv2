@@ -173,7 +173,7 @@ Reviewer/codeveloper setup:
 
 - `codeveloper-nyc@cruush.local` is the internal codeveloper staging login.
 - Password comes from `REVIEWER_TEST_ACCOUNT_PASSWORD` and must be shared out of band.
-- Bank/payment reviewer fixture creates deterministic DM/group smoke paths for `bank-reviewer-nyc@cruush.local` and `payment@cruush.local`.
+- Bank/payment review must use real accounts created through the normal app flow. Do not seed fake bank/payment accounts, fake messages, fake mutual cruushes, fake DMs, or fake groups for bank review.
 
 Advisor review questions:
 

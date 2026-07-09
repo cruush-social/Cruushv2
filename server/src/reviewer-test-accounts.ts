@@ -4,21 +4,14 @@ import { hashPassword } from "./auth.js";
 import { loadConfig, type AppConfig } from "./config.js";
 import { createPool, type DbClient } from "./db.js";
 import { syncDevelopmentLocationPrivacy } from "./development-admin.js";
-import {
-  buildEncryptedRelationshipPayload,
-  getOrderedRelationshipUserIds,
-  issueEncryptedRelationshipToken,
-  upsertEncryptedRelationshipRecord
-} from "./encrypted-relationships.js";
-import { MATCH_PERMISSION_PURPOSE } from "./match-relationships.js";
 
-export const REVIEWER_TEST_ACCOUNT_COUNT = 3;
-const REVIEWER_TEST_GROUP_TITLE = "Bank/payment reviewer smoke group";
-const REVIEWER_TEST_GROUP_TAGS = ["reviewer-test-fixture", "bank-payment-smoke"];
-const MATCH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
-type ReviewerTestAccountPasswordConfigKey =
-  | "REVIEWER_TEST_ACCOUNT_PASSWORD"
-  | "PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD";
+export const REVIEWER_TEST_ACCOUNT_COUNT = 1;
+const LEGACY_BANK_PAYMENT_REVIEWER_EMAILS = [
+  "bank-reviewer-nyc@cruush.local",
+  "payment@cruush.local"
+];
+const LEGACY_BANK_PAYMENT_FIXTURE_TAGS = ["reviewer-test-fixture", "bank-payment-smoke"];
+type ReviewerTestAccountPasswordConfigKey = "REVIEWER_TEST_ACCOUNT_PASSWORD";
 
 type ReviewerSeedContext = {
   config: AppConfig;
@@ -44,7 +37,6 @@ export type ReviewerTestAccountSeedConfig = {
   APP_URL: string;
   REVIEWER_TEST_ACCOUNTS_ENABLED?: string | boolean;
   REVIEWER_TEST_ACCOUNT_PASSWORD?: string;
-  PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD?: string;
 };
 
 export type ReviewerTestAccount = {
@@ -95,10 +87,6 @@ export function assertReviewerTestAccountConfig(config: ReviewerTestAccountSeedC
     throw new Error("Set REVIEWER_TEST_ACCOUNT_PASSWORD to a non-empty password with at least 12 characters.");
   }
 
-  if ((config.PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD ?? "").trim().length < 12) {
-    throw new Error("Set PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD to a non-empty password with at least 12 characters.");
-  }
-
   if (config.NODE_ENV === "production" && !isStagingAppUrl(config.APP_URL)) {
     throw new Error("Refusing to seed reviewer test accounts on a production host. Use a staging APP_URL.");
   }
@@ -126,48 +114,6 @@ export function buildReviewerTestAccounts(now = new Date()): ReviewerTestAccount
       fuzzyLat: 40.7363,
       fuzzyLng: -73.9905,
       updatedAt: now
-    },
-    {
-      email: "bank-reviewer-nyc@cruush.local",
-      displayName: "bank reviewer",
-      passwordConfigKey: "REVIEWER_TEST_ACCOUNT_PASSWORD",
-      pronouns: ["they/them"],
-      yearOfBirth: 1991,
-      identities: ["Queer"],
-      presentation: ["Classic"],
-      sexuality: ["Queer"],
-      lookingFor: ["Testing", "Bank review"],
-      availability: ["This week"],
-      hostingTravel: ["Can Travel"],
-      vibes: ["NYC beta", "spoof location", "bank review"],
-      position: ["Versatile"],
-      role: [],
-      lat: 40.7336,
-      lng: -74.0027,
-      fuzzyLat: 40.7332,
-      fuzzyLng: -74.0031,
-      updatedAt: new Date(now.getTime() - 7 * 60 * 1000)
-    },
-    {
-      email: "payment@cruush.local",
-      displayName: "payment reviewer",
-      passwordConfigKey: "PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD",
-      pronouns: ["they/them"],
-      yearOfBirth: 1990,
-      identities: ["Queer"],
-      presentation: ["Classic"],
-      sexuality: ["Queer"],
-      lookingFor: ["Testing", "Payment review"],
-      availability: ["This week"],
-      hostingTravel: ["Can Travel"],
-      vibes: ["NYC beta", "spoof location", "payment review"],
-      position: ["Versatile"],
-      role: [],
-      lat: 40.7282,
-      lng: -73.9942,
-      fuzzyLat: 40.7286,
-      fuzzyLng: -73.9938,
-      updatedAt: new Date(now.getTime() - 14 * 60 * 1000)
     }
   ];
 }
@@ -284,151 +230,24 @@ async function upsertReviewerTestAccount(context: ReviewerSeedContext, account: 
   return userId;
 }
 
-function reviewerAccountByEmail(accounts: SeededReviewerAccount[], email: string) {
-  const account = accounts.find((candidate) => candidate.email === email);
-
-  if (!account) {
-    throw new Error(`Missing seeded reviewer account ${email}.`);
-  }
-
-  return account;
-}
-
-function getReviewerDmKey(firstUserId: string, secondUserId: string) {
-  return [firstUserId, secondUserId].sort().join(":");
-}
-
-async function ensureReviewerMutualMessagePermission(
-  context: ReviewerSeedContext,
-  firstUserId: string,
-  secondUserId: string
-) {
-  const [userOneId, userTwoId] = getOrderedRelationshipUserIds(firstUserId, secondUserId);
-  const match = await upsertEncryptedRelationshipRecord(context, buildEncryptedRelationshipPayload({
-    type: "mutual_cruush",
-    actorUserId: userOneId,
-    targetUserId: userTwoId,
-    createdAt: new Date(),
-    metadata: {
-      source: "reviewer-test-accounts"
-    }
-  }));
-
-  if (!match) {
-    throw new Error("Unable to create reviewer mutual cruush fixture.");
-  }
-
-  await issueEncryptedRelationshipToken(context, {
-    relationshipRecordId: match.id,
-    userOneId,
-    userTwoId,
-    purpose: MATCH_PERMISSION_PURPOSE,
-    expiresAt: new Date(Date.now() + MATCH_TOKEN_TTL_MS)
-  });
-}
-
-async function upsertReviewerDmFixture(
-  context: ReviewerSeedContext,
-  bankReviewer: SeededReviewerAccount,
-  paymentReviewer: SeededReviewerAccount
-): Promise<ReviewerConversationFixture> {
-  const dmKey = getReviewerDmKey(bankReviewer.userId, paymentReviewer.userId);
-  const result = await context.db.query<{ id: string }>(
-    `insert into conversations (kind, dm_key, created_by, disappearing_timer)
-     values ('dm', $1, $2, 'off')
-     on conflict (dm_key) do update
-     set updated_at = conversations.updated_at
-     returning id::text as id`,
-    [dmKey, bankReviewer.userId]
+async function purgeLegacyBankPaymentSeedData(context: ReviewerSeedContext) {
+  await context.db.query(
+    `delete from conversations
+     where tags @> $1::text[]
+        or id in (
+          select conversation_id
+          from conversation_members
+          join app_users on app_users.id = conversation_members.user_id
+          where app_users.email = any($2::text[])
+        )`,
+    [LEGACY_BANK_PAYMENT_FIXTURE_TAGS, LEGACY_BANK_PAYMENT_REVIEWER_EMAILS]
   );
-  const conversationId = result.rows[0]?.id;
-
-  if (!conversationId) {
-    throw new Error("Unable to create reviewer DM fixture.");
-  }
 
   await context.db.query(
-    `insert into conversation_members (conversation_id, user_id, role, last_read_at)
-     values ($1, $2, 'member', now()), ($1, $3, 'member', null)
-     on conflict (conversation_id, user_id) do update
-     set role = excluded.role`,
-    [conversationId, bankReviewer.userId, paymentReviewer.userId]
+    `delete from app_users
+     where email = any($1::text[])`,
+    [LEGACY_BANK_PAYMENT_REVIEWER_EMAILS]
   );
-
-  return {
-    kind: "dm",
-    conversationId,
-    memberEmails: [bankReviewer.email, paymentReviewer.email]
-  };
-}
-
-async function upsertReviewerGroupFixture(
-  context: ReviewerSeedContext,
-  bankReviewer: SeededReviewerAccount,
-  paymentReviewer: SeededReviewerAccount
-): Promise<ReviewerConversationFixture> {
-  const existingResult = await context.db.query<{ id: string }>(
-    `select id::text as id
-     from conversations
-     where kind = 'group'
-       and created_by = $1
-       and tags @> $2::text[]
-     limit 1`,
-    [bankReviewer.userId, REVIEWER_TEST_GROUP_TAGS]
-  );
-  const existingConversationId = existingResult.rows[0]?.id;
-  const result = existingConversationId
-    ? await context.db.query<{ id: string }>(
-      `update conversations
-       set title = $2,
-           tags = $3::text[],
-           disappearing_timer = $4,
-           updated_at = now()
-       where id = $1
-       returning id::text as id`,
-      [existingConversationId, REVIEWER_TEST_GROUP_TITLE, REVIEWER_TEST_GROUP_TAGS, "24h"]
-    )
-    : await context.db.query<{ id: string }>(
-      `insert into conversations (kind, title, tags, created_by, disappearing_timer)
-       values ('group', $1, $2::text[], $3, $4)
-       returning id::text as id`,
-      [REVIEWER_TEST_GROUP_TITLE, REVIEWER_TEST_GROUP_TAGS, bankReviewer.userId, "24h"]
-    );
-  const conversationId = result.rows[0]?.id;
-
-  if (!conversationId) {
-    throw new Error("Unable to create reviewer group fixture.");
-  }
-
-  await context.db.query(
-    `insert into conversation_members (conversation_id, user_id, role, last_read_at)
-     values ($1, $2, 'owner', now()), ($1, $3, 'member', null)
-     on conflict (conversation_id, user_id) do update
-     set role = excluded.role`,
-    [conversationId, bankReviewer.userId, paymentReviewer.userId]
-  );
-
-  return {
-    kind: "group",
-    conversationId,
-    title: REVIEWER_TEST_GROUP_TITLE,
-    memberEmails: [bankReviewer.email, paymentReviewer.email]
-  };
-}
-
-async function seedReviewerConversationFixtures(
-  context: ReviewerSeedContext,
-  accounts: SeededReviewerAccount[]
-) {
-  const bankReviewer = reviewerAccountByEmail(accounts, "bank-reviewer-nyc@cruush.local");
-  const paymentReviewer = reviewerAccountByEmail(accounts, "payment@cruush.local");
-
-  await ensureReviewerMutualMessagePermission(context, bankReviewer.userId, paymentReviewer.userId);
-
-  return [
-    await upsertReviewerDmFixture(context, bankReviewer, paymentReviewer),
-    await upsertReviewerGroupFixture(context, bankReviewer, paymentReviewer)
-  ];
 }
 
 export async function seedReviewerTestAccountsWithDb(context: ReviewerSeedContext) {
@@ -436,14 +255,15 @@ export async function seedReviewerTestAccountsWithDb(context: ReviewerSeedContex
 
   const accounts = buildReviewerTestAccounts();
   const passwordHashes: Record<ReviewerTestAccountPasswordConfigKey, string> = {
-    REVIEWER_TEST_ACCOUNT_PASSWORD: await hashPassword(context.seedConfig.REVIEWER_TEST_ACCOUNT_PASSWORD ?? ""),
-    PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD: await hashPassword(context.seedConfig.PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD ?? "")
+    REVIEWER_TEST_ACCOUNT_PASSWORD: await hashPassword(context.seedConfig.REVIEWER_TEST_ACCOUNT_PASSWORD ?? "")
   };
   const createdAccounts: Array<{ email: string; displayName: string; userId: string }> = [];
 
   await context.db.query("begin");
 
   try {
+    await purgeLegacyBankPaymentSeedData(context);
+
     for (const account of accounts) {
       const userId = await upsertReviewerTestAccount(context, account, passwordHashes[account.passwordConfigKey]);
       createdAccounts.push({
@@ -453,14 +273,12 @@ export async function seedReviewerTestAccountsWithDb(context: ReviewerSeedContex
       });
     }
 
-    const conversationFixtures = await seedReviewerConversationFixtures(context, createdAccounts);
-
     await context.db.query("commit");
 
     return {
       accountCount: accounts.length,
       accounts: createdAccounts,
-      conversationFixtures
+      conversationFixtures: [] satisfies ReviewerConversationFixture[]
     };
   } catch (error) {
     await context.db.query("rollback");
@@ -527,8 +345,7 @@ export function loadReviewerSeedContext() {
       NODE_ENV: config.NODE_ENV,
       APP_URL: config.APP_URL,
       REVIEWER_TEST_ACCOUNTS_ENABLED: serverEnv.REVIEWER_TEST_ACCOUNTS_ENABLED,
-      REVIEWER_TEST_ACCOUNT_PASSWORD: serverEnv.REVIEWER_TEST_ACCOUNT_PASSWORD,
-      PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD: serverEnv.PAYMENT_REVIEWER_TEST_ACCOUNT_PASSWORD
+      REVIEWER_TEST_ACCOUNT_PASSWORD: serverEnv.REVIEWER_TEST_ACCOUNT_PASSWORD
     }
   };
 }
@@ -548,7 +365,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     const result = await seedReviewerTestAccounts();
     console.log(
-      `Seeded ${result.accountCount} reviewer accounts and ${result.conversationFixtures.length} conversation fixtures: ` +
+      `Seeded ${result.accountCount} internal reviewer account and ${result.conversationFixtures.length} bank/payment fixtures: ` +
       `${result.accounts.map((account) => account.email).join(", ")}.`
     );
   } catch (error) {
