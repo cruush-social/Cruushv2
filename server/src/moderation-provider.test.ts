@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createModerationProvider, MockModerationProvider } from "./moderation-provider.js";
+import {
+  createModerationProvider,
+  MockModerationProvider,
+  normalizeStreamLabel,
+  streamLabelsFromResponse
+} from "./moderation-provider.js";
 
 describe("moderation provider", () => {
   it("allows safe queer and dating profile language", async () => {
@@ -69,6 +74,52 @@ describe("moderation provider", () => {
       expect.objectContaining({
         normalized_label: "adult_human_body"
       })
+    ]));
+  });
+
+  it("requires an explicit adult signal before treating a person as adult-human proof", () => {
+    expect(normalizeStreamLabel("person")).toBeNull();
+    expect(normalizeStreamLabel("portrait")).toBeNull();
+    expect(normalizeStreamLabel("adult person")).toBe("adult_human_body");
+    expect(normalizeStreamLabel("adult body part")).toBe("adult_human_body");
+    expect(normalizeStreamLabel("adult face")).toBe("adult_human_body");
+  });
+
+  it("never lets adult or nudity words override child and minor labels", () => {
+    expect(normalizeStreamLabel("child person")).toBe("underage_sexual");
+    expect(normalizeStreamLabel("minor portrait nudity")).toBe("underage_sexual");
+    expect(normalizeStreamLabel("underage adult body")).toBe("underage_sexual");
+  });
+
+  it("rejects age-ambiguous teen profile-photo labels without treating them as adult proof", () => {
+    expect(normalizeStreamLabel("teen portrait")).toBe("profile_photo_not_adult_human");
+    expect(normalizeStreamLabel("young-looking person")).toBe("profile_photo_not_adult_human");
+  });
+
+  it("preserves child and minor signals nested in Stream image results", () => {
+    const labels = streamLabelsFromResponse({
+      recommended_action: "remove",
+      item: {
+        flags: [{
+          type: "image_moderation",
+          result: [{
+            subject: {
+              age_group: "child",
+              content: "person"
+            }
+          }]
+        }]
+      }
+    });
+
+    expect(labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        normalized_label: "underage_sexual",
+        severity: "high"
+      })
+    ]));
+    expect(labels).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ normalized_label: "adult_human_body" })
     ]));
   });
 

@@ -327,9 +327,10 @@ describe('ProfileEdit', () => {
 
     expect(screen.getByText(/Photos need to be of you only/i)).toBeInTheDocument();
     expect(screen.getByText(/No group photos, pets, memes, screenshots, or objects/i)).toBeInTheDocument();
-    expect(screen.queryByText(/face is optional/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/naked/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/body part/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/you must be 18 or older/i)).toBeInTheDocument();
+    expect(screen.getByText(/face is optional/i)).toBeInTheDocument();
+    expect(screen.getByText(/naked or clothed/i)).toBeInTheDocument();
+    expect(screen.getByText(/any clearly adult human body part/i)).toBeInTheDocument();
   });
 
   it('formats profile photo rejection reasons', () => {

@@ -4684,6 +4684,66 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(true);
   });
 
+  it.each([
+    "adult-human-clothed-face.png",
+    "adult-human-nude-face.png",
+    "adult-human-clothed-body-part.png",
+    "adult-human-nude-body-part.png"
+  ])("accepts an age-confirmed human profile photo across face, body-part, clothed, and nude variants: %s", async (filename) => {
+    query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
+      rows: String(_sql).includes("select photos from profiles")
+        ? [{ photos: [] }]
+        : [{ photos: [params[1]] }]
+    }));
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename,
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into media_objects"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into profiles"))).toBe(true);
+  });
+
+  it("rejects a profile photo when underage and adult-human labels conflict", async () => {
+    query.mockResolvedValue({ rows: [{ photos: [] }] });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "underage-adult-human-profile.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+  });
+
   it("creates a CSAM incident, preserves encrypted evidence, and locks the account on a PhotoDNA profile-photo match", async () => {
     const csamApp = buildCsamTestApp();
     const fetchMock = mockPhotoDnaMatchAndAlert();
@@ -4943,6 +5003,57 @@ describe("server", () => {
         details: null
       }
     });
+  });
+
+  it("rejects a profile photo whose declared MIME type does not match its bytes", async () => {
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-profile.png",
+      contentType: "image/png",
+      content: Buffer.from([0xff, 0xd8, 0xff, 0x00])
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Profile photo content does not match its image type.",
+        details: null
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("requires authentication before accepting a profile photo", async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-profile.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("rejects oversized profile photo uploads", async () => {
