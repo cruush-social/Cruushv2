@@ -565,6 +565,43 @@ describe('MapView', () => {
     expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument();
   });
 
+  it('clears the loading state when the raster fallback renders before load fires', async () => {
+    vi.useFakeTimers();
+
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[]}
+      />
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      mapInstances[0].trigger('render');
+      vi.advanceTimersByTime(4500);
+    });
+
+    expect(MockMap.calls).toHaveLength(2);
+    expect(screen.getByText(/Loading NYC map/i)).toBeInTheDocument();
+
+    act(() => {
+      mapInstances[1].trigger('render');
+      vi.advanceTimersByTime(1199);
+    });
+
+    expect(screen.getByText(/Loading NYC map/i)).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument();
+  });
+
   it('does not show the map error banner for nonfatal tile errors after load', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
