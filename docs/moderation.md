@@ -69,7 +69,10 @@ Rejected before save/publish:
 - Feed posts with adult explicit labels, PnP/chemsex discussion, drug sales, hate, threats, harassment, doxxing, location privacy abuse, scams, spam, commercial sex solicitation, non-consensual sexual content, minor/CSAM references, bestiality, revenge porn, or gore.
 - Profile and message content with zero-tolerance labels such as minor/CSAM references, bestiality, revenge porn, credible threats, or drug sales.
 - Profile photos that Stream or later PhotoDNA cannot approve.
-- Profile photos that do not have positive adult-human/body proof from the image moderation provider. A silent image moderation allow is not enough for profile photos.
+- Profile photos that do not have explicit adult-human/body proof from the image moderation provider. A generic `person`, `portrait`, nudity label, or silent image moderation allow is not enough.
+- Profile photos with child, minor, underage, teen, young-looking, or otherwise age-ambiguous signals. Child/minor signals take precedence over adult or nudity labels.
+
+Allowed profile-photo framing includes a clothed or nude adult human, with or without a face, including a clearly adult human body part. The photo still has to be of the uploader only.
 
 If Stream is unavailable, partial, pending, or returns an error, content is not saved. The request fails closed with `MODERATION_UNAVAILABLE`.
 
@@ -98,6 +101,8 @@ In Stream dashboard:
 7. For profile image moderation, reject anything that is not confidently a photo of the uploader. cruush expects a positive adult-human/body signal and rejects profile photos when the provider is silent.
 8. Configure non-human/abstract/object/logo/animal/cartoon/screenshot/image-without-person outcomes to remove or return labels such as `non_human`, `no_person`, `object`, `abstract`, `gradient`, `logo`, or equivalent.
 9. PhotoDNA must be enabled with the verified Microsoft operation path before bank/payment-processor staging review.
+
+Stream image checks require an internet-accessible image URL. The current authenticated profile-media URL is not provider-readable before the upload is stored, so production Stream image uploads remain a fail-closed integration gate: add a short-lived provider-readable URL before relying on this path for successful profile-photo uploads. Do not make the encrypted media bucket public.
 
 ## Open Beta Storage Direction
 
