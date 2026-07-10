@@ -436,7 +436,7 @@ function severityFromStream(value: unknown, fallback: ProviderLabel["severity"] 
   return fallback;
 }
 
-function normalizeStreamLabel(label: string): NormalizedModerationLabel | null {
+export function normalizeStreamLabel(label: string): NormalizedModerationLabel | null {
   const normalized = label
     .toLowerCase()
     .replace(/[_-]+/g, " ")
@@ -447,16 +447,23 @@ function normalizeStreamLabel(label: string): NormalizedModerationLabel | null {
     return null;
   }
 
+  if (/\b(?:csam|child|children|minor|minors|underage|sexual minor)\b/i.test(normalized)) {
+    return "underage_sexual";
+  }
+
+  if (/\b(?:teen|teenager|young looking|youthful|age ambiguous|ambiguous age)\b/i.test(normalized)) {
+    return "profile_photo_not_adult_human";
+  }
+
   if (/\b(?:group photo|group image|multiple people|more than one person|crowd|no human|non human|not human|no person|no people|animal|object|landscape|abstract|gradient|logo|text only|screenshot|cartoon|drawing|illustration)\b/i.test(normalized)) {
     return "profile_photo_not_adult_human";
   }
 
-  if (/\b(?:adult human|human body|adult body|body part|body parts|person|face|torso|chest|abdomen|arm|arms|forearm|forearms|hand|hands|leg|legs|limb|limbs|thigh|thighs|calf|calves|foot|feet|shoulder|shoulders|back|waist|hip|hips|skin|portrait)\b/i.test(normalized)) {
-    return "adult_human_body";
-  }
+  const adultSignal = /\b(?:adult|18\+|over 18|18 or older)\b/i;
+  const humanSignal = /\b(?:human|person|face|body|body part|body parts|torso|chest|abdomen|arm|arms|forearm|forearms|hand|hands|leg|legs|limb|limbs|thigh|thighs|calf|calves|foot|feet|shoulder|shoulders|back|waist|hip|hips|skin|portrait)\b/i;
 
-  if (/(csam|child|minor|underage|teen sexual|sexual minor)/i.test(normalized)) {
-    return "underage_sexual";
+  if (adultSignal.test(normalized) && humanSignal.test(normalized)) {
+    return "adult_human_body";
   }
 
   if (/(non consensual|non-consensual|revenge|sexual exploitation|intimate image abuse)/i.test(normalized)) {
@@ -516,7 +523,7 @@ function normalizeStreamLabel(label: string): NormalizedModerationLabel | null {
   return null;
 }
 
-function streamLabelsFromResponse(response: StreamCheckResponse): ProviderLabel[] {
+export function streamLabelsFromResponse(response: StreamCheckResponse): ProviderLabel[] {
   const recommendedAction = response.recommended_action?.toLowerCase();
   const fallbackSeverity = severityFromStream(
     response.item?.ai_text_severity ?? response.item?.severity,
@@ -527,7 +534,7 @@ function streamLabelsFromResponse(response: StreamCheckResponse): ProviderLabel[
   for (const flag of response.item?.flags ?? []) {
     const rawLabels = [
       ...(flag.labels ?? []),
-      ...((flag.result ?? []).flatMap((result) => Object.values(result).map(String))),
+      ...stringsFromUnknown(flag.result),
       ...stringsFromUnknown(flag.custom),
       flag.type,
       flag.reason
