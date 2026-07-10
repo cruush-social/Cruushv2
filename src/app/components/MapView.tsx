@@ -669,6 +669,7 @@ function MapView({
   const hasAppliedAutoFitRef = useRef(false);
   const onPinClickRef = useRef(onPinClick);
   const onMapClickRef = useRef(onMapClick);
+  const onMapReadyRef = useRef(onMapReady);
   const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
@@ -700,6 +701,10 @@ function MapView({
   useEffect(() => {
     onMapClickRef.current = onMapClick;
   }, [onMapClick]);
+
+  useEffect(() => {
+    onMapReadyRef.current = onMapReady;
+  }, [onMapReady]);
 
   useEffect(() => {
     viewportMarkersRef.current = markers.filter(isMapMarker);
@@ -841,7 +846,7 @@ function MapView({
           setMapLoadStatus('error');
           setMapError(MAP_ERROR_MESSAGE);
         });
-        onMapReady?.(map);
+        onMapReadyRef.current?.(map);
       };
 
       try {
@@ -873,7 +878,7 @@ function MapView({
       mapRef.current = null;
       setMapInstance(null);
     };
-  }, [mapStyle, onMapReady]);
+  }, [mapStyle]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

@@ -189,6 +189,39 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-1').querySelector('filter')).toBeNull();
   });
 
+  it('does not recreate the map when the onMapReady callback identity changes', async () => {
+    const firstOnMapReady = vi.fn();
+    const secondOnMapReady = vi.fn();
+    const onPinClick = vi.fn();
+    const { rerender } = render(
+      <MapView
+        onMapReady={firstOnMapReady}
+        onPinClick={onPinClick}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
+    expect(firstOnMapReady).toHaveBeenCalledWith(mapInstances[0]);
+
+    rerender(
+      <MapView
+        onMapReady={secondOnMapReady}
+        onPinClick={onPinClick}
+        markers={[]}
+      />
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(MockMap.calls).toHaveLength(1);
+    expect(mapInstances[0].remove).not.toHaveBeenCalled();
+    expect(secondOnMapReady).not.toHaveBeenCalled();
+  });
+
   it('fits the discovery marker set when requested', async () => {
     render(
       <MapView
