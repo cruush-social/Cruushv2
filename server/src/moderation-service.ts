@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
-import { shouldModerateMessageTextWithProvider } from "./message-keyword-prefilter.js";
+import {
+  containsBlockedRacialSlur,
+  prepareTextForModerationProvider,
+  shouldModerateMessageTextWithProvider
+} from "./message-keyword-prefilter.js";
 import { createModerationProvider } from "./moderation-provider.js";
 import type {
   ModerationContentType,
@@ -347,8 +351,25 @@ async function handlePolicyDecision(
 }
 
 export async function moderateTextOrReject(app: FastifyInstance, input: ModerateTextInput) {
-  const provider = createModerationProvider(app.config);
-  const providerResult = await provider.moderateText(input);
+  const providerResult: ProviderModerationResult = containsBlockedRacialSlur(input.text)
+    ? {
+        provider: "local_text_policy",
+        provider_request_id: "local-text-policy-blocked-racial-slur",
+        labels: [{
+          provider_label: "blocked_hard_r_racial_slur",
+          normalized_label: "hate_speech",
+          confidence: 1,
+          severity: "high"
+        }],
+        latency_ms: 0,
+        raw_result: {
+          matchedCategories: ["hate_or_extremism"]
+        }
+      }
+    : await createModerationProvider(app.config).moderateText({
+        ...input,
+        text: prepareTextForModerationProvider(input.text)
+      });
   const decision = mapProviderResultToPolicy({
     surface: input.surface,
     contentType: "text",

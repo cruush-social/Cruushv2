@@ -13,6 +13,27 @@ function normalizeMessageText(text: string) {
     .trim();
 }
 
+const blockedRacialSlurPattern = /(?:^|[^a-z0-9])n[\W_]*[i1!|][\W_]*[g69q][\W_]*[g69q][\W_]*[e3][\W_]*r(?:s)?(?=$|[^a-z0-9])/i;
+
+export function containsBlockedRacialSlur(text: string) {
+  return blockedRacialSlurPattern.test(text.normalize("NFKC"));
+}
+
+export function prepareTextForModerationProvider(text: string) {
+  return text
+    .replace(/\bfaggots?\b/gi, (match) => match.toLowerCase().endsWith("s") ? "gay people" : "gay person")
+    .replace(/\bfags?\b/gi, (match) => match.toLowerCase().endsWith("s") ? "gay people" : "gay person")
+    .replace(/\btrann(?:y|ies)\b/gi, (match) => match.toLowerCase().endsWith("ies") ? "trans people" : "trans person")
+    .replace(/\bniggas?\b/gi, (match) => match.toLowerCase().endsWith("s") ? "Black people" : "Black person")
+    .replace(/\bdykes?\b/gi, (match) => match.toLowerCase().endsWith("s") ? "lesbian people" : "lesbian person")
+    .replace(/\bqueers?\b/gi, (match) => match.toLowerCase().endsWith("s") ? "LGBTQ people" : "LGBTQ person")
+    .replace(/\bhomos?\b/gi, (match) => match.toLowerCase().endsWith("s") ? "gay people" : "gay person")
+    .replace(/\bshemales?\b/gi, (match) => match.toLowerCase().endsWith("s") ? "trans people" : "trans person")
+    .replace(/\blesbos?\b/gi, (match) => match.toLowerCase().endsWith("s") ? "lesbian people" : "lesbian person")
+    .replace(/\b(?:motherfuckers?|fuck(?:ed|ers?|ing|s)?|shit(?:s|ty|ting)?|bitch(?:es)?|cunts?|sluts?|whores?|assholes?|dumbass(?:es)?|jackass(?:es)?|bastards?|bullshit|douches?|pricks?|twats?|wankers?|ass|crap|goddamn|damn)\b/gi, "expletive")
+    .replace(/\b(?:dicks?|cocks?|pussy|pussies)\b/gi, "body");
+}
+
 const severeSafetyMessageRules: MessageKeywordRule[] = [
   {
     category: "minor_safety",
@@ -76,8 +97,15 @@ const severeSafetyMessageRules: MessageKeywordRule[] = [
   {
     category: "hate_or_extremism",
     patterns: [
+      blockedRacialSlurPattern,
       /\b(?:hate speech|hate group|supremacist|nazi|kkk)\b/i,
       /\b(?:kill all|wipe out)\b.{0,40}\b(?:queer|trans|gay|lesbian|people)\b/i
+    ]
+  },
+  {
+    category: "contextual_slur_review",
+    patterns: [
+      /\b(?:faggots?|fags?|trann(?:y|ies)|niggas?|dykes?|homos?|shemales?|lesbos?)\b/i
     ]
   },
   {
@@ -91,6 +119,8 @@ const severeSafetyMessageRules: MessageKeywordRule[] = [
 
 export function shouldModerateMessageTextWithProvider(text: string) {
   const normalizedText = normalizeMessageText(text);
+  const providerText = prepareTextForModerationProvider(text);
+  const normalizedProviderText = normalizeMessageText(providerText);
 
   if (!normalizedText) {
     return {
@@ -100,7 +130,12 @@ export function shouldModerateMessageTextWithProvider(text: string) {
   }
 
   const matchedCategories = severeSafetyMessageRules
-    .filter((rule) => rule.patterns.some((pattern) => pattern.test(text) || pattern.test(normalizedText)))
+    .filter((rule) => rule.patterns.some((pattern) =>
+      pattern.test(text) ||
+      pattern.test(normalizedText) ||
+      pattern.test(providerText) ||
+      pattern.test(normalizedProviderText)
+    ))
     .map((rule) => rule.category);
 
   return {
