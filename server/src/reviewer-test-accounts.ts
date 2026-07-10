@@ -5,13 +5,13 @@ import { loadConfig, type AppConfig } from "./config.js";
 import { createPool, type DbClient } from "./db.js";
 import { syncDevelopmentLocationPrivacy } from "./development-admin.js";
 
-export const REVIEWER_TEST_ACCOUNT_COUNT = 1;
-const LEGACY_BANK_PAYMENT_REVIEWER_EMAILS = [
-  "bank-reviewer-nyc@cruush.local",
+export const REVIEWER_TEST_ACCOUNT_COUNT = 2;
+const BANK_REVIEWER_NYC_EMAIL = "bank-reviewer-nyc@cruush.local";
+const LEGACY_PAYMENT_REVIEWER_EMAILS = [
   "payment@cruush.local"
 ];
 const LEGACY_BANK_PAYMENT_FIXTURE_TAGS = ["reviewer-test-fixture", "bank-payment-smoke"];
-type ReviewerTestAccountPasswordConfigKey = "REVIEWER_TEST_ACCOUNT_PASSWORD";
+type ReviewerTestAccountPasswordConfigKey = "REVIEWER_TEST_ACCOUNT_PASSWORD" | "BANK_REVIEWER_ACCOUNT_PASSWORD";
 
 type ReviewerSeedContext = {
   config: AppConfig;
@@ -37,6 +37,7 @@ export type ReviewerTestAccountSeedConfig = {
   APP_URL: string;
   REVIEWER_TEST_ACCOUNTS_ENABLED?: string | boolean;
   REVIEWER_TEST_ACCOUNT_PASSWORD?: string;
+  BANK_REVIEWER_ACCOUNT_PASSWORD?: string;
 };
 
 export type ReviewerTestAccount = {
@@ -87,6 +88,10 @@ export function assertReviewerTestAccountConfig(config: ReviewerTestAccountSeedC
     throw new Error("Set REVIEWER_TEST_ACCOUNT_PASSWORD to a non-empty password with at least 12 characters.");
   }
 
+  if ((config.BANK_REVIEWER_ACCOUNT_PASSWORD ?? "").trim().length < 12) {
+    throw new Error("Set BANK_REVIEWER_ACCOUNT_PASSWORD to a non-empty password with at least 12 characters.");
+  }
+
   if (config.NODE_ENV === "production" && !isStagingAppUrl(config.APP_URL)) {
     throw new Error("Refusing to seed reviewer test accounts on a production host. Use a staging APP_URL.");
   }
@@ -113,6 +118,27 @@ export function buildReviewerTestAccounts(now = new Date()): ReviewerTestAccount
       lng: -73.9911,
       fuzzyLat: 40.7363,
       fuzzyLng: -73.9905,
+      updatedAt: now
+    },
+    {
+      email: BANK_REVIEWER_NYC_EMAIL,
+      displayName: "bank nyc review",
+      passwordConfigKey: "BANK_REVIEWER_ACCOUNT_PASSWORD",
+      pronouns: ["they/them"],
+      yearOfBirth: 1994,
+      identities: [],
+      presentation: [],
+      sexuality: [],
+      lookingFor: [],
+      availability: [],
+      hostingTravel: [],
+      vibes: ["NYC review"],
+      position: [],
+      role: [],
+      lat: 40.7336,
+      lng: -74.0027,
+      fuzzyLat: 40.7339,
+      fuzzyLng: -74.0022,
       updatedAt: now
     }
   ];
@@ -240,13 +266,13 @@ async function purgeLegacyBankPaymentSeedData(context: ReviewerSeedContext) {
           join app_users on app_users.id = conversation_members.user_id
           where app_users.email = any($2::text[])
         )`,
-    [LEGACY_BANK_PAYMENT_FIXTURE_TAGS, LEGACY_BANK_PAYMENT_REVIEWER_EMAILS]
+    [LEGACY_BANK_PAYMENT_FIXTURE_TAGS, LEGACY_PAYMENT_REVIEWER_EMAILS]
   );
 
   await context.db.query(
     `delete from app_users
      where email = any($1::text[])`,
-    [LEGACY_BANK_PAYMENT_REVIEWER_EMAILS]
+    [LEGACY_PAYMENT_REVIEWER_EMAILS]
   );
 }
 
@@ -255,7 +281,8 @@ export async function seedReviewerTestAccountsWithDb(context: ReviewerSeedContex
 
   const accounts = buildReviewerTestAccounts();
   const passwordHashes: Record<ReviewerTestAccountPasswordConfigKey, string> = {
-    REVIEWER_TEST_ACCOUNT_PASSWORD: await hashPassword(context.seedConfig.REVIEWER_TEST_ACCOUNT_PASSWORD ?? "")
+    REVIEWER_TEST_ACCOUNT_PASSWORD: await hashPassword(context.seedConfig.REVIEWER_TEST_ACCOUNT_PASSWORD ?? ""),
+    BANK_REVIEWER_ACCOUNT_PASSWORD: await hashPassword(context.seedConfig.BANK_REVIEWER_ACCOUNT_PASSWORD ?? "")
   };
   const createdAccounts: Array<{ email: string; displayName: string; userId: string }> = [];
 
@@ -345,7 +372,8 @@ export function loadReviewerSeedContext() {
       NODE_ENV: config.NODE_ENV,
       APP_URL: config.APP_URL,
       REVIEWER_TEST_ACCOUNTS_ENABLED: serverEnv.REVIEWER_TEST_ACCOUNTS_ENABLED,
-      REVIEWER_TEST_ACCOUNT_PASSWORD: serverEnv.REVIEWER_TEST_ACCOUNT_PASSWORD
+      REVIEWER_TEST_ACCOUNT_PASSWORD: serverEnv.REVIEWER_TEST_ACCOUNT_PASSWORD,
+      BANK_REVIEWER_ACCOUNT_PASSWORD: serverEnv.BANK_REVIEWER_ACCOUNT_PASSWORD
     }
   };
 }
@@ -365,7 +393,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     const result = await seedReviewerTestAccounts();
     console.log(
-      `Seeded ${result.accountCount} internal reviewer account and ${result.conversationFixtures.length} bank/payment fixtures: ` +
+      `Seeded ${result.accountCount} reviewer accounts and ${result.conversationFixtures.length} bank/payment fixtures: ` +
       `${result.accounts.map((account) => account.email).join(", ")}.`
     );
   } catch (error) {

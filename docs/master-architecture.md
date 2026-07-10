@@ -775,8 +775,9 @@ Important files:
 
 Bank reviewer path:
 
-- Founder can provide a verified login.
+- Founder can provide `bank-reviewer-nyc@cruush.local` as a verified NYC-location login.
 - Bank reviewers may also create a real account if staging signup, email, and captcha are configured.
+- Do not prefill fake bank-review photos, messages, DMs, mutual cruushes, groups, or payment fixtures.
 - Staging signup must be reliable before bank review.
 
 ## Profiles And Discovery

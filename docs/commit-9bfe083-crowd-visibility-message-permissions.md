@@ -104,12 +104,14 @@ Checked on 2026-07-08 at about 23:24 UTC:
 
 Superseded on 2026-07-09: bank/payment review must use real accounts created through the normal app flow. Do not use seeded bank/payment reviewer accounts, fake messages, fake mutual cruushes, fake DMs, or fake groups. The reviewer-account seeder now only maintains the internal codeveloper account and removes legacy bank/payment seed artifacts.
 
+Superseded again on 2026-07-10: bank/payment review can use `bank-reviewer-nyc@cruush.local` as a bank-only NYC-location auth/profile/location shell. Do not seed fake messages, fake photos, fake mutual cruushes, fake DMs, fake groups, or fake payment fixtures.
+
 The commit itself is ready for staging review, and the public staging surfaces are online.
 
 Do not treat the full bank/payment-processor smoke as complete until these checks are rerun on staging:
 
 - Confirm staging is serving commit `9bfe083` on both frontend and API paths.
-- Create or use real bank/payment reviewer accounts through the normal app flow.
+- Use `bank-reviewer-nyc@cruush.local` when the bank needs a ready NYC-location account, or create a real account through the normal app flow.
 - Send DMs and create groups only during review with real tester-owned accounts.
 - Smoke the visibility menu and map Crowd Mode notice with an account that has crowd memberships.
 - Confirm profile photo upload acceptance/rejection manually; this was previously the top unresolved bank-readiness proof.
@@ -120,7 +122,7 @@ Do not treat the full bank/payment-processor smoke as complete until these check
 Use `docs/nyc-reviewer-test-logins.md` as the source of truth.
 
 - Codeveloper email: `codeveloper-nyc@cruush.local`
-- Bank/payment reviewers must use real accounts created through the normal app flow.
+- Bank/payment reviewers can use `bank-reviewer-nyc@cruush.local` when they need a ready NYC-location account.
 - `codeveloper-nyc@cruush.local` uses `REVIEWER_TEST_ACCOUNT_PASSWORD` and is internal-only.
 
 Do not paste reviewer passwords into docs or chat. Share the actual internal password values out of band.

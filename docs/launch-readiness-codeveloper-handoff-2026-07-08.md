@@ -17,10 +17,14 @@ This handoff is for staging launch readiness and codeveloper onboarding. Do not 
 
 - Codeveloper staging login email: `codeveloper-nyc@cruush.local`
 - Password is controlled by `REVIEWER_TEST_ACCOUNT_PASSWORD` and must be shared out of band.
+- Bank-only staging login email: `bank-reviewer-nyc@cruush.local`
+- Bank password is controlled by `BANK_REVIEWER_ACCOUNT_PASSWORD` and must be shared out of band.
+- The bank account has a saved NYC location but no seeded photos, messages, DMs, mutual cruushes, groups, or payment fixtures.
 - Never paste reviewer passwords, Stream secrets, database URLs, R2/S3 secrets, Resend keys, session secrets, or encryption keys into docs or chat.
 - Refresh the internal codeveloper account from the API container only after staging env confirms:
   - `REVIEWER_TEST_ACCOUNTS_ENABLED=true`
   - `REVIEWER_TEST_ACCOUNT_PASSWORD` is present
+  - `BANK_REVIEWER_ACCOUNT_PASSWORD` is present
   - `APP_URL=https://staging.cruush.app`
 
 Run:
@@ -32,10 +36,10 @@ npm run seed:reviewer-accounts
 Expected success includes:
 
 ```text
-Seeded 1 internal reviewer account and 0 bank/payment fixtures
+Seeded 2 reviewer accounts and 0 bank/payment fixtures
 ```
 
-See `docs/nyc-reviewer-test-logins.md` for the account split. Bank/payment review must use real accounts created through the normal app flow, with no fake profiles, fake messages, fake DMs, or fake groups.
+See `docs/nyc-reviewer-test-logins.md` for the account split. Bank/payment review can use the bank-only NYC account, with no fake profiles, fake messages, fake DMs, fake mutual cruushes, or fake groups.
 
 ## Launch Readiness Checklist
 
@@ -56,8 +60,8 @@ See `docs/nyc-reviewer-test-logins.md` for the account split. Bank/payment revie
   - `https://api-staging.cruush.app/api/meta` returns 200
   - `https://staging.cruush.app/` loads
 - Bank/payment smoke:
-  - Create or use real bank reviewer accounts through the normal app flow.
-  - Do not use seeded/local email accounts for bank review.
+  - Use `bank-reviewer-nyc@cruush.local` when the bank needs a ready NYC-location account.
+  - Do not use the codeveloper account or development admin account for bank review.
   - Do not pre-create fake messages, fake mutual cruushes, fake DMs, fake groups, or fake profile data.
   - Test DM and group behavior only with real tester-owned accounts and actions created during the review.
 - Product smoke:

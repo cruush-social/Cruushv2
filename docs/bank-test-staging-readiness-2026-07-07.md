@@ -94,12 +94,12 @@ The PhotoDNA keys were visible in a screenshot during setup. Rotate them before 
 
 ## Bank Test Account Plan
 
-Use real accounts created through the normal app flow. Do not seed fake bank/payment accounts or pre-create fake bank-review messages, DMs, mutual cruushes, groups, profile photos, or profile data.
+Use `bank-reviewer-nyc@cruush.local` when the bank needs a ready NYC-location account. The account must stay an auth/profile/location shell only: do not pre-create fake bank-review messages, DMs, mutual cruushes, groups, profile photos, or payment fixtures.
 
 Minimum bank smoke script:
 
 1. Open `https://staging.cruush.app`.
-2. Create or use a real bank reviewer account through signup or another normal production-path account creation flow. See `docs/nyc-reviewer-test-logins.md` for the rule separating bank review from the internal codeveloper login.
+2. Sign in with `bank-reviewer-nyc@cruush.local` if the bank needs a ready NYC-location account. See `docs/nyc-reviewer-test-logins.md` for the password env var and the rule separating bank review from the internal codeveloper login.
 3. Confirm signup/login works with Turnstile and email verification behavior expected for staging.
 4. Edit profile basics and bio with allowed text.
 5. Attempt a public/profile banned term on the disposable account and verify the write is rejected.
@@ -121,7 +121,7 @@ Minimum bank smoke script:
 4. Run banned feed/profile coded-language tests only on that disposable account.
 5. Verify feed post delete on the bank reviewer account now that `DELETE /api/posts/:postId` is deployed.
 6. Add frontend helpers and UI for group remove member, demote admin, close group, rename group, member management, and disappearing timer controls.
-7. Do not use the reviewer-account seeder for bank/payment smoke tests; DM/group smoke tests must use real tester-owned accounts and review-time actions.
+7. Use the reviewer-account seeder only to create auth/profile/location shells; DM/group smoke tests must use real tester-owned accounts and review-time actions.
 8. Update or verify the PhotoDNA adapter before enabling `PHOTODNA_ENABLED=true`.
 9. Keep PhotoDNA disabled until that adapter verification passes.
 10. Add an automated bank smoke-test checklist or script that can be rerun before every staging review.

@@ -49,13 +49,12 @@ function seededReviewerUserId(index: number) {
 }
 
 describe("reviewer test account seeding", () => {
-  it("builds only the internal codeveloper NYC account and no bank/payment reviewer accounts", () => {
+  it("builds internal codeveloper and bank-only NYC accounts without payment fixtures", () => {
     const accounts = buildReviewerTestAccounts(new Date("2026-07-07T12:00:00.000Z"));
     const emails = accounts.map((account) => account.email);
 
     expect(accounts).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
-    expect(emails).toEqual(["codeveloper-nyc@cruush.local"]);
-    expect(emails).not.toContain("bank-reviewer-nyc@cruush.local");
+    expect(emails).toEqual(["codeveloper-nyc@cruush.local", "bank-reviewer-nyc@cruush.local"]);
     expect(emails).not.toContain("payment@cruush.local");
     expect(accounts.every((account) => account.lat >= 40.35 && account.lat <= 41.08)).toBe(true);
     expect(accounts.every((account) => account.lng >= -74.65 && account.lng <= -73.45)).toBe(true);
@@ -66,14 +65,22 @@ describe("reviewer test account seeding", () => {
       passwordConfigKey: "REVIEWER_TEST_ACCOUNT_PASSWORD",
       vibes: expect.arrayContaining(["NYC beta", "spoof location", "codeveloper"])
     });
+    expect(accounts[1]).toMatchObject({
+      displayName: "bank nyc review",
+      passwordConfigKey: "BANK_REVIEWER_ACCOUNT_PASSWORD",
+      vibes: ["NYC review"]
+    });
+    expect(accounts[1]).not.toHaveProperty("photos");
+    expect(accounts[1].vibes).not.toContain("codeveloper");
   });
 
-  it("requires an explicit enabled flag and internal codeveloper password, and refuses the public production host", () => {
+  it("requires explicit enabled flag plus codeveloper and bank passwords, and refuses the public production host", () => {
     expect(() => assertReviewerTestAccountConfig({
       NODE_ENV: "development",
       APP_URL: "https://cruush.test",
       REVIEWER_TEST_ACCOUNTS_ENABLED: "false",
-      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123"
+      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123",
+      BANK_REVIEWER_ACCOUNT_PASSWORD: "bank-password-123"
     })).toThrow(/REVIEWER_TEST_ACCOUNTS_ENABLED/);
 
     expect(() => assertReviewerTestAccountConfig({
@@ -84,17 +91,27 @@ describe("reviewer test account seeding", () => {
     })).toThrow(/REVIEWER_TEST_ACCOUNT_PASSWORD/);
 
     expect(() => assertReviewerTestAccountConfig({
+      NODE_ENV: "development",
+      APP_URL: "https://cruush.test",
+      REVIEWER_TEST_ACCOUNTS_ENABLED: "true",
+      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123",
+      BANK_REVIEWER_ACCOUNT_PASSWORD: ""
+    })).toThrow(/BANK_REVIEWER_ACCOUNT_PASSWORD/);
+
+    expect(() => assertReviewerTestAccountConfig({
       NODE_ENV: "production",
       APP_URL: "https://cruush.app",
       REVIEWER_TEST_ACCOUNTS_ENABLED: "true",
-      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123"
+      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123",
+      BANK_REVIEWER_ACCOUNT_PASSWORD: "bank-password-123"
     })).toThrow(/production/i);
 
     expect(() => assertReviewerTestAccountConfig({
       NODE_ENV: "production",
       APP_URL: "https://staging.cruush.app",
       REVIEWER_TEST_ACCOUNTS_ENABLED: "true",
-      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123"
+      REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123",
+      BANK_REVIEWER_ACCOUNT_PASSWORD: "bank-password-123"
     })).not.toThrow();
   });
 
@@ -163,7 +180,8 @@ describe("reviewer test account seeding", () => {
         NODE_ENV: "development",
         APP_URL: "https://cruush.test",
         REVIEWER_TEST_ACCOUNTS_ENABLED: "true",
-        REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123"
+        REVIEWER_TEST_ACCOUNT_PASSWORD: "reviewer-password-123",
+        BANK_REVIEWER_ACCOUNT_PASSWORD: "bank-password-123"
       }
     });
 
@@ -176,8 +194,7 @@ describe("reviewer test account seeding", () => {
     const fakeUserDeletes = query.mock.calls.filter(([sql]) => String(sql).toLowerCase().includes("delete from app_users"));
 
     expect(result.accountCount).toBe(REVIEWER_TEST_ACCOUNT_COUNT);
-    expect(result.accounts.map((account) => account.email)).toEqual(["codeveloper-nyc@cruush.local"]);
-    expect(result.accounts.map((account) => account.email)).not.toContain("bank-reviewer-nyc@cruush.local");
+    expect(result.accounts.map((account) => account.email)).toEqual(["codeveloper-nyc@cruush.local", "bank-reviewer-nyc@cruush.local"]);
     expect(result.accounts.map((account) => account.email)).not.toContain("payment@cruush.local");
     expect(userUpserts).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
     expect(profileUpserts).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
@@ -189,6 +206,8 @@ describe("reviewer test account seeding", () => {
     expect(encryptedLocationParams).not.toContain("-73.9911");
     expect(encryptedLocationParams).not.toContain("40.7336");
     expect(encryptedLocationParams).not.toContain("-74.0027");
+    expect(encryptedLocationParams).not.toContain("40.7339");
+    expect(encryptedLocationParams).not.toContain("-74.0022");
     expect(encryptedLocationParams).not.toContain("40.7282");
     expect(encryptedLocationParams).not.toContain("-73.9942");
     expect(result).toHaveProperty("conversationFixtures", []);
@@ -206,10 +225,10 @@ describe("reviewer test account seeding", () => {
     expect(conversationDeletes).toHaveLength(1);
     expect(conversationDeletes[0]?.[1]).toEqual([
       ["reviewer-test-fixture", "bank-payment-smoke"],
-      ["bank-reviewer-nyc@cruush.local", "payment@cruush.local"]
+      ["payment@cruush.local"]
     ]);
     expect(fakeUserDeletes).toHaveLength(1);
-    expect(fakeUserDeletes[0]?.[1]).toEqual([["bank-reviewer-nyc@cruush.local", "payment@cruush.local"]]);
+    expect(fakeUserDeletes[0]?.[1]).toEqual([["payment@cruush.local"]]);
     expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase() === "commit")).toBe(true);
   });
 });
