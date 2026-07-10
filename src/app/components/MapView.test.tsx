@@ -104,6 +104,7 @@ describe('MapView', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.useRealTimers();
   });
 
   it('initializes MapLibre and wires map and marker interactions', async () => {
@@ -522,6 +523,46 @@ describe('MapView', () => {
 
     await waitFor(() => expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument());
     expect(screen.queryByText(/Map tiles could not load/i)).not.toBeInTheDocument();
+  });
+
+  it('retries the default vector style with raster fallback when map load hangs', async () => {
+    vi.useFakeTimers();
+
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[]}
+      />
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(MockMap.calls).toHaveLength(1);
+    expect(screen.getByText(/Loading NYC map/i)).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(4500);
+    });
+
+    expect(MockMap.calls).toHaveLength(2);
+    expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
+    expect(MockMap.calls[1]).toEqual(expect.objectContaining({
+      style: expect.objectContaining({
+        sources: expect.objectContaining({
+          osmRasterTiles: expect.objectContaining({
+            type: 'raster',
+          }),
+        }),
+      }),
+    }));
+
+    act(() => {
+      mapInstances[1].trigger('load');
+    });
+
+    expect(screen.queryByText(/Loading NYC map/i)).not.toBeInTheDocument();
   });
 
   it('does not show the map error banner for nonfatal tile errors after load', async () => {

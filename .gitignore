@@ -29,6 +29,10 @@ Thumbs.db
 # Mac
 Icon?
 
+# PWA icons must ship with the Vite public bundle.
+!public/icons/
+!public/icons/*.png
+
 # Logs
 logs/
 *.log

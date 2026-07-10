@@ -70,6 +70,7 @@ const DEFAULT_TILE_URLS = [
 const DEFAULT_ATTRIBUTION = '&copy; CARTO &copy; OpenStreetMap contributors';
 const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
 const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
+const MAP_READY_FALLBACK_TIMEOUT_MS = 4500;
 const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
@@ -729,6 +730,7 @@ function MapView({
         }
 
         let didLoad = false;
+        let readyFallbackTimeout: ReturnType<typeof window.setTimeout> | null = null;
         const map = new maplibregl.Map({
           container: containerRef.current,
           style,
@@ -739,13 +741,53 @@ function MapView({
           renderWorldCopies: false,
           attributionControl: false,
         });
+        mapRef.current = map;
+        setMapInstance(map);
 
-        map.on('click', () => onMapClickRef.current?.());
-        map.on('load', () => {
+        const clearReadyFallbackTimeout = () => {
+          if (readyFallbackTimeout == null) {
+            return;
+          }
+
+          window.clearTimeout(readyFallbackTimeout);
+          readyFallbackTimeout = null;
+        };
+
+        const restartWithRasterFallback = () => {
+          attemptedRasterFallback = true;
+          clearReadyFallbackTimeout();
+          setMapLoadStatus('loading');
+          setMapError(null);
+          map.remove();
+          mapRef.current = null;
+          setMapInstance(null);
+          startMap(createDefaultRasterStyle(), true);
+        };
+
+        const markMapReady = () => {
+          if (!isMounted || mapRef.current !== map) {
+            return;
+          }
+
           didLoad = true;
+          clearReadyFallbackTimeout();
           setMapLoadStatus('ready');
           setMapError(null);
-        });
+        };
+
+        if (shouldFallbackToRaster && !isFallbackAttempt && !attemptedRasterFallback) {
+          readyFallbackTimeout = window.setTimeout(() => {
+            if (!isMounted || mapRef.current !== map || didLoad || attemptedRasterFallback) {
+              return;
+            }
+
+            restartWithRasterFallback();
+          }, MAP_READY_FALLBACK_TIMEOUT_MS);
+        }
+
+        map.on('click', () => onMapClickRef.current?.());
+        map.on('load', markMapReady);
+        map.on('idle', markMapReady);
         map.on('error', (event) => {
           if (!isMounted || mapRef.current !== map) {
             return;
@@ -757,21 +799,14 @@ function MapView({
           }
 
           if (shouldFallbackToRaster && !isFallbackAttempt && !attemptedRasterFallback) {
-            attemptedRasterFallback = true;
-            setMapLoadStatus('loading');
-            setMapError(null);
-            map.remove();
-            mapRef.current = null;
-            setMapInstance(null);
-            startMap(createDefaultRasterStyle(), true);
+            restartWithRasterFallback();
             return;
           }
 
+          clearReadyFallbackTimeout();
           setMapLoadStatus('error');
           setMapError(MAP_ERROR_MESSAGE);
         });
-        mapRef.current = map;
-        setMapInstance(map);
         onMapReady?.(map);
       };
 

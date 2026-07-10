@@ -260,6 +260,7 @@ export default function Auth({ onAuth }: AuthProps) {
               <input
                 id="displayName"
                 type="text"
+                autoComplete="nickname"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="how you'll appear"
@@ -277,6 +278,7 @@ export default function Auth({ onAuth }: AuthProps) {
             <input
               id="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
@@ -294,6 +296,7 @@ export default function Auth({ onAuth }: AuthProps) {
               <input
                 id="password"
                 type="password"
+                autoComplete={isSignUp ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -313,6 +316,7 @@ export default function Auth({ onAuth }: AuthProps) {
               <input
                 id="confirmPassword"
                 type="password"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
