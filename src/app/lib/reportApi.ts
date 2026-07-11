@@ -1,6 +1,6 @@
 import { requestApi } from './apiClient';
 
-export type ReportTargetType = 'profile' | 'conversation' | 'message';
+export type ReportTargetType = 'user' | 'profile' | 'conversation' | 'message' | 'post';
 
 export type ReportReason =
   | 'non_consensual_imagery'
@@ -16,11 +16,20 @@ export type ReportReason =
   | 'privacy_location'
   | 'other';
 
+export const REPORT_REASON_OPTIONS = [
+  { value: 'harassment', label: 'Harassment or bullying' },
+  { value: 'hate', label: 'Hate speech or discrimination' },
+  { value: 'non_consensual_imagery', label: 'Sexual content shared without consent' },
+  { value: 'spam_scam', label: 'Spam or scam' },
+  { value: 'impersonation', label: 'Impersonation' },
+  { value: 'violence_threat', label: 'Threats or safety concern' },
+  { value: 'minor_safety', label: 'Underage user concern' },
+  { value: 'other', label: 'Other' },
+] as const satisfies ReadonlyArray<{ value: ReportReason; label: string }>;
+
 export type CreateReportPayload = {
   targetType: ReportTargetType;
-  targetUserId?: string;
-  conversationId?: string;
-  messageId?: string;
+  targetId: string;
   reason: ReportReason;
   details?: string;
 };
@@ -32,8 +41,21 @@ export type ReportRecord = {
 };
 
 export function createReport(payload: CreateReportPayload) {
+  const targetField = payload.targetType === 'user' || payload.targetType === 'profile'
+    ? { targetUserId: payload.targetId }
+    : payload.targetType === 'conversation'
+      ? { conversationId: payload.targetId }
+      : payload.targetType === 'message'
+        ? { messageId: payload.targetId }
+        : { postId: payload.targetId };
+
   return requestApi<ReportRecord>('/api/reports', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      targetType: payload.targetType,
+      ...targetField,
+      reason: payload.reason,
+      details: payload.details?.trim() ?? '',
+    }),
   });
 }

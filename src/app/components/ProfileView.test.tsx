@@ -16,6 +16,10 @@ const { blockUser } = vi.hoisted(() => ({
   blockUser: vi.fn(),
 }));
 
+const { createReport } = vi.hoisted(() => ({
+  createReport: vi.fn(),
+}));
+
 const { toastSuccess, toastError, toastInfo } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -52,6 +56,11 @@ vi.mock('../lib/profileApi', async () => {
 vi.mock('../lib/blockApi', () => ({
   blockUser,
 }));
+
+vi.mock('../lib/reportApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/reportApi')>('../lib/reportApi');
+  return { ...actual, createReport };
+});
 
 function createProfileFixture(overrides: Record<string, unknown> = {}) {
   return {
@@ -108,6 +117,7 @@ describe('ProfileView', () => {
     getMyProfile.mockReset();
     getProfileById.mockReset();
     blockUser.mockReset();
+    createReport.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
     toastInfo.mockReset();
@@ -116,6 +126,11 @@ describe('ProfileView', () => {
     blockUser.mockResolvedValue({
       userId: 'user-1',
       blocked: true,
+    });
+    createReport.mockResolvedValue({
+      id: 'report-1',
+      status: 'open',
+      createdAt: '2026-07-11T12:00:00.000Z',
     });
     sendCruush.mockResolvedValue({
       id: 'cruush-1',
@@ -368,5 +383,45 @@ describe('ProfileView', () => {
     await waitFor(() => expect(blockUser).toHaveBeenCalledWith('user-1'));
     expect(toastError).toHaveBeenCalledWith('Unable to block this user right now.');
     expect(screen.getByText('Jordan')).toBeInTheDocument();
+  });
+
+  it('reports another profile from the profile safety action', async () => {
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Report profile' }));
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'minor_safety' } });
+    fireEvent.change(screen.getByLabelText('Additional details (optional)'), {
+      target: { value: 'The profile says they are under 18.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+    await waitFor(() => expect(createReport).toHaveBeenCalledWith({
+      targetType: 'profile',
+      targetId: 'user-1',
+      reason: 'minor_safety',
+      details: 'The profile says they are under 18.',
+    }));
+    expect(toastSuccess).toHaveBeenCalledWith('Report submitted.');
+  });
+
+  it('does not render reporting controls for the current user profile', async () => {
+    getMyProfile.mockResolvedValue(createProfileFixture());
+
+    render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <Routes>
+          <Route path="/profile" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'Edit Profile' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Report profile' })).not.toBeInTheDocument();
   });
 });

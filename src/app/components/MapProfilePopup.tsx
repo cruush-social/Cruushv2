@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
+import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import CruushIconImage from './CruushIconImage';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
@@ -193,15 +194,24 @@ export default function MapProfilePopup({
                 </button>
               ) : null}
               {!isOwnProfile && !isDemo ? (
-                <BlockUserAction
-                  userId={user.id}
-                  displayName={displayName}
-                  className="h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
-                  onBlocked={(blockedUserId) => {
-                    onBlockedUser?.(blockedUserId);
-                    onClose();
-                  }}
-                />
+                <>
+                  <ReportAction
+                    targetType="profile"
+                    targetId={user.id}
+                    targetLabel={displayName}
+                    label={`Report ${displayName}`}
+                    className="h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
+                  />
+                  <BlockUserAction
+                    userId={user.id}
+                    displayName={displayName}
+                    className="h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
+                    onBlocked={(blockedUserId) => {
+                      onBlockedUser?.(blockedUserId);
+                      onClose();
+                    }}
+                  />
+                </>
               ) : null}
               <button
                 type="button"

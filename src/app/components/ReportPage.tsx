@@ -4,78 +4,22 @@ import { ArrowLeft, CheckCircle2, Flag } from 'lucide-react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { createReport, type ReportReason, type ReportTargetType } from '../lib/reportApi';
+import {
+  createReport,
+  REPORT_REASON_OPTIONS,
+  type ReportReason,
+  type ReportTargetType,
+} from '../lib/reportApi';
 
 type ReportLocationState = {
   targetType?: ReportTargetType;
   targetUserId?: string;
   conversationId?: string;
   messageId?: string;
+  postId?: string;
+  targetId?: string;
   targetLabel?: string;
 } | null;
-
-const REPORT_REASONS: Array<{ value: ReportReason; label: string; description: string }> = [
-  {
-    value: 'non_consensual_imagery',
-    label: 'Non-consensual imagery',
-    description: 'Someone shared or requested intimate media without consent.',
-  },
-  {
-    value: 'minor_safety',
-    label: 'Minor safety',
-    description: 'A profile or message may involve someone under 18.',
-  },
-  {
-    value: 'impersonation',
-    label: 'Impersonation',
-    description: 'Someone is pretending to be another person.',
-  },
-  {
-    value: 'coercion_trafficking',
-    label: 'Coercion or trafficking',
-    description: 'Pressure, exploitation, trafficking, or unsafe control is involved.',
-  },
-  {
-    value: 'illegal_activity',
-    label: 'Illegal activity',
-    description: 'The content involves illegal activity or dangerous requests.',
-  },
-  {
-    value: 'spam_scam',
-    label: 'Spam or scam',
-    description: 'Fake links, solicitation, fraud, or repeated unwanted promotion.',
-  },
-  {
-    value: 'harassment',
-    label: 'Harassment',
-    description: 'Threatening, repeated, or unwanted contact.',
-  },
-  {
-    value: 'fetishization',
-    label: 'Fetishization',
-    description: 'Dehumanizing or fetishizing identity, body, race, trans status, or presentation.',
-  },
-  {
-    value: 'hate',
-    label: 'Hate or discrimination',
-    description: 'Abuse targeting identity, race, gender, sexuality, or protected traits.',
-  },
-  {
-    value: 'violence_threat',
-    label: 'Violence or threats',
-    description: 'Threats, stalking, intimidation, or physical safety concerns.',
-  },
-  {
-    value: 'privacy_location',
-    label: 'Privacy or location',
-    description: 'Doxxing, location exposure, screenshots, or private details.',
-  },
-  {
-    value: 'other',
-    label: 'Something else',
-    description: 'Use details to explain what happened.',
-  },
-];
 
 function getReportTarget(state: ReportLocationState, searchParams: URLSearchParams) {
   return {
@@ -83,24 +27,30 @@ function getReportTarget(state: ReportLocationState, searchParams: URLSearchPara
     targetUserId: state?.targetUserId ?? searchParams.get('targetUserId') ?? undefined,
     conversationId: state?.conversationId ?? searchParams.get('conversationId') ?? undefined,
     messageId: state?.messageId ?? searchParams.get('messageId') ?? undefined,
+    postId: state?.postId ?? searchParams.get('postId') ?? undefined,
+    targetId: state?.targetId ?? searchParams.get('targetId') ?? undefined,
     targetLabel: state?.targetLabel ?? searchParams.get('targetLabel') ?? undefined,
   };
 }
 
-function hasValidTarget(target: ReturnType<typeof getReportTarget>) {
-  if (target.targetType === 'profile') {
-    return Boolean(target.targetUserId);
+function getTargetId(target: ReturnType<typeof getReportTarget>) {
+  if (target.targetId) {
+    return target.targetId;
+  }
+
+  if (target.targetType === 'user' || target.targetType === 'profile') {
+    return target.targetUserId;
   }
 
   if (target.targetType === 'conversation') {
-    return Boolean(target.conversationId);
+    return target.conversationId;
   }
 
   if (target.targetType === 'message') {
-    return Boolean(target.messageId);
+    return target.messageId;
   }
 
-  return false;
+  return target.postId;
 }
 
 export default function ReportPage() {
@@ -111,23 +61,31 @@ export default function ReportPage() {
     () => getReportTarget(location.state as ReportLocationState, searchParams),
     [location.state, searchParams],
   );
-  const [reason, setReason] = useState<ReportReason>('harassment');
+  const [reason, setReason] = useState<ReportReason | ''>('');
   const [details, setDetails] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
-  const [error, setError] = useState<string | null>(hasValidTarget(target) ? null : 'This report link is missing its target.');
+  const targetId = getTargetId(target);
+  const [error, setError] = useState<string | null>(targetId ? null : 'This report link is missing its target.');
   const targetLabel = target.targetLabel?.trim() || (
     target.targetType === 'conversation'
       ? 'this conversation'
       : target.targetType === 'message'
         ? 'this message'
-        : 'this profile'
+        : target.targetType === 'post'
+          ? 'this post'
+          : 'this profile'
   );
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
-    if (!hasValidTarget(target)) {
+    if (!targetId) {
       setError('This report link is missing its target.');
+      return;
+    }
+
+    if (!reason) {
+      setError('Choose a reason before submitting.');
       return;
     }
 
@@ -137,15 +95,13 @@ export default function ReportPage() {
     try {
       await createReport({
         targetType: target.targetType,
-        targetUserId: target.targetUserId,
-        conversationId: target.conversationId,
-        messageId: target.messageId,
+        targetId,
         reason,
-        details,
+        details: details.trim() || undefined,
       });
       setStatus('success');
-    } catch (reportError) {
-      setError(reportError instanceof Error ? reportError.message : 'Failed to submit report.');
+    } catch {
+      setError('Unable to submit this report right now.');
       setStatus('idle');
     }
   };
@@ -195,7 +151,7 @@ export default function ReportPage() {
             <section className="space-y-3">
               <Label>Reason</Label>
               <div className="grid gap-2">
-                {REPORT_REASONS.map((option) => (
+                {REPORT_REASON_OPTIONS.map((option) => (
                   <label
                     key={option.value}
                     className={`flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors ${
@@ -212,10 +168,7 @@ export default function ReportPage() {
                       type="radio"
                       value={option.value}
                     />
-                    <span>
-                      <span className="block">{option.label}</span>
-                      <span className="mt-1 block text-sm text-muted-foreground">{option.description}</span>
-                    </span>
+                    <span className="block">{option.label}</span>
                   </label>
                 ))}
               </div>
@@ -236,7 +189,7 @@ export default function ReportPage() {
 
             <Button
               className="w-full"
-              disabled={status === 'submitting' || !hasValidTarget(target)}
+              disabled={status === 'submitting' || !targetId}
               style={{ background: 'var(--cruush-gradient)' }}
               type="submit"
             >

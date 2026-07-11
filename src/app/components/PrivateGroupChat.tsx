@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import BlockUserAction from './BlockUserAction';
+import ReportAction from './ReportAction';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
@@ -408,21 +409,6 @@ export default function PrivateGroupChat() {
     }
   };
 
-  const openReport = () => {
-    if (!conversation) {
-      return;
-    }
-
-    navigate('/report', {
-      state: {
-        targetType: 'conversation',
-        conversationId: conversation.id,
-        targetUserId: conversation.kind === 'dm' ? conversation.user.id : undefined,
-        targetLabel: conversation.user.name,
-      },
-    });
-  };
-
   const groupMemberIds = new Set(groupMembers.map((member) => member.id));
   const availableAddOptions = mutualOptions.filter((item) => !groupMemberIds.has(item.user.id));
 
@@ -488,9 +474,14 @@ export default function PrivateGroupChat() {
             <Button variant="ghost" size="icon" title="Media states" aria-label="Open media options" disabled={!conversation}>
               <ImageIcon className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" title="Report conversation" aria-label="Report conversation" disabled={!conversation} onClick={openReport}>
-              <CruushIcon name="safety" className="h-5 w-5" />
-            </Button>
+            {conversation ? (
+              <ReportAction
+                targetType="conversation"
+                targetId={conversation.id}
+                targetLabel={conversation.kind === 'dm' ? `conversation with ${conversation.user.name}` : conversation.user.name}
+                label="Report conversation"
+              />
+            ) : null}
             <Button variant="ghost" size="icon" aria-label="More conversation options" disabled={!conversation} onClick={openSettings}>
               <MoreHorizontal className="w-5 h-5" />
             </Button>

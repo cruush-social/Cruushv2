@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { ArrowLeft, Clock, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
+import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
@@ -250,12 +251,20 @@ export default function LocalFeed() {
                         </Button>
                       ) : null}
                       {currentUserId && post.user.id !== currentUserId ? (
-                        <BlockUserAction
-                          userId={post.user.id}
-                          displayName={post.user.name}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onBlocked={handleBlockedUser}
-                        />
+                        <>
+                          <ReportAction
+                            targetType="post"
+                            targetId={post.id}
+                            targetLabel={`post by ${post.user.name}`}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          />
+                          <BlockUserAction
+                            userId={post.user.id}
+                            displayName={post.user.name}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onBlocked={handleBlockedUser}
+                          />
+                        </>
                       ) : null}
                     </div>
                   </div>

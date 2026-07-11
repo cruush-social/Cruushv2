@@ -39,12 +39,13 @@ type ModerateProfileInput = {
 type UserReportInput = {
   reporterId: string;
   targetUserId: string | null;
-  contentType: "profile" | "conversation" | "message";
+  contentType: "user" | "profile" | "conversation" | "message" | "post";
   contentId: string;
   reason: string;
   details?: string;
   conversationId?: string | null;
   messageId?: string | null;
+  postId?: string | null;
 };
 
 type ContentReviewInput = {
@@ -440,7 +441,11 @@ export async function createUserReport(app: FastifyInstance, input: UserReportIn
   const reviewUserId = input.targetUserId ?? input.reporterId;
   const reviewId = await recordContentReview(app, {
     userId: reviewUserId,
-    surface: input.contentType === "profile" ? "profile" : "direct_message",
+    surface: input.contentType === "post"
+      ? "feed"
+      : input.contentType === "profile" || input.contentType === "user"
+        ? "profile"
+        : "direct_message",
     contentType: "text",
     status: "queued",
     moderationStatus: "flagged",
@@ -453,6 +458,7 @@ export async function createUserReport(app: FastifyInstance, input: UserReportIn
       targetType: input.contentType,
       conversationId: input.conversationId ?? null,
       messageId: input.messageId ?? null,
+      postId: input.postId ?? null,
       reason: input.reason,
       hasDetails: Boolean(input.details?.trim())
     },

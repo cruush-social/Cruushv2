@@ -27,6 +27,10 @@ const { blockUser } = vi.hoisted(() => ({
   blockUser: vi.fn(),
 }));
 
+const { createReport } = vi.hoisted(() => ({
+  createReport: vi.fn(),
+}));
+
 const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -62,6 +66,11 @@ vi.mock('../lib/blockApi', () => ({
   blockUser,
 }));
 
+vi.mock('../lib/reportApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/reportApi')>('../lib/reportApi');
+  return { ...actual, createReport };
+});
+
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-probe">{location.pathname}</div>;
@@ -78,6 +87,7 @@ describe('PrivateGroupChat', () => {
     setConversationDisappearingTimer.mockReset();
     viewMessageAttachment.mockReset();
     blockUser.mockReset();
+    createReport.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
     getCurrentUserId.mockResolvedValue('user-1');
@@ -85,6 +95,11 @@ describe('PrivateGroupChat', () => {
     blockUser.mockResolvedValue({
       userId: 'user-2',
       blocked: true,
+    });
+    createReport.mockResolvedValue({
+      id: 'report-1',
+      status: 'open',
+      createdAt: '2026-07-11T12:00:00.000Z',
     });
   });
 
@@ -124,7 +139,7 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByText('hosting for another hour if you still want to swing by')).not.toBeInTheDocument();
   });
 
-  it('navigates to the report page from the conversation safety action', async () => {
+  it('reports a conversation from the conversation safety action', async () => {
     getConversationMessages.mockResolvedValue({
       conversation: {
         id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
@@ -149,14 +164,24 @@ describe('PrivateGroupChat', () => {
       <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
         <Routes>
           <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
-          <Route path="/report" element={<div>Report route</div>} />
         </Routes>
       </MemoryRouter>,
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Report conversation' }));
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'harassment' } });
+    fireEvent.change(screen.getByLabelText('Additional details (optional)'), {
+      target: { value: 'Repeated unwanted messages.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
 
-    expect(await screen.findByText('Report route')).toBeInTheDocument();
+    await waitFor(() => expect(createReport).toHaveBeenCalledWith({
+      targetType: 'conversation',
+      targetId: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
+      reason: 'harassment',
+      details: 'Repeated unwanted messages.',
+    }));
+    expect(toastSuccess).toHaveBeenCalledWith('Report submitted.');
   });
 
   it('lets users block a DM partner from conversation settings and returns to messages', async () => {

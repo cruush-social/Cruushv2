@@ -3492,6 +3492,7 @@ describe("server", () => {
       targetUserId,
       null,
       null,
+      null,
       "harassment",
       "keeps sending threats"
     ]);
@@ -3568,9 +3569,601 @@ describe("server", () => {
       "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
       conversationId,
       null,
+      null,
       "privacy_location",
       ""
     ]);
+  });
+
+  it("creates a user report on POST /api/reports", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "report-user",
+          status: "open",
+          created_at: "2026-04-29T12:15:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "user",
+        targetId: targetUserId,
+        reason: "spam_scam"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_users");
+    expect(query.mock.calls[1]?.[1]).toEqual([
+      userId,
+      "user",
+      targetUserId,
+      null,
+      null,
+      null,
+      "spam_scam",
+      ""
+    ]);
+  });
+
+  it("creates a post report on POST /api/reports", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const postId = "59e01d61-4a76-4359-915a-1f25b7815ff4";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          post_id: postId,
+          target_user_id: targetUserId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "report-post",
+          status: "open",
+          created_at: "2026-04-29T12:20:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "post",
+        postId,
+        reason: "hate"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("from posts");
+    expect(query.mock.calls[1]?.[1]).toEqual([
+      userId,
+      "post",
+      targetUserId,
+      null,
+      null,
+      postId,
+      "hate",
+      ""
+    ]);
+  });
+
+  it("creates a message report when the message belongs to another conversation member", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const messageId = "0759d8df-8ba5-4b12-a8fb-c46d4ea63df7";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          message_id: messageId,
+          conversation_id: conversationId,
+          target_user_id: targetUserId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "report-message",
+          status: "open",
+          created_at: "2026-04-29T12:25:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "message",
+        targetId: messageId,
+        reason: "violence_threat"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("from messages m");
+    expect(query.mock.calls[1]?.[1]).toEqual([
+      userId,
+      "message",
+      targetUserId,
+      conversationId,
+      messageId,
+      null,
+      "violence_threat",
+      ""
+    ]);
+  });
+
+  it("rejects invalid report target types", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "comment",
+        targetId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        reason: "harassment"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+  });
+
+  it("rejects nonexistent report targets without exposing private details", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "post",
+        targetId: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+        reason: "harassment"
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Post not found.",
+        details: null
+      }
+    });
+  });
+
+  it("rejects self-reporting where inappropriate", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "user",
+        targetId: userId,
+        reason: "harassment"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Choose another user to report.",
+        details: null
+      }
+    });
+  });
+
+  it("blocks normal users from listing moderation reports", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/moderation/reports",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(query.mock.calls[0]?.[0]).toContain("from moderator_users");
+    expect(response.json()).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Moderator access required.",
+        details: null
+      }
+    });
+  });
+
+  it("lets moderators list reports with minimal safe display context", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "moderator"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "2f35619f-e09d-4f65-a7ea-8f6dd149ec11",
+          reporter_user_id: userId,
+          target_type: "post",
+          target_user_id: targetUserId,
+          conversation_id: null,
+          message_id: null,
+          post_id: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+          media_object_id: null,
+          profile_photo_url: null,
+          reason: "harassment",
+          details: "threatening post",
+          status: "open",
+          created_at: "2026-04-29T12:00:00.000Z",
+          updated_at: "2026-04-29T12:00:00.000Z",
+          reporter_display_name: "River",
+          target_display_name: "Jordan"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/moderation/reports?status=open&limit=25",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from moderator_users");
+    expect(query.mock.calls[1]?.[0]).toContain("from reports");
+    expect(query.mock.calls[1]?.[1]).toEqual(["open", 25, 0]);
+    expect(response.json()).toEqual({
+      data: {
+        reports: [{
+          id: "2f35619f-e09d-4f65-a7ea-8f6dd149ec11",
+          reporter: {
+            userId,
+            displayName: "River"
+          },
+          target: {
+            type: "post",
+            userId: targetUserId,
+            displayName: "Jordan",
+            conversationId: null,
+            messageId: null,
+            postId: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+            mediaObjectId: null,
+            profilePhotoUrl: null
+          },
+          reason: "harassment",
+          details: "threatening post",
+          status: "open",
+          createdAt: "2026-04-29T12:00:00.000Z",
+          updatedAt: "2026-04-29T12:00:00.000Z"
+        }]
+      }
+    });
+    expect(JSON.stringify(response.json())).not.toContain("@");
+  });
+
+  it("lets moderators resolve reports and records a moderation action", async () => {
+    const reportId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "admin"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reportId,
+          status: "open",
+          target_type: "post",
+          target_user_id: targetUserId,
+          conversation_id: null,
+          message_id: null,
+          post_id: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+          media_object_id: null,
+          profile_photo_url: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reportId,
+          status: "resolved",
+          updated_at: "2026-04-29T12:35:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          created_at: "2026-04-29T12:35:01.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/admin/moderation/reports/${reportId}`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "resolved",
+        reasonCode: "reviewed_valid_report",
+        notes: "Handled in beta queue."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("update reports");
+    expect(query.mock.calls[2]?.[1]).toEqual([reportId, "resolved"]);
+    expect(query.mock.calls[3]?.[0]).toContain("insert into moderation_actions");
+    expect(query.mock.calls[3]?.[1]?.slice(0, 6)).toEqual([
+      userId,
+      targetUserId,
+      reportId,
+      "resolve_report",
+      "reviewed_valid_report",
+      "Handled in beta queue."
+    ]);
+    expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[6]))).toEqual(expect.objectContaining({
+      previousStatus: "open",
+      newStatus: "resolved",
+      targetType: "post"
+    }));
+    expect(response.json()).toEqual({
+      data: {
+        report: {
+          id: reportId,
+          status: "resolved",
+          updatedAt: "2026-04-29T12:35:00.000Z"
+        },
+        moderationAction: {
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          createdAt: "2026-04-29T12:35:01.000Z"
+        }
+      }
+    });
+  });
+
+  it("lets moderators dismiss reports and records a moderation action", async () => {
+    const reportId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "moderator"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reportId,
+          status: "open",
+          target_type: "profile",
+          target_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          conversation_id: null,
+          message_id: null,
+          post_id: null,
+          media_object_id: null,
+          profile_photo_url: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reportId,
+          status: "dismissed",
+          updated_at: "2026-04-29T12:36:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          created_at: "2026-04-29T12:36:01.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/admin/moderation/reports/${reportId}`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "dismissed",
+        reasonCode: "not_actionable"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[3]?.[1]?.[3]).toBe("dismiss_report");
+    expect(response.json().data.report.status).toBe("dismissed");
+  });
+
+  it("lets moderators place a user under review and updates account_status_updated_at", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "moderator"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          account_status: "active",
+          account_status_updated_at: "2026-04-29T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          account_status: "under_review",
+          account_status_updated_at: "2026-04-29T12:40:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          created_at: "2026-04-29T12:40:01.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/users/${targetUserId}/status`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "under_review",
+        reasonCode: "needs_manual_review",
+        notes: "Multiple credible reports."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("account_status_updated_at = now()");
+    expect(query.mock.calls[2]?.[1]).toEqual([targetUserId, "under_review"]);
+    expect(query.mock.calls[3]?.[1]?.slice(0, 6)).toEqual([
+      userId,
+      targetUserId,
+      null,
+      "mark_under_review",
+      "needs_manual_review",
+      "Multiple credible reports."
+    ]);
+    expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[6]))).toEqual({
+      previousStatus: "active",
+      newStatus: "under_review"
+    });
+    expect(response.json()).toEqual({
+      data: {
+        user: {
+          id: targetUserId,
+          accountStatus: "under_review",
+          accountStatusUpdatedAt: "2026-04-29T12:40:00.000Z"
+        },
+        moderationAction: {
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          createdAt: "2026-04-29T12:40:01.000Z"
+        }
+      }
+    });
+  });
+
+  it("lets moderators suspend a user and existing auth enforcement blocks that session", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "admin"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          account_status: "active",
+          account_status_updated_at: "2026-04-29T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          account_status: "suspended",
+          account_status_updated_at: "2026-04-29T12:45:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          created_at: "2026-04-29T12:45:01.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: targetUserId,
+          account_status: "suspended"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/users/${targetUserId}/status`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "suspended",
+        reasonCode: "abuse_confirmed",
+        reportId: "2f35619f-e09d-4f65-a7ea-8f6dd149ec11"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("account_status_updated_at = now()");
+    expect(query.mock.calls[3]?.[1]?.slice(0, 6)).toEqual([
+      userId,
+      targetUserId,
+      "2f35619f-e09d-4f65-a7ea-8f6dd149ec11",
+      "suspend_user",
+      "abuse_confirmed",
+      ""
+    ]);
+
+    const authResponse = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "suspended-after-admin-action"
+      }
+    });
+
+    expect(authResponse.statusCode).toBe(401);
+    expect(query.mock.calls[4]?.[0]).toContain("from app_sessions s");
+    expect(query.mock.calls[5]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[5]?.[1]).toEqual([hashSessionToken("suspended-after-admin-action")]);
   });
 
   it("rate limits repeated report creation", async () => {

@@ -18,6 +18,10 @@ const { blockUser } = vi.hoisted(() => ({
   blockUser: vi.fn(),
 }));
 
+const { createReport } = vi.hoisted(() => ({
+  createReport: vi.fn(),
+}));
+
 const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -53,6 +57,11 @@ vi.mock('../lib/blockApi', () => ({
   blockUser,
 }));
 
+vi.mock('../lib/reportApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/reportApi')>('../lib/reportApi');
+  return { ...actual, createReport };
+});
+
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-probe">{location.pathname}</div>;
@@ -66,6 +75,7 @@ describe('LocalFeed', () => {
     getCurrentUserId.mockReset();
     getMyBillingStatus.mockReset();
     blockUser.mockReset();
+    createReport.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
     getCurrentUserId.mockResolvedValue('user-1');
@@ -79,6 +89,11 @@ describe('LocalFeed', () => {
     blockUser.mockResolvedValue({
       userId: 'user-2',
       blocked: true,
+    });
+    createReport.mockResolvedValue({
+      id: 'report-1',
+      status: 'open',
+      createdAt: '2026-07-11T12:00:00.000Z',
     });
   });
 
@@ -128,6 +143,43 @@ describe('LocalFeed', () => {
     expect(screen.getByText('someone else post')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete feed post: someone else post' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Block me' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Report post by me' })).not.toBeInTheDocument();
+  });
+
+  it('reports another user post without hiding it', async () => {
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-other',
+      content: 'suspicious link in this post',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-2',
+        name: 'River',
+        pronouns: 'he/him',
+        photo: null,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Report post by River' }));
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'spam_scam' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+    await waitFor(() => expect(createReport).toHaveBeenCalledWith({
+      targetType: 'post',
+      targetId: 'post-other',
+      reason: 'spam_scam',
+      details: undefined,
+    }));
+    expect(toastSuccess).toHaveBeenCalledWith('Report submitted.');
+    expect(screen.getByText('suspicious link in this post')).toBeInTheDocument();
   });
 
   it('blocks another feed author and removes all of their posts locally', async () => {

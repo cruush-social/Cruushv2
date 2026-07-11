@@ -24,6 +24,10 @@ const { blockUser } = vi.hoisted(() => ({
   blockUser: vi.fn(),
 }));
 
+const { createReport } = vi.hoisted(() => ({
+  createReport: vi.fn(),
+}));
+
 const { decryptDisplayLocationToken } = vi.hoisted(() => ({
   decryptDisplayLocationToken: vi.fn(),
 }));
@@ -82,6 +86,11 @@ vi.mock('../lib/profileApi', async () => {
 vi.mock('../lib/blockApi', () => ({
   blockUser,
 }));
+
+vi.mock('../lib/reportApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/reportApi')>('../lib/reportApi');
+  return { ...actual, createReport };
+});
 
 vi.mock('../lib/displayLocationTokens', () => ({
   decryptDisplayLocationToken,
@@ -203,6 +212,7 @@ describe('MapHome', () => {
     getMyProfile.mockReset();
     getProfileById.mockReset();
     blockUser.mockReset();
+    createReport.mockReset();
     decryptDisplayLocationToken.mockReset();
     getMyPrivacySettings.mockReset();
     getMyBillingStatus.mockReset();
@@ -293,6 +303,11 @@ describe('MapHome', () => {
     blockUser.mockResolvedValue({
       userId: 'user-1',
       blocked: true,
+    });
+    createReport.mockResolvedValue({
+      id: 'report-1',
+      status: 'open',
+      createdAt: '2026-07-11T12:00:00.000Z',
     });
     sendCruush.mockResolvedValue({
       id: 'cruush-1',
@@ -646,6 +661,33 @@ describe('MapHome', () => {
     expect(screen.queryByTestId('marker-user-1')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open Jordan profile' })).not.toBeInTheDocument();
     expect(toastSuccess).toHaveBeenCalledWith('Jordan blocked.');
+  });
+
+  it('reports a selected desktop map profile without closing the popup', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Report Jordan' }));
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'impersonation' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+    await waitFor(() => expect(createReport).toHaveBeenCalledWith({
+      targetType: 'profile',
+      targetId: 'user-1',
+      reason: 'impersonation',
+      details: undefined,
+    }));
+    expect(toastSuccess).toHaveBeenCalledWith('Report submitted.');
+    expect(screen.getByRole('complementary')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-user-1')).toBeInTheDocument();
   });
 
   it('refreshes map users after sending a cruush from the popup without a browser alert', async () => {
