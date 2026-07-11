@@ -66,6 +66,10 @@ vi.mock('./components/ReportPage', () => ({
   default: () => <div>Mock Report</div>
 }));
 
+vi.mock('./components/ModeratorReview', () => ({
+  default: () => <div>Mock Moderator Review</div>
+}));
+
 vi.mock('./components/CruushActivity', () => ({
   default: () => <div>Mock Cruush</div>
 }));
@@ -281,6 +285,29 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Report')).toBeInTheDocument();
+  });
+
+  it('renders the unlinked moderator route while signed in', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'moderator@example.com',
+        displayName: 'Moderator',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Moderator',
+        yearOfBirth: 1990,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    window.history.replaceState({}, '', '/admin/moderation');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Moderator Review')).toBeInTheDocument();
   });
 
   it('renders Ghost Mode settings as the dedicated privacy route', async () => {

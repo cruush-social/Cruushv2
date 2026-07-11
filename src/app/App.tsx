@@ -12,6 +12,7 @@ import PlaceDetail from './components/PlaceDetail';
 import PrivateGroupChat from './components/PrivateGroupChat';
 import DirectMessages from './components/DirectMessages';
 import ReportPage from './components/ReportPage';
+import ModeratorReview from './components/ModeratorReview';
 import CruushActivity from './components/CruushActivity';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
@@ -256,6 +257,7 @@ export default function App() {
             <Route path="/chat/group/:chatId" element={<PrivateGroupChat />} />
             <Route path="/messages" element={<DirectMessages />} />
             <Route path="/report" element={<ReportPage />} />
+            <Route path="/admin/moderation" element={<ModeratorReview />} />
             <Route path="/cruush" element={<CruushActivity />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
