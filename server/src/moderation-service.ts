@@ -44,12 +44,13 @@ type ModerateProfileInput = {
 type UserReportInput = {
   reporterId: string;
   targetUserId: string | null;
-  contentType: "profile" | "conversation" | "message";
+  contentType: "user" | "profile" | "conversation" | "message" | "post";
   contentId: string;
   reason: string;
   details?: string;
   conversationId?: string | null;
   messageId?: string | null;
+  postId?: string | null;
 };
 
 type ContentReviewInput = {
@@ -92,6 +93,8 @@ export function approvedContentReviewCte(options: {
   moderationStatusParam?: string;
   flaggedReasonParam?: string;
   moderationRawResultParam?: string;
+  contentIdParam?: string;
+  contentRefParam?: string;
 }) {
   const name = options.name ?? "moderation_review";
   const providerSql = options.providerParam ?? "'mock'";
@@ -101,12 +104,16 @@ export function approvedContentReviewCte(options: {
   const moderationStatusSql = options.moderationStatusParam ?? "'allowed'";
   const flaggedReasonSql = options.flaggedReasonParam ?? "null";
   const moderationRawResultSql = options.moderationRawResultParam ? `${options.moderationRawResultParam}::jsonb` : "'{}'::jsonb";
+  const contentIdSql = options.contentIdParam ?? "null";
+  const contentRefSql = options.contentRefParam ? `${options.contentRefParam}::jsonb` : "'{}'::jsonb";
   const sourceSql = options.fromCte
     ? `select
       ${options.userIdParam},
       '${surfaceSqlLiteral[options.surface]}',
       '${contentTypeSqlLiteral[options.contentType]}',
       'allowed',
+      ${contentIdSql},
+      ${contentRefSql},
       ${providerSql},
       ${providerRequestIdSql},
       ${labelsSql},
@@ -122,6 +129,8 @@ export function approvedContentReviewCte(options: {
       '${surfaceSqlLiteral[options.surface]}',
       '${contentTypeSqlLiteral[options.contentType]}',
       'allowed',
+      ${contentIdSql},
+      ${contentRefSql},
       ${providerSql},
       ${providerRequestIdSql},
       ${labelsSql},
@@ -139,6 +148,8 @@ export function approvedContentReviewCte(options: {
       surface,
       content_type,
       status,
+      content_id,
+      content_ref,
       provider,
       provider_request_id,
       normalized_labels,
@@ -217,14 +228,14 @@ function userMessageForDecision(decision: PolicyDecision) {
   }
 
   if (decision.user_message_code === "feed_content_rejected") {
-    return "This feed post could not be published because it violates Cruush safety rules.";
+    return "This feed post could not be published because it violates cruush safety rules.";
   }
 
   if (decision.user_message_code === "content_rejected_zero_tolerance") {
-    return "This content violates Cruush safety rules and cannot be saved.";
+    return "This content violates cruush safety rules and cannot be saved.";
   }
 
-  return "This content violates Cruush safety rules and cannot be saved.";
+  return "This content violates cruush safety rules and cannot be saved.";
 }
 
 function hasAdultHumanBodyProof(providerResult: ProviderModerationResult) {
@@ -494,7 +505,11 @@ export async function createUserReport(app: FastifyInstance, input: UserReportIn
   const reviewUserId = input.targetUserId ?? input.reporterId;
   const reviewId = await recordContentReview(app, {
     userId: reviewUserId,
-    surface: input.contentType === "profile" ? "profile" : "direct_message",
+    surface: input.contentType === "post"
+      ? "feed"
+      : input.contentType === "profile" || input.contentType === "user"
+        ? "profile"
+        : "direct_message",
     contentType: "text",
     status: "queued",
     moderationStatus: "flagged",
@@ -507,6 +522,7 @@ export async function createUserReport(app: FastifyInstance, input: UserReportIn
       targetType: input.contentType,
       conversationId: input.conversationId ?? null,
       messageId: input.messageId ?? null,
+      postId: input.postId ?? null,
       reason: input.reason,
       hasDetails: Boolean(input.details?.trim())
     },

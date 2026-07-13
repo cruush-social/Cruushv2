@@ -41,6 +41,7 @@ import {
   type SensitiveProfileToken
 } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
+import { assertUsersNotBlocked } from "../user-blocks.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
@@ -1137,6 +1138,9 @@ async function loadProfileData(
   const relationship = !options.includePrivateSensitive && options.viewerUserId
     ? await getRelationshipPermissions(app, options.viewerUserId, userId)
     : null;
+  if (relationship?.isBlocked) {
+    throw new ApiError(404, "NOT_FOUND", "Profile not found");
+  }
   const needsMutualCrowd =
     row.kinks_visibility === "mutual_crowds" ||
     row.trans_status_visibility === "mutual_crowds";
@@ -1456,6 +1460,13 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       windowMs: 60 * 1000,
       message: "Too many profile requests. Try again later."
     });
+    if (authenticatedUserId !== userId) {
+      await assertUsersNotBlocked(app, authenticatedUserId, userId, {
+        statusCode: 404,
+        code: "NOT_FOUND",
+        message: "Profile not found"
+      });
+    }
 
     return reply.send({
       data: await loadProfileData(app, userId, { includePrivateSensitive: false, viewerUserId: authenticatedUserId })
@@ -1524,14 +1535,29 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         ? `${column} = coalesce(excluded.${column}, profiles.${column})`
         : `${column} = excluded.${column}`);
 
-    const result = await app.db.query<ProfileRow>(
-      `insert into profiles (${PROFILE_COLUMNS.join(", ")})
-       values (${placeholders.join(", ")})
-       on conflict (id) do update
-       set ${updates.join(", ")}, updated_at = now()
-       returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
-      values
-    );
+    let result;
+
+    try {
+      result = await app.db.query<ProfileRow>(
+        `insert into profiles (${PROFILE_COLUMNS.join(", ")})
+         values (${placeholders.join(", ")})
+         on conflict (id) do update
+         set ${updates.join(", ")}, updated_at = now()
+         returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
+        values
+      );
+    } catch (error) {
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String((error as { code?: string }).code)
+        : "";
+      const message = error instanceof Error ? error.message : "";
+
+      if (code === "23514" && message.includes("profile photo")) {
+        throw new ApiError(400, "VALIDATION_ERROR", "Profile photos must be approved uploads owned by your account.");
+      }
+
+      throw error;
+    }
     await syncProfileKinkInterests(app, userId, kinkInterests);
     await syncSensitiveProfileTokens(app, userId, combineSensitiveTokens(
       createSensitiveProfileTokens(app.config, sensitiveProfile),

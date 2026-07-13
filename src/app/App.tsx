@@ -24,6 +24,7 @@ const NotificationCenter = lazy(() => import('./components/NotificationCenter'))
 const NotificationSettings = lazy(() => import('./components/NotificationSettings'));
 const MobileInstallPrompt = lazy(() => import('./components/MobileInstallPrompt'));
 const ReportPage = lazy(() => import('./components/ReportPage'));
+const ModeratorReview = lazy(() => import('./components/ModeratorReview'));
 const CruushActivity = lazy(() => import('./components/CruushActivity'));
 const Settings = lazy(() => import('./components/Settings'));
 const SupportPage = lazy(() => import('./components/SupportPage'));
@@ -65,7 +66,13 @@ function getTokenLinkType() {
   return null;
 }
 
-export default function App() {
+type AppProps = {
+  humanModerationEnabled?: boolean;
+};
+
+export default function App({
+  humanModerationEnabled = (import.meta.env.VITE_HUMAN_MODERATION_ENABLED as string | undefined) === 'true',
+}: AppProps = {}) {
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -278,6 +285,9 @@ export default function App() {
               <Route path="/messages" element={<DirectMessages />} />
               <Route path="/notifications" element={<NotificationCenter />} />
               <Route path="/report" element={<ReportPage />} />
+              {humanModerationEnabled ? (
+                <Route path="/admin/moderation" element={<ModeratorReview />} />
+              ) : null}
               <Route path="/cruush" element={<CruushActivity />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/settings/notifications" element={<NotificationSettings />} />

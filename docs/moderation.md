@@ -2,7 +2,7 @@
 
 cruush moderation is server-side automod. The browser never receives Stream secret keys, provider results, PhotoDNA keys, or trust-score internals.
 
-There is no human moderation queue in this implementation. Stream AI/moderation results, local policy mapping, report evidence, and trust-score enforcement make the save/publish decision before content is stored or exposed.
+Human review tooling exists but is dormant by default. Stream AI/moderation results, local policy mapping, report evidence, and trust-score enforcement make the save/publish decision before content is exposed. Keep both human-moderation flags disabled until an approved moderator roster and review procedure are ready.
 
 ## Environment
 
@@ -20,6 +20,7 @@ MEDIA_S3_SECRET_ACCESS_KEY=
 MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=false
+HUMAN_MODERATION_ENABLED=false
 STREAM_API_KEY=
 STREAM_API_SECRET=
 STREAM_APP_ID=
@@ -29,6 +30,8 @@ PHOTODNA_API_URL=
 PHOTODNA_SUBSCRIPTION_KEY=
 PHOTODNA_TIMEOUT_MS=5000
 ```
+
+The frontend must also keep `VITE_HUMAN_MODERATION_ENABLED=false`. The API routes and frontend moderator screen are not mounted unless their respective flags are explicitly enabled.
 
 When `STREAM_MODERATION_ENABLED=true`, `STREAM_API_KEY`, `STREAM_API_SECRET`, and `STREAM_MODERATION_CONFIG_KEY` are required at server startup.
 
@@ -109,17 +112,20 @@ Stream image checks require an internet-accessible image URL. The current authen
 Current branch state:
 
 - Messages and feed posts are stored in Postgres.
-- Profile photos upload as cruush-encrypted object bytes.
+- Profile and message photos are decoded with Sharp, normalized, and re-encoded into metadata-free thumbnail/display variants.
+- Original and variant bytes are envelope-encrypted under separate private object keys.
+- New media rows begin in `pending`; only a non-explicit approval atomically attaches a display URL to a profile or message.
+- Pending, rejected, failed, and `approved_explicit` assets return `404` from normal media routes.
 - Development and tests use local encrypted object storage; production config requires S3-compatible object storage.
-- Server-side encryption exists for selected sensitive profile/location/relationship fields, message text, feed text, and profile photo bytes.
+- The media storage directory is not registered as a static route. All media access is authenticated and purpose-aware.
+- Existing encrypted media created by the prior synchronous moderation route is treated as legacy-approved. Profile URLs without a matching approved media row are moved to `legacy_media_quarantine` and removed from visible profile arrays.
 
-Recommended next slice:
+Required next media slice:
 
-- Keep chat messages, feed text, profile photo bytes, and DM/group image attachments in cruush-controlled encrypted storage.
-- Move production media bytes from local encrypted object storage to private S3-compatible object storage.
-- Keep Stream as a moderation signal and possible notification/chat substrate, but do not make it the only plaintext source of truth for sensitive user content.
-- Keep cruush Postgres as the source for account, trust score, profile privacy, encrypted content metadata, sensitive profile fields, and payment/compliance state.
-- Keep PhotoDNA and trust-score enforcement server-side before media becomes visible.
+- Add a short-lived signed moderation-only URL that serves only the sanitized display variant to Stream.
+- Never expose the private original through the moderation URL.
+- Test token expiry and real Stream decisions for approved, explicit, uncertain, timeout, and malformed responses in staging.
+- Until that preflight exists, Stream production image moderation cannot fetch pending media and uploads fail closed without publication.
 
 Recommended beta storage setup:
 

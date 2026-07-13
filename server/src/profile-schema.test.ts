@@ -3,7 +3,7 @@ import { emptyProfile, profilePayloadSchema } from "./profile-schema.js";
 
 describe("profile schema", () => {
   it("accepts app-owned uploaded profile photo paths", () => {
-    const uploadedPhotoPath = "/media/profile-photos/d271f6da-c51d-4d73-a322-d9c56f45d4fa-7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2.png";
+    const uploadedPhotoPath = "/api/media/assets/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2/display";
 
     expect(profilePayloadSchema.parse({
       ...emptyProfile,

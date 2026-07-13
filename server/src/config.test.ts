@@ -4,6 +4,19 @@ import { loadConfig } from "./config.js";
 const strongSecret = "0123456789abcdef0123456789abcdef";
 
 describe("loadConfig", () => {
+  it("keeps human moderation dormant unless explicitly enabled", () => {
+    const baseEnv = {
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret"
+    };
+
+    expect(loadConfig(baseEnv).HUMAN_MODERATION_ENABLED).toBe(false);
+    expect(loadConfig({
+      ...baseEnv,
+      HUMAN_MODERATION_ENABLED: "true"
+    }).HUMAN_MODERATION_ENABLED).toBe(true);
+  });
+
   it("allows local HTTP and HTTPS frontend origins by default", () => {
     const config = loadConfig({
       DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
@@ -257,12 +270,17 @@ describe("loadConfig", () => {
       MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
       MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key",
       RESEND_API_KEY: "resend-key",
-      MAIL_FROM: "Cruush <hello@cruush.app>",
+      MAIL_FROM: "cruush <hello@cruush.app>",
       LOCATION_ENCRYPTION_KEY: strongSecret,
       LOCATION_INDEX_KEY: strongSecret,
       VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
       GHOST_DERIVATION_KEY: strongSecret,
-      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
+      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret,
+      STREAM_MODERATION_ENABLED: "true",
+      STREAM_API_KEY: "stream-key",
+      STREAM_API_SECRET: "stream-secret",
+      STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      PHOTODNA_ENABLED: "false"
     })).toMatchObject({
       NODE_ENV: "production",
       EMAIL_PREVIEW_ENABLED: false,
@@ -277,12 +295,15 @@ describe("loadConfig", () => {
       MEDIA_ENCRYPTION_KEY: strongSecret,
       MEDIA_OBJECT_STORAGE_DRIVER: "s3",
       RESEND_API_KEY: "resend-key",
-      MAIL_FROM: "Cruush <hello@cruush.app>",
+      MAIL_FROM: "cruush <hello@cruush.app>",
       LOCATION_ENCRYPTION_KEY: strongSecret,
       LOCATION_INDEX_KEY: strongSecret,
       VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
       GHOST_DERIVATION_KEY: strongSecret,
-      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
+      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret,
+      STREAM_MODERATION_ENABLED: true,
+      PHOTODNA_ENABLED: false,
+      HUMAN_MODERATION_ENABLED: false
     });
   });
 });

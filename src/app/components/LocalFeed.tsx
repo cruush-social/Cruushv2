@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Clock, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
+import BlockUserAction from './BlockUserAction';
+import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
@@ -107,6 +109,10 @@ export default function LocalFeed() {
     } finally {
       setDeletingPostId(null);
     }
+  };
+
+  const handleBlockedUser = (blockedUserId: string) => {
+    setPosts((currentPosts) => currentPosts.filter((post) => post.user.id !== blockedUserId));
   };
 
   return (
@@ -247,6 +253,22 @@ export default function LocalFeed() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                      ) : null}
+                      {currentUserId && post.user.id !== currentUserId ? (
+                        <>
+                          <ReportAction
+                            targetType="post"
+                            targetId={post.id}
+                            targetLabel={`post by ${post.user.name}`}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          />
+                          <BlockUserAction
+                            userId={post.user.id}
+                            displayName={post.user.name}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onBlocked={handleBlockedUser}
+                          />
+                        </>
                       ) : null}
                     </div>
                   </div>

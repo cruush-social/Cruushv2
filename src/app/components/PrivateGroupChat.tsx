@@ -5,6 +5,8 @@ import { ArrowLeft, Clock3, Eye, Image as ImageIcon, MoreHorizontal, Trash2 } fr
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
+import BlockUserAction from './BlockUserAction';
+import ReportAction from './ReportAction';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
@@ -426,22 +428,6 @@ export default function PrivateGroupChat() {
       },
     });
   };
-
-  const openReport = () => {
-    if (!conversation) {
-      return;
-    }
-
-    navigate('/report', {
-      state: {
-        targetType: 'conversation',
-        conversationId: conversation.id,
-        targetUserId: conversation.kind === 'dm' ? conversation.user.id : undefined,
-        targetLabel: conversation.user.name,
-      },
-    });
-  };
-
   const groupMemberIds = new Set(groupMembers.map((member) => member.id));
   const availableAddOptions = mutualOptions.filter((item) => !groupMemberIds.has(item.user.id));
 
@@ -518,9 +504,14 @@ export default function PrivateGroupChat() {
                 <CruushIcon name="profile" className="h-5 w-5" />
               </Button>
             ) : null}
-            <Button variant="ghost" size="icon" title="Report conversation" aria-label="Report conversation" disabled={!conversation} onClick={openReport}>
-              <CruushIcon name="safety" className="h-5 w-5" />
-            </Button>
+            {conversation ? (
+              <ReportAction
+                targetType="conversation"
+                targetId={conversation.id}
+                targetLabel={conversation.kind === 'dm' ? `conversation with ${conversation.user.name}` : conversation.user.name}
+                label="Report conversation"
+              />
+            ) : null}
             <Button variant="ghost" size="icon" aria-label="More conversation options" disabled={!conversation} onClick={openSettings}>
               <MoreHorizontal className="w-5 h-5" />
             </Button>
@@ -584,6 +575,18 @@ export default function PrivateGroupChat() {
               <Trash2 className="size-4" />
               Clear chat for everyone
             </Button>
+
+            {conversation.kind === 'dm' ? (
+              <BlockUserAction
+                userId={conversation.user.id}
+                displayName={conversation.user.name}
+                iconOnly={false}
+                size="default"
+                variant="outline"
+                className="w-full justify-center border-destructive/30 text-destructive hover:bg-destructive/10"
+                onBlocked={() => navigate('/messages')}
+              />
+            ) : null}
 
             {conversation.kind === 'group' ? (
               <div className="space-y-4 border-t border-border pt-4">

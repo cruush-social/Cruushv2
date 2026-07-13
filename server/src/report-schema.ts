@@ -17,17 +17,19 @@ export const reportReasonSchema = z.enum([
 ]);
 
 export const createReportPayloadSchema = z.object({
-  targetType: z.enum(["profile", "conversation", "message"]),
+  targetType: z.enum(["user", "profile", "conversation", "message", "post"]),
+  targetId: uuidSchema.optional(),
   targetUserId: uuidSchema.optional(),
   conversationId: uuidSchema.optional(),
   messageId: uuidSchema.optional(),
+  postId: uuidSchema.optional(),
   reason: reportReasonSchema,
   details: multilineTextSchema({ max: 2000 }).optional().default("")
 }).strict().superRefine((payload, ctx) => {
-  if (payload.targetType === "profile" && !payload.targetUserId) {
+  if ((payload.targetType === "user" || payload.targetType === "profile") && !payload.targetUserId && !payload.targetId) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Profile reports require targetUserId.",
+      message: `${payload.targetType === "user" ? "User" : "Profile"} reports require targetUserId.`,
       path: ["targetUserId"]
     });
   }
@@ -40,11 +42,19 @@ export const createReportPayloadSchema = z.object({
     });
   }
 
-  if (payload.targetType === "message" && !payload.messageId) {
+  if (payload.targetType === "message" && !payload.messageId && !payload.targetId) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Message reports require messageId.",
       path: ["messageId"]
+    });
+  }
+
+  if (payload.targetType === "post" && !payload.postId && !payload.targetId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Post reports require postId.",
+      path: ["postId"]
     });
   }
 });

@@ -293,7 +293,8 @@ function labelsFromFilename(filename: string | undefined): ProviderLabel[] {
     ["scat", "scat", "high", 0.95],
     ["gore", "gore", "high", 0.92],
     ["hate-symbol", "hate_symbol", "high", 0.91],
-    ["adult", "adult_nudity", "low", 0.9],
+    ["adult-nudity", "adult_nudity", "low", 0.9],
+    ["adult-explicit", "adult_explicit", "low", 0.9],
     ["nude", "adult_nudity", "low", 0.9]
   ];
 

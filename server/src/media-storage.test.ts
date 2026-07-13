@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "./config.js";
 import {
+  assertValidMediaObjectKey,
   createEncryptedMediaObjectStorage,
   deleteEncryptedMediaObject,
   readEncryptedMediaObject,
@@ -47,6 +48,14 @@ describe("encrypted media object storage", () => {
     await deleteEncryptedMediaObject(config, "profile-photos/test.enc");
 
     await expect(readEncryptedMediaObject(config, "profile-photos/test.enc")).rejects.toThrow();
+  });
+
+  it("rejects traversal and absolute object keys", () => {
+    expect(() => assertValidMediaObjectKey("../outside.enc")).toThrow("Invalid media object key");
+    expect(() => assertValidMediaObjectKey("variants\\outside.enc")).toThrow("Invalid media object key");
+    expect(() => assertValidMediaObjectKey("/absolute.enc")).toThrow("Invalid media object key");
+    expect(assertValidMediaObjectKey("variants/asset-id/display.webp.enc"))
+      .toBe("variants/asset-id/display.webp.enc");
   });
 
   it("writes encrypted objects to an R2/S3-compatible bucket with signed requests", async () => {

@@ -9,6 +9,7 @@ type ReportTarget = {
   targetUserId: string | null;
   conversationId: string | null;
   messageId: string | null;
+  postId: string | null;
 };
 
 type ReportRow = {
@@ -32,8 +33,36 @@ const reportReasonCategory: Record<ReportReason, string> = {
   other: "other"
 };
 
+async function validateUserReport(app: FastifyInstance, reporterUserId: string, payload: CreateReportPayload): Promise<ReportTarget> {
+  const targetUserId = payload.targetUserId ?? payload.targetId ?? null;
+
+  if (!targetUserId || targetUserId === reporterUserId) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Choose another user to report.");
+  }
+
+  const result = await app.db.query<{ id: string }>(
+    `select id::text as id
+     from app_users
+     where id = $1
+       and coalesce(account_status, 'active') <> 'deleted'
+     limit 1`,
+    [targetUserId]
+  );
+
+  if (!result.rows[0]) {
+    throw new ApiError(404, "NOT_FOUND", "User not found.");
+  }
+
+  return {
+    targetUserId,
+    conversationId: null,
+    messageId: null,
+    postId: null
+  };
+}
+
 async function validateProfileReport(app: FastifyInstance, reporterUserId: string, payload: CreateReportPayload): Promise<ReportTarget> {
-  const targetUserId = payload.targetUserId ?? null;
+  const targetUserId = payload.targetUserId ?? payload.targetId ?? null;
 
   if (!targetUserId || targetUserId === reporterUserId) {
     throw new ApiError(400, "VALIDATION_ERROR", "Choose another profile to report.");
@@ -44,7 +73,8 @@ async function validateProfileReport(app: FastifyInstance, reporterUserId: strin
   return {
     targetUserId,
     conversationId: null,
-    messageId: null
+    messageId: null,
+    postId: null
   };
 }
 
@@ -79,12 +109,13 @@ async function validateConversationReport(app: FastifyInstance, reporterUserId: 
   return {
     targetUserId: payload.targetUserId ?? row.target_user_id ?? null,
     conversationId: row.conversation_id,
-    messageId: null
+    messageId: null,
+    postId: null
   };
 }
 
 async function validateMessageReport(app: FastifyInstance, reporterUserId: string, payload: CreateReportPayload): Promise<ReportTarget> {
-  const messageId = payload.messageId ?? null;
+  const messageId = payload.messageId ?? payload.targetId ?? null;
 
   if (!messageId) {
     throw new ApiError(400, "VALIDATION_ERROR", "Message reports require messageId.");
@@ -109,20 +140,69 @@ async function validateMessageReport(app: FastifyInstance, reporterUserId: strin
     throw new ApiError(404, "NOT_FOUND", "Message not found.");
   }
 
+  if (!row.target_user_id) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Choose another message to report.");
+  }
+
   return {
-    targetUserId: payload.targetUserId ?? row.target_user_id ?? null,
+    targetUserId: row.target_user_id,
     conversationId: payload.conversationId ?? row.conversation_id,
-    messageId: row.message_id
+    messageId: row.message_id,
+    postId: null
+  };
+}
+
+async function validatePostReport(app: FastifyInstance, reporterUserId: string, payload: CreateReportPayload): Promise<ReportTarget> {
+  const postId = payload.postId ?? payload.targetId ?? null;
+
+  if (!postId) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Post reports require postId.");
+  }
+
+  const result = await app.db.query<{ post_id: string; target_user_id: string }>(
+    `select
+       posts.id::text as post_id,
+       posts.user_id::text as target_user_id
+     from posts
+     join app_users users on users.id = posts.user_id
+     where posts.id::text = $1
+       and coalesce(users.account_status, 'active') <> 'deleted'
+     limit 1`,
+    [postId]
+  );
+  const row = result.rows[0];
+
+  if (!row) {
+    throw new ApiError(404, "NOT_FOUND", "Post not found.");
+  }
+
+  if (row.target_user_id === reporterUserId) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Choose another post to report.");
+  }
+
+  return {
+    targetUserId: row.target_user_id,
+    conversationId: null,
+    messageId: null,
+    postId: row.post_id
   };
 }
 
 async function validateReportTarget(app: FastifyInstance, reporterUserId: string, payload: CreateReportPayload) {
+  if (payload.targetType === "user") {
+    return validateUserReport(app, reporterUserId, payload);
+  }
+
   if (payload.targetType === "profile") {
     return validateProfileReport(app, reporterUserId, payload);
   }
 
   if (payload.targetType === "conversation") {
     return validateConversationReport(app, reporterUserId, payload);
+  }
+
+  if (payload.targetType === "post") {
+    return validatePostReport(app, reporterUserId, payload);
   }
 
   return validateMessageReport(app, reporterUserId, payload);
@@ -148,6 +228,7 @@ export async function registerReportRoutes(app: FastifyInstance) {
          target_user_id,
          conversation_id,
          message_id,
+         post_id,
          reason,
          details,
          report_weight
@@ -160,6 +241,7 @@ export async function registerReportRoutes(app: FastifyInstance) {
          $5,
          $6,
          $7,
+         $8,
          coalesce((select report_weight from user_trust_profiles where user_id = $1), 50)
        )
        returning id::text as id, status, created_at`,
@@ -169,6 +251,7 @@ export async function registerReportRoutes(app: FastifyInstance) {
         target.targetUserId,
         target.conversationId,
         target.messageId,
+        target.postId,
         payload.reason,
         payload.details
       ]
@@ -187,7 +270,8 @@ export async function registerReportRoutes(app: FastifyInstance) {
       reason: payload.reason,
       details: payload.details,
       conversationId: target.conversationId,
-      messageId: target.messageId
+      messageId: target.messageId,
+      postId: target.postId
     });
 
     if (target.targetUserId) {

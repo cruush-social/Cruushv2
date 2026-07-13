@@ -19,6 +19,7 @@ import {
   type CrowdPrecisionPolicy,
   type VisibilityBaseMode
 } from "./location-privacy.js";
+import { hasUserBlockBetween } from "./user-blocks.js";
 
 export type PreciseLocationVisibility = "none" | "mutual_cruushes";
 
@@ -40,6 +41,7 @@ export type CruushEntitlement = {
 
 export type RelationshipPermissions = {
   matchId: string | null;
+  isBlocked: boolean;
   isMutualCruush: boolean;
   hasOutgoingCruush: boolean;
   canMessage: boolean;
@@ -331,6 +333,7 @@ export async function getRelationshipPermissions(
 
     return {
       matchId: null,
+      isBlocked: false,
       isMutualCruush: true,
       hasOutgoingCruush: true,
       canMessage: true,
@@ -353,6 +356,7 @@ export async function getRelationshipPermissions(
     getRelationshipPrivacySettings(app, viewerUserId),
     getRelationshipPrivacySettings(app, targetUserId)
   ]);
+
   const isMutualCruush = Boolean(match);
   const outgoingCruush = isMutualCruush
     ? match
@@ -391,15 +395,17 @@ export async function getRelationshipPermissions(
       })
     : false;
   const canRevealPreciseLocation = preciseGrantCandidate && !isRevoked;
+  const blocked = await hasUserBlockBetween(app, viewerUserId, targetUserId);
 
   return {
-    matchId: match?.id ?? null,
-    isMutualCruush,
-    hasOutgoingCruush,
-    canMessage: isMutualCruush && hasActiveMatchToken,
-    canRevealMutualProtectedFields: isMutualCruush,
-    canRevealPreciseLocation,
-    shouldLogProfileView: !viewerGhostMode && !targetGhostMode,
+    matchId: blocked ? null : match?.id ?? null,
+    isBlocked: blocked,
+    isMutualCruush: blocked ? false : isMutualCruush,
+    hasOutgoingCruush: blocked ? false : hasOutgoingCruush,
+    canMessage: !blocked && isMutualCruush && hasActiveMatchToken,
+    canRevealMutualProtectedFields: !blocked && isMutualCruush,
+    canRevealPreciseLocation: !blocked && canRevealPreciseLocation,
+    shouldLogProfileView: !blocked && !viewerGhostMode && !targetGhostMode,
     viewerGhostMode,
     targetGhostMode,
     targetPreciseLocationVisibility

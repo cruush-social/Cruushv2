@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 import { buildServer } from "./app.js";
 import { createSessionCookie, generateSessionToken, hashPassword, hashSessionToken } from "./auth.js";
 import type { AppConfig } from "./config.js";
@@ -49,7 +50,8 @@ const app = buildServer({
   RELATIONSHIP_INDEX_KEY_VERSION: "v1",
   MATCH_TOKEN_ENCRYPTION_KEY: "",
   MATCH_TOKEN_SIGNING_KEY: "",
-  MATCH_TOKEN_KEY_VERSION: "v1"
+  MATCH_TOKEN_KEY_VERSION: "v1",
+  HUMAN_MODERATION_ENABLED: true
 }, {
   db: {
     query,
@@ -501,6 +503,42 @@ function buildCsamTestApp(overrides: Partial<AppConfig> = {}) {
   });
 }
 
+async function validPng() {
+  return sharp({
+    create: {
+      width: 24,
+      height: 30,
+      channels: 3,
+      background: { r: 180, g: 40, b: 100 }
+    }
+  }).png().toBuffer();
+}
+
+async function validJpeg() {
+  return sharp({
+    create: {
+      width: 24,
+      height: 30,
+      channels: 3,
+      background: { r: 180, g: 40, b: 100 }
+    }
+  }).jpeg().toBuffer();
+}
+
+function mockPendingProfileMediaQueries() {
+  query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+    if (sql.includes("select photos from profiles")) {
+      return { rows: [{ photos: [] }] };
+    }
+
+    if (sql.includes("with inserted_media as")) {
+      return { rows: [{ id: params[0] }] };
+    }
+
+    return { rows: [] };
+  });
+}
+
 describe("server", () => {
   const userId = "d271f6da-c51d-4d73-a322-d9c56f45d4fa";
   const conversationId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
@@ -613,6 +651,15 @@ describe("server", () => {
       storage: "postgres",
       migratedFromSupabase: true
     });
+  });
+
+  it("does not mount admin moderation routes while human moderation is disabled", async () => {
+    const response = await productionApp.inject({
+      method: "GET",
+      url: "/api/admin/moderation/reports"
+    });
+
+    expect(response.statusCode).toBe(404);
   });
 
   it("requires the internal secret before returning a CSAM incident", async () => {
@@ -2218,6 +2265,213 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[1]).toEqual([hashSessionToken("deleted-session-token")]);
   });
 
+  it("blocks a user through POST /api/blocks", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId: targetUserId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_users");
+    expect(query.mock.calls[1]?.[0]).toContain("insert into user_blocks");
+    expect(query.mock.calls[1]?.[0]).toContain("on conflict");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, targetUserId]);
+    expect(response.json()).toEqual({
+      data: {
+        userId: targetUserId,
+        blocked: true
+      }
+    });
+  });
+
+  it("treats repeated block requests as idempotent", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const firstResponse = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId: targetUserId
+      }
+    });
+    const secondResponse = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId: targetUserId
+      }
+    });
+
+    expect(firstResponse.statusCode).toBe(200);
+    expect(secondResponse.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("on conflict");
+    expect(query.mock.calls[3]?.[0]).toContain("on conflict");
+  });
+
+  it("unblocks a user through DELETE /api/blocks/:userId idempotently", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/blocks/${targetUserId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("delete from user_blocks");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, targetUserId]);
+  });
+
+  it("rejects self-block attempts before querying", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "You cannot block yourself.",
+        details: null
+      }
+    });
+  });
+
+  it("rejects block attempts for nonexistent or deleted users", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        userId: targetUserId
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(query.mock.calls[0]?.[0]).toContain("coalesce(account_status, 'active') <> 'deleted'");
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "User not found.",
+        details: null
+      }
+    });
+  });
+
+  it("lists blocked users without private fields", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: targetUserId,
+        display_name: "Alex",
+        photo: "https://example.com/alex.jpg",
+        created_at: "2026-04-28T12:00:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/blocks",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from user_blocks block");
+    expect(query.mock.calls[0]?.[0]).not.toContain("email");
+    expect(response.json()).toEqual({
+      data: {
+        blockedUsers: [{
+          userId: targetUserId,
+          displayName: "Alex",
+          photo: "https://example.com/alex.jpg",
+          createdAt: "2026-04-28T12:00:00.000Z"
+        }]
+      }
+    });
+    expect(JSON.stringify(response.json())).not.toContain("account_status");
+  });
+
+  it("blocks under-review cookie-backed sessions from block mutations", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          account_status: "under_review"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          account_status: "under_review"
+        }]
+      });
+
+    const blockResponse = await app.inject({
+      method: "POST",
+      url: "/api/blocks",
+      cookies: {
+        cruush_session: "under-review-block-session"
+      },
+      payload: {
+        userId: targetUserId
+      }
+    });
+    const unblockResponse = await app.inject({
+      method: "DELETE",
+      url: `/api/blocks/${targetUserId}`,
+      cookies: {
+        cruush_session: "under-review-unblock-session"
+      }
+    });
+
+    expect(blockResponse.statusCode).toBe(403);
+    expect(unblockResponse.statusCode).toBe(403);
+    expect(query.mock.calls.every(([sql]) => !String(sql).includes("insert into user_blocks"))).toBe(true);
+    expect(query.mock.calls.every(([sql]) => !String(sql).includes("delete from user_blocks"))).toBe(true);
+  });
+
   it("marks the current session as having accepted the current code of conduct", async () => {
     query
       .mockResolvedValueOnce({
@@ -2633,6 +2887,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
@@ -2679,8 +2934,8 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[3]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[5]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[6]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[6]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[7]?.[0]).toContain("insert into conversation_members");
     expect(response.json()).toEqual({
       data: {
         id: conversationId,
@@ -2724,6 +2979,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
       rows: [{
         id: conversationId,
@@ -2744,7 +3000,8 @@ describe("server", () => {
         disappearing_timer: "24h",
         closed_at: null
       }]
-    });
+    })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -2764,11 +3021,11 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[3]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[4]?.[0]).toContain("insert into conversations");
-    expect(query.mock.calls[4]?.[0]).toContain("insert into conversation_members");
-    expect(query.mock.calls[4]?.[0]).toContain("'owner'");
-    expect(query.mock.calls[5]?.[0]).toContain("insert into app_notifications");
-    expect(query.mock.calls[5]?.[1]).toEqual([
+    expect(query.mock.calls[5]?.[0]).toContain("insert into conversations");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[5]?.[0]).toContain("'owner'");
+    expect(query.mock.calls[6]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[6]?.[1]).toEqual([
       memberId,
       "group_membership",
       "You were added to Beta crew",
@@ -3067,6 +3324,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: memberId }] })
       .mockResolvedValueOnce({
         rows: [appNotificationRow({
@@ -3093,10 +3351,10 @@ describe("server", () => {
     expect(response.statusCode).toBe(204);
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[5]?.[0]).toContain("insert into conversation_members");
-    expect(query.mock.calls[5]?.[0]).toContain("'member'");
-    expect(query.mock.calls[6]?.[0]).toContain("insert into app_notifications");
-    expect(query.mock.calls[6]?.[1]).toEqual([
+    expect(query.mock.calls[6]?.[0]).toContain("insert into conversation_members");
+    expect(query.mock.calls[6]?.[0]).toContain("'member'");
+    expect(query.mock.calls[7]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[7]?.[1]).toEqual([
       memberId,
       "group_membership",
       "You were added to Group chat",
@@ -3188,6 +3446,52 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "MUTUAL_CRUUSH_REQUIRED",
+        message: "You can message after a mutual cruush.",
+        details: null
+      }
+    });
+  });
+
+  it("blocks dm conversation creation when either user blocked the other", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-blocked-dm",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: otherUserId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-blocked-dm",
+      userOneId: userId,
+      userTwoId: otherUserId
+    });
+
+    query
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [{ exists: true }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/conversations/dm",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        otherUserId
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(query.mock.calls[4]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[4]?.[1]).toEqual([userId, otherUserId]);
+    expect(queries.some((sql) => sql.includes("insert into conversations"))).toBe(false);
     expect(response.json()).toEqual({
       error: {
         code: "MUTUAL_CRUUSH_REQUIRED",
@@ -3380,6 +3684,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "msg-3",
@@ -3423,13 +3728,13 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from conversation_members cm");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[5]?.[0]).toContain("insert into messages");
-    expect(query.mock.calls[5]?.[0]).toContain("content_ciphertext");
-    expect(query.mock.calls[5]?.[1]).not.toContain("on my way");
-    expect(query.mock.calls[5]?.[1]).toContain("keyword_prefilter");
-    expect(query.mock.calls[6]?.[0]).toContain("from conversation_members cm");
-    expect(query.mock.calls[7]?.[0]).toContain("insert into app_notifications");
-    expect(query.mock.calls[7]?.[1]).toEqual([
+    expect(query.mock.calls[6]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[6]?.[0]).toContain("content_ciphertext");
+    expect(query.mock.calls[6]?.[1]).not.toContain("on my way");
+    expect(query.mock.calls[6]?.[1]).toContain("keyword_prefilter");
+    expect(query.mock.calls[7]?.[0]).toContain("from conversation_members cm");
+    expect(query.mock.calls[8]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[8]?.[1]).toEqual([
       "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
       "direct_message",
       "Jordan sent you a message",
@@ -3488,6 +3793,7 @@ describe("server", () => {
       .mockRejectedValueOnce(privacyDecryptError)
       .mockRejectedValueOnce(privacyDecryptError)
       .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "msg-privacy-unreadable",
@@ -3529,7 +3835,7 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[5]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[6]?.[0]).toContain("insert into messages");
     expect(response.json().data).toEqual(expect.objectContaining({
       id: "msg-privacy-unreadable",
       content: "still sending"
@@ -3610,8 +3916,9 @@ describe("server", () => {
           current_user_role: "member",
           disappearing_timer: "1h",
           closed_at: null
-        }]
-      })
+      }]
+    })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "msg-group-1",
@@ -3635,12 +3942,67 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[1]?.[0]).toContain("expires_at");
-    expect(query.mock.calls[1]?.[0]).toContain("interval '1 hour'");
+    expect(query.mock.calls[2]?.[0]).toContain("expires_at");
+    expect(query.mock.calls[2]?.[0]).toContain("interval '1 hour'");
     expect(response.json().data).toMatchObject({
       id: "msg-group-1",
       content: "see you there",
       expiresAt: "2026-04-29T13:10:00.000Z"
+    });
+  });
+
+  it("blocks group message sends when a member has a block relationship with the sender", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "group",
+          title: "Beta crew",
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: null,
+          other_user_name: null,
+          other_user_pronouns: null,
+          other_user_photo: null,
+          member_count: 3,
+          current_user_role: "member",
+          disappearing_timer: "1h",
+          closed_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "see you there"
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(query.mock.calls[1]?.[0]).toContain("join user_blocks block");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, conversationId]);
+    expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
+    expect(response.json()).toEqual({
+      error: {
+        code: "MUTUAL_CRUUSH_REQUIRED",
+        message: "You can message after a mutual cruush.",
+        details: null
+      }
     });
   });
 
@@ -3665,8 +4027,9 @@ describe("server", () => {
           current_user_role: "member",
           disappearing_timer: "24h",
           closed_at: null
-        }]
-      })
+      }]
+    })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "media-1"
@@ -3707,7 +4070,7 @@ describe("server", () => {
           metadata: { conversationKind: "group" }
         })]
       });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "message.png",
@@ -3801,7 +4164,7 @@ describe("server", () => {
 
       return { rows: [] };
     });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "message.png",
@@ -3866,7 +4229,7 @@ describe("server", () => {
     const csamApp = buildCsamTestApp();
     mockPhotoDnaMatchAndAlert();
     mockCsamIncidentQueries({ conversation: true });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "message.png",
@@ -3963,7 +4326,7 @@ describe("server", () => {
     });
   });
 
-  it("rejects prohibited message photos before storage", async () => {
+  it("stores prohibited message photos privately without attaching them", async () => {
     query.mockResolvedValueOnce({
       rows: [{
         id: conversationId,
@@ -3984,8 +4347,11 @@ describe("server", () => {
         disappearing_timer: "off",
         closed_at: null
       }]
-    });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "media-pending" }] })
+      .mockResolvedValue({ rows: [] });
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "drug-sales.png",
@@ -4011,11 +4377,12 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates Cruush safety rules and cannot be saved.",
+        message: "This content violates cruush safety rules and cannot be saved.",
         details: null
       }
     });
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("moderation_status = $2"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
     expect(queries.some((sql) => sql.includes("message_media_attachments"))).toBe(false);
   });
@@ -4038,7 +4405,8 @@ describe("server", () => {
         other_user_photo: null,
         member_count: 4
       }]
-    });
+    })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -4057,7 +4425,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates Cruush safety rules and cannot be saved.",
+        message: "This content violates cruush safety rules and cannot be saved.",
         details: null
       }
     });
@@ -4175,6 +4543,7 @@ describe("server", () => {
       userId,
       "profile",
       targetUserId,
+      null,
       null,
       null,
       "harassment",
@@ -4328,9 +4697,601 @@ describe("server", () => {
       "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
       conversationId,
       null,
+      null,
       "privacy_location",
       ""
     ]);
+  });
+
+  it("creates a user report on POST /api/reports", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "report-user",
+          status: "open",
+          created_at: "2026-04-29T12:15:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "user",
+        targetId: targetUserId,
+        reason: "spam_scam"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_users");
+    expect(query.mock.calls[1]?.[1]).toEqual([
+      userId,
+      "user",
+      targetUserId,
+      null,
+      null,
+      null,
+      "spam_scam",
+      ""
+    ]);
+  });
+
+  it("creates a post report on POST /api/reports", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const postId = "59e01d61-4a76-4359-915a-1f25b7815ff4";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          post_id: postId,
+          target_user_id: targetUserId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "report-post",
+          status: "open",
+          created_at: "2026-04-29T12:20:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "post",
+        postId,
+        reason: "hate"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("from posts");
+    expect(query.mock.calls[1]?.[1]).toEqual([
+      userId,
+      "post",
+      targetUserId,
+      null,
+      null,
+      postId,
+      "hate",
+      ""
+    ]);
+  });
+
+  it("creates a message report when the message belongs to another conversation member", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const messageId = "0759d8df-8ba5-4b12-a8fb-c46d4ea63df7";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          message_id: messageId,
+          conversation_id: conversationId,
+          target_user_id: targetUserId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "report-message",
+          status: "open",
+          created_at: "2026-04-29T12:25:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "message",
+        targetId: messageId,
+        reason: "violence_threat"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("from messages m");
+    expect(query.mock.calls[1]?.[1]).toEqual([
+      userId,
+      "message",
+      targetUserId,
+      conversationId,
+      messageId,
+      null,
+      "violence_threat",
+      ""
+    ]);
+  });
+
+  it("rejects invalid report target types", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "comment",
+        targetId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        reason: "harassment"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed",
+        details: expect.any(Object)
+      }
+    });
+  });
+
+  it("rejects nonexistent report targets without exposing private details", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "post",
+        targetId: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+        reason: "harassment"
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Post not found.",
+        details: null
+      }
+    });
+  });
+
+  it("rejects self-reporting where inappropriate", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "user",
+        targetId: userId,
+        reason: "harassment"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Choose another user to report.",
+        details: null
+      }
+    });
+  });
+
+  it("blocks normal users from listing moderation reports", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/moderation/reports",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(query.mock.calls[0]?.[0]).toContain("from moderator_users");
+    expect(response.json()).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Moderator access required.",
+        details: null
+      }
+    });
+  });
+
+  it("lets moderators list reports with minimal safe display context", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "moderator"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "2f35619f-e09d-4f65-a7ea-8f6dd149ec11",
+          reporter_user_id: userId,
+          target_type: "post",
+          target_user_id: targetUserId,
+          conversation_id: null,
+          message_id: null,
+          post_id: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+          media_object_id: null,
+          profile_photo_url: null,
+          reason: "harassment",
+          details: "threatening post",
+          status: "open",
+          created_at: "2026-04-29T12:00:00.000Z",
+          updated_at: "2026-04-29T12:00:00.000Z",
+          reporter_display_name: "River",
+          target_display_name: "Jordan"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/moderation/reports?status=open&limit=25",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain("from moderator_users");
+    expect(query.mock.calls[1]?.[0]).toContain("from reports");
+    expect(query.mock.calls[1]?.[1]).toEqual(["open", 25, 0]);
+    expect(response.json()).toEqual({
+      data: {
+        reports: [{
+          id: "2f35619f-e09d-4f65-a7ea-8f6dd149ec11",
+          reporter: {
+            userId,
+            displayName: "River"
+          },
+          target: {
+            type: "post",
+            userId: targetUserId,
+            displayName: "Jordan",
+            conversationId: null,
+            messageId: null,
+            postId: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+            mediaObjectId: null,
+            profilePhotoUrl: null
+          },
+          reason: "harassment",
+          details: "threatening post",
+          status: "open",
+          createdAt: "2026-04-29T12:00:00.000Z",
+          updatedAt: "2026-04-29T12:00:00.000Z"
+        }]
+      }
+    });
+    expect(JSON.stringify(response.json())).not.toContain("@");
+  });
+
+  it("lets moderators resolve reports and records a moderation action", async () => {
+    const reportId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "admin"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reportId,
+          status: "open",
+          target_type: "post",
+          target_user_id: targetUserId,
+          conversation_id: null,
+          message_id: null,
+          post_id: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+          media_object_id: null,
+          profile_photo_url: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reportId,
+          status: "resolved",
+          updated_at: "2026-04-29T12:35:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          created_at: "2026-04-29T12:35:01.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/admin/moderation/reports/${reportId}`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "resolved",
+        reasonCode: "reviewed_valid_report",
+        notes: "Handled in beta queue."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("update reports");
+    expect(query.mock.calls[2]?.[1]).toEqual([reportId, "resolved"]);
+    expect(query.mock.calls[3]?.[0]).toContain("insert into moderation_actions");
+    expect(query.mock.calls[3]?.[1]?.slice(0, 6)).toEqual([
+      userId,
+      targetUserId,
+      reportId,
+      "resolve_report",
+      "reviewed_valid_report",
+      "Handled in beta queue."
+    ]);
+    expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[6]))).toEqual(expect.objectContaining({
+      previousStatus: "open",
+      newStatus: "resolved",
+      targetType: "post"
+    }));
+    expect(response.json()).toEqual({
+      data: {
+        report: {
+          id: reportId,
+          status: "resolved",
+          updatedAt: "2026-04-29T12:35:00.000Z"
+        },
+        moderationAction: {
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          createdAt: "2026-04-29T12:35:01.000Z"
+        }
+      }
+    });
+  });
+
+  it("lets moderators dismiss reports and records a moderation action", async () => {
+    const reportId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "moderator"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reportId,
+          status: "open",
+          target_type: "profile",
+          target_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          conversation_id: null,
+          message_id: null,
+          post_id: null,
+          media_object_id: null,
+          profile_photo_url: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: reportId,
+          status: "dismissed",
+          updated_at: "2026-04-29T12:36:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          created_at: "2026-04-29T12:36:01.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/api/admin/moderation/reports/${reportId}`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "dismissed",
+        reasonCode: "not_actionable"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[3]?.[1]?.[3]).toBe("dismiss_report");
+    expect(response.json().data.report.status).toBe("dismissed");
+  });
+
+  it("lets moderators place a user under review and updates account_status_updated_at", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "moderator"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          account_status: "active",
+          account_status_updated_at: "2026-04-29T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          account_status: "under_review",
+          account_status_updated_at: "2026-04-29T12:40:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          created_at: "2026-04-29T12:40:01.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/users/${targetUserId}/status`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "under_review",
+        reasonCode: "needs_manual_review",
+        notes: "Multiple credible reports."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("account_status_updated_at = now()");
+    expect(query.mock.calls[2]?.[1]).toEqual([targetUserId, "under_review"]);
+    expect(query.mock.calls[3]?.[1]?.slice(0, 6)).toEqual([
+      userId,
+      targetUserId,
+      null,
+      "mark_under_review",
+      "needs_manual_review",
+      "Multiple credible reports."
+    ]);
+    expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[6]))).toEqual({
+      previousStatus: "active",
+      newStatus: "under_review"
+    });
+    expect(response.json()).toEqual({
+      data: {
+        user: {
+          id: targetUserId,
+          accountStatus: "under_review",
+          accountStatusUpdatedAt: "2026-04-29T12:40:00.000Z"
+        },
+        moderationAction: {
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          createdAt: "2026-04-29T12:40:01.000Z"
+        }
+      }
+    });
+  });
+
+  it("lets moderators suspend a user and existing auth enforcement blocks that session", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          role: "admin"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          account_status: "active",
+          account_status_updated_at: "2026-04-29T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          account_status: "suspended",
+          account_status_updated_at: "2026-04-29T12:45:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          created_at: "2026-04-29T12:45:01.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: targetUserId,
+          account_status: "suspended"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/users/${targetUserId}/status`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "suspended",
+        reasonCode: "abuse_confirmed",
+        reportId: "2f35619f-e09d-4f65-a7ea-8f6dd149ec11"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("account_status_updated_at = now()");
+    expect(query.mock.calls[3]?.[1]?.slice(0, 6)).toEqual([
+      userId,
+      targetUserId,
+      "2f35619f-e09d-4f65-a7ea-8f6dd149ec11",
+      "suspend_user",
+      "abuse_confirmed",
+      ""
+    ]);
+
+    const authResponse = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "suspended-after-admin-action"
+      }
+    });
+
+    expect(authResponse.statusCode).toBe(401);
+    expect(query.mock.calls[4]?.[0]).toContain("from app_sessions s");
+    expect(query.mock.calls[5]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[5]?.[1]).toEqual([hashSessionToken("suspended-after-admin-action")]);
   });
 
   it("rate limits repeated report creation", async () => {
@@ -4617,9 +5578,11 @@ describe("server", () => {
     query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
       rows: String(_sql).includes("select photos from profiles")
         ? [{ photos: [] }]
-        : [{ photos: [params[1]] }]
+        : String(_sql).includes("with inserted_media as")
+          ? [{ id: params[0] }]
+          : [{ photos: [params[2]] }]
     }));
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-profile.png",
@@ -4640,17 +5603,23 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     const body = response.json();
     expect(body).toEqual({
-      data: {
-        url: expect.stringMatching(/^\/api\/media\/profile-photos\/d271f6da-c51d-4d73-a322-d9c56f45d4fa-[0-9a-f-]{36}\.png$/)
-      }
+      data: expect.objectContaining({
+        assetId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/),
+        thumbnailUrl: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/thumbnail$/),
+        moderationStatus: "approved",
+        mimeType: "image/webp"
+      })
     });
     expect(query).toHaveBeenCalledTimes(3);
     expect(query.mock.calls[0]?.[0]).toBe("select photos from profiles where id = $1");
     expect(query.mock.calls[0]?.[1]).toEqual([userId]);
     expect(query.mock.calls[1]?.[0]).toContain("insert into media_objects");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_data_key");
+    expect(query.mock.calls[1]?.[0]).toContain("insert into media_variants");
+    expect(query.mock.calls[1]?.[0]).toContain("'pending'");
     expect(query.mock.calls[2]?.[0]).toContain("insert into profiles (id, photos, updated_at)");
-    expect(query.mock.calls[2]?.[0]).toContain("array_append(profiles.photos, $2)");
+    expect(query.mock.calls[2]?.[0]).toContain("array_append(profiles.photos, $3)");
     expect(query.mock.calls[2]?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
   });
 
@@ -4660,7 +5629,7 @@ describe("server", () => {
         ? [{ photos: [] }]
         : [{ photos: [params[1]] }]
     }));
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "fishnet-arms.png",
@@ -4695,7 +5664,7 @@ describe("server", () => {
         ? [{ photos: [] }]
         : [{ photos: [params[1]] }]
     }));
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename,
@@ -4720,7 +5689,7 @@ describe("server", () => {
 
   it("rejects a profile photo when underage and adult-human labels conflict", async () => {
     query.mockResolvedValue({ rows: [{ photos: [] }] });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "underage-adult-human-profile.png",
@@ -4748,7 +5717,7 @@ describe("server", () => {
     const csamApp = buildCsamTestApp();
     const fetchMock = mockPhotoDnaMatchAndAlert();
     mockCsamIncidentQueries();
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-profile.png",
@@ -4804,7 +5773,7 @@ describe("server", () => {
       throw new Error(`Unexpected fetch URL: ${input.toString()}`);
     }));
     query.mockResolvedValue({ rows: [{ photos: [] }] });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-profile.png",
@@ -4843,7 +5812,7 @@ describe("server", () => {
         ? [{ photos: [] }]
         : [{ photos: [params[1]] }]
     }));
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "profile.png",
@@ -4871,7 +5840,7 @@ describe("server", () => {
       }
     });
     expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
@@ -4882,7 +5851,7 @@ describe("server", () => {
         photos: Array.from({ length: 4 }, (_, index) => `https://example.com/photo-${index}.jpg`)
       }]
     });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "profile.png",
@@ -4912,7 +5881,8 @@ describe("server", () => {
   });
 
   it("rejects scat profile photos before storage", async () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    mockPendingProfileMediaQueries();
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-scat-profile.png",
@@ -4939,12 +5909,13 @@ describe("server", () => {
         details: null
       }
     });
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
   it("rejects prohibited profile photos before storage", async () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    mockPendingProfileMediaQueries();
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "drug-sales.png",
@@ -4972,7 +5943,7 @@ describe("server", () => {
       }
     });
     expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
@@ -4999,18 +5970,19 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message: "Profile photo must be a JPEG, PNG, or WebP image.",
+        message: "Upload a valid JPEG, PNG, or WebP image.",
         details: null
       }
     });
   });
 
   it("rejects a profile photo whose declared MIME type does not match its bytes", async () => {
+    const jpeg = await validJpeg();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-profile.png",
       contentType: "image/png",
-      content: Buffer.from([0xff, 0xd8, 0xff, 0x00])
+      content: jpeg
     });
 
     const response = await app.inject({
@@ -5027,7 +5999,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message: "Profile photo content does not match its image type.",
+        message: "Image content does not match its declared type.",
         details: null
       }
     });
@@ -5035,7 +6007,7 @@ describe("server", () => {
   });
 
   it("requires authentication before accepting a profile photo", async () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-profile.png",
@@ -5132,7 +6104,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(8);
+    expect(query).toHaveBeenCalledTimes(9);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
@@ -5984,7 +6956,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(4);
+    expect(query).toHaveBeenCalledTimes(5);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
 
     expect(response.json()).toEqual({
@@ -6072,6 +7044,30 @@ describe("server", () => {
         }
       }]
     });
+  });
+
+  it("filters blocked relationships from GET /api/posts at the query boundary", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/posts",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("from user_blocks block");
+    expect(query.mock.calls[1]?.[0]).toContain("blocker_user_id = $1");
+    expect(query.mock.calls[1]?.[0]).toContain("blocked_user_id = p.user_id");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId]);
   });
 
   it("validates the payload on POST /api/posts", async () => {
@@ -6402,6 +7398,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [incomingRecord] })
       .mockResolvedValueOnce({ rows: [sentRecord] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -6423,10 +7420,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(6);
+    expect(query).toHaveBeenCalledTimes(7);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
-    expect(query.mock.calls[3]?.[0]).toContain("from profiles");
+    expect(query.mock.calls[4]?.[0]).toContain("from profiles");
     expect(response.json()).toEqual({
       data: {
         received: [{
@@ -6455,6 +7452,55 @@ describe("server", () => {
             photo: null
           }
         }]
+      }
+    });
+  });
+
+  it("filters blocked users out of cruush activity", async () => {
+    const incomingUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const sentTargetUserId = "8f707f0b-81aa-470d-b0e1-321d493d04d2";
+    const incomingRecord = await encryptedRelationshipRecordRow({
+      id: "blocked-incoming",
+      type: "cruush",
+      actorUserId: incomingUserId,
+      targetUserId: userId,
+      createdAt: "2026-04-28T12:00:00.000Z"
+    });
+    const sentRecord = await encryptedRelationshipRecordRow({
+      id: "blocked-sent",
+      type: "cruush",
+      actorUserId: userId,
+      targetUserId: sentTargetUserId,
+      createdAt: "2026-04-28T12:05:00.000Z"
+    });
+
+    query
+      .mockResolvedValueOnce({ rows: [incomingRecord] })
+      .mockResolvedValueOnce({ rows: [sentRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: incomingUserId
+        }, {
+          user_id: sentTargetUserId
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/cruush/${userId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(query.mock.calls[3]?.[0]).toContain("from user_blocks");
+    expect(response.json()).toEqual({
+      data: {
+        received: [],
+        sent: []
       }
     });
   });
@@ -6516,6 +7562,8 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [incomingOne, incomingTwo] })
       .mockResolvedValueOnce({ rows: [sentOne] })
       .mockResolvedValueOnce({ rows: [viewOne, viewTwo] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -6714,8 +7762,49 @@ describe("server", () => {
     expect(response.json().data.profiles[0]).not.toHaveProperty("lng");
   });
 
+  it("filters blocked users out of the mutual cruush map", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "blocked-match-map",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: otherUserId
+    });
+
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: otherUserId
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/cruush/mutual-map",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledTimes(4);
+    expect(query.mock.calls[3]?.[0]).toContain("from user_blocks");
+    expect(queries.some((sql) => sql.includes("where profiles.id = any"))).toBe(false);
+    expect(response.json()).toEqual({
+      data: {
+        mapEpochMs: expect.any(Number),
+        profiles: []
+      }
+    });
+  });
+
   it("creates or updates a cruush on POST /api/cruush", async () => {
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
@@ -6744,12 +7833,12 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query).toHaveBeenCalledTimes(4);
+    expect(query).toHaveBeenCalledTimes(5);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
-    expect(query.mock.calls[1]?.[0]).toContain("insert into encrypted_relationship_records");
-    expect(query.mock.calls[3]?.[0]).toContain("insert into app_notifications");
-    expect(JSON.stringify(query.mock.calls[1]?.[1])).not.toContain("Jordan");
-    expect(JSON.stringify(query.mock.calls[1]?.[1])).not.toContain("53fd68d7-24fc-4cff-8cd7-a97ec0cadf97");
+    expect(query.mock.calls[2]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(query.mock.calls[4]?.[0]).toContain("insert into app_notifications");
+    expect(JSON.stringify(query.mock.calls[2]?.[1])).not.toContain("Jordan");
+    expect(JSON.stringify(query.mock.calls[2]?.[1])).not.toContain("53fd68d7-24fc-4cff-8cd7-a97ec0cadf97");
     expect(response.json()).toEqual({
       data: {
         id: "cruush-3",
@@ -6757,6 +7846,42 @@ describe("server", () => {
         toUserId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
         createdAt: expect.any(String),
         mutual: false
+      }
+    });
+  });
+
+  it("blocks cruush creation when either user blocked the other", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ exists: true }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/cruush",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        toUserId: otherUserId,
+        targetUser: {
+          name: "Jordan",
+          pronouns: "they/them",
+          photo: null
+        }
+      }
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(404);
+    expect(query.mock.calls[1]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, otherUserId]);
+    expect(queries.some((sql) => sql.includes("insert into encrypted_relationship_records"))).toBe(false);
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "User not found.",
+        details: null
       }
     });
   });
@@ -6814,6 +7939,7 @@ describe("server", () => {
 
     query
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "cruush-4",
@@ -6835,7 +7961,8 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [matchToken]
-      });
+      })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -6854,9 +7981,9 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[3]?.[0]).toContain("insert into encrypted_relationship_records");
-    expect(query.mock.calls[4]?.[0]).toContain("insert into encrypted_relationship_tokens");
-    expect(query.mock.calls[8]?.[0]).toContain("encrypted_relationship_tokens");
+    expect(query.mock.calls[4]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(query.mock.calls[5]?.[0]).toContain("insert into encrypted_relationship_tokens");
+    expect(query.mock.calls[9]?.[0]).toContain("encrypted_relationship_tokens");
     expect(response.json()).toEqual({
       data: {
         id: "cruush-4",
@@ -6896,11 +8023,13 @@ describe("server", () => {
 
     query
       .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [existingCruush] })
       .mockResolvedValueOnce({ rows: [matchRecord] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [matchToken] });
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "POST",
@@ -6919,7 +8048,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(6);
+    expect(query).toHaveBeenCalledTimes(8);
     expect(query.mock.calls[0]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls.map((call) => call[0]).join("\n")).not.toContain("insert into encrypted_relationship_tokens");
     expect(response.json()).toEqual({
@@ -7209,47 +8338,50 @@ describe("server", () => {
       token_hash: token.token_hash
     }));
 
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-        display_name: "Alex",
-        photos: ["https://example.com/alex.jpg"],
-        bio: "Nearby now",
-        pronouns: ["they/them"],
-        custom_pronouns: "",
-        year_of_birth: 1998,
-        ethnicity: ["Latinx"],
-        identities: ["Non-binary"],
-        presentation: ["Femme"],
-        sexuality: ["Queer"],
-        body_type: ["Athletic"],
-        height: "5'8\"",
-        weight: "155 lbs",
-        position: ["Vers"],
-        availability: ["Now"],
-        hosting_travel: ["Hosting"],
-        kinks: ["Leather"],
-        vibes: ["Playful"],
-        hobbies: ["Hiking"],
-        custom_hobby: "",
-        looking_for: ["Dates"],
-        hiv_status: ["Negative"],
-        custom_hiv_status: "",
-        condoms: ["Always"],
-        custom_condoms: "",
-        prep: ["Daily"],
-        custom_prep: "",
-        doxypep: ["Sometimes"],
-        custom_doxypep: "",
-        covid_vaccine: ["Boosted"],
-        custom_covid_vaccine: "",
-        mpox_vaccine: ["Vaccinated"],
-        custom_mpox_vaccine: "",
-        substance_boundaries: ["No alcohol involved", "Let's discuss"],
-        ...targetSensitiveProfile,
-        updated_at: "2026-04-28T12:00:00.000Z"
-      }]
-    })
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          display_name: "Alex",
+          photos: ["https://example.com/alex.jpg"],
+          bio: "Nearby now",
+          pronouns: ["they/them"],
+          custom_pronouns: "",
+          year_of_birth: 1998,
+          ethnicity: ["Latinx"],
+          identities: ["Non-binary"],
+          presentation: ["Femme"],
+          sexuality: ["Queer"],
+          body_type: ["Athletic"],
+          height: "5'8\"",
+          weight: "155 lbs",
+          position: ["Vers"],
+          availability: ["Now"],
+          hosting_travel: ["Hosting"],
+          kinks: ["Leather"],
+          vibes: ["Playful"],
+          hobbies: ["Hiking"],
+          custom_hobby: "",
+          looking_for: ["Dates"],
+          hiv_status: ["Negative"],
+          custom_hiv_status: "",
+          condoms: ["Always"],
+          custom_condoms: "",
+          prep: ["Daily"],
+          custom_prep: "",
+          doxypep: ["Sometimes"],
+          custom_doxypep: "",
+          covid_vaccine: ["Boosted"],
+          custom_covid_vaccine: "",
+          mpox_vaccine: ["Vaccinated"],
+          custom_mpox_vaccine: "",
+          substance_boundaries: ["No alcohol involved", "Let's discuss"],
+          ...targetSensitiveProfile,
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
@@ -7278,6 +8410,31 @@ describe("server", () => {
       })
     });
     expect(response.json().data.crowds).not.toContain("Dyke");
+  });
+
+  it("returns 404 for profile detail when either user has blocked the other", async () => {
+    query.mockResolvedValueOnce({ rows: [{ exists: true }] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("from user_blocks");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"]);
+    expect(query.mock.calls.map(([sql]) => String(sql)).join("\n")).not.toContain("from profiles");
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Profile not found",
+        details: null
+      }
+    });
   });
 
   it("rejects invalid profile ids before querying profiles", async () => {
@@ -7315,6 +8472,7 @@ describe("server", () => {
     });
 
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -7373,6 +8531,7 @@ describe("server", () => {
 
   it("hides another user's kinks when the field is not public", async () => {
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -7426,6 +8585,7 @@ describe("server", () => {
     });
 
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -7446,6 +8606,7 @@ describe("server", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [matchToken] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           kink_id: "leather",
@@ -7463,7 +8624,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[5]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(query.mock.calls[7]?.[0]).toContain("insert into encrypted_relationship_records");
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         kinks: ["Leather"],
@@ -7486,6 +8647,7 @@ describe("server", () => {
 
   it("does not log profile views when the viewer has Ghost Mode enabled", async () => {
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -7539,6 +8701,7 @@ describe("server", () => {
     });
 
     query
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",

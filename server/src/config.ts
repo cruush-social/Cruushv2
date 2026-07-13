@@ -71,6 +71,7 @@ const configSchema = z.object({
   MODERATION_PROVIDER: z.enum(["mock"]).optional().default("mock"),
   MODERATION_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
   STREAM_MODERATION_ENABLED: booleanEnvSchema,
+  HUMAN_MODERATION_ENABLED: booleanEnvSchema,
   STREAM_API_KEY: z.string().optional().default(""),
   STREAM_API_SECRET: z.string().optional().default(""),
   STREAM_APP_ID: z.string().optional().default(""),
@@ -344,6 +345,7 @@ type ModerationConfigKey =
   | "MODERATION_PROVIDER"
   | "MODERATION_TIMEOUT_MS"
   | "STREAM_MODERATION_ENABLED"
+  | "HUMAN_MODERATION_ENABLED"
   | "STREAM_API_KEY"
   | "STREAM_API_SECRET"
   | "STREAM_APP_ID"

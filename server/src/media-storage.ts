@@ -46,18 +46,43 @@ export function getEncryptedMediaObjectStorageDir(config: Pick<AppConfig, "MEDIA
   return path.join(resolveMediaStorageDir(config), "objects");
 }
 
+export function assertValidMediaObjectKey(objectKey: string) {
+  if (
+    !objectKey ||
+    objectKey.startsWith("/") ||
+    objectKey.includes("\\") ||
+    objectKey.split("/").some((segment) => !segment || segment === "." || segment === "..") ||
+    !/^[a-zA-Z0-9/_-]+(?:\.[a-zA-Z0-9_-]+)+$/.test(objectKey)
+  ) {
+    throw new Error("Invalid media object key.");
+  }
+
+  return objectKey;
+}
+
+function resolveLocalObjectPath(config: Pick<AppConfig, "MEDIA_STORAGE_DIR" | "NODE_ENV">, objectKey: string) {
+  const storageDir = getEncryptedMediaObjectStorageDir(config);
+  const objectPath = path.resolve(storageDir, assertValidMediaObjectKey(objectKey));
+
+  if (!objectPath.startsWith(`${storageDir}${path.sep}`)) {
+    throw new Error("Invalid media object path.");
+  }
+
+  return objectPath;
+}
+
 function createLocalEncryptedMediaObjectStorage(config: Pick<AppConfig, "MEDIA_STORAGE_DIR" | "NODE_ENV">): EncryptedMediaObjectStorage {
   return {
     async write(objectKey, bytes) {
-      const objectPath = path.join(getEncryptedMediaObjectStorageDir(config), objectKey);
+      const objectPath = resolveLocalObjectPath(config, objectKey);
       await mkdir(path.dirname(objectPath), { recursive: true });
       await writeFile(objectPath, bytes, { flag: "wx" });
     },
     async read(objectKey) {
-      return readFile(path.join(getEncryptedMediaObjectStorageDir(config), objectKey));
+      return readFile(resolveLocalObjectPath(config, objectKey));
     },
     async delete(objectKey) {
-      await rm(path.join(getEncryptedMediaObjectStorageDir(config), objectKey), { force: true });
+      await rm(resolveLocalObjectPath(config, objectKey), { force: true });
     }
   };
 }
@@ -115,6 +140,7 @@ function createS3EncryptedMediaObjectStorage(
   const now = options.now ?? (() => new Date());
 
   async function request(method: "GET" | "PUT" | "DELETE", objectKey: string, body?: Buffer) {
+    assertValidMediaObjectKey(objectKey);
     const date = now();
     const amzDate = toAmzDate(date);
     const dateStamp = amzDate.slice(0, 8);

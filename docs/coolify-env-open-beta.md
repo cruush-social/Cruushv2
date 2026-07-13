@@ -46,6 +46,7 @@ MEDIA_S3_SECRET_ACCESS_KEY=<staging-r2-secret-access-key>
 MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=true
+HUMAN_MODERATION_ENABLED=false
 STREAM_API_KEY=<stream-api-key>
 STREAM_API_SECRET=<stream-api-secret>
 STREAM_APP_ID=<stream-app-id>
@@ -63,7 +64,7 @@ TRUST_SAFETY_ALERT_EMAIL=<private-trust-safety-inbox>
 SUPPORT_INBOX_EMAIL=<private-support-inbox>
 
 INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
-MAIL_FROM=Cruush <hello@cruush.app>
+MAIL_FROM=cruush <hello@cruush.app>
 RESEND_API_KEY=<resend-api-key>
 EMAIL_PREVIEW_ENABLED=false
 DEVELOPMENT_ADMIN_ENABLED=false
@@ -107,6 +108,7 @@ Use this block for the staging frontend resource.
 ```env
 VITE_API_BASE_URL=https://api-staging.cruush.app
 VITE_TURNSTILE_SITE_KEY=<turnstile-site-key-or-empty-if-disabled>
+VITE_HUMAN_MODERATION_ENABLED=false
 VITE_MAP_STYLE_URL=
 VITE_MAP_VECTOR_TILEJSON_URL=https://tiles.openfreemap.org/planet
 VITE_MAP_GLYPHS_URL=
@@ -141,6 +143,7 @@ MEDIA_S3_SECRET_ACCESS_KEY=<production-r2-secret-access-key>
 MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=true
+HUMAN_MODERATION_ENABLED=false
 STREAM_API_KEY=<stream-api-key>
 STREAM_API_SECRET=<stream-api-secret>
 STREAM_APP_ID=<stream-app-id>
@@ -158,7 +161,7 @@ TRUST_SAFETY_ALERT_EMAIL=<private-trust-safety-inbox>
 SUPPORT_INBOX_EMAIL=<private-support-inbox>
 
 INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
-MAIL_FROM=Cruush <hello@cruush.app>
+MAIL_FROM=cruush <hello@cruush.app>
 RESEND_API_KEY=<resend-api-key>
 EMAIL_PREVIEW_ENABLED=false
 DEVELOPMENT_ADMIN_ENABLED=false
@@ -202,6 +205,7 @@ Use this block for the production frontend resource.
 ```env
 VITE_API_BASE_URL=https://api.cruush.app
 VITE_TURNSTILE_SITE_KEY=<turnstile-site-key-or-empty-if-disabled>
+VITE_HUMAN_MODERATION_ENABLED=false
 VITE_MAP_STYLE_URL=
 VITE_MAP_VECTOR_TILEJSON_URL=https://tiles.openfreemap.org/planet
 VITE_MAP_GLYPHS_URL=

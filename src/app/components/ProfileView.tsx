@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Flag } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import BlockUserAction from './BlockUserAction';
+import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
@@ -316,20 +318,24 @@ export default function ProfileView() {
               </Button>
             ) : (
               <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Report profile"
-                  onClick={() => navigate('/report', {
-                    state: {
-                      targetType: 'profile',
-                      targetUserId: userId,
-                      targetLabel: profileView.name,
-                    },
-                  })}
-                >
-                  <Flag className="w-5 h-5" />
-                </Button>
+                {userId ? (
+                  <BlockUserAction
+                    userId={userId}
+                    displayName={profileView.name}
+                    onBlocked={() => {
+                      setProfile(null);
+                      setError('That profile is unavailable.');
+                    }}
+                  />
+                ) : null}
+                {userId ? (
+                  <ReportAction
+                    targetType="profile"
+                    targetId={userId}
+                    targetLabel={profileView.name}
+                    label="Report profile"
+                  />
+                ) : null}
               </>
             )}
           </div>

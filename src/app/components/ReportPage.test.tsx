@@ -43,7 +43,7 @@ describe('ReportPage', () => {
     );
 
     expect(await screen.findByText('Jordan')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('radio', { name: /Minor safety/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /Underage user concern/i }));
     fireEvent.change(screen.getByLabelText('Details'), {
       target: {
         value: 'Profile claims the person is underage.',
@@ -53,7 +53,7 @@ describe('ReportPage', () => {
 
     await waitFor(() => expect(createReport).toHaveBeenCalledWith(expect.objectContaining({
       targetType: 'profile',
-      targetUserId: 'user-2',
+      targetId: 'user-2',
       reason: 'minor_safety',
       details: 'Profile claims the person is underage.',
     })));

@@ -14,6 +14,26 @@ const { getMyBillingStatus } = vi.hoisted(() => ({
   getMyBillingStatus: vi.fn(),
 }));
 
+const { blockUser } = vi.hoisted(() => ({
+  blockUser: vi.fn(),
+}));
+
+const { createReport } = vi.hoisted(() => ({
+  createReport: vi.fn(),
+}));
+
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: toastSuccess,
+    error: toastError,
+  },
+}));
+
 vi.mock('../lib/postApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/postApi')>('../lib/postApi');
 
@@ -33,6 +53,15 @@ vi.mock('../lib/billingApi', () => ({
   getMyBillingStatus,
 }));
 
+vi.mock('../lib/blockApi', () => ({
+  blockUser,
+}));
+
+vi.mock('../lib/reportApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/reportApi')>('../lib/reportApi');
+  return { ...actual, createReport };
+});
+
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-probe">{location.pathname}</div>;
@@ -45,6 +74,10 @@ describe('LocalFeed', () => {
     getFeedPosts.mockReset();
     getCurrentUserId.mockReset();
     getMyBillingStatus.mockReset();
+    blockUser.mockReset();
+    createReport.mockReset();
+    toastSuccess.mockReset();
+    toastError.mockReset();
     getCurrentUserId.mockResolvedValue('user-1');
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: true,
@@ -52,6 +85,15 @@ describe('LocalFeed', () => {
       badges: [],
       processor: 'fake',
       testCheckout: true,
+    });
+    blockUser.mockResolvedValue({
+      userId: 'user-2',
+      blocked: true,
+    });
+    createReport.mockResolvedValue({
+      id: 'report-1',
+      status: 'open',
+      createdAt: '2026-07-11T12:00:00.000Z',
     });
   });
 
@@ -100,6 +142,119 @@ describe('LocalFeed', () => {
     await waitFor(() => expect(screen.queryByText('mine to delete')).not.toBeInTheDocument());
     expect(screen.getByText('someone else post')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete feed post: someone else post' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Block me' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Report post by me' })).not.toBeInTheDocument();
+  });
+
+  it('reports another user post without hiding it', async () => {
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-other',
+      content: 'suspicious link in this post',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-2',
+        name: 'River',
+        pronouns: 'he/him',
+        photo: null,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Report post by River' }));
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'spam_scam' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+    await waitFor(() => expect(createReport).toHaveBeenCalledWith({
+      targetType: 'post',
+      targetId: 'post-other',
+      reason: 'spam_scam',
+      details: undefined,
+    }));
+    expect(toastSuccess).toHaveBeenCalledWith('Report submitted.');
+    expect(screen.getByText('suspicious link in this post')).toBeInTheDocument();
+  });
+
+  it('blocks another feed author and removes all of their posts locally', async () => {
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-owned',
+      content: 'mine to keep',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-1',
+        name: 'me',
+        pronouns: 'they/them',
+        photo: null,
+      },
+    }, {
+      id: 'post-river-1',
+      content: 'river first post',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-2',
+        name: 'River',
+        pronouns: 'he/him',
+        photo: null,
+      },
+    }, {
+      id: 'post-river-2',
+      content: 'river second post',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-2',
+        name: 'River',
+        pronouns: 'he/him',
+        photo: null,
+      },
+    }, {
+      id: 'post-sam',
+      content: 'sam stays visible',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-3',
+        name: 'Sam',
+        pronouns: 'they/them',
+        photo: null,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('river first post')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Block River' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Block' }));
+
+    await waitFor(() => expect(blockUser).toHaveBeenCalledWith('user-2'));
+    await waitFor(() => expect(screen.queryByText('river first post')).not.toBeInTheDocument());
+    expect(screen.queryByText('river second post')).not.toBeInTheDocument();
+    expect(screen.getByText('mine to keep')).toBeInTheDocument();
+    expect(screen.getByText('sam stays visible')).toBeInTheDocument();
+    expect(toastSuccess).toHaveBeenCalledWith('River blocked.');
+    expect(screen.queryByRole('button', { name: 'Block me' })).not.toBeInTheDocument();
   });
 
   it('locks local feed posting for free users and routes them to cruush+', async () => {
