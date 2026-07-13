@@ -385,10 +385,9 @@ type StreamCheckResponse = {
 };
 
 export function isCompleteStreamImageResponse(response: StreamCheckResponse) {
-  return response.status?.toLowerCase() === "completed" &&
+  return response.status?.toLowerCase() === "complete" &&
     typeof response.recommended_action === "string" &&
-    response.recommended_action.length > 0 &&
-    Boolean(response.item);
+    response.recommended_action.length > 0;
 }
 
 const streamSeverityByAction: Record<string, ProviderLabel["severity"]> = {

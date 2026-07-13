@@ -238,11 +238,18 @@ describe("moderation provider", () => {
   it("treats missing or unfinished Stream image fields as a partial response", () => {
     expect(isCompleteStreamImageResponse({
       recommended_action: "keep",
-      status: "completed",
+      status: "complete",
       item: { flags: [] }
     })).toBe(true);
-    expect(isCompleteStreamImageResponse({ recommended_action: "keep", status: "completed" })).toBe(false);
-    expect(isCompleteStreamImageResponse({ status: "completed", item: { flags: [] } })).toBe(false);
-    expect(isCompleteStreamImageResponse({ recommended_action: "keep", status: "pending", item: { flags: [] } })).toBe(false);
+    expect(isCompleteStreamImageResponse({ status: "complete", item: { flags: [] } })).toBe(false);
+    expect(isCompleteStreamImageResponse({ recommended_action: "keep", status: "partial", item: { flags: [] } })).toBe(false);
+    expect(isCompleteStreamImageResponse({ recommended_action: "keep", status: "completed", item: { flags: [] } })).toBe(false);
+  });
+
+  it("accepts Stream's complete keep response when no review item is created", () => {
+    expect(isCompleteStreamImageResponse({
+      recommended_action: "keep",
+      status: "complete"
+    })).toBe(true);
   });
 });
