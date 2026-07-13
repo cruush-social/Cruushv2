@@ -92,7 +92,7 @@ export default function Settings() {
   const storedUser = useMemo(() => getStoredCurrentUser(), []);
   const [previewUrl, setPreviewUrlState] = useState(() => getVerificationPreviewUrl());
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
-  const displayName = storedUser?.display_name ?? storedUser?.name ?? 'Cruush user';
+  const displayName = storedUser?.display_name ?? storedUser?.name ?? 'cruush user';
   const age = storedUser?.age ?? null;
 
   const resetPasswordDialog = () => {
@@ -417,7 +417,7 @@ export default function Settings() {
                     fallback={<CruushIcon name="profile" className="size-4 opacity-75" />}
                   />
                   <div className="min-w-0">
-                    <p className="truncate">{blockedUser.displayName || 'Cruush user'}</p>
+                    <p className="truncate">{blockedUser.displayName || 'cruush user'}</p>
                     <p className="text-xs text-muted-foreground">{formatBlockedDate(blockedUser.createdAt)}</p>
                   </div>
                 </div>

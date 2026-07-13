@@ -201,7 +201,7 @@ function mapReceivedCruushRow(row: ReceivedCruushRow) {
     mutual: row.mutual,
     user: {
       id: row.from_user_id,
-      name: row.display_name?.trim() || "Cruush user",
+      name: row.display_name?.trim() || "cruush user",
       pronouns: row.pronouns?.join(", ") ?? "",
       photo: row.photos?.[0] ?? null
     }
@@ -217,7 +217,7 @@ function mapSentCruushRow(row: SentCruushRow) {
     mutual: row.mutual,
     user: {
       id: row.profile_user_id ?? row.to_user_id,
-      name: row.display_name?.trim() || row.to_user_name?.trim() || "Cruush user",
+      name: row.display_name?.trim() || row.to_user_name?.trim() || "cruush user",
       pronouns: row.pronouns?.join(", ") ?? row.to_user_pronouns ?? "",
       photo: row.photos?.[0] ?? null
     }
@@ -236,7 +236,7 @@ function mapActivityPerson(row: {
 }) {
   return {
     id: row.userId,
-    name: row.displayName?.trim() || row.fallbackName?.trim() || "Cruush user",
+    name: row.displayName?.trim() || row.fallbackName?.trim() || "cruush user",
     pronouns: row.pronouns?.join(", ") ?? row.fallbackPronouns ?? "",
     photo: row.photos?.[0] ?? null,
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})

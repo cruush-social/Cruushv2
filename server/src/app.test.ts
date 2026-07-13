@@ -21,12 +21,11 @@ import {
   type VisibilityBaseMode
 } from "./location-privacy.js";
 import { encryptMediaBytes } from "./media-encryption.js";
-import { readEncryptedMediaObject, writeEncryptedMediaObject } from "./media-storage.js";
+import { deleteEncryptedMediaObject, readEncryptedMediaObject, writeEncryptedMediaObject } from "./media-storage.js";
 
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
 const rateLimiter = createMemoryRateLimiter();
-
 const app = buildServer({
   NODE_ENV: "test",
   PORT: 3001,
@@ -535,6 +534,10 @@ function mockPendingProfileMediaQueries() {
       return { rows: [{ id: params[0] }] };
     }
 
+    if (sql.includes("insert into profiles (id, photos, updated_at)")) {
+      return { rows: [{ photos: [params[2]] }] };
+    }
+
     return { rows: [] };
   });
 }
@@ -608,6 +611,10 @@ describe("server", () => {
             }]
             : []
         };
+      }
+
+      if (text.includes("join user_blocks block")) {
+        return { rows: [] };
       }
 
       if (text.includes("select email, display_name from app_users")) {
@@ -4094,14 +4101,15 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(query.mock.calls[1]?.[0]).toContain("insert into media_objects");
-    expect(query.mock.calls[1]?.[0]).toContain("message_photo");
-    expect(query.mock.calls[2]?.[0]).toContain("insert into messages");
-    expect(query.mock.calls[2]?.[0]).toContain("message_media_attachments");
-    expect(query.mock.calls[2]?.[0]).toContain("view_once");
-    expect(query.mock.calls[3]?.[0]).toContain("from conversation_members cm");
-    expect(query.mock.calls[4]?.[0]).toContain("insert into app_notifications");
-    expect(query.mock.calls[4]?.[1]).toEqual([
+    const mediaInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into media_objects"));
+    const messageInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into messages"));
+    const notificationLookup = query.mock.calls.find(([sql]) => String(sql).includes("from conversation_members cm") && String(sql).includes("sender_profile"));
+    const notificationInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into app_notifications"));
+    expect(mediaInsert?.[1]?.[2]).toBe("message_photo");
+    expect(messageInsert?.[0]).toContain("message_media_attachments");
+    expect(messageInsert?.[0]).toContain("view_once");
+    expect(notificationLookup).toBeDefined();
+    expect(notificationInsert?.[1]).toEqual([
       "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
       "group_message",
       "New message in Beta crew",
@@ -4262,7 +4270,8 @@ describe("server", () => {
     });
     expect(queries.some((sql) => sql.includes("insert into csam_incidents"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into csam_incident_evidence"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
     expect(queries.some((sql) => sql.includes("message_media_attachments"))).toBe(false);
   });
@@ -4326,7 +4335,7 @@ describe("server", () => {
     });
   });
 
-  it("stores prohibited message photos privately without attaching them", async () => {
+  it("deletes prohibited message photos without attaching them", async () => {
     query.mockResolvedValueOnce({
       rows: [{
         id: conversationId,
@@ -4382,7 +4391,7 @@ describe("server", () => {
       }
     });
     expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("moderation_status = $2"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
     expect(queries.some((sql) => sql.includes("message_media_attachments"))).toBe(false);
   });
@@ -5600,35 +5609,69 @@ describe("server", () => {
       payload: multipart.payload
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode, response.body).toBe(201);
     const body = response.json();
     expect(body).toEqual({
-      data: expect.objectContaining({
-        assetId: expect.stringMatching(/^[0-9a-f-]{36}$/),
-        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/),
-        thumbnailUrl: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/thumbnail$/),
-        moderationStatus: "approved",
-        mimeType: "image/webp"
-      })
+      data: {
+        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/)
+      }
     });
-    expect(query).toHaveBeenCalledTimes(3);
-    expect(query.mock.calls[0]?.[0]).toBe("select photos from profiles where id = $1");
-    expect(query.mock.calls[0]?.[1]).toEqual([userId]);
-    expect(query.mock.calls[1]?.[0]).toContain("insert into media_objects");
-    expect(query.mock.calls[1]?.[0]).toContain("encrypted_data_key");
-    expect(query.mock.calls[1]?.[0]).toContain("insert into media_variants");
-    expect(query.mock.calls[1]?.[0]).toContain("'pending'");
-    expect(query.mock.calls[2]?.[0]).toContain("insert into profiles (id, photos, updated_at)");
-    expect(query.mock.calls[2]?.[0]).toContain("array_append(profiles.photos, $3)");
-    expect(query.mock.calls[2]?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
+    expect(body.data.url).not.toContain(userId);
+    const profileLookup = query.mock.calls.find(([sql]) => String(sql) === "select photos from profiles where id = $1");
+    const mediaInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into media_objects"));
+    const profileInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into profiles (id, photos, updated_at)"));
+    expect(profileLookup?.[1]).toEqual([userId]);
+    expect(mediaInsert?.[0]).toContain("encrypted_data_key");
+    expect(mediaInsert?.[0]).toContain("insert into media_variants");
+    expect(mediaInsert?.[0]).toContain("'pending'");
+    expect(profileInsert?.[0]).toContain("array_append(profiles.photos, $3)");
+    expect(profileInsert?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
+  });
+
+  it("deletes quarantined ciphertext when the profile transaction fails", async () => {
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      if (sql.includes("select photos from profiles")) {
+        return { rows: [{ photos: [] }] };
+      }
+
+      if (sql.includes("with inserted_media as")) {
+        return { rows: [{ id: params[0] }] };
+      }
+
+      if (sql.includes("insert into profiles (id, photos, updated_at)")) {
+        throw new Error("simulated profile transaction failure");
+      }
+
+      return { rows: [] };
+    });
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-profile.png",
+      contentType: "image/png",
+      content: await validPng()
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const mediaInsert = query.mock.calls.find(([sql]) => String(sql).includes("with inserted_media as"));
+    const mediaParams = mediaInsert?.[1] as unknown[];
+
+    expect(response.statusCode).toBe(500);
+    for (const objectKey of [mediaParams[3], mediaParams[14], mediaParams[25]] as string[]) {
+      await expect(readEncryptedMediaObject(app.config, objectKey)).rejects.toThrow();
+    }
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from media_objects"))).toBe(true);
   });
 
   it("accepts fishnet arms as a profile photo of the uploader", async () => {
-    query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
-      rows: String(_sql).includes("select photos from profiles")
-        ? [{ photos: [] }]
-        : [{ photos: [params[1]] }]
-    }));
+    mockPendingProfileMediaQueries();
     const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -5655,15 +5698,9 @@ describe("server", () => {
 
   it.each([
     "adult-human-clothed-face.png",
-    "adult-human-nude-face.png",
-    "adult-human-clothed-body-part.png",
-    "adult-human-nude-body-part.png"
-  ])("accepts an age-confirmed human profile photo across face, body-part, clothed, and nude variants: %s", async (filename) => {
-    query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
-      rows: String(_sql).includes("select photos from profiles")
-        ? [{ photos: [] }]
-        : [{ photos: [params[1]] }]
-    }));
+    "adult-human-clothed-body-part.png"
+  ])("accepts an age-confirmed non-explicit human profile photo: %s", async (filename) => {
+    mockPendingProfileMediaQueries();
     const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -5687,8 +5724,36 @@ describe("server", () => {
     expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into profiles"))).toBe(true);
   });
 
+  it.each([
+    "adult-human-nude-face.png",
+    "adult-human-nude-body-part.png"
+  ])("deletes an explicit profile photo until explicit-content controls exist: %s", async (filename) => {
+    mockPendingProfileMediaQueries();
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename,
+      contentType: "image/png",
+      content: await validPng()
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(400);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+  });
+
   it("rejects a profile photo when underage and adult-human labels conflict", async () => {
-    query.mockResolvedValue({ rows: [{ photos: [] }] });
+    mockPendingProfileMediaQueries();
     const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -5709,7 +5774,8 @@ describe("server", () => {
     const queries = query.mock.calls.map(([sql]) => String(sql));
 
     expect(response.statusCode).toBe(403);
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
@@ -5752,7 +5818,8 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into suspensions"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into feature_restrictions"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
     expect(resendBody.subject).toBe(`[TEST] PhotoDNA match incident ${csamIncidentId}`);
     expect(resendBody.html).toContain("photodna-match-1");
@@ -5772,7 +5839,7 @@ describe("server", () => {
 
       throw new Error(`Unexpected fetch URL: ${input.toString()}`);
     }));
-    query.mockResolvedValue({ rows: [{ photos: [] }] });
+    mockPendingProfileMediaQueries();
     const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -5802,16 +5869,13 @@ describe("server", () => {
       }
     });
     expect(queries.some((sql) => sql.includes("insert into csam_incidents"))).toBe(false);
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
-  it("rejects profile photos without proof they are of the uploader before storage", async () => {
-    query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
-      rows: String(_sql).includes("select photos from profiles")
-        ? [{ photos: [] }]
-        : [{ photos: [params[1]] }]
-    }));
+  it("rejects profile photos without adult-human proof and deletes quarantine storage", async () => {
+    mockPendingProfileMediaQueries();
     const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -5841,8 +5905,58 @@ describe("server", () => {
     });
     expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
+  });
+
+  it("never stores the capability URL, token, object key, final URL, or original filename in moderation records", async () => {
+    const bridgeApp = buildServer({
+      ...app.config,
+      STREAM_IMAGE_BRIDGE_ENABLED: true,
+      MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
+      STREAM_PSEUDONYM_KEY: "0123456789abcdef0123456789abcdef"
+    }, {
+      db: { query, end },
+      rateLimiter
+    });
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      if (sql === "select photos from profiles where id = $1") {
+        return { rows: [{ photos: [] }] };
+      }
+
+      if (sql.includes("with inserted_media as")) {
+        return { rows: [{ id: params[0] }] };
+      }
+
+      return { rows: [] };
+    });
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "private-original-name.png",
+      contentType: "image/png",
+      content: await validPng()
+    });
+
+    const response = await bridgeApp.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    await bridgeApp.close();
+    const reviewCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into content_reviews"));
+    const reviewParams = JSON.stringify(reviewCall?.[1] ?? []);
+
+    expect(response.statusCode).toBe(400);
+    expect(reviewParams).not.toContain("moderation-media-staging.cruush.app");
+    expect(reviewParams).not.toContain("private-original-name.png");
+    expect(reviewParams).not.toContain("profile-photos/");
+    expect(reviewParams).not.toContain("/api/media/profile-photos/");
+    expect(reviewParams).toContain("assetId");
   });
 
   it("rejects profile photo uploads when the profile already has 4 photos", async () => {
@@ -5880,7 +5994,7 @@ describe("server", () => {
     expect(query).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects scat profile photos before storage", async () => {
+  it("deletes scat profile photos from quarantine", async () => {
     mockPendingProfileMediaQueries();
     const png = await validPng();
     const multipart = multipartFilePayload({
@@ -5905,15 +6019,16 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates Cruush safety rules and cannot be saved.",
+        message: "This content violates cruush safety rules and cannot be saved.",
         details: null
       }
     });
     expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
-  it("rejects prohibited profile photos before storage", async () => {
+  it("deletes prohibited profile photos from quarantine", async () => {
     mockPendingProfileMediaQueries();
     const png = await validPng();
     const multipart = multipartFilePayload({
@@ -5938,12 +6053,13 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates Cruush safety rules and cannot be saved.",
+        message: "This content violates cruush safety rules and cannot be saved.",
         details: null
       }
     });
     expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
@@ -7257,7 +7373,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates Cruush safety rules and cannot be saved.",
+        message: "This content violates cruush safety rules and cannot be saved.",
         details: null
       }
     });

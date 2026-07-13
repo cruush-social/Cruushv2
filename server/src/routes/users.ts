@@ -223,7 +223,7 @@ function coerceStringArray(value: unknown): string[] {
 }
 
 function coerceDisplayName(value: string | null) {
-  return value?.trim() || "Cruush user";
+  return value?.trim() || "cruush user";
 }
 
 function normalizeFilterTokenValue(value: string) {

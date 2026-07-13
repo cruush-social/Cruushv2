@@ -87,7 +87,7 @@ export async function registerBlockRoutes(app: FastifyInstance) {
     const result = await app.db.query<BlockedUserListRow>(
       `select
          blocked.id::text as id,
-         coalesce(profile.display_name, blocked.display_name, 'Cruush user') as display_name,
+         coalesce(profile.display_name, blocked.display_name, 'cruush user') as display_name,
          profile.photos[1] as photo,
          block.created_at
        from user_blocks block
@@ -104,7 +104,7 @@ export async function registerBlockRoutes(app: FastifyInstance) {
       data: {
         blockedUsers: result.rows.map((row) => ({
           userId: row.id,
-          displayName: row.display_name?.trim() || "Cruush user",
+          displayName: row.display_name?.trim() || "cruush user",
           photo: row.photo ?? null,
           createdAt: new Date(row.created_at).toISOString()
         }))

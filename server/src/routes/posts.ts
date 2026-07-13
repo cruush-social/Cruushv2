@@ -39,7 +39,7 @@ function mapPostRow(app: FastifyInstance, row: PostRow) {
     distance: "Nearby",
     user: {
       id: row.user_id,
-      name: row.display_name?.trim() || "Cruush user",
+      name: row.display_name?.trim() || "cruush user",
       pronouns: row.pronouns?.join(", ") ?? "",
       photo: row.photos?.[0] ?? null,
       ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})

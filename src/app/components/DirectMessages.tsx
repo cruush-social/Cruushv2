@@ -52,7 +52,7 @@ function normalizeConversation(raw: any): ConversationThread {
     kind: raw?.kind === 'group' ? 'group' : 'dm',
     user: {
       id: String(raw?.user?.id ?? raw?.id ?? ''),
-      name: raw?.user?.name ?? 'Cruush user',
+      name: raw?.user?.name ?? 'cruush user',
       pronouns: raw?.user?.pronouns ?? '',
       photo: raw?.user?.photo ?? null,
     },

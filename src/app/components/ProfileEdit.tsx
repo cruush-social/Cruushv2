@@ -79,7 +79,7 @@ function getSaveDisplayName(profile: ProfilePayload) {
 
   const storedUser = getStoredCurrentUser();
 
-  return (storedUser?.display_name ?? storedUser?.name ?? 'Cruush user').trim();
+  return (storedUser?.display_name ?? storedUser?.name ?? 'cruush user').trim();
 }
 
 function uniqueValues(values: string[]) {

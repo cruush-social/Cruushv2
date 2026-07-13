@@ -1,6 +1,6 @@
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
-import Fastify from "fastify";
+import Fastify, { type FastifyServerOptions } from "fastify";
 import { createPool, type DbClient } from "./db.js";
 import type { AppConfig } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
@@ -10,6 +10,7 @@ import { registerBillingRoutes } from "./routes/billing.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
 import { ApiError, formatError, toApiError } from "./errors.js";
 import { registerMediaRoutes } from "./routes/media.js";
+import { registerModerationMediaRoutes } from "./routes/moderation-media.js";
 import { registerMessageRoutes } from "./routes/messages.js";
 import { registerInternalRoutes } from "./routes/internal.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
@@ -25,6 +26,7 @@ import { createPostgresRateLimiter, type RateLimiter } from "./rate-limit.js";
 type BuildServerDeps = {
   db?: DbClient;
   rateLimiter?: RateLimiter;
+  logger?: FastifyServerOptions["logger"];
 };
 
 const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -50,7 +52,7 @@ function refererOrigin(value: string | string[] | undefined) {
 
 export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   const app = Fastify({
-    logger: config.NODE_ENV !== "test"
+    logger: deps.logger ?? config.NODE_ENV !== "test"
   });
   const db = deps.db ?? createPool(config);
   const allowedCorsOrigins = new Set(
@@ -151,6 +153,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   }
   void registerBlockRoutes(app);
   void registerBillingRoutes(app);
+  void registerModerationMediaRoutes(app);
   void registerMediaRoutes(app);
   void registerMessageRoutes(app);
   void registerNotificationRoutes(app);

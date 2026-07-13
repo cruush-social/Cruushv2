@@ -1,8 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { checkPhotoDnaForUploadOrReject } from "./csam-reporting.js";
 import { ApiError } from "./errors.js";
 import { encryptMediaBytes } from "./media-encryption.js";
 import type { ProcessedImage } from "./media-image.js";
+import {
+  cleanupModerationMediaGrants,
+  createModerationMediaGrant,
+  deleteModerationMediaGrant,
+  revokeModerationMediaGrant,
+  wasModerationMediaGrantRedeemed
+} from "./moderation-media-grants.js";
 import {
   deleteEncryptedMediaObject,
   writeEncryptedMediaObject
@@ -10,10 +18,14 @@ import {
 import { createModerationProvider } from "./moderation-provider.js";
 import { moderateImageOrReject } from "./moderation-service.js";
 import type { PolicyDecision, ProviderModerationResult } from "./moderation-types.js";
-import { checkPhotoDna } from "./photodna.js";
 
 export type MediaSurface = "profile_photo" | "message_photo";
-export type MediaModerationStatus = "pending" | "approved" | "approved_explicit" | "rejected" | "failed";
+
+type PendingModerationGrant = {
+  id: string;
+  token: string;
+  expiresAt: Date;
+};
 
 export type PendingMediaAsset = {
   id: string;
@@ -25,6 +37,9 @@ export type PendingMediaAsset = {
   byteSize: number;
   displayUrl: string;
   thumbnailUrl: string;
+  canonicalBytes: Buffer;
+  objectKeys: string[];
+  grant?: PendingModerationGrant;
 };
 
 export type ApprovedMediaCandidate = PendingMediaAsset & {
@@ -44,62 +59,52 @@ function assetUrl(assetId: string, variant: "display" | "thumbnail") {
   return `/api/media/assets/${assetId}/${variant}`;
 }
 
-async function deleteObjectsBestEffort(app: FastifyInstance, request: FastifyRequest, assetId: string, objectKeys: string[]) {
-  await Promise.all(objectKeys.map(async (objectKey) => {
+async function deleteObjectsBestEffort(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  assetId: string,
+  objectKeys: string[]
+) {
+  let complete = true;
+
+  for (const objectKey of new Set(objectKeys)) {
     try {
       await deleteEncryptedMediaObject(app.config, objectKey);
     } catch (error) {
+      complete = false;
       request.log.error({ err: error, assetId, stage: "media_cleanup" }, "media object cleanup failed");
     }
-  }));
+  }
+
+  return complete;
 }
 
-async function setMediaStatus(
+export async function deletePendingMediaAsset(
   app: FastifyInstance,
-  assetId: string,
-  status: Exclude<MediaModerationStatus, "approved">,
-  input: {
-    provider?: string | null;
-    providerVersion?: string | null;
-    labels?: ProviderModerationResult["labels"];
-    explicitClassification?: "unknown" | "non_explicit" | "explicit" | "uncertain";
-    failureReason?: string | null;
-    photoDnaStatus?: string | null;
-    photoDnaProviderRequestId?: string | null;
-  } = {}
+  request: FastifyRequest,
+  asset: PendingMediaAsset
 ) {
-  await app.db.query(
-    `update media_objects media
-     set moderation_status = $2,
-         moderation_provider = coalesce($3, media.moderation_provider),
-         moderation_provider_version = coalesce($4, media.moderation_provider_version),
-         moderation_scores = $5::jsonb,
-         moderation_decided_at = now(),
-         moderation_failure_reason = $6,
-         explicit_classification = $7,
-         photodna_status = coalesce($8, media.photodna_status),
-         photodna_provider_request_id = coalesce($9, media.photodna_provider_request_id),
-         content_review_id = coalesce((
-           select review.id
-           from content_reviews review
-           where review.content_id = media.id::text
-           order by review.created_at desc
-           limit 1
-         ), media.content_review_id)
-     where media.id = $1
-       and media.moderation_status = 'pending'`,
-    [
-      assetId,
-      status,
-      input.provider ?? null,
-      input.providerVersion ?? null,
-      JSON.stringify(input.labels ?? []),
-      input.failureReason ?? null,
-      input.explicitClassification ?? "unknown",
-      input.photoDnaStatus ?? null,
-      input.photoDnaProviderRequestId ?? null
-    ]
-  );
+  if (asset.grant) {
+    try {
+      await revokeModerationMediaGrant(app.db, asset.grant.id);
+    } catch (error) {
+      request.log.error({ err: error, assetId: asset.id, stage: "grant_revoke" }, "moderation grant revocation failed");
+    }
+  }
+
+  const objectsDeleted = await deleteObjectsBestEffort(app, request, asset.id, asset.objectKeys);
+
+  if (!objectsDeleted) {
+    return false;
+  }
+
+  try {
+    await app.db.query("delete from media_objects where id = $1", [asset.id]);
+    return true;
+  } catch (error) {
+    request.log.error({ err: error, assetId: asset.id, stage: "media_row_cleanup" }, "media row cleanup failed");
+    return false;
+  }
 }
 
 export async function createPendingMediaAsset(
@@ -108,17 +113,24 @@ export async function createPendingMediaAsset(
   input: {
     ownerUserId: string;
     surface: MediaSurface;
-    originalBytes: Buffer;
     processed: ProcessedImage;
   }
 ): Promise<PendingMediaAsset> {
   const id = randomUUID();
   const originalObjectKey = `originals/${id}.enc`;
-  const originalEncrypted = encryptMediaBytes(app.config, input.originalBytes);
+  const canonicalEncrypted = encryptMediaBytes(app.config, input.processed.canonicalBytes);
   const storedObjectKeys: string[] = [];
 
+  if (app.config.STREAM_IMAGE_BRIDGE_ENABLED) {
+    try {
+      await cleanupModerationMediaGrants(app.db, app.config, 10);
+    } catch (error) {
+      request.log.warn({ err: error, stage: "moderation_grant_cleanup" }, "opportunistic moderation grant cleanup failed");
+    }
+  }
+
   try {
-    await writeEncryptedMediaObject(app.config, originalObjectKey, originalEncrypted.ciphertext);
+    await writeEncryptedMediaObject(app.config, originalObjectKey, canonicalEncrypted.ciphertext);
     storedObjectKeys.push(originalObjectKey);
 
     const encryptedVariants = input.processed.variants.map((variant) => ({
@@ -200,15 +212,15 @@ export async function createPendingMediaAsset(
         input.surface,
         originalObjectKey,
         input.processed.detectedMimeType,
-        input.originalBytes.length,
+        input.processed.canonicalBytes.length,
         input.processed.width,
         input.processed.height,
-        originalEncrypted.encryptedDataKey,
-        originalEncrypted.dataKeyNonce,
-        originalEncrypted.dataKeyAuthTag,
-        originalEncrypted.nonce,
-        originalEncrypted.authTag,
-        originalEncrypted.keyVersion,
+        canonicalEncrypted.encryptedDataKey,
+        canonicalEncrypted.dataKeyNonce,
+        canonicalEncrypted.dataKeyAuthTag,
+        canonicalEncrypted.nonce,
+        canonicalEncrypted.authTag,
+        canonicalEncrypted.keyVersion,
         thumbnail.objectKey,
         thumbnail.mimeType,
         thumbnail.width,
@@ -238,6 +250,22 @@ export async function createPendingMediaAsset(
       throw new Error("Media asset insert did not return an id.");
     }
 
+    const grant = app.config.STREAM_IMAGE_BRIDGE_ENABLED
+      ? await createModerationMediaGrant(app.db, {
+          mediaObjectId: id,
+          ownerUserId: input.ownerUserId,
+          objectKey: originalObjectKey,
+          mimeType: input.processed.detectedMimeType,
+          byteSize: input.processed.canonicalBytes.length,
+          encryptedDataKey: canonicalEncrypted.encryptedDataKey,
+          dataKeyNonce: canonicalEncrypted.dataKeyNonce,
+          dataKeyAuthTag: canonicalEncrypted.dataKeyAuthTag,
+          contentNonce: canonicalEncrypted.nonce,
+          contentAuthTag: canonicalEncrypted.authTag,
+          keyVersion: canonicalEncrypted.keyVersion
+        })
+      : undefined;
+
     return {
       id,
       ownerUserId: input.ownerUserId,
@@ -245,12 +273,22 @@ export async function createPendingMediaAsset(
       mimeType: input.processed.detectedMimeType,
       width: input.processed.width,
       height: input.processed.height,
-      byteSize: input.originalBytes.length,
+      byteSize: input.processed.canonicalBytes.length,
       displayUrl: assetUrl(id, "display"),
-      thumbnailUrl: assetUrl(id, "thumbnail")
+      thumbnailUrl: assetUrl(id, "thumbnail"),
+      canonicalBytes: input.processed.canonicalBytes,
+      objectKeys: [...storedObjectKeys],
+      ...(grant ? { grant } : {})
     };
   } catch (error) {
     await deleteObjectsBestEffort(app, request, id, storedObjectKeys);
+
+    try {
+      await app.db.query("delete from media_objects where id = $1", [id]);
+    } catch {
+      // If the insert never happened or the database is unavailable, there is no further in-request cleanup to perform.
+    }
+
     request.log.error({ err: error, assetId: id, stage: "media_ingestion" }, "media ingestion failed");
     throw new ApiError(500, "INTERNAL_ERROR", "Unable to process this image right now.");
   }
@@ -263,94 +301,89 @@ function hasExplicitLabel(labels: ProviderModerationResult["labels"]) {
   ));
 }
 
+function moderationMediaUrl(app: FastifyInstance, grant: PendingModerationGrant) {
+  if (!app.config.MODERATION_MEDIA_BASE_URL) {
+    throw new Error("MODERATION_MEDIA_BASE_URL is required for Stream image moderation.");
+  }
+
+  return new URL(`/api/moderation-media/${grant.token}`, app.config.MODERATION_MEDIA_BASE_URL).toString();
+}
+
 export async function moderatePendingMediaAsset(
   app: FastifyInstance,
+  request: FastifyRequest,
   asset: PendingMediaAsset,
   input: {
-    bytes: Buffer;
     filename?: string;
     moderationSurface: "profile_photo" | "direct_message" | "group_message";
   }
 ): Promise<ApprovedMediaCandidate> {
-  const provider = createModerationProvider(app.config);
-  let photoDnaResult;
-
   try {
-    photoDnaResult = await checkPhotoDna(app.config, input.bytes);
-  } catch {
-    await setMediaStatus(app, asset.id, "failed", {
-      provider: "photodna",
-      explicitClassification: "uncertain",
-      failureReason: "photodna_unavailable"
+    const photoDnaResult = await checkPhotoDnaForUploadOrReject(app, {
+      userId: asset.ownerUserId,
+      surface: input.moderationSurface,
+      imageBytes: asset.canonicalBytes,
+      mimeType: asset.mimeType,
+      sourceRoute: asset.surface === "profile_photo" ? "/api/profile-photos" : "/api/messages/photos",
+      contentId: asset.id,
+      contentRef: {
+        assetId: asset.id,
+        surface: asset.surface
+      }
     });
-    throw new ApiError(503, "MODERATION_UNAVAILABLE", "Image moderation is temporarily unavailable.");
-  }
+    const provider = createModerationProvider(app.config);
+    const bridgeEnabled = app.config.STREAM_IMAGE_BRIDGE_ENABLED === true;
 
-  if (photoDnaResult.status === "blocked") {
-    await setMediaStatus(app, asset.id, "rejected", {
-      provider: "photodna",
-      explicitClassification: "unknown",
-      failureReason: "photodna_match",
-      photoDnaStatus: photoDnaResult.status,
-      photoDnaProviderRequestId: photoDnaResult.providerRequestId ?? null
-    });
-    throw new ApiError(400, "CONTENT_REJECTED", "This photo violates Cruush safety rules and cannot be saved.");
-  }
+    if (bridgeEnabled && !asset.grant) {
+      throw new Error("Stream image moderation grant was not created.");
+    }
 
-  let moderation;
-
-  try {
-    moderation = await moderateImageOrReject(app, {
+    const moderation = await moderateImageOrReject(app, {
       userId: asset.ownerUserId,
       surface: input.moderationSurface,
       mimeType: asset.mimeType,
-      filename: input.filename,
+      filename: bridgeEnabled ? undefined : input.filename,
+      imageUrl: bridgeEnabled && asset.grant ? moderationMediaUrl(app, asset.grant) : undefined,
       contentId: asset.id,
       contentRef: {
         assetId: asset.id,
         surface: asset.surface,
         photoDnaStatus: photoDnaResult.status
       },
-      bytes: input.bytes
+      bytes: asset.canonicalBytes
     });
+
+    if (bridgeEnabled && asset.grant) {
+      const redeemed = await wasModerationMediaGrantRedeemed(app.db, asset.grant.id);
+
+      if (!redeemed) {
+        throw new ApiError(503, "MODERATION_UNAVAILABLE", "Image moderation is temporarily unavailable.");
+      }
+
+      await deleteModerationMediaGrant(app.db, asset.grant.id);
+    }
+
+    if (hasExplicitLabel(moderation.providerResult.labels)) {
+      throw new ApiError(400, "CONTENT_REJECTED", "This photo cannot be displayed without explicit-content controls.");
+    }
+
+    return {
+      ...asset,
+      moderation: {
+        provider: moderation.providerResult.provider,
+        providerVersion: provider.version,
+        providerRequestId: moderation.providerResult.provider_request_id,
+        labels: moderation.providerResult.labels,
+        decision: moderation.decision,
+        rawResult: moderation.providerResult.raw_result ?? {},
+        photoDnaStatus: photoDnaResult.status,
+        photoDnaProviderRequestId: photoDnaResult.providerRequestId ?? null
+      }
+    };
   } catch (error) {
-    const rejected = error instanceof ApiError && error.code === "CONTENT_REJECTED";
-    await setMediaStatus(app, asset.id, rejected ? "rejected" : "failed", {
-      provider: provider.name,
-      providerVersion: provider.version,
-      explicitClassification: rejected ? "unknown" : "uncertain",
-      failureReason: rejected ? "policy_rejected" : "provider_unavailable",
-      photoDnaStatus: photoDnaResult.status,
-      photoDnaProviderRequestId: photoDnaResult.providerRequestId ?? null
-    });
+    await deletePendingMediaAsset(app, request, asset);
     throw error;
   }
-
-  if (hasExplicitLabel(moderation.providerResult.labels)) {
-    await setMediaStatus(app, asset.id, "approved_explicit", {
-      provider: moderation.providerResult.provider,
-      providerVersion: provider.version,
-      labels: moderation.providerResult.labels,
-      explicitClassification: "explicit",
-      photoDnaStatus: photoDnaResult.status,
-      photoDnaProviderRequestId: photoDnaResult.providerRequestId ?? null
-    });
-    throw new ApiError(400, "CONTENT_REJECTED", "This photo cannot be displayed without explicit-content controls.");
-  }
-
-  return {
-    ...asset,
-    moderation: {
-      provider: moderation.providerResult.provider,
-      providerVersion: provider.version,
-      providerRequestId: moderation.providerResult.provider_request_id,
-      labels: moderation.providerResult.labels,
-      decision: moderation.decision,
-      rawResult: moderation.providerResult.raw_result ?? {},
-      photoDnaStatus: photoDnaResult.status,
-      photoDnaProviderRequestId: photoDnaResult.providerRequestId ?? null
-    }
-  };
 }
 
 export async function removeOwnedNonPublicMediaAsset(

@@ -17,6 +17,8 @@ Create separate Coolify resources/projects for staging and production:
 
 Set frontend variables only on the frontend resource. Set backend/API variables only on the API resource.
 
+Cloudflare R2 satisfies the API's S3-compatible storage requirement; a separate AWS S3 account is not required. Use a staging-only R2 bucket and a bucket-scoped token with object read and write permissions, which are required for encrypted upload, authenticated reads, and deletion/cleanup. Do not make the bucket public.
+
 Secrets must be generated or pasted directly into Coolify. Do not paste real secrets into chat, repo files, screenshots, or terminal logs.
 
 Frontend safety rule: never add backend/API secrets to a frontend Coolify resource. The only frontend variables should be public `VITE_*` values. Vite embeds `VITE_*` values into browser JavaScript by design, so `VITE_*` values must never contain Stream secrets, PhotoDNA keys, database URLs, session secrets, encryption keys, R2 secret keys, Resend keys, or backend Turnstile secret keys.
@@ -47,10 +49,13 @@ MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=true
 HUMAN_MODERATION_ENABLED=false
+STREAM_IMAGE_BRIDGE_ENABLED=true
 STREAM_API_KEY=<stream-api-key>
 STREAM_API_SECRET=<stream-api-secret>
 STREAM_APP_ID=<stream-app-id>
 STREAM_MODERATION_CONFIG_KEY=<stream-moderation-config-key>
+MODERATION_MEDIA_BASE_URL=https://moderation-media-staging.cruush.app
+STREAM_PSEUDONYM_KEY=<generate-secret-32-plus-bytes>
 
 PHOTODNA_ENABLED=false
 PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
@@ -101,6 +106,12 @@ DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION=v1
 
 Keep `PHOTODNA_ENABLED=false` until the Microsoft API Management operation path and sample allowed/blocked responses are verified. Once verified, set it to `true`.
 
+Route `moderation-media-staging.cruush.app` directly to the staging API without cookies or CDN caching. Confirm Coolify ingress, proxy, CDN/WAF, and APM logs do not retain the raw request path for that hostname. Add a private five-minute scheduled task from the repository root:
+
+```cron
+*/5 * * * * pnpm --dir server cleanup:moderation-media-grants
+```
+
 ## Staging Frontend Variables
 
 Use this block for the staging frontend resource.
@@ -144,10 +155,13 @@ MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=true
 HUMAN_MODERATION_ENABLED=false
+STREAM_IMAGE_BRIDGE_ENABLED=false
 STREAM_API_KEY=<stream-api-key>
 STREAM_API_SECRET=<stream-api-secret>
 STREAM_APP_ID=<stream-app-id>
 STREAM_MODERATION_CONFIG_KEY=<stream-moderation-config-key>
+MODERATION_MEDIA_BASE_URL=
+STREAM_PSEUDONYM_KEY=<generate-secret-32-plus-bytes>
 
 PHOTODNA_ENABLED=false
 PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
@@ -238,6 +252,9 @@ These values are safe to add directly if the domains/buckets are correct:
 - `MODERATION_PROVIDER=mock`
 - `MODERATION_TIMEOUT_MS=5000`
 - `STREAM_MODERATION_ENABLED=true`
+- `HUMAN_MODERATION_ENABLED=false`
+- `STREAM_IMAGE_BRIDGE_ENABLED=true` on bank-facing staging only
+- `MODERATION_MEDIA_BASE_URL=https://moderation-media-staging.cruush.app` on bank-facing staging only
 - `PHOTODNA_ENABLED=false` until verified
 - `PHOTODNA_TIMEOUT_MS=5000`
 - `EMAIL_PREVIEW_ENABLED=false`
@@ -257,6 +274,7 @@ These require secret values or dashboard-generated values:
 - `STREAM_API_SECRET`
 - `STREAM_APP_ID`
 - `STREAM_MODERATION_CONFIG_KEY`
+- `STREAM_PSEUDONYM_KEY`
 - `PHOTODNA_API_URL`
 - `PHOTODNA_OPERATION_PATH`
 - `PHOTODNA_SUBSCRIPTION_KEY`
@@ -278,6 +296,7 @@ After env vars are saved and the service redeploys:
 6. Profile photo upload stores encrypted media through R2/S3.
 7. Feed accepts safe text and rejects public/profile coded-language terms.
 8. DM text works.
-9. DM/group photo upload works.
+9. DM/group photo upload returns the expected disabled/unavailable response; message-photo uploads are not enabled for bank review.
 10. Report submission works.
 11. Logs show no missing required env variable errors.
+12. API, Coolify/proxy, CDN/WAF, and APM logs contain no raw moderation capability token.

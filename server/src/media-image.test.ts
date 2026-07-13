@@ -44,6 +44,8 @@ describe("media image processing", () => {
       }
     }).jpeg().withMetadata({ orientation: 6 }).toBuffer();
     const processed = await processUploadedImage(source, "image/jpeg");
+    expect(processed).toHaveProperty("canonicalBytes");
+    const canonicalMetadata = await sharp(processed.canonicalBytes).metadata();
     const display = processed.variants.find((variant) => variant.type === "display");
     const metadata = await sharp(display?.bytes).metadata();
 
@@ -52,6 +54,10 @@ describe("media image processing", () => {
     expect(metadata.xmp).toBeUndefined();
     expect(metadata.width).toBe(80);
     expect(metadata.height).toBe(120);
+    expect(canonicalMetadata.orientation).toBeUndefined();
+    expect(canonicalMetadata.exif).toBeUndefined();
+    expect(canonicalMetadata.xmp).toBeUndefined();
+    expect(Math.max(canonicalMetadata.width ?? 0, canonicalMetadata.height ?? 0)).toBeLessThanOrEqual(2048);
   });
 
   it("rejects malformed, unsupported, and MIME-mismatched files", async () => {

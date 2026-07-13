@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ApiError } from "../errors.js";
 import {
   createPendingMediaAsset,
+  deletePendingMediaAsset,
   moderatePendingMediaAsset,
   removeOwnedNonPublicMediaAsset
 } from "../media-assets.js";
@@ -14,12 +15,14 @@ import {
   readEncryptedMediaObject
 } from "../media-storage.js";
 import { approvedContentReviewCte } from "../moderation-service.js";
+import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
 
 const MAX_PROFILE_PHOTOS = 4;
-const legacyFilenameSchema = z.object({
-  filename: z.string().regex(/^[0-9a-f-]{36}-[0-9a-f-]{36}\.(jpg|png|webp)$/i)
+const mediaUuidPattern = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+const profilePhotoFilenameSchema = z.object({
+  filename: z.string().regex(new RegExp(`^(?:${mediaUuidPattern}-)?${mediaUuidPattern}\\.(jpg|png|webp)$`, "i"))
 }).strict();
 const mediaAssetParamsSchema = z.object({
   assetId: z.uuid(),
@@ -58,6 +61,16 @@ type OwnedMediaRow = {
   moderation_decided_at: string | Date | null;
   created_at: string | Date;
 };
+
+export function parseProfilePhotoFilename(params: unknown) {
+  const result = profilePhotoFilenameSchema.safeParse(params);
+
+  if (!result.success) {
+    throw new ApiError(404, "NOT_FOUND", "Invalid media path.");
+  }
+
+  return result.data;
+}
 
 async function sendEncryptedMedia(app: FastifyInstance, reply: FastifyReply, mediaObject: EncryptedMediaRow) {
   const encryptedBytes = await readEncryptedMediaObject(app.config, mediaObject.object_key);
@@ -112,7 +125,7 @@ function toUploadError(error: unknown) {
 export async function registerMediaRoutes(app: FastifyInstance) {
   app.get("/api/media/profile-photos/:filename", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
-    const { filename } = legacyFilenameSchema.parse(request.params);
+    const { filename } = parseProfilePhotoFilename(request.params);
     const publicUrl = `${ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
     const result = await app.db.query<EncryptedMediaRow>(
       `select
@@ -150,7 +163,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
 
   app.get("/api/media/message-photos/:filename", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
-    const { filename } = legacyFilenameSchema.parse(request.params);
+    const { filename } = parseProfilePhotoFilename(request.params);
     const publicUrl = `${MESSAGE_PHOTO_MEDIA_PREFIX}/${filename}`;
     const result = await app.db.query<EncryptedMediaRow>(
       `select
@@ -288,6 +301,10 @@ export async function registerMediaRoutes(app: FastifyInstance) {
   app.post("/api/profile-photos", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
 
+    if (!photoUploadAvailability(app.config).profilePhotos) {
+      throw new ApiError(503, "FEATURE_RESTRICTED", "Profile photo uploads are temporarily unavailable.");
+    }
+
     await app.rateLimiter.assert({
       key: `profile-photo-upload:${userId}`,
       max: 10,
@@ -330,118 +347,118 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
     }
 
-    const pendingAsset = await createPendingMediaAsset(app, request, {
-      ownerUserId: userId,
-      surface: "profile_photo",
-      originalBytes: bytes,
-      processed
-    });
-    const asset = await moderatePendingMediaAsset(app, pendingAsset, {
-      bytes,
-      filename: upload.filename,
-      moderationSurface: "profile_photo"
-    });
+    let pendingAsset: Awaited<ReturnType<typeof createPendingMediaAsset>> | null = null;
 
-    const savedPhotoResult = await app.db.query<{ photos: string[] | null }>(
-      `with eligible_user as (
-         select app_user.id
-         from app_users app_user
-         left join user_trust_profiles trust on trust.user_id = app_user.id
-         where app_user.id = $1
-           and app_user.account_status = 'active'
-           and coalesce(trust.is_suspended, false) = false
-           and coalesce(trust.trust_score, 50) > 20
-           and not exists (
-             select 1 from suspensions suspension
-             where suspension.user_id = app_user.id
-               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-           )
-           and not exists (
-             select 1 from feature_restrictions restriction
-             where restriction.user_id = app_user.id
-               and restriction.feature = 'photo_uploads'
-               and (restriction.ends_at is null or restriction.ends_at > now())
-           )
-       ), approved_media as (
-         update media_objects media
-         set public_url = $3,
-             moderation_status = 'approved',
-             moderation_provider = $4,
-             moderation_provider_version = $5,
-             moderation_scores = $7::jsonb,
-             moderation_decided_at = now(),
-             moderation_failure_reason = null,
-             explicit_classification = 'non_explicit',
-             photodna_status = $10,
-             photodna_provider_request_id = $11
-         from eligible_user
-         where media.id = $2
-           and media.owner_user_id = eligible_user.id
-           and media.surface = 'profile_photo'
-           and media.moderation_status = 'pending'
-           and coalesce((select array_length(profile.photos, 1) from profiles profile where profile.id = $1), 0) < ${MAX_PROFILE_PHOTOS}
-         returning media.owner_user_id as id
-       ), ${approvedContentReviewCte({
-         userIdParam: "$1",
-         surface: "profile_photo",
-         contentType: "image",
-         fromCte: "approved_media",
-         providerParam: "$4",
-         providerRequestIdParam: "$6",
-         normalizedLabelsParam: "$7",
-         policyDecisionParam: "$8",
-         moderationStatusParam: "'allowed'",
-         moderationRawResultParam: "$9",
-         contentIdParam: "$2",
-         contentRefParam: "jsonb_build_object('assetId', $2, 'surface', 'profile_photo')"
-       })}, linked_media as (
-         update media_objects media
-         set content_review_id = moderation_review.id
-         from moderation_review
-         where media.id = $2
-         returning media.owner_user_id as id
-       )
-       insert into profiles (id, photos, updated_at)
-       select linked_media.id, array[$3]::text[], now()
-       from linked_media
-       on conflict (id) do update
-       set photos = case
-         when array_position(profiles.photos, $3) is not null then profiles.photos
-         else array_append(profiles.photos, $3)
-       end,
-       updated_at = now()
-       where array_position(profiles.photos, $3) is not null
-          or coalesce(array_length(profiles.photos, 1), 0) < ${MAX_PROFILE_PHOTOS}
-       returning photos`,
-      [
-        userId,
-        asset.id,
-        asset.displayUrl,
-        asset.moderation.provider,
-        asset.moderation.providerVersion,
-        asset.moderation.providerRequestId,
-        JSON.stringify(asset.moderation.labels),
-        JSON.stringify(asset.moderation.decision),
-        JSON.stringify(asset.moderation.rawResult),
-        asset.moderation.photoDnaStatus,
-        asset.moderation.photoDnaProviderRequestId
-      ]
-    );
+    try {
+      pendingAsset = await createPendingMediaAsset(app, request, {
+        ownerUserId: userId,
+        surface: "profile_photo",
+        processed
+      });
+      const asset = await moderatePendingMediaAsset(app, request, pendingAsset, {
+        filename: upload.filename,
+        moderationSurface: "profile_photo"
+      });
 
-    if (!savedPhotoResult.rows[0]) {
-      throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
-    }
-
-    return reply.code(201).send({
-      data: {
-        assetId: asset.id,
-        url: asset.displayUrl,
-        thumbnailUrl: asset.thumbnailUrl,
-        moderationStatus: "approved",
-        mimeType: "image/webp",
-        width: asset.width,
-        height: asset.height
+      const savedPhotoResult = await app.db.query<{ photos: string[] | null }>(
+        `with eligible_user as (
+           select app_user.id
+           from app_users app_user
+           left join user_trust_profiles trust on trust.user_id = app_user.id
+           where app_user.id = $1
+             and app_user.account_status = 'active'
+             and coalesce(trust.is_suspended, false) = false
+             and coalesce(trust.trust_score, 50) > 20
+             and not exists (
+               select 1 from suspensions suspension
+               where suspension.user_id = app_user.id
+                 and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+             )
+             and not exists (
+               select 1 from feature_restrictions restriction
+               where restriction.user_id = app_user.id
+                 and restriction.feature = 'photo_uploads'
+                 and (restriction.ends_at is null or restriction.ends_at > now())
+             )
+         ), approved_media as (
+           update media_objects media
+           set public_url = $3,
+               moderation_status = 'approved',
+               moderation_provider = $4,
+               moderation_provider_version = $5,
+               moderation_scores = $7::jsonb,
+               moderation_decided_at = now(),
+               moderation_failure_reason = null,
+               explicit_classification = 'non_explicit',
+               photodna_status = $10,
+               photodna_provider_request_id = $11
+           from eligible_user
+           where media.id = $2
+             and media.owner_user_id = eligible_user.id
+             and media.surface = 'profile_photo'
+             and media.moderation_status = 'pending'
+             and coalesce((select array_length(profile.photos, 1) from profiles profile where profile.id = $1), 0) < ${MAX_PROFILE_PHOTOS}
+           returning media.owner_user_id as id
+         ), ${approvedContentReviewCte({
+           userIdParam: "$1",
+           surface: "profile_photo",
+           contentType: "image",
+           fromCte: "approved_media",
+           providerParam: "$4",
+           providerRequestIdParam: "$6",
+           normalizedLabelsParam: "$7",
+           policyDecisionParam: "$8",
+           moderationStatusParam: "'allowed'",
+           moderationRawResultParam: "$9",
+           contentIdParam: "$2",
+           contentRefParam: "jsonb_build_object('assetId', $2, 'surface', 'profile_photo')"
+         })}, linked_media as (
+           update media_objects media
+           set content_review_id = moderation_review.id
+           from moderation_review
+           where media.id = $2
+           returning media.owner_user_id as id
+         )
+         insert into profiles (id, photos, updated_at)
+         select linked_media.id, array[$3]::text[], now()
+         from linked_media
+         on conflict (id) do update
+         set photos = case
+           when array_position(profiles.photos, $3) is not null then profiles.photos
+           else array_append(profiles.photos, $3)
+         end,
+         updated_at = now()
+         where array_position(profiles.photos, $3) is not null
+            or coalesce(array_length(profiles.photos, 1), 0) < ${MAX_PROFILE_PHOTOS}
+         returning photos`,
+        [
+          userId,
+          asset.id,
+          asset.displayUrl,
+          asset.moderation.provider,
+          asset.moderation.providerVersion,
+          asset.moderation.providerRequestId,
+          JSON.stringify(asset.moderation.labels),
+          JSON.stringify(asset.moderation.decision),
+          JSON.stringify(asset.moderation.rawResult),
+          asset.moderation.photoDnaStatus,
+          asset.moderation.photoDnaProviderRequestId
+        ]
+      );
+      if (!savedPhotoResult.rows[0]) {
+        throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
       }
-    });
+
+      return reply.code(201).send({
+        data: {
+          url: asset.displayUrl
+        }
+      });
+    } catch (error) {
+      if (pendingAsset) {
+        await deletePendingMediaAsset(app, request, pendingAsset);
+      }
+      throw error;
+    }
   });
 }

@@ -160,7 +160,7 @@ async function recordPhotoDnaContentReview(app: FastifyInstance, input: PhotoDna
       JSON.stringify({
         ...(input.contentRef ?? {}),
         incidentId,
-        originalFilename: input.filename ?? null
+        ...(input.filename ? { originalFilename: input.filename } : {})
       }),
       providerRequestId,
       JSON.stringify([{

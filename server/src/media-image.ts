@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import { ApiError } from "./errors.js";
+import { sanitizeProfilePhoto } from "./image-sanitization.js";
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_IMAGE_PIXELS = 40_000_000;
@@ -23,6 +24,7 @@ export type ProcessedImageVariant = {
 
 export type ProcessedImage = {
   detectedMimeType: "image/jpeg" | "image/png" | "image/webp";
+  canonicalBytes: Buffer;
   width: number;
   height: number;
   variants: ProcessedImageVariant[];
@@ -101,15 +103,18 @@ export async function processUploadedImage(bytes: Buffer, declaredMimeType?: str
       throw invalidImage("Image content does not match its declared type.");
     }
 
+    const canonical = await sanitizeProfilePhoto(bytes, detectedMimeType);
+    const canonicalMetadata = await sharp(canonical.bytes).metadata();
     const variants = await Promise.all([
-      makeVariant(bytes, "thumbnail", 320, 400),
-      makeVariant(bytes, "display", 960, 1200)
+      makeVariant(canonical.bytes, "thumbnail", 320, 400),
+      makeVariant(canonical.bytes, "display", 960, 1200)
     ]);
 
     return {
       detectedMimeType,
-      width,
-      height,
+      canonicalBytes: canonical.bytes,
+      width: canonicalMetadata.width ?? width,
+      height: canonicalMetadata.height ?? height,
       variants
     };
   } catch (error) {

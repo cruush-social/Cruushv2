@@ -72,10 +72,13 @@ const configSchema = z.object({
   MODERATION_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
   STREAM_MODERATION_ENABLED: booleanEnvSchema,
   HUMAN_MODERATION_ENABLED: booleanEnvSchema,
+  STREAM_IMAGE_BRIDGE_ENABLED: booleanEnvSchema,
   STREAM_API_KEY: z.string().optional().default(""),
   STREAM_API_SECRET: z.string().optional().default(""),
   STREAM_APP_ID: z.string().optional().default(""),
   STREAM_MODERATION_CONFIG_KEY: z.string().trim().regex(/^[\w:-]*$/, "STREAM_MODERATION_CONFIG_KEY may only contain letters, numbers, underscores, dashes, and colons.").optional().default(""),
+  MODERATION_MEDIA_BASE_URL: z.string().url().optional().or(z.literal("")).default(""),
+  STREAM_PSEUDONYM_KEY: z.string().optional().default(""),
   PHOTODNA_ENABLED: booleanEnvSchema,
   PHOTODNA_API_URL: z.string().url().optional().or(z.literal("")).default(""),
   PHOTODNA_OPERATION_PATH: z.string().trim().optional().default(""),
@@ -148,6 +151,32 @@ const configSchema = z.object({
     }
   }
 
+  if (config.STREAM_IMAGE_BRIDGE_ENABLED) {
+    if (!config.STREAM_MODERATION_ENABLED) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "STREAM_MODERATION_ENABLED is required when STREAM_IMAGE_BRIDGE_ENABLED=true.",
+        path: ["STREAM_MODERATION_ENABLED"]
+      });
+    }
+
+    if (!config.MODERATION_MEDIA_BASE_URL) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "MODERATION_MEDIA_BASE_URL is required when STREAM_IMAGE_BRIDGE_ENABLED=true.",
+        path: ["MODERATION_MEDIA_BASE_URL"]
+      });
+    }
+
+    if (Buffer.byteLength(config.STREAM_PSEUDONYM_KEY, "utf8") < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "STREAM_PSEUDONYM_KEY must be at least 32 bytes when STREAM_IMAGE_BRIDGE_ENABLED=true.",
+        path: ["STREAM_PSEUDONYM_KEY"]
+      });
+    }
+  }
+
   if (config.PHOTODNA_ENABLED) {
     for (const keyName of ["PHOTODNA_API_URL", "PHOTODNA_OPERATION_PATH", "PHOTODNA_SUBSCRIPTION_KEY"] as const) {
       if (!config[keyName]) {
@@ -174,6 +203,44 @@ const configSchema = z.object({
 
   if (config.NODE_ENV !== "production") {
     return;
+  }
+
+  if (config.STREAM_IMAGE_BRIDGE_ENABLED) {
+    const moderationMediaUrl = config.MODERATION_MEDIA_BASE_URL
+      ? new URL(config.MODERATION_MEDIA_BASE_URL)
+      : null;
+
+    if (moderationMediaUrl && moderationMediaUrl.protocol !== "https:") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "MODERATION_MEDIA_BASE_URL must use HTTPS in production.",
+        path: ["MODERATION_MEDIA_BASE_URL"]
+      });
+    }
+
+    if (
+      moderationMediaUrl && (
+        moderationMediaUrl.username ||
+        moderationMediaUrl.password ||
+        moderationMediaUrl.pathname !== "/" ||
+        moderationMediaUrl.search ||
+        moderationMediaUrl.hash
+      )
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "MODERATION_MEDIA_BASE_URL must be a credential-free origin without a path, query, or fragment.",
+        path: ["MODERATION_MEDIA_BASE_URL"]
+      });
+    }
+
+    if (config.MEDIA_OBJECT_STORAGE_DRIVER !== "s3") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "STREAM_IMAGE_BRIDGE_ENABLED requires S3-backed encrypted storage in production.",
+        path: ["MEDIA_OBJECT_STORAGE_DRIVER"]
+      });
+    }
   }
 
   if (config.PHOTODNA_ENABLED) {
@@ -346,10 +413,13 @@ type ModerationConfigKey =
   | "MODERATION_TIMEOUT_MS"
   | "STREAM_MODERATION_ENABLED"
   | "HUMAN_MODERATION_ENABLED"
+  | "STREAM_IMAGE_BRIDGE_ENABLED"
   | "STREAM_API_KEY"
   | "STREAM_API_SECRET"
   | "STREAM_APP_ID"
   | "STREAM_MODERATION_CONFIG_KEY"
+  | "MODERATION_MEDIA_BASE_URL"
+  | "STREAM_PSEUDONYM_KEY"
   | "PHOTODNA_ENABLED"
   | "PHOTODNA_API_URL"
   | "PHOTODNA_OPERATION_PATH"

@@ -90,8 +90,8 @@ function reportSelectSql(whereSql: string) {
      reports.status,
      reports.created_at,
      reports.updated_at,
-     coalesce(reporter_profile.display_name, reporter.display_name, 'Cruush user') as reporter_display_name,
-     coalesce(target_profile.display_name, target_user.display_name, 'Cruush user') as target_display_name
+     coalesce(reporter_profile.display_name, reporter.display_name, 'cruush user') as reporter_display_name,
+     coalesce(target_profile.display_name, target_user.display_name, 'cruush user') as target_display_name
    from reports
    join app_users reporter on reporter.id = reports.reporter_user_id
    left join profiles reporter_profile on reporter_profile.id = reporter.id
@@ -105,7 +105,7 @@ function mapReportRow(row: ReportAdminRow) {
     id: row.id,
     reporter: {
       userId: row.reporter_user_id,
-      displayName: row.reporter_display_name?.trim() || "Cruush user"
+      displayName: row.reporter_display_name?.trim() || "cruush user"
     },
     target: {
       type: row.target_type,

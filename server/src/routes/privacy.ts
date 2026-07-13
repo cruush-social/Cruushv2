@@ -114,7 +114,7 @@ async function loadAuditProfiles(app: FastifyInstance, userIds: string[]) {
 function mapAuditProfile(row: AuditProfileRow | undefined, userId: string) {
   return {
     id: userId,
-    name: row?.display_name?.trim() || "Cruush user",
+    name: row?.display_name?.trim() || "cruush user",
     pronouns: row?.pronouns?.join(", ") ?? "",
     photo: row?.photos?.[0] ?? null
   };
@@ -141,7 +141,7 @@ async function loadMutualPreciseCandidates(app: FastifyInstance, subjectUserId: 
       candidates.push({
         viewerUserId,
         permissionType: "mutual_cruush" as const,
-        reason: "Mutual Cruush precise sharing",
+        reason: "Mutual cruush precise sharing",
         grantedAtMs: new Date(record.payload.createdAt).getTime(),
         lastDecisionAtMs: Date.now()
       });

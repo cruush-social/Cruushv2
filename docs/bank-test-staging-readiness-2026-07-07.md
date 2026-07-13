@@ -11,6 +11,25 @@ This document records the current staging state after wiring Stream moderation c
 - Server: `cruush-prod-1`
 - Moderation model: no human moderation queue. Stream AI/moderation provides moderation signals, and the cruush trust-score automod enforces save, publish, restriction, suspension, and rejection decisions.
 
+## Profile-Photo Bridge Deployment Configuration
+
+Bank-facing staging must use the dedicated provider-readable hostname and these API variables:
+
+```env
+STREAM_MODERATION_ENABLED=true
+STREAM_IMAGE_BRIDGE_ENABLED=true
+STREAM_API_KEY=<staging-stream-api-key>
+STREAM_API_SECRET=<staging-stream-api-secret>
+STREAM_APP_ID=<staging-stream-app-id>
+STREAM_MODERATION_CONFIG_KEY=<staging-stream-moderation-config-key>
+MODERATION_MEDIA_BASE_URL=https://moderation-media-staging.cruush.app
+STREAM_PSEUDONYM_KEY=<random-secret-at-least-32-bytes>
+MEDIA_OBJECT_STORAGE_DRIVER=s3
+PHOTODNA_ENABLED=false
+```
+
+Route `https://moderation-media-staging.cruush.app` to the API without cookies or CDN caching. Configure a private five-minute scheduler to run `pnpm --dir server cleanup:moderation-media-grants` from the repository root. Confirm Coolify ingress, proxy, CDN/WAF, and APM logs do not retain raw request paths for this hostname. Public production must keep `STREAM_IMAGE_BRIDGE_ENABLED=false` until provider retention terms and staging evidence are accepted.
+
 ## Completed Checks
 
 - API redeploy finished successfully in Coolify.
@@ -74,8 +93,10 @@ Follow-up profile-photo proof attempt on 2026-07-08 at 16:45 UTC:
 - Banned public/profile coded-language rejection was not tested on the active staging smoke user because those attempts intentionally create trust evidence and may restrict the account.
 - Profile photo upload reached the authenticated edit UI, but the fixture upload did not reach the app because Chrome file upload access is not enabled for the Codex extension. This remains the top bank-readiness blocker because profile photos must reject non-human/gradient images while accepting adult-human/body images.
 - DM and group message writes were not tested in this run. Bank review must not use seeded/fake messages, fake DMs, fake groups, or seeded bank/payment accounts; test those flows only through real tester-owned accounts during the review.
+- Message-photo uploads remain disabled and are not part of the bank-facing profile-photo bridge.
 - Group messaging backend routes exist, but the full Signal-style frontend admin/member UI is still incomplete.
 - PhotoDNA remains disabled. Do not tell a bank or payment processor that PhotoDNA is active until the adapter is verified against Microsoft sample requests and responses.
+- Stream may process or retain submitted photo bytes or moderation-derived data under its contract. The capability bridge limits time and identifiers but is not zero-knowledge and does not prove provider-side zero retention.
 
 ## PhotoDNA Status
 
@@ -94,24 +115,26 @@ The PhotoDNA keys were visible in a screenshot during setup. Rotate them before 
 
 ## Bank Test Account Plan
 
-Use `bank-reviewer-nyc@cruush.local` when the bank needs a ready NYC-location account. The account must stay an auth/profile/location shell only: do not pre-create fake bank-review messages, DMs, mutual cruushes, groups, profile photos, or payment fixtures.
+Create every bank-review account through the normal visible staging signup flow and use tester-owned email addresses, consented profile details, and consented images. Do not use seeded or fake accounts, fake profiles, fake messages, fake DMs, fake mutual cruushes, fake groups, or payment fixtures for this proof.
 
 Minimum bank smoke script:
 
 1. Open `https://staging.cruush.app`.
-2. Sign in with `bank-reviewer-nyc@cruush.local` if the bank needs a ready NYC-location account. See `docs/nyc-reviewer-test-logins.md` for the password env var and the rule separating bank review from the internal codeveloper login.
+2. Create or sign in to a tester-owned account through the normal visible signup/login flow.
 3. Confirm signup/login works with Turnstile and email verification behavior expected for staging.
 4. Edit profile basics and bio with allowed text.
 5. Attempt a public/profile banned term on the disposable account and verify the write is rejected.
-6. Upload an allowed adult human profile photo and verify the approved/pending state.
-7. Attempt a clearly invalid profile image and verify rejection without publishing it.
-8. Create or use a second real tester-owned account for DMs.
-9. Send an allowed DM during review.
-10. Verify drug discussion is allowed in DMs, but sale/solicitation language is rejected.
-11. Create a group conversation through the visible app flow during review.
-12. Verify group owner/admin/member permissions once the UI is complete.
-13. Create a report with the fetishization reason and verify it records report evidence.
-14. Verify expired feed posts/messages are hidden or removed according to the configured timer.
+6. Upload one consented adult-human profile photo and confirm it is published from cruush-controlled encrypted storage.
+7. Attempt a neutral nonhuman image and confirm rejection with no remaining media or grant row. Do not use actual minor imagery; minor and ambiguous-age handling stays covered by provider-response fixtures and policy tests.
+8. Replay the captured capability URL after its first successful provider fetch and confirm `404`.
+9. Inspect API, Coolify/proxy, CDN/WAF, and APM logs and confirm the raw capability token was not retained.
+10. Create or use a second real tester-owned account for DMs.
+11. Send an allowed DM during review.
+12. Verify drug discussion is allowed in DMs, but sale/solicitation language is rejected.
+13. Create a group conversation through the visible app flow during review.
+14. Verify group owner/admin/member permissions once the UI is complete.
+15. Create a report with the fetishization reason and verify it records report evidence.
+16. Verify expired feed posts/messages are hidden or removed according to the configured timer.
 
 ## Immediate Engineering Next Steps
 
@@ -131,5 +154,7 @@ Minimum bank smoke script:
 For bank/payment-processor review, describe the current moderation architecture this way:
 
 > cruush uses automated moderation. There is no human moderation queue for launch. Stream AI/moderation tools provide moderation signals, and cruush's trust-score automod enforces blocking, rejection, restriction, suspension, and evidence decisions before content is saved or published.
+
+After the bridge is deployed and the bank smoke script passes, add: automated Stream profile-photo moderation is active through an ephemeral capability bridge. Until then, describe it as implemented but awaiting staging proof. PhotoDNA is inactive and must not be represented as active unless separately verified.
 
 Do not claim end-to-end encryption. The open beta target is cruush-controlled server-side/application-layer encryption, where the backend can decrypt only when authorized for product, moderation, safety, export, deletion, and compliance workflows.

@@ -42,7 +42,8 @@ const migrationFiles = [
   "034_moderation_actions.sql",
   "035_notifications_and_push.sql",
   "036_beta_reporting_admin_moderation.sql",
-  "037_media_asset_foundation.sql"
+  "037_media_asset_foundation.sql",
+  "038_moderation_media_grants.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

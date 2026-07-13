@@ -24,7 +24,7 @@ const appOwnedProfilePhotoPathSchema = z.string()
   .max(256)
   .regex(
     /^\/api\/media\/(?:profile-photos\/[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(?:jpg|png|webp)|assets\/[0-9a-f-]{36}\/display)$/i,
-    "Photo paths must be uploaded Cruush profile photos."
+    "Photo paths must be uploaded cruush profile photos."
   );
 
 export const profileVisibilityRulesSchema = z.object({

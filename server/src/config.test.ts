@@ -117,6 +117,35 @@ describe("loadConfig", () => {
     });
   });
 
+  it("keeps the Stream image bridge off by default and validates its private staging prerequisites", () => {
+    expect(loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret"
+    }).STREAM_IMAGE_BRIDGE_ENABLED).toBe(false);
+
+    expect(() => loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      STREAM_IMAGE_BRIDGE_ENABLED: "true"
+    })).toThrow(/STREAM_MODERATION_ENABLED/);
+
+    expect(loadConfig({
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret",
+      STREAM_IMAGE_BRIDGE_ENABLED: "true",
+      STREAM_MODERATION_ENABLED: "true",
+      STREAM_API_KEY: "stream-key",
+      STREAM_API_SECRET: "stream-secret",
+      STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
+      STREAM_PSEUDONYM_KEY: strongSecret
+    })).toMatchObject({
+      STREAM_IMAGE_BRIDGE_ENABLED: true,
+      MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
+      STREAM_PSEUDONYM_KEY: strongSecret
+    });
+  });
+
   it("requires PhotoDNA connection details when PhotoDNA is enabled", () => {
     expect(() => loadConfig({
       DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",

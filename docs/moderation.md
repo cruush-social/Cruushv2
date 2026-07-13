@@ -21,10 +21,13 @@ MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=false
 HUMAN_MODERATION_ENABLED=false
+STREAM_IMAGE_BRIDGE_ENABLED=false
 STREAM_API_KEY=
 STREAM_API_SECRET=
 STREAM_APP_ID=
 STREAM_MODERATION_CONFIG_KEY=
+MODERATION_MEDIA_BASE_URL=
+STREAM_PSEUDONYM_KEY=
 PHOTODNA_ENABLED=false
 PHOTODNA_API_URL=
 PHOTODNA_SUBSCRIPTION_KEY=
@@ -35,9 +38,11 @@ The frontend must also keep `VITE_HUMAN_MODERATION_ENABLED=false`. The API route
 
 When `STREAM_MODERATION_ENABLED=true`, `STREAM_API_KEY`, `STREAM_API_SECRET`, and `STREAM_MODERATION_CONFIG_KEY` are required at server startup.
 
+When `STREAM_IMAGE_BRIDGE_ENABLED=true`, the server also requires `MODERATION_MEDIA_BASE_URL` and a `STREAM_PSEUDONYM_KEY` of at least 32 bytes. Production additionally requires an HTTPS moderation-media origin and S3-backed encrypted storage. The flag defaults to `false`; leave it disabled on public production until provider terms and staging proof are accepted.
+
 When `PHOTODNA_ENABLED=true`, `PHOTODNA_API_URL`, `PHOTODNA_OPERATION_PATH`, and `PHOTODNA_SUBSCRIPTION_KEY` are required at server startup. The current adapter posts image bytes to the configured Microsoft API Management endpoint and blocks configured match responses. Verify the exact operation path and sample response from the Microsoft portal before enabling it for staging.
 
-When `MEDIA_OBJECT_STORAGE_DRIVER=s3`, `MEDIA_S3_BUCKET`, `MEDIA_S3_ENDPOINT`, `MEDIA_S3_ACCESS_KEY_ID`, and `MEDIA_S3_SECRET_ACCESS_KEY` are required at server startup. For Cloudflare R2, use `MEDIA_S3_REGION=auto`.
+When `MEDIA_OBJECT_STORAGE_DRIVER=s3`, `MEDIA_S3_BUCKET`, `MEDIA_S3_ENDPOINT`, `MEDIA_S3_ACCESS_KEY_ID`, and `MEDIA_S3_SECRET_ACCESS_KEY` are required at server startup. Cloudflare R2 is S3-compatible and does not require a separate AWS S3 account. For R2, use `MEDIA_S3_REGION=auto` and a staging-bucket-scoped token with object read/write permissions so the API can upload, serve, and delete encrypted objects.
 
 For staging, set `MEDIA_PUBLIC_BASE_URL` to the public API origin that serves authenticated media routes, for example `https://api-staging.cruush.app`. `APP_URL` should remain the user-facing app origin used by auth emails.
 
@@ -75,7 +80,7 @@ Rejected before save/publish:
 - Profile photos that do not have explicit adult-human/body proof from the image moderation provider. A generic `person`, `portrait`, nudity label, or silent image moderation allow is not enough.
 - Profile photos with child, minor, underage, teen, young-looking, or otherwise age-ambiguous signals. Child/minor signals take precedence over adult or nudity labels.
 
-Allowed profile-photo framing includes a clothed or nude adult human, with or without a face, including a clearly adult human body part. The photo still has to be of the uploader only.
+Allowed profile-photo framing for this bank build includes a non-explicit adult human, with or without a face, including a clearly adult human body part. The photo still has to be of the uploader only. Explicit profile photos fail closed and are deleted until explicit-content display controls are implemented.
 
 If Stream is unavailable, partial, pending, or returns an error, content is not saved. The request fails closed with `MODERATION_UNAVAILABLE`.
 
@@ -103,9 +108,40 @@ In Stream dashboard:
 6. Avoid blocklists that treat queer identity terms, trans terms, kink terms, or consensual adult dating language as violations by themselves.
 7. For profile image moderation, reject anything that is not confidently a photo of the uploader. cruush expects a positive adult-human/body signal and rejects profile photos when the provider is silent.
 8. Configure non-human/abstract/object/logo/animal/cartoon/screenshot/image-without-person outcomes to remove or return labels such as `non_human`, `no_person`, `object`, `abstract`, `gradient`, `logo`, or equivalent.
-9. PhotoDNA must be enabled with the verified Microsoft operation path before bank/payment-processor staging review.
+9. Keep PhotoDNA disabled and describe it as inactive until the Microsoft operation path and response contract are separately verified.
 
-Stream image checks require an internet-accessible image URL. The current authenticated profile-media URL is not provider-readable before the upload is stored, so production Stream image uploads remain a fail-closed integration gate: add a short-lived provider-readable URL before relying on this path for successful profile-photo uploads. Do not make the encrypted media bucket public.
+## Staging Profile-Photo Bridge
+
+Bank-facing staging uses the temporary capability bridge only for profile photos:
+
+```env
+STREAM_MODERATION_ENABLED=true
+STREAM_IMAGE_BRIDGE_ENABLED=true
+STREAM_API_KEY=<staging-stream-api-key>
+STREAM_API_SECRET=<staging-stream-api-secret>
+STREAM_APP_ID=<staging-stream-app-id>
+STREAM_MODERATION_CONFIG_KEY=<staging-stream-moderation-config-key>
+MODERATION_MEDIA_BASE_URL=https://moderation-media-staging.cruush.app
+STREAM_PSEUDONYM_KEY=<random-secret-at-least-32-bytes>
+MEDIA_OBJECT_STORAGE_DRIVER=s3
+PHOTODNA_ENABLED=false
+```
+
+Route `moderation-media-staging.cruush.app` directly to the API. Do not attach session cookies, enable CDN caching, or expose the private object bucket. `GET` and `HEAD /api/moderation-media/:token` are intentionally cookie-free; `HEAD` does not consume a grant, while only the first valid `GET` can decrypt sanitized bytes in memory. Used, revoked, expired, and unknown grants return `404`.
+
+The API sends Stream only the capability URL, an opaque moderation correlation ID, and an HMAC-based user pseudonym. Stored moderation records must not contain the capability URL or token, cruush user ID as the provider identity, original filename, final media URL, or object key.
+
+The route uses silent Fastify request logging and never logs the token itself. Before bank review, inspect Coolify ingress, reverse-proxy access logs, CDN/WAF logs, and APM/error tooling and confirm the raw request path and query are not retained for this hostname. Application redaction cannot erase tokens captured by an upstream proxy.
+
+Stream can fetch temporarily decrypted photo bytes and may retain or process submitted media or moderation-derived data under Stream's contract and product terms. The bridge reduces exposure but does not provide zero-knowledge moderation or prove provider-side zero retention.
+
+Run cleanup every five minutes from a private scheduler attached to the API environment:
+
+```cron
+*/5 * * * * cd /app/server && pnpm cleanup:moderation-media-grants
+```
+
+The command deletes expired grants and abandoned pending media, including all canonical and variant ciphertext. Revoked grants remain unreadable and become cleanup-eligible at their original 90-second expiry. Uploads also run a small opportunistic cleanup batch. Message-photo uploads are not part of this bridge and must remain disabled for bank review until the profile-photo path is proven.
 
 ## Open Beta Storage Direction
 
@@ -113,19 +149,17 @@ Current branch state:
 
 - Messages and feed posts are stored in Postgres.
 - Profile and message photos are decoded with Sharp, normalized, and re-encoded into metadata-free thumbnail/display variants.
-- Original and variant bytes are envelope-encrypted under separate private object keys.
+- Sanitized canonical bytes and metadata-free variants are envelope-encrypted under separate private object keys. Raw uploaded bytes are never written to object storage.
 - New media rows begin in `pending`; only a non-explicit approval atomically attaches a display URL to a profile or message.
 - Pending, rejected, failed, and `approved_explicit` assets return `404` from normal media routes.
 - Development and tests use local encrypted object storage; production config requires S3-compatible object storage.
 - The media storage directory is not registered as a static route. All media access is authenticated and purpose-aware.
 - Existing encrypted media created by the prior synchronous moderation route is treated as legacy-approved. Profile URLs without a matching approved media row are moved to `legacy_media_quarantine` and removed from visible profile arrays.
 
-Required next media slice:
+Provider follow-up:
 
-- Add a short-lived signed moderation-only URL that serves only the sanitized display variant to Stream.
-- Never expose the private original through the moderation URL.
-- Test token expiry and real Stream decisions for approved, explicit, uncertain, timeout, and malformed responses in staging.
-- Until that preflight exists, Stream production image moderation cannot fetch pending media and uploads fail closed without publication.
+- Test real Stream decisions for approved, explicit, uncertain, timeout, and malformed responses in staging.
+- Prefer encrypted server-to-server byte upload under no-retention terms when a provider supports it. The provider-neutral bridge can then be replaced without changing the frontend upload contract.
 
 Recommended beta storage setup:
 
@@ -155,13 +189,13 @@ Manual checks:
 - Send a DM with chemsex/PnP language and confirm it is allowed.
 - Send a threat or drug-sales message and confirm it is rejected before message storage.
 - Upload a safe profile photo that mock mode can identify, such as a fixture filename containing `adult-human`, and confirm it appears in `profiles.photos`.
-- Upload a non-human or gradient profile photo and confirm it is rejected before encrypted storage.
-- Upload an image filename containing `underage` in mock mode and confirm the file is rejected before encrypted storage.
+- Upload a non-human or gradient profile photo and confirm its temporary encrypted quarantine object is deleted without publication.
+- Upload an image filename containing `underage` in mock mode and confirm its temporary encrypted quarantine object is deleted without publication.
 - Submit a report and confirm an evidence signal is created for the reported user.
 
 ## Remaining Bank-Readiness Gaps
 
-- PhotoDNA is wired through a configurable adapter, but it still needs Microsoft portal endpoint/path/response verification before staging.
-- DM and group image attachments use the encrypted media object flow.
+- PhotoDNA is inactive and must remain described as inactive until Microsoft portal endpoint/path/response verification passes.
+- DM and group image attachments are outside the profile-photo bridge and remain disabled for bank review.
 - Stream does not yet replace the app database as the chat/feed/media substrate; this slice keeps the current Postgres routes and adds moderation gates.
 - Private photos are represented in moderation surfaces but no separate private-photo product flow exists yet.

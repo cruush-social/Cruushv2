@@ -77,7 +77,7 @@ export function profileRecordToProfileView(
 ): ProfileViewModel {
   return {
     id: profile.id,
-    name: profile.display_name || 'Cruush user',
+    name: profile.display_name || 'cruush user',
     age: deriveAge(profile.year_of_birth),
     pronouns: formatJoined(profile.pronouns) ?? 'Ask me',
     distance: previewState?.distance ?? null,

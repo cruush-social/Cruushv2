@@ -1,11 +1,11 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import { checkPhotoDnaForUploadOrReject } from "../csam-reporting.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { decryptMediaBytes } from "../media-encryption.js";
 import { readEncryptedMediaObject } from "../media-storage.js";
-import { createPendingMediaAsset, moderatePendingMediaAsset } from "../media-assets.js";
+import { createPendingMediaAsset, deletePendingMediaAsset, moderatePendingMediaAsset } from "../media-assets.js";
 import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
+import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { ApiError } from "../errors.js";
 import { hasActiveMutualMessagePermission } from "../match-relationships.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
@@ -18,7 +18,7 @@ import {
   openDirectConversationPayloadSchema,
   updateGroupConversationPayloadSchema
 } from "../message-schema.js";
-import { approvedContentReviewCte, moderateImageOrReject, moderateMessageTextOrAllowByKeyword } from "../moderation-service.js";
+import { approvedContentReviewCte, moderateMessageTextOrAllowByKeyword } from "../moderation-service.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 const conversationParamsSchema = z.object({
@@ -167,7 +167,7 @@ function mapConversationRow(app: FastifyInstance, row: ConversationRow) {
       id: isGroup ? row.id : row.other_user_id ?? row.id,
       name: isGroup
         ? row.title?.trim() || "Group chat"
-        : row.other_user_name?.trim() || "Cruush user",
+        : row.other_user_name?.trim() || "cruush user",
       pronouns: isGroup ? "" : row.other_user_pronouns?.join(", ") ?? "",
       photo: isGroup ? null : row.other_user_photo ?? null
     },
@@ -870,7 +870,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     return reply.send({
       data: result.rows.map((row) => ({
         id: row.id,
-        name: row.name?.trim() || "Cruush user",
+        name: row.name?.trim() || "cruush user",
         pronouns: row.pronouns?.join(", ") ?? "",
         photo: row.photo ?? null,
         role: row.role,
@@ -1036,6 +1036,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
   app.post("/api/messages/photos", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
 
+    if (!photoUploadAvailability(app.config).messagePhotos) {
+      throw new ApiError(503, "FEATURE_RESTRICTED", "Message photo uploads are temporarily unavailable.");
+    }
+
     await app.rateLimiter.assert({
       key: `message-photo-upload:${userId}`,
       max: 20,
@@ -1138,14 +1142,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const pendingAsset = await createPendingMediaAsset(app, request, {
       ownerUserId: userId,
       surface: "message_photo",
-      originalBytes: upload.buffer,
       processed
     });
-    const mediaAsset = await moderatePendingMediaAsset(app, pendingAsset, {
-      bytes: upload.buffer,
-      filename: upload.filename,
-      moderationSurface
-    });
+
+    try {
+      const mediaAsset = await moderatePendingMediaAsset(app, request, pendingAsset, {
+        filename: upload.filename,
+        moderationSurface
+      });
 
     const encryptedContent = encryptTextContent(app.config, "message", payload.content);
     const disappearingTimer = conversation.disappearing_timer ?? "off";
@@ -1333,9 +1337,13 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       conversationTitle: conversation.title
     });
 
-    return reply.code(201).send({
-      data: mapMessageRow(app, created)
-    });
+      return reply.code(201).send({
+        data: mapMessageRow(app, created)
+      });
+    } catch (error) {
+      await deletePendingMediaAsset(app, request, pendingAsset);
+      throw error;
+    }
   });
 
   app.post("/api/messages", async (request, reply) => {
