@@ -1,9 +1,10 @@
-import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
-import { decryptMediaBytes, encryptMediaBytes } from "../media-encryption.js";
-import { MESSAGE_PHOTO_MEDIA_PREFIX, readEncryptedMediaObject, writeEncryptedMediaObject } from "../media-storage.js";
+import { decryptMediaBytes } from "../media-encryption.js";
+import { readEncryptedMediaObject } from "../media-storage.js";
+import { createPendingMediaAsset, moderatePendingMediaAsset } from "../media-assets.js";
+import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
 import { ApiError } from "../errors.js";
 import { hasActiveMutualMessagePermission } from "../match-relationships.js";
 import {
@@ -15,8 +16,7 @@ import {
   openDirectConversationPayloadSchema,
   updateGroupConversationPayloadSchema
 } from "../message-schema.js";
-import { approvedContentReviewCte, moderateImageOrReject, moderateTextOrReject } from "../moderation-service.js";
-import { checkPhotoDna } from "../photodna.js";
+import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 const conversationParamsSchema = z.object({
@@ -38,12 +38,6 @@ const groupMemberParamsSchema = z.object({
 }).strict();
 
 const adminRoles = new Set(["owner", "admin"]);
-const MAX_MESSAGE_PHOTO_BYTES = 5 * 1024 * 1024;
-const MESSAGE_PHOTO_MIME_TYPES = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp"
-} as const;
 
 type ConversationRow = {
   id: string;
@@ -120,31 +114,6 @@ type EncryptedMessageMediaRow = {
   content_auth_tag: string;
   key_version: string;
 };
-
-function hasValidImageSignature(buffer: Buffer, mimeType: keyof typeof MESSAGE_PHOTO_MIME_TYPES) {
-  if (mimeType === "image/jpeg") {
-    return buffer.length >= 3 &&
-      buffer[0] === 0xff &&
-      buffer[1] === 0xd8 &&
-      buffer[2] === 0xff;
-  }
-
-  if (mimeType === "image/png") {
-    return buffer.length >= 8 &&
-      buffer[0] === 0x89 &&
-      buffer[1] === 0x50 &&
-      buffer[2] === 0x4e &&
-      buffer[3] === 0x47 &&
-      buffer[4] === 0x0d &&
-      buffer[5] === 0x0a &&
-      buffer[6] === 0x1a &&
-      buffer[7] === 0x0a;
-  }
-
-  return buffer.length >= 12 &&
-    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
-    buffer.subarray(8, 12).toString("ascii") === "WEBP";
-}
 
 function toMessagePhotoUploadError(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
@@ -855,18 +824,23 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            'id', media.id::text,
            'url', media.public_url,
            'mediaType', media.media_type,
-           'mimeType', media.mime_type,
+           'mimeType', coalesce(display_variant.mime_type, media.mime_type),
            'viewOnce', attachment.view_once,
            'viewedAt', viewed.viewed_at
          ) order by attachment.created_at asc) as attachments
          from message_media_attachments attachment
          join media_objects media on media.id = attachment.media_object_id
+         left join media_variants display_variant
+           on display_variant.media_object_id = media.id
+          and display_variant.variant_type = 'display'
+          and display_variant.deleted_at is null
          left join message_media_views viewed
            on viewed.message_id = attachment.message_id
           and viewed.media_object_id = attachment.media_object_id
           and viewed.user_id = $2
          where attachment.message_id = m.id
            and media.deleted_at is null
+           and media.moderation_status = 'approved'
        ) as message_attachments on true
        where m.conversation_id::text = $1
          and (m.expires_at is null or m.expires_at > now())
@@ -897,16 +871,20 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const result = await app.db.query<EncryptedMessageMediaRow>(
       `with target as (
          select
-           media.object_key,
-           media.mime_type,
-           media.encrypted_data_key,
-           media.data_key_nonce,
-           media.data_key_auth_tag,
-           media.content_nonce,
-           media.content_auth_tag,
-           media.key_version
+           coalesce(display_variant.object_key, media.object_key) as object_key,
+           coalesce(display_variant.mime_type, media.mime_type) as mime_type,
+           coalesce(display_variant.encrypted_data_key, media.encrypted_data_key) as encrypted_data_key,
+           coalesce(display_variant.data_key_nonce, media.data_key_nonce) as data_key_nonce,
+           coalesce(display_variant.data_key_auth_tag, media.data_key_auth_tag) as data_key_auth_tag,
+           coalesce(display_variant.content_nonce, media.content_nonce) as content_nonce,
+           coalesce(display_variant.content_auth_tag, media.content_auth_tag) as content_auth_tag,
+           coalesce(display_variant.key_version, media.key_version) as key_version
          from message_media_attachments attachment
          join media_objects media on media.id = attachment.media_object_id
+         left join media_variants display_variant
+           on display_variant.media_object_id = media.id
+          and display_variant.variant_type = 'display'
+          and display_variant.deleted_at is null
          join messages message on message.id = attachment.message_id
          join conversations conversation on conversation.id = message.conversation_id
          join conversation_members member
@@ -916,6 +894,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            and attachment.media_object_id = $2
            and attachment.view_once = true
            and media.deleted_at is null
+           and media.moderation_status = 'approved'
+           and (media.legacy_asset = true or display_variant.id is not null)
            and (message.expires_at is null or message.expires_at > now())
            and (conversation.cleared_at is null or message.created_at > conversation.cleared_at)
        ), inserted_view as (
@@ -967,7 +947,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     try {
       for await (const part of request.parts({
         limits: {
-          fileSize: MAX_MESSAGE_PHOTO_BYTES,
+          fileSize: MAX_IMAGE_BYTES,
           files: 1,
           fields: 3
         }
@@ -1000,24 +980,15 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "Upload a message photo in the photo field.");
     }
 
-    const mimeType = upload.mimetype as keyof typeof MESSAGE_PHOTO_MIME_TYPES;
-    const extension = MESSAGE_PHOTO_MIME_TYPES[mimeType];
-
-    if (!extension) {
-      throw new ApiError(400, "VALIDATION_ERROR", "Message photo must be a JPEG, PNG, or WebP image.");
-    }
-
     if (upload.buffer.length === 0) {
       throw new ApiError(400, "VALIDATION_ERROR", "Message photo cannot be empty.");
     }
 
-    if (upload.buffer.length > MAX_MESSAGE_PHOTO_BYTES || upload.truncated) {
+    if (upload.buffer.length > MAX_IMAGE_BYTES || upload.truncated) {
       throw new ApiError(400, "VALIDATION_ERROR", "Message photo must be 5 MB or smaller.");
     }
 
-    if (!hasValidImageSignature(upload.buffer, mimeType)) {
-      throw new ApiError(400, "VALIDATION_ERROR", "Message photo content does not match its image type.");
-    }
+    const processed = await processUploadedImage(upload.buffer, upload.mimetype);
 
     const conversationResult = await app.db.query<ConversationRow>(
       `${CONVERSATION_SELECT}
@@ -1049,11 +1020,6 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
     const moderationSurface = conversation.kind === "group" ? "group_message" : "direct_message";
     const restrictedFeature = conversation.kind === "group" ? "group_messages" : "direct_messages";
-    const filename = `${userId}-${randomUUID()}.${extension}`;
-    const objectKey = `message-photos/${filename}.enc`;
-    const url = `${MESSAGE_PHOTO_MEDIA_PREFIX}/${filename}`;
-    const publicImageUrl = new URL(url, app.config.MEDIA_PUBLIC_BASE_URL || app.config.APP_URL).toString();
-
     if (payload.content) {
       await moderateTextOrReject(app, {
         userId,
@@ -1062,73 +1028,17 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       });
     }
 
-    const photoDnaResult = await checkPhotoDna(app.config, upload.buffer);
-
-    if (photoDnaResult.status === "blocked") {
-      throw new ApiError(400, "CONTENT_REJECTED", "This photo violates Cruush safety rules and cannot be saved.");
-    }
-
-    const imageModeration = await moderateImageOrReject(app, {
-      userId,
-      surface: moderationSurface,
-      mimeType,
-      filename: upload.filename,
-      imageUrl: publicImageUrl,
-      contentId: url,
-      contentRef: {
-        url,
-        objectKey,
-        originalFilename: upload.filename,
-        mimeType,
-        photoDnaStatus: photoDnaResult.status
-      },
-      bytes: upload.buffer
+    const pendingAsset = await createPendingMediaAsset(app, request, {
+      ownerUserId: userId,
+      surface: "message_photo",
+      originalBytes: upload.buffer,
+      processed
     });
-    const encryptedMedia = encryptMediaBytes(app.config, upload.buffer);
-    await writeEncryptedMediaObject(app.config, objectKey, encryptedMedia.ciphertext);
-
-    const mediaResult = await app.db.query<{ id: string }>(
-      `insert into media_objects (
-         owner_user_id,
-         surface,
-         object_key,
-         public_url,
-         media_type,
-         mime_type,
-         byte_size,
-         encrypted_data_key,
-         data_key_nonce,
-         data_key_auth_tag,
-         content_nonce,
-         content_auth_tag,
-         key_version,
-         moderation_status,
-         photodna_status,
-         photodna_provider_request_id
-       )
-       values ($1, 'message_photo', $2, $3, 'image', $4, $5, $6, $7, $8, $9, $10, $11, 'allowed', $12, $13)
-       returning id::text as id`,
-      [
-        userId,
-        objectKey,
-        url,
-        mimeType,
-        upload.buffer.length,
-        encryptedMedia.encryptedDataKey,
-        encryptedMedia.dataKeyNonce,
-        encryptedMedia.dataKeyAuthTag,
-        encryptedMedia.nonce,
-        encryptedMedia.authTag,
-        encryptedMedia.keyVersion,
-        photoDnaResult.status,
-        photoDnaResult.providerRequestId ?? null
-      ]
-    );
-    const mediaObjectId = mediaResult.rows[0]?.id;
-
-    if (!mediaObjectId) {
-      throw new ApiError(500, "INTERNAL_ERROR", "Failed to store message photo.");
-    }
+    const mediaAsset = await moderatePendingMediaAsset(app, pendingAsset, {
+      bytes: upload.buffer,
+      filename: upload.filename,
+      moderationSurface
+    });
 
     const encryptedContent = encryptTextContent(app.config, "message", payload.content);
     const disappearingTimer = conversation.disappearing_timer ?? "off";
@@ -1146,6 +1056,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          from app_users u
          left join user_trust_profiles trust on trust.user_id = u.id
          where u.id = $2
+           and u.account_status = 'active'
            and coalesce(trust.is_suspended, false) = false
            and coalesce(trust.trust_score, 50) > 20
            and not exists (
@@ -1161,19 +1072,44 @@ export async function registerMessageRoutes(app: FastifyInstance) {
                and restriction.feature = '${restrictedFeature}'
                and (restriction.ends_at is null or restriction.ends_at > now())
            )
+       ), approved_media as (
+         update media_objects media
+         set public_url = $16,
+             moderation_status = 'approved',
+             moderation_provider = $8,
+             moderation_provider_version = $9,
+             moderation_scores = $11::jsonb,
+             moderation_decided_at = now(),
+             moderation_failure_reason = null,
+             explicit_classification = 'non_explicit',
+             photodna_status = $14,
+             photodna_provider_request_id = $15
+         from eligible_sender
+         where media.id = $7
+           and media.owner_user_id = eligible_sender.id
+           and media.surface = 'message_photo'
+           and media.moderation_status = 'pending'
+         returning eligible_sender.id
        ), ${approvedContentReviewCte({
          userIdParam: "$2",
          surface: moderationSurface,
          contentType: "image",
-         fromCte: "eligible_sender",
+         fromCte: "approved_media",
          providerParam: "$8",
-         providerRequestIdParam: "$9",
-         normalizedLabelsParam: "$10",
-         policyDecisionParam: "$11",
-         moderationStatusParam: "$12",
-         flaggedReasonParam: "$13",
-         moderationRawResultParam: "$14"
-       })}, inserted as (
+         providerRequestIdParam: "$10",
+         normalizedLabelsParam: "$11",
+         policyDecisionParam: "$12",
+         moderationStatusParam: "'allowed'",
+         moderationRawResultParam: "$13",
+         contentIdParam: "$7",
+         contentRefParam: "jsonb_build_object('assetId', $7, 'surface', 'message_photo')"
+       })}, linked_media as (
+         update media_objects media
+         set content_review_id = moderation_review.id
+         from moderation_review
+         where media.id = $7
+         returning media.id
+       ), inserted as (
          insert into messages (
            conversation_id,
            user_id,
@@ -1192,10 +1128,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            $4,
            $5,
            $6,
-           ${expirationSql("$15")}
+           ${expirationSql("$17")}
          from membership
          join eligible_sender on true
-         join moderation_review on true
+         join linked_media on true
          returning
            id::text as id,
            user_id::text as user_id,
@@ -1209,7 +1145,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            conversation_id
        ), attached as (
          insert into message_media_attachments (message_id, media_object_id, view_once)
-         select inserted.id::uuid, $7::uuid, $16
+         select inserted.id::uuid, $7::uuid, $18
          from inserted
          returning message_id, media_object_id, view_once
        ), updated_conversation as (
@@ -1262,14 +1198,16 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         encryptedContent.nonce,
         encryptedContent.authTag,
         encryptedContent.keyVersion,
-        mediaObjectId,
-        imageModeration.providerResult.provider,
-        imageModeration.providerResult.provider_request_id,
-        JSON.stringify(imageModeration.providerResult.labels),
-        JSON.stringify(imageModeration.decision),
-        "allowed",
-        null,
-        JSON.stringify(imageModeration.providerResult.raw_result ?? {}),
+        mediaAsset.id,
+        mediaAsset.moderation.provider,
+        mediaAsset.moderation.providerVersion,
+        mediaAsset.moderation.providerRequestId,
+        JSON.stringify(mediaAsset.moderation.labels),
+        JSON.stringify(mediaAsset.moderation.decision),
+        JSON.stringify(mediaAsset.moderation.rawResult),
+        mediaAsset.moderation.photoDnaStatus,
+        mediaAsset.moderation.photoDnaProviderRequestId,
+        mediaAsset.displayUrl,
         disappearingTimer,
         payload.viewOnce
       ]

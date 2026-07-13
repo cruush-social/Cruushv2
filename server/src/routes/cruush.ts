@@ -218,7 +218,7 @@ function mapSentCruushRow(row: SentCruushRow) {
       id: row.profile_user_id ?? row.to_user_id,
       name: row.display_name?.trim() || row.to_user_name?.trim() || "Cruush user",
       pronouns: row.pronouns?.join(", ") ?? row.to_user_pronouns ?? "",
-      photo: row.photos?.[0] ?? row.to_user_photo ?? null
+      photo: row.photos?.[0] ?? null
     }
   };
 }
@@ -237,7 +237,7 @@ function mapActivityPerson(row: {
     id: row.userId,
     name: row.displayName?.trim() || row.fallbackName?.trim() || "Cruush user",
     pronouns: row.pronouns?.join(", ") ?? row.fallbackPronouns ?? "",
-    photo: row.photos?.[0] ?? row.fallbackPhoto ?? null,
+    photo: row.photos?.[0] ?? null,
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
   };
 }
@@ -652,7 +652,6 @@ async function mapSentCruushRecords(
         photos: targetProfile?.photos ?? null,
         fallbackName: snapshot?.name ?? null,
         fallbackPronouns: snapshot?.pronouns ?? null,
-        fallbackPhoto: snapshot?.photo ?? null,
         badges: targetProfile?.badges ?? null
       })
     };

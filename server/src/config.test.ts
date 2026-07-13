@@ -207,7 +207,15 @@ describe("loadConfig", () => {
       LOCATION_INDEX_KEY: strongSecret,
       VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
       GHOST_DERIVATION_KEY: strongSecret,
-      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
+      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret,
+      STREAM_MODERATION_ENABLED: "true",
+      STREAM_API_KEY: "stream-key",
+      STREAM_API_SECRET: "stream-secret",
+      STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      PHOTODNA_ENABLED: "true",
+      PHOTODNA_API_URL: "https://photodna.example.test",
+      PHOTODNA_OPERATION_PATH: "/match",
+      PHOTODNA_SUBSCRIPTION_KEY: "photodna-key"
     })).toMatchObject({
       NODE_ENV: "production",
       EMAIL_PREVIEW_ENABLED: false,
@@ -227,7 +235,9 @@ describe("loadConfig", () => {
       LOCATION_INDEX_KEY: strongSecret,
       VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
       GHOST_DERIVATION_KEY: strongSecret,
-      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret
+      DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret,
+      STREAM_MODERATION_ENABLED: true,
+      PHOTODNA_ENABLED: true
     });
   });
 });

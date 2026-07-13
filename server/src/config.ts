@@ -155,6 +155,22 @@ const configSchema = z.object({
     return;
   }
 
+  if (!config.STREAM_MODERATION_ENABLED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "STREAM_MODERATION_ENABLED must be enabled in production.",
+      path: ["STREAM_MODERATION_ENABLED"]
+    });
+  }
+
+  if (!config.PHOTODNA_ENABLED) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "PHOTODNA_ENABLED must be enabled in production.",
+      path: ["PHOTODNA_ENABLED"]
+    });
+  }
+
   if (config.SESSION_SECRET.length < 32 || config.SESSION_SECRET === "change-me") {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

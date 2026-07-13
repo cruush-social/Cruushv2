@@ -1,8 +1,6 @@
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
-import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
-import { mkdirSync } from "node:fs";
 import { createPool, type DbClient } from "./db.js";
 import type { AppConfig } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
@@ -11,7 +9,6 @@ import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerBillingRoutes } from "./routes/billing.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
 import { ApiError, formatError, toApiError } from "./errors.js";
-import { resolveMediaStorageDir } from "./media-storage.js";
 import { registerMediaRoutes } from "./routes/media.js";
 import { registerMessageRoutes } from "./routes/messages.js";
 import { registerInternalRoutes } from "./routes/internal.js";
@@ -55,7 +52,6 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     logger: config.NODE_ENV !== "test"
   });
   const db = deps.db ?? createPool(config);
-  const mediaStorageDir = resolveMediaStorageDir(config);
   const allowedCorsOrigins = new Set(
     config.CORS_ORIGIN
       .split(",")
@@ -75,20 +71,12 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true
   });
-  mkdirSync(mediaStorageDir, { recursive: true });
-
   void app.register(multipart, {
     limits: {
       fileSize: 5 * 1024 * 1024,
       files: 1
     }
   });
-  void app.register(fastifyStatic, {
-    root: mediaStorageDir,
-    prefix: "/media/",
-    decorateReply: false
-  });
-
   app.decorate("config", config);
   app.decorate("db", db);
   app.decorate("rateLimiter", deps.rateLimiter ?? createPostgresRateLimiter(db));

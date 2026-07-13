@@ -88,6 +88,8 @@ export function approvedContentReviewCte(options: {
   moderationStatusParam?: string;
   flaggedReasonParam?: string;
   moderationRawResultParam?: string;
+  contentIdParam?: string;
+  contentRefParam?: string;
 }) {
   const name = options.name ?? "moderation_review";
   const providerSql = options.providerParam ?? "'mock'";
@@ -97,12 +99,16 @@ export function approvedContentReviewCte(options: {
   const moderationStatusSql = options.moderationStatusParam ?? "'allowed'";
   const flaggedReasonSql = options.flaggedReasonParam ?? "null";
   const moderationRawResultSql = options.moderationRawResultParam ? `${options.moderationRawResultParam}::jsonb` : "'{}'::jsonb";
+  const contentIdSql = options.contentIdParam ?? "null";
+  const contentRefSql = options.contentRefParam ? `${options.contentRefParam}::jsonb` : "'{}'::jsonb";
   const sourceSql = options.fromCte
     ? `select
       ${options.userIdParam},
       '${surfaceSqlLiteral[options.surface]}',
       '${contentTypeSqlLiteral[options.contentType]}',
       'allowed',
+      ${contentIdSql},
+      ${contentRefSql},
       ${providerSql},
       ${providerRequestIdSql},
       ${labelsSql},
@@ -118,6 +124,8 @@ export function approvedContentReviewCte(options: {
       '${surfaceSqlLiteral[options.surface]}',
       '${contentTypeSqlLiteral[options.contentType]}',
       'allowed',
+      ${contentIdSql},
+      ${contentRefSql},
       ${providerSql},
       ${providerRequestIdSql},
       ${labelsSql},
@@ -135,6 +143,8 @@ export function approvedContentReviewCte(options: {
       surface,
       content_type,
       status,
+      content_id,
+      content_ref,
       provider,
       provider_request_id,
       normalized_labels,

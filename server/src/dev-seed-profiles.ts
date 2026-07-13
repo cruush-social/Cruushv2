@@ -342,7 +342,7 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
      )
      on conflict (id) do update
      set display_name = excluded.display_name,
-         photos = excluded.photos,
+         photos = profiles.photos,
          pronouns = excluded.pronouns,
          year_of_birth = excluded.year_of_birth,
          identities = excluded.identities,
@@ -371,7 +371,7 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
     [
       userId,
       profile.displayName,
-      [profile.photo],
+      [],
       profile.pronouns,
       profile.yearOfBirth,
       profile.identities,

@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
 import { buildServer } from "./app.js";
 import { createSessionCookie, generateSessionToken, hashPassword, hashSessionToken } from "./auth.js";
 import type { DbClient } from "./db.js";
@@ -453,6 +454,31 @@ function multipartFilePayload(input: {
     payload: Buffer.concat([...fields, head, input.content, tail]),
     contentType: `multipart/form-data; boundary=${boundary}`
   };
+}
+
+async function validPng() {
+  return sharp({
+    create: {
+      width: 24,
+      height: 30,
+      channels: 3,
+      background: { r: 180, g: 40, b: 100 }
+    }
+  }).png().toBuffer();
+}
+
+function mockPendingProfileMediaQueries() {
+  query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+    if (sql.includes("select photos from profiles")) {
+      return { rows: [{ photos: [] }] };
+    }
+
+    if (sql.includes("with inserted_media as")) {
+      return { rows: [{ id: params[0] }] };
+    }
+
+    return { rows: [] };
+  });
 }
 
 describe("server", () => {
@@ -3170,7 +3196,7 @@ describe("server", () => {
           }]
         }]
       });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "message.png",
@@ -3195,7 +3221,7 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[2]?.[0]).toContain("insert into media_objects");
-    expect(query.mock.calls[2]?.[0]).toContain("message_photo");
+    expect(query.mock.calls[2]?.[1]?.[2]).toBe("message_photo");
     expect(query.mock.calls[3]?.[0]).toContain("insert into messages");
     expect(query.mock.calls[3]?.[0]).toContain("message_media_attachments");
     expect(query.mock.calls[3]?.[0]).toContain("view_once");
@@ -3276,7 +3302,7 @@ describe("server", () => {
     });
   });
 
-  it("rejects prohibited message photos before storage", async () => {
+  it("stores prohibited message photos privately without attaching them", async () => {
     query.mockResolvedValueOnce({
       rows: [{
         id: conversationId,
@@ -3298,8 +3324,10 @@ describe("server", () => {
         closed_at: null
       }]
     })
-      .mockResolvedValueOnce({ rows: [] });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "media-pending" }] })
+      .mockResolvedValue({ rows: [] });
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "drug-sales.png",
@@ -3329,7 +3357,8 @@ describe("server", () => {
         details: null
       }
     });
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("moderation_status = $2"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into messages"))).toBe(false);
     expect(queries.some((sql) => sql.includes("message_media_attachments"))).toBe(false);
   });
@@ -4227,9 +4256,11 @@ describe("server", () => {
     query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
       rows: String(_sql).includes("select photos from profiles")
         ? [{ photos: [] }]
-        : [{ photos: [params[1]] }]
+        : String(_sql).includes("with inserted_media as")
+          ? [{ id: params[0] }]
+          : [{ photos: [params[2]] }]
     }));
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-profile.png",
@@ -4250,27 +4281,29 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     const body = response.json();
     expect(body).toEqual({
-      data: {
-        url: expect.stringMatching(/^\/api\/media\/profile-photos\/d271f6da-c51d-4d73-a322-d9c56f45d4fa-[0-9a-f-]{36}\.png$/)
-      }
+      data: expect.objectContaining({
+        assetId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/),
+        thumbnailUrl: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/thumbnail$/),
+        moderationStatus: "approved",
+        mimeType: "image/webp"
+      })
     });
     expect(query).toHaveBeenCalledTimes(3);
     expect(query.mock.calls[0]?.[0]).toBe("select photos from profiles where id = $1");
     expect(query.mock.calls[0]?.[1]).toEqual([userId]);
     expect(query.mock.calls[1]?.[0]).toContain("insert into media_objects");
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_data_key");
+    expect(query.mock.calls[1]?.[0]).toContain("insert into media_variants");
+    expect(query.mock.calls[1]?.[0]).toContain("'pending'");
     expect(query.mock.calls[2]?.[0]).toContain("insert into profiles (id, photos, updated_at)");
-    expect(query.mock.calls[2]?.[0]).toContain("array_append(profiles.photos, $2)");
+    expect(query.mock.calls[2]?.[0]).toContain("array_append(profiles.photos, $3)");
     expect(query.mock.calls[2]?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
   });
 
   it("rejects profile photos without adult human body proof before storage", async () => {
-    query.mockImplementation(async (_sql: string, params: unknown[] = []) => ({
-      rows: String(_sql).includes("select photos from profiles")
-        ? [{ photos: [] }]
-        : [{ photos: [params[1]] }]
-    }));
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    mockPendingProfileMediaQueries();
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "profile.png",
@@ -4298,7 +4331,7 @@ describe("server", () => {
       }
     });
     expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
@@ -4309,7 +4342,7 @@ describe("server", () => {
         photos: Array.from({ length: 4 }, (_, index) => `https://example.com/photo-${index}.jpg`)
       }]
     });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "profile.png",
@@ -4339,7 +4372,8 @@ describe("server", () => {
   });
 
   it("rejects scat profile photos before storage", async () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    mockPendingProfileMediaQueries();
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-scat-profile.png",
@@ -4366,12 +4400,13 @@ describe("server", () => {
         details: null
       }
     });
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
   it("rejects prohibited profile photos before storage", async () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    mockPendingProfileMediaQueries();
+    const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "drug-sales.png",
@@ -4399,7 +4434,7 @@ describe("server", () => {
       }
     });
     expect(queries.some((sql) => sql.includes("select photos from profiles"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
@@ -4426,7 +4461,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message: "Profile photo must be a JPEG, PNG, or WebP image.",
+        message: "Upload a valid JPEG, PNG, or WebP image.",
         details: null
       }
     });
@@ -4546,6 +4581,137 @@ describe("server", () => {
     });
     expect(body.data.profiles[0].distanceLabel).toMatch(/ mi$/);
     expect(body.data.profiles[0].lastActive).toMatch(/ago$/);
+  });
+
+  it("blocks under-review sessions from uploading profile photos", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        user_id: userId,
+        account_status: "under_review"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      cookies: {
+        cruush_session: "under-review-media-session"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().error.code).toBe("ACCOUNT_UNDER_REVIEW");
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not serve pending media variants", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+    const assetId = "59e01d61-4a76-4359-915a-1f25b7815ff4";
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/media/assets/${assetId}/display`,
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(query.mock.calls[0]?.[0]).toContain("media.moderation_status = 'approved'");
+    expect(query.mock.calls[0]?.[0]).toContain("media.explicit_classification = 'non_explicit'");
+  });
+
+  it("returns only safe owner media metadata", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+        surface: "profile_photo",
+        mime_type: "image/png",
+        width: 640,
+        height: 800,
+        byte_size: 1000,
+        moderation_status: "pending",
+        explicit_classification: "unknown",
+        public_url: null,
+        moderation_decided_at: null,
+        created_at: "2026-07-11T12:00:00.000Z",
+        object_key: "originals/private.enc"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/media/assets/me?surface=profile_photo",
+      headers: { "x-user-id": userId }
+    });
+    const body = response.json();
+
+    expect(response.statusCode).toBe(200);
+    expect(body.data.assets[0]).not.toHaveProperty("objectKey");
+    expect(JSON.stringify(body)).not.toContain("originals/private.enc");
+    expect(body.data.assets[0]).toMatchObject({
+      moderationStatus: "pending",
+      url: null
+    });
+  });
+
+  it("lets owners delete non-public assets and rejects non-owned assets", async () => {
+    query.mockResolvedValueOnce({
+      rows: [
+        { object_key: "originals/59e01d61-4a76-4359-915a-1f25b7815ff4.enc" },
+        { object_key: "variants/59e01d61-4a76-4359-915a-1f25b7815ff4/display.webp.enc" }
+      ]
+    });
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: "/api/media/assets/59e01d61-4a76-4359-915a-1f25b7815ff4",
+      headers: { "x-user-id": userId }
+    });
+    expect(deleted.statusCode).toBe(204);
+
+    query.mockReset();
+    query.mockResolvedValueOnce({ rows: [] });
+    const denied = await app.inject({
+      method: "DELETE",
+      url: "/api/media/assets/59e01d61-4a76-4359-915a-1f25b7815ff4",
+      headers: { "x-user-id": userId }
+    });
+    expect(denied.statusCode).toBe(404);
+  });
+
+  it("keeps explicit approved media private until viewer controls exist", async () => {
+    mockPendingProfileMediaQueries();
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-adult-explicit.png",
+      contentType: "image/png",
+      content: await validPng()
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("CONTENT_REJECTED");
+    expect(queries.some((sql) => sql.includes("moderation_status = $2"))).toBe(true);
+    expect(query.mock.calls.some(([, params]) => Array.isArray(params) && params.includes("approved_explicit"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+  });
+
+  it("does not expose encrypted storage through the former static media path", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/media/objects/originals/private.enc"
+    });
+
+    expect(response.statusCode).toBe(404);
   });
 
   it("excludes blocked users from discovery results", async () => {
