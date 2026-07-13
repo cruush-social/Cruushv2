@@ -196,12 +196,12 @@ export async function cleanupModerationMediaGrants(
   const result = await db.query<CleanupGrantRow>(
     `with cleanup_candidates as (
        select
-         grant.id,
-         grant.media_object_id,
-         grant.object_key,
-         grant.expires_at as cleanup_at
-       from moderation_media_grants grant
-       where grant.expires_at <= now()
+         media_grant.id,
+         media_grant.media_object_id,
+         media_grant.object_key,
+         media_grant.expires_at as cleanup_at
+       from moderation_media_grants media_grant
+       where media_grant.expires_at <= now()
        union all
        select
          media.id,
@@ -214,8 +214,8 @@ export async function cleanupModerationMediaGrants(
          and media.created_at <= now() - interval '5 minutes'
          and not exists (
            select 1
-           from moderation_media_grants grant
-           where grant.media_object_id = media.id
+           from moderation_media_grants media_grant
+           where media_grant.media_object_id = media.id
          )
      )
      select id, media_object_id, object_key

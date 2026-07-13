@@ -131,5 +131,7 @@ describe("moderation media grants", () => {
     expect(cleanupSql).toContain("media.moderation_status = 'pending'");
     expect(cleanupSql).toContain("interval '5 minutes'");
     expect(cleanupSql).toContain("not exists");
+    expect(cleanupSql).toContain("moderation_media_grants media_grant");
+    expect(cleanupSql).not.toMatch(/moderation_media_grants\s+grant\b/);
   });
 });
