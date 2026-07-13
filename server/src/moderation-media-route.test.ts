@@ -107,6 +107,12 @@ describe("moderation media capability route", () => {
 
     expect(invalid.statusCode).toBe(404);
     expect(unavailable.statusCode).toBe(404);
+    for (const response of [invalid, unavailable]) {
+      expect(response.headers["cache-control"]).toBe("private, no-store, max-age=0");
+      expect(response.headers["pragma"]).toBe("no-cache");
+      expect(response.headers["x-robots-tag"]).toBe("noindex, nofollow, noarchive");
+      expect(response.headers["referrer-policy"]).toBe("no-referrer");
+    }
   });
 
   it("does not write the raw capability path or token to application request logs", async () => {

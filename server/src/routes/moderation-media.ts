@@ -32,6 +32,7 @@ export async function registerModerationMediaRoutes(app: FastifyInstance) {
     url: "/api/moderation-media/:token",
     logLevel: "silent",
     async handler(request, reply) {
+      applyCapabilityHeaders(reply);
       const token = (request.params as { token?: unknown }).token;
 
       if (typeof token !== "string" || !tokenPattern.test(token)) {
@@ -46,7 +47,7 @@ export async function registerModerationMediaRoutes(app: FastifyInstance) {
         throw unavailable();
       }
 
-      applyCapabilityHeaders(reply)
+      reply
         .type(grant.mime_type)
         .header("content-length", String(grant.byte_size));
 
