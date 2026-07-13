@@ -156,8 +156,21 @@ function ProfilePhotoCropper({
   const [cropError, setCropError] = useState<string | null>(null);
 
   useEffect(() => {
-    setImageStatus('loading');
+    const image = imageRef.current;
     setCropError(null);
+
+    if (!image?.complete) {
+      setImageStatus('loading');
+      return;
+    }
+
+    if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+      setImageStatus('ready');
+      return;
+    }
+
+    setImageStatus('error');
+    setCropError(PROFILE_PHOTO_LOAD_ERROR);
   }, [sourceUrl]);
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {

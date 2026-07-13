@@ -288,6 +288,33 @@ describe('ProfileEdit', () => {
     await waitFor(() => expect(uploadProfilePhoto).toHaveBeenCalledTimes(1));
   });
 
+  it('enables cropping when the preview image is already decoded', async () => {
+    const completeSpy = vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true);
+
+    try {
+      render(
+        <MemoryRouter>
+          <ProfileEdit />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+
+      const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+      expect(uploadInput).toBeTruthy();
+
+      fireEvent.change(uploadInput as HTMLInputElement, {
+        target: {
+          files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })],
+        },
+      });
+
+      expect(await screen.findByRole('button', { name: 'Use cropped photo' })).toBeEnabled();
+    } finally {
+      completeSpy.mockRestore();
+    }
+  });
+
   it('hides profile photo upload when the profile already has 4 photos', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
     getMyProfile.mockResolvedValueOnce({
