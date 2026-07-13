@@ -110,6 +110,27 @@ describe("policy mapper", () => {
     expect(decision.reason_code).toBe("provider_flagged_by_automod");
   });
 
+  it.each(["partial", "pending", "provider_processing", "error"])(
+    "fails closed for a %s image moderation response",
+    (status) => {
+      const decision = mapProviderResultToPolicy({
+        surface: "profile_photo",
+        contentType: "image",
+        providerResult: {
+          provider: "stream",
+          provider_request_id: `stream-${status}`,
+          latency_ms: 1,
+          labels: [],
+          recommended_action: "keep",
+          status
+        }
+      });
+
+      expect(decision.decision).toBe("quarantine");
+      expect(decision.reason_code).toBe("provider_unavailable");
+    }
+  );
+
   it("sets trust to zero for zero-tolerance categories", () => {
     const decision = map("underage_sexual", "profile_photo", 0.98);
 

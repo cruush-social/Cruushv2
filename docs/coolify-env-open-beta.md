@@ -46,10 +46,13 @@ MEDIA_S3_SECRET_ACCESS_KEY=<staging-r2-secret-access-key>
 MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=true
+STREAM_IMAGE_BRIDGE_ENABLED=true
 STREAM_API_KEY=<stream-api-key>
 STREAM_API_SECRET=<stream-api-secret>
 STREAM_APP_ID=<stream-app-id>
 STREAM_MODERATION_CONFIG_KEY=<stream-moderation-config-key>
+MODERATION_MEDIA_BASE_URL=https://moderation-media-staging.cruush.app
+STREAM_PSEUDONYM_KEY=<generate-secret-32-plus-bytes>
 
 PHOTODNA_ENABLED=false
 PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
@@ -141,10 +144,13 @@ MEDIA_S3_SECRET_ACCESS_KEY=<production-r2-secret-access-key>
 MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=true
+STREAM_IMAGE_BRIDGE_ENABLED=false
 STREAM_API_KEY=<stream-api-key>
 STREAM_API_SECRET=<stream-api-secret>
 STREAM_APP_ID=<stream-app-id>
 STREAM_MODERATION_CONFIG_KEY=<stream-moderation-config-key>
+MODERATION_MEDIA_BASE_URL=
+STREAM_PSEUDONYM_KEY=<generate-secret-32-plus-bytes>
 
 PHOTODNA_ENABLED=false
 PHOTODNA_API_URL=<microsoft-photodna-api-base-url>

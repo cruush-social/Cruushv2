@@ -20,11 +20,15 @@ import {
   type VisibilityBaseMode
 } from "./location-privacy.js";
 import { encryptMediaBytes } from "./media-encryption.js";
-import { readEncryptedMediaObject, writeEncryptedMediaObject } from "./media-storage.js";
+import { deleteEncryptedMediaObject, readEncryptedMediaObject, writeEncryptedMediaObject } from "./media-storage.js";
 
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
 const rateLimiter = createMemoryRateLimiter();
+const validPng = () => Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64"
+);
 
 const app = buildServer({
   NODE_ENV: "test",
@@ -3707,7 +3711,7 @@ describe("server", () => {
           metadata: { conversationKind: "group" }
         })]
       });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "message.png",
@@ -3801,7 +3805,7 @@ describe("server", () => {
 
       return { rows: [] };
     });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "message.png",
@@ -3866,7 +3870,7 @@ describe("server", () => {
     const csamApp = buildCsamTestApp();
     mockPhotoDnaMatchAndAlert();
     mockCsamIncidentQueries({ conversation: true });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "message.png",
@@ -3985,7 +3989,7 @@ describe("server", () => {
         closed_at: null
       }]
     });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "drug-sales.png",
@@ -4011,7 +4015,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates Cruush safety rules and cannot be saved.",
+        message: "This content violates cruush safety rules and cannot be saved.",
         details: null
       }
     });
@@ -4057,7 +4061,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates Cruush safety rules and cannot be saved.",
+        message: "This content violates cruush safety rules and cannot be saved.",
         details: null
       }
     });
@@ -4619,7 +4623,7 @@ describe("server", () => {
         ? [{ photos: [] }]
         : [{ photos: [params[1]] }]
     }));
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-profile.png",
@@ -4637,21 +4641,70 @@ describe("server", () => {
       payload: multipart.payload
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode, response.body).toBe(201);
     const body = response.json();
     expect(body).toEqual({
       data: {
-        url: expect.stringMatching(/^\/api\/media\/profile-photos\/d271f6da-c51d-4d73-a322-d9c56f45d4fa-[0-9a-f-]{36}\.png$/)
+        url: expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]{36}\.png$/)
       }
     });
-    expect(query).toHaveBeenCalledTimes(3);
+    expect(body.data.url).not.toContain(userId);
     expect(query.mock.calls[0]?.[0]).toBe("select photos from profiles where id = $1");
     expect(query.mock.calls[0]?.[1]).toEqual([userId]);
-    expect(query.mock.calls[1]?.[0]).toContain("insert into media_objects");
-    expect(query.mock.calls[1]?.[0]).toContain("encrypted_data_key");
-    expect(query.mock.calls[2]?.[0]).toContain("insert into profiles (id, photos, updated_at)");
-    expect(query.mock.calls[2]?.[0]).toContain("array_append(profiles.photos, $2)");
-    expect(query.mock.calls[2]?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
+    const grantCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into moderation_media_grants"));
+    const mediaCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into media_objects"));
+    const profileCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into profiles (id, photos, updated_at)"));
+    expect(grantCall?.[1]?.[2]).toMatch(/^[a-f0-9]{64}$/);
+    expect(mediaCall?.[0]).toContain("encrypted_data_key");
+    expect(mediaCall?.[1]?.[1]).toMatch(/^profile-photos\/[0-9a-f-]{36}\.enc$/);
+    expect(mediaCall?.[1]?.[1]).not.toContain(userId);
+    expect(profileCall?.[0]).toContain("array_append(profiles.photos, $2)");
+    expect(profileCall?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
+    expect(query.mock.calls.map(([sql]) => String(sql))).toEqual(expect.arrayContaining(["begin", "commit"]));
+    const storedCiphertext = await readEncryptedMediaObject(app.config, mediaCall?.[1]?.[1] as string);
+    expect(storedCiphertext.subarray(0, 8)).not.toEqual(validPng().subarray(0, 8));
+    await deleteEncryptedMediaObject(app.config, mediaCall?.[1]?.[1] as string);
+  });
+
+  it("rolls back and deletes quarantine ciphertext when profile publication fails", async () => {
+    query.mockImplementation(async (sql: string) => {
+      if (sql === "select photos from profiles where id = $1") {
+        return { rows: [{ photos: [] }] };
+      }
+
+      if (sql.includes("select id, object_key") && sql.includes("moderation_media_grants")) {
+        return { rows: [] };
+      }
+
+      if (sql.includes("insert into media_objects")) {
+        throw new Error("database unavailable");
+      }
+
+      return { rows: [] };
+    });
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-profile.png",
+      contentType: "image/png",
+      content: validPng()
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const grantCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into moderation_media_grants"));
+    const objectKey = grantCall?.[1]?.[3] as string;
+
+    expect(response.statusCode).toBe(500);
+    expect(query.mock.calls.map(([sql]) => String(sql))).toEqual(expect.arrayContaining(["begin", "rollback"]));
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into profiles"))).toBe(false);
+    await expect(readEncryptedMediaObject(app.config, objectKey)).rejects.toThrow();
   });
 
   it("accepts fishnet arms as a profile photo of the uploader", async () => {
@@ -4660,7 +4713,7 @@ describe("server", () => {
         ? [{ photos: [] }]
         : [{ photos: [params[1]] }]
     }));
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "fishnet-arms.png",
@@ -4695,7 +4748,7 @@ describe("server", () => {
         ? [{ photos: [] }]
         : [{ photos: [params[1]] }]
     }));
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename,
@@ -4720,7 +4773,7 @@ describe("server", () => {
 
   it("rejects a profile photo when underage and adult-human labels conflict", async () => {
     query.mockResolvedValue({ rows: [{ photos: [] }] });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "underage-adult-human-profile.png",
@@ -4748,7 +4801,7 @@ describe("server", () => {
     const csamApp = buildCsamTestApp();
     const fetchMock = mockPhotoDnaMatchAndAlert();
     mockCsamIncidentQueries();
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-profile.png",
@@ -4804,7 +4857,7 @@ describe("server", () => {
       throw new Error(`Unexpected fetch URL: ${input.toString()}`);
     }));
     query.mockResolvedValue({ rows: [{ photos: [] }] });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-profile.png",
@@ -4843,7 +4896,7 @@ describe("server", () => {
         ? [{ photos: [] }]
         : [{ photos: [params[1]] }]
     }));
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "profile.png",
@@ -4876,13 +4929,54 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
   });
 
+  it("never stores the capability URL, token, object key, final URL, or original filename in moderation records", async () => {
+    const bridgeApp = buildServer({
+      ...app.config,
+      STREAM_IMAGE_BRIDGE_ENABLED: true,
+      MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
+      STREAM_PSEUDONYM_KEY: "0123456789abcdef0123456789abcdef"
+    }, {
+      db: { query, end },
+      rateLimiter
+    });
+    query.mockImplementation(async (sql: string) => ({
+      rows: sql === "select photos from profiles where id = $1" ? [{ photos: [] }] : []
+    }));
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "private-original-name.png",
+      contentType: "image/png",
+      content: validPng()
+    });
+
+    const response = await bridgeApp.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    await bridgeApp.close();
+    const reviewCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into content_reviews"));
+    const reviewParams = JSON.stringify(reviewCall?.[1] ?? []);
+
+    expect(response.statusCode).toBe(400);
+    expect(reviewParams).not.toContain("moderation-media-staging.cruush.app");
+    expect(reviewParams).not.toContain("private-original-name.png");
+    expect(reviewParams).not.toContain("profile-photos/");
+    expect(reviewParams).not.toContain("/api/media/profile-photos/");
+    expect(reviewParams).toContain("moderationGrantId");
+  });
+
   it("rejects profile photo uploads when the profile already has 4 photos", async () => {
     query.mockResolvedValueOnce({
       rows: [{
         photos: Array.from({ length: 4 }, (_, index) => `https://example.com/photo-${index}.jpg`)
       }]
     });
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "profile.png",
@@ -4912,7 +5006,7 @@ describe("server", () => {
   });
 
   it("rejects scat profile photos before storage", async () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-scat-profile.png",
@@ -4935,7 +5029,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates Cruush safety rules and cannot be saved.",
+        message: "This content violates cruush safety rules and cannot be saved.",
         details: null
       }
     });
@@ -4944,7 +5038,7 @@ describe("server", () => {
   });
 
   it("rejects prohibited profile photos before storage", async () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "drug-sales.png",
@@ -4967,7 +5061,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates Cruush safety rules and cannot be saved.",
+        message: "This content violates cruush safety rules and cannot be saved.",
         details: null
       }
     });
@@ -5035,7 +5129,7 @@ describe("server", () => {
   });
 
   it("requires authentication before accepting a profile photo", async () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const png = validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
       filename: "adult-human-profile.png",
@@ -6261,7 +6355,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "This content violates Cruush safety rules and cannot be saved.",
+        message: "This content violates cruush safety rules and cannot be saved.",
         details: null
       }
     });

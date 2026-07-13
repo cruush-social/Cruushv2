@@ -5,6 +5,7 @@ import { checkPhotoDnaForUploadOrReject } from "../csam-reporting.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { decryptMediaBytes, encryptMediaBytes } from "../media-encryption.js";
 import { MESSAGE_PHOTO_MEDIA_PREFIX, readEncryptedMediaObject, writeEncryptedMediaObject } from "../media-storage.js";
+import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { ApiError } from "../errors.js";
 import { hasActiveMutualMessagePermission } from "../match-relationships.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
@@ -1034,6 +1035,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
   app.post("/api/messages/photos", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
+
+    if (!photoUploadAvailability(app.config).messagePhotos) {
+      throw new ApiError(503, "FEATURE_RESTRICTED", "Message photo uploads are temporarily unavailable.");
+    }
 
     await app.rateLimiter.assert({
       key: `message-photo-upload:${userId}`,

@@ -11,6 +11,7 @@ import { registerCruushRoutes } from "./routes/cruush.js";
 import { ApiError, formatError, toApiError } from "./errors.js";
 import { resolveMediaStorageDir } from "./media-storage.js";
 import { registerMediaRoutes } from "./routes/media.js";
+import { registerModerationMediaRoutes } from "./routes/moderation-media.js";
 import { registerMessageRoutes } from "./routes/messages.js";
 import { registerInternalRoutes } from "./routes/internal.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
@@ -157,6 +158,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
 
   void registerAuthRoutes(app);
   void registerBillingRoutes(app);
+  void registerModerationMediaRoutes(app);
   void registerMediaRoutes(app);
   void registerMessageRoutes(app);
   void registerNotificationRoutes(app);

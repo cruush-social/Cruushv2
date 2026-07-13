@@ -2,15 +2,26 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { ApiError } from "../errors.js";
 import { checkPhotoDnaForUploadOrReject } from "../csam-reporting.js";
+import { runTransaction } from "../db.js";
+import { sanitizeProfilePhoto } from "../image-sanitization.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { decryptMediaBytes, encryptMediaBytes } from "../media-encryption.js";
 import {
+  cleanupModerationMediaGrants,
+  createModerationMediaGrant,
+  deleteModerationMediaGrant,
+  revokeModerationMediaGrant,
+  wasModerationMediaGrantRedeemed
+} from "../moderation-media-grants.js";
+import {
+  deleteEncryptedMediaObject,
   ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX,
   MESSAGE_PHOTO_MEDIA_PREFIX,
   readEncryptedMediaObject,
   writeEncryptedMediaObject
 } from "../media-storage.js";
 import { approvedContentReviewCte, moderateImageOrReject } from "../moderation-service.js";
+import { photoUploadAvailability } from "../photo-upload-availability.js";
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const MAX_PROFILE_PHOTOS = 4;
@@ -55,18 +66,22 @@ function toUploadError(error: unknown) {
   return error;
 }
 
+export function parseProfilePhotoFilename(params: unknown) {
+  const filename = (params as { filename?: unknown }).filename;
+
+  if (
+    typeof filename !== "string" ||
+    !/^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/i.test(filename)
+  ) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Invalid media path.");
+  }
+
+  return { filename };
+}
+
 const profilePhotoParamsSchema = {
   parse(params: unknown) {
-    const filename = (params as { filename?: unknown }).filename;
-
-    if (
-      typeof filename !== "string" ||
-      !/^[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(jpg|png|webp)$/i.test(filename)
-    ) {
-      throw new ApiError(400, "VALIDATION_ERROR", "Invalid media path.");
-    }
-
-    return { filename };
+    return parseProfilePhotoFilename(params);
   }
 };
 
@@ -190,6 +205,10 @@ export async function registerMediaRoutes(app: FastifyInstance) {
   app.post("/api/profile-photos", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
 
+    if (!photoUploadAvailability(app.config).profilePhotos) {
+      throw new ApiError(503, "FEATURE_RESTRICTED", "Profile photo uploads are temporarily unavailable.");
+    }
+
     await app.rateLimiter.assert({
       key: `profile-photo-upload:${userId}`,
       max: 10,
@@ -251,91 +270,121 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
     }
 
-    const filename = `${userId}-${randomUUID()}.${extension}`;
-    const objectKey = `profile-photos/${filename}.enc`;
+    let sanitized;
+
+    try {
+      sanitized = await sanitizeProfilePhoto(buffer, mimeType);
+    } catch {
+      throw new ApiError(400, "VALIDATION_ERROR", "Profile photo could not be decoded safely.");
+    }
+
+    const mediaId = randomUUID();
+    const filename = `${mediaId}.${sanitized.extension}`;
+    const objectKey = `profile-photos/${mediaId}.enc`;
     const url = `${ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
-    const publicImageUrl = new URL(url, app.config.MEDIA_PUBLIC_BASE_URL || app.config.APP_URL).toString();
     const userAgent = request.headers["user-agent"];
-    const photoDnaResult = await checkPhotoDnaForUploadOrReject(app, {
-      userId,
-      surface: "profile_photo",
-      imageBytes: buffer,
-      mimeType,
-      filename: upload.filename,
-      sourceRoute: "POST /api/profile-photos",
-      requestIp: request.ip,
-      userAgent: Array.isArray(userAgent) ? userAgent.join(" ") : userAgent,
-      contentId: url,
-      contentRef: {
-        url,
+    const encryptedMedia = encryptMediaBytes(app.config, sanitized.bytes);
+    let grantId: string | null = null;
+
+    try {
+      await cleanupModerationMediaGrants(app.db, app.config, 10).catch(() => undefined);
+      const grant = await createModerationMediaGrant(app.db, {
+        ownerUserId: userId,
         objectKey,
-        originalFilename: upload.filename,
-        mimeType
-      }
-    });
-
-    let moderation;
-
-    moderation = await moderateImageOrReject(app, {
-      userId,
-      surface: "profile_photo",
-      mimeType,
-      filename: upload.filename,
-      imageUrl: publicImageUrl,
-      contentId: url,
-      contentRef: {
-        url,
-        objectKey,
-        originalFilename: upload.filename,
-        mimeType,
-        photoDnaStatus: photoDnaResult.status
-      },
-      bytes: buffer
-    });
-
-    const encryptedMedia = encryptMediaBytes(app.config, buffer);
-    await writeEncryptedMediaObject(app.config, objectKey, encryptedMedia.ciphertext);
-
-    await app.db.query(
-      `insert into media_objects (
-         owner_user_id,
-         surface,
-         object_key,
-         public_url,
-         media_type,
-         mime_type,
-         byte_size,
-         encrypted_data_key,
-         data_key_nonce,
-         data_key_auth_tag,
-         content_nonce,
-         content_auth_tag,
-         key_version,
-         moderation_status,
-         photodna_status,
-         photodna_provider_request_id
-       )
-       values ($1, 'profile_photo', $2, $3, 'image', $4, $5, $6, $7, $8, $9, $10, $11, 'allowed', $12, $13)
-       on conflict (public_url) do nothing`,
-      [
+        mimeType: sanitized.mimeType,
+        byteSize: sanitized.bytes.length,
+        encryptedDataKey: encryptedMedia.encryptedDataKey,
+        dataKeyNonce: encryptedMedia.dataKeyNonce,
+        dataKeyAuthTag: encryptedMedia.dataKeyAuthTag,
+        contentNonce: encryptedMedia.nonce,
+        contentAuthTag: encryptedMedia.authTag,
+        keyVersion: encryptedMedia.keyVersion
+      });
+      grantId = grant.id;
+      await writeEncryptedMediaObject(app.config, objectKey, encryptedMedia.ciphertext);
+      const photoDnaResult = await checkPhotoDnaForUploadOrReject(app, {
         userId,
-        objectKey,
-        url,
-        mimeType,
-        buffer.length,
-        encryptedMedia.encryptedDataKey,
-        encryptedMedia.dataKeyNonce,
-        encryptedMedia.dataKeyAuthTag,
-        encryptedMedia.nonce,
-        encryptedMedia.authTag,
-        encryptedMedia.keyVersion,
-        photoDnaResult.status,
-        photoDnaResult.providerRequestId ?? null
-      ]
-    );
+        surface: "profile_photo",
+        imageBytes: sanitized.bytes,
+        mimeType: sanitized.mimeType,
+        sourceRoute: "POST /api/profile-photos",
+        requestIp: request.ip,
+        userAgent: Array.isArray(userAgent) ? userAgent.join(" ") : userAgent,
+        contentId: mediaId,
+        contentRef: {
+          mediaId,
+          mimeType: sanitized.mimeType
+        }
+      });
+      const providerImageUrl = app.config.STREAM_IMAGE_BRIDGE_ENABLED
+        ? new URL(`/api/moderation-media/${grant.token}`, app.config.MODERATION_MEDIA_BASE_URL).toString()
+        : new URL(url, app.config.MEDIA_PUBLIC_BASE_URL || app.config.APP_URL).toString();
+      const moderation = await moderateImageOrReject(app, {
+        userId,
+        surface: "profile_photo",
+        mimeType: sanitized.mimeType,
+        filename: upload.filename,
+        imageUrl: providerImageUrl,
+        contentId: grant.id,
+        contentRef: {
+          moderationGrantId: grant.id,
+          mimeType: sanitized.mimeType,
+          photoDnaStatus: photoDnaResult.status
+        },
+        bytes: sanitized.bytes
+      });
 
-    const savedPhotoResult = await app.db.query<{ photos: string[] | null }>(
-      `with eligible_user as (
+      if (
+        app.config.STREAM_IMAGE_BRIDGE_ENABLED &&
+        !(await wasModerationMediaGrantRedeemed(app.db, grant.id))
+      ) {
+        throw new ApiError(
+          503,
+          "MODERATION_UNAVAILABLE",
+          "Automated moderation is temporarily unavailable. Try again later."
+        );
+      }
+
+      await runTransaction(app.db, async (client) => {
+        await client.query(
+          `insert into media_objects (
+             owner_user_id,
+             surface,
+             object_key,
+             public_url,
+             media_type,
+             mime_type,
+             byte_size,
+             encrypted_data_key,
+             data_key_nonce,
+             data_key_auth_tag,
+             content_nonce,
+             content_auth_tag,
+             key_version,
+             moderation_status,
+             photodna_status,
+             photodna_provider_request_id
+           )
+           values ($1, 'profile_photo', $2, $3, 'image', $4, $5, $6, $7, $8, $9, $10, $11, 'allowed', $12, $13)`,
+          [
+            userId,
+            objectKey,
+            url,
+            sanitized.mimeType,
+            sanitized.bytes.length,
+            encryptedMedia.encryptedDataKey,
+            encryptedMedia.dataKeyNonce,
+            encryptedMedia.dataKeyAuthTag,
+            encryptedMedia.nonce,
+            encryptedMedia.authTag,
+            encryptedMedia.keyVersion,
+            photoDnaResult.status,
+            photoDnaResult.providerRequestId ?? null
+          ]
+        );
+
+        const savedPhotoResult = await client.query<{ photos: string[] | null }>(
+          `with eligible_user as (
          select u.id
          from app_users u
          left join user_trust_profiles trust on trust.user_id = u.id
@@ -382,27 +431,45 @@ export async function registerMediaRoutes(app: FastifyInstance) {
        where array_position(profiles.photos, $2) is not null
           or coalesce(array_length(profiles.photos, 1), 0) < ${MAX_PROFILE_PHOTOS}
        returning photos`,
-      [
-        userId,
-        url,
-        moderation.providerResult.provider,
-        moderation.providerResult.provider_request_id,
-        JSON.stringify(moderation.providerResult.labels),
-        JSON.stringify(moderation.decision),
-        "allowed",
-        null,
-        JSON.stringify(moderation.providerResult.raw_result ?? {})
-      ]
-    );
+          [
+            userId,
+            url,
+            moderation.providerResult.provider,
+            moderation.providerResult.provider_request_id,
+            JSON.stringify(moderation.providerResult.labels),
+            JSON.stringify(moderation.decision),
+            "allowed",
+            null,
+            JSON.stringify(moderation.providerResult.raw_result ?? {})
+          ]
+        );
 
-    if (!savedPhotoResult?.rows?.[0]) {
-      throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
-    }
+        if (!savedPhotoResult?.rows?.[0]) {
+          throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
+        }
 
-    return reply.code(201).send({
-      data: {
-        url
+        await deleteModerationMediaGrant(client, grant.id);
+      });
+      grantId = null;
+
+      return reply.code(201).send({ data: { url } });
+    } catch (error) {
+      let objectDeleted = false;
+
+      try {
+        await deleteEncryptedMediaObject(app.config, objectKey);
+        objectDeleted = true;
+      } catch {
+        if (grantId) {
+          await revokeModerationMediaGrant(app.db, grantId).catch(() => undefined);
+        }
       }
-    });
+
+      if (grantId && objectDeleted) {
+        await deleteModerationMediaGrant(app.db, grantId).catch(() => undefined);
+      }
+
+      throw error;
+    }
   });
 }

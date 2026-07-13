@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import type { AppConfig } from "./config.js";
 import { StreamClient } from "@stream-io/node-sdk";
 import type {
@@ -352,6 +353,7 @@ type StreamConfig = Pick<
   | "STREAM_API_KEY"
   | "STREAM_API_SECRET"
   | "STREAM_MODERATION_CONFIG_KEY"
+  | "STREAM_PSEUDONYM_KEY"
 >;
 
 type StreamCheckResponse = {
@@ -380,6 +382,13 @@ type StreamCheckResponse = {
     clientRequestId?: string;
   };
 };
+
+export function isCompleteStreamImageResponse(response: StreamCheckResponse) {
+  return response.status?.toLowerCase() === "completed" &&
+    typeof response.recommended_action === "string" &&
+    response.recommended_action.length > 0 &&
+    Boolean(response.item);
+}
 
 const streamSeverityByAction: Record<string, ProviderLabel["severity"]> = {
   keep: "none",
@@ -642,6 +651,19 @@ export class StreamModerationProvider implements ModerationProvider {
         user_id: input.userId
       }) as StreamCheckResponse;
 
+      if (input.contentType === "image" && !isCompleteStreamImageResponse(response)) {
+        return {
+          provider: this.name,
+          provider_request_id: response.item?.id ?? response.task_id ?? `stream-partial-${Date.now().toString(36)}`,
+          labels: [],
+          latency_ms: Date.now() - startedAt,
+          recommended_action: response.recommended_action,
+          status: "partial",
+          raw_result: sanitizeStreamResponse(response),
+          error: "Stream returned an incomplete image moderation response."
+        };
+      }
+
       return {
         provider: this.name,
         provider_request_id: response.item?.id ?? response.task_id ?? response.metadata?.clientRequestId ?? `stream-${Date.now().toString(36)}`,
@@ -690,16 +712,50 @@ export class StreamModerationProvider implements ModerationProvider {
       };
     }
 
-    return this.check({
+    const request = buildStreamImageCheckRequest({
       userId: input.userId,
       surface: input.surface,
-      contentType: "image",
       contentId: input.contentId,
-      moderationPayload: {
-        images: [input.imageUrl]
-      }
+      imageUrl: input.imageUrl,
+      pseudonymKey: this.config.STREAM_PSEUDONYM_KEY || this.config.STREAM_API_SECRET || "",
+      configKey: this.configKey
+    });
+
+    return this.check({
+      userId: request.user_id,
+      surface: input.surface,
+      contentType: "image",
+      contentId: request.entity_id,
+      moderationPayload: request.moderation_payload
     });
   }
+}
+
+export function buildStreamImageCheckRequest(input: {
+  userId: string;
+  surface: ModerationSurface;
+  contentId?: string;
+  imageUrl: string;
+  pseudonymKey: string;
+  configKey: string;
+}) {
+  const pseudonym = `cm_${createHmac("sha256", input.pseudonymKey)
+    .update(`stream-image-user-v1:${input.userId}`)
+    .digest("base64url")}`;
+
+  return {
+    entity_type: streamEntityType(input.surface, "image"),
+    entity_id: input.contentId ?? `image-${Date.now().toString(36)}`,
+    entity_creator_id: pseudonym,
+    config_key: input.configKey,
+    moderation_payload: {
+      images: [input.imageUrl]
+    },
+    options: {
+      force_sync: true
+    },
+    user_id: pseudonym
+  };
 }
 
 export function createModerationProvider(config: Pick<AppConfig, "MODERATION_PROVIDER"> & StreamConfig): ModerationProvider {

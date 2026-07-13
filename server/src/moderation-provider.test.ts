@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildStreamImageCheckRequest,
   createModerationProvider,
+  isCompleteStreamImageResponse,
   MockModerationProvider,
   normalizeStreamLabel,
   streamLabelsFromResponse
@@ -208,5 +210,39 @@ describe("moderation provider", () => {
       STREAM_API_SECRET: "",
       STREAM_MODERATION_CONFIG_KEY: ""
     })).toThrow(/STREAM_API_KEY/);
+  });
+
+  it("builds Stream image checks with only a capability URL and pseudonymous identifiers", () => {
+    const request = buildStreamImageCheckRequest({
+      userId: "d271f6da-c51d-4d73-a322-d9c56f45d4fa",
+      surface: "profile_photo",
+      contentId: "grant-correlation-id",
+      imageUrl: "https://moderation-media-staging.cruush.app/api/moderation-media/capability-token",
+      pseudonymKey: "0123456789abcdef0123456789abcdef",
+      configKey: "cruush:automod"
+    });
+    const serialized = JSON.stringify(request);
+
+    expect(request.entity_creator_id).toMatch(/^cm_[A-Za-z0-9_-]{43}$/);
+    expect(request.user_id).toBe(request.entity_creator_id);
+    expect(request.entity_id).toBe("grant-correlation-id");
+    expect(request.moderation_payload.images).toEqual([
+      "https://moderation-media-staging.cruush.app/api/moderation-media/capability-token"
+    ]);
+    expect(serialized).not.toContain("d271f6da-c51d-4d73-a322-d9c56f45d4fa");
+    expect(serialized).not.toContain("originalFilename");
+    expect(serialized).not.toContain("objectKey");
+    expect(serialized).not.toContain("/api/media/profile-photos/");
+  });
+
+  it("treats missing or unfinished Stream image fields as a partial response", () => {
+    expect(isCompleteStreamImageResponse({
+      recommended_action: "keep",
+      status: "completed",
+      item: { flags: [] }
+    })).toBe(true);
+    expect(isCompleteStreamImageResponse({ recommended_action: "keep", status: "completed" })).toBe(false);
+    expect(isCompleteStreamImageResponse({ status: "completed", item: { flags: [] } })).toBe(false);
+    expect(isCompleteStreamImageResponse({ recommended_action: "keep", status: "pending", item: { flags: [] } })).toBe(false);
   });
 });

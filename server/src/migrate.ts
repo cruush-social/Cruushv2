@@ -40,7 +40,8 @@ const migrationFiles = [
   "032_account_status_and_moderators.sql",
   "033_user_blocks_and_report_targets.sql",
   "034_moderation_actions.sql",
-  "035_notifications_and_push.sql"
+  "035_notifications_and_push.sql",
+  "036_moderation_media_grants.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

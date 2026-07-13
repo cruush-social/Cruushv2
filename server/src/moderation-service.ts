@@ -213,14 +213,14 @@ function userMessageForDecision(decision: PolicyDecision) {
   }
 
   if (decision.user_message_code === "feed_content_rejected") {
-    return "This feed post could not be published because it violates Cruush safety rules.";
+    return "This feed post could not be published because it violates cruush safety rules.";
   }
 
   if (decision.user_message_code === "content_rejected_zero_tolerance") {
-    return "This content violates Cruush safety rules and cannot be saved.";
+    return "This content violates cruush safety rules and cannot be saved.";
   }
 
-  return "This content violates Cruush safety rules and cannot be saved.";
+  return "This content violates cruush safety rules and cannot be saved.";
 }
 
 function hasAdultHumanBodyProof(providerResult: ProviderModerationResult) {
