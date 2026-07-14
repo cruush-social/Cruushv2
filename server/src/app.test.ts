@@ -4771,7 +4771,7 @@ describe("server", () => {
     expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into profiles"))).toBe(true);
   });
 
-  it("rejects a profile photo when underage and adult-human labels conflict", async () => {
+  it("allows an age-inference filename when the content-safety result otherwise passes", async () => {
     query.mockResolvedValue({ rows: [{ photos: [] }] });
     const png = validPng();
     const multipart = multipartFilePayload({
@@ -4792,9 +4792,10 @@ describe("server", () => {
     });
     const queries = query.mock.calls.map(([sql]) => String(sql));
 
-    expect(response.statusCode).toBe(403);
-    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
-    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(response.statusCode).toBe(201);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into suspensions"))).toBe(false);
   });
 
   it("creates a CSAM incident, preserves encrypted evidence, and locks the account on a PhotoDNA profile-photo match", async () => {
@@ -4927,6 +4928,66 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(true);
+  });
+
+  it("queues only an allowlisted bank tester photo after Stream keeps it without adult-human proof", async () => {
+    const bankApp = buildServer({
+      ...app.config,
+      APP_DEPLOYMENT_STAGE: "staging",
+      BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: true,
+      BANK_PROFILE_PHOTO_TESTER_USER_IDS: [userId],
+      STREAM_IMAGE_BRIDGE_ENABLED: true,
+      MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
+      STREAM_PSEUDONYM_KEY: "0123456789abcdef0123456789abcdef"
+    }, {
+      db: { query, end },
+      rateLimiter
+    });
+    query.mockImplementation(async (sql: string) => {
+      if (sql === "select photos from profiles where id = $1") {
+        return { rows: [{ photos: [] }] };
+      }
+
+      if (sql.includes("select (redeemed_at is not null) as redeemed")) {
+        return { rows: [{ redeemed: true }] };
+      }
+
+      return { rows: [] };
+    });
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "profile.png",
+      contentType: "image/png",
+      content: validPng()
+    });
+
+    const response = await bankApp.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    await bankApp.close();
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+    const grantCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into moderation_media_grants"));
+    const objectKey = grantCall?.[1]?.[3] as string;
+
+    expect(response.statusCode, response.body).toBe(202);
+    expect(response.json()).toEqual({
+      data: {
+        url: expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]{36}\.png$/),
+        status: "pending_review"
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into profile_photo_manual_reviews"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("delete from moderation_media_grants"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(await readEncryptedMediaObject(bankApp.config, objectKey)).not.toHaveLength(0);
+    await deleteEncryptedMediaObject(bankApp.config, objectKey);
   });
 
   it("never stores the capability URL, token, object key, final URL, or original filename in moderation records", async () => {

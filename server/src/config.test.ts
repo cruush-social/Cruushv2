@@ -133,6 +133,112 @@ describe("loadConfig", () => {
     });
   });
 
+  it("keeps shared Stream profile-photo automod off by default and prevents manual-review fallback", () => {
+    const base = {
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret"
+    };
+    const streamAutomod = {
+      ...base,
+      APP_DEPLOYMENT_STAGE: "staging",
+      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: "true",
+      STREAM_IMAGE_BRIDGE_ENABLED: "true",
+      STREAM_MODERATION_ENABLED: "true",
+      STREAM_API_KEY: "stream-key",
+      STREAM_API_SECRET: "stream-secret",
+      STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
+      STREAM_PSEUDONYM_KEY: strongSecret
+    };
+
+    expect(loadConfig(base).PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED).toBe(false);
+    expect(loadConfig(streamAutomod)).toMatchObject({
+      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
+      BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: false,
+      STREAM_IMAGE_BRIDGE_ENABLED: true
+    });
+
+    expect(() => loadConfig({
+      ...base,
+      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: "true"
+    })).toThrow(/STREAM_IMAGE_BRIDGE_ENABLED/);
+
+    expect(() => loadConfig({
+      ...streamAutomod,
+      BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: "true",
+      BANK_PROFILE_PHOTO_TESTER_USER_IDS: "11111111-1111-4111-8111-111111111111",
+      INTERNAL_API_SECRET: strongSecret,
+      MEDIA_OBJECT_STORAGE_DRIVER: "s3",
+      MEDIA_S3_BUCKET: "cruush-media-staging",
+      MEDIA_S3_ENDPOINT: "https://account-id.r2.cloudflarestorage.com",
+      MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
+      MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key"
+    })).toThrow(/BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED/);
+  });
+
+  it("keeps bank profile-photo review off by default and requires its staging privacy guardrails", () => {
+    const base = {
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret"
+    };
+
+    expect(loadConfig(base)).toMatchObject({
+      APP_DEPLOYMENT_STAGE: "development",
+      BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: false,
+      BANK_PROFILE_PHOTO_TESTER_USER_IDS: []
+    });
+
+    expect(() => loadConfig({
+      ...base,
+      BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: "true"
+    })).toThrow(/APP_DEPLOYMENT_STAGE/);
+
+    const protectedStagingConfig = {
+      ...base,
+      APP_DEPLOYMENT_STAGE: "staging",
+      BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: "true",
+      BANK_PROFILE_PHOTO_TESTER_USER_IDS: "11111111-1111-4111-8111-111111111111, 22222222-2222-4222-8222-222222222222",
+      INTERNAL_API_SECRET: strongSecret,
+      STREAM_IMAGE_BRIDGE_ENABLED: "true",
+      STREAM_MODERATION_ENABLED: "true",
+      STREAM_API_KEY: "stream-key",
+      STREAM_API_SECRET: "stream-secret",
+      STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
+      STREAM_PSEUDONYM_KEY: strongSecret,
+      MEDIA_OBJECT_STORAGE_DRIVER: "s3",
+      MEDIA_S3_BUCKET: "cruush-media-staging",
+      MEDIA_S3_ENDPOINT: "https://account-id.r2.cloudflarestorage.com",
+      MEDIA_S3_REGION: "auto",
+      MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
+      MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key"
+    };
+
+    expect(loadConfig(protectedStagingConfig)).toMatchObject({
+      APP_DEPLOYMENT_STAGE: "staging",
+      BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: true,
+      BANK_PROFILE_PHOTO_TESTER_USER_IDS: [
+        "11111111-1111-4111-8111-111111111111",
+        "22222222-2222-4222-8222-222222222222"
+      ]
+    });
+
+    expect(() => loadConfig({
+      ...protectedStagingConfig,
+      APP_DEPLOYMENT_STAGE: "production"
+    })).toThrow(/APP_DEPLOYMENT_STAGE/);
+
+    expect(() => loadConfig({
+      ...protectedStagingConfig,
+      BANK_PROFILE_PHOTO_TESTER_USER_IDS: "not-a-user-id"
+    })).toThrow(/BANK_PROFILE_PHOTO_TESTER_USER_IDS/);
+
+    expect(() => loadConfig({
+      ...protectedStagingConfig,
+      INTERNAL_API_SECRET: "short"
+    })).toThrow(/INTERNAL_API_SECRET/);
+  });
+
   it("requires PhotoDNA connection details when PhotoDNA is enabled", () => {
     expect(() => loadConfig({
       DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",

@@ -79,6 +79,22 @@ describe("moderation provider", () => {
     ]));
   });
 
+  it("marks completed safe mock image checks with the same keep contract used by Stream", async () => {
+    const provider = new MockModerationProvider();
+    const result = await provider.moderateImage({
+      userId: "user-1",
+      surface: "profile_photo",
+      mimeType: "image/png",
+      filename: "profile.png",
+      bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47])
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      recommended_action: "keep"
+    });
+  });
+
   it("requires an explicit adult signal before treating a person as adult-human proof", () => {
     expect(normalizeStreamLabel("person")).toBeNull();
     expect(normalizeStreamLabel("portrait")).toBeNull();
@@ -87,18 +103,24 @@ describe("moderation provider", () => {
     expect(normalizeStreamLabel("adult face")).toBe("adult_human_body");
   });
 
-  it("never lets adult or nudity words override child and minor labels", () => {
-    expect(normalizeStreamLabel("child person")).toBe("underage_sexual");
-    expect(normalizeStreamLabel("minor portrait nudity")).toBe("underage_sexual");
-    expect(normalizeStreamLabel("underage adult body")).toBe("underage_sexual");
+  it("does not turn age-only image guesses into sexual-minor violations", () => {
+    expect(normalizeStreamLabel("child person")).toBeNull();
+    expect(normalizeStreamLabel("minor portrait nudity")).toBeNull();
+    expect(normalizeStreamLabel("underage adult body")).toBeNull();
   });
 
-  it("rejects age-ambiguous teen profile-photo labels without treating them as adult proof", () => {
-    expect(normalizeStreamLabel("teen portrait")).toBe("profile_photo_not_adult_human");
-    expect(normalizeStreamLabel("young-looking person")).toBe("profile_photo_not_adult_human");
+  it("ignores profile-photo age inference while preserving explicit CSAM signals", () => {
+    expect(normalizeStreamLabel("child person", "profile_photo")).toBeNull();
+    expect(normalizeStreamLabel("minor portrait", "profile_photo")).toBeNull();
+    expect(normalizeStreamLabel("child sexual abuse material", "profile_photo")).toBe("underage_sexual");
   });
 
-  it("preserves child and minor signals nested in Stream image results", () => {
+  it("ignores age-ambiguous profile-photo labels without treating them as adult proof", () => {
+    expect(normalizeStreamLabel("teen portrait", "profile_photo")).toBeNull();
+    expect(normalizeStreamLabel("young-looking person", "profile_photo")).toBeNull();
+  });
+
+  it("does not persist age-only signals nested in Stream image results", () => {
     const labels = streamLabelsFromResponse({
       recommended_action: "remove",
       item: {
@@ -112,13 +134,13 @@ describe("moderation provider", () => {
           }]
         }]
       }
-    });
+    }, "profile_photo");
 
-    expect(labels).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        normalized_label: "underage_sexual",
-        severity: "high"
-      })
+    expect(labels).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ normalized_label: "profile_photo_not_adult_human" })
+    ]));
+    expect(labels).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ normalized_label: "underage_sexual" })
     ]));
     expect(labels).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ normalized_label: "adult_human_body" })

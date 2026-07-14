@@ -241,6 +241,33 @@ describe('ProfileEdit', () => {
     expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
   });
 
+  it('shows a pending-review notice without adding an unpublished photo to the profile', async () => {
+    uploadProfilePhoto.mockResolvedValueOnce({
+      url: '/api/media/profile-photos/11111111-1111-4111-8111-111111111111.jpg',
+      status: 'pending_review',
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+    fireEvent.change(uploadInput as HTMLInputElement, {
+      target: {
+        files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })],
+      },
+    });
+    fireEvent.load(await screen.findByAltText('Profile crop preview'));
+    fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));
+
+    expect(await screen.findByText('Photo submitted for review.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Crop profile photo' })).not.toBeInTheDocument();
+    expect(screen.queryByAltText('Primary profile photo')).not.toBeInTheDocument();
+  });
+
   it('previews selected profile photos as data URLs before cropping', async () => {
     const previewDataUrl = 'data:image/png;base64,cHJvZmlsZQ==';
     const readAsDataURL = vi.fn();
@@ -325,12 +352,10 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
 
-    expect(screen.getByText(/Photos need to be of you only/i)).toBeInTheDocument();
-    expect(screen.getByText(/No group photos, pets, memes, screenshots, or objects/i)).toBeInTheDocument();
-    expect(screen.getByText(/you must be 18 or older/i)).toBeInTheDocument();
-    expect(screen.getByText(/face is optional/i)).toBeInTheDocument();
-    expect(screen.getByText(/naked or clothed/i)).toBeInTheDocument();
-    expect(screen.getByText(/any clearly adult human body part/i)).toBeInTheDocument();
+    expect(screen.getByText('photos must be of you only.')).toBeInTheDocument();
+    expect(screen.queryByText(/No group photos, pets, memes, screenshots, or objects/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/you must be 18 or older/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/face is optional/i)).not.toBeInTheDocument();
   });
 
   it('formats profile photo rejection reasons', () => {

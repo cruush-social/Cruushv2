@@ -1,6 +1,6 @@
 # Coolify Open Beta Environment Template
 
-Last updated: 2026-07-07
+Last updated: 2026-07-14
 
 Use this when configuring Coolify for the cruush app frontend and API. Do not paste placeholder values literally. Do not commit real values.
 
@@ -33,6 +33,7 @@ DATABASE_URL=<coolify-staging-postgres-internal-url>
 CORS_ORIGIN=https://staging.cruush.app
 SESSION_SECRET=<generate-secret-32-plus-chars>
 APP_URL=https://staging.cruush.app
+APP_DEPLOYMENT_STAGE=staging
 
 MEDIA_STORAGE_DIR=media
 MEDIA_PUBLIC_BASE_URL=https://api-staging.cruush.app
@@ -47,12 +48,15 @@ MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=true
 STREAM_IMAGE_BRIDGE_ENABLED=true
+PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true
 STREAM_API_KEY=<stream-api-key>
 STREAM_API_SECRET=<stream-api-secret>
 STREAM_APP_ID=<stream-app-id>
 STREAM_MODERATION_CONFIG_KEY=<stream-moderation-config-key>
 MODERATION_MEDIA_BASE_URL=https://moderation-media-staging.cruush.app
 STREAM_PSEUDONYM_KEY=<generate-secret-32-plus-bytes>
+BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false
+BANK_PROFILE_PHOTO_TESTER_USER_IDS=
 
 PHOTODNA_ENABLED=false
 PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
@@ -65,8 +69,8 @@ CSAM_REPORTING_TEST_MODE=true
 TRUST_SAFETY_ALERT_EMAIL=<private-trust-safety-inbox>
 SUPPORT_INBOX_EMAIL=<private-support-inbox>
 
-INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
-MAIL_FROM=Cruush <hello@cruush.app>
+INTERNAL_API_SECRET=<generate-secret-32-plus-bytes>
+MAIL_FROM=cruush <hello@cruush.app>
 RESEND_API_KEY=<resend-api-key>
 EMAIL_PREVIEW_ENABLED=false
 DEVELOPMENT_ADMIN_ENABLED=false
@@ -131,6 +135,7 @@ DATABASE_URL=<coolify-production-postgres-internal-url>
 CORS_ORIGIN=https://cruush.app,https://www.cruush.app
 SESSION_SECRET=<generate-secret-32-plus-chars>
 APP_URL=https://cruush.app
+APP_DEPLOYMENT_STAGE=production
 
 MEDIA_STORAGE_DIR=media
 MEDIA_PUBLIC_BASE_URL=https://api.cruush.app
@@ -144,13 +149,16 @@ MEDIA_S3_SECRET_ACCESS_KEY=<production-r2-secret-access-key>
 MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=true
-STREAM_IMAGE_BRIDGE_ENABLED=false
+STREAM_IMAGE_BRIDGE_ENABLED=true
+PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true
 STREAM_API_KEY=<stream-api-key>
 STREAM_API_SECRET=<stream-api-secret>
 STREAM_APP_ID=<stream-app-id>
 STREAM_MODERATION_CONFIG_KEY=<stream-moderation-config-key>
-MODERATION_MEDIA_BASE_URL=
+MODERATION_MEDIA_BASE_URL=https://moderation-media.cruush.app
 STREAM_PSEUDONYM_KEY=<generate-secret-32-plus-bytes>
+BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false
+BANK_PROFILE_PHOTO_TESTER_USER_IDS=
 
 PHOTODNA_ENABLED=false
 PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
@@ -164,7 +172,7 @@ TRUST_SAFETY_ALERT_EMAIL=<private-trust-safety-inbox>
 SUPPORT_INBOX_EMAIL=<private-support-inbox>
 
 INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
-MAIL_FROM=Cruush <hello@cruush.app>
+MAIL_FROM=cruush <hello@cruush.app>
 RESEND_API_KEY=<resend-api-key>
 EMAIL_PREVIEW_ENABLED=false
 DEVELOPMENT_ADMIN_ENABLED=false
@@ -240,6 +248,8 @@ These values are safe to add directly if the domains/buckets are correct:
 - `MODERATION_PROVIDER=mock`
 - `MODERATION_TIMEOUT_MS=5000`
 - `STREAM_MODERATION_ENABLED=true`
+- `STREAM_IMAGE_BRIDGE_ENABLED=true` only after the dedicated no-cache moderation-media hostname is routed and its upstream logs are verified not to retain raw paths
+- `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true` for the shared bank/open-beta Stream path; keep manual review false
 - `PHOTODNA_ENABLED=false` until verified
 - `PHOTODNA_TIMEOUT_MS=5000`
 - `EMAIL_PREVIEW_ENABLED=false`
@@ -278,8 +288,9 @@ After env vars are saved and the service redeploys:
 4. Email verification works or test login is already verified.
 5. Profile edit works.
 6. Profile photo upload stores encrypted media through R2/S3.
-7. Feed accepts safe text and rejects public/profile coded-language terms.
-8. DM text works.
-9. DM/group photo upload works.
-10. Report submission works.
-11. Logs show no missing required env variable errors.
+7. A complete Stream `keep` publishes without a manual-review row; every non-`keep`, partial, timeout, or missing capability redemption publishes nothing.
+8. Feed accepts safe text and rejects public/profile coded-language terms.
+9. DM text works.
+10. DM/group photo upload remains disabled until separately implemented and verified.
+11. Report submission works.
+12. Logs show no missing required env variable errors and no raw moderation capability token.

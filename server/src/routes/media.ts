@@ -22,6 +22,11 @@ import {
 } from "../media-storage.js";
 import { approvedContentReviewCte, moderateImageOrReject } from "../moderation-service.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
+import {
+  cleanupExpiredProfilePhotoReviews,
+  createPendingProfilePhotoReview,
+  isBankProfilePhotoManualReviewEligible
+} from "../profile-photo-manual-reviews.js";
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const MAX_PROFILE_PHOTOS = 4;
@@ -287,7 +292,10 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     let grantId: string | null = null;
 
     try {
-      await cleanupModerationMediaGrants(app.db, app.config, 10).catch(() => undefined);
+      await Promise.all([
+        cleanupModerationMediaGrants(app.db, app.config, 10),
+        cleanupExpiredProfilePhotoReviews(app.db, app.config, 10)
+      ]).catch(() => undefined);
       const grant = await createModerationMediaGrant(app.db, {
         ownerUserId: userId,
         objectKey,
@@ -332,6 +340,10 @@ export async function registerMediaRoutes(app: FastifyInstance) {
           photoDnaStatus: photoDnaResult.status
         },
         bytes: sanitized.bytes
+      }, {
+        allowProfilePhotoManualReview:
+          app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED !== true &&
+          isBankProfilePhotoManualReviewEligible(app.config, userId)
       });
 
       if (
@@ -343,6 +355,38 @@ export async function registerMediaRoutes(app: FastifyInstance) {
           "MODERATION_UNAVAILABLE",
           "Automated moderation is temporarily unavailable. Try again later."
         );
+      }
+
+      if ("status" in moderation && moderation.status === "manual_review_required") {
+        await runTransaction(app.db, async (client) => {
+          await createPendingProfilePhotoReview(client, {
+            ownerUserId: userId,
+            mediaId,
+            objectKey,
+            publicUrl: url,
+            mimeType: sanitized.mimeType,
+            byteSize: sanitized.bytes.length,
+            encryptedDataKey: encryptedMedia.encryptedDataKey,
+            dataKeyNonce: encryptedMedia.dataKeyNonce,
+            dataKeyAuthTag: encryptedMedia.dataKeyAuthTag,
+            contentNonce: encryptedMedia.nonce,
+            contentAuthTag: encryptedMedia.authTag,
+            keyVersion: encryptedMedia.keyVersion,
+            photoDnaStatus: photoDnaResult.status,
+            photoDnaProviderRequestId: photoDnaResult.providerRequestId ?? null,
+            providerResult: moderation.providerResult,
+            decision: moderation.decision
+          });
+          await deleteModerationMediaGrant(client, grant.id);
+        });
+        grantId = null;
+
+        return reply.code(202).send({
+          data: {
+            url,
+            status: "pending_review"
+          }
+        });
       }
 
       await runTransaction(app.db, async (client) => {
