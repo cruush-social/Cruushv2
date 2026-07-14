@@ -153,6 +153,50 @@ describe("shared Stream profile-photo automod route", () => {
     ].map((objectKey) => deleteEncryptedMediaObject(app.config, objectKey as string)));
   });
 
+  it("publishes a complete Stream keep when human classification is inconclusive", async () => {
+    providerState.result = {
+      provider: "stream",
+      provider_request_id: "stream-keep-inconclusive-human-1",
+      labels: [{
+        provider_label: "no human",
+        normalized_label: "profile_photo_not_adult_human",
+        confidence: 0.86,
+        severity: "none"
+      }],
+      latency_ms: 12,
+      status: "complete",
+      recommended_action: "keep",
+      raw_result: {}
+    };
+    const { app, query } = createTestApp();
+    const multipart = multipartFilePayload(validPng());
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const mediaCall = query.mock.calls.find(([text]) => String(text).includes("insert into media_objects"));
+
+    expect(response.statusCode, response.body).toBe(201);
+    expect(response.json()).toEqual({
+      data: {
+        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/)
+      }
+    });
+    expect(JSON.stringify(query.mock.calls)).toContain("stream_content_safety_only");
+
+    await app.close();
+    await Promise.all([
+      mediaCall?.[1]?.[3],
+      mediaCall?.[1]?.[14],
+      mediaCall?.[1]?.[25]
+    ].map((objectKey) => deleteEncryptedMediaObject(app.config, objectKey as string)));
+  });
+
   it("fails closed and removes ciphertext for a partial Stream response", async () => {
     providerState.result = {
       provider: "stream",

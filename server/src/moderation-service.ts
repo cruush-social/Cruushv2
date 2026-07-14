@@ -7,11 +7,12 @@ import {
   shouldModerateMessageTextWithProvider
 } from "./message-keyword-prefilter.js";
 import { createModerationProvider } from "./moderation-provider.js";
-import type {
-  ModerationContentType,
-  ModerationSurface,
-  PolicyDecision,
-  ProviderModerationResult
+import {
+  ALLOW_POLICY_DECISION,
+  type ModerationContentType,
+  type ModerationSurface,
+  type PolicyDecision,
+  type ProviderModerationResult
 } from "./moderation-types.js";
 import { mapProviderResultToPolicy } from "./policy-mapper.js";
 import { applyPolicyDecision } from "./trust-engine.js";
@@ -293,19 +294,15 @@ export function resolveProfilePhotoAdultHumanGate(
   decision: PolicyDecision,
   options: { allowManualReview: boolean; allowStreamAutomod?: boolean }
 ): ProfilePhotoAdultHumanGateOutcome {
-  if (decision.decision !== "allow" || hasAdultHumanBodyProof(providerResult)) {
-    return {
-      status: "resolved",
-      providerResult,
-      decision
-    };
-  }
-
   if (
     options.allowStreamAutomod === true &&
     providerResult.provider === "stream" &&
     ["complete", "completed"].includes(providerResult.status?.toLowerCase() ?? "") &&
-    providerResult.recommended_action?.toLowerCase() === "keep"
+    providerResult.recommended_action?.toLowerCase() === "keep" &&
+    (
+      decision.decision === "allow" ||
+      decision.reason_code === "profile_photo_not_adult_human"
+    )
   ) {
     return {
       status: "resolved",
@@ -316,6 +313,16 @@ export function resolveProfilePhotoAdultHumanGate(
           cruush_profile_photo_gate: "stream_content_safety_only"
         }
       },
+      decision: decision.reason_code === "profile_photo_not_adult_human"
+        ? ALLOW_POLICY_DECISION
+        : decision
+    };
+  }
+
+  if (decision.decision !== "allow" || hasAdultHumanBodyProof(providerResult)) {
+    return {
+      status: "resolved",
+      providerResult,
       decision
     };
   }
@@ -514,10 +521,7 @@ export async function moderateImageOrReject(
   });
   let resolvedProviderResult = providerResult;
 
-  if (
-    input.surface === "profile_photo" &&
-    decision.decision === "allow"
-  ) {
+  if (input.surface === "profile_photo") {
     const gate = resolveProfilePhotoAdultHumanGate(providerResult, decision, {
       allowManualReview: options.allowProfilePhotoManualReview === true,
       allowStreamAutomod: app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true
