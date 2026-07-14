@@ -2,6 +2,14 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 describe("profile-photo manual review migration", () => {
+  it("is registered after the media grant migration", async () => {
+    const runner = await readFile(new URL("./migrate.ts", import.meta.url), "utf8");
+
+    expect(runner).toMatch(
+      /"038_moderation_media_grants\.sql",\s*"039_profile_photo_manual_reviews\.sql"/
+    );
+  });
+
   it("cascades review deletion and keeps the queue private and bounded", async () => {
     const sql = await readFile(
       new URL("../sql/039_profile_photo_manual_reviews.sql", import.meta.url),
