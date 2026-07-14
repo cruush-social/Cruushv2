@@ -282,6 +282,81 @@ function rejectProfilePhotoWithoutAdultHuman(providerResult: ProviderModerationR
   };
 }
 
+export type ProfilePhotoAdultHumanGateOutcome = {
+  status: "resolved" | "manual_review_required";
+  providerResult: ProviderModerationResult;
+  decision: PolicyDecision;
+};
+
+export function resolveProfilePhotoAdultHumanGate(
+  providerResult: ProviderModerationResult,
+  decision: PolicyDecision,
+  options: { allowManualReview: boolean; allowStreamAutomod?: boolean }
+): ProfilePhotoAdultHumanGateOutcome {
+  if (decision.decision !== "allow" || hasAdultHumanBodyProof(providerResult)) {
+    return {
+      status: "resolved",
+      providerResult,
+      decision
+    };
+  }
+
+  if (
+    options.allowStreamAutomod === true &&
+    providerResult.provider === "stream" &&
+    ["complete", "completed"].includes(providerResult.status?.toLowerCase() ?? "") &&
+    providerResult.recommended_action?.toLowerCase() === "keep"
+  ) {
+    return {
+      status: "resolved",
+      providerResult: {
+        ...providerResult,
+        raw_result: {
+          ...(providerResult.raw_result ?? {}),
+          cruush_profile_photo_gate: "stream_content_safety_only"
+        }
+      },
+      decision
+    };
+  }
+
+  if (
+    options.allowManualReview &&
+    ["complete", "completed"].includes(providerResult.status?.toLowerCase() ?? "") &&
+    providerResult.recommended_action?.toLowerCase() === "keep"
+  ) {
+    return {
+      status: "manual_review_required",
+      providerResult: {
+        ...providerResult,
+        raw_result: {
+          ...(providerResult.raw_result ?? {}),
+          cruush_profile_photo_gate: "manual_review_required"
+        }
+      },
+      decision: {
+        decision: "quarantine",
+        category: "profile_photo_not_adult_human",
+        severity: "medium",
+        confidence: 1,
+        create_evidence_event: false,
+        evidence_value: 0,
+        trust_impact: 0,
+        penalty_decays: true,
+        moderation_history_required: false,
+        reason_code: "bank_profile_photo_manual_review_required",
+        user_message_code: "content_pending_review"
+      }
+    };
+  }
+
+  const rejection = rejectProfilePhotoWithoutAdultHuman(providerResult);
+  return {
+    status: "resolved",
+    ...rejection
+  };
+}
+
 function moderationStatusForReview(status: ContentReviewInput["status"], decision: PolicyDecision) {
   if (status === "allowed") {
     return "allowed";
@@ -425,7 +500,11 @@ export async function moderateMessageTextOrAllowByKeyword(app: FastifyInstance, 
   };
 }
 
-export async function moderateImageOrReject(app: FastifyInstance, input: ModerateImageInput) {
+export async function moderateImageOrReject(
+  app: FastifyInstance,
+  input: ModerateImageInput,
+  options: { allowProfilePhotoManualReview?: boolean } = {}
+) {
   const provider = createModerationProvider(app.config);
   const providerResult = await provider.moderateImage(input);
   let decision = mapProviderResultToPolicy({
@@ -437,12 +516,19 @@ export async function moderateImageOrReject(app: FastifyInstance, input: Moderat
 
   if (
     input.surface === "profile_photo" &&
-    decision.decision === "allow" &&
-    !hasAdultHumanBodyProof(providerResult)
+    decision.decision === "allow"
   ) {
-    const rejection = rejectProfilePhotoWithoutAdultHuman(providerResult);
-    decision = rejection.decision;
-    resolvedProviderResult = rejection.providerResult;
+    const gate = resolveProfilePhotoAdultHumanGate(providerResult, decision, {
+      allowManualReview: options.allowProfilePhotoManualReview === true,
+      allowStreamAutomod: app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true
+    });
+
+    if (gate.status === "manual_review_required") {
+      return gate;
+    }
+
+    decision = gate.decision;
+    resolvedProviderResult = gate.providerResult;
   }
 
   return handlePolicyDecision(app, input.userId, input.surface, "image", resolvedProviderResult, decision, {

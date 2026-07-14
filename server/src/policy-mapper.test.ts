@@ -110,6 +110,27 @@ describe("policy mapper", () => {
     expect(decision.reason_code).toBe("provider_flagged_by_automod");
   });
 
+  it.each(["block", "bounce", "shadow_block"])(
+    "rejects Stream %s recommendations instead of treating them as an allow",
+    (recommendedAction) => {
+      const decision = mapProviderResultToPolicy({
+        surface: "profile_photo",
+        contentType: "image",
+        providerResult: {
+          provider: "stream",
+          provider_request_id: `stream-${recommendedAction}`,
+          latency_ms: 1,
+          labels: [],
+          recommended_action: recommendedAction,
+          status: "completed"
+        }
+      });
+
+      expect(decision.decision).toBe("reject");
+      expect(decision.reason_code).toBe("provider_recommended_non_keep");
+    }
+  );
+
   it.each(["partial", "pending", "provider_processing", "error"])(
     "fails closed for a %s image moderation response",
     (status) => {

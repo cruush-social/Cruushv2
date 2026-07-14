@@ -3,9 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import {
   moderateMessageTextOrAllowByKeyword,
   moderateProfileOrReject,
-  moderateTextOrReject
+  moderateTextOrReject,
+  resolveProfilePhotoAdultHumanGate
 } from "./moderation-service.js";
-import type { ModerationSurface } from "./moderation-types.js";
+import {
+  ALLOW_POLICY_DECISION,
+  type ModerationSurface,
+  type ProviderModerationResult
+} from "./moderation-types.js";
 
 function createApp() {
   return {
@@ -79,5 +84,56 @@ describe("text language moderation policy", () => {
         code: "CONTENT_REJECTED"
       });
     }
+  });
+});
+
+function streamResult(overrides: Partial<ProviderModerationResult> = {}): ProviderModerationResult {
+  return {
+    provider: "stream",
+    provider_request_id: "stream-request-1",
+    labels: [],
+    latency_ms: 12,
+    status: "complete",
+    recommended_action: "keep",
+    raw_result: {},
+    ...overrides
+  };
+}
+
+describe("profile-photo adult-human gate", () => {
+  it("allows a complete Stream keep without adult-human proof when shared Stream automod is enabled", () => {
+    expect(resolveProfilePhotoAdultHumanGate(
+      streamResult({ status: "completed" }),
+      ALLOW_POLICY_DECISION,
+      { allowManualReview: true, allowStreamAutomod: true }
+    )).toMatchObject({
+      status: "resolved",
+      providerResult: {
+        raw_result: { cruush_profile_photo_gate: "stream_content_safety_only" }
+      },
+      decision: { decision: "allow" }
+    });
+  });
+
+  it("retains the dormant manual fallback only when explicitly allowed", () => {
+    expect(resolveProfilePhotoAdultHumanGate(
+      streamResult(),
+      ALLOW_POLICY_DECISION,
+      { allowManualReview: true }
+    )).toMatchObject({
+      status: "manual_review_required",
+      decision: { reason_code: "bank_profile_photo_manual_review_required" }
+    });
+  });
+
+  it("fails closed without adult-human proof when neither shared automod nor manual fallback is enabled", () => {
+    expect(resolveProfilePhotoAdultHumanGate(
+      streamResult(),
+      ALLOW_POLICY_DECISION,
+      { allowManualReview: false }
+    )).toMatchObject({
+      status: "resolved",
+      decision: { reason_code: "profile_photo_not_adult_human" }
+    });
   });
 });

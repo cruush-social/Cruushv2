@@ -463,6 +463,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [pendingPhoto, setPendingPhoto] = useState<PendingProfilePhoto | null>(null);
   const photoPreviewRequestRef = useRef(0);
@@ -585,6 +586,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     const requestId = photoPreviewRequestRef.current + 1;
     photoPreviewRequestRef.current = requestId;
     setPhotoUploadError(null);
+    setPhotoUploadNotice(null);
     setError(null);
 
     try {
@@ -614,13 +616,23 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
     try {
       const uploaded = await uploadProfilePhoto(croppedFile);
+
+      if (uploaded.status === 'pending_review') {
+        setPendingPhoto(null);
+        setPhotoUploadError(null);
+        setPhotoUploadNotice('Photo submitted for review.');
+        return;
+      }
+
       setProfile((prev) => ({
         ...prev,
         photos: [...(prev.photos ?? []), uploaded.url].slice(0, MAX_PROFILE_PHOTOS),
       }));
       setPendingPhoto(null);
       setPhotoUploadError(null);
+      setPhotoUploadNotice(null);
     } catch (uploadError) {
+      setPhotoUploadNotice(null);
       setPhotoUploadError(getPhotoUploadRejectedMessage(uploadError));
     } finally {
       setUploadingPhoto(false);
@@ -726,6 +738,11 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             <div className="rounded-md border border-border bg-card/70 p-3 text-sm text-muted-foreground">
               photos must be of you only.
             </div>
+            {photoUploadNotice ? (
+              <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-foreground">
+                {photoUploadNotice}
+              </div>
+            ) : null}
             {photoUploadError ? (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                 {photoUploadError}

@@ -5752,7 +5752,7 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
-  it("rejects a profile photo when underage and adult-human labels conflict", async () => {
+  it("allows an age-inference filename when content-safety otherwise passes", async () => {
     mockPendingProfileMediaQueries();
     const png = await validPng();
     const multipart = multipartFilePayload({
@@ -5773,10 +5773,10 @@ describe("server", () => {
     });
     const queries = query.mock.calls.map(([sql]) => String(sql));
 
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(201);
     expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into suspensions"))).toBe(false);
   });
 
   it("creates a CSAM incident, preserves encrypted evidence, and locks the account on a PhotoDNA profile-photo match", async () => {

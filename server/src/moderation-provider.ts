@@ -283,7 +283,7 @@ function labelsFromFilename(filename: string | undefined): ProviderLabel[] {
     ["non-human", "profile_photo_not_adult_human", "high", 0.96],
     ["no-human", "profile_photo_not_adult_human", "high", 0.96],
     ["gradient", "profile_photo_not_adult_human", "high", 0.96],
-    ["underage", "underage_sexual", "critical", 0.98],
+    ["csam", "underage_sexual", "critical", 0.98],
     ["bestiality", "bestiality", "critical", 0.98],
     ["revenge", "revenge_porn", "critical", 0.97],
     ["drug-sales", "drug_sales", "critical", 0.97],
@@ -343,7 +343,11 @@ export class MockModerationProvider implements ModerationProvider {
   async moderateImage(input: ImageModerationInput): Promise<ProviderModerationResult> {
     const startedAt = Date.now();
 
-    return makeResult("image", startedAt, labelsFromFilename(input.filename));
+    return {
+      ...makeResult("image", startedAt, labelsFromFilename(input.filename)),
+      status: "completed",
+      recommended_action: "keep"
+    };
   }
 }
 
@@ -445,7 +449,10 @@ function severityFromStream(value: unknown, fallback: ProviderLabel["severity"] 
   return fallback;
 }
 
-export function normalizeStreamLabel(label: string): NormalizedModerationLabel | null {
+export function normalizeStreamLabel(
+  label: string,
+  _surface?: ModerationSurface
+): NormalizedModerationLabel | null {
   const normalized = label
     .toLowerCase()
     .replace(/[_-]+/g, " ")
@@ -456,12 +463,12 @@ export function normalizeStreamLabel(label: string): NormalizedModerationLabel |
     return null;
   }
 
-  if (/\b(?:csam|child|children|minor|minors|underage|sexual minor)\b/i.test(normalized)) {
+  if (/\b(?:csam|child sexual|sexual child|minor sexual|sexual minor|underage sexual|sexual underage)\b/i.test(normalized)) {
     return "underage_sexual";
   }
 
-  if (/\b(?:teen|teenager|young looking|youthful|age ambiguous|ambiguous age)\b/i.test(normalized)) {
-    return "profile_photo_not_adult_human";
+  if (/\b(?:child|children|minor|minors|underage|teen|teenager|young looking|youthful|age ambiguous|ambiguous age)\b/i.test(normalized)) {
+    return null;
   }
 
   if (/\b(?:group photo|group image|multiple people|more than one person|crowd|no human|non human|not human|no person|no people|animal|object|landscape|abstract|gradient|logo|text only|screenshot|cartoon|drawing|illustration)\b/i.test(normalized)) {
@@ -532,7 +539,10 @@ export function normalizeStreamLabel(label: string): NormalizedModerationLabel |
   return null;
 }
 
-export function streamLabelsFromResponse(response: StreamCheckResponse): ProviderLabel[] {
+export function streamLabelsFromResponse(
+  response: StreamCheckResponse,
+  surface?: ModerationSurface
+): ProviderLabel[] {
   const recommendedAction = response.recommended_action?.toLowerCase();
   const fallbackSeverity = severityFromStream(
     response.item?.ai_text_severity ?? response.item?.severity,
@@ -550,7 +560,7 @@ export function streamLabelsFromResponse(response: StreamCheckResponse): Provide
     ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
 
     for (const rawLabel of rawLabels) {
-      const normalizedLabel = normalizeStreamLabel(rawLabel);
+      const normalizedLabel = normalizeStreamLabel(rawLabel, surface);
 
       if (!normalizedLabel) {
         continue;
@@ -667,7 +677,7 @@ export class StreamModerationProvider implements ModerationProvider {
       return {
         provider: this.name,
         provider_request_id: response.item?.id ?? response.task_id ?? response.metadata?.clientRequestId ?? `stream-${Date.now().toString(36)}`,
-        labels: streamLabelsFromResponse(response),
+        labels: streamLabelsFromResponse(response, input.surface),
         latency_ms: Date.now() - startedAt,
         recommended_action: response.recommended_action,
         status: response.status,

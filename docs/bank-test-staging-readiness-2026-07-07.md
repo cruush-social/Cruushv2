@@ -1,6 +1,6 @@
 # Bank Test Staging Readiness - 2026-07-07
 
-This document records the current staging state after wiring Stream moderation configuration in Coolify and redeploying the staging API.
+This document records the earlier staging checks and the target shared Stream profile-photo configuration. The 2026-07-14 Stream-only automod changes are local until separately committed, pushed, deployed, and revalidated.
 
 ## Current Staging Resources
 
@@ -9,26 +9,32 @@ This document records the current staging state after wiring Stream moderation c
 - Coolify API resource: `rhacv5wg4rigv1mj6lx08wtc`
 - Coolify frontend resource: `osvowruef99ps8pgoa3w5ysp`
 - Server: `cruush-prod-1`
-- Moderation model: no human moderation queue. Stream AI/moderation provides moderation signals, and the cruush trust-score automod enforces save, publish, restriction, suspension, and rejection decisions.
+- Moderation model: Stream AI/moderation and cruush policy mapping make the routine profile-photo decision automatically. The bank/open-beta path has no manual queue. Stream does not verify age, identity, or exactly one real person.
 
 ## Profile-Photo Bridge Deployment Configuration
 
 Bank-facing staging must use the dedicated provider-readable hostname and these API variables:
 
 ```env
+APP_DEPLOYMENT_STAGE=staging
 STREAM_MODERATION_ENABLED=true
 STREAM_IMAGE_BRIDGE_ENABLED=true
+PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true
 STREAM_API_KEY=<staging-stream-api-key>
 STREAM_API_SECRET=<staging-stream-api-secret>
 STREAM_APP_ID=<staging-stream-app-id>
 STREAM_MODERATION_CONFIG_KEY=<staging-stream-moderation-config-key>
 MODERATION_MEDIA_BASE_URL=https://moderation-media-staging.cruush.app
 STREAM_PSEUDONYM_KEY=<random-secret-at-least-32-bytes>
+BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false
+BANK_PROFILE_PHOTO_TESTER_USER_IDS=
 MEDIA_OBJECT_STORAGE_DRIVER=s3
 PHOTODNA_ENABLED=false
 ```
 
-Route `https://moderation-media-staging.cruush.app` to the API without cookies or CDN caching. Configure a private five-minute scheduler to run `pnpm --dir server cleanup:moderation-media-grants` from the repository root. Confirm Coolify ingress, proxy, CDN/WAF, and APM logs do not retain raw request paths for this hostname. Public production must keep `STREAM_IMAGE_BRIDGE_ENABLED=false` until provider retention terms and staging evidence are accepted.
+Route `https://moderation-media-staging.cruush.app` to the API without cookies or CDN caching. Configure a private five-minute scheduler to run `pnpm --dir server cleanup:moderation-media-grants` from the repository root. Confirm Coolify ingress, proxy, CDN/WAF, and APM logs do not retain raw request paths for this hostname. Rejected and expired ciphertext is deleted, while photos receiving a complete Stream `keep` remain on tester profiles normally. Public production uses the same decision path with a separate `https://moderation-media.cruush.app` origin after staging proof; neither environment should enable the legacy manual-review flag.
+
+Do not describe this as age verification or person verification. The accurate bank statement is: “Stream automated content-safety moderation is implemented through an ephemeral encrypted-media bridge; PhotoDNA, age verification, identity verification, and exactly-one-person verification are not active unless separately proven.”
 
 ## Completed Checks
 
@@ -124,8 +130,8 @@ Minimum bank smoke script:
 3. Confirm signup/login works with Turnstile and email verification behavior expected for staging.
 4. Edit profile basics and bio with allowed text.
 5. Attempt a public/profile banned term on the disposable account and verify the write is rejected.
-6. Upload one consented adult-human profile photo and confirm it is published from cruush-controlled encrypted storage.
-7. Attempt a neutral nonhuman image and confirm rejection with no remaining media or grant row. Do not use actual minor imagery; minor and ambiguous-age handling stays covered by provider-response fixtures and policy tests.
+6. Upload one consented tester-owned profile photo and confirm a complete Stream `keep` publishes it directly from cruush-controlled encrypted storage with no `pending_review` response or manual-review row.
+7. Exercise a configured non-minor Stream rejection fixture and confirm rejection with no remaining media or grant row. A neutral nonhuman image is not a reliable rejection test because Stream does not provide a contractual exactly-one-person gate. Do not use actual minor imagery; minor-response handling stays covered by provider fixtures and policy tests.
 8. Replay the captured capability URL after its first successful provider fetch and confirm `404`.
 9. Inspect API, Coolify/proxy, CDN/WAF, and APM logs and confirm the raw capability token was not retained.
 10. Create or use a second real tester-owned account for DMs.
@@ -139,7 +145,7 @@ Minimum bank smoke script:
 ## Immediate Engineering Next Steps
 
 1. Enable Chrome extension file upload access or manually run the upload proof in Chrome, then finish profile photo upload staging verification with safe adult-human and invalid-image fixtures.
-2. Confirm Stream image moderation is configured to return positive adult-human/body proof or reject non-human profile photos. cruush now fails closed when the provider is silent.
+2. Confirm Stream image moderation is configured for the intended content-safety categories and that every non-`keep` action is rejected. Do not treat silence or `keep` as adult-human proof.
 3. Create a real disposable staging account through the normal app flow for destructive moderation tests.
 4. Run banned feed/profile coded-language tests only on that disposable account.
 5. Verify feed post delete on the bank reviewer account now that `DELETE /api/posts/:postId` is deployed.
@@ -153,8 +159,8 @@ Minimum bank smoke script:
 
 For bank/payment-processor review, describe the current moderation architecture this way:
 
-> cruush uses automated moderation. There is no human moderation queue for launch. Stream AI/moderation tools provide moderation signals, and cruush's trust-score automod enforces blocking, rejection, restriction, suspension, and evidence decisions before content is saved or published.
+> cruush uses automated moderation. There is no human profile-photo moderation queue for bank staging or open beta. Stream AI/moderation tools provide content-safety signals, and cruush's policy and trust-score automod enforce blocking, rejection, restriction, suspension, and evidence decisions before content is saved or published. Sanitized profile photos are stored as encrypted quarantine ciphertext and exposed to Stream through a one-use, 90-second capability before atomic publication.
 
-After the bridge is deployed and the bank smoke script passes, add: automated Stream profile-photo moderation is active through an ephemeral capability bridge. Until then, describe it as implemented but awaiting staging proof. PhotoDNA is inactive and must not be represented as active unless separately verified.
+After the bridge is deployed and the bank smoke script passes, add: automated Stream profile-photo content-safety moderation is active through an ephemeral capability bridge. Until then, describe it as implemented but awaiting staging proof. Stream does not verify age, identity, or exactly one person, and cruush does not reject based on age-only visual guesses. Explicit CSAM or sexual-minor safety signals remain prohibited. PhotoDNA is inactive and must not be represented as active unless separately verified.
 
 Do not claim end-to-end encryption. The open beta target is cruush-controlled server-side/application-layer encryption, where the backend can decrypt only when authorized for product, moderation, safety, export, deletion, and compliance workflows.

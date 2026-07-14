@@ -2,7 +2,7 @@
 
 cruush moderation is server-side automod. The browser never receives Stream secret keys, provider results, PhotoDNA keys, or trust-score internals.
 
-Human review tooling exists but is dormant by default. Stream AI/moderation results, local policy mapping, report evidence, and trust-score enforcement make the save/publish decision before content is exposed. Keep both human-moderation flags disabled until an approved moderator roster and review procedure are ready.
+Human review tooling exists but is dormant by default. There is no human profile-photo moderation queue for bank staging or open beta. Stream AI/moderation results, local policy mapping, report evidence, and trust-score enforcement make the save/publish decision before content is exposed. The legacy bank manual-review code remains in the repository, but startup validation and route precedence keep it inactive whenever shared Stream profile-photo automod is enabled.
 
 ## Environment
 
@@ -22,12 +22,15 @@ MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=false
 HUMAN_MODERATION_ENABLED=false
 STREAM_IMAGE_BRIDGE_ENABLED=false
+PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=false
 STREAM_API_KEY=
 STREAM_API_SECRET=
 STREAM_APP_ID=
 STREAM_MODERATION_CONFIG_KEY=
 MODERATION_MEDIA_BASE_URL=
 STREAM_PSEUDONYM_KEY=
+BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false
+BANK_PROFILE_PHOTO_TESTER_USER_IDS=
 PHOTODNA_ENABLED=false
 PHOTODNA_API_URL=
 PHOTODNA_SUBSCRIPTION_KEY=
@@ -39,6 +42,10 @@ The frontend must also keep `VITE_HUMAN_MODERATION_ENABLED=false`. The API route
 When `STREAM_MODERATION_ENABLED=true`, `STREAM_API_KEY`, `STREAM_API_SECRET`, and `STREAM_MODERATION_CONFIG_KEY` are required at server startup.
 
 When `STREAM_IMAGE_BRIDGE_ENABLED=true`, the server also requires `MODERATION_MEDIA_BASE_URL` and a `STREAM_PSEUDONYM_KEY` of at least 32 bytes. Production additionally requires an HTTPS moderation-media origin and S3-backed encrypted storage. The flag defaults to `false`; leave it disabled on public production until provider terms and staging proof are accepted.
+
+When `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true`, the Stream image bridge must also be enabled and `BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED` must be `false`. A complete Stream `keep` can then publish without the legacy adult-human/manual gate. Every non-`keep`, timeout, partial response, malformed response, or missing capability redemption fails closed.
+
+This Stream-only phase is content-safety moderation. It does not verify age, identity, exactly one person, or even that a real person appears. Do not describe Stream `keep` as age verification or person verification. Age-only visual guesses are ignored and do not reject, reduce trust, or suspend; explicit CSAM or sexual-minor safety signals still reject. The product rule `photos must be of you only.` remains a user attestation backed by reporting until a suitable automated human-photo signal is added.
 
 When `PHOTODNA_ENABLED=true`, `PHOTODNA_API_URL`, `PHOTODNA_OPERATION_PATH`, and `PHOTODNA_SUBSCRIPTION_KEY` are required at server startup. The current adapter posts image bytes to the configured Microsoft API Management endpoint and blocks configured match responses. Verify the exact operation path and sample response from the Microsoft portal before enabling it for staging.
 
@@ -76,11 +83,11 @@ Rejected before save/publish:
 
 - Feed posts with adult explicit labels, PnP/chemsex discussion, drug sales, hate, threats, harassment, doxxing, location privacy abuse, scams, spam, commercial sex solicitation, non-consensual sexual content, minor/CSAM references, bestiality, revenge porn, or gore.
 - Profile and message content with zero-tolerance labels such as minor/CSAM references, bestiality, revenge porn, credible threats, or drug sales.
-- Profile photos that Stream or later PhotoDNA cannot approve.
-- Profile photos that do not have explicit adult-human/body proof from the image moderation provider. A generic `person`, `portrait`, nudity label, or silent image moderation allow is not enough.
-- Profile photos with child, minor, underage, teen, young-looking, or otherwise age-ambiguous signals. Child/minor signals take precedence over adult or nudity labels.
+- Profile photos that Stream or PhotoDNA rejects.
+- Any profile-photo response whose Stream recommendation is not an explicit `keep`, including `flag`, `remove`, `block`, `bounce`, and `shadow_block`.
+- Profile photos with explicit CSAM or sexual-minor safety signals. Age-only visual guesses are ignored because this build has no reliable photo age-verification provider.
 
-Allowed profile-photo framing for this bank build includes a non-explicit adult human, with or without a face, including a clearly adult human body part. The photo still has to be of the uploader only. Explicit profile photos fail closed and are deleted until explicit-content display controls are implemented.
+When shared Stream automod is enabled, a complete Stream `keep` is sufficient for the automated content-safety gate. It is not proof that the photo is adult, human, single-person, or owned by the uploader. Explicit profile-photo labels still fail closed and the encrypted pending asset is deleted until explicit-content display controls are implemented.
 
 If Stream is unavailable, partial, pending, or returns an error, content is not saved. The request fails closed with `MODERATION_UNAVAILABLE`.
 
@@ -106,8 +113,8 @@ In Stream dashboard:
 4. Configure severe categories for remove/block: threats, hate, non-consensual sexual content, minor/CSAM references, doxxing, scams, impersonation, drug sales, bestiality, and severe harassment.
 5. Configure borderline categories to flag only when cruush should reject or fail closed without human review.
 6. Avoid blocklists that treat queer identity terms, trans terms, kink terms, or consensual adult dating language as violations by themselves.
-7. For profile image moderation, reject anything that is not confidently a photo of the uploader. cruush expects a positive adult-human/body signal and rejects profile photos when the provider is silent.
-8. Configure non-human/abstract/object/logo/animal/cartoon/screenshot/image-without-person outcomes to remove or return labels such as `non_human`, `no_person`, `object`, `abstract`, `gradient`, `logo`, or equivalent.
+7. Configure every Stream action other than `keep` as a cruush rejection; there is no human queue behind `flag`.
+8. Configure non-human/abstract/object/logo/animal/cartoon/screenshot outcomes to remove where Stream offers those categories, while recognizing that Stream does not provide a contractual exactly-one-person gate.
 9. Keep PhotoDNA disabled and describe it as inactive until the Microsoft operation path and response contract are separately verified.
 
 ## Staging Profile-Photo Bridge
@@ -115,14 +122,18 @@ In Stream dashboard:
 Bank-facing staging uses the temporary capability bridge only for profile photos:
 
 ```env
+APP_DEPLOYMENT_STAGE=staging
 STREAM_MODERATION_ENABLED=true
 STREAM_IMAGE_BRIDGE_ENABLED=true
+PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true
 STREAM_API_KEY=<staging-stream-api-key>
 STREAM_API_SECRET=<staging-stream-api-secret>
 STREAM_APP_ID=<staging-stream-app-id>
 STREAM_MODERATION_CONFIG_KEY=<staging-stream-moderation-config-key>
 MODERATION_MEDIA_BASE_URL=https://moderation-media-staging.cruush.app
 STREAM_PSEUDONYM_KEY=<random-secret-at-least-32-bytes>
+BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false
+BANK_PROFILE_PHOTO_TESTER_USER_IDS=
 MEDIA_OBJECT_STORAGE_DRIVER=s3
 PHOTODNA_ENABLED=false
 ```
@@ -141,7 +152,9 @@ Run cleanup every five minutes from a private scheduler attached to the API envi
 */5 * * * * cd /app/server && pnpm cleanup:moderation-media-grants
 ```
 
-The command deletes expired grants and abandoned pending media, including all canonical and variant ciphertext. Revoked grants remain unreadable and become cleanup-eligible at their original 90-second expiry. Uploads also run a small opportunistic cleanup batch. Message-photo uploads are not part of this bridge and must remain disabled for bank review until the profile-photo path is proven.
+The command deletes expired grants and abandoned pending media, including canonical and variant ciphertext. It also keeps legacy manual-review cleanup available, although the manual decision path is disabled for shared automod. Revoked grants remain unreadable and become cleanup-eligible at their original 90-second expiry. Uploads also run a small opportunistic cleanup batch. Approved photos leave quarantine and remain on the tester's profile under the normal profile-photo lifecycle. Message-photo uploads are not part of this bridge and must remain disabled for bank review until the profile-photo path is proven.
+
+The legacy internal bank-review endpoints remain compiled but must not be used for bank staging or open beta. With `BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false`, they are unavailable. The archived design is documented in `docs/bank-profile-photo-manual-review-architecture-plan-2026-07-13.md`.
 
 ## Open Beta Storage Direction
 
@@ -188,7 +201,7 @@ Manual checks:
 - Create a feed post with chemsex/PnP language and confirm it is rejected.
 - Send a DM with chemsex/PnP language and confirm it is allowed.
 - Send a threat or drug-sales message and confirm it is rejected before message storage.
-- Upload a safe profile photo that mock mode can identify, such as a fixture filename containing `adult-human`, and confirm it appears in `profiles.photos`.
+- Upload a safe profile photo that mock mode can identify, such as a fixture filename containing `adult-human`, and confirm it appears in `profiles.photos`. For the shared Stream path, use a mocked complete `keep` response and confirm no manual-review row is created.
 - Upload a non-human or gradient profile photo and confirm its temporary encrypted quarantine object is deleted without publication.
 - Upload an image filename containing `underage` in mock mode and confirm its temporary encrypted quarantine object is deleted without publication.
 - Submit a report and confirm an evidence signal is created for the reported user.
@@ -198,4 +211,5 @@ Manual checks:
 - PhotoDNA is inactive and must remain described as inactive until Microsoft portal endpoint/path/response verification passes.
 - DM and group image attachments are outside the profile-photo bridge and remain disabled for bank review.
 - Stream does not yet replace the app database as the chat/feed/media substrate; this slice keeps the current Postgres routes and adds moderation gates.
+- Stream does not verify age, identity, or exactly one real human; those guarantees remain out of scope for this Stream-only phase.
 - Private photos are represented in moderation surfaces but no separate private-photo product flow exists yet.

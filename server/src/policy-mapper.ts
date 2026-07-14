@@ -429,5 +429,21 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
     });
   }
 
+  if (decision.decision === "allow" && recommendedAction && recommendedAction !== "keep") {
+    return baseDecision({
+      decision: "reject",
+      category: decision.category ?? input.providerResult.labels[0]?.normalized_label ?? "spam",
+      severity: decision.severity === "none" ? "medium" : decision.severity,
+      confidence: decision.confidence || 0.8,
+      create_evidence_event: true,
+      evidence_value: Math.max(decision.evidence_value, 50),
+      trust_impact: Math.min(decision.trust_impact, -5),
+      penalty_decays: true,
+      moderation_history_required: true,
+      reason_code: "provider_recommended_non_keep",
+      user_message_code: input.surface === "feed" ? "feed_content_rejected" : "content_rejected"
+    });
+  }
+
   return decision;
 }

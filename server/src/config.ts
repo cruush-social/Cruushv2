@@ -19,6 +19,27 @@ const booleanEnvSchema = z.union([
   })
 ]).optional().default(false);
 
+const uuidListEnvSchema = z.union([
+  z.array(z.uuid()),
+  z.string().transform((value, ctx) => {
+    const values = value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    const parsed = z.array(z.uuid()).safeParse(values);
+
+    if (!parsed.success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Expected a comma-separated list of UUIDs"
+      });
+      return z.NEVER;
+    }
+
+    return [...new Set(parsed.data)];
+  })
+]).optional().default([]);
+
 const corsOriginSchema = z.string().min(1).transform((value, ctx) => {
   const origins = value
     .split(",")
@@ -54,6 +75,7 @@ const corsOriginSchema = z.string().min(1).transform((value, ctx) => {
 
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  APP_DEPLOYMENT_STAGE: z.enum(["development", "staging", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3001),
   HOST: z.string().min(1).default("0.0.0.0"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -73,12 +95,15 @@ const configSchema = z.object({
   STREAM_MODERATION_ENABLED: booleanEnvSchema,
   HUMAN_MODERATION_ENABLED: booleanEnvSchema,
   STREAM_IMAGE_BRIDGE_ENABLED: booleanEnvSchema,
+  PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: booleanEnvSchema,
   STREAM_API_KEY: z.string().optional().default(""),
   STREAM_API_SECRET: z.string().optional().default(""),
   STREAM_APP_ID: z.string().optional().default(""),
   STREAM_MODERATION_CONFIG_KEY: z.string().trim().regex(/^[\w:-]*$/, "STREAM_MODERATION_CONFIG_KEY may only contain letters, numbers, underscores, dashes, and colons.").optional().default(""),
   MODERATION_MEDIA_BASE_URL: z.string().url().optional().or(z.literal("")).default(""),
   STREAM_PSEUDONYM_KEY: z.string().optional().default(""),
+  BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: booleanEnvSchema,
+  BANK_PROFILE_PHOTO_TESTER_USER_IDS: uuidListEnvSchema,
   PHOTODNA_ENABLED: booleanEnvSchema,
   PHOTODNA_API_URL: z.string().url().optional().or(z.literal("")).default(""),
   PHOTODNA_OPERATION_PATH: z.string().trim().optional().default(""),
@@ -173,6 +198,66 @@ const configSchema = z.object({
         code: z.ZodIssueCode.custom,
         message: "STREAM_PSEUDONYM_KEY must be at least 32 bytes when STREAM_IMAGE_BRIDGE_ENABLED=true.",
         path: ["STREAM_PSEUDONYM_KEY"]
+      });
+    }
+  }
+
+  if (config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED) {
+    if (!config.STREAM_IMAGE_BRIDGE_ENABLED) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "STREAM_IMAGE_BRIDGE_ENABLED is required when PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true.",
+        path: ["STREAM_IMAGE_BRIDGE_ENABLED"]
+      });
+    }
+
+    if (config.BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED must be false when PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true.",
+        path: ["BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED"]
+      });
+    }
+  }
+
+  if (config.BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED) {
+    if (config.APP_DEPLOYMENT_STAGE !== "staging") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "APP_DEPLOYMENT_STAGE must be staging when bank profile-photo manual review is enabled.",
+        path: ["APP_DEPLOYMENT_STAGE"]
+      });
+    }
+
+    if (config.BANK_PROFILE_PHOTO_TESTER_USER_IDS.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "BANK_PROFILE_PHOTO_TESTER_USER_IDS must include at least one tester UUID.",
+        path: ["BANK_PROFILE_PHOTO_TESTER_USER_IDS"]
+      });
+    }
+
+    if (!config.STREAM_IMAGE_BRIDGE_ENABLED) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "STREAM_IMAGE_BRIDGE_ENABLED is required for bank profile-photo manual review.",
+        path: ["STREAM_IMAGE_BRIDGE_ENABLED"]
+      });
+    }
+
+    if (config.MEDIA_OBJECT_STORAGE_DRIVER !== "s3") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "S3-backed encrypted storage is required for bank profile-photo manual review.",
+        path: ["MEDIA_OBJECT_STORAGE_DRIVER"]
+      });
+    }
+
+    if (Buffer.byteLength(config.INTERNAL_API_SECRET, "utf8") < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "INTERNAL_API_SECRET must be at least 32 bytes for bank profile-photo manual review.",
+        path: ["INTERNAL_API_SECRET"]
       });
     }
   }
@@ -401,6 +486,7 @@ type GhostModeConfigKey =
   | "GHOST_DERIVATION_KEY_VERSION"
   | "DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION";
 type ModerationConfigKey =
+  | "APP_DEPLOYMENT_STAGE"
   | "MEDIA_STORAGE_DIR"
   | "MEDIA_PUBLIC_BASE_URL"
   | "MEDIA_OBJECT_STORAGE_DRIVER"
@@ -414,12 +500,15 @@ type ModerationConfigKey =
   | "STREAM_MODERATION_ENABLED"
   | "HUMAN_MODERATION_ENABLED"
   | "STREAM_IMAGE_BRIDGE_ENABLED"
+  | "PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED"
   | "STREAM_API_KEY"
   | "STREAM_API_SECRET"
   | "STREAM_APP_ID"
   | "STREAM_MODERATION_CONFIG_KEY"
   | "MODERATION_MEDIA_BASE_URL"
   | "STREAM_PSEUDONYM_KEY"
+  | "BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED"
+  | "BANK_PROFILE_PHOTO_TESTER_USER_IDS"
   | "PHOTODNA_ENABLED"
   | "PHOTODNA_API_URL"
   | "PHOTODNA_OPERATION_PATH"
