@@ -632,6 +632,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       setPhotoUploadError(null);
       setPhotoUploadNotice(null);
     } catch (uploadError) {
+      setPendingPhoto(null);
       setPhotoUploadNotice(null);
       setPhotoUploadError(getPhotoUploadRejectedMessage(uploadError));
     } finally {

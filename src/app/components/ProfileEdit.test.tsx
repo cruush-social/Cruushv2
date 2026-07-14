@@ -241,6 +241,37 @@ describe('ProfileEdit', () => {
     expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
   });
 
+  it('closes the crop dialog and immediately reveals the upload rejection reason', async () => {
+    uploadProfilePhoto.mockRejectedValueOnce(new Error('Profile photo must be of you.'));
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+
+    const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+
+    fireEvent.change(uploadInput as HTMLInputElement, {
+      target: {
+        files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })],
+      },
+    });
+
+    const preview = await screen.findByAltText('Profile crop preview');
+    fireEvent.load(preview);
+    fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));
+
+    await waitFor(() => expect(uploadProfilePhoto).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Crop profile photo' })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Photo rejected: Profile photo must be of you.')).toBeVisible();
+  });
+
   it('previews selected profile photos as data URLs before cropping', async () => {
     const previewDataUrl = 'data:image/png;base64,cHJvZmlsZQ==';
     const readAsDataURL = vi.fn();
