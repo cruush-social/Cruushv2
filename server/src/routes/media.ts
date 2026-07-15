@@ -9,6 +9,9 @@ import {
 import { decryptMediaBytes } from "../media-encryption.js";
 import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
 import {
+  verifyMediaModerationInspectionSignature
+} from "../media-moderation-url.js";
+import {
   ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX,
   MESSAGE_PHOTO_MEDIA_PREFIX,
   readEncryptedMediaObject
@@ -27,6 +30,11 @@ const mediaAssetParamsSchema = z.object({
 }).strict();
 const mediaAssetIdParamsSchema = z.object({
   assetId: z.uuid()
+}).strict();
+const moderationMediaQuerySchema = z.object({
+  purpose: z.string(),
+  expires: z.string(),
+  signature: z.string()
 }).strict();
 const ownedMediaQuerySchema = z.object({
   surface: z.enum(["profile_photo", "message_photo"]).optional()
@@ -77,6 +85,35 @@ async function sendEncryptedMedia(app: FastifyInstance, reply: FastifyReply, med
     .send(bytes);
 }
 
+async function sendModerationMedia(
+  app: FastifyInstance,
+  reply: FastifyReply,
+  assetId: string,
+  mediaObject: EncryptedMediaRow
+) {
+  try {
+    const encryptedBytes = await readEncryptedMediaObject(app.config, mediaObject.object_key);
+    const bytes = decryptMediaBytes(app.config, {
+      ciphertext: encryptedBytes,
+      nonce: mediaObject.content_nonce,
+      authTag: mediaObject.content_auth_tag,
+      encryptedDataKey: mediaObject.encrypted_data_key,
+      dataKeyNonce: mediaObject.data_key_nonce,
+      dataKeyAuthTag: mediaObject.data_key_auth_tag,
+      keyVersion: mediaObject.key_version
+    });
+
+    return reply
+      .type("image/webp")
+      .header("cache-control", "private, no-store, max-age=0")
+      .header("x-content-type-options", "nosniff")
+      .send(bytes);
+  } catch {
+    app.log.error({ assetId, stage: "moderation_media_fetch" }, "moderation media fetch failed");
+    throw new ApiError(404, "NOT_FOUND", "Media not found.");
+  }
+}
+
 async function assertMessageMediaAccess(app: FastifyInstance, userId: string, assetId: string) {
   const result = await app.db.query<{ allowed: boolean }>(
     `select true as allowed
@@ -110,6 +147,59 @@ function toUploadError(error: unknown) {
 }
 
 export async function registerMediaRoutes(app: FastifyInstance) {
+  app.get("/api/media/moderation/:assetId/display", {
+    exposeHeadRoute: false,
+    logLevel: "silent"
+  }, async (request, reply) => {
+    const params = mediaAssetIdParamsSchema.safeParse(request.params);
+    const query = moderationMediaQuerySchema.safeParse(request.query);
+
+    if (!params.success || !query.success || !verifyMediaModerationInspectionSignature(app.config, {
+      assetId: params.success ? params.data.assetId : "",
+      method: request.method,
+      variant: "display",
+      purpose: query.success ? query.data.purpose : "",
+      expires: query.success ? query.data.expires : "",
+      signature: query.success ? query.data.signature : ""
+    })) {
+      throw new ApiError(404, "NOT_FOUND", "Media not found.");
+    }
+
+    const assetId = params.data.assetId;
+    const result = await app.db.query<EncryptedMediaRow>(
+      `select
+         media.owner_user_id::text,
+         media.surface,
+         variant.object_key,
+         variant.mime_type,
+         variant.encrypted_data_key,
+         variant.data_key_nonce,
+         variant.data_key_auth_tag,
+         variant.content_nonce,
+         variant.content_auth_tag,
+         variant.key_version
+       from media_objects media
+       join app_users owner on owner.id = media.owner_user_id
+       join media_variants variant on variant.media_object_id = media.id
+       where media.id = $1
+         and media.moderation_status = 'pending'
+         and media.deleted_at is null
+         and owner.account_status = 'active'
+         and variant.variant_type = 'display'
+         and variant.mime_type = 'image/webp'
+         and variant.deleted_at is null
+       limit 1`,
+      [assetId]
+    );
+    const mediaObject = result.rows[0];
+
+    if (!mediaObject) {
+      throw new ApiError(404, "NOT_FOUND", "Media not found.");
+    }
+
+    return sendModerationMedia(app, reply, assetId, mediaObject);
+  });
+
   app.get("/api/media/profile-photos/:filename", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const { filename } = legacyFilenameSchema.parse(request.params);

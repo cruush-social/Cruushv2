@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { ApiError } from "./errors.js";
 import { encryptMediaBytes } from "./media-encryption.js";
 import type { ProcessedImage } from "./media-image.js";
+import { createMediaModerationInspectionUrl } from "./media-moderation-url.js";
 import {
   deleteEncryptedMediaObject,
   writeEncryptedMediaObject
@@ -300,6 +301,10 @@ export async function moderatePendingMediaAsset(
   let moderation;
 
   try {
+    const imageUrl = app.config.STREAM_MODERATION_ENABLED
+      ? createMediaModerationInspectionUrl(app.config, asset.id)
+      : undefined;
+
     moderation = await moderateImageOrReject(app, {
       userId: asset.ownerUserId,
       surface: input.moderationSurface,
@@ -311,6 +316,7 @@ export async function moderatePendingMediaAsset(
         surface: asset.surface,
         photoDnaStatus: photoDnaResult.status
       },
+      imageUrl,
       bytes: input.bytes
     });
   } catch (error) {
@@ -323,7 +329,11 @@ export async function moderatePendingMediaAsset(
       photoDnaStatus: photoDnaResult.status,
       photoDnaProviderRequestId: photoDnaResult.providerRequestId ?? null
     });
-    throw error;
+    if (rejected || error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError(503, "MODERATION_UNAVAILABLE", "Image moderation is temporarily unavailable.");
   }
 
   if (hasExplicitLabel(moderation.providerResult.labels)) {

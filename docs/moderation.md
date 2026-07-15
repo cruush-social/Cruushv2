@@ -10,7 +10,9 @@ Use mock moderation for local development and tests:
 
 ```env
 MEDIA_STORAGE_DIR=media
-MEDIA_PUBLIC_BASE_URL=https://localhost:5173
+MEDIA_PUBLIC_BASE_URL=http://localhost:3001
+MEDIA_MODERATION_URL_SECRET=
+MEDIA_MODERATION_URL_TTL_SECONDS=120
 MEDIA_OBJECT_STORAGE_DRIVER=local
 MEDIA_S3_BUCKET=
 MEDIA_S3_ENDPOINT=
@@ -30,13 +32,13 @@ PHOTODNA_SUBSCRIPTION_KEY=
 PHOTODNA_TIMEOUT_MS=5000
 ```
 
-When `STREAM_MODERATION_ENABLED=true`, `STREAM_API_KEY`, `STREAM_API_SECRET`, and `STREAM_MODERATION_CONFIG_KEY` are required at server startup.
+When `STREAM_MODERATION_ENABLED=true`, `STREAM_API_KEY`, `STREAM_API_SECRET`, `STREAM_MODERATION_CONFIG_KEY`, `MEDIA_PUBLIC_BASE_URL`, and a dedicated `MEDIA_MODERATION_URL_SECRET` of at least 32 characters are required at server startup. `MEDIA_MODERATION_URL_TTL_SECONDS` defaults to 120 seconds and must remain between 30 and 300 seconds.
 
 When `PHOTODNA_ENABLED=true`, `PHOTODNA_API_URL`, `PHOTODNA_OPERATION_PATH`, and `PHOTODNA_SUBSCRIPTION_KEY` are required at server startup. The current adapter posts image bytes to the configured Microsoft API Management endpoint and blocks configured match responses. Verify the exact operation path and sample response from the Microsoft portal before enabling it for staging.
 
 When `MEDIA_OBJECT_STORAGE_DRIVER=s3`, `MEDIA_S3_BUCKET`, `MEDIA_S3_ENDPOINT`, `MEDIA_S3_ACCESS_KEY_ID`, and `MEDIA_S3_SECRET_ACCESS_KEY` are required at server startup. For Cloudflare R2, use `MEDIA_S3_REGION=auto`.
 
-For staging, set `MEDIA_PUBLIC_BASE_URL` to the public API origin that serves authenticated media routes, for example `https://api-staging.cruush.app`. `APP_URL` should remain the user-facing app origin used by auth emails.
+For staging, set `MEDIA_PUBLIC_BASE_URL` to the HTTPS public API origin that serves media routes, for example `https://api-staging.cruush.app`. It must contain only the origin, with no path or trailing slash. Local development and tests may use an HTTP localhost origin. `APP_URL` should remain the user-facing app origin used by auth emails.
 
 ## Moderated Surfaces
 
@@ -111,13 +113,20 @@ Current branch state:
 - Development and tests use local encrypted object storage; production config requires S3-compatible object storage.
 - The media storage directory is not registered as a static route. All media access is authenticated and purpose-aware.
 - Existing encrypted media created by the prior synchronous moderation route is treated as legacy-approved. Profile URLs without a matching approved media row are moved to `legacy_media_quarantine` and removed from visible profile arrays.
+- Stream receives a short-lived signed URL for only the sanitized pending `display` variant. The moderation route works without a user session, validates an HMAC-bound asset, purpose, method, variant, and expiration, and then reads and decrypts the private variant through the existing storage abstraction.
+- Signed moderation responses are `no-store`, reject `HEAD`, and return a generic `404` for invalid, expired, tampered, deleted, inactive-owner, or non-pending assets. Private originals are never eligible.
+
+Signed moderation URL operations:
+
+- Generate `MEDIA_MODERATION_URL_SECRET` independently from session, profile, token, and storage-encryption secrets.
+- Rotate it by replacing the environment value and restarting the API. Rotation intentionally invalidates inspections already in flight; clients should retry the upload after the new deployment is healthy.
+- Never log full inspection URLs, query signatures, or the signing secret.
+- Invalid or expired inspection requests fail closed without changing media state.
 
 Required next media slice:
 
-- Add a short-lived signed moderation-only URL that serves only the sanitized display variant to Stream.
-- Never expose the private original through the moderation URL.
-- Test token expiry and real Stream decisions for approved, explicit, uncertain, timeout, and malformed responses in staging.
-- Until that preflight exists, Stream production image moderation cannot fetch pending media and uploads fail closed without publication.
+- Validate real Stream decisions in staging for approved, explicit, uncertain, timeout, and malformed responses.
+- Tighten response normalization if the production Stream payload differs from the existing synchronous contract. Media remains pending or failed unless the current policy mapper returns an explicit non-explicit approval.
 
 Recommended beta storage setup:
 

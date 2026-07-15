@@ -62,6 +62,8 @@ const configSchema = z.object({
   APP_URL: z.string().url().default("https://localhost:5173"),
   MEDIA_STORAGE_DIR: z.string().trim().min(1).optional().default("media"),
   MEDIA_PUBLIC_BASE_URL: z.string().url().optional().or(z.literal("")).default(""),
+  MEDIA_MODERATION_URL_SECRET: z.string().optional().default(""),
+  MEDIA_MODERATION_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(300).optional().default(120),
   MEDIA_OBJECT_STORAGE_DRIVER: z.enum(["local", "s3"]).optional().default("local"),
   MEDIA_S3_BUCKET: z.string().trim().optional().default(""),
   MEDIA_S3_ENDPOINT: z.string().url().optional().or(z.literal("")).default(""),
@@ -122,6 +124,43 @@ const configSchema = z.object({
           code: z.ZodIssueCode.custom,
           message: `${keyName} is required when STREAM_MODERATION_ENABLED=true.`,
           path: [keyName]
+        });
+      }
+    }
+
+    if (config.MEDIA_MODERATION_URL_SECRET.length < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "MEDIA_MODERATION_URL_SECRET must contain at least 32 characters when STREAM_MODERATION_ENABLED=true.",
+        path: ["MEDIA_MODERATION_URL_SECRET"]
+      });
+    }
+
+    if (!config.MEDIA_PUBLIC_BASE_URL) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "MEDIA_PUBLIC_BASE_URL is required when STREAM_MODERATION_ENABLED=true.",
+        path: ["MEDIA_PUBLIC_BASE_URL"]
+      });
+    } else {
+      const publicApiOrigin = new URL(config.MEDIA_PUBLIC_BASE_URL);
+      const isLocalHttp = config.NODE_ENV !== "production" &&
+        publicApiOrigin.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(publicApiOrigin.hostname);
+
+      if (publicApiOrigin.origin !== config.MEDIA_PUBLIC_BASE_URL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "MEDIA_PUBLIC_BASE_URL must contain only the public API origin.",
+          path: ["MEDIA_PUBLIC_BASE_URL"]
+        });
+      }
+
+      if (publicApiOrigin.protocol !== "https:" && !isLocalHttp) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "MEDIA_PUBLIC_BASE_URL must use HTTPS except for local development and tests.",
+          path: ["MEDIA_PUBLIC_BASE_URL"]
         });
       }
     }
@@ -305,6 +344,8 @@ type GhostModeConfigKey =
 type ModerationConfigKey =
   | "MEDIA_STORAGE_DIR"
   | "MEDIA_PUBLIC_BASE_URL"
+  | "MEDIA_MODERATION_URL_SECRET"
+  | "MEDIA_MODERATION_URL_TTL_SECONDS"
   | "MEDIA_OBJECT_STORAGE_DRIVER"
   | "MEDIA_S3_BUCKET"
   | "MEDIA_S3_ENDPOINT"

@@ -20,7 +20,8 @@ import {
   type VisibilityBaseMode
 } from "./location-privacy.js";
 import { encryptMediaBytes } from "./media-encryption.js";
-import { writeEncryptedMediaObject } from "./media-storage.js";
+import { createMediaModerationInspectionUrl } from "./media-moderation-url.js";
+import { deleteEncryptedMediaObject, writeEncryptedMediaObject } from "./media-storage.js";
 
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
@@ -34,6 +35,9 @@ const app = buildServer({
   CORS_ORIGIN: "http://localhost:5173",
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
+  MEDIA_PUBLIC_BASE_URL: "http://127.0.0.1:3001",
+  MEDIA_MODERATION_URL_SECRET: "0123456789abcdef0123456789abcdef",
+  MEDIA_MODERATION_URL_TTL_SECONDS: 120,
   RESEND_API_KEY: "",
   MAIL_FROM: "",
   EMAIL_PREVIEW_ENABLED: true,
@@ -4617,6 +4621,113 @@ describe("server", () => {
     expect(response.statusCode).toBe(404);
     expect(query.mock.calls[0]?.[0]).toContain("media.moderation_status = 'approved'");
     expect(query.mock.calls[0]?.[0]).toContain("media.explicit_classification = 'non_explicit'");
+  });
+
+  it("serves a signed pending display variant without a user session", async () => {
+    const assetId = "59e01d61-4a76-4359-915a-1f25b7815ff4";
+    const objectKey = `variants/${assetId}/moderation-display.webp.enc`;
+    const plaintext = Buffer.from("sanitized-display-variant");
+    const encrypted = encryptMediaBytes(app.config, plaintext);
+
+    await deleteEncryptedMediaObject(app.config, objectKey);
+    await writeEncryptedMediaObject(app.config, objectKey, encrypted.ciphertext);
+
+    try {
+      query.mockResolvedValueOnce({
+        rows: [{
+          owner_user_id: userId,
+          surface: "profile_photo",
+          object_key: objectKey,
+          mime_type: "image/webp",
+          encrypted_data_key: encrypted.encryptedDataKey,
+          data_key_nonce: encrypted.dataKeyNonce,
+          data_key_auth_tag: encrypted.dataKeyAuthTag,
+          content_nonce: encrypted.nonce,
+          content_auth_tag: encrypted.authTag,
+          key_version: encrypted.keyVersion
+        }]
+      });
+      const signedUrl = new URL(createMediaModerationInspectionUrl(app.config, assetId));
+      const response = await app.inject({
+        method: "GET",
+        url: `${signedUrl.pathname}${signedUrl.search}`
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.rawPayload).toEqual(plaintext);
+      expect(response.headers["content-type"]).toContain("image/webp");
+      expect(response.headers["cache-control"]).toBe("private, no-store, max-age=0");
+      expect(response.headers["x-content-type-options"]).toBe("nosniff");
+      expect(query.mock.calls[0]?.[0]).toContain("media.moderation_status = 'pending'");
+      expect(query.mock.calls[0]?.[0]).toContain("media.deleted_at is null");
+      expect(query.mock.calls[0]?.[0]).toContain("owner.account_status = 'active'");
+      expect(query.mock.calls[0]?.[0]).toContain("variant.variant_type = 'display'");
+      expect(query.mock.calls[0]?.[0]).toContain("variant.mime_type = 'image/webp'");
+      expect(response.body).not.toContain(objectKey);
+    } finally {
+      await deleteEncryptedMediaObject(app.config, objectKey);
+    }
+  });
+
+  it("rejects expired or tampered moderation inspection URLs before database access", async () => {
+    const assetId = "59e01d61-4a76-4359-915a-1f25b7815ff4";
+    const valid = new URL(createMediaModerationInspectionUrl(app.config, assetId));
+    const expired = new URL(createMediaModerationInspectionUrl(app.config, assetId, Date.now() - 121_000));
+    const wrongSignature = new URL(valid);
+    const wrongPurpose = new URL(valid);
+    const wrongExpiration = new URL(valid);
+    const wrongAsset = new URL(valid);
+
+    wrongSignature.searchParams.set("signature", "A".repeat(43));
+    wrongPurpose.searchParams.set("purpose", "profile_display");
+    wrongExpiration.searchParams.set("expires", String(Number(valid.searchParams.get("expires")) + 1));
+    wrongAsset.pathname = "/api/media/moderation/70c66c6f-a476-47a3-af2e-cc47b1d9a39e/display";
+
+    for (const url of [expired, wrongSignature, wrongPurpose, wrongExpiration, wrongAsset]) {
+      const response = await app.inject({ method: "GET", url: `${url.pathname}${url.search}` });
+      expect(response.statusCode).toBe(404);
+      expect(response.json().error).toMatchObject({ code: "NOT_FOUND" });
+    }
+
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("does not expose moderation access for originals, thumbnails, arbitrary variants, or HEAD", async () => {
+    const assetId = "59e01d61-4a76-4359-915a-1f25b7815ff4";
+    const signedUrl = new URL(createMediaModerationInspectionUrl(app.config, assetId));
+
+    for (const variant of ["original", "thumbnail", "custom"]) {
+      const response = await app.inject({
+        method: "GET",
+        url: `${signedUrl.pathname.replace(/display$/, variant)}${signedUrl.search}`
+      });
+      expect(response.statusCode).toBe(404);
+    }
+
+    const headResponse = await app.inject({
+      method: "HEAD",
+      url: `${signedUrl.pathname}${signedUrl.search}`
+    });
+    expect(headResponse.statusCode).toBe(404);
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("returns a generic not-found response for ineligible moderation media", async () => {
+    const assetId = "59e01d61-4a76-4359-915a-1f25b7815ff4";
+    const signedUrl = new URL(createMediaModerationInspectionUrl(app.config, assetId));
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `${signedUrl.pathname}${signedUrl.search}`
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error).toMatchObject({ code: "NOT_FOUND", message: "Media not found." });
+    expect(query.mock.calls[0]?.[0]).toContain("media.moderation_status = 'pending'");
+    expect(query.mock.calls[0]?.[0]).toContain("media.deleted_at is null");
+    expect(query.mock.calls[0]?.[0]).toContain("owner.account_status = 'active'");
+    expect(query.mock.calls[0]?.[0]).toContain("variant.deleted_at is null");
   });
 
   it("returns only safe owner media metadata", async () => {

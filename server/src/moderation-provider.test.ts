@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { createModerationProvider, MockModerationProvider } from "./moderation-provider.js";
+import { describe, expect, it, vi } from "vitest";
+import { createModerationProvider, MockModerationProvider, StreamModerationProvider } from "./moderation-provider.js";
 
 describe("moderation provider", () => {
   it("allows safe queer and dating profile language", async () => {
@@ -140,5 +140,39 @@ describe("moderation provider", () => {
       STREAM_API_SECRET: "",
       STREAM_MODERATION_CONFIG_KEY: ""
     })).toThrow(/STREAM_API_KEY/);
+  });
+
+  it("submits the signed inspection URL as the Stream image payload", async () => {
+    const check = vi.fn().mockResolvedValue({
+      recommended_action: "keep",
+      status: "complete",
+      item: { id: "stream-item-1", flags: [] }
+    });
+    const provider = new StreamModerationProvider({
+      MODERATION_TIMEOUT_MS: 5000,
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "stream-key",
+      STREAM_API_SECRET: "stream-secret",
+      STREAM_MODERATION_CONFIG_KEY: "cruush:automod"
+    });
+    (provider as unknown as { client: { moderation: { check: typeof check } } }).client = {
+      moderation: { check }
+    };
+    const imageUrl = "https://api.cruush.test/api/media/moderation/asset/display?purpose=moderation_inspection&expires=1&signature=test";
+
+    await provider.moderateImage({
+      userId: "user-1",
+      surface: "direct_message",
+      mimeType: "image/webp",
+      imageUrl,
+      contentId: "asset-1",
+      bytes: Buffer.from("sanitized")
+    });
+
+    expect(check).toHaveBeenCalledWith(expect.objectContaining({
+      entity_id: "asset-1",
+      moderation_payload: { images: [imageUrl] },
+      options: { force_sync: true }
+    }));
   });
 });
