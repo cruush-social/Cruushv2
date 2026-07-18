@@ -3,6 +3,51 @@ import { loadConfig } from "./config.js";
 
 const strongSecret = "0123456789abcdef0123456789abcdef";
 
+function validProductionEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return {
+    NODE_ENV: "production",
+    DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+    SESSION_SECRET: strongSecret,
+    CORS_ORIGIN: "https://staging.cruush.app",
+    APP_URL: "https://staging.cruush.app",
+    EMAIL_PREVIEW_ENABLED: "false",
+    PROFILE_ENCRYPTION_KEY: strongSecret,
+    PROFILE_TOKEN_KEY: strongSecret,
+    RELATIONSHIP_ENCRYPTION_KEY: strongSecret,
+    RELATIONSHIP_INDEX_KEY: strongSecret,
+    MATCH_TOKEN_ENCRYPTION_KEY: strongSecret,
+    MATCH_TOKEN_SIGNING_KEY: strongSecret,
+    MESSAGE_ENCRYPTION_KEY: strongSecret,
+    FEED_ENCRYPTION_KEY: strongSecret,
+    MEDIA_ENCRYPTION_KEY: strongSecret,
+    MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
+    MEDIA_MODERATION_URL_SECRET: strongSecret,
+    MEDIA_MODERATION_URL_TTL_SECONDS: "120",
+    MEDIA_OBJECT_STORAGE_DRIVER: "s3",
+    MEDIA_S3_BUCKET: "cruush-media-staging",
+    MEDIA_S3_ENDPOINT: "https://account-id.r2.cloudflarestorage.com",
+    MEDIA_S3_REGION: "auto",
+    MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
+    MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key",
+    RESEND_API_KEY: "resend-key",
+    MAIL_FROM: "Cruush <hello@cruush.app>",
+    LOCATION_ENCRYPTION_KEY: strongSecret,
+    LOCATION_INDEX_KEY: strongSecret,
+    VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,
+    GHOST_DERIVATION_KEY: strongSecret,
+    DISPLAY_TOKEN_ENCRYPTION_KEY: strongSecret,
+    STREAM_MODERATION_ENABLED: "true",
+    STREAM_API_KEY: "stream-key",
+    STREAM_API_SECRET: "stream-secret",
+    STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+    PHOTODNA_ENABLED: "true",
+    PHOTODNA_API_URL: "https://photodna.example.test",
+    PHOTODNA_OPERATION_PATH: "/match",
+    PHOTODNA_SUBSCRIPTION_KEY: "photodna-key",
+    ...overrides
+  };
+}
+
 describe("loadConfig", () => {
   it("keeps human moderation dormant unless explicitly enabled", () => {
     const baseEnv = {
@@ -108,12 +153,16 @@ describe("loadConfig", () => {
       STREAM_MODERATION_ENABLED: "true",
       STREAM_API_KEY: "stream-key",
       STREAM_API_SECRET: "stream-secret",
-      STREAM_MODERATION_CONFIG_KEY: "cruush:automod"
+      STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MEDIA_PUBLIC_BASE_URL: "http://localhost:3001",
+      MEDIA_MODERATION_URL_SECRET: strongSecret
     })).toMatchObject({
       STREAM_MODERATION_ENABLED: true,
       STREAM_API_KEY: "stream-key",
       STREAM_API_SECRET: "stream-secret",
-      STREAM_MODERATION_CONFIG_KEY: "cruush:automod"
+      STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MEDIA_PUBLIC_BASE_URL: "http://localhost:3001",
+      MEDIA_MODERATION_URL_SECRET: strongSecret
     });
   });
 
@@ -137,6 +186,8 @@ describe("loadConfig", () => {
       STREAM_API_KEY: "stream-key",
       STREAM_API_SECRET: "stream-secret",
       STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MEDIA_PUBLIC_BASE_URL: "http://localhost:3001",
+      MEDIA_MODERATION_URL_SECRET: strongSecret,
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
       STREAM_PSEUDONYM_KEY: strongSecret
     })).toMatchObject({
@@ -160,6 +211,8 @@ describe("loadConfig", () => {
       STREAM_API_KEY: "stream-key",
       STREAM_API_SECRET: "stream-secret",
       STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
+      MEDIA_MODERATION_URL_SECRET: strongSecret,
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
       STREAM_PSEUDONYM_KEY: strongSecret
     };
@@ -217,6 +270,8 @@ describe("loadConfig", () => {
       STREAM_API_KEY: "stream-key",
       STREAM_API_SECRET: "stream-secret",
       STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
+      MEDIA_MODERATION_URL_SECRET: strongSecret,
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
       STREAM_PSEUDONYM_KEY: strongSecret,
       MEDIA_OBJECT_STORAGE_DRIVER: "s3",
@@ -404,6 +459,8 @@ describe("loadConfig", () => {
       MEDIA_S3_REGION: "auto",
       MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
       MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key",
+      MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
+      MEDIA_MODERATION_URL_SECRET: strongSecret,
       RESEND_API_KEY: "resend-key",
       MAIL_FROM: "cruush <hello@cruush.app>",
       LOCATION_ENCRYPTION_KEY: strongSecret,
@@ -428,6 +485,9 @@ describe("loadConfig", () => {
       MESSAGE_ENCRYPTION_KEY: strongSecret,
       FEED_ENCRYPTION_KEY: strongSecret,
       MEDIA_ENCRYPTION_KEY: strongSecret,
+      MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
+      MEDIA_MODERATION_URL_SECRET: strongSecret,
+      MEDIA_MODERATION_URL_TTL_SECONDS: 120,
       MEDIA_OBJECT_STORAGE_DRIVER: "s3",
       RESEND_API_KEY: "resend-key",
       MAIL_FROM: "cruush <hello@cruush.app>",
