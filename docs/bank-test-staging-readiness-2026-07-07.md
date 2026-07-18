@@ -1,5 +1,7 @@
 # Bank Test Staging Readiness - 2026-07-07
 
+> 2026-07-18 update: the target photo-safety architecture in this older readiness log is superseded by `docs/stream-profile-photo-safety-implementation-2026-07-18.md`. The current local branch adds Rekognition child-face age ranges, permanent account/session/feature/device/IP enforcement, message-photo coverage, faceless adult-person allowance, adult-nudity allowance, and complete-DOB 18+ onboarding. It is not bank-ready until this branch is merged, deployed, configured, and exercised through the real staging upload path.
+
 This document records the earlier staging checks and the target shared Stream profile-photo configuration. The 2026-07-14 Stream-only automod changes are local until separately committed, pushed, deployed, and revalidated.
 
 ## Current Staging Resources
@@ -9,7 +11,7 @@ This document records the earlier staging checks and the target shared Stream pr
 - Coolify API resource: `rhacv5wg4rigv1mj6lx08wtc`
 - Coolify frontend resource: `osvowruef99ps8pgoa3w5ysp`
 - Server: `cruush-prod-1`
-- Moderation model: Stream AI/moderation and cruush policy mapping make the routine profile-photo decision automatically. The bank/open-beta path has no manual queue. Stream does not verify age, identity, or exactly one real person.
+- Moderation model recorded in this historical snapshot: Stream AI/moderation and cruush policy mapping made the routine profile-photo decision automatically. The newer local branch adds Rekognition estimated age ranges; those estimates still do not verify identity, consent, or exact chronological age.
 
 ## Profile-Photo Bridge Deployment Configuration
 
@@ -34,7 +36,7 @@ PHOTODNA_ENABLED=false
 
 Route `https://moderation-media-staging.cruush.app` to the API without cookies or CDN caching. Configure a private five-minute scheduler to run `pnpm --dir server cleanup:moderation-media-grants` from the repository root. Confirm Coolify ingress, proxy, CDN/WAF, and APM logs do not retain raw request paths for this hostname. Rejected and expired ciphertext is deleted, while photos receiving a complete Stream `keep` remain on tester profiles normally. Public production uses the same decision path with a separate `https://moderation-media.cruush.app` origin after staging proof; neither environment should enable the legacy manual-review flag.
 
-Do not describe this as age verification or person verification. The accurate bank statement is: “Stream automated content-safety moderation is implemented through an ephemeral encrypted-media bridge; PhotoDNA, age verification, identity verification, and exactly-one-person verification are not active unless separately proven.”
+Do not describe the newer Rekognition layer as verified age. The accurate statement after the 2026-07-18 branch is deployed and tested is: “Cruush combines PhotoDNA known-hash matching, Stream content-safety moderation, and Rekognition estimated face-age ranges before photo publication. A definite child-face estimate is rejected with permanent enforcement; a range overlapping 18 is accepted to avoid blocking an 18+ user.” Until deployment proof is complete, describe that behavior as implemented locally, not active on staging.
 
 ## Completed Checks
 
@@ -128,7 +130,7 @@ Minimum bank smoke script:
 1. Open `https://staging.cruush.app`.
 2. Create or sign in to a tester-owned account through the normal visible signup/login flow.
 3. Confirm signup/login works with Turnstile and email verification behavior expected for staging.
-4. Edit profile basics and bio with allowed text.
+4. Enter a complete date of birth during onboarding and confirm the day/month/year makes the account at least 18; a birth year alone must not pass. Then edit profile basics and bio with allowed text.
 5. Attempt a public/profile banned term on the disposable account and verify the write is rejected.
 6. Upload one consented tester-owned profile photo and confirm a complete Stream `keep` publishes it directly from cruush-controlled encrypted storage with no `pending_review` response or manual-review row.
 7. Exercise a configured non-minor Stream rejection fixture and confirm rejection with no remaining media or grant row. A neutral nonhuman image is not a reliable rejection test because Stream does not provide a contractual exactly-one-person gate. Do not use actual minor imagery; minor-response handling stays covered by provider fixtures and policy tests.
@@ -161,6 +163,6 @@ For bank/payment-processor review, describe the current moderation architecture 
 
 > cruush uses automated moderation. There is no human profile-photo moderation queue for bank staging or open beta. Stream AI/moderation tools provide content-safety signals, and cruush's policy and trust-score automod enforce blocking, rejection, restriction, suspension, and evidence decisions before content is saved or published. Sanitized profile photos are stored as encrypted quarantine ciphertext and exposed to Stream through a one-use, 90-second capability before atomic publication.
 
-After the bridge is deployed and the bank smoke script passes, add: automated Stream profile-photo content-safety moderation is active through an ephemeral capability bridge. Until then, describe it as implemented but awaiting staging proof. Stream does not verify age, identity, or exactly one person, and cruush does not reject based on age-only visual guesses. Explicit CSAM or sexual-minor safety signals remain prohibited. PhotoDNA is inactive and must not be represented as active unless separately verified.
+After the current branch is deployed and the bank smoke script passes, add: automated photo moderation is active through an ephemeral capability bridge, known-CSAM matching, and estimated child-face detection. Be explicit that Rekognition estimates an age range rather than verifying age or identity. PhotoDNA must not be represented as active unless its real endpoint and response contract are separately verified.
 
 Do not claim end-to-end encryption. The open beta target is cruush-controlled server-side/application-layer encryption, where the backend can decrypt only when authorized for product, moderation, safety, export, deletion, and compliance workflows.

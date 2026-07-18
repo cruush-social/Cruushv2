@@ -189,7 +189,10 @@ describe("loadConfig", () => {
       MEDIA_PUBLIC_BASE_URL: "http://localhost:3001",
       MEDIA_MODERATION_URL_SECRET: strongSecret,
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
-      STREAM_PSEUDONYM_KEY: strongSecret
+      STREAM_PSEUDONYM_KEY: strongSecret,
+      SEVERE_ACCESS_BANS_ENABLED: "true",
+      SEVERE_ACCESS_BAN_HMAC_KEY: strongSecret,
+      TRUST_PROXY_HOPS: "1"
     })).toMatchObject({
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
@@ -206,6 +209,7 @@ describe("loadConfig", () => {
       ...base,
       APP_DEPLOYMENT_STAGE: "staging",
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: "true",
+      PROFILE_PHOTO_REKOGNITION_ENABLED: "true",
       STREAM_IMAGE_BRIDGE_ENABLED: "true",
       STREAM_MODERATION_ENABLED: "true",
       STREAM_API_KEY: "stream-key",
@@ -214,12 +218,21 @@ describe("loadConfig", () => {
       MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
       MEDIA_MODERATION_URL_SECRET: strongSecret,
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
-      STREAM_PSEUDONYM_KEY: strongSecret
+      STREAM_PSEUDONYM_KEY: strongSecret,
+      SEVERE_ACCESS_BANS_ENABLED: "true",
+      SEVERE_ACCESS_BAN_HMAC_KEY: strongSecret,
+      TRUST_PROXY_HOPS: "1"
     };
 
     expect(loadConfig(base).PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED).toBe(false);
+    expect(loadConfig(base).PROFILE_PHOTO_REKOGNITION_ENABLED).toBe(false);
     expect(loadConfig(streamAutomod)).toMatchObject({
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE: 90,
+      PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE: 18,
+      SEVERE_ACCESS_BANS_ENABLED: true,
+      TRUST_PROXY_HOPS: 1,
       BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: false,
       STREAM_IMAGE_BRIDGE_ENABLED: true
     });
@@ -228,6 +241,16 @@ describe("loadConfig", () => {
       ...base,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: "true"
     })).toThrow(/STREAM_IMAGE_BRIDGE_ENABLED/);
+
+    expect(() => loadConfig({
+      ...streamAutomod,
+      SEVERE_ACCESS_BANS_ENABLED: "false"
+    })).toThrow(/SEVERE_ACCESS_BANS_ENABLED/);
+
+    expect(loadConfig({
+      ...streamAutomod,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: "false"
+    }).PROFILE_PHOTO_REKOGNITION_ENABLED).toBe(false);
 
     expect(() => loadConfig({
       ...streamAutomod,

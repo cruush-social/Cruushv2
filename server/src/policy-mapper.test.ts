@@ -152,16 +152,67 @@ describe("policy mapper", () => {
     }
   );
 
-  it("sets trust to zero for zero-tolerance categories", () => {
-    const decision = map("underage_sexual", "profile_photo", 0.98);
+  it.each(["underage_sexual", "bestiality"] as const)(
+    "sets trust to zero for the zero-tolerance %s category",
+    (category) => {
+      const decision = map(category, "profile_photo", 0.98);
 
-    expect(decision.decision).toBe("reject");
-    expect(decision.set_trust_to_zero).toBe(true);
-    expect(decision.trust_cap).toBe(0);
-    expect(decision.penalty_decays).toBe(false);
-    expect(decision.enforcement_action).toMatchObject({
-      type: "suspend",
-      permanent: true
+      expect(decision.decision).toBe("reject");
+      expect(decision.set_trust_to_zero).toBe(true);
+      expect(decision.trust_cap).toBe(0);
+      expect(decision.penalty_decays).toBe(false);
+      expect(decision.enforcement_action).toMatchObject({
+        type: "suspend",
+        permanent: true
+      });
+    }
+  );
+
+  it("applies the permanent all-feature ban to a definite child face", () => {
+    const decision = map("minor_present", "profile_photo", 0.99);
+
+    expect(decision).toMatchObject({
+      decision: "reject",
+      reason_code: "minor_face_detected",
+      set_trust_to_zero: true,
+      trust_cap: 0,
+      penalty_decays: false,
+      enforcement_action: {
+        type: "suspend",
+        permanent: true
+      }
+    });
+    expect(decision.feature_restrictions?.map((restriction) => restriction.feature)).toEqual([
+      "feed_posting",
+      "direct_messages",
+      "group_messages",
+      "group_creation",
+      "profile_updates",
+      "photo_uploads",
+      "map_visibility",
+      "crowd_visibility"
+    ]);
+  });
+
+  it("allows an age range that overlaps 18 without punishing the account", () => {
+    const decision = map("minor_age_ambiguous", "profile_photo", 0.85);
+
+    expect(decision).toMatchObject({
+      decision: "allow",
+      reason_code: "minor_age_overlap_allowed",
+      trust_impact: 0,
+      create_evidence_event: false
+    });
+    expect(decision.enforcement_action).toBeUndefined();
+  });
+
+  it("rejects hate symbols in profile photos", () => {
+    const decision = map("hate_symbol", "profile_photo", 0.93);
+
+    expect(decision).toMatchObject({
+      decision: "reject",
+      reason_code: "hate_symbol",
+      trust_impact: -40
     });
   });
 

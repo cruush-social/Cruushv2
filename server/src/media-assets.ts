@@ -19,6 +19,7 @@ import {
 import { createModerationProvider } from "./moderation-provider.js";
 import { moderateImageOrReject } from "./moderation-service.js";
 import type { PolicyDecision, ProviderModerationResult } from "./moderation-types.js";
+import { severeAccessBanIdentity } from "./severe-access-bans.js";
 
 export type MediaSurface = "profile_photo" | "message_photo";
 
@@ -122,7 +123,7 @@ export async function createPendingMediaAsset(
   const canonicalEncrypted = encryptMediaBytes(app.config, input.processed.canonicalBytes);
   const storedObjectKeys: string[] = [];
 
-  if (app.config.STREAM_IMAGE_BRIDGE_ENABLED) {
+  if (app.config.BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED === true) {
     try {
       await cleanupModerationMediaGrants(app.db, app.config, 10);
     } catch (error) {
@@ -251,7 +252,7 @@ export async function createPendingMediaAsset(
       throw new Error("Media asset insert did not return an id.");
     }
 
-    const grant = app.config.STREAM_IMAGE_BRIDGE_ENABLED
+    const grant = app.config.BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED === true
       ? await createModerationMediaGrant(app.db, {
           mediaObjectId: id,
           ownerUserId: input.ownerUserId,
@@ -295,19 +296,16 @@ export async function createPendingMediaAsset(
   }
 }
 
-function hasExplicitLabel(labels: ProviderModerationResult["labels"]) {
-  return labels.some((label) => (
-    label.normalized_label === "adult_nudity" ||
-    label.normalized_label === "adult_explicit"
-  ));
-}
-
-function moderationMediaUrl(app: FastifyInstance, grant: PendingModerationGrant) {
-  if (!app.config.MODERATION_MEDIA_BASE_URL) {
-    throw new Error("MODERATION_MEDIA_BASE_URL is required for Stream image moderation.");
+function moderationMediaUrl(app: FastifyInstance, asset: PendingMediaAsset) {
+  if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true) {
+    return createMediaModerationInspectionUrl(app.config, asset.id);
   }
 
-  return new URL(`/api/moderation-media/${grant.token}`, app.config.MODERATION_MEDIA_BASE_URL).toString();
+  if (!app.config.MODERATION_MEDIA_BASE_URL || !asset.grant) {
+    throw new Error("A moderation media grant is required for legacy manual review.");
+  }
+
+  return new URL(`/api/moderation-media/${asset.grant.token}`, app.config.MODERATION_MEDIA_BASE_URL).toString();
 }
 
 export async function moderatePendingMediaAsset(
@@ -320,12 +318,16 @@ export async function moderatePendingMediaAsset(
   }
 ): Promise<ApprovedMediaCandidate> {
   try {
+    const accessBanIdentity = severeAccessBanIdentity(app.config, request);
     const photoDnaResult = await checkPhotoDnaForUploadOrReject(app, {
       userId: asset.ownerUserId,
       surface: input.moderationSurface,
       imageBytes: asset.canonicalBytes,
       mimeType: asset.mimeType,
       sourceRoute: asset.surface === "profile_photo" ? "/api/profile-photos" : "/api/messages/photos",
+      requestIp: request.ip,
+      userAgent: request.headers["user-agent"],
+      severeAccessBanIdentity: accessBanIdentity,
       contentId: asset.id,
       contentRef: {
         assetId: asset.id,
@@ -334,8 +336,9 @@ export async function moderatePendingMediaAsset(
     });
     const provider = createModerationProvider(app.config);
     const bridgeEnabled = app.config.STREAM_IMAGE_BRIDGE_ENABLED === true;
+    const signedInspectionEnabled = app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true;
 
-    if (bridgeEnabled && !asset.grant) {
+    if (bridgeEnabled && !signedInspectionEnabled && !asset.grant) {
       throw new Error("Stream image moderation grant was not created.");
     }
 
@@ -344,17 +347,18 @@ export async function moderatePendingMediaAsset(
       surface: input.moderationSurface,
       mimeType: asset.mimeType,
       filename: bridgeEnabled ? undefined : input.filename,
-      imageUrl: bridgeEnabled && asset.grant ? moderationMediaUrl(app, asset.grant) : undefined,
+      imageUrl: bridgeEnabled ? moderationMediaUrl(app, asset) : undefined,
       contentId: asset.id,
       contentRef: {
         assetId: asset.id,
         surface: asset.surface,
         photoDnaStatus: photoDnaResult.status
       },
-      bytes: asset.canonicalBytes
+      bytes: asset.canonicalBytes,
+      severeAccessBanIdentity: accessBanIdentity
     });
 
-    if (bridgeEnabled && asset.grant) {
+    if (bridgeEnabled && !signedInspectionEnabled && asset.grant) {
       const redeemed = await wasModerationMediaGrantRedeemed(app.db, asset.grant.id);
 
       if (!redeemed) {
@@ -362,10 +366,6 @@ export async function moderatePendingMediaAsset(
       }
 
       await deleteModerationMediaGrant(app.db, asset.grant.id);
-    }
-
-    if (hasExplicitLabel(moderation.providerResult.labels)) {
-      throw new ApiError(400, "CONTENT_REJECTED", "This photo cannot be displayed without explicit-content controls.");
     }
 
     return {

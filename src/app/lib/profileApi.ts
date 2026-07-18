@@ -37,6 +37,7 @@ export type ProfilePayload = {
   pronouns: string[];
   custom_pronouns: string;
   year_of_birth: number | null;
+  date_of_birth?: string;
   ethnicity: string;
   identities: string[];
   presentation: string[];

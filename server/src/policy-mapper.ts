@@ -138,6 +138,29 @@ function zeroTolerance(label: ProviderLabel, reasonCode: string): PolicyDecision
   });
 }
 
+const permanentAccessRestrictions: FeatureRestriction[] = [
+  "feed_posting",
+  "direct_messages",
+  "group_messages",
+  "group_creation",
+  "profile_updates",
+  "photo_uploads",
+  "map_visibility",
+  "crowd_visibility"
+].map((feature) => ({
+  feature: feature as FeatureRestriction["feature"],
+  scope: "global",
+  reasonCode: "minor_face_detected"
+}));
+
+function permanentMinorFaceBan(label: ProviderLabel): PolicyDecision {
+  return {
+    ...zeroTolerance(label, "minor_face_detected"),
+    feature_restrictions: permanentAccessRestrictions,
+    user_message_code: "minor_face_permanent_ban"
+  };
+}
+
 function rejectProfilePhotoWithoutAdultHuman(label: ProviderLabel): PolicyDecision {
   return baseDecision({
     decision: "reject",
@@ -157,17 +180,37 @@ function rejectProfilePhotoWithoutAdultHuman(label: ProviderLabel): PolicyDecisi
 function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType: ModerationContentType): PolicyDecision {
   const normalizedLabel: NormalizedModerationLabel = label.normalized_label;
 
-  if (normalizedLabel === "adult_human_body") {
+  if (normalizedLabel === "adult_human_body" || normalizedLabel === "human_present") {
     return baseDecision({
       category: normalizedLabel,
       severity: label.severity ?? "low",
       confidence: label.confidence,
-      reason_code: "adult_human_profile_photo_allowed"
+      reason_code: normalizedLabel === "human_present"
+        ? "human_profile_photo_allowed"
+        : "adult_human_profile_photo_allowed"
     });
   }
 
   if (normalizedLabel === "profile_photo_not_adult_human") {
     return rejectProfilePhotoWithoutAdultHuman(label);
+  }
+
+  if (normalizedLabel === "minor_present") {
+    return permanentMinorFaceBan(label);
+  }
+
+  if (normalizedLabel === "minor_age_ambiguous") {
+    return baseDecision({
+      category: normalizedLabel,
+      severity: "low",
+      confidence: label.confidence,
+      create_evidence_event: false,
+      evidence_value: 0,
+      trust_impact: 0,
+      penalty_decays: true,
+      moderation_history_required: false,
+      reason_code: "minor_age_overlap_allowed"
+    });
   }
 
   if (normalizedLabel === "adult_nudity" || normalizedLabel === "adult_explicit") {

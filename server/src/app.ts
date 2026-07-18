@@ -52,7 +52,8 @@ function refererOrigin(value: string | string[] | undefined) {
 
 export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   const app = Fastify({
-    logger: deps.logger ?? config.NODE_ENV !== "test"
+    logger: deps.logger ?? config.NODE_ENV !== "test",
+    trustProxy: (config.TRUST_PROXY_HOPS ?? 0) > 0 ? config.TRUST_PROXY_HOPS : false
   });
   const db = deps.db ?? createPool(config);
   const allowedCorsOrigins = new Set(

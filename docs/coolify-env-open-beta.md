@@ -52,21 +52,32 @@ STREAM_MODERATION_ENABLED=true
 HUMAN_MODERATION_ENABLED=false
 STREAM_IMAGE_BRIDGE_ENABLED=true
 PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true
+PROFILE_PHOTO_REKOGNITION_ENABLED=true
+PROFILE_PHOTO_REKOGNITION_REGION=us-east-1
+PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE=90
+PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE=80
+PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE=90
+PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE=18
+PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS=5000
+SEVERE_ACCESS_BANS_ENABLED=true
+SEVERE_ACCESS_BAN_HMAC_KEY=<independent-random-secret-at-least-32-bytes>
+TRUST_PROXY_HOPS=1
+AWS_ACCESS_KEY_ID=<staging-rekognition-only-access-key>
+AWS_SECRET_ACCESS_KEY=<staging-rekognition-only-secret-key>
 STREAM_API_KEY=<stream-api-key>
 STREAM_API_SECRET=<stream-api-secret>
 STREAM_APP_ID=<stream-app-id>
 STREAM_MODERATION_CONFIG_KEY=<stream-moderation-config-key>
-MODERATION_MEDIA_BASE_URL=https://moderation-media-staging.cruush.app
 STREAM_PSEUDONYM_KEY=<generate-secret-32-plus-bytes>
 BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false
 BANK_PROFILE_PHOTO_TESTER_USER_IDS=
 
-PHOTODNA_ENABLED=false
+PHOTODNA_ENABLED=true
 PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
 PHOTODNA_OPERATION_PATH=<microsoft-photodna-operation-path>
 PHOTODNA_SUBSCRIPTION_KEY=<microsoft-photodna-subscription-key>
 PHOTODNA_TIMEOUT_MS=5000
-CSAM_REPORTING_ENABLED=false
+CSAM_REPORTING_ENABLED=true
 CSAM_REPORTING_MODE=manual_packet
 CSAM_REPORTING_TEST_MODE=true
 TRUST_SAFETY_ALERT_EMAIL=<private-trust-safety-inbox>
@@ -108,9 +119,9 @@ GHOST_DERIVATION_KEY_VERSION=v1
 DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION=v1
 ```
 
-Keep `PHOTODNA_ENABLED=false` until the Microsoft API Management operation path and sample allowed/blocked responses are verified. Once verified, set it to `true`.
+Do not open deployed profile-photo uploads until the Microsoft API Management operation path and real allowed/blocked responses are verified. Deployed uploads stay unavailable unless `PHOTODNA_ENABLED`, Stream automod, the signed image bridge, and Rekognition human detection are all enabled.
 
-Route `moderation-media-staging.cruush.app` directly to the staging API without cookies or CDN caching. Confirm Coolify ingress, proxy, CDN/WAF, and APM logs do not retain the raw request path for that hostname. Add a private five-minute scheduled task from the repository root:
+Stream fetches signed inspection URLs from `MEDIA_PUBLIC_BASE_URL`. Confirm Coolify ingress, proxy, CDN/WAF, and APM logs do not retain signed query strings on that API route. Add a private five-minute scheduled task from the repository root:
 
 ```cron
 */5 * * * * pnpm --dir server cleanup:moderation-media-grants
@@ -162,21 +173,32 @@ STREAM_MODERATION_ENABLED=true
 HUMAN_MODERATION_ENABLED=false
 STREAM_IMAGE_BRIDGE_ENABLED=true
 PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true
+PROFILE_PHOTO_REKOGNITION_ENABLED=true
+PROFILE_PHOTO_REKOGNITION_REGION=us-east-1
+PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE=90
+PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE=80
+PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE=90
+PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE=18
+PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS=5000
+SEVERE_ACCESS_BANS_ENABLED=true
+SEVERE_ACCESS_BAN_HMAC_KEY=<independent-random-secret-at-least-32-bytes>
+TRUST_PROXY_HOPS=1
+AWS_ACCESS_KEY_ID=<production-rekognition-only-access-key>
+AWS_SECRET_ACCESS_KEY=<production-rekognition-only-secret-key>
 STREAM_API_KEY=<stream-api-key>
 STREAM_API_SECRET=<stream-api-secret>
 STREAM_APP_ID=<stream-app-id>
 STREAM_MODERATION_CONFIG_KEY=<stream-moderation-config-key>
-MODERATION_MEDIA_BASE_URL=https://moderation-media.cruush.app
 STREAM_PSEUDONYM_KEY=<generate-secret-32-plus-bytes>
 BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false
 BANK_PROFILE_PHOTO_TESTER_USER_IDS=
 
-PHOTODNA_ENABLED=false
+PHOTODNA_ENABLED=true
 PHOTODNA_API_URL=<microsoft-photodna-api-base-url>
 PHOTODNA_OPERATION_PATH=<microsoft-photodna-operation-path>
 PHOTODNA_SUBSCRIPTION_KEY=<microsoft-photodna-subscription-key>
 PHOTODNA_TIMEOUT_MS=5000
-CSAM_REPORTING_ENABLED=false
+CSAM_REPORTING_ENABLED=true
 CSAM_REPORTING_MODE=manual_packet
 CSAM_REPORTING_TEST_MODE=false
 TRUST_SAFETY_ALERT_EMAIL=<private-trust-safety-inbox>
@@ -263,7 +285,9 @@ These values are safe to add directly if the domains/buckets are correct:
 - `HUMAN_MODERATION_ENABLED=false`
 - `STREAM_IMAGE_BRIDGE_ENABLED=true` only after the dedicated no-cache moderation-media hostname is routed and its upstream logs are verified not to retain raw paths
 - `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true` for the shared bank/open-beta Stream path; keep manual review false
-- `PHOTODNA_ENABLED=false` until verified
+- `PROFILE_PHOTO_REKOGNITION_ENABLED=true`, a Rekognition-only IAM principal with `DetectFaces` and `DetectLabels`, and the documented human/animal/face/age thresholds
+- `SEVERE_ACCESS_BANS_ENABLED=true`, `SEVERE_ACCESS_BAN_HMAC_KEY=<32+ byte secret>`, and `TRUST_PROXY_HOPS=1` only after confirming the Coolify/Traefik proxy chain
+- `PHOTODNA_ENABLED=true` only after the Microsoft endpoint and response contract are verified; deployed uploads remain disabled while it is false
 - `PHOTODNA_TIMEOUT_MS=5000`
 - `EMAIL_PREVIEW_ENABLED=false`
 - `DEVELOPMENT_ADMIN_ENABLED=false`
@@ -286,6 +310,9 @@ These require secret values or dashboard-generated values:
 - `PHOTODNA_API_URL`
 - `PHOTODNA_OPERATION_PATH`
 - `PHOTODNA_SUBSCRIPTION_KEY`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `SEVERE_ACCESS_BAN_HMAC_KEY`
 - `INTERNAL_API_SECRET`
 - `RESEND_API_KEY`
 - `TURNSTILE_SECRET_KEY`
@@ -302,10 +329,10 @@ After env vars are saved and the service redeploys:
 4. Email verification works or test login is already verified.
 5. Profile edit works.
 6. Profile photo upload stores encrypted media through R2/S3.
-7. A complete Stream `keep` publishes without a manual-review row; every non-`keep`, partial, timeout, or missing capability redemption publishes nothing.
+7. A PhotoDNA non-match plus complete Stream `keep` plus Rekognition age-safety result publishes without a manual-review row. Profile photos additionally require person/no-animal approval. A definite child face publishes nothing and permanently suspends the account, revokes sessions, restricts every feature, and writes HMAC-only device/IP bans. An age range overlapping 18 is accepted so 18+ users are not blocked by an imprecise range.
 8. Feed accepts safe text and rejects public/profile coded-language terms.
 9. DM text works.
-10. DM/group photo upload returns the expected disabled/unavailable response; message-photo uploads are not enabled for bank review.
+10. DM/group photo uploads pass through the same PhotoDNA, Stream, Rekognition child-face, cleanup, and permanent-ban path before attachment.
 11. Report submission works.
 12. Logs show no missing required env variable errors.
-13. API, Coolify/proxy, CDN/WAF, and APM logs contain no raw moderation capability token.
+13. API, Coolify/proxy, CDN/WAF, and APM logs contain no signed moderation query string.

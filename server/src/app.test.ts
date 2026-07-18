@@ -1413,7 +1413,10 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.headers["set-cookie"]).toContain("cruush_session=");
+    expect(response.headers["set-cookie"]).toEqual(expect.arrayContaining([
+      expect.stringContaining("cruush_session="),
+      expect.stringContaining("cruush_device=")
+    ]));
     expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
     const profileInsertCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into profiles"));
     expect(profileInsertCall?.[0]).toContain("location_updated_at");
@@ -5730,7 +5733,7 @@ describe("server", () => {
   it.each([
     "adult-human-nude-face.png",
     "adult-human-nude-body-part.png"
-  ])("deletes an explicit profile photo until explicit-content controls exist: %s", async (filename) => {
+  ])("accepts an adult explicit profile photo when other safety checks pass: %s", async (filename) => {
     mockPendingProfileMediaQueries();
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -5750,9 +5753,9 @@ describe("server", () => {
     });
     const queries = query.mock.calls.map(([sql]) => String(sql));
 
-    expect(response.statusCode).toBe(400);
-    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(response.statusCode).toBe(201);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(true);
   });
 
   it("allows an age-inference filename when content-safety otherwise passes", async () => {
@@ -5917,6 +5920,8 @@ describe("server", () => {
     const bridgeApp = buildServer({
       ...app.config,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
+      BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: true,
+      BANK_PROFILE_PHOTO_TESTER_USER_IDS: [userId],
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
       STREAM_PSEUDONYM_KEY: "0123456789abcdef0123456789abcdef"
     }, {
@@ -9123,7 +9128,10 @@ describe("server", () => {
       headers: {
         "x-user-id": userId
       },
-      payload
+      payload: {
+        ...payload,
+        date_of_birth: "1994-06-15"
+      }
     });
 
     expect(response.statusCode).toBe(200);
@@ -9131,6 +9139,7 @@ describe("server", () => {
     const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
     expect(profileInsertCall?.[0]).toContain("insert into profiles");
     expect(profileInsertCall?.[1]?.[0]).toBe(userId);
+    expect(profileInsertCall?.[1]?.[6]).toBe(1994);
     expect(profileInsertCall?.[1]?.[7]).toEqual(["Latinx"]);
     expect(profileInsertCall?.[0]).not.toContain("updated_at)");
     expect(response.json()).toEqual({
@@ -9147,6 +9156,56 @@ describe("server", () => {
         updated_at: "2026-04-28T12:05:00.000Z"
       }
     });
+  });
+
+  it("requires a complete date of birth when creating a profile", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        year_of_birth: 1994
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Enter your complete date of birth to verify that you are at least 18.",
+        details: null
+      }
+    });
+  });
+
+  it("rejects an under-18 date of birth when creating a profile", async () => {
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        date_of_birth: "2012-06-15"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Request validation failed"
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("accepts field-level mutual crowd visibility for kinks and fetishes", async () => {
@@ -9201,6 +9260,7 @@ describe("server", () => {
     const payload = {
       ...emptyProfile,
       display_name: "Cruusher",
+      date_of_birth: "1994-06-15",
       year_of_birth: 1994,
       position: ["top"],
       role: ["switch"],

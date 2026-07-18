@@ -6,6 +6,10 @@ import { writeEncryptedMediaObject } from "./media-storage.js";
 import { sendTrustSafetyAlertEmail } from "./mailer.js";
 import type { ModerationSurface } from "./moderation-types.js";
 import { checkPhotoDna, type PhotoDnaResult } from "./photodna.js";
+import {
+  persistSevereAccessBan,
+  type SevereAccessBanIdentity
+} from "./severe-access-bans.js";
 
 const PHOTO_REJECTED_MESSAGE = "This photo violates cruush safety rules and cannot be saved.";
 const PHOTODNA_UNAVAILABLE_MESSAGE = "Automated photo safety checks are temporarily unavailable. Try again later.";
@@ -19,6 +23,7 @@ export type PhotoDnaUploadInput = {
   sourceRoute: string;
   requestIp?: string;
   userAgent?: string;
+  severeAccessBanIdentity?: SevereAccessBanIdentity;
   contentId?: string;
   contentRef?: Record<string, unknown>;
 };
@@ -96,7 +101,12 @@ async function insertIncidentEvent(app: FastifyInstance, incidentId: string, eve
   );
 }
 
-async function lockAccountForCsamMatch(app: FastifyInstance, userId: string, incidentId: string) {
+async function lockAccountForCsamMatch(
+  app: FastifyInstance,
+  userId: string,
+  incidentId: string,
+  severeAccessBanIdentity?: SevereAccessBanIdentity
+) {
   await app.db.query(
     `insert into user_trust_profiles (user_id, trust_score, trust_level, report_weight, max_future_trust, is_suspended)
      values ($1, 0, 'restricted', 0, 0, true)
@@ -107,6 +117,17 @@ async function lockAccountForCsamMatch(app: FastifyInstance, userId: string, inc
          max_future_trust = 0,
          is_suspended = true,
          updated_at = now()`,
+    [userId]
+  );
+  await app.db.query(
+    `update app_users
+     set account_status = 'suspended',
+         account_status_updated_at = now()
+     where id = $1`,
+    [userId]
+  );
+  await app.db.query(
+    "delete from app_sessions where user_id = $1",
     [userId]
   );
   await app.db.query(
@@ -125,8 +146,18 @@ async function lockAccountForCsamMatch(app: FastifyInstance, userId: string, inc
        ($1, 'photo_uploads', 'global', 'photodna_csam_match'),
        ($1, 'direct_messages', 'global', 'photodna_csam_match'),
        ($1, 'group_messages', 'global', 'photodna_csam_match'),
-       ($1, 'feed_posting', 'global', 'photodna_csam_match')`,
+       ($1, 'feed_posting', 'global', 'photodna_csam_match'),
+       ($1, 'group_creation', 'global', 'photodna_csam_match'),
+       ($1, 'profile_updates', 'global', 'photodna_csam_match'),
+       ($1, 'map_visibility', 'global', 'photodna_csam_match'),
+       ($1, 'crowd_visibility', 'global', 'photodna_csam_match')`,
     [userId]
+  );
+  await persistSevereAccessBan(
+    app.db,
+    userId,
+    "photodna_csam_match",
+    severeAccessBanIdentity
   );
 }
 
@@ -286,7 +317,12 @@ export async function handlePhotoDnaMatch(app: FastifyInstance, input: PhotoDnaU
     ]
   );
   await recordPhotoDnaContentReview(app, input, incident.id, photoDnaResult);
-  await lockAccountForCsamMatch(app, input.userId, incident.id);
+  await lockAccountForCsamMatch(
+    app,
+    input.userId,
+    incident.id,
+    input.severeAccessBanIdentity
+  );
   await insertIncidentEvent(app, incident.id, "match_detected", {
     providerRequestId: photoDnaResult.providerRequestId ?? null,
     surface: input.surface
