@@ -69,7 +69,7 @@ async function imageWithMetadata() {
 }
 
 describe("privacy-hardened media assets", () => {
-  it("encrypts only sanitized canonical bytes and stores only a grant token hash", async () => {
+  it("encrypts only sanitized canonical bytes and does not create a legacy grant for shared automod", async () => {
     const { app, config, query, request } = await setup(true);
     const uploadedBytes = await imageWithMetadata();
     const processed = await processUploadedImage(uploadedBytes, "image/jpeg");
@@ -94,17 +94,13 @@ describe("privacy-hardened media assets", () => {
       authTag: mediaParams[12] as string,
       keyVersion: mediaParams[13] as string
     });
-    const grantInsert = calls.find(([sql]) => String(sql).includes("insert into moderation_media_grants"));
-    const grantParams = grantInsert?.[1] as unknown[];
 
     expect(plaintext).toEqual(processed.canonicalBytes);
     expect(plaintext).not.toEqual(uploadedBytes);
     expect(mediaParams[5]).toBe(processed.canonicalBytes.length);
     expect(objectKey).toMatch(/^originals\/[0-9a-f-]{36}\.enc$/);
-    expect(asset.grant?.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(grantParams).not.toContain(asset.grant?.token);
-    expect(grantParams[1]).toBe(asset.id);
-    expect(grantParams[3]).toMatch(/^[a-f0-9]{64}$/);
+    expect(asset.grant).toBeUndefined();
+    expect(calls.some(([sql]) => String(sql).includes("insert into moderation_media_grants"))).toBe(false);
   });
 
   it("deletes every ciphertext object and the asset row when moderation rejects", async () => {

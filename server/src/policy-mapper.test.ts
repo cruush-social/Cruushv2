@@ -152,16 +152,29 @@ describe("policy mapper", () => {
     }
   );
 
-  it("sets trust to zero for zero-tolerance categories", () => {
-    const decision = map("underage_sexual", "profile_photo", 0.98);
+  it.each(["underage_sexual", "bestiality"] as const)(
+    "sets trust to zero for the zero-tolerance %s category",
+    (category) => {
+      const decision = map(category, "profile_photo", 0.98);
 
-    expect(decision.decision).toBe("reject");
-    expect(decision.set_trust_to_zero).toBe(true);
-    expect(decision.trust_cap).toBe(0);
-    expect(decision.penalty_decays).toBe(false);
-    expect(decision.enforcement_action).toMatchObject({
-      type: "suspend",
-      permanent: true
+      expect(decision.decision).toBe("reject");
+      expect(decision.set_trust_to_zero).toBe(true);
+      expect(decision.trust_cap).toBe(0);
+      expect(decision.penalty_decays).toBe(false);
+      expect(decision.enforcement_action).toMatchObject({
+        type: "suspend",
+        permanent: true
+      });
+    }
+  );
+
+  it("rejects hate symbols in profile photos", () => {
+    const decision = map("hate_symbol", "profile_photo", 0.93);
+
+    expect(decision).toMatchObject({
+      decision: "reject",
+      reason_code: "hate_symbol",
+      trust_impact: -40
     });
   });
 

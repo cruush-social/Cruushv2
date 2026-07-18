@@ -157,12 +157,14 @@ function rejectProfilePhotoWithoutAdultHuman(label: ProviderLabel): PolicyDecisi
 function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType: ModerationContentType): PolicyDecision {
   const normalizedLabel: NormalizedModerationLabel = label.normalized_label;
 
-  if (normalizedLabel === "adult_human_body") {
+  if (normalizedLabel === "adult_human_body" || normalizedLabel === "human_present") {
     return baseDecision({
       category: normalizedLabel,
       severity: label.severity ?? "low",
       confidence: label.confidence,
-      reason_code: "adult_human_profile_photo_allowed"
+      reason_code: normalizedLabel === "human_present"
+        ? "human_profile_photo_allowed"
+        : "adult_human_profile_photo_allowed"
     });
   }
 

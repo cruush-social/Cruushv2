@@ -206,6 +206,7 @@ describe("loadConfig", () => {
       ...base,
       APP_DEPLOYMENT_STAGE: "staging",
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: "true",
+      PROFILE_PHOTO_REKOGNITION_ENABLED: "true",
       STREAM_IMAGE_BRIDGE_ENABLED: "true",
       STREAM_MODERATION_ENABLED: "true",
       STREAM_API_KEY: "stream-key",
@@ -218,8 +219,10 @@ describe("loadConfig", () => {
     };
 
     expect(loadConfig(base).PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED).toBe(false);
+    expect(loadConfig(base).PROFILE_PHOTO_REKOGNITION_ENABLED).toBe(false);
     expect(loadConfig(streamAutomod)).toMatchObject({
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
       BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: false,
       STREAM_IMAGE_BRIDGE_ENABLED: true
     });
@@ -228,6 +231,11 @@ describe("loadConfig", () => {
       ...base,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: "true"
     })).toThrow(/STREAM_IMAGE_BRIDGE_ENABLED/);
+
+    expect(loadConfig({
+      ...streamAutomod,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: "false"
+    }).PROFILE_PHOTO_REKOGNITION_ENABLED).toBe(false);
 
     expect(() => loadConfig({
       ...streamAutomod,

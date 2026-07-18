@@ -101,16 +101,34 @@ function streamResult(overrides: Partial<ProviderModerationResult> = {}): Provid
 }
 
 describe("profile-photo adult-human gate", () => {
-  it("allows a complete Stream keep without adult-human proof when shared Stream automod is enabled", () => {
+  it("does not treat a complete Stream keep as proof that a profile photo contains a human", () => {
     expect(resolveProfilePhotoAdultHumanGate(
       streamResult({ status: "completed" }),
       ALLOW_POLICY_DECISION,
-      { allowManualReview: true, allowStreamAutomod: true }
+      { allowManualReview: false }
     )).toMatchObject({
       status: "resolved",
-      providerResult: {
-        raw_result: { cruush_profile_photo_gate: "stream_content_safety_only" }
-      },
+      decision: {
+        decision: "reject",
+        reason_code: "profile_photo_not_adult_human"
+      }
+    });
+  });
+
+  it("allows a Stream keep only when an independent human label is present", () => {
+    expect(resolveProfilePhotoAdultHumanGate(
+      streamResult({
+        labels: [{
+          provider_label: "Amazon Rekognition: Person",
+          normalized_label: "human_present",
+          confidence: 0.99,
+          severity: "none"
+        }]
+      }),
+      ALLOW_POLICY_DECISION,
+      { allowManualReview: false }
+    )).toMatchObject({
+      status: "resolved",
       decision: { decision: "allow" }
     });
   });

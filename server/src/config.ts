@@ -98,6 +98,11 @@ const configSchema = z.object({
   HUMAN_MODERATION_ENABLED: booleanEnvSchema,
   STREAM_IMAGE_BRIDGE_ENABLED: booleanEnvSchema,
   PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: booleanEnvSchema,
+  PROFILE_PHOTO_REKOGNITION_ENABLED: booleanEnvSchema,
+  PROFILE_PHOTO_REKOGNITION_REGION: z.string().trim().min(1).optional().default("us-east-1"),
+  PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: z.coerce.number().min(50).max(100).optional().default(90),
+  PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: z.coerce.number().min(50).max(100).optional().default(80),
+  PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).optional().default(5000),
   STREAM_API_KEY: z.string().optional().default(""),
   STREAM_API_SECRET: z.string().optional().default(""),
   STREAM_APP_ID: z.string().optional().default(""),
@@ -224,14 +229,6 @@ const configSchema = z.object({
       });
     }
 
-    if (!config.MODERATION_MEDIA_BASE_URL) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "MODERATION_MEDIA_BASE_URL is required when STREAM_IMAGE_BRIDGE_ENABLED=true.",
-        path: ["MODERATION_MEDIA_BASE_URL"]
-      });
-    }
-
     if (Buffer.byteLength(config.STREAM_PSEUDONYM_KEY, "utf8") < 32) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -281,6 +278,14 @@ const configSchema = z.object({
         code: z.ZodIssueCode.custom,
         message: "STREAM_IMAGE_BRIDGE_ENABLED is required for bank profile-photo manual review.",
         path: ["STREAM_IMAGE_BRIDGE_ENABLED"]
+      });
+    }
+
+    if (!config.MODERATION_MEDIA_BASE_URL) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "MODERATION_MEDIA_BASE_URL is required for bank profile-photo manual review.",
+        path: ["MODERATION_MEDIA_BASE_URL"]
       });
     }
 
@@ -542,6 +547,11 @@ type ModerationConfigKey =
   | "HUMAN_MODERATION_ENABLED"
   | "STREAM_IMAGE_BRIDGE_ENABLED"
   | "PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED"
+  | "PROFILE_PHOTO_REKOGNITION_ENABLED"
+  | "PROFILE_PHOTO_REKOGNITION_REGION"
+  | "PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE"
+  | "PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE"
+  | "PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS"
   | "STREAM_API_KEY"
   | "STREAM_API_SECRET"
   | "STREAM_APP_ID"

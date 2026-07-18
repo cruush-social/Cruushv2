@@ -16,10 +16,12 @@
     "relationships:backfill": "tsx src/backfill-encrypted-relationships.ts",
     "location-privacy:backfill": "tsx src/backfill-encrypted-location-privacy.ts",
     "cleanup:moderation-media-grants": "sh -c 'if [ -f dist/cleanup-moderation-media-grants.js ]; then node --enable-source-maps dist/cleanup-moderation-media-grants.js; else tsx src/cleanup-moderation-media-grants.ts; fi'",
+    "configure:stream-profile-safety": "sh -c 'if [ -f dist/configure-stream-profile-photo-safety.js ]; then node --enable-source-maps dist/configure-stream-profile-photo-safety.js; else tsx src/configure-stream-profile-photo-safety.ts; fi'",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-rekognition": "^3.1090.0",
     "@fastify/cors": "^11.1.0",
     "@fastify/multipart": "^10.0.0",
     "@stream-io/node-sdk": "^0.7.59",

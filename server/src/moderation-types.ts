@@ -13,6 +13,7 @@ export type ModerationContentType = "text" | "image";
 
 export type NormalizedModerationLabel =
   | "adult_human_body"
+  | "human_present"
   | "profile_photo_not_adult_human"
   | "adult_nudity"
   | "adult_explicit"
