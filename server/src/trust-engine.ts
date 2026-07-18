@@ -246,6 +246,20 @@ async function applySuspension(db: DbClient, userId: string, reasonCode: string,
      where user_id = $1`,
     [userId]
   );
+
+  if (permanent) {
+    await db.query(
+      `update app_users
+       set account_status = 'suspended',
+           account_status_updated_at = now()
+       where id = $1`,
+      [userId]
+    );
+    await db.query(
+      "delete from app_sessions where user_id = $1",
+      [userId]
+    );
+  }
 }
 
 async function applyFeatureRestriction(

@@ -24,7 +24,7 @@ describe("deployed photo upload availability", () => {
       PHOTODNA_ENABLED: true
     })).toEqual({
       profilePhotos: true,
-      messagePhotos: false
+      messagePhotos: true
     });
     expect(photoUploadAvailability({
       NODE_ENV: "production",

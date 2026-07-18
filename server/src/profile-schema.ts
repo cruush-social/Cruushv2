@@ -3,6 +3,67 @@ import { multilineTextSchema, optionalSingleLineTextSchema, singleLineTextSchema
 
 const currentYear = new Date().getFullYear();
 
+function calendarDateParts(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return { year, month, day };
+}
+
+export function ageFromDateOfBirth(value: string, today = new Date()) {
+  const birthDate = calendarDateParts(value);
+
+  if (!birthDate) {
+    return null;
+  }
+
+  const currentYear = today.getUTCFullYear();
+  const currentMonth = today.getUTCMonth() + 1;
+  const currentDay = today.getUTCDate();
+  const birthdayHasPassed = currentMonth > birthDate.month ||
+    (currentMonth === birthDate.month && currentDay >= birthDate.day);
+
+  return currentYear - birthDate.year - (birthdayHasPassed ? 0 : 1);
+}
+
+export function birthYearFromDateOfBirth(value: string) {
+  return calendarDateParts(value)?.year ?? null;
+}
+
+const adultDateOfBirthSchema = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter your complete date of birth.")
+  .superRefine((value, ctx) => {
+    const age = ageFromDateOfBirth(value);
+
+    if (age === null || age > 120) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter a valid date of birth."
+      });
+    } else if (age < 18) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "You must be at least 18 to use cruush."
+      });
+    }
+  });
+
 const shortStringField = optionalSingleLineTextSchema(120);
 const arrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(25).optional().default([]);
 const kinkArrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(50).optional().default([]);
@@ -71,6 +132,7 @@ export const profilePayloadSchema = z.object({
   pronouns: arrayField,
   custom_pronouns: shortStringField,
   year_of_birth: z.number().int().min(currentYear - 120).max(currentYear - 18).nullable().optional().default(null),
+  date_of_birth: adultDateOfBirthSchema.optional(),
   ethnicity: optionalSingleLineTextSchema(120),
   identities: arrayField,
   presentation: arrayField,

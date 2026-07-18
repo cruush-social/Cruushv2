@@ -168,6 +168,44 @@ describe("policy mapper", () => {
     }
   );
 
+  it("applies the permanent all-feature ban to a definite child face", () => {
+    const decision = map("minor_present", "profile_photo", 0.99);
+
+    expect(decision).toMatchObject({
+      decision: "reject",
+      reason_code: "minor_face_detected",
+      set_trust_to_zero: true,
+      trust_cap: 0,
+      penalty_decays: false,
+      enforcement_action: {
+        type: "suspend",
+        permanent: true
+      }
+    });
+    expect(decision.feature_restrictions?.map((restriction) => restriction.feature)).toEqual([
+      "feed_posting",
+      "direct_messages",
+      "group_messages",
+      "group_creation",
+      "profile_updates",
+      "photo_uploads",
+      "map_visibility",
+      "crowd_visibility"
+    ]);
+  });
+
+  it("allows an age range that overlaps 18 without punishing the account", () => {
+    const decision = map("minor_age_ambiguous", "profile_photo", 0.85);
+
+    expect(decision).toMatchObject({
+      decision: "allow",
+      reason_code: "minor_age_overlap_allowed",
+      trust_impact: 0,
+      create_evidence_event: false
+    });
+    expect(decision.enforcement_action).toBeUndefined();
+  });
+
   it("rejects hate symbols in profile photos", () => {
     const decision = map("hate_symbol", "profile_photo", 0.93);
 

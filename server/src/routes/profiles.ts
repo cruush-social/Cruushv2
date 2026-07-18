@@ -10,6 +10,7 @@ import {
   type RelationshipPermissions
 } from "../match-relationships.js";
 import {
+  birthYearFromDateOfBirth,
   emptyProfile,
   profileLocationPayloadSchema,
   profilePayloadSchema,
@@ -1017,6 +1018,7 @@ function stringArraysEqual(first: string[], second: string[]) {
 
 type ExistingIdentityState = {
   exists: boolean;
+  yearOfBirth: number | null;
   sensitiveProfile: SensitiveProfileData | null;
   changedAt: Date | null;
 };
@@ -1029,13 +1031,15 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
       profile_sensitive_auth_tag: string | null;
       profile_sensitive_key_version: string | null;
       trans_crowds_changed_at: string | Date | null;
+      year_of_birth: number | null;
     }>(
       `select
          profile_sensitive_ciphertext,
          profile_sensitive_nonce,
          profile_sensitive_auth_tag,
          profile_sensitive_key_version,
-         trans_crowds_changed_at
+         trans_crowds_changed_at,
+         year_of_birth
        from profiles
        where id = $1`,
       [userId]
@@ -1045,6 +1049,7 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
     if (!row) {
       return {
         exists: false,
+        yearOfBirth: null,
         sensitiveProfile: null,
         changedAt: null
       };
@@ -1060,6 +1065,7 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
 
     return {
       exists: true,
+      yearOfBirth: row.year_of_birth,
       sensitiveProfile,
       changedAt: row.trans_crowds_changed_at ? new Date(row.trans_crowds_changed_at) : null
     };
@@ -1067,6 +1073,7 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
     if (isSchemaCompatibilityError(error)) {
       return {
         exists: false,
+        yearOfBirth: null,
         sensitiveProfile: null,
         changedAt: null
       };
@@ -1476,14 +1483,31 @@ export async function registerProfileRoutes(app: FastifyInstance) {
   app.put("/api/profiles/me", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const parsedPayload = profilePayloadSchema.parse(request.body);
-    const payload: ProfilePayload = {
-      ...parsedPayload,
-      hiv_status_visibility: FIXED_PRIVATE_HEALTH_VISIBILITY
-    };
 
-    if (countVisibilityExclusionFilters(payload.visibility_rules) > FREE_VISIBILITY_EXCLUSION_LIMIT) {
+    if (countVisibilityExclusionFilters(parsedPayload.visibility_rules) > FREE_VISIBILITY_EXCLUSION_LIMIT) {
       await requireCruushPlus(app, userId, VISIBILITY_EXCLUSION_LIMIT_MESSAGE);
     }
+
+    const existingIdentityState = await loadExistingIdentityState(app, userId);
+
+    if (existingIdentityState.yearOfBirth === null && !parsedPayload.date_of_birth) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Enter your complete date of birth to verify that you are at least 18.");
+    }
+
+    const verifiedBirthYear = parsedPayload.date_of_birth
+      ? birthYearFromDateOfBirth(parsedPayload.date_of_birth)
+      : parsedPayload.year_of_birth;
+
+    if (verifiedBirthYear === null) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Enter your complete date of birth to verify that you are at least 18.");
+    }
+
+    const { date_of_birth: _dateOfBirth, ...profileFields } = parsedPayload;
+    const payload: ProfilePayload = {
+      ...profileFields,
+      year_of_birth: verifiedBirthYear,
+      hiv_status_visibility: FIXED_PRIVATE_HEALTH_VISIBILITY
+    };
 
     const kinkInterests = normalizeKinkInterests(payload);
     const sensitiveProfile = buildSensitiveProfile(payload, kinkInterests);
@@ -1492,7 +1516,6 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       fields: buildProfileModerationFields(payload, kinkInterests),
       contentId: userId
     });
-    const existingIdentityState = await loadExistingIdentityState(app, userId);
     const hasIdentityChange = hasTransCrowdChange(existingIdentityState, sensitiveProfile);
     assertTransCrowdChangeAllowed(existingIdentityState, hasIdentityChange);
     const encryptedSensitiveProfile = encryptSensitiveProfile(app.config, sensitiveProfile);

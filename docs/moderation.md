@@ -29,7 +29,12 @@ PROFILE_PHOTO_REKOGNITION_ENABLED=false
 PROFILE_PHOTO_REKOGNITION_REGION=us-east-1
 PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE=90
 PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE=80
+PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE=90
+PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE=18
 PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS=5000
+SEVERE_ACCESS_BANS_ENABLED=false
+SEVERE_ACCESS_BAN_HMAC_KEY=
+TRUST_PROXY_HOPS=0
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 AWS_SESSION_TOKEN=
@@ -53,13 +58,15 @@ When `STREAM_MODERATION_ENABLED=true`, `STREAM_API_KEY`, `STREAM_API_SECRET`, an
 
 When `STREAM_IMAGE_BRIDGE_ENABLED=true`, the server requires a `STREAM_PSEUDONYM_KEY` of at least 32 bytes. Shared automod uses the signed route under `MEDIA_PUBLIC_BASE_URL`; `MODERATION_MEDIA_BASE_URL` is required only for the dormant legacy manual-review path. Production additionally requires HTTPS and S3-backed encrypted storage. Leave the bridge disabled until provider terms and staging proof are accepted.
 
-When `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true`, the Stream image bridge must also be enabled and `BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED` must be `false`. A complete Stream `keep` is necessary but is no longer sufficient. The same sanitized image bytes must also receive a high-confidence Amazon Rekognition `Person` label and no animal signal. Every non-`keep`, missing-human, detected-animal, timeout, partial response, malformed response, or failed signed-URL fetch fails closed and deletes the pending ciphertext.
+When `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true`, the Stream image bridge must also be enabled and `BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED` must be `false`. A complete Stream `keep` is necessary but is no longer sufficient. Rekognition runs face-age detection on profile and message photos. Profile photos additionally require a high-confidence `Person` signal and no animal signal. A face whose estimated range ends below 18 is rejected and triggers the permanent account/session/device/IP enforcement path. A range that overlaps 18 is accepted so an 18+ user is not blocked by an imprecise range. A profile photo with a high-confidence `Person` label and no detected face remains eligible, allowing permitted faceless adult photos.
 
-Deployed profile-photo uploads remain unavailable unless Stream automod, the signed image bridge, Rekognition human detection, and PhotoDNA are all enabled. Rekognition verifies only that a person is visibly present; it does not verify identity, ownership, age, or exactly one person. The product rule `photos must be of you only.` therefore still includes user attestation and reporting.
+Deployed profile- and message-photo uploads remain unavailable unless Stream automod, the signed image bridge, Rekognition age-safety detection, and PhotoDNA are all enabled. Rekognition returns an estimated age range, not verified age. It does not verify identity, ownership, consent, or exactly one person. The product rule `photos must be of you only.` therefore still includes user attestation and reporting.
 
 When `PHOTODNA_ENABLED=true`, `PHOTODNA_API_URL`, `PHOTODNA_OPERATION_PATH`, and `PHOTODNA_SUBSCRIPTION_KEY` are required at server startup. The adapter posts sanitized image bytes to the configured Microsoft API Management endpoint before Stream or Rekognition and blocks known-CSAM match responses. Verify the exact operation path and real allowed/blocked response contract before opening deployed profile-photo uploads. PhotoDNA is hash matching for known material; it is one layer, not a promise that every novel abusive image can be detected.
 
-When `PROFILE_PHOTO_REKOGNITION_ENABLED=true`, the server calls Amazon Rekognition `DetectLabels` with a metadata-free JPEG derived in memory from the sanitized image. Prefer an IAM role restricted to `rekognition:DetectLabels`; otherwise set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for a Rekognition-only principal. These credentials are separate from the Cloudflare R2 `MEDIA_S3_*` credentials.
+When `PROFILE_PHOTO_REKOGNITION_ENABLED=true`, the server calls Amazon Rekognition `DetectFaces` with `Attributes=[ALL]` for every photo upload and `DetectLabels` for profile photos. Both calls receive a metadata-free JPEG derived in memory from the sanitized image. Prefer an IAM role restricted to `rekognition:DetectFaces` and `rekognition:DetectLabels`; otherwise set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for a Rekognition-only principal. These credentials are separate from the Cloudflare R2 `MEDIA_S3_*` credentials.
+
+`SEVERE_ACCESS_BANS_ENABLED=true` stores only HMAC hashes of the upload request's device cookie and trusted client IP. A definite child-face or PhotoDNA match permanently suspends the account, revokes all sessions, restricts every app feature, and prevents new signup/login requests carrying the banned device or IP identity. Set `SEVERE_ACCESS_BAN_HMAC_KEY` to an independent secret of at least 32 bytes. Set `TRUST_PROXY_HOPS` only after confirming Coolify/Traefik's actual trusted proxy chain; an incorrect value can ban a shared proxy address. A browser device cookie is a strong deterrent, not an unbypassable hardware identifier.
 
 When `MEDIA_OBJECT_STORAGE_DRIVER=s3`, `MEDIA_S3_BUCKET`, `MEDIA_S3_ENDPOINT`, `MEDIA_S3_ACCESS_KEY_ID`, and `MEDIA_S3_SECRET_ACCESS_KEY` are required at server startup. Cloudflare R2 is S3-compatible and does not require a separate AWS S3 account. For R2, use `MEDIA_S3_REGION=auto` and a staging-bucket-scoped token with object read/write permissions so the API can upload, serve, and delete encrypted objects.
 
@@ -73,6 +80,7 @@ Moderated before storage or publication:
 - Direct and group message text.
 - Local feed post text.
 - Profile photo uploads.
+- Direct and group message photo uploads when every deployed safety gate is enabled.
 - User reports as trust-score evidence.
 
 Not sent to Stream:
@@ -88,6 +96,7 @@ Allowed by default when consensual and adult:
 
 - Queer identity, trans identity, pronouns, sexuality, dating preferences, kink terms, and adult dating language.
 - Adult explicit labels outside public feed contexts unless paired with a prohibited category.
+- Consensual adult nudity in profile and private/message photos. Stream's profile-photo policy intentionally does not auto-remove `Explicit` or `Non-Explicit Nudity`.
 - PnP or chemsex discussion in direct/group messages, unless paired with sales, coercion, minor safety, threats, or other prohibited content.
 - Fetishization/chaser concerns are handled through user reports and trust evidence, not text blocklists or automod guesses.
 
@@ -98,9 +107,10 @@ Rejected before save/publish:
 - Profile photos that Stream, PhotoDNA, or Rekognition rejects.
 - Any profile-photo response whose Stream recommendation is not an explicit `keep`, including `flag`, `remove`, `block`, `bounce`, and `shadow_block`.
 - Profile photos without a high-confidence person signal or with a detected animal.
-- Profile photos with explicit CSAM or sexual-minor safety signals. Age-only visual guesses are not treated as age verification.
+- Any profile or message photo with a detected face whose Rekognition age range ends below 18. This triggers permanent account, session, feature, device-cookie, and trusted-IP bans.
+- An age range overlapping 18 is allowed because it includes a possible adult age. This protects 18+ users but means age estimation alone cannot guarantee rejection of every older minor.
 
-When shared Stream automod is enabled, publication requires all three synchronous approvals: PhotoDNA non-match, Stream `keep`, and Rekognition human-only approval. Explicit profile-photo labels still fail closed and the encrypted pending asset is deleted.
+When shared Stream automod is enabled, publication requires all three synchronous approvals: PhotoDNA non-match, Stream `keep`, and Rekognition age-safety approval. Profile photos also require person/no-animal approval. Permitted adult nudity is not a rejection by itself. Rejected encrypted pending assets are deleted.
 
 If Stream is unavailable, partial, pending, or returns an error, content is not saved. The request fails closed with `MODERATION_UNAVAILABLE`.
 
@@ -123,7 +133,7 @@ In Stream dashboard:
 1. Enable Moderation for the app.
 2. Create a moderation policy whose key matches `STREAM_MODERATION_CONFIG_KEY`.
 3. Enable AI text moderation and image moderation.
-4. Configure the image rules `Explicit`, `Non-Explicit Nudity`, `Violence`, `Visually Disturbing`, and `Hate Symbols` to remove at the thresholds committed in `configure-stream-profile-photo-safety.ts`.
+4. Configure only `Violence`, `Visually Disturbing`, and `Hate Symbols` to remove at the thresholds committed in `configure-stream-profile-photo-safety.ts`. Do not add `Explicit` or `Non-Explicit Nudity` removal rules because consensual adult nudity is allowed on these photo surfaces.
 5. Configure borderline categories to flag only when cruush should reject or fail closed without human review.
 6. Avoid blocklists that treat queer identity terms, trans terms, kink terms, or consensual adult dating language as violations by themselves.
 7. Configure every Stream action other than `keep` as a cruush rejection; there is no human queue behind `flag`.
@@ -144,7 +154,12 @@ PROFILE_PHOTO_REKOGNITION_ENABLED=true
 PROFILE_PHOTO_REKOGNITION_REGION=us-east-1
 PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE=90
 PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE=80
+PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE=90
+PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE=18
 PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS=5000
+SEVERE_ACCESS_BANS_ENABLED=true
+SEVERE_ACCESS_BAN_HMAC_KEY=<independent-random-secret-at-least-32-bytes>
+TRUST_PROXY_HOPS=1
 AWS_ACCESS_KEY_ID=<rekognition-only-access-key-or-use-an-iam-role>
 AWS_SECRET_ACCESS_KEY=<rekognition-only-secret-key-or-use-an-iam-role>
 STREAM_API_KEY=<staging-stream-api-key>
@@ -177,7 +192,7 @@ Run cleanup every five minutes from a private scheduler attached to the API envi
 */5 * * * * cd /app/server && pnpm cleanup:moderation-media-grants
 ```
 
-The command deletes legacy expired grants and abandoned pending media, including canonical and variant ciphertext. Shared automod deletes rejected files during the request; the scheduler covers process crashes and other abandoned uploads after five minutes. Approved photos leave quarantine and remain on the user's profile under the normal lifecycle. Message-photo uploads are not part of this bridge and remain disabled in deployed environments.
+The command deletes legacy expired grants and abandoned pending media, including canonical and variant ciphertext. Shared automod deletes rejected files during the request; the scheduler covers process crashes and other abandoned uploads after five minutes. Approved photos leave quarantine and remain attached through the normal lifecycle. Message-photo uploads use the same signed display-variant bridge and remain unavailable unless every deployed safety gate is enabled.
 
 The legacy internal bank-review endpoints remain compiled but must not be used for bank staging or open beta. With `BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false`, they are unavailable. The archived design is documented in `docs/bank-profile-photo-manual-review-architecture-plan-2026-07-13.md`.
 
@@ -242,7 +257,7 @@ Manual checks:
 
 ## Remaining Bank-Readiness Gaps
 
-- Deployed profile-photo uploads remain unavailable until Microsoft PhotoDNA endpoint/path/response verification passes and PhotoDNA is enabled.
+- Deployed profile- and message-photo uploads remain unavailable until Microsoft PhotoDNA endpoint/path/response verification passes and PhotoDNA is enabled.
 - DM and group image attachments are outside the profile-photo bridge and remain disabled for bank review.
 - Stream does not yet replace the app database as the chat/feed/media substrate; this slice keeps the current Postgres routes and adds moderation gates.
 - Rekognition verifies a visible person signal, but age, identity, ownership, and exactly-one-person guarantees remain out of scope.

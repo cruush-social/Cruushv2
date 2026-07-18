@@ -6,8 +6,6 @@ export const STREAM_PROFILE_PHOTO_IMAGE_POLICY: AIImageConfig = {
   enabled: true,
   async: false,
   rules: [
-    { label: "Explicit", action: "remove", min_confidence: 70 },
-    { label: "Non-Explicit Nudity", action: "remove", min_confidence: 85 },
     { label: "Violence", action: "remove", min_confidence: 85 },
     { label: "Visually Disturbing", action: "remove", min_confidence: 80 },
     { label: "Hate Symbols", action: "remove", min_confidence: 70 }

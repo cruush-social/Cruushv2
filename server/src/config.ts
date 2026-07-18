@@ -102,7 +102,12 @@ const configSchema = z.object({
   PROFILE_PHOTO_REKOGNITION_REGION: z.string().trim().min(1).optional().default("us-east-1"),
   PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: z.coerce.number().min(50).max(100).optional().default(90),
   PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: z.coerce.number().min(50).max(100).optional().default(80),
+  PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE: z.coerce.number().min(50).max(100).optional().default(90),
+  PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE: z.coerce.number().int().min(18).max(25).optional().default(18),
   PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).optional().default(5000),
+  SEVERE_ACCESS_BANS_ENABLED: booleanEnvSchema,
+  SEVERE_ACCESS_BAN_HMAC_KEY: z.string().optional().default(""),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).optional().default(0),
   STREAM_API_KEY: z.string().optional().default(""),
   STREAM_API_SECRET: z.string().optional().default(""),
   STREAM_APP_ID: z.string().optional().default(""),
@@ -252,6 +257,30 @@ const configSchema = z.object({
         code: z.ZodIssueCode.custom,
         message: "BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED must be false when PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true.",
         path: ["BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED"]
+      });
+    }
+
+    if (!config.SEVERE_ACCESS_BANS_ENABLED) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "SEVERE_ACCESS_BANS_ENABLED is required when PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true.",
+        path: ["SEVERE_ACCESS_BANS_ENABLED"]
+      });
+    }
+
+    if (Buffer.byteLength(config.SEVERE_ACCESS_BAN_HMAC_KEY, "utf8") < 32) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "SEVERE_ACCESS_BAN_HMAC_KEY must be at least 32 bytes when PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true.",
+        path: ["SEVERE_ACCESS_BAN_HMAC_KEY"]
+      });
+    }
+
+    if (config.TRUST_PROXY_HOPS < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "TRUST_PROXY_HOPS must identify the trusted reverse-proxy hop count when PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true.",
+        path: ["TRUST_PROXY_HOPS"]
       });
     }
   }
@@ -551,7 +580,12 @@ type ModerationConfigKey =
   | "PROFILE_PHOTO_REKOGNITION_REGION"
   | "PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE"
   | "PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE"
+  | "PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE"
+  | "PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE"
   | "PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS"
+  | "SEVERE_ACCESS_BANS_ENABLED"
+  | "SEVERE_ACCESS_BAN_HMAC_KEY"
+  | "TRUST_PROXY_HOPS"
   | "STREAM_API_KEY"
   | "STREAM_API_SECRET"
   | "STREAM_APP_ID"

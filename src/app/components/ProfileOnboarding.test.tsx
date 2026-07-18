@@ -53,7 +53,7 @@ async function fillProfileRites() {
   fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-  fireEvent.change(screen.getByPlaceholderText('e.g. 2000'), { target: { value: '1998' } });
+  fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '1998-06-15' } });
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
   await chooseMultiSelect('Pronouns', 'they/them');
@@ -116,7 +116,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('prove you may enter')).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText('e.g. 2000'), { target: { value: '1998' } });
+    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '1998-06-15' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('choose your invocation')).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    fireEvent.change(screen.getByPlaceholderText('e.g. 2000'), { target: { value: '1998' } });
+    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '1998-06-15' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     await chooseMultiSelect('Pronouns', 'they/them');
@@ -198,6 +198,7 @@ describe('ProfileOnboarding', () => {
       vibes: ['Goth'],
       bio: 'Velvet trouble.',
       pronouns: ['they/them'],
+      date_of_birth: '1998-06-15',
       year_of_birth: 1998,
       identities: ['nonbinary'],
       availability: [],
@@ -218,5 +219,21 @@ describe('ProfileOnboarding', () => {
     }));
     expect(acceptCodeOfConduct).toHaveBeenCalledWith('2026-07-07');
     expect(saveMyProfile.mock.invocationCallOrder[0]).toBeLessThan(acceptCodeOfConduct.mock.invocationCallOrder[0]);
+  });
+
+  it('requires a complete adult date of birth before continuing', () => {
+    render(<ProfileOnboarding onComplete={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    const nextButton = screen.getByRole('button', { name: /next/i });
+    expect(screen.getByLabelText('Date of Birth')).toHaveAttribute('type', 'date');
+    expect(nextButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '2012-06-15' } });
+
+    expect(screen.getByText('You must be at least 18 to use this app.')).toBeInTheDocument();
+    expect(nextButton).toBeDisabled();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyProfile, profilePayloadSchema } from "./profile-schema.js";
+import { ageFromDateOfBirth, emptyProfile, profilePayloadSchema } from "./profile-schema.js";
 
 describe("profile schema", () => {
   it("accepts app-owned uploaded profile photo paths", () => {
@@ -39,5 +39,31 @@ describe("profile schema", () => {
     expect(parsed.crowds).toEqual(["T4T", "Dyke"]);
     expect(parsed.visibility_rules.active_crowd_modes).toEqual(["Dyke"]);
     expect(parsed.visibility_rules.crowds).toEqual(["Dyke"]);
+  });
+
+  it("accepts a complete adult date of birth and calculates age by month and day", () => {
+    const parsed = profilePayloadSchema.parse({
+      ...emptyProfile,
+      display_name: "Cruusher",
+      date_of_birth: "2000-07-18"
+    });
+
+    expect(parsed.date_of_birth).toBe("2000-07-18");
+    expect(ageFromDateOfBirth("2008-07-18", new Date("2026-07-18T12:00:00.000Z"))).toBe(18);
+    expect(ageFromDateOfBirth("2008-07-19", new Date("2026-07-18T12:00:00.000Z"))).toBe(17);
+  });
+
+  it("rejects invalid and under-18 dates of birth", () => {
+    expect(() => profilePayloadSchema.parse({
+      ...emptyProfile,
+      display_name: "Cruusher",
+      date_of_birth: "2020-02-30"
+    })).toThrow();
+
+    expect(() => profilePayloadSchema.parse({
+      ...emptyProfile,
+      display_name: "Cruusher",
+      date_of_birth: "2012-06-15"
+    })).toThrow();
   });
 });

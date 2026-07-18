@@ -52,7 +52,7 @@ async function setup(streamImageBridgeEnabled = true) {
     debug: vi.fn()
   };
   const app = { config, db: { query }, log } as never;
-  const request = { log } as never;
+  const request = { headers: {}, ip: "127.0.0.1", log } as never;
 
   return { app, config, query, request };
 }

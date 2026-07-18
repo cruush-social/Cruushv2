@@ -19,6 +19,10 @@ const providerState = vi.hoisted(() => ({
     Confidence: 99,
     Parents: [] as Array<{ Name: string }>
   }],
+  rekognitionFaces: [{
+    Confidence: 99,
+    AgeRange: { Low: 25, High: 35 }
+  }],
   lastImageUrl: null as string | null
 }));
 
@@ -26,8 +30,18 @@ vi.mock("@aws-sdk/client-rekognition", () => ({
   DetectLabelsCommand: class DetectLabelsCommand {
     constructor(readonly input: unknown) {}
   },
+  DetectFacesCommand: class DetectFacesCommand {
+    constructor(readonly input: unknown) {}
+  },
   RekognitionClient: class RekognitionClient {
-    async send() {
+    async send(command: { constructor: { name: string } }) {
+      if (command.constructor.name === "DetectFacesCommand") {
+        return {
+          FaceDetails: providerState.rekognitionFaces,
+          $metadata: { requestId: "rekognition-faces-request-1" }
+        };
+      }
+
       return {
         Labels: providerState.rekognitionLabels,
         $metadata: { requestId: "rekognition-request-1" }
@@ -115,7 +129,12 @@ function createTestApp() {
     PROFILE_PHOTO_REKOGNITION_REGION: "us-east-1",
     PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: 90,
     PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: 80,
+    PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE: 90,
+    PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE: 18,
     PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS: 5000,
+    SEVERE_ACCESS_BANS_ENABLED: true,
+    SEVERE_ACCESS_BAN_HMAC_KEY: "0123456789abcdef0123456789abcdef",
+    TRUST_PROXY_HOPS: 1,
     STREAM_MODERATION_ENABLED: true,
     STREAM_IMAGE_BRIDGE_ENABLED: true,
     MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
@@ -149,6 +168,10 @@ describe("shared Stream profile-photo automod route", () => {
       Name: "Person",
       Confidence: 99,
       Parents: []
+    }];
+    providerState.rekognitionFaces = [{
+      Confidence: 99,
+      AgeRange: { Low: 25, High: 35 }
     }];
     providerState.lastImageUrl = null;
   });
@@ -202,6 +225,7 @@ describe("shared Stream profile-photo automod route", () => {
       Confidence: 99,
       Parents: []
     }];
+    providerState.rekognitionFaces = [];
     const { app, query } = createTestApp();
     const multipart = multipartFilePayload(validPng());
     const response = await app.inject({
@@ -230,6 +254,78 @@ describe("shared Stream profile-photo automod route", () => {
     }
 
     await app.close();
+  });
+
+  it("permanently bans the account, sessions, device, and IP when a child face is detected", async () => {
+    providerState.rekognitionFaces = [{
+      Confidence: 99,
+      AgeRange: { Low: 6, High: 10 }
+    }];
+    const { app, query } = createTestApp();
+    const multipart = multipartFilePayload(validPng());
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        cookie: `cruush_device=${"A".repeat(43)}`,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const sql = query.mock.calls.map(([text]) => String(text));
+
+    expect(response.statusCode, response.body).toBe(403);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: expect.stringContaining("permanently banned")
+      }
+    });
+    expect(JSON.stringify(query.mock.calls)).toContain("minor_face_detected");
+    expect(sql.some((text) => text.includes("account_status = 'suspended'"))).toBe(true);
+    expect(sql.some((text) => text.includes("delete from app_sessions"))).toBe(true);
+    expect(sql.filter((text) => text.includes("insert into severe_access_bans"))).toHaveLength(2);
+    expect(sql.some((text) => text.includes("insert into profiles"))).toBe(false);
+
+    await app.close();
+  });
+
+  it("allows permitted adult nudity when Stream keeps it", async () => {
+    providerState.result = {
+      provider: "stream",
+      provider_request_id: "stream-adult-nudity-1",
+      labels: [{
+        provider_label: "Non-Explicit Nudity",
+        normalized_label: "adult_nudity",
+        confidence: 0.98,
+        severity: "low"
+      }],
+      latency_ms: 12,
+      status: "completed",
+      recommended_action: "keep",
+      raw_result: {}
+    };
+    const { app, query } = createTestApp();
+    const multipart = multipartFilePayload(validPng());
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const mediaCall = query.mock.calls.find(([text]) => String(text).includes("insert into media_objects"));
+
+    expect(response.statusCode, response.body).toBe(201);
+    await app.close();
+    await Promise.all([
+      mediaCall?.[1]?.[3],
+      mediaCall?.[1]?.[14],
+      mediaCall?.[1]?.[25]
+    ].map((objectKey) => deleteEncryptedMediaObject(app.config, objectKey as string)));
   });
 
   it("rejects an animal even when a person is also present", async () => {

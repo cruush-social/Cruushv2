@@ -28,6 +28,10 @@ import { runTransaction } from "../db.js";
 import { ensureDevelopmentAdminUser, isDevelopmentAdminLogin } from "../development-admin.js";
 import { deleteEncryptedMediaObject } from "../media-storage.js";
 import { verifyTurnstileToken } from "../turnstile.js";
+import {
+  assertRequestNotSeverelyBanned,
+  ensureDeviceCookie
+} from "../severe-access-bans.js";
 
 type SessionLookupRow = {
   user_id: string;
@@ -374,6 +378,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/auth/signup", async (request, reply) => {
+    await assertRequestNotSeverelyBanned(app, request);
     const payload = signUpPayloadSchema.parse(request.body);
     await applyRateLimits(app, [
       {
@@ -432,7 +437,6 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       logger: request.log,
       verificationUrl: buildVerificationUrl(request, verification.token)
     });
-
     return reply.code(201).send({
       data: {
         alreadyVerified: false,
@@ -444,6 +448,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/auth/login", async (request, reply) => {
+    await assertRequestNotSeverelyBanned(app, request);
     const payload = signInPayloadSchema.parse(request.body);
 
     await applyRateLimits(app, [
@@ -465,6 +470,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       const userId = await ensureDevelopmentAdminUser(app);
       const session = await createSession(app, userId);
       setSessionCookie(reply, request, session.token, session.expiresAt);
+      ensureDeviceCookie(reply, request);
 
       return reply.send({
         data: await loadAuthSession(app, userId)
@@ -503,6 +509,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     const session = await createSession(app, user.id);
     setSessionCookie(reply, request, session.token, session.expiresAt);
+    ensureDeviceCookie(reply, request);
 
     return reply.send({
       data: await loadAuthSession(app, user.id)

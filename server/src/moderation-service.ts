@@ -15,10 +15,15 @@ import {
 } from "./moderation-types.js";
 import { mapProviderResultToPolicy } from "./policy-mapper.js";
 import {
+  detectImageChildFaces,
   detectProfilePhotoHuman,
   mergeProfilePhotoSafetyResults
 } from "./profile-photo-human-detection.js";
 import { applyPolicyDecision } from "./trust-engine.js";
+import {
+  persistSevereAccessBan,
+  type SevereAccessBanIdentity
+} from "./severe-access-bans.js";
 
 type ModerateTextInput = {
   userId: string;
@@ -37,6 +42,7 @@ type ModerateImageInput = {
   contentId?: string;
   contentRef?: Record<string, unknown>;
   bytes: Buffer;
+  severeAccessBanIdentity?: SevereAccessBanIdentity;
 };
 
 type ModerateProfileInput = {
@@ -219,6 +225,10 @@ async function recordContentReview(app: FastifyInstance, input: ContentReviewInp
 }
 
 function userMessageForDecision(decision: PolicyDecision) {
+  if (decision.user_message_code === "minor_face_permanent_ban") {
+    return "A child face was detected. This account has been permanently banned.";
+  }
+
   if (decision.user_message_code === "profile_photo_not_adult_human") {
     return "Profile photo must be of you.";
   }
@@ -368,6 +378,7 @@ async function handlePolicyDecision(
   options: {
     contentId?: string | null;
     contentRef?: Record<string, unknown>;
+    severeAccessBanIdentity?: SevereAccessBanIdentity;
   } = {}
 ) {
   if (decision.decision === "allow") {
@@ -413,6 +424,15 @@ async function handlePolicyDecision(
       providerRequestId: providerResult.provider_request_id
     }
   });
+
+  if (decision.reason_code === "minor_face_detected") {
+    await persistSevereAccessBan(
+      app.db,
+      userId,
+      decision.reason_code,
+      options.severeAccessBanIdentity
+    );
+  }
 
   throw new ApiError(
     decision.enforcement_action?.type === "suspend" ? 403 : 400,
@@ -493,9 +513,11 @@ export async function moderateImageOrReject(
   const provider = createModerationProvider(app.config);
   let providerResult = await provider.moderateImage(input);
 
-  if (input.surface === "profile_photo" && app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true) {
-    const humanResult = await detectProfilePhotoHuman(app.config, input.bytes);
-    providerResult = mergeProfilePhotoSafetyResults(providerResult, humanResult);
+  if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true) {
+    const safetyResult = input.surface === "profile_photo"
+      ? await detectProfilePhotoHuman(app.config, input.bytes)
+      : await detectImageChildFaces(app.config, input.bytes);
+    providerResult = mergeProfilePhotoSafetyResults(providerResult, safetyResult);
   }
 
   let decision = mapProviderResultToPolicy({
@@ -520,7 +542,8 @@ export async function moderateImageOrReject(
 
   return handlePolicyDecision(app, input.userId, input.surface, "image", resolvedProviderResult, decision, {
     contentId: input.contentId,
-    contentRef: input.contentRef
+    contentRef: input.contentRef,
+    severeAccessBanIdentity: input.severeAccessBanIdentity
   });
 }
 

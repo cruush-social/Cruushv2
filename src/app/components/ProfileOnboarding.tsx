@@ -36,7 +36,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   age: {
     rite: 'prove you may enter',
     title: 'The gates are adults only.',
-    detail: 'Your birth year keeps cruush 18+.',
+    detail: 'Enter your complete date of birth so we can confirm you are 18+.',
   },
   pronouns: {
     rite: 'choose your invocation',
@@ -76,7 +76,7 @@ function limitToThree(values: string[]) {
 
 type OnboardingProfileState = {
   name: string;
-  age: string;
+  dateOfBirth: string;
   bio: string;
   identities: string[];
   pronouns: string[];
@@ -129,7 +129,7 @@ export default function ProfileOnboarding({
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<OnboardingProfileState>({
     name: '',
-    age: '',
+    dateOfBirth: '',
     bio: '',
     identities: [],
     pronouns: [],
@@ -186,15 +186,7 @@ export default function ProfileOnboarding({
       case 'name':
         return profile.name.trim().length > 1;
       case 'age': {
-        const year = parseInt(profile.age);
-        const currentYear = new Date().getFullYear();
-        const ageNum = currentYear - year;
-        return Boolean(
-          profile.age &&
-          !isNaN(year) &&
-          ageNum >= 18 &&
-          ageNum < 120
-        );
+        return profile.dateOfBirth.length > 0 && ageError === null;
       }
       case 'pronouns':
         return profile.pronouns.length > 0;
@@ -229,7 +221,8 @@ export default function ProfileOnboarding({
       const customMpoxVaccine = profile.custom_mpox_vaccine.trim();
       const payload: ProfilePayload = {
         display_name: displayName,
-        year_of_birth: profile.age ? parseInt(profile.age, 10) : null,
+        date_of_birth: profile.dateOfBirth,
+        year_of_birth: profile.dateOfBirth ? parseInt(profile.dateOfBirth.slice(0, 4), 10) : null,
         pronouns: profile.pronouns,
         identities: profile.identities,
         looking_for: profile.lookingFor,
@@ -340,29 +333,48 @@ export default function ProfileOnboarding({
             case 'age':
               return (
                 <div>
-                  <label className="text-sm mb-2 block">Year of Birth</label>
+                  <label htmlFor="date-of-birth" className="text-sm mb-2 block">Date of Birth</label>
                   <Input
-                    type="number"
-                    placeholder="e.g. 2000"
-                    value={profile.age}
+                    id="date-of-birth"
+                    type="date"
+                    value={profile.dateOfBirth}
                     onChange={e => {
-                      const year = e.target.value;
-                      setProfileField('age', year);
-                      const currentYear = new Date().getFullYear();
-                      const parsedYear = parseInt(year, 10);
-                      const ageNum = currentYear - parsedYear;
-                      if (!year || isNaN(parsedYear)) {
+                      const dateOfBirth = e.target.value;
+                      setProfileField('dateOfBirth', dateOfBirth);
+                      const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth);
+
+                      if (!dateOfBirth) {
                         setAgeError(null);
-                      } else if (ageNum < 0 || ageNum > 120) {
-                        setAgeError('Please enter a valid year.');
-                      } else if (ageNum < 18) {
+                        return;
+                      }
+
+                      if (!parts) {
+                        setAgeError('Please enter your complete date of birth.');
+                        return;
+                      }
+
+                      const birthDate = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
+                      const today = new Date();
+                      const isValidDate = birthDate.getFullYear() === Number(parts[1]) &&
+                        birthDate.getMonth() === Number(parts[2]) - 1 &&
+                        birthDate.getDate() === Number(parts[3]);
+                      let age = today.getFullYear() - birthDate.getFullYear();
+                      const birthdayHasPassed = today.getMonth() > birthDate.getMonth() ||
+                        (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+                      age -= birthdayHasPassed ? 0 : 1;
+
+                      if (!isValidDate || age < 0 || age > 120) {
+                        setAgeError('Please enter a valid date of birth.');
+                      } else if (age < 18) {
                         setAgeError('You must be at least 18 to use this app.');
                       } else {
                         setAgeError(null);
                       }
                     }}
+                    aria-describedby={ageError ? 'date-of-birth-error' : undefined}
                   />
-                  {ageError && <p className="text-red-500 text-xs mt-1">{ageError}</p>}
+                  <p className="mt-2 text-xs text-white/50">Your full date is used only to confirm you are an adult.</p>
+                  {ageError && <p id="date-of-birth-error" className="text-red-500 text-xs mt-1">{ageError}</p>}
                 </div>
               );
             case 'pronouns':

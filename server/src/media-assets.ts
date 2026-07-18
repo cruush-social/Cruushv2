@@ -19,6 +19,7 @@ import {
 import { createModerationProvider } from "./moderation-provider.js";
 import { moderateImageOrReject } from "./moderation-service.js";
 import type { PolicyDecision, ProviderModerationResult } from "./moderation-types.js";
+import { severeAccessBanIdentity } from "./severe-access-bans.js";
 
 export type MediaSurface = "profile_photo" | "message_photo";
 
@@ -295,13 +296,6 @@ export async function createPendingMediaAsset(
   }
 }
 
-function hasExplicitLabel(labels: ProviderModerationResult["labels"]) {
-  return labels.some((label) => (
-    label.normalized_label === "adult_nudity" ||
-    label.normalized_label === "adult_explicit"
-  ));
-}
-
 function moderationMediaUrl(app: FastifyInstance, asset: PendingMediaAsset) {
   if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true) {
     return createMediaModerationInspectionUrl(app.config, asset.id);
@@ -324,12 +318,16 @@ export async function moderatePendingMediaAsset(
   }
 ): Promise<ApprovedMediaCandidate> {
   try {
+    const accessBanIdentity = severeAccessBanIdentity(app.config, request);
     const photoDnaResult = await checkPhotoDnaForUploadOrReject(app, {
       userId: asset.ownerUserId,
       surface: input.moderationSurface,
       imageBytes: asset.canonicalBytes,
       mimeType: asset.mimeType,
       sourceRoute: asset.surface === "profile_photo" ? "/api/profile-photos" : "/api/messages/photos",
+      requestIp: request.ip,
+      userAgent: request.headers["user-agent"],
+      severeAccessBanIdentity: accessBanIdentity,
       contentId: asset.id,
       contentRef: {
         assetId: asset.id,
@@ -356,7 +354,8 @@ export async function moderatePendingMediaAsset(
         surface: asset.surface,
         photoDnaStatus: photoDnaResult.status
       },
-      bytes: asset.canonicalBytes
+      bytes: asset.canonicalBytes,
+      severeAccessBanIdentity: accessBanIdentity
     });
 
     if (bridgeEnabled && !signedInspectionEnabled && asset.grant) {
@@ -367,10 +366,6 @@ export async function moderatePendingMediaAsset(
       }
 
       await deleteModerationMediaGrant(app.db, asset.grant.id);
-    }
-
-    if (hasExplicitLabel(moderation.providerResult.labels)) {
-      throw new ApiError(400, "CONTENT_REJECTED", "This photo cannot be displayed without explicit-content controls.");
     }
 
     return {

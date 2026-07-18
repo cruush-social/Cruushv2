@@ -5,6 +5,13 @@ import {
 } from "./stream-profile-photo-policy.js";
 
 describe("Stream profile-photo policy configurator", () => {
+  it("does not auto-remove permitted adult nudity", () => {
+    expect(STREAM_PROFILE_PHOTO_IMAGE_POLICY.rules).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: "Explicit", action: "remove" }),
+      expect.objectContaining({ label: "Non-Explicit Nudity", action: "remove" })
+    ]));
+  });
+
   it("replaces the image rules while preserving every exposed non-image engine", async () => {
     const current = {
       key: "cruush:automod",
