@@ -10,7 +10,9 @@ Use mock moderation for local development and tests:
 
 ```env
 MEDIA_STORAGE_DIR=media
-MEDIA_PUBLIC_BASE_URL=https://localhost:5173
+MEDIA_PUBLIC_BASE_URL=http://localhost:3001
+MEDIA_MODERATION_URL_SECRET=
+MEDIA_MODERATION_URL_TTL_SECONDS=120
 MEDIA_OBJECT_STORAGE_DRIVER=local
 MEDIA_S3_BUCKET=
 MEDIA_S3_ENDPOINT=
@@ -51,7 +53,7 @@ When `PHOTODNA_ENABLED=true`, `PHOTODNA_API_URL`, `PHOTODNA_OPERATION_PATH`, and
 
 When `MEDIA_OBJECT_STORAGE_DRIVER=s3`, `MEDIA_S3_BUCKET`, `MEDIA_S3_ENDPOINT`, `MEDIA_S3_ACCESS_KEY_ID`, and `MEDIA_S3_SECRET_ACCESS_KEY` are required at server startup. Cloudflare R2 is S3-compatible and does not require a separate AWS S3 account. For R2, use `MEDIA_S3_REGION=auto` and a staging-bucket-scoped token with object read/write permissions so the API can upload, serve, and delete encrypted objects.
 
-For staging, set `MEDIA_PUBLIC_BASE_URL` to the public API origin that serves authenticated media routes, for example `https://api-staging.cruush.app`. `APP_URL` should remain the user-facing app origin used by auth emails.
+For staging, set `MEDIA_PUBLIC_BASE_URL` to the HTTPS public API origin that serves media routes, for example `https://api-staging.cruush.app`. It must contain only the origin, with no path or trailing slash. Local development and tests may use an HTTP localhost origin. `APP_URL` should remain the user-facing app origin used by auth emails.
 
 ## Moderated Surfaces
 
@@ -168,6 +170,15 @@ Current branch state:
 - Development and tests use local encrypted object storage; production config requires S3-compatible object storage.
 - The media storage directory is not registered as a static route. All media access is authenticated and purpose-aware.
 - Existing encrypted media created by the prior synchronous moderation route is treated as legacy-approved. Profile URLs without a matching approved media row are moved to `legacy_media_quarantine` and removed from visible profile arrays.
+- Stream receives a short-lived signed URL for only the sanitized pending `display` variant. The moderation route works without a user session, validates an HMAC-bound asset, purpose, method, variant, and expiration, and then reads and decrypts the private variant through the existing storage abstraction.
+- Signed moderation responses are `no-store`, reject `HEAD`, and return a generic `404` for invalid, expired, tampered, deleted, inactive-owner, or non-pending assets. Private originals are never eligible.
+
+Signed moderation URL operations:
+
+- Generate `MEDIA_MODERATION_URL_SECRET` independently from session, profile, token, and storage-encryption secrets.
+- Rotate it by replacing the environment value and restarting the API. Rotation intentionally invalidates inspections already in flight; clients should retry the upload after the new deployment is healthy.
+- Never log full inspection URLs, query signatures, or the signing secret.
+- Invalid or expired inspection requests fail closed without changing media state.
 
 Provider follow-up:
 

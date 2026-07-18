@@ -4,6 +4,7 @@ import { checkPhotoDnaForUploadOrReject } from "./csam-reporting.js";
 import { ApiError } from "./errors.js";
 import { encryptMediaBytes } from "./media-encryption.js";
 import type { ProcessedImage } from "./media-image.js";
+import { createMediaModerationInspectionUrl } from "./media-moderation-url.js";
 import {
   cleanupModerationMediaGrants,
   createModerationMediaGrant,
