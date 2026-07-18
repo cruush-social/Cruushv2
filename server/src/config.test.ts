@@ -186,6 +186,8 @@ describe("loadConfig", () => {
       STREAM_API_KEY: "stream-key",
       STREAM_API_SECRET: "stream-secret",
       STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MEDIA_PUBLIC_BASE_URL: "http://localhost:3001",
+      MEDIA_MODERATION_URL_SECRET: strongSecret,
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
       STREAM_PSEUDONYM_KEY: strongSecret
     })).toMatchObject({
@@ -209,6 +211,8 @@ describe("loadConfig", () => {
       STREAM_API_KEY: "stream-key",
       STREAM_API_SECRET: "stream-secret",
       STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
+      MEDIA_MODERATION_URL_SECRET: strongSecret,
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
       STREAM_PSEUDONYM_KEY: strongSecret
     };
@@ -266,6 +270,8 @@ describe("loadConfig", () => {
       STREAM_API_KEY: "stream-key",
       STREAM_API_SECRET: "stream-secret",
       STREAM_MODERATION_CONFIG_KEY: "cruush:automod",
+      MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
+      MEDIA_MODERATION_URL_SECRET: strongSecret,
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
       STREAM_PSEUDONYM_KEY: strongSecret,
       MEDIA_OBJECT_STORAGE_DRIVER: "s3",
@@ -453,6 +459,8 @@ describe("loadConfig", () => {
       MEDIA_S3_REGION: "auto",
       MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
       MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key",
+      MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
+      MEDIA_MODERATION_URL_SECRET: strongSecret,
       RESEND_API_KEY: "resend-key",
       MAIL_FROM: "cruush <hello@cruush.app>",
       LOCATION_ENCRYPTION_KEY: strongSecret,
