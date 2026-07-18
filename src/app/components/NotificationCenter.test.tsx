@@ -72,7 +72,7 @@ describe('NotificationCenter', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Jordan sent you a message' }));
     await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('notification-1'));
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/chat/conversation-1');
+    expect(await screen.findByTestId('location-probe')).toHaveTextContent('/chat/conversation-1');
   });
 
   it('marks all visible notifications read', async () => {

@@ -130,11 +130,14 @@ profile routes and uploads: 1 file / 43 focused tests passed
 CSAM and PhotoDNA app paths: 1 file / 6 focused tests passed
 auth, session, and suspension paths: 1 file / 4 focused tests passed
 repository secret/security scan: passed
+frontend dependency audit: 0 vulnerabilities
 server production dependency audit: 0 vulnerabilities
 git diff whitespace check: passed
 ```
 
 Focused coverage includes complete-DOB onboarding, exact 18th-birthday calculation, year-only bypass rejection, adult-face allow, faceless adult-person allow, definite child-face permanent ban, age-overlap allow, adult nudity allow, missing-human reject, person-plus-animal reject, direct/group message enforcement, Rekognition failure, Stream partial response, deployed upload availability, config validation, and migration ordering.
+
+The release audit also upgraded `react-router` and `react-router-dom` to 7.18.1 and Vite to 6.4.3, resolving the reported frontend advisories. A root `package-lock.json` is included so the audited dependency graph is reproducible. The Router upgrade made notification navigation observably asynchronous in its test; the assertion now waits for the route update, with no production component behavior change.
 
 ## File-level change map
 
@@ -147,8 +150,9 @@ Focused coverage includes complete-DOB onboarding, exact 18th-birthday calculati
 - `server/src/stream-profile-photo-policy.ts`: permits adult nudity while retaining the other configured removal rules.
 - `src/app/components/ProfileOnboarding.tsx`, `server/src/profile-schema.ts`, and `server/src/routes/profiles.ts`: require and validate a complete DOB for first-time 18+ onboarding without retaining the full date in the profile.
 - `.env.example`, `server/.env.example`, `docs/moderation.md`, and `docs/coolify-env-open-beta.md`: deployment variables and operational guidance.
+- `package.json`, `package-lock.json`, and `src/app/components/NotificationCenter.test.tsx`: patched frontend release dependencies, reproducible install graph, and Router-compatible asynchronous navigation assertion.
 
-## Before merge or production enablement
+## Before production enablement
 
 1. Review this summary and the code diff.
 2. Create a least-privilege Rekognition credential or task role with `DetectFaces` and `DetectLabels`.
@@ -160,4 +164,4 @@ Focused coverage includes complete-DOB onboarding, exact 18th-birthday calculati
 8. Create a fresh account through visible onboarding. Confirm a birth year alone cannot proceed, an under-18 complete date is rejected, and an adult complete date succeeds.
 9. Exercise one consented adult face, one consented faceless adult-person photo, one permitted adult-nudity fixture, and provider-supplied age-safety fixtures in staging.
 10. Confirm child-face attempts never enter `profiles.photos` or message attachments, encrypted pending objects are deleted, the account is suspended, sessions are revoked, and device/IP ban rows contain hashes rather than raw identifiers.
-11. Merge only after staging passes. Push `main` only after the user approves this pre-push summary.
+11. Push `main` only after the user approves this pre-push summary. After deployment, complete the staging checks above before handing the build to the bank.
