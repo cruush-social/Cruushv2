@@ -5920,6 +5920,8 @@ describe("server", () => {
     const bridgeApp = buildServer({
       ...app.config,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
+      BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: true,
+      BANK_PROFILE_PHOTO_TESTER_USER_IDS: [userId],
       MODERATION_MEDIA_BASE_URL: "https://moderation-media-staging.cruush.app",
       STREAM_PSEUDONYM_KEY: "0123456789abcdef0123456789abcdef"
     }, {
@@ -9258,6 +9260,7 @@ describe("server", () => {
     const payload = {
       ...emptyProfile,
       display_name: "Cruusher",
+      date_of_birth: "1994-06-15",
       year_of_birth: 1994,
       position: ["top"],
       role: ["switch"],

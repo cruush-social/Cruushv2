@@ -4,7 +4,7 @@ Date: 2026-07-18
 
 Branch: `codex/stream-photo-safety`
 
-Status: implemented locally; not merged or pushed to `main`
+Status at pre-push review: implemented and verified on `codex/stream-photo-safety`; user authorized the `main` release on 2026-07-18. Live bank readiness still requires deployment configuration and staging proof after the push.
 
 ## Outcome
 
@@ -119,13 +119,18 @@ At current AWS Group 2 list pricing, each image-analysis API call is $0.001 for 
 ## Verification status
 
 ```text
+Node.js runtime: v22.22.2
 frontend production build: passed
 server TypeScript build: passed
+full frontend suite: 45 files / 235 tests passed
+full server suite: 47 files / 421 tests passed
 frontend onboarding: 1 file / 5 tests passed
 child-face, policy, media, config, migration, and DOB schemas: 12 files / 89 tests passed
 profile routes and uploads: 1 file / 43 focused tests passed
 CSAM and PhotoDNA app paths: 1 file / 6 focused tests passed
 auth, session, and suspension paths: 1 file / 4 focused tests passed
+repository secret/security scan: passed
+server production dependency audit: 0 vulnerabilities
 git diff whitespace check: passed
 ```
 
