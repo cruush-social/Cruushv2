@@ -7,6 +7,7 @@ import {
   KeyRound,
   LifeBuoy,
   LogOut,
+  ShieldAlert,
   Trash2,
   type LucideIcon,
 } from 'lucide-react';
@@ -94,6 +95,7 @@ export default function Settings() {
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
   const displayName = storedUser?.display_name ?? storedUser?.name ?? 'cruush user';
   const age = storedUser?.age ?? null;
+  const moderatorRole = storedUser?.moderator_role ?? null;
 
   const resetPasswordDialog = () => {
     setCurrentPassword('');
@@ -212,6 +214,15 @@ export default function Settings() {
   };
 
   const settingsSections: Array<{ title: string; items: SettingsItem[] }> = [
+    ...(moderatorRole ? [{
+      title: 'Moderation',
+      items: [{
+        icon: ShieldAlert,
+        label: 'Moderator dashboard',
+        description: `Signed in as ${moderatorRole}.`,
+        action: () => navigate('/admin/moderation'),
+      }],
+    }] : []),
     {
       title: 'Account',
       items: [

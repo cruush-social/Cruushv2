@@ -8,6 +8,7 @@ type StoredCruushUser = {
   id?: string;
   name?: string;
   year_of_birth?: number | null;
+  moderator_role?: 'admin' | 'moderator' | null;
 };
 
 const VERIFICATION_PREVIEW_URL_KEY = 'cruush_verification_preview_url';
@@ -62,6 +63,7 @@ export function persistSessionUser(session: AuthSessionPayload) {
     age: yearOfBirth ? new Date().getFullYear() - yearOfBirth : null,
     email_verified_at: session.user.emailVerifiedAt,
     year_of_birth: yearOfBirth,
+    moderator_role: session.user.moderatorRole ?? null,
   });
 
   if (session.user.emailVerifiedAt) {

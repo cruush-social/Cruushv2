@@ -17,6 +17,7 @@ type ReportLocationState = {
   conversationId?: string;
   messageId?: string;
   postId?: string;
+  profilePhotoUrl?: string;
   targetId?: string;
   targetLabel?: string;
 } | null;
@@ -28,6 +29,7 @@ function getReportTarget(state: ReportLocationState, searchParams: URLSearchPara
     conversationId: state?.conversationId ?? searchParams.get('conversationId') ?? undefined,
     messageId: state?.messageId ?? searchParams.get('messageId') ?? undefined,
     postId: state?.postId ?? searchParams.get('postId') ?? undefined,
+    profilePhotoUrl: state?.profilePhotoUrl ?? searchParams.get('profilePhotoUrl') ?? undefined,
     targetId: state?.targetId ?? searchParams.get('targetId') ?? undefined,
     targetLabel: state?.targetLabel ?? searchParams.get('targetLabel') ?? undefined,
   };
@@ -48,6 +50,10 @@ function getTargetId(target: ReturnType<typeof getReportTarget>) {
 
   if (target.targetType === 'message') {
     return target.messageId;
+  }
+
+  if (target.targetType === 'profile_photo') {
+    return target.profilePhotoUrl ?? target.targetId;
   }
 
   return target.postId;
@@ -73,6 +79,8 @@ export default function ReportPage() {
         ? 'this message'
         : target.targetType === 'post'
           ? 'this post'
+          : target.targetType === 'profile_photo'
+            ? 'this profile photo'
           : 'this profile'
   );
 
@@ -96,6 +104,7 @@ export default function ReportPage() {
       await createReport({
         targetType: target.targetType,
         targetId,
+        targetUserId: target.targetUserId,
         reason,
         details: details.trim() || undefined,
       });

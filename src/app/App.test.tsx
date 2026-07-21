@@ -314,7 +314,7 @@ describe('App', () => {
     expect(await screen.findByText('Mock Report')).toBeInTheDocument();
   });
 
-  it('renders the unlinked moderator route only when human moderation is enabled', async () => {
+  it('renders the protected moderator route without a client feature flag', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -332,7 +332,7 @@ describe('App', () => {
     });
     window.history.replaceState({}, '', '/admin/moderation');
 
-    render(<App humanModerationEnabled />);
+    render(<App />);
 
     expect(await screen.findByText('Mock Moderator Review')).toBeInTheDocument();
   });

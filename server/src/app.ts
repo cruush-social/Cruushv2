@@ -149,9 +149,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   });
 
   void registerAuthRoutes(app);
-  if (config.HUMAN_MODERATION_ENABLED) {
-    void registerAdminModerationRoutes(app);
-  }
+  void registerAdminModerationRoutes(app);
   void registerBlockRoutes(app);
   void registerBillingRoutes(app);
   void registerModerationMediaRoutes(app);

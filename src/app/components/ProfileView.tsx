@@ -343,7 +343,11 @@ export default function ProfileView() {
       </header>
 
       <div className="mx-auto max-w-2xl">
-        <ProfilePhotoGallery name={profileView.name} photos={profileView.photos} />
+        <ProfilePhotoGallery
+          name={profileView.name}
+          photos={profileView.photos}
+          reportTargetUserId={isOwnProfile ? undefined : userId}
+        />
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-6">

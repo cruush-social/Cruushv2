@@ -1,5 +1,7 @@
 # Reports, Profile Photos, Messages, And Profile Navigation Implementation
 
+> Update (2026-07-21): the reporting MVP now feeds the authenticated, paginated moderator dashboard. The historical notes below describing admin tooling as omitted are superseded by `docs/moderation.md` and migration `041_unified_moderation_queue.sql`.
+
 This document summarizes the work added in this thread and the reasoning behind the implementation choices. The scope covered five product areas:
 
 - A reporting MVP with a dedicated `/report` page and persisted backend storage.

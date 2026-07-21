@@ -42,4 +42,24 @@ describe('reportApi', () => {
       credentials: 'include',
     }));
   });
+
+  it('sends a profile-photo report with both owner and photo context', async () => {
+    await createReport({
+      targetType: 'profile_photo',
+      targetId: '/api/media/assets/photo-1/display',
+      targetUserId: '11111111-1111-4111-8111-111111111111',
+      reason: 'non_consensual_imagery',
+    });
+
+    expect(fetch).toHaveBeenCalledWith('/api/reports', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        targetType: 'profile_photo',
+        profilePhotoUrl: '/api/media/assets/photo-1/display',
+        targetUserId: '11111111-1111-4111-8111-111111111111',
+        reason: 'non_consensual_imagery',
+        details: '',
+      }),
+    }));
+  });
 });

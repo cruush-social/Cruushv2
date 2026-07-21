@@ -396,6 +396,55 @@ describe('PrivateGroupChat', () => {
     expect(screen.getByText(/expires Apr 30/)).toBeInTheDocument();
   });
 
+  it('lets users report an individual incoming message', async () => {
+    const messageId = '59e01d61-4a76-4359-915a-1f25b7815ff4';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: 'unwanted message',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+      },
+      messages: [{
+        id: messageId,
+        userId: 'user-2',
+        content: 'unwanted message',
+        timestamp: '2026-04-29T12:00:00.000Z',
+      }],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Report message' }));
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'harassment' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+    await waitFor(() => expect(createReport).toHaveBeenCalledWith({
+      targetType: 'message',
+      targetId: messageId,
+      targetUserId: undefined,
+      reason: 'harassment',
+      details: undefined,
+    }));
+    expect(toastSuccess).toHaveBeenCalledWith('Report submitted.');
+  });
+
   it('renders message photo attachments', async () => {
     getConversationMessages.mockResolvedValue({
       conversation: {

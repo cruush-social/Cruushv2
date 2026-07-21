@@ -833,10 +833,21 @@ export default function PrivateGroupChat() {
                       {msg.content}
                     </div>
                   ) : null}
-                  <span className="px-1 text-[11px] text-muted-foreground">
-                    {formatMessageTime(msg.timestamp)}
-                    {msg.expiresAt ? ` · ${formatExpirationTime(msg.expiresAt)}` : ''}
-                  </span>
+                  <div className="flex items-center gap-1 px-1">
+                    <span className="text-[11px] text-muted-foreground">
+                      {formatMessageTime(msg.timestamp)}
+                      {msg.expiresAt ? ` · ${formatExpirationTime(msg.expiresAt)}` : ''}
+                    </span>
+                    {!isOwn ? (
+                      <ReportAction
+                        targetType="message"
+                        targetId={msg.id}
+                        targetLabel="message"
+                        label="Report message"
+                        className="size-7"
+                      />
+                    ) : null}
+                  </div>
                 </div>
               </div>
             );

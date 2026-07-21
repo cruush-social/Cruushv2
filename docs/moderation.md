@@ -2,7 +2,7 @@
 
 cruush moderation is server-side automod. The browser never receives Stream secret keys, provider results, PhotoDNA keys, or trust-score internals.
 
-Human review tooling exists but is dormant by default. There is no human profile-photo moderation queue for bank staging or open beta. Stream AI/moderation results, local policy mapping, report evidence, and trust-score enforcement make the save/publish decision before content is exposed. The legacy bank manual-review code remains in the repository, but startup validation and route precedence keep it inactive whenever shared Stream profile-photo automod is enabled.
+Human review tooling is available to active users listed in `moderator_users`. There is still no general pre-publication human profile-photo gate for bank staging or open beta: Stream AI/moderation results, local policy mapping, report evidence, and trust-score enforcement make the save/publish decision before content is exposed. The moderator dashboard handles user reports and ordinary automod follow-up; the legacy bank manual-review code remains inactive whenever shared Stream profile-photo automod is enabled.
 
 ## Environment
 
@@ -22,7 +22,6 @@ MEDIA_S3_SECRET_ACCESS_KEY=
 MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=false
-HUMAN_MODERATION_ENABLED=false
 STREAM_IMAGE_BRIDGE_ENABLED=false
 PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=false
 PROFILE_PHOTO_REKOGNITION_ENABLED=false
@@ -52,7 +51,7 @@ PHOTODNA_SUBSCRIPTION_KEY=
 PHOTODNA_TIMEOUT_MS=5000
 ```
 
-The frontend must also keep `VITE_HUMAN_MODERATION_ENABLED=false`. The API routes and frontend moderator screen are not mounted unless their respective flags are explicitly enabled.
+`HUMAN_MODERATION_ENABLED` and `VITE_HUMAN_MODERATION_ENABLED` are retained as legacy configuration keys but no longer control route mounting. Moderator authorization is enforced by the backend using the authenticated session, active account status, and `moderator_users` membership.
 
 When `STREAM_MODERATION_ENABLED=true`, `STREAM_API_KEY`, `STREAM_API_SECRET`, and `STREAM_MODERATION_CONFIG_KEY` are required at server startup.
 
@@ -118,13 +117,43 @@ If Stream is unavailable, partial, pending, or returns an error, content is not 
 
 Reports are created through `POST /api/reports`. The reporter is taken from the session, not the request body, and report creation is rate-limited.
 
+The product exposes report actions for profiles, profile photos, feed posts, conversations, and individual incoming messages. The server verifies that the reporter can see or participate in the targeted content and derives the reported user from stored data.
+
 Each report creates:
 
 - A `reports` row.
 - A flagged `content_reviews` audit row.
 - An `evidence_events` row when a target user is known.
 
-The trust engine weights reports by reporter trust score and account age. Reports are automod evidence, not a human work queue. Fetishization/chaser concerns use this report path.
+The trust engine weights reports by reporter trust score and account age. Reports are both automod evidence and human queue items. Fetishization/chaser concerns use this report path.
+
+## Moderator Dashboard
+
+The authenticated dashboard is available at `/admin/moderation` and is linked from Settings only for sessions whose user has an `admin` or `moderator` role.
+
+Provision a moderator with an explicit database grant:
+
+```sql
+insert into moderator_users (user_id, role)
+values ('<existing-active-user-uuid>', 'moderator')
+on conflict (user_id) do update set role = excluded.role;
+```
+
+The dashboard and `/api/admin/moderation/*` routes provide:
+
+- one paginated queue for all user reports and every ordinary non-allowed `content_reviews` record;
+- report, automod, open, closed, and combined filters;
+- decrypted live context for retained posts and messages, recent context for conversation reports, public profile context, and no-store moderator media previews;
+- report resolution/dismissal linked to the corresponding content-review state;
+- automod review approval/rejection;
+- removal of reported posts, messages, and profile photos;
+- account restoration, under-review state, and suspension;
+- full moderator action history for the selected report or review;
+- append-only access events whenever a moderator opens retained content detail or a decrypted media preview.
+
+New reports store their linked `content_review_id` transactionally. Migration `041_unified_moderation_queue.sql` backfills older links from the report audit metadata. The UI uses server-side limit/offset pagination, so older reports do not disappear behind a fixed recent-item cap.
+
+Known-CSAM/PhotoDNA incidents are deliberately excluded from the general moderator queue. They remain in the separately authenticated `/api/internal/csam-incidents/*` reporting workflow. Rejected pre-storage content is represented by its provider labels and policy decision; the system does not retain a new plaintext or media copy merely to populate the queue.
 
 ## Stream Setup
 
@@ -136,7 +165,7 @@ In Stream dashboard:
 4. Configure only `Violence`, `Visually Disturbing`, and `Hate Symbols` to remove at the thresholds committed in `configure-stream-profile-photo-safety.ts`. Do not add `Explicit` or `Non-Explicit Nudity` removal rules because consensual adult nudity is allowed on these photo surfaces.
 5. Configure borderline categories to flag only when cruush should reject or fail closed without human review.
 6. Avoid blocklists that treat queer identity terms, trans terms, kink terms, or consensual adult dating language as violations by themselves.
-7. Configure every Stream action other than `keep` as a cruush rejection; there is no human queue behind `flag`.
+7. Configure every Stream action other than `keep` as a cruush rejection. Ordinary non-allowed decisions are visible as follow-up evidence in the moderator dashboard, but a dashboard review does not make unapproved content public.
 8. Run `npm --prefix server run configure:stream-profile-safety` with the Stream environment variables loaded. The command reads the existing policy first and preserves the non-image engines because Stream replaces the full policy on upsert.
 9. Verify the saved policy in Stream Dashboard. Stream does not provide a human-presence category; the direct Rekognition gate supplies that signal.
 10. Verify PhotoDNA against real allowed and blocked provider responses before enabling deployed photo uploads.
@@ -192,7 +221,7 @@ Run cleanup every five minutes from a private scheduler attached to the API envi
 */5 * * * * cd /app/server && pnpm cleanup:moderation-media-grants
 ```
 
-The command deletes legacy expired grants and abandoned pending media, including canonical and variant ciphertext. Shared automod deletes rejected files during the request; the scheduler covers process crashes and other abandoned uploads after five minutes. Approved photos leave quarantine and remain attached through the normal lifecycle. Message-photo uploads use the same signed display-variant bridge and remain unavailable unless every deployed safety gate is enabled.
+The command deletes legacy expired grants and abandoned pending media, including canonical and variant ciphertext, and purges moderator content-access events after 180 days. Shared automod deletes rejected files during the request; the scheduler covers process crashes and other abandoned uploads after five minutes. Approved photos leave quarantine and remain attached through the normal lifecycle. Message-photo uploads use the same signed display-variant bridge and remain unavailable unless every deployed safety gate is enabled.
 
 The legacy internal bank-review endpoints remain compiled but must not be used for bank staging or open beta. With `BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false`, they are unavailable. The archived design is documented in `docs/bank-profile-photo-manual-review-architecture-plan-2026-07-13.md`.
 

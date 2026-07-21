@@ -4,17 +4,20 @@ import HeartPhoto from './HeartPhoto';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
+import ReportAction from './ReportAction';
 
 interface ProfilePhotoGalleryProps {
   fallbackLabel?: string;
   name: string;
   photos: string[];
+  reportTargetUserId?: string;
 }
 
 export default function ProfilePhotoGallery({
   fallbackLabel = 'Profile photo',
   name,
   photos,
+  reportTargetUserId,
 }: ProfilePhotoGalleryProps) {
   const visiblePhotos = useMemo(() => photos.slice(0, 4), [photos]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -52,6 +55,18 @@ export default function ProfilePhotoGallery({
           <CruushIconImage src={cruushIconWhite} className="h-24 w-24 opacity-15" />
         </div>
       )}
+
+      {activePhoto && reportTargetUserId ? (
+        <div className="absolute bottom-3 left-3 rounded-full bg-black/55 backdrop-blur-sm">
+          <ReportAction
+            targetType="profile_photo"
+            targetId={activePhoto}
+            targetUserId={reportTargetUserId}
+            targetLabel={`photo ${activeIndex + 1} from ${name}`}
+            label="Report this profile photo"
+          />
+        </div>
+      ) : null}
 
       {previewPhotos.length > 0 ? (
         <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-2 sm:right-4 sm:gap-3">

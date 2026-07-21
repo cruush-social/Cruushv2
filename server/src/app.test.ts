@@ -663,13 +663,13 @@ describe("server", () => {
     });
   });
 
-  it("does not mount admin moderation routes while human moderation is disabled", async () => {
+  it("keeps admin moderation routes mounted and protected when the legacy feature flag is disabled", async () => {
     const response = await productionApp.inject({
       method: "GET",
       url: "/api/admin/moderation/reports"
     });
 
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(401);
   });
 
   it("requires the internal secret before returning a CSAM incident", async () => {
@@ -4561,6 +4561,8 @@ describe("server", () => {
       null,
       null,
       null,
+      null,
+      null,
       "harassment",
       "keeps sending threats"
     ]);
@@ -4713,6 +4715,8 @@ describe("server", () => {
       conversationId,
       null,
       null,
+      null,
+      null,
       "privacy_location",
       ""
     ]);
@@ -4754,6 +4758,8 @@ describe("server", () => {
       userId,
       "user",
       targetUserId,
+      null,
+      null,
       null,
       null,
       null,
@@ -4803,6 +4809,8 @@ describe("server", () => {
       null,
       null,
       postId,
+      null,
+      null,
       "hate",
       ""
     ]);
@@ -4850,7 +4858,49 @@ describe("server", () => {
       conversationId,
       messageId,
       null,
+      null,
+      null,
       "violence_threat",
+      ""
+    ]);
+  });
+
+  it("creates a profile-photo report with owner and media context", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const mediaObjectId = "0759d8df-8ba5-4b12-a8fb-c46d4ea63df7";
+    const profilePhotoUrl = `/api/media/assets/${mediaObjectId}/display`;
+
+    query
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId }] })
+      .mockResolvedValueOnce({ rows: [{ media_object_id: mediaObjectId, profile_photo_url: profilePhotoUrl }] })
+      .mockResolvedValueOnce({
+        rows: [{ id: "report-photo", status: "open", created_at: "2026-04-29T12:26:00.000Z" }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: { "x-user-id": userId },
+      payload: {
+        targetType: "profile_photo",
+        targetUserId,
+        mediaObjectId,
+        reason: "non_consensual_imagery"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[1]?.[0]).toContain("cross join lateral unnest");
+    expect(query.mock.calls[2]?.[1]).toEqual([
+      userId,
+      "profile_photo",
+      targetUserId,
+      null,
+      null,
+      null,
+      mediaObjectId,
+      profilePhotoUrl,
+      "non_consensual_imagery",
       ""
     ]);
   });
@@ -5007,6 +5057,7 @@ describe("server", () => {
             type: "post",
             userId: targetUserId,
             displayName: "Jordan",
+            accountStatus: "active",
             conversationId: null,
             messageId: null,
             postId: "59e01d61-4a76-4359-915a-1f25b7815ff4",
@@ -5022,6 +5073,232 @@ describe("server", () => {
       }
     });
     expect(JSON.stringify(response.json())).not.toContain("@");
+  });
+
+  it("returns a paginated unified queue with reports and automod candidates", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const reportId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
+    const reviewId = "c6c09b96-80ea-4272-a6f5-91727250c4ce";
+    const base = {
+      created_at: "2026-04-29T12:00:00.000Z",
+      updated_at: "2026-04-29T12:00:00.000Z",
+      target_user_id: targetUserId,
+      conversation_id: null,
+      message_id: null,
+      post_id: null,
+      media_object_id: null,
+      profile_photo_url: null,
+      subject_display_name: "Jordan",
+      account_status: "active",
+      reporter_user_id: null,
+      reporter_display_name: null,
+      normalized_labels: [],
+      policy_decision: {},
+      content_ref: {},
+      total_count: "2"
+    };
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          ...base,
+          item_kind: "report",
+          id: reportId,
+          queue_status: "open",
+          reason: "harassment",
+          summary: "reported post",
+          target_type: "post",
+          post_id: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+          reporter_user_id: userId,
+          reporter_display_name: "River",
+          content_review_id: reviewId,
+          surface: "feed",
+          content_type: "text",
+          provider: "user_report"
+        }, {
+          ...base,
+          item_kind: "review",
+          id: reviewId,
+          queue_status: "pending_review",
+          reason: "provider_flagged_by_automod",
+          summary: "Automated moderation review",
+          target_type: "message",
+          content_review_id: reviewId,
+          surface: "direct_message",
+          content_type: "text",
+          provider: "stream"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/moderation/queue?source=all&state=open&limit=25",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("coalesce(review.provider, '') <> 'user_report'");
+    expect(query.mock.calls[1]?.[0]).toContain("photodna_csam_match");
+    expect(response.json().data.page).toEqual({ limit: 25, offset: 0, total: 2, hasMore: false });
+    expect(response.json().data.items.map((item: { kind: string }) => item.kind)).toEqual(["report", "review"]);
+  });
+
+  it("returns decrypted reported content and full moderation history in queue detail", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const reportId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: reportId,
+        reporter_user_id: userId,
+        target_type: "post",
+        target_user_id: targetUserId,
+        conversation_id: null,
+        message_id: null,
+        post_id: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+        media_object_id: null,
+        profile_photo_url: null,
+        content_review_id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+        reason: "harassment",
+        details: "reported context",
+        status: "open",
+        created_at: "2026-04-29T12:00:00.000Z",
+        updated_at: "2026-04-29T12:00:00.000Z",
+        reporter_display_name: "River",
+        target_display_name: "Jordan",
+        target_account_status: "active"
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        content: "reported plaintext",
+        content_ciphertext: null,
+        content_nonce: null,
+        content_auth_tag: null,
+        content_key_version: null,
+        created_at: "2026-04-29T11:59:00.000Z",
+        display_name: "Jordan"
+      }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: "7bc5eaec-a2b9-4f11-88f2-56d30a5d83fb",
+        action: "note",
+        reason_code: "triaged",
+        notes: "Prior triage note.",
+        created_at: "2026-04-29T12:05:00.000Z",
+        actor_display_name: "Moderator"
+      }] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/admin/moderation/queue/report/${reportId}`,
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.context).toEqual(expect.objectContaining({
+      kind: "post",
+      text: "reported plaintext",
+      author: "Jordan"
+    }));
+    expect(response.json().data.history[0]).toEqual(expect.objectContaining({
+      action: "note",
+      notes: "Prior triage note."
+    }));
+    expect(query.mock.calls[4]?.[0]).toContain("insert into moderation_access_events");
+    expect(query.mock.calls[4]?.[1]?.slice(0, 5)).toEqual([
+      userId,
+      reportId,
+      "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+      null,
+      "queue_detail"
+    ]);
+  });
+
+  it("lets moderators decide an automated review and records a linked action", async () => {
+    const reviewId = "c6c09b96-80ea-4272-a6f5-91727250c4ce";
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: reviewId,
+        user_id: targetUserId,
+        display_name: "Jordan",
+        account_status: "active",
+        surface: "feed",
+        content_type: "text",
+        status: "queued",
+        content_id: null,
+        content_ref: {},
+        provider: "stream",
+        provider_request_id: "provider-1",
+        normalized_labels: [],
+        policy_decision: { decision: "quarantine" },
+        moderation_status: "pending_review",
+        flagged_reason: "provider_flagged_by_automod",
+        moderation_provider: "stream",
+        created_at: "2026-04-29T12:00:00.000Z",
+        completed_at: "2026-04-29T12:00:00.000Z"
+      }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{
+        id: "7bc5eaec-a2b9-4f11-88f2-56d30a5d83fb",
+        created_at: "2026-04-29T12:10:00.000Z"
+      }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/reviews/${reviewId}/decision`,
+      headers: { "x-user-id": userId },
+      payload: {
+        action: "reject",
+        reasonCode: "manual_review_rejected",
+        notes: "Confirmed by moderator."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("update content_reviews");
+    expect(query.mock.calls[2]?.[1]).toEqual([reviewId, "rejected", "blocked"]);
+    expect(query.mock.calls[3]?.[1]?.[3]).toBe(reviewId);
+    expect(query.mock.calls[3]?.[1]?.[4]).toBe("reject_content");
+  });
+
+  it("removes reported posts, resolves the report, and closes the linked review", async () => {
+    const reportId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
+    const reviewId = "c6c09b96-80ea-4272-a6f5-91727250c4ce";
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: reportId,
+        status: "open",
+        target_type: "post",
+        target_user_id: targetUserId,
+        conversation_id: null,
+        message_id: null,
+        post_id: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+        media_object_id: null,
+        profile_photo_url: null,
+        content_review_id: reviewId
+      }] })
+      .mockResolvedValueOnce({ rows: [{ id: "59e01d61-4a76-4359-915a-1f25b7815ff4" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{
+        id: "7bc5eaec-a2b9-4f11-88f2-56d30a5d83fb",
+        created_at: "2026-04-29T12:20:00.000Z"
+      }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/reports/${reportId}/remove-content`,
+      headers: { "x-user-id": userId },
+      payload: { reasonCode: "reported_content_removed", notes: "Confirmed violation." }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[2]?.[0]).toContain("delete from posts");
+    expect(query.mock.calls[3]?.[0]).toContain("status = 'resolved'");
+    expect(query.mock.calls[4]?.[0]).toContain("moderation_status = 'removed'");
+    expect(response.json().data.action).toBe("remove_post");
   });
 
   it("lets moderators resolve reports and records a moderation action", async () => {
@@ -5078,15 +5355,16 @@ describe("server", () => {
     expect(query.mock.calls[2]?.[0]).toContain("update reports");
     expect(query.mock.calls[2]?.[1]).toEqual([reportId, "resolved"]);
     expect(query.mock.calls[3]?.[0]).toContain("insert into moderation_actions");
-    expect(query.mock.calls[3]?.[1]?.slice(0, 6)).toEqual([
+    expect(query.mock.calls[3]?.[1]?.slice(0, 7)).toEqual([
       userId,
       targetUserId,
       reportId,
+      null,
       "resolve_report",
       "reviewed_valid_report",
       "Handled in beta queue."
     ]);
-    expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[6]))).toEqual(expect.objectContaining({
+    expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[7]))).toEqual(expect.objectContaining({
       previousStatus: "open",
       newStatus: "resolved",
       targetType: "post"
@@ -5155,7 +5433,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[3]?.[1]?.[3]).toBe("dismiss_report");
+    expect(query.mock.calls[3]?.[1]?.[4]).toBe("dismiss_report");
     expect(response.json().data.report.status).toBe("dismissed");
   });
 
@@ -5205,15 +5483,16 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[2]?.[0]).toContain("account_status_updated_at = now()");
     expect(query.mock.calls[2]?.[1]).toEqual([targetUserId, "under_review"]);
-    expect(query.mock.calls[3]?.[1]?.slice(0, 6)).toEqual([
+    expect(query.mock.calls[3]?.[1]?.slice(0, 7)).toEqual([
       userId,
       targetUserId,
+      null,
       null,
       "mark_under_review",
       "needs_manual_review",
       "Multiple credible reports."
     ]);
-    expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[6]))).toEqual({
+    expect(JSON.parse(String(query.mock.calls[3]?.[1]?.[7]))).toEqual({
       previousStatus: "active",
       newStatus: "under_review"
     });
@@ -5286,10 +5565,11 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[2]?.[0]).toContain("account_status_updated_at = now()");
-    expect(query.mock.calls[3]?.[1]?.slice(0, 6)).toEqual([
+    expect(query.mock.calls[3]?.[1]?.slice(0, 7)).toEqual([
       userId,
       targetUserId,
       "2f35619f-e09d-4f65-a7ea-8f6dd149ec11",
+      null,
       "suspend_user",
       "abuse_confirmed",
       ""

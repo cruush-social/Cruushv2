@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   changeModeratedAccountStatus,
+  decideContentReview,
+  getModerationQueue,
+  getModerationQueueItem,
   getModerationReport,
   getModerationReports,
   moderateReport,
+  removeReportedContent,
 } from './moderationApi';
 
 function apiResponse(data: unknown) {
@@ -83,6 +87,45 @@ describe('moderationApi', () => {
         notes: 'Credible safety threat.',
         reportId: 'report-1',
       }),
+    }));
+  });
+
+  it('loads the unified queue with server-side filters and pagination', async () => {
+    await getModerationQueue({ source: 'automod', state: 'closed', limit: 25, offset: 75 });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/admin/moderation/queue?source=automod&state=closed&limit=25&offset=75',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
+
+  it('loads an encoded unified queue detail path', async () => {
+    await getModerationQueueItem('review', 'review/1');
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/admin/moderation/queue/review/review%2F1',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
+
+  it('decides an automated review and removes reported content with audit notes', async () => {
+    await decideContentReview('review-1', {
+      action: 'reject',
+      reasonCode: 'manual_review_rejected',
+      notes: '  Confirmed.  ',
+    });
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/admin/moderation/reviews/review-1/decision', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ action: 'reject', reasonCode: 'manual_review_rejected', notes: 'Confirmed.' }),
+    }));
+
+    await removeReportedContent('report-1', {
+      reasonCode: 'reported_content_removed',
+      notes: '  Removed after review.  ',
+    });
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/admin/moderation/reports/report-1/remove-content', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ reasonCode: 'reported_content_removed', notes: 'Removed after review.' }),
     }));
   });
 });
