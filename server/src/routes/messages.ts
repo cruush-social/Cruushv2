@@ -151,7 +151,10 @@ function normalizeMessageAttachments(value: MessageRow["attachments"]): MessageA
   return Array.isArray(value) ? value : [];
 }
 
-function mapConversationRow(app: FastifyInstance, row: ConversationRow) {
+function mapConversationRow(app: FastifyInstance, row: ConversationRow, options: {
+  canMessage?: boolean;
+  mutual?: boolean;
+} = {}) {
   const isGroup = row.kind === "group";
   const lastMessage = decryptTextContentOrFallback(app.config, "message", {
     ciphertext: row.last_message_ciphertext ?? undefined,
@@ -177,13 +180,43 @@ function mapConversationRow(app: FastifyInstance, row: ConversationRow) {
     unreadCount: row.unread_count ?? 0,
     pinned: row.pinned,
     muted: row.muted,
-    mutual: false,
+    mutual: options.mutual ?? false,
+    ...(options.canMessage !== undefined ? { canMessage: options.canMessage } : {}),
     membersLabel: isGroup ? `${row.member_count} people` : undefined,
     tags: row.tags ?? [],
     ...(row.current_user_role ? { currentUserRole: row.current_user_role } : {}),
     ...(row.disappearing_timer ? { disappearingTimer: row.disappearing_timer } : {}),
     ...(row.closed_at !== undefined ? { closed: Boolean(row.closed_at) } : {})
   };
+}
+
+async function canReadConversation(app: FastifyInstance, userId: string, conversation: ConversationRow) {
+  if (conversation.kind !== "dm") {
+    return true;
+  }
+
+  if (!conversation.other_user_id) {
+    return false;
+  }
+
+  return hasActiveMutualMessagePermission(app, userId, conversation.other_user_id);
+}
+
+function mapReadableConversationRow(app: FastifyInstance, row: ConversationRow) {
+  if (row.kind !== "dm") {
+    return mapConversationRow(app, row);
+  }
+
+  return mapConversationRow(app, row, {
+    canMessage: true,
+    mutual: true
+  });
+}
+
+async function filterReadableConversationRows(app: FastifyInstance, userId: string, rows: ConversationRow[]) {
+  const readable = await Promise.all(rows.map((row) => canReadConversation(app, userId, row)));
+
+  return rows.filter((_, index) => readable[index]);
 }
 
 function mapMessageRow(app: FastifyInstance, row: MessageRow) {
@@ -888,9 +921,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        order by greatest(c.updated_at, coalesce(last_message.created_at, c.updated_at)) desc`,
       [userId]
     );
+    const rows = await filterReadableConversationRows(app, userId, result.rows);
 
     return reply.send({
-      data: result.rows.map((row) => mapConversationRow(app, row))
+      data: rows.map((row) => mapReadableConversationRow(app, row))
     });
   });
 
@@ -909,6 +943,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const conversation = conversationResult.rows[0];
 
     if (!conversation) {
+      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+    }
+
+    if (!await canReadConversation(app, userId, conversation)) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
     }
 
@@ -966,7 +1004,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
           last_message_auth_tag: null,
           last_message_key_version: null,
           unread_count: 0
-        }),
+        }, conversation.kind === "dm" ? { canMessage: true, mutual: true } : {}),
         messages: messagesResult.rows.map((row) => mapMessageRow(app, row))
       }
     });

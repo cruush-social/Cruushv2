@@ -547,6 +547,7 @@ function mockPendingProfileMediaQueries() {
 
 describe("server", () => {
   const userId = "d271f6da-c51d-4d73-a322-d9c56f45d4fa";
+  const dmPartnerId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
   const conversationId = "7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2";
   const csamIncidentId = "11111111-1111-4111-8111-111111111111";
   const csamEvidenceId = "22222222-2222-4222-8222-222222222222";
@@ -2789,24 +2790,42 @@ describe("server", () => {
   });
 
   it("returns conversations from GET /api/conversations", async () => {
-    query.mockResolvedValueOnce({
-      rows: [{
-        id: conversationId,
-        kind: "dm",
-        title: null,
-        tags: ["Hosting", "Now"],
-        updated_at: "2026-04-29T12:00:00.000Z",
-        last_message: "hosting for another hour",
-        unread_count: 2,
-        pinned: true,
-        muted: false,
-        other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-        other_user_name: "Alex",
-        other_user_pronouns: ["they/them"],
-        other_user_photo: "https://example.com/alex.jpg",
-        member_count: 2
-      }]
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-conversation-list",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: dmPartnerId
     });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-conversation-list",
+      userOneId: userId,
+      userTwoId: dmPartnerId
+    });
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: ["Hosting", "Now"],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "hosting for another hour",
+          unread_count: 2,
+          pinned: true,
+          muted: false,
+          other_user_id: dmPartnerId,
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: "https://example.com/alex.jpg",
+          member_count: 2
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "GET",
@@ -2823,7 +2842,7 @@ describe("server", () => {
         id: conversationId,
         kind: "dm",
         user: {
-          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          id: dmPartnerId,
           name: "Alex",
           pronouns: "they/them",
           photo: "https://example.com/alex.jpg"
@@ -2834,17 +2853,15 @@ describe("server", () => {
         unreadCount: 2,
         pinned: true,
         muted: false,
-        mutual: false,
+        mutual: true,
+        canMessage: true,
         membersLabel: undefined,
         tags: ["Hosting", "Now"]
       }]
     });
   });
 
-  it("falls back to plaintext message previews when encrypted message metadata is unreadable", async () => {
-    const invalidNonce = Buffer.alloc(12).toString("base64");
-    const invalidAuthTag = Buffer.alloc(16).toString("base64");
-
+  it("hides legacy non-mutual dm conversations from GET /api/conversations", async () => {
     query.mockResolvedValueOnce({
       rows: [{
         id: conversationId,
@@ -2852,21 +2869,73 @@ describe("server", () => {
         title: null,
         tags: [],
         updated_at: "2026-04-29T12:00:00.000Z",
-        last_message: "legacy preview",
-        last_message_ciphertext: Buffer.from("bad-preview").toString("base64"),
-        last_message_nonce: invalidNonce,
-        last_message_auth_tag: invalidAuthTag,
-        last_message_key_version: "v1",
+        last_message: "legacy chat",
         unread_count: 0,
         pinned: false,
         muted: false,
-        other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+        other_user_id: dmPartnerId,
         other_user_name: "Alex",
         other_user_pronouns: ["they/them"],
         other_user_photo: null,
         member_count: 2
       }]
     });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/conversations",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: [] });
+  });
+
+  it("falls back to plaintext message previews when encrypted message metadata is unreadable", async () => {
+    const invalidNonce = Buffer.alloc(12).toString("base64");
+    const invalidAuthTag = Buffer.alloc(16).toString("base64");
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-conversation-preview",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: dmPartnerId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-conversation-preview",
+      userOneId: userId,
+      userTwoId: dmPartnerId
+    });
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "legacy preview",
+          last_message_ciphertext: Buffer.from("bad-preview").toString("base64"),
+          last_message_nonce: invalidNonce,
+          last_message_auth_tag: invalidAuthTag,
+          last_message_key_version: "v1",
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: dmPartnerId,
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
       method: "GET",
@@ -3515,6 +3584,18 @@ describe("server", () => {
   });
 
   it("returns a conversation and its messages from GET /api/messages/:conversationId", async () => {
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-message-load",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: dmPartnerId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-message-load",
+      userOneId: userId,
+      userTwoId: dmPartnerId
+    });
+
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -3525,17 +3606,22 @@ describe("server", () => {
           updated_at: "2026-04-29T12:00:00.000Z",
           pinned: false,
           muted: false,
-          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_id: dmPartnerId,
           other_user_name: "Alex",
           other_user_pronouns: ["they/them"],
           other_user_photo: "https://example.com/alex.jpg",
           member_count: 2
         }]
       })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "msg-1",
-          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          user_id: dmPartnerId,
           content: "you around now?",
           created_at: "2026-04-29T12:05:00.000Z"
         }, {
@@ -3556,14 +3642,14 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("join conversations c");
-    expect(query.mock.calls[1]?.[0]).toContain("from messages m");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("from messages m"))).toBe(true);
     expect(response.json()).toEqual({
       data: {
         conversation: {
           id: conversationId,
           kind: "dm",
           user: {
-            id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            id: dmPartnerId,
             name: "Alex",
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg"
@@ -3574,13 +3660,14 @@ describe("server", () => {
           unreadCount: 0,
           pinned: false,
           muted: false,
-          mutual: false,
+          mutual: true,
+          canMessage: true,
           membersLabel: undefined,
           tags: ["Hosting"]
         },
         messages: [{
           id: "msg-1",
-          userId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          userId: dmPartnerId,
           content: "you around now?",
           timestamp: "2026-04-29T12:05:00.000Z"
         }, {
@@ -3596,6 +3683,17 @@ describe("server", () => {
   it("falls back to plaintext message content when encrypted message metadata is unreadable", async () => {
     const invalidNonce = Buffer.alloc(12).toString("base64");
     const invalidAuthTag = Buffer.alloc(16).toString("base64");
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "match-message-fallback",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: dmPartnerId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: "match-message-fallback",
+      userOneId: userId,
+      userTwoId: dmPartnerId
+    });
 
     query
       .mockResolvedValueOnce({
@@ -3607,17 +3705,22 @@ describe("server", () => {
           updated_at: "2026-04-29T12:00:00.000Z",
           pinned: false,
           muted: false,
-          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_id: dmPartnerId,
           other_user_name: "Alex",
           other_user_pronouns: ["they/them"],
           other_user_photo: null,
           member_count: 2
         }]
       })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [matchToken] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: "msg-legacy",
-          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          user_id: dmPartnerId,
           content: "legacy body",
           content_ciphertext: Buffer.from("bad-body").toString("base64"),
           content_nonce: invalidNonce,
@@ -3637,6 +3740,43 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data.messages[0].content).toBe("legacy body");
+  });
+
+  it("hides legacy non-mutual dm conversations from GET /api/messages/:conversationId", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: conversationId,
+        kind: "dm",
+        title: null,
+        tags: [],
+        updated_at: "2026-04-29T12:00:00.000Z",
+        pinned: false,
+        muted: false,
+        other_user_id: dmPartnerId,
+        other_user_name: "Alex",
+        other_user_pronouns: ["they/them"],
+        other_user_photo: null,
+        member_count: 2
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/messages/${conversationId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: {
+        code: "NOT_FOUND",
+        message: "Conversation not found.",
+        details: null
+      }
+    });
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("where m.conversation_id::text = $1"))).toBe(false);
   });
 
   it("rejects invalid conversation ids before querying messages", async () => {
