@@ -1,7 +1,9 @@
-const CACHE_NAME = 'cruush-app-shell-v1';
+const CACHE_NAME = 'cruush-app-shell-v2';
 const APP_SHELL_URLS = [
   '/',
   '/manifest.webmanifest',
+  '/icons/favicon-16.png',
+  '/icons/favicon-32.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png'

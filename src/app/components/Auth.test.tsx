@@ -50,9 +50,10 @@ describe('Auth', () => {
   });
 
   it('shows a resend verification action after an unverified login attempt', async () => {
-    render(<Auth onAuth={vi.fn()} />);
+    const { container } = render(<Auth onAuth={vi.fn()} />);
 
-    expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('cruush-logo-text');
+    expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveAttribute('alt', 'cruush');
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
