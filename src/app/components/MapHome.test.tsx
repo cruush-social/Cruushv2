@@ -401,7 +401,13 @@ describe('MapHome', () => {
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
-    expect(screen.getByTestId('map-home-shell')).toHaveClass('cruush-map-shell', 'select-none', 'overscroll-none');
+    expect(screen.getByTestId('map-home-shell')).toHaveClass(
+      'cruush-map-shell',
+      'fixed',
+      'inset-0',
+      'select-none',
+      'overscroll-none',
+    );
   });
 
   it('navigates directly to the full profile on mobile', async () => {
@@ -483,6 +489,8 @@ describe('MapHome', () => {
     const rightActions = screen.getByTestId('map-right-actions');
     const cruushPlusButton = await screen.findByRole('button', { name: 'cruush+' });
 
+    expect(screen.getByTestId('map-home-shell')).toHaveClass('relative');
+    expect(screen.getByTestId('map-home-shell')).not.toHaveClass('fixed', 'inset-0');
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
     expect(topActions).toHaveClass('pointer-events-auto', 'mt-0');
     expect(topActions).not.toHaveClass('mt-11');
@@ -929,6 +937,26 @@ describe('MapHome', () => {
     });
     expect(getNearbyUsers.mock.calls.at(-1)?.[0]).not.toEqual({ lat: 40.701, lng: -73.901 });
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
+  });
+
+  it('requests geolocation again after a same-session reload when no saved location exists', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
+      expect(screen.getByTestId('map-focus')).not.toHaveAttribute('data-lat', '');
+      expect(screen.getByTestId('map-focus')).not.toHaveAttribute('data-lng', '');
+    });
   });
 
   it('centers the current approximate location from the compact pin button', async () => {
