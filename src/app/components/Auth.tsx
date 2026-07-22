@@ -206,7 +206,7 @@ export default function Auth({ onAuth }: AuthProps) {
               className="mx-auto mb-4 h-40 w-auto max-w-[18rem] object-contain sm:h-48"
               draggable={false}
             />
-            <p className="text-white/50 text-sm">premium queer cruising for nearby discovery</p>
+            <p className="text-white/50 text-sm">queer cruisers cruise cruush</p>
           </div>
         </div>
 

@@ -54,6 +54,7 @@ describe('Auth', () => {
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveAttribute('alt', 'cruush');
+    expect(screen.getByText('queer cruisers cruise cruush')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });

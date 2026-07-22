@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cruush-app-shell-v2';
+const CACHE_NAME = 'cruush-app-shell-v3';
 const APP_SHELL_URLS = [
   '/',
   '/manifest.webmanifest',
