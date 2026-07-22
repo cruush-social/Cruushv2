@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import type { DbClient } from "./db.js";
 import { ApiError } from "./errors.js";
 import {
   containsBlockedRacialSlur,
@@ -54,13 +55,15 @@ type ModerateProfileInput = {
 type UserReportInput = {
   reporterId: string;
   targetUserId: string | null;
-  contentType: "user" | "profile" | "conversation" | "message" | "post";
+  contentType: "user" | "profile" | "conversation" | "message" | "post" | "profile_photo";
   contentId: string;
   reason: string;
   details?: string;
   conversationId?: string | null;
   messageId?: string | null;
   postId?: string | null;
+  mediaObjectId?: string | null;
+  profilePhotoUrl?: string | null;
 };
 
 type ContentReviewInput = {
@@ -175,14 +178,14 @@ export function approvedContentReviewCte(options: {
   )`;
 }
 
-async function recordContentReview(app: FastifyInstance, input: ContentReviewInput) {
+async function recordContentReview(app: FastifyInstance, input: ContentReviewInput, db: DbClient = app.db) {
   const id = randomUUID();
   const moderationStatus = input.moderationStatus ?? moderationStatusForReview(input.status, input.decision);
   const flaggedReason = input.flaggedReason ?? (
     input.decision.reason_code === "content_allowed" ? null : input.decision.reason_code
   );
 
-  await app.db.query(
+  await db.query(
     `insert into content_reviews (
        id,
        user_id,
@@ -597,16 +600,18 @@ export async function moderateProfileOrReject(app: FastifyInstance, input: Moder
   });
 }
 
-export async function createUserReport(app: FastifyInstance, input: UserReportInput) {
+export async function createUserReport(app: FastifyInstance, input: UserReportInput, db: DbClient = app.db) {
   const reviewUserId = input.targetUserId ?? input.reporterId;
   const reviewId = await recordContentReview(app, {
     userId: reviewUserId,
-    surface: input.contentType === "post"
+    surface: input.contentType === "profile_photo"
+      ? "profile_photo"
+      : input.contentType === "post"
       ? "feed"
       : input.contentType === "profile" || input.contentType === "user"
         ? "profile"
         : "direct_message",
-    contentType: "text",
+    contentType: input.contentType === "profile_photo" ? "image" : "text",
     status: "queued",
     moderationStatus: "flagged",
     flaggedReason: input.reason,
@@ -619,6 +624,8 @@ export async function createUserReport(app: FastifyInstance, input: UserReportIn
       conversationId: input.conversationId ?? null,
       messageId: input.messageId ?? null,
       postId: input.postId ?? null,
+      mediaObjectId: input.mediaObjectId ?? null,
+      profilePhotoUrl: input.profilePhotoUrl ?? null,
       reason: input.reason,
       hasDetails: Boolean(input.details?.trim())
     },
@@ -644,7 +651,7 @@ export async function createUserReport(app: FastifyInstance, input: UserReportIn
       moderation_history_required: true,
       reason_code: input.reason
     }
-  });
+  }, db);
 
   return reviewId;
 }

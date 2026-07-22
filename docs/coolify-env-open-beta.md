@@ -49,7 +49,6 @@ MEDIA_S3_SECRET_ACCESS_KEY=<staging-r2-secret-access-key>
 MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=true
-HUMAN_MODERATION_ENABLED=false
 STREAM_IMAGE_BRIDGE_ENABLED=true
 PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true
 PROFILE_PHOTO_REKOGNITION_ENABLED=true
@@ -134,7 +133,6 @@ Use this block for the staging frontend resource.
 ```env
 VITE_API_BASE_URL=https://api-staging.cruush.app
 VITE_TURNSTILE_SITE_KEY=<turnstile-site-key-or-empty-if-disabled>
-VITE_HUMAN_MODERATION_ENABLED=false
 VITE_MAP_STYLE_URL=
 VITE_MAP_VECTOR_TILEJSON_URL=https://tiles.openfreemap.org/planet
 VITE_MAP_GLYPHS_URL=
@@ -170,7 +168,6 @@ MEDIA_S3_SECRET_ACCESS_KEY=<production-r2-secret-access-key>
 MODERATION_PROVIDER=mock
 MODERATION_TIMEOUT_MS=5000
 STREAM_MODERATION_ENABLED=true
-HUMAN_MODERATION_ENABLED=false
 STREAM_IMAGE_BRIDGE_ENABLED=true
 PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true
 PROFILE_PHOTO_REKOGNITION_ENABLED=true
@@ -249,7 +246,6 @@ Use this block for the production frontend resource.
 ```env
 VITE_API_BASE_URL=https://api.cruush.app
 VITE_TURNSTILE_SITE_KEY=<turnstile-site-key-or-empty-if-disabled>
-VITE_HUMAN_MODERATION_ENABLED=false
 VITE_MAP_STYLE_URL=
 VITE_MAP_VECTOR_TILEJSON_URL=https://tiles.openfreemap.org/planet
 VITE_MAP_GLYPHS_URL=
@@ -282,7 +278,6 @@ These values are safe to add directly if the domains/buckets are correct:
 - `MODERATION_PROVIDER=mock`
 - `MODERATION_TIMEOUT_MS=5000`
 - `STREAM_MODERATION_ENABLED=true`
-- `HUMAN_MODERATION_ENABLED=false`
 - `STREAM_IMAGE_BRIDGE_ENABLED=true` only after the dedicated no-cache moderation-media hostname is routed and its upstream logs are verified not to retain raw paths
 - `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true` for the shared bank/open-beta Stream path; keep manual review false
 - `PROFILE_PHOTO_REKOGNITION_ENABLED=true`, a Rekognition-only IAM principal with `DetectFaces` and `DetectLabels`, and the documented human/animal/face/age thresholds
@@ -294,6 +289,8 @@ These values are safe to add directly if the domains/buckets are correct:
 - all `*_KEY_VERSION=v1`
 - frontend map defaults
 - frontend API base URL
+
+The legacy `HUMAN_MODERATION_ENABLED` and `VITE_HUMAN_MODERATION_ENABLED` keys may be omitted. Moderator routes are always mounted and require an active authenticated user present in `moderator_users`.
 
 These require secret values or dashboard-generated values:
 

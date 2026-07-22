@@ -49,6 +49,7 @@ type AuthUserRow = {
   code_of_conduct_accepted_version: string | null;
   code_of_conduct_accepted_at: string | Date | null;
   account_status?: string | null;
+  moderator_role?: "admin" | "moderator" | null;
 };
 
 type CreatedUserRow = {
@@ -122,6 +123,7 @@ function mapSessionRow(row: AuthUserRow) {
       emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : null,
       createdAt: new Date(row.created_at).toISOString(),
       accountStatus: normalizeAccountStatus(row.account_status),
+      ...(row.moderator_role ? { moderatorRole: row.moderator_role } : {}),
     },
     profile: profileDisplayName || row.year_of_birth
       ? {
@@ -212,9 +214,11 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
        p.year_of_birth,
        u.code_of_conduct_accepted_version,
        u.code_of_conduct_accepted_at,
-       coalesce(u.account_status, 'active') as account_status
+       coalesce(u.account_status, 'active') as account_status,
+       moderator.role as moderator_role
      from app_users u
      left join profiles p on p.id = u.id
+     left join moderator_users moderator on moderator.user_id = u.id
      where u.id = $1`,
     [userId]
   );

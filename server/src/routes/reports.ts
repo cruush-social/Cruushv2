@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { DbClient } from "../db.js";
 import { ApiError } from "../errors.js";
 import { createUserReport } from "../moderation-service.js";
 import { createReportPayloadSchema, type CreateReportPayload, type ReportReason } from "../report-schema.js";
@@ -10,6 +11,8 @@ type ReportTarget = {
   conversationId: string | null;
   messageId: string | null;
   postId: string | null;
+  mediaObjectId: string | null;
+  profilePhotoUrl: string | null;
 };
 
 type ReportRow = {
@@ -57,7 +60,9 @@ async function validateUserReport(app: FastifyInstance, reporterUserId: string, 
     targetUserId,
     conversationId: null,
     messageId: null,
-    postId: null
+    postId: null,
+    mediaObjectId: null,
+    profilePhotoUrl: null
   };
 }
 
@@ -74,7 +79,9 @@ async function validateProfileReport(app: FastifyInstance, reporterUserId: strin
     targetUserId,
     conversationId: null,
     messageId: null,
-    postId: null
+    postId: null,
+    mediaObjectId: null,
+    profilePhotoUrl: null
   };
 }
 
@@ -110,7 +117,9 @@ async function validateConversationReport(app: FastifyInstance, reporterUserId: 
     targetUserId: payload.targetUserId ?? row.target_user_id ?? null,
     conversationId: row.conversation_id,
     messageId: null,
-    postId: null
+    postId: null,
+    mediaObjectId: null,
+    profilePhotoUrl: null
   };
 }
 
@@ -148,7 +157,9 @@ async function validateMessageReport(app: FastifyInstance, reporterUserId: strin
     targetUserId: row.target_user_id,
     conversationId: payload.conversationId ?? row.conversation_id,
     messageId: row.message_id,
-    postId: null
+    postId: null,
+    mediaObjectId: null,
+    profilePhotoUrl: null
   };
 }
 
@@ -184,7 +195,52 @@ async function validatePostReport(app: FastifyInstance, reporterUserId: string, 
     targetUserId: row.target_user_id,
     conversationId: null,
     messageId: null,
-    postId: row.post_id
+    postId: row.post_id,
+    mediaObjectId: null,
+    profilePhotoUrl: null
+  };
+}
+
+async function validateProfilePhotoReport(app: FastifyInstance, reporterUserId: string, payload: CreateReportPayload): Promise<ReportTarget> {
+  const targetUserId = payload.targetUserId ?? null;
+  const requestedPhotoUrl = payload.profilePhotoUrl ?? payload.targetId ?? null;
+
+  if (!targetUserId || targetUserId === reporterUserId) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Choose another profile photo to report.");
+  }
+
+  await assertProfileVisibleToViewer(app, reporterUserId, targetUserId);
+  const result = await app.db.query<{ media_object_id: string | null; profile_photo_url: string }>(
+    `select
+       media.id::text as media_object_id,
+       photo.photo_url as profile_photo_url
+     from profiles profile
+     cross join lateral unnest(coalesce(profile.photos, '{}'::text[])) as photo(photo_url)
+     left join media_objects media
+       on media.owner_user_id = profile.id
+      and media.public_url = photo.photo_url
+      and media.deleted_at is null
+     where profile.id = $1
+       and (
+         ($2::uuid is not null and media.id = $2)
+         or ($3::text is not null and photo.photo_url = $3)
+       )
+     limit 1`,
+    [targetUserId, payload.mediaObjectId ?? null, requestedPhotoUrl]
+  );
+  const row = result.rows[0];
+
+  if (!row) {
+    throw new ApiError(404, "NOT_FOUND", "Profile photo not found.");
+  }
+
+  return {
+    targetUserId,
+    conversationId: null,
+    messageId: null,
+    postId: null,
+    mediaObjectId: row.media_object_id,
+    profilePhotoUrl: row.profile_photo_url
   };
 }
 
@@ -205,6 +261,10 @@ async function validateReportTarget(app: FastifyInstance, reporterUserId: string
     return validatePostReport(app, reporterUserId, payload);
   }
 
+  if (payload.targetType === "profile_photo") {
+    return validateProfilePhotoReport(app, reporterUserId, payload);
+  }
+
   return validateMessageReport(app, reporterUserId, payload);
 }
 
@@ -221,7 +281,8 @@ export async function registerReportRoutes(app: FastifyInstance) {
     });
 
     const target = await validateReportTarget(app, reporterUserId, payload);
-    const result = await app.db.query<ReportRow>(
+    const createReport = async (db: DbClient) => {
+      const result = await db.query<ReportRow>(
       `insert into reports (
          reporter_user_id,
          target_type,
@@ -229,6 +290,8 @@ export async function registerReportRoutes(app: FastifyInstance) {
          conversation_id,
          message_id,
          post_id,
+         media_object_id,
+         profile_photo_url,
          reason,
          details,
          report_weight
@@ -242,6 +305,8 @@ export async function registerReportRoutes(app: FastifyInstance) {
          $6,
          $7,
          $8,
+         $9,
+         $10,
          coalesce((select report_weight from user_trust_profiles where user_id = $1), 50)
        )
        returning id::text as id, status, created_at`,
@@ -252,30 +317,42 @@ export async function registerReportRoutes(app: FastifyInstance) {
         target.conversationId,
         target.messageId,
         target.postId,
+        target.mediaObjectId,
+        target.profilePhotoUrl,
         payload.reason,
         payload.details
       ]
-    );
-    const row = result.rows[0];
+      );
+      const row = result.rows[0];
 
-    if (!row) {
-      throw new ApiError(500, "INTERNAL_ERROR", "Failed to create report.");
-    }
+      if (!row) {
+        throw new ApiError(500, "INTERNAL_ERROR", "Failed to create report.");
+      }
 
-    await createUserReport(app, {
-      reporterId: reporterUserId,
-      targetUserId: target.targetUserId,
-      contentType: payload.targetType,
-      contentId: row.id,
-      reason: payload.reason,
-      details: payload.details,
-      conversationId: target.conversationId,
-      messageId: target.messageId,
-      postId: target.postId
-    });
+      const contentReviewId = await createUserReport(app, {
+        reporterId: reporterUserId,
+        targetUserId: target.targetUserId,
+        contentType: payload.targetType,
+        contentId: row.id,
+        reason: payload.reason,
+        details: payload.details,
+        conversationId: target.conversationId,
+        messageId: target.messageId,
+        postId: target.postId,
+        mediaObjectId: target.mediaObjectId,
+        profilePhotoUrl: target.profilePhotoUrl
+      }, db);
 
-    if (target.targetUserId) {
-      await app.db.query(
+      await db.query(
+        `update reports
+         set content_review_id = $2,
+             updated_at = now()
+         where id = $1`,
+        [row.id, contentReviewId]
+      );
+
+      if (target.targetUserId) {
+        await db.query(
         `with reporter_weight as (
            select
              case
@@ -326,8 +403,15 @@ export async function registerReportRoutes(app: FastifyInstance) {
           payload.reason,
           payload.targetType
         ]
-      );
-    }
+        );
+      }
+
+      return row;
+    };
+
+    const row = app.db.transaction
+      ? await app.db.transaction(createReport)
+      : await createReport(app.db);
 
     return reply.code(201).send({
       data: {

@@ -1,5 +1,7 @@
 # Trust, Safety, And Moderation Core Implementation
 
+> Update (2026-07-21): human moderation is now product UI for authorized moderators. User reports and ordinary non-allowed content reviews share one paginated queue with context, decisions, enforcement, and audit history. The historical gap statement below is superseded by `docs/moderation.md`.
+
 This document summarizes the implementation pass based on `Cruush_Trust_Safety_Moderation_Developer_Spec_v4-1.pdf`.
 
 ## Implemented In This Pass

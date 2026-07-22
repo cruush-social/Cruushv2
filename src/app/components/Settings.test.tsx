@@ -139,6 +139,23 @@ describe('Settings', () => {
     expect(screen.getByRole('button', { name: /Location privacy/i })).toBeInTheDocument();
   });
 
+  it('shows active moderators a direct dashboard entry', async () => {
+    getStoredCurrentUser.mockReturnValue({
+      display_name: 'Moderator',
+      email_verified_at: '2026-04-29T12:00:00.000Z',
+      moderator_role: 'moderator',
+    });
+    render(
+      <MemoryRouter initialEntries={['/settings']}>
+        <Settings />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /Moderator dashboard/i }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/admin/moderation');
+  });
+
   it('loads blocked users and lets users unblock from settings', async () => {
     getBlockedUsers.mockResolvedValue({
       blockedUsers: [{

@@ -27,6 +27,7 @@ type ReportActionProps = {
   targetType: ReportTargetType;
   targetId: string;
   targetLabel: string;
+  targetUserId?: string;
   onReported?: (targetId: string) => void;
   className?: string;
   disabled?: boolean;
@@ -40,6 +41,7 @@ export default function ReportAction({
   targetType,
   targetId,
   targetLabel,
+  targetUserId,
   onReported,
   className,
   disabled = false,
@@ -90,6 +92,7 @@ export default function ReportAction({
       await createReport({
         targetType,
         targetId,
+        targetUserId,
         reason,
         details: details.trim() || undefined,
       });

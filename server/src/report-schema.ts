@@ -17,12 +17,14 @@ export const reportReasonSchema = z.enum([
 ]);
 
 export const createReportPayloadSchema = z.object({
-  targetType: z.enum(["user", "profile", "conversation", "message", "post"]),
+  targetType: z.enum(["user", "profile", "conversation", "message", "post", "profile_photo"]),
   targetId: uuidSchema.optional(),
   targetUserId: uuidSchema.optional(),
   conversationId: uuidSchema.optional(),
   messageId: uuidSchema.optional(),
   postId: uuidSchema.optional(),
+  mediaObjectId: uuidSchema.optional(),
+  profilePhotoUrl: z.string().trim().min(1).max(500).optional(),
   reason: reportReasonSchema,
   details: multilineTextSchema({ max: 2000 }).optional().default("")
 }).strict().superRefine((payload, ctx) => {
@@ -56,6 +58,24 @@ export const createReportPayloadSchema = z.object({
       message: "Post reports require postId.",
       path: ["postId"]
     });
+  }
+
+  if (payload.targetType === "profile_photo") {
+    if (!payload.targetUserId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Profile-photo reports require targetUserId.",
+        path: ["targetUserId"]
+      });
+    }
+
+    if (!payload.mediaObjectId && !payload.profilePhotoUrl && !payload.targetId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Profile-photo reports require a photo target.",
+        path: ["profilePhotoUrl"]
+      });
+    }
   }
 });
 

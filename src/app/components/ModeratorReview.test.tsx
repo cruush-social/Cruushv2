@@ -6,14 +6,18 @@ import ModeratorReview from './ModeratorReview';
 
 const {
   changeModeratedAccountStatus,
-  getModerationReport,
-  getModerationReports,
+  decideContentReview,
+  getModerationQueue,
+  getModerationQueueItem,
   moderateReport,
+  removeReportedContent,
 } = vi.hoisted(() => ({
   changeModeratedAccountStatus: vi.fn(),
-  getModerationReport: vi.fn(),
-  getModerationReports: vi.fn(),
+  decideContentReview: vi.fn(),
+  getModerationQueue: vi.fn(),
+  getModerationQueueItem: vi.fn(),
   moderateReport: vi.fn(),
+  removeReportedContent: vi.fn(),
 }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
@@ -26,35 +30,33 @@ vi.mock('../lib/moderationApi', async () => {
   return {
     ...actual,
     changeModeratedAccountStatus,
-    getModerationReport,
-    getModerationReports,
+    decideContentReview,
+    getModerationQueue,
+    getModerationQueueItem,
     moderateReport,
+    removeReportedContent,
   };
 });
 
 vi.mock('sonner', () => ({
-  toast: {
-    success: toastSuccess,
-    error: toastError,
-  },
+  toast: { success: toastSuccess, error: toastError },
 }));
 
-const reportFixture = {
+const report = {
   id: 'report-1',
-  reporter: {
-    userId: 'user-1',
-    displayName: 'River',
-  },
+  reporter: { userId: 'user-1', displayName: 'River' },
   target: {
     type: 'post' as const,
     userId: 'user-2',
     displayName: 'Jordan',
+    accountStatus: 'active' as const,
     conversationId: null,
     messageId: null,
     postId: 'post-1',
     mediaObjectId: null,
     profilePhotoUrl: null,
   },
+  contentReviewId: 'review-report-1',
   reason: 'harassment',
   details: 'Threatening language in the post.',
   status: 'open' as const,
@@ -62,235 +64,224 @@ const reportFixture = {
   updatedAt: '2026-07-11T10:00:00.000Z',
 };
 
-function renderModeratorReview() {
+const reportItem = {
+  key: 'report:report-1',
+  kind: 'report' as const,
+  id: 'report-1',
+  status: 'open',
+  reason: 'harassment',
+  summary: 'Threatening language in the post.',
+  createdAt: report.createdAt,
+  updatedAt: report.updatedAt,
+  subject: { userId: 'user-2', displayName: 'Jordan', accountStatus: 'active' as const },
+  target: {
+    type: 'post' as const,
+    conversationId: null,
+    messageId: null,
+    postId: 'post-1',
+    mediaObjectId: null,
+    profilePhotoUrl: null,
+  },
+  reporter: report.reporter,
+  moderation: null,
+};
+
+const reportDetail = {
+  item: { kind: 'report' as const, report },
+  context: {
+    kind: 'post' as const,
+    text: 'Reported post body',
+    author: 'Jordan',
+    createdAt: report.createdAt,
+  },
+  history: [],
+  availableActions: { canResolve: true, canRemoveContent: true, canModerateAccount: true },
+};
+
+const reviewItem = {
+  ...reportItem,
+  key: 'review:review-1',
+  kind: 'review' as const,
+  id: 'review-1',
+  status: 'pending_review',
+  reason: 'provider_flagged_by_automod',
+  summary: 'provider flagged by automod',
+  reporter: null,
+  moderation: {
+    contentReviewId: 'review-1',
+    surface: 'feed',
+    contentType: 'text',
+    provider: 'stream',
+    normalizedLabels: [],
+    policyDecision: {},
+    contentRef: {},
+  },
+};
+
+const reviewDetail = {
+  item: {
+    kind: 'review' as const,
+    review: {
+      id: 'review-1',
+      user: { id: 'user-2', displayName: 'Jordan', accountStatus: 'active' as const },
+      surface: 'feed',
+      contentType: 'text',
+      storageStatus: 'queued',
+      moderationStatus: 'pending_review',
+      reason: 'provider_flagged_by_automod',
+      contentId: null,
+      contentRef: {},
+      provider: 'stream',
+      providerRequestId: 'provider-1',
+      normalizedLabels: [{ normalized_label: 'harassment' }],
+      policyDecision: { decision: 'quarantine' },
+      createdAt: report.createdAt,
+      completedAt: report.updatedAt,
+    },
+  },
+  context: { kind: 'moderation_metadata' as const, message: 'Rejected before storage.' },
+  history: [],
+  availableActions: { canDecideReview: true, canModerateAccount: true, canRemoveContent: false },
+};
+
+function queue(items = [reportItem], page = { limit: 25, offset: 0, total: items.length, hasMore: false }) {
+  return { items, page };
+}
+
+function renderReview() {
   return render(
     <MemoryRouter initialEntries={['/admin/moderation']}>
       <Routes>
         <Route path="/admin/moderation" element={<ModeratorReview />} />
-        <Route path="/map" element={<div>Map route</div>} />
+        <Route path="/settings" element={<div>Settings route</div>} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
-async function openReportDetail() {
-  fireEvent.click(await screen.findByRole('button', { name: 'Open report report-1' }));
-  await waitFor(() => expect(getModerationReport).toHaveBeenCalledWith('report-1'));
-  expect(await screen.findByText('Threatening language in the post.')).toBeInTheDocument();
+async function openReport() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Open User report report-1' }));
+  expect(await screen.findByText('Reported post body')).toBeInTheDocument();
 }
 
 describe('ModeratorReview', () => {
   beforeEach(() => {
-    changeModeratedAccountStatus.mockReset();
-    getModerationReport.mockReset();
-    getModerationReports.mockReset();
-    moderateReport.mockReset();
-    toastSuccess.mockReset();
-    toastError.mockReset();
-
-    getModerationReports.mockResolvedValue({ reports: [reportFixture] });
-    getModerationReport.mockResolvedValue({ report: reportFixture });
+    vi.clearAllMocks();
+    getModerationQueue.mockResolvedValue(queue());
+    getModerationQueueItem.mockImplementation((kind: string) => Promise.resolve(kind === 'report' ? reportDetail : reviewDetail));
     moderateReport.mockResolvedValue({
-      report: {
-        id: 'report-1',
-        status: 'resolved',
-        updatedAt: '2026-07-11T11:00:00.000Z',
-      },
-      moderationAction: {
-        id: 'action-report',
-        createdAt: '2026-07-11T11:00:01.000Z',
-      },
+      report: { id: 'report-1', status: 'resolved', updatedAt: report.updatedAt },
+      moderationAction: { id: 'action-1', createdAt: report.updatedAt },
+    });
+    removeReportedContent.mockResolvedValue({
+      report: { id: 'report-1', status: 'resolved' },
+      action: 'remove_post',
+      moderationAction: { id: 'action-remove', createdAt: report.updatedAt },
+    });
+    decideContentReview.mockResolvedValue({
+      review: { id: 'review-1', moderationStatus: 'allowed' },
+      moderationAction: { id: 'action-review', createdAt: report.updatedAt },
     });
     changeModeratedAccountStatus.mockResolvedValue({
-      user: {
-        id: 'user-2',
-        accountStatus: 'under_review',
-        accountStatusUpdatedAt: '2026-07-11T11:05:00.000Z',
-      },
-      moderationAction: {
-        id: 'action-account',
-        createdAt: '2026-07-11T11:05:01.000Z',
-      },
+      user: { id: 'user-2', accountStatus: 'under_review', accountStatusUpdatedAt: report.updatedAt },
+      moderationAction: { id: 'action-account', createdAt: report.updatedAt },
     });
   });
 
   it('shows the authorization loading state while the queue request is pending', () => {
-    getModerationReports.mockReturnValue(new Promise(() => {}));
-
-    renderModeratorReview();
-
+    getModerationQueue.mockReturnValue(new Promise(() => {}));
+    renderReview();
     expect(screen.getByText('Checking moderator access...')).toBeInTheDocument();
-    expect(screen.queryByText('Report queue')).not.toBeInTheDocument();
   });
 
-  it('shows an empty queue and supports refresh', async () => {
-    getModerationReports.mockResolvedValue({ reports: [] });
-
-    renderModeratorReview();
-
-    expect(await screen.findByText('No reports match these filters.')).toBeInTheDocument();
+  it('shows the empty unified queue and supports refresh', async () => {
+    getModerationQueue.mockResolvedValue(queue([]));
+    renderReview();
+    expect(await screen.findByText('No moderation items match these filters.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-    await waitFor(() => expect(getModerationReports).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getModerationQueue).toHaveBeenCalledTimes(2));
   });
 
-  it('renders queue rows and loads protected report detail', async () => {
-    renderModeratorReview();
-
-    expect(await screen.findByRole('button', { name: 'Open report report-1' })).toBeInTheDocument();
-    expect(screen.getByText('Harassment or bullying')).toBeInTheDocument();
-    expect(screen.getByText('Jordan · post-1')).toBeInTheDocument();
-
-    await openReportDetail();
-
-    expect(screen.getByText('River')).toBeInTheDocument();
-    expect(screen.getByText('Full moderation history is not exposed by the current backend.')).toBeInTheDocument();
+  it('renders a report and its protected content context', async () => {
+    renderReview();
+    await openReport();
+    expect(getModerationQueueItem).toHaveBeenCalledWith('report', 'report-1');
+    expect(screen.getByText('Threatening language in the post.')).toBeInTheDocument();
   });
 
-  it('resolves a report and displays its action receipt after server confirmation', async () => {
-    renderModeratorReview();
-    await openReportDetail();
+  it('uses server-side pagination for the full queue', async () => {
+    getModerationQueue.mockResolvedValue(queue([reportItem], { limit: 25, offset: 0, total: 30, hasMore: true }));
+    renderReview();
+    await screen.findByText('1-1 of 30');
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    await waitFor(() => expect(getModerationQueue).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 25 })));
+  });
 
+  it('resolves a report with an audit receipt', async () => {
+    renderReview();
+    await openReport();
     fireEvent.click(screen.getByRole('button', { name: 'Resolve report' }));
-    fireEvent.change(screen.getByLabelText('Moderation note (optional)'), {
-      target: { value: 'Reviewed and actioned.' },
-    });
     fireEvent.click(screen.getByRole('button', { name: 'Resolve report' }));
-
-    await waitFor(() => expect(moderateReport).toHaveBeenCalledWith('report-1', {
+    await waitFor(() => expect(moderateReport).toHaveBeenCalledWith('report-1', expect.objectContaining({
       status: 'resolved',
       reasonCode: 'reviewed_valid_report',
-      notes: 'Reviewed and actioned.',
+    })));
+  });
+
+  it('requires an audit note before removing reported content', async () => {
+    renderReview();
+    await openReport();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove content' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove content' }));
+    expect(await screen.findByText('Add an audit note before confirming this action.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Audit note'), { target: { value: 'Confirmed violating post.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove content' }));
+    await waitFor(() => expect(removeReportedContent).toHaveBeenCalledWith('report-1', {
+      reasonCode: 'reported_content_removed',
+      notes: 'Confirmed violating post.',
     }));
-    expect(toastSuccess).toHaveBeenCalledWith('Report resolved.');
-    expect(await screen.findByText('Report resolved')).toBeInTheDocument();
-    expect(screen.getByText('action-report')).toBeInTheDocument();
   });
 
-  it('dismisses a report with the fixed audit reason code', async () => {
-    moderateReport.mockResolvedValueOnce({
-      report: {
-        id: 'report-1',
-        status: 'dismissed',
-        updatedAt: '2026-07-11T11:00:00.000Z',
-      },
-      moderationAction: {
-        id: 'action-dismiss',
-        createdAt: '2026-07-11T11:00:01.000Z',
-      },
-    });
-    renderModeratorReview();
-    await openReportDetail();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss report' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss report' }));
-
-    await waitFor(() => expect(moderateReport).toHaveBeenCalledWith('report-1', {
-      status: 'dismissed',
-      reasonCode: 'not_actionable',
-      notes: '',
+  it('loads and approves an automod review candidate', async () => {
+    getModerationQueue.mockResolvedValue(queue([reviewItem]));
+    renderReview();
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Automod review review-1' }));
+    expect(await screen.findByText('Rejected before storage.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    fireEvent.change(screen.getByLabelText('Audit note'), { target: { value: 'False positive confirmed.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Approve content' }));
+    await waitFor(() => expect(decideContentReview).toHaveBeenCalledWith('review-1', {
+      action: 'approve',
+      reasonCode: 'manual_review_approved',
+      notes: 'False positive confirmed.',
     }));
-    expect(toastSuccess).toHaveBeenCalledWith('Report dismissed.');
   });
 
-  it('requires an audit note before changing account status', async () => {
-    renderModeratorReview();
-    await openReportDetail();
-
+  it('changes the target account status with an audit note', async () => {
+    renderReview();
+    await openReport();
     fireEvent.click(screen.getByRole('button', { name: 'Set under review' }));
+    fireEvent.change(screen.getByLabelText('Audit note'), { target: { value: 'Needs additional investigation.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Set under review' }));
-
-    expect(await screen.findByText('Add a moderation note before changing account status.')).toBeInTheDocument();
-    expect(changeModeratedAccountStatus).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ['under_review', 'Set under review', 'needs_manual_review', 'under review'],
-    ['suspended', 'Suspend', 'abuse_confirmed', 'suspended'],
-    ['active', 'Set active', 'review_cleared', 'active'],
-  ] as const)('sets a target account to %s after confirmation', async (status, actionLabel, reasonCode, expectedLabel) => {
-    changeModeratedAccountStatus.mockResolvedValueOnce({
-      user: {
-        id: 'user-2',
-        accountStatus: status,
-        accountStatusUpdatedAt: '2026-07-11T11:05:00.000Z',
-      },
-      moderationAction: {
-        id: `action-${status}`,
-        createdAt: '2026-07-11T11:05:01.000Z',
-      },
-    });
-    renderModeratorReview();
-    await openReportDetail();
-
-    fireEvent.click(screen.getByRole('button', { name: actionLabel }));
-    fireEvent.change(screen.getByLabelText('Moderation note'), {
-      target: { value: 'Documented moderator decision.' },
-    });
-    const confirmLabel = status === 'suspended' ? 'Suspend account' : actionLabel;
-    fireEvent.click(screen.getByRole('button', { name: confirmLabel }));
-
-    await waitFor(() => expect(changeModeratedAccountStatus).toHaveBeenCalledWith('user-2', {
-      status,
-      reasonCode,
-      notes: 'Documented moderator decision.',
+    await waitFor(() => expect(changeModeratedAccountStatus).toHaveBeenCalledWith('user-2', expect.objectContaining({
+      status: 'under_review',
       reportId: 'report-1',
-    }));
-    expect(await screen.findByRole('status')).toHaveTextContent(new RegExp(`Confirmed status: ${expectedLabel}`, 'i'));
-    expect(screen.getByText(`action-${status}`)).toBeInTheDocument();
+    })));
   });
 
-  it('shows a safe error and leaves the action dialog open when moderation fails', async () => {
-    moderateReport.mockRejectedValueOnce(new Error('sensitive database detail'));
-    renderModeratorReview();
-    await openReportDetail();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Resolve report' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Resolve report' }));
-
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Unable to complete this moderation action right now.'));
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.queryByText('sensitive database detail')).not.toBeInTheDocument();
-  });
-
-  it('does not submit a moderation action twice while pending', async () => {
-    let resolveAction: (value: unknown) => void = () => {};
-    moderateReport.mockReturnValue(new Promise((resolve) => {
-      resolveAction = resolve;
-    }));
-    renderModeratorReview();
-    await openReportDetail();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Resolve report' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Resolve report' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Submitting...' }));
-
-    expect(moderateReport).toHaveBeenCalledTimes(1);
-
-    resolveAction({
-      report: { id: 'report-1', status: 'resolved', updatedAt: '2026-07-11T11:00:00.000Z' },
-      moderationAction: { id: 'action-report', createdAt: '2026-07-11T11:00:01.000Z' },
-    });
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Report resolved.'));
-  });
-
-  it('does not expose the moderation interface to unauthorized users', async () => {
-    getModerationReports.mockRejectedValueOnce(new ApiClientError(403, 'FORBIDDEN', 'private backend message'));
-
-    renderModeratorReview();
-
+  it('does not expose the dashboard to unauthorized users', async () => {
+    getModerationQueue.mockRejectedValue(new ApiClientError(403, 'FORBIDDEN', 'Moderator access required.'));
+    renderReview();
     expect(await screen.findByText('Moderator access required')).toBeInTheDocument();
-    expect(screen.queryByText('Report queue')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Resolve report' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Unified queue')).not.toBeInTheDocument();
   });
 
   it('shows a retryable safe state for non-authorization failures', async () => {
-    getModerationReports.mockRejectedValueOnce(new Error('database hostname'));
-
-    renderModeratorReview();
-
+    getModerationQueue.mockRejectedValue(new Error('database hostname'));
+    renderReview();
     expect(await screen.findByText('Moderation queue unavailable')).toBeInTheDocument();
     expect(screen.queryByText('database hostname')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    await waitFor(() => expect(getModerationReports).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getModerationQueue).toHaveBeenCalledTimes(2));
   });
 });

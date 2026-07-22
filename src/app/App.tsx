@@ -71,7 +71,7 @@ type AppProps = {
 };
 
 export default function App({
-  humanModerationEnabled = (import.meta.env.VITE_HUMAN_MODERATION_ENABLED as string | undefined) === 'true',
+  humanModerationEnabled = true,
 }: AppProps = {}) {
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);

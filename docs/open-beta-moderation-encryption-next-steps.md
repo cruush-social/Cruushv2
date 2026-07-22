@@ -1,5 +1,7 @@
 # Open Beta Moderation And Encryption Next Steps
 
+> Update (2026-07-21): the automod save/publish decision remains fail-closed, and authorized human follow-up is now available through the unified moderator dashboard. Known-CSAM incidents remain in the separately restricted internal reporting workflow.
+
 ## Summary
 
 Current branch: `codex/stream-moderation-merge`
