@@ -221,7 +221,9 @@ Run cleanup every five minutes from a private scheduler attached to the API envi
 */5 * * * * cd /app/server && pnpm cleanup:moderation-media-grants
 ```
 
-The command deletes legacy expired grants and abandoned pending media, including canonical and variant ciphertext, and purges moderator content-access events after 180 days. Shared automod deletes rejected files during the request; the scheduler covers process crashes and other abandoned uploads after five minutes. Approved photos leave quarantine and remain attached through the normal lifecycle. Message-photo uploads use the same signed display-variant bridge and remain unavailable unless every deployed safety gate is enabled.
+The command deletes legacy expired grants and abandoned pending media, including canonical and variant ciphertext, purges moderator content-access events after 180 days, and recalculates a batch of trust profiles with decaying negative trust events. Shared automod deletes rejected files during the request; the scheduler covers process crashes and other abandoned uploads after five minutes. Approved photos leave quarantine and remain attached through the normal lifecycle. Message-photo uploads use the same signed display-variant bridge and remain unavailable unless every deployed safety gate is enabled.
+
+Run `pnpm --dir server trust:recalculate` for a one-time trust recovery pass after deploying trust policy changes.
 
 The legacy internal bank-review endpoints remain compiled but must not be used for bank staging or open beta. With `BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED=false`, they are unavailable. The archived design is documented in `docs/bank-profile-photo-manual-review-architecture-plan-2026-07-13.md`.
 

@@ -39,7 +39,7 @@ This document summarizes the implementation pass based on `Cruush_Trust_Safety_M
 - RabbitMQ workers, retries, dead-letter queues, and provider failover are not implemented.
 - The existing message/photo storage model is not fully converted to post-moderation encrypted storage.
 - Provider raw-result encryption is represented by schema support, but raw provider payloads are not stored.
-- Trust decay scheduling is not implemented.
+- Decaying negative trust penalties recover over a 14-day window. The five-minute moderation cleanup task recalculates a batch automatically, and `pnpm --dir server trust:recalculate` runs a one-time full pass.
 - Group creation/ownership transfer, ban-evasion signal ingestion, and crowd-specific restriction enforcement remain future work.
 - Human moderation and appeals remain schema-compatible future work, not product UI.
 
