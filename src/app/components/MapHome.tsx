@@ -53,7 +53,6 @@ import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
 import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 
 const DISCOVERY_MAP_LIMIT = 50;
-const LOCATION_PROMPT_SESSION_KEY = 'cruush-location-permission-prompted';
 const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
 const CROWD_NOTICE_LABELS: Record<string, string> = {
   Dyke: 'Dyke',
@@ -241,23 +240,6 @@ function profileLocationToApproximateCoordinates(profile: ProfileRecord | null):
     approximateLongitude: longitude,
     privacyRadiusMeters: location?.fuzz_radius_meters ?? 250,
   };
-}
-
-function claimLocationPromptForSession() {
-  if (typeof window === 'undefined') {
-    return true;
-  }
-
-  try {
-    if (window.sessionStorage.getItem(LOCATION_PROMPT_SESSION_KEY) === 'true') {
-      return false;
-    }
-
-    window.sessionStorage.setItem(LOCATION_PROMPT_SESSION_KEY, 'true');
-    return true;
-  } catch {
-    return true;
-  }
 }
 
 function getAvailableCrowdModes(profile: ProfileRecord | null) {
@@ -689,8 +671,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
       isMutualMapMode ||
       userApproximateLocation ||
       savedProfileLocation ||
-      locationStatus !== 'idle' ||
-      !claimLocationPromptForSession()
+      locationStatus !== 'idle'
     ) {
       return;
     }
@@ -1181,7 +1162,10 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   };
 
   return (
-    <div className="cruush-map-shell relative overflow-hidden overscroll-none bg-background select-none" data-testid="map-home-shell">
+    <div
+      className={`cruush-map-shell ${isMobile ? 'fixed inset-0' : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
+      data-testid="map-home-shell"
+    >
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-40 px-3 pb-12 pt-3"
