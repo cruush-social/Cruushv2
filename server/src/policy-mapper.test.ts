@@ -33,6 +33,44 @@ describe("policy mapper", () => {
     expect(decision.reason_code).toBe("private_pnp_discussion_allowed");
   });
 
+  it.each(["profile_photo", "private_photo", "feed"] as const)(
+    "rejects nudity on the non-message %s surface",
+    (surface) => {
+      const decision = mapProviderResultToPolicy({
+        surface,
+        contentType: "image",
+        providerResult: providerResult("adult_nudity", 0.98)
+      });
+
+      expect(decision).toMatchObject({
+        decision: "reject",
+        reason_code: "nudity_outside_private_messages",
+        user_message_code: "nudity_private_messages_only",
+        trust_impact: 0
+      });
+    }
+  );
+
+  it.each(["direct_message", "group_message"] as const)(
+    "allows adult nudity only in %s image messages",
+    (surface) => {
+      const decision = mapProviderResultToPolicy({
+        surface,
+        contentType: "image",
+        providerResult: {
+          ...providerResult("adult_explicit", 0.98),
+          recommended_action: "remove"
+        }
+      });
+
+      expect(decision).toMatchObject({
+        decision: "allow",
+        reason_code: "private_message_nudity_allowed",
+        trust_impact: 0
+      });
+    }
+  );
+
   it("rejects PnP discussion in the feed without an immediate trust penalty", () => {
     const decision = map("pnp_discussion", "feed");
 

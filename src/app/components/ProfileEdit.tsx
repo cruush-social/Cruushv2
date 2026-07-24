@@ -737,7 +737,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
           <TabsContent value="photos" className="space-y-4 mt-6">
             <div className="rounded-md border border-border bg-card/70 p-3 text-sm text-muted-foreground">
-              photos must be of you only.
+              photos must be of you only. no nudity—nude photos are allowed only in private messages.
             </div>
             {photoUploadNotice ? (
               <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-foreground">

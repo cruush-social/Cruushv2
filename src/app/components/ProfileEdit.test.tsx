@@ -383,7 +383,7 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
 
-    expect(screen.getByText('photos must be of you only.')).toBeInTheDocument();
+    expect(screen.getByText('photos must be of you only. no nudity—nude photos are allowed only in private messages.')).toBeInTheDocument();
     expect(screen.queryByText(/you must be 18 or older/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/face is optional/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/naked or clothed/i)).not.toBeInTheDocument();

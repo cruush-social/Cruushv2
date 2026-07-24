@@ -185,22 +185,11 @@ Surface-specific rules:
 - DMs, activity, feed, map trays, and group chats: compact person previews should be heart-shaped, using the same visual language as the pins.
 - Event, place, and group detail media should prefer `4:5` or square unless the content specifically needs a taller crop.
 
-## NSFW Photo Handling
+## Nudity and Explicit Photo Handling
 
-cruush is a self-hosted adult website and may host NSFW user photos. Do not design around App Store or Google Play content restrictions. Design around adult-web realities: age gating, consent, moderation, hosting/provider policies, payment-provider constraints, legal compliance, and user control.
+Nude or sexually explicit photos are allowed only as authenticated attachments in direct and group messages between adults. They are prohibited from profile photos, map/discovery surfaces, profile cards and previews, the local feed, events, places, groups, and every other non-message photo surface.
 
-Photos marked explicit or NSFW must be blurred by default across:
-
-- Map pins
-- Profile cards
-- Bottom tray cards
-- Profile previews
-- Full profiles
-- Message and group-chat media surfaces
-
-Settings must include `Show Explicit Photos` under Content Preferences. When disabled, NSFW photos render with blur plus a lock or eye-slash indicator.
-
-If a user taps a blurred photo, show a prompt that explicit content is hidden and offer a shortcut to settings. Profile edit must let users mark individual photos as explicit or NSFW.
+Do not offer an explicit-photo profile toggle or a global `Show Explicit Photos` preference. A detected nude profile upload must be rejected before publication and its quarantined media deleted. Private-message eligibility does not override rules against minors, non-consensual imagery, exploitation, bestiality, revenge porn, trafficking, or other prohibited content.
 
 Required adult-content controls:
 
@@ -209,7 +198,7 @@ Required adult-content controls:
 - Require user consent/rights confirmation before photo upload.
 - Provide clear report reasons for non-consensual imagery, minors, impersonation, coercion, trafficking, illegal activity, spam/scams, and harassment.
 - Keep public/discovery surfaces moderatable even when sensitive profile fields are encrypted at rest.
-- Store originals privately and generate intentional display variants, including blurred variants for explicit photos.
+- Store originals privately and serve message attachments only through authenticated, conversation-authorized media routes.
 - Do not use third-party image hosting that prohibits adult content.
 - Do not rely on app-store review assumptions for policy decisions.
 
@@ -425,7 +414,6 @@ Settings must be grouped into clear sections.
 
 Content Preferences:
 
-- Show Explicit Photos
 - Cluster Markers
 - Sounds
 
@@ -528,8 +516,8 @@ Tradeoff:
 - Do not use glow effects; use flat colors, solid surfaces, borders, and gradients for emphasis.
 - Use heart-shaped map pins.
 - Use `4:5` profile photo surfaces for primary people/media blocks except tiny avatars and pin crops.
-- Blur NSFW photos by default until users enable explicit photos.
-- Assume cruush hosts NSFW user photos; use adult-web compliance, moderation, and hosting constraints rather than app-store constraints.
+- Reject nude or sexually explicit photos outside direct/group messages; never expose them on profiles, discovery, feed, event, place, or group-detail surfaces.
+- Treat permitted private-message nudity as adult-web content requiring consent, moderation, authenticated storage, and hosting/provider compliance.
 - Include Location Fuzziness in settings.
 - Show last-active context prominently on map surfaces.
 - Do not put profile encryption keys or other backend secrets in frontend code.

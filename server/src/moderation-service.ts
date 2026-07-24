@@ -248,6 +248,10 @@ function userMessageForDecision(decision: PolicyDecision) {
     return "This feed post could not be published because it violates cruush safety rules.";
   }
 
+  if (decision.user_message_code === "nudity_private_messages_only") {
+    return "Nude or sexually explicit photos are only allowed in private messages.";
+  }
+
   if (decision.user_message_code === "content_rejected_zero_tolerance") {
     return "This content violates cruush safety rules and cannot be saved.";
   }

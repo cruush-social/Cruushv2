@@ -1,5 +1,9 @@
 # Child-face photo safety and permanent-ban implementation summary
 
+> 2026-07-24 policy update: adult nudity is now rejected on profile photos and every other non-message photo surface. Consensual adult nudity remains eligible only in authenticated direct and group-message attachments. Statements below describing adult nudity as generally permitted reflect the superseded 2026-07-18 policy.
+
+> 2026-07-24 policy update: adult nudity is now rejected on profile photos and every other non-message photo surface. Consensual adult nudity remains eligible only in authenticated direct and group-message attachments. Statements below describing adult nudity as generally permitted reflect the superseded 2026-07-18 policy.
+
 Date: 2026-07-18
 
 Branch: `codex/stream-photo-safety`
@@ -21,7 +25,7 @@ Rekognition `DetectFaces` returns an estimated age range for each high-confidenc
 - A range starting at 18 or older is eligible.
 - No detected face is eligible on message photos. A faceless profile photo remains eligible when Rekognition still returns a high-confidence `Person` signal and no animal signal.
 
-Consensual adult nudity is permitted. The Stream policy no longer auto-removes `Explicit` or `Non-Explicit Nudity`, and cruush no longer hard-rejects an otherwise allowed adult-nudity label. Violence, visually disturbing material, and hate symbols retain Stream removal rules.
+Consensual adult nudity is permitted only in authenticated direct and group-message photos. The shared Stream policy leaves `Explicit` and `Non-Explicit Nudity` to cruush's per-surface mapper so profile photos reject them while private messages remain eligible. Violence, visually disturbing material, and hate symbols retain Stream removal rules.
 
 Missing-human profile photos, detected animals, hate-symbol, violence/disturbing, CSAM-match, provider-error, timeout, partial, malformed, and non-`keep` outcomes fail closed. Rejected pending ciphertext and variants are deleted during the request.
 
@@ -135,7 +139,7 @@ server production dependency audit: 0 vulnerabilities
 git diff whitespace check: passed
 ```
 
-Focused coverage includes complete-DOB onboarding, exact 18th-birthday calculation, year-only bypass rejection, adult-face allow, faceless adult-person allow, definite child-face permanent ban, age-overlap allow, adult nudity allow, missing-human reject, person-plus-animal reject, direct/group message enforcement, Rekognition failure, Stream partial response, deployed upload availability, config validation, and migration ordering.
+Focused coverage includes complete-DOB onboarding, exact 18th-birthday calculation, year-only bypass rejection, adult-face allow, faceless adult-person allow, definite child-face permanent ban, age-overlap allow, profile-nudity rejection, private-message adult-nudity allowance, missing-human reject, person-plus-animal reject, direct/group message enforcement, Rekognition failure, Stream partial response, deployed upload availability, config validation, and migration ordering.
 
 The release audit also upgraded `react-router` and `react-router-dom` to 7.18.1 and Vite to 6.4.3, resolving the reported frontend advisories. A root `package-lock.json` is included so the audited dependency graph is reproducible. The Router upgrade made notification navigation observably asynchronous in its test; the assertion now waits for the route update, with no production component behavior change.
 
@@ -143,11 +147,11 @@ The release audit also upgraded `react-router` and `react-router-dom` to 7.18.1 
 
 - `server/src/profile-photo-human-detection.ts`: Rekognition JPEG conversion, face-age/person/animal classification, definite-child and ambiguous-age outcomes, and fail-closed merging.
 - `server/src/moderation-service.ts`, `server/src/moderation-types.ts`, `server/src/policy-mapper.ts`: apply child-face detection on profile/direct/group photos and reserve permanent enforcement for definite child ranges.
-- `server/src/media-assets.ts`: shared signed Stream inspection and removal of the adult-nudity hard rejection.
+- `server/src/media-assets.ts`: shared signed Stream inspection with the adult-nudity decision delegated to the central per-surface policy.
 - `server/src/photo-upload-availability.ts`: requires every strict safety layer before deployed profile- or message-photo uploads are available.
 - `server/src/severe-access-bans.ts`, `server/sql/040_severe_access_bans.sql`, `server/src/trust-engine.ts`, and `server/src/routes/auth.ts`: persistent account/session/feature/device/IP enforcement.
 - `server/src/config.ts`: Rekognition face/age thresholds and severe-ban/proxy guardrails.
-- `server/src/stream-profile-photo-policy.ts`: permits adult nudity while retaining the other configured removal rules.
+- `server/src/stream-profile-photo-policy.ts`: keeps nudity out of the shared global removal rules so the app can reject it on profiles without blocking private messages.
 - `src/app/components/ProfileOnboarding.tsx`, `server/src/profile-schema.ts`, and `server/src/routes/profiles.ts`: require and validate a complete DOB for first-time 18+ onboarding without retaining the full date in the profile.
 - `.env.example`, `server/.env.example`, `docs/moderation.md`, and `docs/coolify-env-open-beta.md`: deployment variables and operational guidance.
 - `package.json`, `package-lock.json`, and `src/app/components/NotificationCenter.test.tsx`: patched frontend release dependencies, reproducible install graph, and Router-compatible asynchronous navigation assertion.
@@ -158,10 +162,10 @@ The release audit also upgraded `react-router` and `react-router-dom` to 7.18.1 
 2. Create a least-privilege Rekognition credential or task role with `DetectFaces` and `DetectLabels`.
 3. Verify the Microsoft PhotoDNA endpoint and allowed/match response contract.
 4. Configure CSAM reporting and the trust-and-safety alert inbox.
-5. Run the Stream policy configurator and verify adult nudity has no removal rule.
+5. Run the Stream policy configurator, verify adult nudity has no global removal rule, and verify the app rejects it on profile photos.
 6. Set the documented Coolify variables without copying secrets into git.
 7. Confirm `TRUST_PROXY_HOPS` against the actual Coolify/Traefik chain before enabling IP bans.
 8. Create a fresh account through visible onboarding. Confirm a birth year alone cannot proceed, an under-18 complete date is rejected, and an adult complete date succeeds.
-9. Exercise one consented adult face, one consented faceless adult-person photo, one permitted adult-nudity fixture, and provider-supplied age-safety fixtures in staging.
+9. Exercise one consented adult face, one consented faceless adult-person photo, one adult-nudity fixture rejected as a profile photo and allowed in a private message, and provider-supplied age-safety fixtures in staging.
 10. Confirm child-face attempts never enter `profiles.photos` or message attachments, encrypted pending objects are deleted, the account is suspended, sessions are revoked, and device/IP ban rows contain hashes rather than raw identifiers.
 11. Push `main` only after the user approves this pre-push summary. After deployment, complete the staging checks above before handing the build to the bank.

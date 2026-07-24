@@ -214,7 +214,7 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
   }
 
   if (normalizedLabel === "adult_nudity" || normalizedLabel === "adult_explicit") {
-    if (surface === "feed" && label.confidence >= 0.85) {
+    if (!isPrivateMessageSurface(surface) && label.confidence >= 0.85) {
       return baseDecision({
         decision: "reject",
         category: normalizedLabel,
@@ -225,8 +225,8 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
         trust_impact: 0,
         penalty_decays: true,
         moderation_history_required: true,
-        reason_code: "feed_explicit_adult_content",
-        user_message_code: "feed_content_rejected"
+        reason_code: "nudity_outside_private_messages",
+        user_message_code: "nudity_private_messages_only"
       });
     }
 
@@ -234,7 +234,9 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
       category: normalizedLabel,
       severity: label.severity ?? "low",
       confidence: label.confidence,
-      reason_code: "adult_content_allowed"
+      reason_code: isPrivateMessageSurface(surface)
+        ? "private_message_nudity_allowed"
+        : "adult_content_below_rejection_threshold"
     });
   }
 
@@ -439,6 +441,18 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
   const decision = input.providerResult.labels
     .map((label) => mapLabel(label, input.surface, input.contentType))
     .reduce(chooseDecision, ALLOW_POLICY_DECISION);
+  const isPrivateAdultImageOnly = (
+    isPrivateMessageSurface(input.surface) &&
+    input.contentType === "image" &&
+    input.providerResult.labels.length > 0 &&
+    input.providerResult.labels.every((label) =>
+      label.normalized_label === "adult_nudity" || label.normalized_label === "adult_explicit"
+    )
+  );
+
+  if (decision.decision === "allow" && isPrivateAdultImageOnly) {
+    return decision;
+  }
 
   if (decision.decision === "allow" && recommendedAction === "flag") {
     return baseDecision({

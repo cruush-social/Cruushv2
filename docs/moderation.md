@@ -94,14 +94,14 @@ Not sent to Stream:
 Allowed by default when consensual and adult:
 
 - Queer identity, trans identity, pronouns, sexuality, dating preferences, kink terms, and adult dating language.
-- Adult explicit labels outside public feed contexts unless paired with a prohibited category.
-- Consensual adult nudity in profile and private/message photos. Stream's profile-photo policy intentionally does not auto-remove `Explicit` or `Non-Explicit Nudity`.
+- Consensual adult nudity in direct and group-message photos only, unless paired with another prohibited category.
 - PnP or chemsex discussion in direct/group messages, unless paired with sales, coercion, minor safety, threats, or other prohibited content.
 - Fetishization/chaser concerns are handled through user reports and trust evidence, not text blocklists or automod guesses.
 
 Rejected before save/publish:
 
 - Feed posts with adult explicit labels, PnP/chemsex discussion, drug sales, hate, threats, harassment, doxxing, location privacy abuse, scams, spam, commercial sex solicitation, non-consensual sexual content, minor/CSAM references, bestiality, revenge porn, or gore.
+- Nude or sexually explicit images on profile photos or any other non-message photo surface. Nudity is restricted to authenticated direct and group-message attachments.
 - Profile and message content with zero-tolerance labels such as minor/CSAM references, bestiality, revenge porn, credible threats, or drug sales.
 - Profile photos that Stream, PhotoDNA, or Rekognition rejects.
 - Any profile-photo response whose Stream recommendation is not an explicit `keep`, including `flag`, `remove`, `block`, `bounce`, and `shadow_block`.
@@ -109,7 +109,7 @@ Rejected before save/publish:
 - Any profile or message photo with a detected face whose Rekognition age range ends below 18. This triggers permanent account, session, feature, device-cookie, and trusted-IP bans.
 - An age range overlapping 18 is allowed because it includes a possible adult age. This protects 18+ users but means age estimation alone cannot guarantee rejection of every older minor.
 
-When shared Stream automod is enabled, publication requires all three synchronous approvals: PhotoDNA non-match, Stream `keep`, and Rekognition age-safety approval. Profile photos also require person/no-animal approval. Permitted adult nudity is not a rejection by itself. Rejected encrypted pending assets are deleted.
+When shared Stream automod is enabled, publication requires all three synchronous approvals: PhotoDNA non-match, Stream completion, and Rekognition age-safety approval. Profile photos also require person/no-animal approval and reject high-confidence `Explicit` or `Non-Explicit Nudity` labels even when Stream recommends `keep`. Direct and group-message photos may contain consensual adult nudity. Rejected encrypted pending assets are deleted.
 
 If Stream is unavailable, partial, pending, or returns an error, content is not saved. The request fails closed with `MODERATION_UNAVAILABLE`.
 
@@ -162,7 +162,7 @@ In Stream dashboard:
 1. Enable Moderation for the app.
 2. Create a moderation policy whose key matches `STREAM_MODERATION_CONFIG_KEY`.
 3. Enable AI text moderation and image moderation.
-4. Configure only `Violence`, `Visually Disturbing`, and `Hate Symbols` to remove at the thresholds committed in `configure-stream-profile-photo-safety.ts`. Do not add `Explicit` or `Non-Explicit Nudity` removal rules because consensual adult nudity is allowed on these photo surfaces.
+4. Configure only `Violence`, `Visually Disturbing`, and `Hate Symbols` to remove at the thresholds committed in `configure-stream-profile-photo-safety.ts`. The shared Stream policy must not globally remove `Explicit` or `Non-Explicit Nudity`, because the app applies the stricter surface rule: reject them outside messages and allow consensual adult nudity only in direct/group-message photos.
 5. Configure borderline categories to flag only when cruush should reject or fail closed without human review.
 6. Avoid blocklists that treat queer identity terms, trans terms, kink terms, or consensual adult dating language as violations by themselves.
 7. Configure every Stream action other than `keep` as a cruush rejection. Ordinary non-allowed decisions are visible as follow-up evidence in the moderator dashboard, but a dashboard review does not make unapproved content public.
@@ -232,7 +232,7 @@ Current branch state:
 - Messages and feed posts are stored in Postgres.
 - Profile and message photos are decoded with Sharp, normalized, and re-encoded into metadata-free thumbnail/display variants.
 - Sanitized canonical bytes and metadata-free variants are envelope-encrypted under separate private object keys. Raw uploaded bytes are never written to object storage.
-- New media rows begin in `pending`; only a non-explicit approval atomically attaches a display URL to a profile or message.
+- New media rows begin in `pending`; only non-explicit approvals can attach to profiles. Adult explicit approvals are eligible only for authenticated direct/group-message attachments.
 - Pending, rejected, failed, and `approved_explicit` assets return `404` from normal media routes.
 - Development and tests use local encrypted object storage; production config requires S3-compatible object storage.
 - The media storage directory is not registered as a static route. All media access is authenticated and purpose-aware.
@@ -280,6 +280,8 @@ Manual checks:
 - Send a DM with chemsex/PnP language and confirm it is allowed.
 - Send a threat or drug-sales message and confirm it is rejected before message storage.
 - Upload a safe profile photo that mock mode can identify, such as a fixture filename containing `adult-human`, and confirm it appears in `profiles.photos`. For the shared Stream path, use a mocked complete `keep` plus a mocked high-confidence Rekognition `Person` result and confirm no manual-review row is created.
+- Upload a nude profile photo and confirm it is rejected, its encrypted quarantine objects are deleted, and no profile URL is attached.
+- Upload the same permitted adult-nudity fixture in a direct or group message and confirm it is available only through authenticated message-media access.
 - Upload a non-human or gradient profile photo and confirm its temporary encrypted quarantine object is deleted without publication.
 - Upload an image filename containing `underage` in mock mode and confirm its temporary encrypted quarantine object is deleted without publication.
 - Submit a report and confirm an evidence signal is created for the reported user.

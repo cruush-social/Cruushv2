@@ -4019,7 +4019,7 @@ describe("server", () => {
     });
   });
 
-  it("creates a view-once photo message with encrypted media on POST /api/messages/photos", async () => {
+  it("creates a view-once adult-nudity photo in a private group message", async () => {
     query
       .mockResolvedValueOnce({
         rows: [{
@@ -4086,7 +4086,7 @@ describe("server", () => {
     const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
-      filename: "message.png",
+      filename: "adult-nudity-message.png",
       contentType: "image/png",
       content: png,
       fields: [
@@ -4114,6 +4114,8 @@ describe("server", () => {
     expect(mediaInsert?.[1]?.[2]).toBe("message_photo");
     expect(messageInsert?.[0]).toContain("message_media_attachments");
     expect(messageInsert?.[0]).toContain("view_once");
+    expect(messageInsert?.[0]).toContain("when $19 then 'explicit'");
+    expect(messageInsert?.[1]?.[18]).toBe(true);
     expect(notificationLookup).toBeDefined();
     expect(notificationInsert?.[1]).toEqual([
       "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -6013,7 +6015,7 @@ describe("server", () => {
   it.each([
     "adult-human-nude-face.png",
     "adult-human-nude-body-part.png"
-  ])("accepts an adult explicit profile photo when other safety checks pass: %s", async (filename) => {
+  ])("rejects an adult nude profile photo and deletes quarantine storage: %s", async (filename) => {
     mockPendingProfileMediaQueries();
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -6033,9 +6035,16 @@ describe("server", () => {
     });
     const queries = query.mock.calls.map(([sql]) => String(sql));
 
-    expect(response.statusCode).toBe(201);
-    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(false);
-    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(true);
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "Nude or sexually explicit photos are only allowed in private messages.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
   it("allows an age-inference filename when content-safety otherwise passes", async () => {
