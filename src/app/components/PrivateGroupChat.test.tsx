@@ -8,6 +8,7 @@ const {
   clearConversationForEveryone,
   createMessage,
   createMessagePhoto,
+  deleteConversationForEveryone,
   getConversationMessages,
   getCurrentUserId,
   getGroupMembers,
@@ -17,6 +18,7 @@ const {
   clearConversationForEveryone: vi.fn(),
   createMessage: vi.fn(),
   createMessagePhoto: vi.fn(),
+  deleteConversationForEveryone: vi.fn(),
   getConversationMessages: vi.fn(),
   getCurrentUserId: vi.fn(),
   getGroupMembers: vi.fn(),
@@ -56,6 +58,7 @@ vi.mock('../lib/messagesApi', async () => {
     clearConversationForEveryone,
     createMessage,
     createMessagePhoto,
+    deleteConversationForEveryone,
     getConversationMessages,
     getGroupMembers,
     setConversationDisappearingTimer,
@@ -82,6 +85,7 @@ describe('PrivateGroupChat', () => {
     clearConversationForEveryone.mockReset();
     createMessage.mockReset();
     createMessagePhoto.mockReset();
+    deleteConversationForEveryone.mockReset();
     getConversationMessages.mockReset();
     getCurrentUserId.mockReset();
     getGroupMembers.mockReset();
@@ -688,6 +692,55 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByText('old plan')).not.toBeInTheDocument();
   });
 
+  it('lets users delete a DM chat for everyone from conversation settings', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        mutual: true,
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+    deleteConversationForEveryone.mockResolvedValue(undefined);
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<><PrivateGroupChat /><LocationProbe /></>} />
+          <Route path="/messages" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'More conversation options' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete chat for everyone' }));
+
+    expect(confirmSpy).toHaveBeenCalledWith('Delete this chat for everyone? This removes the chat and its messages for all participants.');
+    await waitFor(() => {
+      expect(deleteConversationForEveryone).toHaveBeenCalledWith(conversationId);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/messages');
+    });
+
+    confirmSpy.mockRestore();
+  });
+
   it('lets users change the disappearing timer from the composer', async () => {
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({
@@ -747,6 +800,52 @@ describe('PrivateGroupChat', () => {
     await waitFor(() => {
       expect(setConversationDisappearingTimer).toHaveBeenCalledWith(conversationId, '1h');
     });
+  });
+
+  it('keeps the mobile composer above the bottom nav without horizontal overflow', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        mutual: true,
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    expect(screen.getByTestId('private-group-chat-screen')).toHaveClass('max-w-full', 'overflow-x-hidden');
+
+    const composerBar = screen.getByTestId('chat-composer-bar');
+    expect(composerBar).toHaveClass(
+      'bottom-[calc(6.25rem+env(safe-area-inset-bottom))]',
+      'max-w-[100vw]',
+      'overflow-x-hidden',
+    );
+    expect(screen.getByPlaceholderText('Say what you want...')).toHaveClass('min-w-0', 'flex-1');
+    expect(screen.getByRole('button', { name: 'Send message' })).toHaveClass('size-9', 'rounded-full');
   });
 
   it('opens a view-once photo only after the user taps it', async () => {

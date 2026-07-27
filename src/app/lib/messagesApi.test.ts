@@ -4,6 +4,7 @@ import {
   clearConversationForEveryone,
   closeGroupConversation,
   createMessagePhoto,
+  deleteConversationForEveryone,
   demoteGroupAdmin,
   removeGroupMember,
   setConversationDisappearingTimer,
@@ -20,9 +21,10 @@ describe('messagesApi', () => {
     }));
   });
 
-  it('calls the timer and clear-for-everyone conversation endpoints', async () => {
+  it('calls the timer, clear, and delete-for-everyone conversation endpoints', async () => {
     await setConversationDisappearingTimer('conversation-1', '1h');
     await clearConversationForEveryone('conversation-1');
+    await deleteConversationForEveryone('conversation-1');
 
     expect(fetch).toHaveBeenNthCalledWith(1, '/api/conversations/conversation-1/disappearing-timer', expect.objectContaining({
       method: 'PATCH',
@@ -30,6 +32,9 @@ describe('messagesApi', () => {
     }));
     expect(fetch).toHaveBeenNthCalledWith(2, '/api/conversations/conversation-1/clear-for-everyone', expect.objectContaining({
       method: 'POST',
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(3, '/api/conversations/conversation-1', expect.objectContaining({
+      method: 'DELETE',
     }));
   });
 

@@ -167,6 +167,11 @@
     font-size: var(--font-size);
   }
 
+  html, body, #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   h1 {
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-medium);

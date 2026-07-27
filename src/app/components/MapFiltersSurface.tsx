@@ -102,6 +102,7 @@ function FieldGroup({
       <Label>{label}</Label>
       <MultiSelect
         ariaLabel={label}
+        menuPortal
         options={options}
         optionGroups={optionGroups}
         value={value[stateKey]}
@@ -125,13 +126,13 @@ export default function MapFiltersSurface({
 }: MapFiltersSurfaceProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-y-auto border-white/10 bg-background/95 p-0 sm:max-w-xl">
+      <SheetContent side="right" className="w-full overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
         <SheetHeader className="border-b border-white/10 px-5 py-4">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
 
-        <div className="px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {onMutualCruushesOnlyChange ? (
             <button
               type="button"
@@ -225,7 +226,7 @@ export default function MapFiltersSurface({
           </Tabs>
         </div>
 
-        <SheetFooter className="sticky bottom-0 border-t border-white/10 bg-background/95 px-5 py-4 backdrop-blur">
+        <SheetFooter className="shrink-0 border-t border-white/10 bg-background/95 px-5 py-4 backdrop-blur">
           <div className="flex gap-3">
             <Button type="button" variant="outline" className="flex-1" onClick={onClear}>
               Clear

@@ -425,7 +425,7 @@ async function assertNoBlockedConversationMembers(app: FastifyInstance, userId: 
   }
 }
 
-function assertCanManageConversation(conversation: ConversationRow, action: "timer" | "clear") {
+function assertCanManageConversation(conversation: ConversationRow, action: "timer" | "clear" | "delete") {
   if (conversation.kind !== "group") {
     return;
   }
@@ -838,6 +838,31 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     return reply.send({
       data: mapConversationRow(app, updated)
     });
+  });
+
+  app.delete("/api/conversations/:conversationId", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { conversationId } = conversationParamsSchema.parse(request.params);
+    const conversation = await loadConversationForUser(app, userId, conversationId);
+
+    if (!conversation) {
+      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+    }
+
+    assertCanManageConversation(conversation, "delete");
+
+    const result = await app.db.query<{ id: string }>(
+      `delete from conversations
+       where id::text = $1
+       returning id::text as id`,
+      [conversationId]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+    }
+
+    return reply.code(204).send();
   });
 
   app.get("/api/conversations/groups/:conversationId/members", async (request, reply) => {

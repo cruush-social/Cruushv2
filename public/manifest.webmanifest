@@ -1,7 +1,7 @@
 {
   "name": "cruush",
   "short_name": "cruush",
-  "description": "cruush nearby social app",
+  "description": "queer cruisers cruise cruush",
   "start_url": "/map?source=pwa",
   "scope": "/",
   "display": "standalone",

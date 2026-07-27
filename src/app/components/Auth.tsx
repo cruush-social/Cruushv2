@@ -7,6 +7,7 @@ import {
   type AuthSessionPayload
 } from '../lib/authApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
+import cruushLogo from '../assets/brand/cruush-logo.svg';
 import { CruushIcon } from './CruushIconImage';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
@@ -197,22 +198,15 @@ export default function Auth({ onAuth }: AuthProps) {
       <div className="w-full max-w-md space-y-12 relative z-10">
         {/* Logo and tagline */}
         <div className="text-center space-y-6">
-          <div className="flex justify-center mb-6">
-            <CruushIcon name="cruush" className="h-16 w-16 opacity-15" />
-          </div>
           <div>
-            <h1
-              className="cruush-logo-text inline-block text-7xl mb-4"
-              style={{
-                background: 'var(--Crush-logo)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              cruush
-            </h1>
-            <p className="text-white/50 text-sm">premium queer cruising for nearby discovery</p>
+            <h1 className="sr-only">cruush</h1>
+            <img
+              src={cruushLogo}
+              alt="cruush"
+              className="mx-auto mb-4 h-40 w-auto max-w-[18rem] object-contain sm:h-48"
+              draggable={false}
+            />
+            <p className="text-white/50 text-sm">queer cruisers cruise cruush</p>
           </div>
         </div>
 
