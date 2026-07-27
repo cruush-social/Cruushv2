@@ -470,7 +470,28 @@ export async function registerMediaRoutes(app: FastifyInstance) {
                  and restriction.feature = 'photo_uploads'
                  and (restriction.ends_at is null or restriction.ends_at > now())
              )
-         ), approved_media as (
+         ), candidate_media as (
+           select media.id, media.owner_user_id
+           from media_objects media
+           join eligible_user on eligible_user.id = media.owner_user_id
+           where media.id = $2
+             and media.surface = 'profile_photo'
+             and media.moderation_status = 'pending'
+             and coalesce((select array_length(profile.photos, 1) from profiles profile where profile.id = $1), 0) < ${MAX_PROFILE_PHOTOS}
+         ), ${approvedContentReviewCte({
+           userIdParam: "$1",
+           surface: "profile_photo",
+           contentType: "image",
+           fromCte: "candidate_media",
+           providerParam: "$4",
+           providerRequestIdParam: "$6",
+           normalizedLabelsParam: "$7",
+           policyDecisionParam: "$8",
+           moderationStatusParam: "'allowed'",
+           moderationRawResultParam: "$9",
+           contentIdParam: "$2",
+           contentRefParam: "jsonb_build_object('assetId', $2, 'surface', 'profile_photo')"
+         })}, approved_media as (
            update media_objects media
            set public_url = $3,
                moderation_status = 'approved',
@@ -481,37 +502,15 @@ export async function registerMediaRoutes(app: FastifyInstance) {
                moderation_failure_reason = null,
                explicit_classification = 'non_explicit',
                photodna_status = $10,
-               photodna_provider_request_id = $11
-           from eligible_user
-           where media.id = $2
-             and media.owner_user_id = eligible_user.id
-             and media.surface = 'profile_photo'
-             and media.moderation_status = 'pending'
-             and coalesce((select array_length(profile.photos, 1) from profiles profile where profile.id = $1), 0) < ${MAX_PROFILE_PHOTOS}
-           returning media.owner_user_id as id
-         ), ${approvedContentReviewCte({
-           userIdParam: "$1",
-           surface: "profile_photo",
-           contentType: "image",
-           fromCte: "approved_media",
-           providerParam: "$4",
-           providerRequestIdParam: "$6",
-           normalizedLabelsParam: "$7",
-           policyDecisionParam: "$8",
-           moderationStatusParam: "'allowed'",
-           moderationRawResultParam: "$9",
-           contentIdParam: "$2",
-           contentRefParam: "jsonb_build_object('assetId', $2, 'surface', 'profile_photo')"
-         })}, linked_media as (
-           update media_objects media
-           set content_review_id = moderation_review.id
-           from moderation_review
-           where media.id = $2
+               photodna_provider_request_id = $11,
+               content_review_id = moderation_review.id
+           from candidate_media, moderation_review
+           where media.id = candidate_media.id
            returning media.owner_user_id as id
          )
          insert into profiles (id, photos, updated_at)
          select linked_media.id, array[$3]::text[], now()
-         from linked_media
+         from approved_media linked_media
          on conflict (id) do update
          set photos = case
            when array_position(profiles.photos, $3) is not null then profiles.photos
