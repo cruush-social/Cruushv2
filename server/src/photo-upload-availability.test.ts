@@ -8,6 +8,7 @@ describe("deployed photo upload availability", () => {
       STREAM_IMAGE_BRIDGE_ENABLED: false,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: false,
       PROFILE_PHOTO_REKOGNITION_ENABLED: false,
+      ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: false,
       PHOTODNA_ENABLED: false
     })).toEqual({
       profilePhotos: false,
@@ -21,6 +22,7 @@ describe("deployed photo upload availability", () => {
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: false,
       PHOTODNA_ENABLED: true
     })).toEqual({
       profilePhotos: true,
@@ -31,6 +33,33 @@ describe("deployed photo upload availability", () => {
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: false,
+      PHOTODNA_ENABLED: false
+    })).toEqual({
+      profilePhotos: false,
+      messagePhotos: false
+    });
+  });
+
+  it("allows only deployed profile-photo uploads during the explicit alpha PhotoDNA exception", () => {
+    expect(photoUploadAvailability({
+      NODE_ENV: "production",
+      STREAM_IMAGE_BRIDGE_ENABLED: true,
+      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: true,
+      PHOTODNA_ENABLED: false
+    })).toEqual({
+      profilePhotos: true,
+      messagePhotos: false
+    });
+
+    expect(photoUploadAvailability({
+      NODE_ENV: "production",
+      STREAM_IMAGE_BRIDGE_ENABLED: true,
+      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: false,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: true,
       PHOTODNA_ENABLED: false
     })).toEqual({
       profilePhotos: false,
@@ -44,6 +73,7 @@ describe("deployed photo upload availability", () => {
       STREAM_IMAGE_BRIDGE_ENABLED: false,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: false,
       PROFILE_PHOTO_REKOGNITION_ENABLED: false,
+      ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: false,
       PHOTODNA_ENABLED: false
     })).toEqual({
       profilePhotos: true,

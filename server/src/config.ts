@@ -105,6 +105,7 @@ const configSchema = z.object({
   PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE: z.coerce.number().min(50).max(100).optional().default(90),
   PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE: z.coerce.number().int().min(18).max(25).optional().default(18),
   PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).optional().default(5000),
+  ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: booleanEnvSchema,
   SEVERE_ACCESS_BANS_ENABLED: booleanEnvSchema,
   SEVERE_ACCESS_BAN_HMAC_KEY: z.string().optional().default(""),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).optional().default(0),
@@ -583,6 +584,7 @@ type ModerationConfigKey =
   | "PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE"
   | "PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE"
   | "PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS"
+  | "ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED"
   | "SEVERE_ACCESS_BANS_ENABLED"
   | "SEVERE_ACCESS_BAN_HMAC_KEY"
   | "TRUST_PROXY_HOPS"

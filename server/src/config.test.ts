@@ -226,6 +226,7 @@ describe("loadConfig", () => {
 
     expect(loadConfig(base).PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED).toBe(false);
     expect(loadConfig(base).PROFILE_PHOTO_REKOGNITION_ENABLED).toBe(false);
+    expect(loadConfig(base).ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED).toBe(false);
     expect(loadConfig(streamAutomod)).toMatchObject({
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
@@ -235,6 +236,12 @@ describe("loadConfig", () => {
       TRUST_PROXY_HOPS: 1,
       BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED: false,
       STREAM_IMAGE_BRIDGE_ENABLED: true
+    });
+    expect(loadConfig({
+      ...streamAutomod,
+      ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: "true"
+    })).toMatchObject({
+      ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: true
     });
 
     expect(() => loadConfig({

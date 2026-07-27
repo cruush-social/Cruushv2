@@ -31,6 +31,7 @@ PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE=80
 PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE=90
 PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE=18
 PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS=5000
+ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=false
 SEVERE_ACCESS_BANS_ENABLED=false
 SEVERE_ACCESS_BAN_HMAC_KEY=
 TRUST_PROXY_HOPS=0
@@ -59,7 +60,7 @@ When `STREAM_IMAGE_BRIDGE_ENABLED=true`, the server requires a `STREAM_PSEUDONYM
 
 When `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true`, the Stream image bridge must also be enabled and `BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED` must be `false`. A complete Stream `keep` is necessary but is no longer sufficient. Rekognition runs face-age detection on profile and message photos. Profile photos additionally require a high-confidence `Person` signal and no animal signal. A face whose estimated range ends below 18 is rejected and triggers the permanent account/session/device/IP enforcement path. A range that overlaps 18 is accepted so an 18+ user is not blocked by an imprecise range. A profile photo with a high-confidence `Person` label and no detected face remains eligible, allowing permitted faceless adult photos.
 
-Deployed profile- and message-photo uploads remain unavailable unless Stream automod, the signed image bridge, Rekognition age-safety detection, and PhotoDNA are all enabled. Rekognition returns an estimated age range, not verified age. It does not verify identity, ownership, consent, or exactly one person. The product rule `photos must be of you only.` therefore still includes user attestation and reporting.
+Deployed profile- and message-photo uploads remain unavailable unless Stream automod, the signed image bridge, Rekognition age-safety detection, and PhotoDNA are all enabled. For alpha staging only, `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` may temporarily allow profile-photo uploads without PhotoDNA when Stream automod, the signed image bridge, and Rekognition are all enabled; message-photo uploads still require PhotoDNA. Rekognition returns an estimated age range, not verified age. It does not verify identity, ownership, consent, or exactly one person. The product rule `photos must be of you only.` therefore still includes user attestation and reporting.
 
 When `PHOTODNA_ENABLED=true`, `PHOTODNA_API_URL`, `PHOTODNA_OPERATION_PATH`, and `PHOTODNA_SUBSCRIPTION_KEY` are required at server startup. The adapter posts sanitized image bytes to the configured Microsoft API Management endpoint before Stream or Rekognition and blocks known-CSAM match responses. Verify the exact operation path and real allowed/blocked response contract before opening deployed profile-photo uploads. PhotoDNA is hash matching for known material; it is one layer, not a promise that every novel abusive image can be detected.
 
