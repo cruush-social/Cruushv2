@@ -10,7 +10,7 @@ import { persistCurrentUser } from '../lib/sessionUser';
 import MultiSelect from './MultiSelect';
 
 interface ProfileOnboardingProps {
-  onComplete: (session?: AuthSessionPayload) => void;
+  onComplete: (session?: AuthSessionPayload, destination?: '/map' | '/rewards') => void;
   needsCodeOfConduct?: boolean;
   codeOfConductVersion?: string;
 }
@@ -125,7 +125,7 @@ export default function ProfileOnboarding({
   codeOfConductVersion = '',
 }: ProfileOnboardingProps) {
   // Minimal onboarding steps, but state includes all schema fields for upsert
-  const steps = needsCodeOfConduct ? [...PROFILE_STEPS, 'oath'] : PROFILE_STEPS;
+  const steps: OnboardingStep[] = needsCodeOfConduct ? [...PROFILE_STEPS, 'oath'] : PROFILE_STEPS;
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<OnboardingProfileState>({
     name: '',
@@ -205,7 +205,7 @@ export default function ProfileOnboarding({
     }
   };
 
-  const handleComplete = async () => {
+  const handleComplete = async (destination: '/map' | '/rewards' = '/map') => {
     setSaving(true);
     setSaveError(null);
     try {
@@ -277,7 +277,7 @@ export default function ProfileOnboarding({
       const nextSession = needsCodeOfConduct
         ? await acceptCodeOfConduct(codeOfConductVersion)
         : undefined;
-      onComplete(nextSession);
+      onComplete(nextSession, destination);
     } catch (error) {
       console.error('Error saving profile:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to save profile.');
@@ -483,9 +483,21 @@ export default function ProfileOnboarding({
               Next rite <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           ) : (
-            <Button onClick={handleComplete} disabled={!canProceed() || saving}>
-              {needsCodeOfConduct ? 'I agree and enter' : 'Enter cruush'} <Check className="ml-2 w-4 h-4" />
-            </Button>
+            <div className="flex flex-col items-end gap-2">
+              <Button onClick={() => void handleComplete('/rewards')} disabled={!canProceed() || saving}>
+                {steps[step] === 'oath'
+                  ? 'I agree and enter — protect my account next'
+                  : 'Enter cruush — protect my account next'}{' '}
+                <ShieldCheck className="ml-2 w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => void handleComplete('/map')}
+                disabled={!canProceed() || saving}
+              >
+                Skip 2FA for now <Check className="ml-2 w-4 h-4" />
+              </Button>
+            </div>
           )}
         </div>
       </div>

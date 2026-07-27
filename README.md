@@ -11,7 +11,19 @@
 
   `npm run dev:local` starts the local frontend, local API, and local database migrations together.
 
-  ## Local development
+## Local development
+
+## Rewards and optional 2FA
+
+Cruush supports server-confirmed daily activity streaks, qualified referrals,
+separate promotional Cruush+ banking, and optional authenticator-app 2FA. See
+[docs/rewards-system.md](docs/rewards-system.md) for product rules, architecture,
+configuration, APIs, deployment, testing, and grant reversal operations. The
+reasoning and tradeoffs behind the implementation are in
+[docs/rewards-design-decisions.md](docs/rewards-design-decisions.md).
+
+For production, set a strong dedicated `TWO_FACTOR_ENCRYPTION_KEY`. The API
+startup migration creates the rewards schema and default database settings.
 
   Local development is separate from staging. The local stack is:
 

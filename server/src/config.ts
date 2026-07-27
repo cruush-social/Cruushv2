@@ -81,6 +81,8 @@ const configSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   CORS_ORIGIN: corsOriginSchema.default("http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,https://127.0.0.1:5173"),
   SESSION_SECRET: z.string().min(1, "SESSION_SECRET is required"),
+  TWO_FACTOR_ENCRYPTION_KEY: z.string().optional().default(""),
+  TWO_FACTOR_ENCRYPTION_KEY_VERSION: z.string().trim().min(1).optional().default("v1"),
   APP_URL: z.string().url().default("https://localhost:5173"),
   MEDIA_STORAGE_DIR: z.string().trim().min(1).optional().default("media"),
   MEDIA_PUBLIC_BASE_URL: z.string().url().optional().or(z.literal("")).default(""),
@@ -616,9 +618,17 @@ type WebPushConfigKey =
   | "WEB_PUSH_VAPID_PUBLIC_KEY"
   | "WEB_PUSH_VAPID_PRIVATE_KEY"
   | "WEB_PUSH_SUBJECT";
+type TwoFactorConfigKey =
+  | "TWO_FACTOR_ENCRYPTION_KEY"
+  | "TWO_FACTOR_ENCRYPTION_KEY_VERSION";
 
-export type AppConfig = Omit<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey> &
-  Partial<Pick<ParsedAppConfig, GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey>>;
+export type AppConfig = Omit<
+  ParsedAppConfig,
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey
+> & Partial<Pick<
+  ParsedAppConfig,
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey
+>>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return configSchema.parse(env);

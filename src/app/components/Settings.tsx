@@ -8,6 +8,7 @@ import {
   LifeBuoy,
   LogOut,
   ShieldAlert,
+  Gift,
   Trash2,
   type LucideIcon,
 } from 'lucide-react';
@@ -227,6 +228,12 @@ export default function Settings() {
       title: 'Account',
       items: [
         { iconName: 'profile' as const, label: 'Edit Profile', action: () => navigate('/profile/edit') },
+        {
+          icon: Gift,
+          label: 'Rewards & Cruush+',
+          description: 'Streaks, referrals, promotional access, and 2FA.',
+          action: () => navigate('/rewards'),
+        },
         { icon: KeyRound, label: 'Change password', action: () => setIsPasswordDialogOpen(true) },
         { iconName: 'notifications' as const, label: 'Notifications', action: () => navigate('/settings/notifications') },
         { icon: LifeBuoy, label: 'Contact support', action: () => navigate('/support') },

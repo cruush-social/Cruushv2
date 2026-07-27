@@ -39,9 +39,10 @@ const CruushPlusSuccess = lazy(() => import('./components/CruushPlusSuccess'));
 const EmailVerificationGate = lazy(() => import('./components/EmailVerificationGate'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
+const Rewards = lazy(() => import('./components/Rewards'));
 
-function redirectToMap() {
-  window.history.replaceState({}, '', '/map');
+function redirectTo(path = '/map') {
+  window.history.replaceState({}, '', path);
 }
 
 function RouteLoading() {
@@ -118,7 +119,7 @@ export default function App({
   const handleAuth = (session: AuthSessionPayload) => {
     setSession(session);
     if (session.user.emailVerifiedAt) {
-      redirectToMap();
+      redirectTo();
     }
     setNeedsOnboarding(session.needsOnboarding);
     setAuthStatus('signed_in');
@@ -127,7 +128,7 @@ export default function App({
   const handleVerified = (nextSession: AuthSessionPayload) => {
     setSession(nextSession);
     setNeedsOnboarding(nextSession.needsOnboarding);
-    redirectToMap();
+    redirectTo();
     setAuthStatus('signed_in');
   };
 
@@ -137,14 +138,17 @@ export default function App({
     setAuthStatus('signed_out');
   };
 
-  const handleOnboardingComplete = (nextSession?: AuthSessionPayload) => {
+  const handleOnboardingComplete = (
+    nextSession?: AuthSessionPayload,
+    destination: '/map' | '/rewards' = '/map',
+  ) => {
     if (nextSession) {
       setSession(nextSession);
       setNeedsOnboarding(nextSession.needsOnboarding);
     } else {
       setNeedsOnboarding(false);
     }
-    redirectToMap();
+    redirectTo(destination);
   };
 
   const handleCodeOfConductAccepted = (nextSession: AuthSessionPayload) => {
@@ -297,6 +301,7 @@ export default function App({
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
               <Route path="/upgrade" element={<CruushPlusUpgrade />} />
+              <Route path="/rewards" element={<Rewards />} />
               <Route path="/checkout/success" element={<CruushPlusSuccess />} />
               <Route path="/checkout/:sessionId" element={<CruushPlusCheckout />} />
               <Route path="*" element={<Navigate to="/map" replace />} />

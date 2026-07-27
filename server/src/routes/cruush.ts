@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
 import { createCruushPayloadSchema } from "../cruush-schema.js";
+import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
   ensureMutualCruushMatch,
@@ -934,6 +935,12 @@ export async function registerCruushRoutes(app: FastifyInstance) {
         dedupeKey: `incoming-cruush:${created.id}:${payload.toUserId}`
       });
     }
+
+    await recordMeaningfulActivitySafely(app, {
+      userId: authenticatedUserId,
+      activityType: "cruush",
+      sourceEventId: created.id
+    });
 
     return reply.code(201).send({
       data: {

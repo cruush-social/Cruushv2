@@ -9,6 +9,7 @@ export type TrustEventInput = {
   decays: boolean;
   permanent: boolean;
   source: "ai" | "automod" | "system";
+  idempotencyKey?: string;
   metadata?: Record<string, unknown>;
 };
 
@@ -84,9 +85,11 @@ export async function insertTrustEvent(db: DbClient, input: TrustEventInput) {
        decays,
        permanent,
        source,
+       idempotency_key,
        metadata
      )
-     values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)`,
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+     on conflict (idempotency_key) where idempotency_key is not null do nothing`,
     [
       randomUUID(),
       input.userId,
@@ -95,6 +98,7 @@ export async function insertTrustEvent(db: DbClient, input: TrustEventInput) {
       input.decays,
       input.permanent,
       input.source,
+      input.idempotencyKey ?? null,
       JSON.stringify(input.metadata ?? {})
     ]
   );

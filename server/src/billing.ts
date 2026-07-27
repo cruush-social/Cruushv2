@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
 import { getCruushEntitlement } from "./match-relationships.js";
+import { bankActivePromotionForPaidSubscription } from "./rewards-service.js";
 
 export type CruushPlusPlanId =
   | "plus_weekly"
@@ -428,6 +429,8 @@ export async function completeFakeCheckoutSession(app: FastifyInstance, userId: 
      returning cruush_plus_enabled, cruush_plus_expires_at`,
     [userId, expiresAt]
   )).rows[0] as { cruush_plus_enabled: boolean; cruush_plus_expires_at: string | Date | null } | undefined;
+
+  await bankActivePromotionForPaidSubscription(app.db, userId);
 
   if (plan.isFounder) {
     await app.db.query(

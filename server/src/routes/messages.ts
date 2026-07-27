@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
+import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { decryptMediaBytes } from "../media-encryption.js";
 import { readEncryptedMediaObject } from "../media-storage.js";
@@ -1333,6 +1334,12 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
+    await recordMeaningfulActivitySafely(app, {
+      userId,
+      activityType: "message",
+      sourceEventId: created.id
+    });
+
     await notifyConversationMessageRecipients(app, {
       conversationId: payload.conversationId,
       senderUserId: userId,
@@ -1514,6 +1521,12 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     if (!created) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
+
+    await recordMeaningfulActivitySafely(app, {
+      userId,
+      activityType: "message",
+      sourceEventId: created.id
+    });
 
     await notifyConversationMessageRecipients(app, {
       conversationId: payload.conversationId,

@@ -32,6 +32,8 @@ import {
   assertRequestNotSeverelyBanned,
   ensureDeviceCookie
 } from "../severe-access-bans.js";
+import { prepareSignupReferral } from "../referrals-service.js";
+import { verifyLoginSecondFactor } from "../two-factor.js";
 
 type SessionLookupRow = {
   user_id: string;
@@ -63,6 +65,7 @@ type CreatedUserRow = {
 type PasswordUserRow = CreatedUserRow & {
   password_hash: string;
   account_status?: string | null;
+  two_factor_enabled?: boolean | null;
 };
 
 type VerificationUserRow = {
@@ -400,6 +403,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     ]);
     await verifyTurnstileToken(request, payload.captchaToken);
     const passwordHash = await hashPassword(payload.password);
+    const referral = await prepareSignupReferral(app, request, payload.referralCode);
 
     let createdUser: CreatedUserRow;
 
@@ -415,10 +419,50 @@ export async function registerAuthRoutes(app: FastifyInstance) {
            select id
            from created_user
            on conflict (user_id) do nothing
+         ),
+         created_referral_identity as (
+           insert into referral_identities (user_id, code)
+           select id, encode(gen_random_bytes(16), 'hex')
+           from created_user
+           on conflict (user_id) do nothing
+         ),
+         created_referral as (
+           insert into referrals (
+             referrer_user_id,
+             referred_user_id,
+             referral_code,
+             status,
+             risk_score,
+             review_flags,
+             signup_ip_hash,
+             signup_device_hash
+           )
+           select
+             $4::uuid,
+             created_user.id,
+             $5,
+             $6,
+             $7,
+             $8::jsonb,
+             $9,
+             $10
+           from created_user
+           where $4::uuid is not null
          )
          select id, email, display_name, email_verified_at, created_at
          from created_user`,
-        [payload.email, passwordHash, payload.displayName]
+        [
+          payload.email,
+          passwordHash,
+          payload.displayName,
+          referral?.referrerUserId ?? null,
+          referral?.code ?? null,
+          referral?.status ?? null,
+          referral?.riskScore ?? 0,
+          JSON.stringify(referral?.reviewFlags ?? []),
+          referral?.ipHash ?? null,
+          referral?.deviceHash ?? null
+        ]
       );
 
       createdUser = result.rows[0];
@@ -490,7 +534,12 @@ export async function registerAuthRoutes(app: FastifyInstance) {
          display_name,
          email_verified_at,
          created_at,
-         coalesce(account_status, 'active') as account_status
+         coalesce(account_status, 'active') as account_status,
+         exists (
+           select 1 from user_two_factor_auth two_factor
+           where two_factor.user_id = app_users.id
+             and two_factor.enabled_at is not null
+         ) as two_factor_enabled
        from app_users
        where email = $1
        limit 1`,
@@ -509,6 +558,24 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     if (!user.email_verified_at) {
       throw new ApiError(403, "EMAIL_VERIFICATION_REQUIRED", "Verify your email before signing in.");
+    }
+
+    if (user.two_factor_enabled) {
+      await applyRateLimits(app, [
+        {
+          key: `two-factor-login:user:${user.id}`,
+          max: AUTH_ATTEMPT_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many two-factor attempts. Try again later."
+        },
+        {
+          key: `two-factor-login:ip:${getRequestIp(request)}`,
+          max: AUTH_ATTEMPT_MAX * 2,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many two-factor attempts. Try again later."
+        }
+      ]);
+      await verifyLoginSecondFactor(app, user.id, payload.twoFactorCode);
     }
 
     const session = await createSession(app, user.id);

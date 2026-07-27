@@ -6,6 +6,7 @@ import { ApiError } from "../errors.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
 import { createPostPayloadSchema } from "../post-schema.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
+import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 
 type PostRow = {
   id: string;
@@ -218,6 +219,12 @@ export async function registerPostRoutes(app: FastifyInstance) {
     if (!row) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Feed posting is unavailable for this account.");
     }
+
+    await recordMeaningfulActivitySafely(app, {
+      userId,
+      activityType: "post",
+      sourceEventId: row.id
+    });
 
     return reply.code(201).send({
       data: mapPostRow(app, row)

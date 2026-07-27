@@ -19,9 +19,19 @@ describe("migration runner", () => {
 
   it("keeps cruush+ billing ownership on app users before profile onboarding", async () => {
     const billingSql = await readFile(path.join(serverRoot, "sql", "027_cruush_plus_billing.sql"), "utf8");
+    const rewardsSql = await readFile(path.join(serverRoot, "sql", "042_rewards_and_two_factor.sql"), "utf8");
 
     expect(billingSql).not.toContain("references profiles(id)");
     expect(billingSql).toContain("user_entitlements_user_id_fkey");
+    expect(rewardsSql).toContain("daily_activity_credits_one_per_day");
+    expect(rewardsSql).toContain("referrals_one_referrer_per_account");
+    expect(rewardsSql).toContain("referrals_no_self_check");
+    expect(rewardsSql).toContain("reward_grants_referral_uidx");
+    expect(rewardsSql).toContain("reward_grants_milestone_uidx");
+    expect(rewardsSql).toContain("idempotency_key text not null unique");
+    expect(rewardsSql).toContain("reward grant ledger is append-only");
+    expect(rewardsSql).toContain("referral association is immutable");
+    expect(rewardsSql).toContain("user_two_factor_recovery_codes");
     expect(billingSql).toContain("foreign key (user_id) references app_users(id) on delete cascade");
   });
 });
