@@ -123,6 +123,7 @@ function FieldGroup({
       <Label>{label}</Label>
       <MultiSelect
         ariaLabel={label}
+        menuPortal
         options={options}
         optionGroups={optionGroups}
         value={value[stateKey]}
@@ -192,13 +193,13 @@ export default function MapVisibilitySurface({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-y-auto border-white/10 bg-background/95 p-0 sm:max-w-xl">
+      <SheetContent side="right" className="w-full overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
         <SheetHeader className="border-b border-white/10 px-5 py-4">
           <SheetTitle>Visibility</SheetTitle>
           <SheetDescription>Hide yourself from selected audiences. No hidden filters means everyone can see you.</SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-5 px-5 py-4">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
           {error ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
@@ -415,7 +416,7 @@ export default function MapVisibilitySurface({
           </Tabs>
         </div>
 
-        <SheetFooter className="sticky bottom-0 border-t border-white/10 bg-background/95 px-5 py-4 backdrop-blur">
+        <SheetFooter className="shrink-0 border-t border-white/10 bg-background/95 px-5 py-4 backdrop-blur">
           <div className="flex gap-3">
             <Button type="button" variant="outline" className="flex-1" onClick={handleClear} disabled={saving}>
               Clear

@@ -17,6 +17,7 @@ import {
   closeGroupConversation,
   createMessage,
   createMessagePhoto,
+  deleteConversationForEveryone,
   demoteGroupAdmin,
   getConversationMessages,
   getGroupMembers,
@@ -236,6 +237,31 @@ export default function PrivateGroupChat() {
     }
   };
 
+  const handleDeleteForEveryone = async () => {
+    if (!conversation || !canManageConversation) {
+      return;
+    }
+
+    const confirmed = window.confirm('Delete this chat for everyone? This removes the chat and its messages for all participants.');
+
+    if (!confirmed) {
+      return;
+    }
+
+    setSettingsSaving(true);
+
+    try {
+      await deleteConversationForEveryone(conversation.id);
+      setError(null);
+      navigate('/messages');
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete chat.');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
   const handleRenameGroup = async () => {
     if (!conversation || conversation.kind !== 'group' || !groupTitleDraft.trim() || !canManageConversation) {
       return;
@@ -432,10 +458,10 @@ export default function PrivateGroupChat() {
   const availableAddOptions = mutualOptions.filter((item) => !groupMemberIds.has(item.user.id));
 
   return (
-    <div className="relative min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/88 px-4 py-4 backdrop-blur-md">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
+    <div data-testid="private-group-chat-screen" className="relative min-h-screen max-w-full overflow-x-hidden bg-background pb-20">
+      <header className="sticky top-0 z-10 border-b border-border bg-background/88 px-3 py-4 backdrop-blur-md sm:px-4">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 sm:gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to messages">
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -489,7 +515,7 @@ export default function PrivateGroupChat() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Button variant="ghost" size="icon" title="Photo states" aria-label="Open photo options" disabled={!conversation}>
               <ImageIcon className="w-5 h-5" />
             </Button>
@@ -519,7 +545,7 @@ export default function PrivateGroupChat() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-2xl flex-col px-4 pb-[calc(8rem+env(safe-area-inset-bottom))] pt-4">
+      <div className="mx-auto flex w-full max-w-2xl flex-col px-4 pb-[calc(17rem+env(safe-area-inset-bottom))] pt-4">
         {error ? (
           <div className="mb-4 space-y-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <p>{error}</p>
@@ -574,6 +600,17 @@ export default function PrivateGroupChat() {
             >
               <Trash2 className="size-4" />
               Clear chat for everyone
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-center border-destructive/50 text-destructive hover:bg-destructive/10"
+              disabled={!canManageConversation || settingsSaving}
+              onClick={() => void handleDeleteForEveryone()}
+            >
+              <Trash2 className="size-4" />
+              Delete chat for everyone
             </Button>
 
             {conversation.kind === 'dm' ? (
@@ -855,8 +892,8 @@ export default function PrivateGroupChat() {
         </div>
 
         {conversation ? (
-          <div className="fixed bottom-20 left-0 right-0 border-t border-border bg-background/90 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
-            <div className="mx-auto max-w-2xl space-y-3">
+          <div data-testid="chat-composer-bar" className="fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pb-3 pt-3 backdrop-blur-md sm:px-4">
+            <div className="mx-auto w-full max-w-2xl space-y-3">
               {composerDisabled ? (
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-muted-foreground">
                   {dmMessagingBlocked ? 'Send a cruush first. Messages open after it is mutual.' : 'This group is closed.'}
@@ -878,8 +915,8 @@ export default function PrivateGroupChat() {
                 </select>
               </div>
 
-              <div className="rounded-[28px] border border-border bg-card/85 p-3 shadow-lg shadow-black/20">
-                <div className="flex items-end gap-3">
+              <div className="max-w-full rounded-[28px] border border-border bg-card/85 p-3 shadow-lg shadow-black/20">
+                <div className="flex min-w-0 items-end gap-2 sm:gap-3">
                   <Textarea
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
@@ -891,9 +928,9 @@ export default function PrivateGroupChat() {
                     }}
                     disabled={composerDisabled}
                     placeholder={composerDisabled ? 'Group closed' : conversation.kind === 'group' ? 'Drop the plan...' : 'Say what you want...'}
-                    className="min-h-[60px] border-0 bg-transparent px-0 py-1 focus-visible:ring-0"
+                    className="min-h-[60px] min-w-0 flex-1 border-0 bg-transparent px-0 py-1 focus-visible:ring-0"
                   />
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -925,6 +962,7 @@ export default function PrivateGroupChat() {
                     <Button
                       onClick={() => void handleSend()}
                       disabled={!message.trim() || composerDisabled}
+                      size="icon"
                       className="rounded-full"
                       aria-label="Send message"
                       style={{

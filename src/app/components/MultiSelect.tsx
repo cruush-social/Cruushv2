@@ -9,6 +9,14 @@ export type MultiSelectOptionGroup = {
   options: string[];
 };
 
+const MENU_MAX_HEIGHT = 288;
+const MENU_MIN_HEIGHT = 96;
+const MENU_OFFSET = 8;
+const MENU_VIEWPORT_PADDING = 16;
+const MENU_FLIP_THRESHOLD = 220;
+
+type ResolvedMenuPlacement = 'bottom' | 'top';
+
 interface MultiSelectProps {
   options?: string[];
   optionGroups?: MultiSelectOptionGroup[];
@@ -41,6 +49,8 @@ export default function MultiSelect({
   const [selected, setSelected] = useState<string[]>(value);
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [resolvedMenuPlacement, setResolvedMenuPlacement] = useState<ResolvedMenuPlacement>(menuPlacement);
+  const [localMenuStyle, setLocalMenuStyle] = useState<CSSProperties | null>(null);
   const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
   const groups = useMemo(() => optionGroups ?? [{ label: '', options }], [optionGroups, options]);
   const hasCategoryPicker = Boolean(optionGroups?.length && optionGroups.length > 1);
@@ -58,7 +68,9 @@ export default function MultiSelect({
   }, [activeGroupLabel, groups]);
 
   useLayoutEffect(() => {
-    if (!isOpen || !menuPortal || !triggerRef.current) {
+    if (!isOpen || !triggerRef.current) {
+      setResolvedMenuPlacement(menuPlacement);
+      setLocalMenuStyle(null);
       setPortalStyle(null);
       return;
     }
@@ -69,18 +81,44 @@ export default function MultiSelect({
       }
 
       const rect = triggerRef.current.getBoundingClientRect();
-      setPortalStyle(menuPlacement === 'top'
+      const bottomSpace = window.innerHeight - rect.bottom - MENU_VIEWPORT_PADDING - MENU_OFFSET;
+      const topSpace = rect.top - MENU_VIEWPORT_PADDING - MENU_OFFSET;
+      const placeAbove = menuPlacement === 'top' || (
+        menuPlacement === 'bottom' &&
+        bottomSpace < MENU_FLIP_THRESHOLD &&
+        topSpace > bottomSpace
+      );
+      const availableHeight = Math.max(0, placeAbove ? topSpace : bottomSpace);
+      const maxHeight = Math.max(MENU_MIN_HEIGHT, Math.min(MENU_MAX_HEIGHT, availableHeight));
+      setResolvedMenuPlacement(placeAbove ? 'top' : 'bottom');
+      setLocalMenuStyle(menuPortal ? null : { maxHeight });
+
+      if (!menuPortal) {
+        setPortalStyle(null);
+        return;
+      }
+
+      const availableWidth = Math.max(0, window.innerWidth - MENU_VIEWPORT_PADDING * 2);
+      const width = Math.min(rect.width, availableWidth);
+      const left = Math.min(
+        Math.max(MENU_VIEWPORT_PADDING, rect.left),
+        Math.max(MENU_VIEWPORT_PADDING, window.innerWidth - width - MENU_VIEWPORT_PADDING),
+      );
+
+      setPortalStyle(placeAbove
         ? {
-            bottom: window.innerHeight - rect.top + 8,
-            left: rect.left,
+            bottom: window.innerHeight - rect.top + MENU_OFFSET,
+            left,
+            maxHeight,
             position: 'fixed',
-            width: rect.width,
+            width,
           }
         : {
-            left: rect.left,
+            left,
+            maxHeight,
             position: 'fixed',
-            top: rect.bottom + 8,
-            width: rect.width,
+            top: rect.bottom + MENU_OFFSET,
+            width,
           });
     };
 
@@ -214,7 +252,7 @@ export default function MultiSelect({
             onClick={() => setIsOpen(false)}
           />
           <div
-            className="overflow-hidden rounded-md border border-border bg-popover shadow-lg z-[100]"
+            className="z-[100] overflow-x-hidden overflow-y-auto overscroll-contain rounded-md border border-border bg-popover shadow-lg"
             style={portalStyle}
           >
             {menuContent}
@@ -261,9 +299,10 @@ export default function MultiSelect({
               onClick={() => setIsOpen(false)}
             />
             <div
-              className={`absolute left-0 right-0 overflow-hidden rounded-md border border-border bg-popover shadow-lg z-20 ${
-                menuPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+              className={`absolute left-0 right-0 z-20 overflow-x-hidden overflow-y-auto overscroll-contain rounded-md border border-border bg-popover shadow-lg ${
+                resolvedMenuPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
               }`}
+              style={localMenuStyle ?? undefined}
             >
               {menuContent}
             </div>

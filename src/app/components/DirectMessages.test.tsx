@@ -3,8 +3,9 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DirectMessages from './DirectMessages';
 
-const { createGroupConversation, getConversations, getMyCruushActivity } = vi.hoisted(() => ({
+const { createGroupConversation, deleteConversationForEveryone, getConversations, getMyCruushActivity } = vi.hoisted(() => ({
   createGroupConversation: vi.fn(),
+  deleteConversationForEveryone: vi.fn(),
   getConversations: vi.fn(),
   getMyCruushActivity: vi.fn(),
 }));
@@ -15,6 +16,7 @@ vi.mock('../lib/messagesApi', async () => {
   return {
     ...actual,
     createGroupConversation,
+    deleteConversationForEveryone,
     getConversations,
   };
 });
@@ -31,6 +33,7 @@ vi.mock('../lib/cruushApi', async () => {
 describe('DirectMessages', () => {
   beforeEach(() => {
     createGroupConversation.mockReset();
+    deleteConversationForEveryone.mockReset();
     getConversations.mockReset();
     getMyCruushActivity.mockReset();
   });
@@ -95,6 +98,47 @@ describe('DirectMessages', () => {
     expect(await screen.findByText('Beta crew')).toBeInTheDocument();
     expect(screen.getByText('owner')).toBeInTheDocument();
     expect(screen.getByText('1h')).toBeInTheDocument();
+  });
+
+  it('deletes a conversation for everyone from the inbox list', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    getConversations.mockResolvedValue([{
+      id: 'conversation-1',
+      kind: 'dm',
+      user: {
+        id: 'user-2',
+        name: 'River',
+        pronouns: 'they/them',
+        photo: null,
+      },
+      distance: 'Nearby',
+      updatedAt: new Date().toISOString(),
+      lastMessage: 'hey',
+      unreadCount: 0,
+      pinned: false,
+      muted: false,
+      mutual: true,
+      tags: [],
+    }]);
+    deleteConversationForEveryone.mockResolvedValue(undefined);
+
+    render(
+      <MemoryRouter>
+        <DirectMessages />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('River')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete River chat for everyone' }));
+
+    expect(confirmSpy).toHaveBeenCalledWith('Delete chat with River for everyone? This removes the chat and its messages for all participants.');
+    await waitFor(() => {
+      expect(deleteConversationForEveryone).toHaveBeenCalledWith('conversation-1');
+    });
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
   });
 
   it('creates a group from mutual cruushes only', async () => {

@@ -14,4 +14,10 @@ describe('global text selection policy', () => {
     expect(themeCss).toContain('-webkit-user-select: text;');
     expect(themeCss).toContain('user-select: text;');
   });
+
+  it('prevents page-level horizontal overflow from narrow mobile controls', () => {
+    expect(themeCss).toContain('html, body, #root {');
+    expect(themeCss).toContain('max-width: 100%;');
+    expect(themeCss).toContain('overflow-x: hidden;');
+  });
 });

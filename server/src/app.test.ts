@@ -3312,6 +3312,91 @@ describe("server", () => {
     });
   });
 
+  it("deletes a dm conversation for everyone by hard-deleting the conversation", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "dm",
+          title: null,
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "old message",
+          unread_count: 1,
+          pinned: false,
+          muted: false,
+          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          other_user_name: "Alex",
+          other_user_pronouns: ["they/them"],
+          other_user_photo: null,
+          member_count: 2,
+          disappearing_timer: "24h",
+          closed_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId
+        }]
+      });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/conversations/${conversationId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const deleteSql = String(query.mock.calls[1]?.[0] ?? "");
+
+    expect(response.statusCode).toBe(204);
+    expect(deleteSql).toContain("delete from conversations");
+    expect(deleteSql).toContain("returning id::text as id");
+    expect(query.mock.calls[1]?.[1]).toEqual([conversationId]);
+  });
+
+  it("does not let group members delete a group conversation for everyone", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: conversationId,
+        kind: "group",
+        title: "Beta crew",
+        tags: [],
+        updated_at: "2026-04-29T12:00:00.000Z",
+        last_message: "",
+        unread_count: 0,
+        pinned: false,
+        muted: false,
+        other_user_id: null,
+        other_user_name: null,
+        other_user_pronouns: null,
+        other_user_photo: null,
+        member_count: 3,
+        current_user_role: "member",
+        disappearing_timer: "24h",
+        closed_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/conversations/${conversationId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Only group admins can manage this group.",
+        details: null
+      }
+    });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
   it("lets group admins add members", async () => {
     const memberId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
     const matchRecord = await encryptedRelationshipRecordRow({

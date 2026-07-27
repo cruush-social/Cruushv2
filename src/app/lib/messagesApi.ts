@@ -151,6 +151,12 @@ export function clearConversationForEveryone(conversationId: string) {
   });
 }
 
+export function deleteConversationForEveryone(conversationId: string) {
+  return requestApi<void>(`/api/conversations/${conversationId}`, {
+    method: 'DELETE',
+  });
+}
+
 export function getConversationMessages(conversationId: string) {
   return requestApi<ConversationMessagesPayload>(`/api/messages/${conversationId}`);
 }
