@@ -113,7 +113,7 @@ describe('DirectMessages', () => {
       },
       distance: 'Nearby',
       updatedAt: new Date().toISOString(),
-      lastMessage: 'hey',
+      lastMessage: 'meet by the door',
       unreadCount: 0,
       pinned: false,
       muted: false,
@@ -136,6 +136,7 @@ describe('DirectMessages', () => {
     await waitFor(() => {
       expect(deleteConversationForEveryone).toHaveBeenCalledWith('conversation-1');
     });
+    expect(screen.queryByText('River')).not.toBeInTheDocument();
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
 
     confirmSpy.mockRestore();
