@@ -28,6 +28,9 @@ export type PolicyApplicationContext = {
 };
 
 const TRUST_NEUTRAL_SCORE = 50;
+const TRUST_EVENT_DECAY_WINDOW_DAYS = 14;
+const TRUST_EVENT_DECAY_WINDOW_MS = TRUST_EVENT_DECAY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+const TRUST_EVENT_DECAY_WINDOW_SECONDS = TRUST_EVENT_DECAY_WINDOW_DAYS * 24 * 60 * 60;
 
 export function clampTrustScore(score: number) {
   return Math.max(0, Math.min(100, Math.round(score)));
@@ -57,8 +60,22 @@ export function reportWeightForScore(score: number) {
   return Math.max(5, Math.min(100, score));
 }
 
-export function calculateTrustScore(events: TrustEventForCalculation[], maxFutureTrust?: number | null) {
-  const eventTotal = events.reduce((total, event) => total + event.value, 0);
+function effectiveTrustEventValue(event: TrustEventForCalculation, asOf: Date) {
+  if (event.value >= 0 || event.decays === false || event.permanent === true || !event.createdAt) {
+    return event.value;
+  }
+
+  const ageMs = Math.max(0, asOf.getTime() - event.createdAt.getTime());
+  const decayProgress = Math.min(1, ageMs / TRUST_EVENT_DECAY_WINDOW_MS);
+  return event.value * (1 - decayProgress);
+}
+
+export function calculateTrustScore(
+  events: TrustEventForCalculation[],
+  maxFutureTrust?: number | null,
+  asOf = new Date()
+) {
+  const eventTotal = events.reduce((total, event) => total + effectiveTrustEventValue(event, asOf), 0);
   const uncapped = clampTrustScore(TRUST_NEUTRAL_SCORE + eventTotal);
 
   return maxFutureTrust == null ? uncapped : Math.min(uncapped, maxFutureTrust);
@@ -104,17 +121,33 @@ export async function recalculateTrustProfile(db: DbClient, userId: string) {
   await ensureTrustProfile(db, userId);
   await db.query(
     `with event_score as (
-       select coalesce(sum(value), 0)::integer as value
+       select coalesce(sum(
+         case
+           when value < 0 and decays = true and permanent = false then
+             value * greatest(
+               0,
+               1 - (
+                 least(
+                   greatest(extract(epoch from (now() - created_at)), 0),
+                   $2::numeric
+                 ) / $2::numeric
+               )
+             )
+           else value
+         end
+       ), 0) as value
        from trust_events
        where user_id = $1
      ),
      calculated as (
        select
-         least(
-           100,
-           greatest(
-             0,
-             50 + (select value from event_score)
+         round(
+           least(
+             100,
+             greatest(
+               0,
+               50 + (select value from event_score)
+             )
            )
          )::integer as uncapped_score
      )
@@ -136,8 +169,30 @@ export async function recalculateTrustProfile(db: DbClient, userId: string) {
          ),
          updated_at = now()
      where profile.user_id = $1`,
-    [userId]
+    [userId, TRUST_EVENT_DECAY_WINDOW_SECONDS]
   );
+}
+
+export async function recalculateDecayingTrustProfiles(db: DbClient, limit?: number | null) {
+  const boundedLimit = typeof limit === "number" ? Math.max(1, Math.min(5000, Math.floor(limit))) : null;
+  const result = await db.query<{ user_id: string }>(
+    `select user_id::text as user_id
+     from trust_events event
+     left join user_trust_profiles profile on profile.user_id = event.user_id
+     where value < 0
+       and decays = true
+       and permanent = false
+     group by event.user_id
+     order by max(profile.updated_at) asc nulls first, max(event.created_at) asc
+     ${boundedLimit == null ? "" : "limit $1"}`,
+    boundedLimit == null ? [] : [boundedLimit]
+  );
+
+  for (const row of result.rows) {
+    await recalculateTrustProfile(db, row.user_id);
+  }
+
+  return result.rows.length;
 }
 
 async function applyTrustCap(db: DbClient, userId: string, trustCap: number) {

@@ -1284,7 +1284,7 @@ Goal: make automod durable over time.
 
 Tasks:
 
-- Add trust decay scheduling if penalties should decay.
+- Keep trust decay scheduling wired into the private maintenance task and run `pnpm --dir server trust:recalculate` after trust policy changes.
 - Add cleanup for expired evidence events.
 - Add checks for overlapping feature restrictions.
 - Add internal audit views or endpoints guarded by `INTERNAL_API_SECRET`.
@@ -1378,7 +1378,7 @@ Implementation gaps:
 - Message photo deletion/orphan cleanup needs hardening.
 - Profile media lacks resizing, thumbnailing, explicit/blur variants, and richer moderation states.
 - Feed expiry is query-filtered but needs cleanup/retention policy.
-- Trust decay and evidence cleanup jobs are not implemented.
+- Trust decay recalculation is implemented through the private maintenance task; evidence cleanup jobs are not implemented.
 - PhotoDNA needs exact Microsoft response verification before staging enablement.
 - Stream moderation must be configured in the dashboard and staging env.
 - Full bank smoke script is not yet automated.

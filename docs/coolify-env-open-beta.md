@@ -126,6 +126,12 @@ Stream fetches signed inspection URLs from `MEDIA_PUBLIC_BASE_URL`. Confirm Cool
 */5 * * * * pnpm --dir server cleanup:moderation-media-grants
 ```
 
+That cleanup command also recalculates a batch of trust profiles with decaying negative trust events. To force a one-time trust recovery pass after deploy, run:
+
+```bash
+pnpm --dir server trust:recalculate
+```
+
 ## Staging Frontend Variables
 
 Use this block for the staging frontend resource.

@@ -16,6 +16,7 @@
     "relationships:backfill": "tsx src/backfill-encrypted-relationships.ts",
     "location-privacy:backfill": "tsx src/backfill-encrypted-location-privacy.ts",
     "cleanup:moderation-media-grants": "sh -c 'if [ -f dist/cleanup-moderation-media-grants.js ]; then node --enable-source-maps dist/cleanup-moderation-media-grants.js; else tsx src/cleanup-moderation-media-grants.ts; fi'",
+    "trust:recalculate": "sh -c 'if [ -f dist/recalculate-decaying-trust-profiles.js ]; then node --enable-source-maps dist/recalculate-decaying-trust-profiles.js; else tsx src/recalculate-decaying-trust-profiles.ts; fi'",
     "configure:stream-profile-safety": "sh -c 'if [ -f dist/configure-stream-profile-photo-safety.js ]; then node --enable-source-maps dist/configure-stream-profile-photo-safety.js; else tsx src/configure-stream-profile-photo-safety.ts; fi'",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run"

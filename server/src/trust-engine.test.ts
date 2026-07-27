@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   calculateTrustScore,
   clampTrustScore,
+  recalculateDecayingTrustProfiles,
+  recalculateTrustProfile,
   reportWeightForScore,
   trustLevelForScore
 } from "./trust-engine.js";
+import type { DbClient } from "./db.js";
 
 describe("trust engine calculations", () => {
   it("clamps trust scores to the 0-100 range", () => {
@@ -29,6 +32,72 @@ describe("trust engine calculations", () => {
     ], 70);
 
     expect(score).toBe(70);
+  });
+
+  it("recovers decaying negative trust events over fourteen days", () => {
+    const score = calculateTrustScore([
+      {
+        value: -40,
+        decays: true,
+        permanent: false,
+        createdAt: new Date("2026-07-01T00:00:00.000Z")
+      }
+    ], null, new Date("2026-07-08T00:00:00.000Z"));
+
+    expect(score).toBe(30);
+  });
+
+  it("fully recovers decaying negative trust events after the decay window", () => {
+    const score = calculateTrustScore([
+      {
+        value: -40,
+        decays: true,
+        permanent: false,
+        createdAt: new Date("2026-07-01T00:00:00.000Z")
+      }
+    ], null, new Date("2026-07-16T00:00:00.000Z"));
+
+    expect(score).toBe(50);
+  });
+
+  it("keeps permanent trust events at full impact", () => {
+    const score = calculateTrustScore([
+      {
+        value: -40,
+        decays: false,
+        permanent: true,
+        createdAt: new Date("2026-07-01T00:00:00.000Z")
+      }
+    ], null, new Date("2026-08-01T00:00:00.000Z"));
+
+    expect(score).toBe(10);
+  });
+
+  it("uses decayed trust event values when recalculating persisted profiles", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+
+    await recalculateTrustProfile({ query } as unknown as DbClient, "user-id");
+
+    const recalculationSql = String(query.mock.calls[1]?.[0] ?? "");
+    expect(recalculationSql).toContain("extract(epoch from (now() - created_at))");
+    expect(recalculationSql).toContain("decays = true");
+    expect(recalculationSql).toContain("permanent = false");
+  });
+
+  it("recalculates users with decaying negative trust events", async () => {
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [{ user_id: "user-1" }, { user_id: "user-2" }] })
+      .mockResolvedValue({ rows: [] });
+
+    const recalculated = await recalculateDecayingTrustProfiles({ query } as unknown as DbClient, 2);
+
+    const candidateSql = String(query.mock.calls[0]?.[0] ?? "");
+    expect(recalculated).toBe(2);
+    expect(candidateSql).toContain("value < 0");
+    expect(candidateSql).toContain("decays = true");
+    expect(candidateSql).toContain("permanent = false");
+    expect(query.mock.calls.some(([, params]) => Array.isArray(params) && params[0] === "user-1")).toBe(true);
+    expect(query.mock.calls.some(([, params]) => Array.isArray(params) && params[0] === "user-2")).toBe(true);
   });
 
   it("maps launch trust levels from the score bands", () => {
