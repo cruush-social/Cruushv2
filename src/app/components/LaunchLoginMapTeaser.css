@@ -8,7 +8,7 @@
     radial-gradient(ellipse at 50% 46%, transparent 0 9rem, rgba(0, 0, 0, 0.56) 20rem, rgba(0, 0, 0, 0.94)),
     radial-gradient(circle at 23% 43%, rgba(255, 0, 114, 0.26), transparent 12rem),
     radial-gradient(circle at 78% 35%, rgba(17, 129, 255, 0.24), transparent 13rem),
-    radial-gradient(circle at 54% 68%, rgba(0, 216, 255, 0.12), transparent 9rem),
+    radial-gradient(circle at 54% 68%, rgba(42, 78, 255, 0.12), transparent 9rem),
     #010102;
   contain: paint;
 }
@@ -77,6 +77,51 @@
   filter: saturate(1.18) contrast(1.08) brightness(0.96);
 }
 
+.launch-login-map-teaser__mobile-pulse {
+  position: absolute;
+  inset: -18%;
+  z-index: 3;
+  display: none;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.launch-login-map-teaser__mobile-pulse::before,
+.launch-login-map-teaser__mobile-pulse::after {
+  position: absolute;
+  inset: -12%;
+  content: '';
+  pointer-events: none;
+}
+
+.launch-login-map-teaser__mobile-pulse::before {
+  background:
+    radial-gradient(ellipse at 24% 46%, rgba(255, 0, 114, 0.78), transparent 13rem),
+    radial-gradient(ellipse at 76% 42%, rgba(17, 129, 255, 0.76), transparent 14rem),
+    radial-gradient(ellipse at 51% 68%, rgba(42, 78, 255, 0.5), transparent 10rem),
+    radial-gradient(ellipse at 50% 26%, rgba(111, 0, 255, 0.42), transparent 12rem);
+  filter: blur(1rem) saturate(2.55);
+  opacity: 0.74;
+  animation: launch-login-mobile-nightclub-pulse 3.8s linear infinite;
+}
+
+.launch-login-map-teaser__mobile-pulse::after {
+  background:
+    linear-gradient(102deg, transparent 0 8%, rgba(255, 0, 114, 0.62) 21%, transparent 42%),
+    linear-gradient(76deg, transparent 0 46%, rgba(42, 78, 255, 0.62) 60%, transparent 78%),
+    linear-gradient(145deg, transparent 0 18%, rgba(111, 0, 255, 0.46) 36%, transparent 58%);
+  filter: blur(0.48rem) saturate(2.7);
+  opacity: 0.68;
+  transform: rotate(-4deg) scale(1.08);
+  animation: launch-login-mobile-nightclub-sweep 4.6s linear infinite;
+}
+
+.launch-login-map-teaser--video-ready.launch-login-map-teaser--mobile-recording .launch-login-map-teaser__mobile-pulse {
+  display: block;
+}
+
 .launch-login-map-teaser--video-ready .launch-login-map-teaser__map,
 .launch-login-map-teaser--video-ready .launch-login-map-teaser__ui {
   display: none;
@@ -110,7 +155,10 @@
 .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet::before,
 .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet::after,
 .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet-clear,
-.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet-bead {
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet-bead,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__mobile-pulse,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__mobile-pulse::before,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__mobile-pulse::after {
   animation: none !important;
 }
 
@@ -123,7 +171,7 @@
     radial-gradient(ellipse at 28% 46%, rgba(255, 0, 114, 0.42), transparent 16rem),
     radial-gradient(ellipse at 72% 44%, rgba(17, 129, 255, 0.44), transparent 16rem),
     radial-gradient(ellipse at 52% 78%, rgba(111, 0, 255, 0.26), transparent 12rem),
-    radial-gradient(ellipse at 48% 62%, rgba(0, 216, 255, 0.18), transparent 10rem),
+    radial-gradient(ellipse at 48% 62%, rgba(42, 78, 255, 0.18), transparent 10rem),
     linear-gradient(180deg, rgba(0, 0, 3, 0.98), rgba(0, 0, 0, 0.78));
   background-blend-mode: screen, screen, screen, screen, normal;
   box-shadow:
@@ -131,7 +179,7 @@
     inset 0 0 4rem rgba(255, 255, 255, 0.02),
     0 0 4.4rem rgba(17, 129, 255, 0.36),
     0 0 4rem rgba(255, 0, 114, 0.26),
-    0 0 2.6rem rgba(0, 216, 255, 0.14),
+    0 0 2.6rem rgba(42, 78, 255, 0.14),
     0 2rem 7rem rgba(0, 0, 0, 0.86);
   opacity: 0.9;
   animation: launch-login-phone-glow-loop 16s ease-in-out infinite;
@@ -160,7 +208,7 @@
 
 .launch-login-map-teaser__phone-glow::after {
   background:
-    radial-gradient(ellipse at 36% 72%, rgba(0, 216, 255, 0.78), transparent 9rem),
+    radial-gradient(ellipse at 36% 72%, rgba(42, 78, 255, 0.78), transparent 9rem),
     radial-gradient(ellipse at 78% 72%, rgba(255, 0, 114, 0.72), transparent 9rem),
     radial-gradient(ellipse at 54% 36%, rgba(255, 255, 255, 0.14), transparent 11rem);
   opacity: 0.42;
@@ -191,7 +239,7 @@
   inset: 0;
   background:
     linear-gradient(105deg, transparent 0 9%, rgba(255, 0, 114, 0.24) 17%, transparent 31%),
-    linear-gradient(74deg, transparent 0 47%, rgba(0, 216, 255, 0.24) 58%, transparent 73%),
+    linear-gradient(74deg, transparent 0 47%, rgba(42, 78, 255, 0.24) 58%, transparent 73%),
     linear-gradient(142deg, transparent 0 28%, rgba(111, 0, 255, 0.18) 42%, transparent 55%),
     repeating-linear-gradient(90deg, transparent 0 6.8rem, rgba(255, 255, 255, 0.08) 6.92rem 7rem, transparent 7.18rem 12.8rem);
   filter: blur(0.2rem);
@@ -205,7 +253,7 @@
   bottom: -9%;
   height: 36%;
   background:
-    linear-gradient(90deg, rgba(255, 0, 114, 0.38), rgba(111, 0, 255, 0.22) 38%, rgba(0, 216, 255, 0.42)),
+    linear-gradient(90deg, rgba(255, 0, 114, 0.38), rgba(111, 0, 255, 0.24) 38%, rgba(42, 78, 255, 0.42)),
     repeating-linear-gradient(90deg, transparent 0 1.4rem, rgba(255, 255, 255, 0.08) 1.45rem 1.55rem, transparent 1.65rem 3.5rem);
   clip-path: polygon(0 72%, 20% 30%, 40% 66%, 58% 18%, 78% 58%, 100% 24%, 100% 100%, 0 100%);
   filter: blur(0.72rem) saturate(2.15);
@@ -221,7 +269,7 @@
   border-radius: 22% 26% 18% 24%;
   background:
     linear-gradient(110deg, transparent 0 20%, rgba(255, 0, 114, 0.22) 30%, transparent 44%),
-    linear-gradient(70deg, transparent 0 36%, rgba(0, 216, 255, 0.22) 52%, transparent 66%),
+    linear-gradient(70deg, transparent 0 36%, rgba(42, 78, 255, 0.22) 52%, transparent 66%),
     linear-gradient(180deg, transparent 0 52%, rgba(111, 0, 255, 0.14) 72%, transparent 100%);
   filter: blur(0.52rem) saturate(2.05);
   opacity: 0.62;
@@ -251,8 +299,8 @@
   background: linear-gradient(90deg, transparent, rgba(17, 129, 255, 0.88) 24%, rgba(17, 129, 255, 0.2) 72%, transparent);
 }
 
-.launch-login-map-teaser__club-beam--cyan {
-  background: linear-gradient(90deg, transparent, rgba(0, 216, 255, 0.8) 24%, rgba(0, 216, 255, 0.18) 72%, transparent);
+.launch-login-map-teaser__club-beam--cobalt {
+  background: linear-gradient(90deg, transparent, rgba(42, 78, 255, 0.82) 24%, rgba(42, 78, 255, 0.18) 72%, transparent);
 }
 
 .launch-login-map-teaser__club-beam--violet {
@@ -277,11 +325,11 @@
   box-shadow: 0 0 1.5rem rgba(255, 0, 114, 0.52);
 }
 
-.launch-login-map-teaser__club-laser--cyan {
+.launch-login-map-teaser__club-laser--cobalt {
   top: 59%;
   transform: rotate(9deg);
-  background: linear-gradient(90deg, transparent, rgba(0, 216, 255, 0.94), rgba(255, 255, 255, 0.28), transparent);
-  box-shadow: 0 0 1.5rem rgba(0, 216, 255, 0.5);
+  background: linear-gradient(90deg, transparent, rgba(42, 78, 255, 0.94), rgba(255, 255, 255, 0.28), transparent);
+  box-shadow: 0 0 1.5rem rgba(42, 78, 255, 0.5);
   animation-delay: -2.7s;
 }
 
@@ -390,6 +438,20 @@
   opacity: 0.56;
 }
 
+.launch-login-map-teaser__water-pane--foreground::after {
+  position: absolute;
+  inset: -12%;
+  z-index: 2;
+  background:
+    repeating-linear-gradient(92deg, transparent 0 1.75rem, rgba(255, 255, 255, 0.08) 1.82rem 1.9rem, transparent 1.98rem 3.15rem),
+    repeating-linear-gradient(87deg, transparent 0 2.6rem, rgba(174, 186, 255, 0.05) 2.68rem 2.74rem, transparent 2.84rem 4.2rem);
+  content: '';
+  opacity: 0.34;
+  pointer-events: none;
+  transform: rotate(-1.4deg);
+  animation: launch-login-fine-rain-fall 18s linear infinite;
+}
+
 .launch-login-map-teaser__water-pane .launch-login-map-teaser__droplet {
   z-index: 4;
 }
@@ -397,7 +459,8 @@
 .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__droplet {
   filter:
     drop-shadow(0 0.1rem 0.2rem rgba(0, 0, 0, 0.5))
-    drop-shadow(0 0.18rem 0.54rem rgba(255, 255, 255, 0.18));
+    drop-shadow(0 0.18rem 0.54rem rgba(255, 255, 255, 0.28))
+    drop-shadow(0 0 0.85rem rgba(174, 186, 255, 0.16));
 }
 
 .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__droplet-clear {
@@ -635,7 +698,7 @@
   filter:
     drop-shadow(0 0.12rem 0.22rem rgba(0, 0, 0, 0.34))
     drop-shadow(0 0.2rem 0.55rem rgba(255, 255, 255, 0.26))
-    drop-shadow(0 0 0.9rem rgba(0, 216, 255, 0.1));
+    drop-shadow(0 0 0.9rem rgba(42, 78, 255, 0.1));
   opacity: 0;
   animation: launch-login-droplet-run var(--duration) cubic-bezier(0.2, 0.66, 0.18, 1) infinite;
   animation-delay: var(--delay);
@@ -1157,6 +1220,80 @@
   }
 }
 
+@keyframes launch-login-mobile-nightclub-pulse {
+  0%, 100% {
+    opacity: 0.24;
+    filter: blur(1.24rem) saturate(1.65) brightness(0.64);
+    transform: translate3d(-1rem, 0.65rem, 0) scale(0.98);
+  }
+  8% {
+    opacity: 0.98;
+    filter: blur(0.74rem) saturate(2.9) brightness(1.34);
+    transform: translate3d(0.45rem, -0.22rem, 0) scale(1.045);
+  }
+  13% {
+    opacity: 0.3;
+    filter: blur(1.2rem) saturate(1.8) brightness(0.7);
+    transform: translate3d(0.2rem, 0.1rem, 0) scale(1);
+  }
+  22% {
+    opacity: 0.9;
+    filter: blur(0.86rem) saturate(2.7) brightness(1.24);
+    transform: translate3d(0.8rem, -0.34rem, 0) scale(1.035);
+  }
+  30% {
+    opacity: 0.26;
+    filter: blur(1.26rem) saturate(1.7) brightness(0.66);
+    transform: translate3d(0.9rem, 0.42rem, 0) scale(0.995);
+  }
+  58% {
+    opacity: 0.86;
+    filter: blur(0.9rem) saturate(2.55) brightness(1.18);
+    transform: translate3d(-0.28rem, -0.42rem, 0) scale(1.028);
+  }
+  66% {
+    opacity: 0.28;
+    filter: blur(1.22rem) saturate(1.75) brightness(0.68);
+    transform: translate3d(-0.66rem, 0.22rem, 0) scale(0.995);
+  }
+  82% {
+    opacity: 0.72;
+    filter: blur(0.96rem) saturate(2.38) brightness(1.08);
+    transform: translate3d(-0.42rem, -0.46rem, 0) scale(1.02);
+  }
+}
+
+@keyframes launch-login-mobile-nightclub-sweep {
+  0%, 100% {
+    opacity: 0.18;
+    transform: translate3d(-1.4rem, 0.4rem, 0) rotate(-6deg) scale(1.04);
+  }
+  10% {
+    opacity: 0.9;
+    transform: translate3d(0.7rem, -0.52rem, 0) rotate(-2deg) scale(1.14);
+  }
+  16% {
+    opacity: 0.24;
+    transform: translate3d(0.2rem, -0.1rem, 0) rotate(-7deg) scale(1.06);
+  }
+  36% {
+    opacity: 0.82;
+    transform: translate3d(1rem, -0.7rem, 0) rotate(-2deg) scale(1.13);
+  }
+  45% {
+    opacity: 0.22;
+    transform: translate3d(0.2rem, 0.8rem, 0) rotate(-8deg) scale(1.06);
+  }
+  72% {
+    opacity: 0.78;
+    transform: translate3d(-0.6rem, -0.2rem, 0) rotate(-4deg) scale(1.1);
+  }
+  80% {
+    opacity: 0.2;
+    transform: translate3d(-1rem, 0.3rem, 0) rotate(-8deg) scale(1.05);
+  }
+}
+
 @keyframes launch-login-brand-behind-glass-loop {
   0%, 100% {
     opacity: 0.58;
@@ -1585,7 +1722,7 @@
       radial-gradient(ellipse at 34% 38%, rgba(255, 0, 114, 0.44), transparent 12rem),
       radial-gradient(ellipse at 67% 52%, rgba(17, 129, 255, 0.46), transparent 12rem),
       radial-gradient(ellipse at 48% 82%, rgba(111, 0, 255, 0.28), transparent 9rem),
-      radial-gradient(ellipse at 47% 64%, rgba(0, 216, 255, 0.2), transparent 8rem),
+      radial-gradient(ellipse at 47% 64%, rgba(42, 78, 255, 0.2), transparent 8rem),
       linear-gradient(180deg, rgba(0, 0, 3, 0.98), rgba(0, 0, 0, 0.82));
   }
 
@@ -1629,7 +1766,7 @@
     top: 41%;
   }
 
-  .launch-login-map-teaser__club-laser--cyan {
+  .launch-login-map-teaser__club-laser--cobalt {
     top: 56%;
   }
 
@@ -1697,18 +1834,13 @@
   }
 
   .launch-login-map-teaser__water-pane--foreground::before {
-    backdrop-filter: blur(0.45px) saturate(1.08) brightness(0.92);
-    -webkit-backdrop-filter: blur(0.45px) saturate(1.08) brightness(0.92);
-    opacity: 0.32;
+    backdrop-filter: blur(0.6px) saturate(1.16) brightness(1);
+    -webkit-backdrop-filter: blur(0.6px) saturate(1.16) brightness(1);
+    opacity: 0.64;
   }
 
   .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__water-beads {
-    opacity: 0.36;
-  }
-
-  .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__clear-trail:nth-of-type(n+5),
-  .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__droplet:nth-of-type(n+9) {
-    display: none;
+    opacity: 0.76;
   }
 
   .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__clear-trail::before {

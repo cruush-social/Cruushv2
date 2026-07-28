@@ -77,7 +77,7 @@ const ACTIVITY_SIGNALS = [
 const CLUB_BEAMS = [
   { id: 'club-pink-left', variant: 'pink', x: '-18%', y: '10%', w: '35rem', h: '9rem', rot: '31deg', delay: '-1s' },
   { id: 'club-blue-right', variant: 'blue', x: '44%', y: '6%', w: '38rem', h: '10rem', rot: '143deg', delay: '-8s' },
-  { id: 'club-cyan-low', variant: 'cyan', x: '10%', y: '48%', w: '34rem', h: '7rem', rot: '-18deg', delay: '-14s' },
+  { id: 'club-cobalt-low', variant: 'cobalt', x: '10%', y: '48%', w: '34rem', h: '7rem', rot: '-18deg', delay: '-14s' },
   { id: 'club-violet-mid', variant: 'violet', x: '30%', y: '30%', w: '33rem', h: '8rem', rot: '12deg', delay: '-20s' },
   { id: 'club-pink-floor', variant: 'pink', x: '-8%', y: '68%', w: '30rem', h: '8rem', rot: '-8deg', delay: '-25s' },
 ];
@@ -95,6 +95,18 @@ const DROPLETS = [
   { id: 'drop-ten', x: '64%', y: '-12%', w: '0.54rem', h: '6.2rem', duration: '30s', drift: '0.18rem', driftEnd: '-0.07rem', delay: '-14s' },
   { id: 'drop-eleven', x: '78%', y: '-19%', w: '0.44rem', h: '4.8rem', duration: '30s', drift: '-0.12rem', driftEnd: '0.05rem', delay: '-7s' },
   { id: 'drop-twelve', x: '12%', y: '-9%', w: '0.5rem', h: '5.4rem', duration: '30s', drift: '0.16rem', driftEnd: '-0.05rem', delay: '-23s' },
+  { id: 'drop-thirteen', x: '5%', y: '-38%', w: '0.42rem', h: '4.4rem', duration: '24s', drift: '0.18rem', driftEnd: '-0.08rem', delay: '-4s' },
+  { id: 'drop-fourteen', x: '24%', y: '-44%', w: '0.58rem', h: '7.4rem', duration: '27s', drift: '-0.2rem', driftEnd: '0.08rem', delay: '-13s' },
+  { id: 'drop-fifteen', x: '31%', y: '-35%', w: '0.38rem', h: '4.2rem', duration: '23s', drift: '0.12rem', driftEnd: '-0.05rem', delay: '-20s' },
+  { id: 'drop-sixteen', x: '49%', y: '-42%', w: '0.7rem', h: '8.2rem', duration: '28s', drift: '-0.3rem', driftEnd: '0.12rem', delay: '-6s' },
+  { id: 'drop-seventeen', x: '54%', y: '-31%', w: '0.46rem', h: '5.2rem', duration: '25s', drift: '0.2rem', driftEnd: '-0.09rem', delay: '-17s' },
+  { id: 'drop-eighteen', x: '69%', y: '-39%', w: '0.62rem', h: '7.8rem', duration: '26s', drift: '-0.24rem', driftEnd: '0.1rem', delay: '-2s' },
+  { id: 'drop-nineteen', x: '82%', y: '-45%', w: '0.52rem', h: '6.8rem', duration: '29s', drift: '0.22rem', driftEnd: '-0.1rem', delay: '-10s' },
+  { id: 'drop-twenty', x: '91%', y: '-28%', w: '0.4rem', h: '4.6rem', duration: '24s', drift: '-0.14rem', driftEnd: '0.06rem', delay: '-19s' },
+  { id: 'drop-twentyone', x: '20%', y: '-52%', w: '0.42rem', h: '5rem', duration: '22s', drift: '0.1rem', driftEnd: '-0.04rem', delay: '-8s' },
+  { id: 'drop-twentytwo', x: '39%', y: '-49%', w: '0.5rem', h: '6rem', duration: '26s', drift: '-0.16rem', driftEnd: '0.07rem', delay: '-24s' },
+  { id: 'drop-twentythree', x: '61%', y: '-47%', w: '0.44rem', h: '5.6rem', duration: '23s', drift: '0.14rem', driftEnd: '-0.06rem', delay: '-15s' },
+  { id: 'drop-twentyfour', x: '75%', y: '-53%', w: '0.48rem', h: '5.8rem', duration: '25s', drift: '-0.18rem', driftEnd: '0.08rem', delay: '-27s' },
 ];
 
 const CLEAR_TRAILS = [
@@ -104,6 +116,12 @@ const CLEAR_TRAILS = [
   { id: 'trail-logo', x: '50.4%', y: '-7vh', w: '1.18rem', h: '122vh', duration: '30s', drift: '0.28rem', driftEnd: '-0.14rem', rot: '0.4deg', delay: '-16s', bend: '0.16rem' },
   { id: 'trail-six', x: '72.3%', y: '-9vh', w: '1.26rem', h: '128vh', duration: '30s', drift: '0.36rem', driftEnd: '-0.12rem', rot: '-1deg', delay: '-12s', bend: '0.28rem' },
   { id: 'trail-eight', x: '94.2%', y: '-11vh', w: '1.12rem', h: '122vh', duration: '30s', drift: '0.5rem', driftEnd: '-0.18rem', rot: '-1.5deg', delay: '-18s', bend: '0.42rem' },
+  { id: 'trail-three', x: '26.5%', y: '-6vh', w: '0.92rem', h: '104vh', duration: '27s', drift: '0.2rem', driftEnd: '-0.1rem', rot: '-0.3deg', delay: '-4s', bend: '0.16rem' },
+  { id: 'trail-five', x: '36.8%', y: '-13vh', w: '0.84rem', h: '112vh', duration: '28s', drift: '-0.18rem', driftEnd: '0.08rem', rot: '0.7deg', delay: '-21s', bend: '-0.14rem' },
+  { id: 'trail-seven', x: '63.2%', y: '-5vh', w: '1rem', h: '110vh', duration: '29s', drift: '0.24rem', driftEnd: '-0.1rem', rot: '-0.6deg', delay: '-7s', bend: '0.18rem' },
+  { id: 'trail-nine', x: '84.4%', y: '-12vh', w: '0.9rem', h: '116vh', duration: '26s', drift: '-0.2rem', driftEnd: '0.08rem', rot: '0.5deg', delay: '-15s', bend: '-0.16rem' },
+  { id: 'trail-ten', x: '2.4%', y: '-16vh', w: '0.82rem', h: '110vh', duration: '24s', drift: '0.14rem', driftEnd: '-0.06rem', rot: '-0.9deg', delay: '-11s', bend: '0.12rem' },
+  { id: 'trail-eleven', x: '56.6%', y: '-18vh', w: '0.76rem', h: '104vh', duration: '25s', drift: '-0.12rem', driftEnd: '0.05rem', rot: '0.4deg', delay: '-24s', bend: '-0.1rem' },
 ];
 
 function makeStyle(item: {
@@ -215,6 +233,7 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
           src={videoSource}
         />
       ) : null}
+      <div className="launch-login-map-teaser__mobile-pulse" data-testid="launch-login-mobile-pulse" />
       <svg className="launch-login-map-teaser__filters" focusable="false">
         <filter id="launch-login-water-shimmer">
           <feTurbulence
@@ -245,7 +264,7 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
           />
         ))}
         <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--pink" />
-        <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--cyan" />
+        <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--cobalt" />
       </div>
       <div className="launch-login-map-teaser__brand-mark" data-testid="launch-login-brand-mark" />
       <div className="launch-login-map-teaser__map" data-testid="launch-login-map-scene">

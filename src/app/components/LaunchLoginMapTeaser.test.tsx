@@ -19,13 +19,14 @@ describe('LaunchLoginMapTeaser', () => {
     expect(screen.getByTestId('launch-login-map-scene')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-brand-mark')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-club-lights')).toBeInTheDocument();
+    expect(screen.getByTestId('launch-login-mobile-pulse')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-frosted-glass')).toBeInTheDocument();
     expect(screen.getAllByTestId('launch-login-club-beam')).toHaveLength(5);
     expect(screen.getAllByTestId('launch-login-gradient-pin')).toHaveLength(6);
     expect(screen.getAllByTestId('launch-login-ghost-person')).toHaveLength(4);
     expect(screen.getAllByTestId('launch-login-radius-ring')).toHaveLength(3);
     expect(screen.getAllByTestId('launch-login-activity-signal')).toHaveLength(5);
-    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(12);
+    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(24);
     expect(container.querySelectorAll('img')).toHaveLength(0);
     expect(container.querySelectorAll('image')).toHaveLength(0);
   });
@@ -45,6 +46,7 @@ describe('LaunchLoginMapTeaser', () => {
     const video = screen.getByTestId('launch-login-teaser-video');
 
     expect(teaser).toHaveClass('launch-login-map-teaser--mobile-recording');
+    expect(screen.getByTestId('launch-login-mobile-pulse')).toHaveClass('launch-login-map-teaser__mobile-pulse');
     expect(video).toHaveAttribute('preload', 'auto');
     expect(video).toHaveAttribute(
       'src',
@@ -62,8 +64,8 @@ describe('LaunchLoginMapTeaser', () => {
     const { container } = render(<LaunchLoginWaterPane />);
 
     expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(6);
-    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(12);
+    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(12);
+    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(24);
     expect(container.querySelectorAll('img')).toHaveLength(0);
     expect(container.querySelectorAll('image')).toHaveLength(0);
   });
