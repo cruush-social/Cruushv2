@@ -3,11 +3,18 @@ import { singleLineTextSchema } from "./input-schema.js";
 
 export const authEmailSchema = z.string().trim().email().max(320).transform((value) => value.toLowerCase());
 
+const clientSecurityCheckSchema = z.object({
+  startedAt: z.number().int().nonnegative(),
+  submittedAt: z.number().int().nonnegative(),
+  trap: z.string().max(200).optional().default("")
+}).strict();
+
 export const signUpPayloadSchema = z.object({
   email: authEmailSchema,
   password: z.string().min(8).max(200),
   displayName: singleLineTextSchema({ min: 2, max: 80 }),
   captchaToken: z.string().trim().max(4096).optional(),
+  clientCheck: clientSecurityCheckSchema.optional(),
   referralCode: z.string().trim().regex(/^[A-Za-z0-9_-]{16,64}$/).optional()
 }).strict();
 
@@ -15,6 +22,7 @@ export const signInPayloadSchema = z.object({
   email: authEmailSchema,
   password: z.string().min(1).max(200),
   captchaToken: z.string().trim().max(4096).optional(),
+  clientCheck: clientSecurityCheckSchema.optional(),
   twoFactorCode: z.string().trim().min(6).max(64).optional()
 }).strict();
 

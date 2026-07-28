@@ -45,7 +45,7 @@ describe('Turnstile', () => {
 
     expect(handled).toBe(true);
     expect(onTokenChange).toHaveBeenCalledWith('');
-    expect(onError).toHaveBeenCalledWith('Security check restarted. Complete the captcha again.');
+    expect(onError).toHaveBeenCalledWith('Security check restarted. Try again.');
     expect(resetWidget).not.toHaveBeenCalled();
 
     await waitFor(() => {

@@ -25,6 +25,7 @@ import {
   verifyEmailPayloadSchema
 } from "../auth-schema.js";
 import { runTransaction } from "../db.js";
+import { verifyClientSecurityCheck } from "../client-security-check.js";
 import { ensureDevelopmentAdminUser, isDevelopmentAdminLogin } from "../development-admin.js";
 import { deleteEncryptedMediaObject } from "../media-storage.js";
 import { verifyTurnstileToken } from "../turnstile.js";
@@ -401,6 +402,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         message: "Too many sign-up attempts. Try again later."
       }
     ]);
+    verifyClientSecurityCheck(payload.clientCheck);
     await verifyTurnstileToken(request, payload.captchaToken);
     const passwordHash = await hashPassword(payload.password);
     const referral = await prepareSignupReferral(app, request, payload.referralCode);
@@ -525,6 +527,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       });
     }
 
+    verifyClientSecurityCheck(payload.clientCheck);
     await verifyTurnstileToken(request, payload.captchaToken);
     const result = await app.db.query<PasswordUserRow>(
       `select

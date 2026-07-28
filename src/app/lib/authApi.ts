@@ -46,18 +46,24 @@ export type PasswordChangePayload = {
   changed: true;
 };
 
+export type ClientSecurityCheckPayload = {
+  startedAt: number;
+  submittedAt: number;
+  trap: string;
+};
+
 export function getAuthSession() {
   return requestApi<AuthSessionPayload>('/api/auth/me');
 }
 
-export function signUp(payload: { email: string; password: string; displayName: string; captchaToken?: string; referralCode?: string }) {
+export function signUp(payload: { email: string; password: string; displayName: string; captchaToken?: string; clientCheck?: ClientSecurityCheckPayload; referralCode?: string }) {
   return requestApi<VerificationDeliveryPayload>('/api/auth/signup', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
-export function signIn(payload: { email: string; password: string; captchaToken?: string; twoFactorCode?: string }) {
+export function signIn(payload: { email: string; password: string; captchaToken?: string; clientCheck?: ClientSecurityCheckPayload; twoFactorCode?: string }) {
   return requestApi<AuthSessionPayload>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify(payload),

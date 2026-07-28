@@ -12,6 +12,7 @@ import { CruushIcon } from './CruushIconImage';
 import LaunchLoginMapTeaser, { LaunchLoginWaterPane } from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
+import cruushLogo from '../assets/brand/cruush-logo.svg';
 import './Auth.css';
 
 interface AuthProps {
@@ -26,6 +27,8 @@ export default function Auth({ onAuth }: AuthProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [humanCheckStartedAt, setHumanCheckStartedAt] = useState(() => Date.now());
+  const [humanCheckTrap, setHumanCheckTrap] = useState('');
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [twoFactorRequired, setTwoFactorRequired] = useState(false);
   const [referralCode] = useState(() => {
@@ -68,9 +71,21 @@ export default function Auth({ onAuth }: AuthProps) {
     setIsMobileRecordingReady(state.isMobileRecording && state.isReady);
   }, []);
 
+  const buildHumanCheck = () => ({
+    startedAt: humanCheckStartedAt,
+    submittedAt: Date.now(),
+    trap: humanCheckTrap,
+  });
+
+  const resetHumanCheck = () => {
+    setHumanCheckStartedAt(Date.now());
+    setHumanCheckTrap('');
+  };
+
   const resetCaptcha = () => {
     setCaptchaToken('');
     setCaptchaResetKey((current) => current + 1);
+    resetHumanCheck();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,8 +108,14 @@ export default function Auth({ onAuth }: AuthProps) {
       return;
     }
 
+    if (humanCheckTrap.trim()) {
+      setError('Security check failed. Refresh and try again.');
+      setIsLoading(false);
+      return;
+    }
+
     if (turnstileSiteKey && !captchaToken) {
-      setError('Complete the captcha to continue.');
+      setError('Security check is still loading. Try again in a moment.');
       setIsLoading(false);
       return;
     }
@@ -129,6 +150,7 @@ export default function Auth({ onAuth }: AuthProps) {
           password,
           displayName: displayName.trim(),
           captchaToken,
+          clientCheck: buildHumanCheck(),
           referralCode: referralCode || undefined,
         });
         try {
@@ -151,6 +173,7 @@ export default function Auth({ onAuth }: AuthProps) {
           email,
           password,
           captchaToken,
+          clientCheck: buildHumanCheck(),
           twoFactorCode: twoFactorRequired ? twoFactorCode : undefined,
         });
         persistSessionUser(session);
@@ -263,18 +286,37 @@ export default function Auth({ onAuth }: AuthProps) {
       <LaunchLoginWaterPane className="launch-login-map-teaser__water-pane--foreground launch-login-auth-rain-pane" />
       <div className="launch-login-auth-card w-full max-w-[20rem] space-y-10 relative z-10" data-testid="launch-login-auth-panel">
         {/* Logo */}
-        <div className="text-center">
-          <div>
-            <h1 className="sr-only">cruush</h1>
-            <div className="launch-login-auth-logo-space h-64 sm:h-80" />
-            <p className="launch-login-auth-tagline" data-testid="launch-login-auth-tagline">
-              queer cruisers cruise cruush
-            </p>
-          </div>
+        <div className="launch-login-auth-brand text-center" data-testid="launch-login-auth-brand">
+          <h1 className="sr-only">cruush</h1>
+          <img
+            alt=""
+            aria-hidden="true"
+            className="launch-login-auth-logo-image"
+            data-testid="launch-login-auth-logo"
+            draggable={false}
+            src={cruushLogo}
+          />
+          <p className="launch-login-auth-tagline" data-testid="launch-login-auth-tagline">
+            <span>queer cruisers cruise</span>{' '}
+            <span>cruush</span>
+          </p>
         </div>
 
         {/* Auth form */}
         <form onSubmit={handleSubmit} className="launch-login-auth-form space-y-5">
+          <div className="launch-login-auth-human-check" aria-hidden="true">
+            <label htmlFor="launch-login-company">Company</label>
+            <input
+              id="launch-login-company"
+              name="company"
+              type="text"
+              autoComplete="off"
+              tabIndex={-1}
+              value={humanCheckTrap}
+              onChange={(event) => setHumanCheckTrap(event.target.value)}
+            />
+          </div>
+
           {error && (
             <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff0072] text-sm rounded">
               {error}

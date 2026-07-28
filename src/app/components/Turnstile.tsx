@@ -7,7 +7,7 @@ type TurnstileProps = {
 };
 
 const TURNSTILE_RETRY_DELAY_MS = 750;
-const TURNSTILE_ERROR_MESSAGE = 'Security check restarted. Complete the captcha again.';
+const TURNSTILE_ERROR_MESSAGE = 'Security check restarted. Try again.';
 
 export function getTurnstileSiteKey() {
   return import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;

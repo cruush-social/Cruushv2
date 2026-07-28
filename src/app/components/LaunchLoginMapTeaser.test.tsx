@@ -47,6 +47,10 @@ describe('LaunchLoginMapTeaser', () => {
 
     expect(teaser).toHaveClass('launch-login-map-teaser--mobile-recording');
     expect(screen.getByTestId('launch-login-mobile-pulse')).toHaveClass('launch-login-map-teaser__mobile-pulse');
+    expect(video).toHaveAttribute('autoplay');
+    expect(video).toHaveAttribute('loop');
+    expect((video as HTMLVideoElement).muted).toBe(true);
+    expect(video).toHaveAttribute('playsinline');
     expect(video).toHaveAttribute('preload', 'auto');
     expect(video).toHaveAttribute(
       'src',

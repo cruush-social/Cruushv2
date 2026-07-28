@@ -61,11 +61,14 @@ describe('Auth', () => {
     const { container } = render(<Auth onAuth={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
+    expect(screen.getByTestId('launch-login-auth-brand')).toHaveClass('launch-login-auth-brand');
+    expect(screen.getByTestId('launch-login-auth-logo')).toHaveClass('launch-login-auth-logo-image');
     expect(screen.getByTestId('launch-login-brand-mark')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');
     expect(screen.getByTestId('launch-login-auth-captcha')).toHaveClass('launch-login-auth-captcha');
     expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-auth-rain-pane');
+    expect(container.querySelector('#launch-login-company')).toHaveAttribute('tabindex', '-1');
     expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
     expect(screen.getByTestId('launch-login-auth-tagline')).toHaveTextContent('queer cruisers cruise cruush');
     expect(screen.getByLabelText('Email')).toHaveClass('launch-login-auth-input');
