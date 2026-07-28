@@ -70,6 +70,11 @@ type OwnedMediaRow = {
   created_at: string | Date;
 };
 
+type CurrentProfilePhotoStateRow = {
+  photos: string[] | null;
+  photo_uploads_allowed: boolean | null;
+};
+
 export function parseProfilePhotoFilename(params: unknown) {
   const result = profilePhotoFilenameSchema.safeParse(params);
 
@@ -427,11 +432,37 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     }
 
     const processed = await processUploadedImage(bytes, upload.mimetype);
-    const currentPhotoResult = await app.db.query<{ photos: string[] | null }>(
-      "select photos from profiles where id = $1",
+    const currentPhotoResult = await app.db.query<CurrentProfilePhotoStateRow>(
+      `select
+         (select photos from profiles where id = $1) as photos,
+         exists (
+           select 1
+           from app_users app_user
+           left join user_trust_profiles trust on trust.user_id = app_user.id
+           where app_user.id = $1
+             and app_user.account_status = 'active'
+             and coalesce(trust.is_suspended, false) = false
+             and coalesce(trust.trust_score, 50) > 20
+             and not exists (
+               select 1 from suspensions suspension
+               where suspension.user_id = app_user.id
+                 and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+             )
+             and not exists (
+               select 1 from feature_restrictions restriction
+               where restriction.user_id = app_user.id
+                 and restriction.feature = 'photo_uploads'
+                 and (restriction.ends_at is null or restriction.ends_at > now())
+             )
+         ) as photo_uploads_allowed`,
       [userId]
     );
-    const currentPhotos = currentPhotoResult.rows[0]?.photos ?? [];
+    const currentPhotoState = currentPhotoResult.rows[0];
+    const currentPhotos = currentPhotoState?.photos ?? [];
+
+    if (currentPhotoState?.photo_uploads_allowed === false) {
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Photo uploads are unavailable for this account.");
+    }
 
     if (currentPhotos.length >= MAX_PROFILE_PHOTOS) {
       throw new ApiError(400, "VALIDATION_ERROR", `You can add up to ${MAX_PROFILE_PHOTOS} photos.`);

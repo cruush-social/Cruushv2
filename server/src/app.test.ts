@@ -6130,15 +6130,53 @@ describe("server", () => {
       }
     });
     expect(body.data.url).not.toContain(userId);
-    const profileLookup = query.mock.calls.find(([sql]) => String(sql) === "select photos from profiles where id = $1");
+    const profileLookup = query.mock.calls.find(([sql]) => String(sql).includes("select photos from profiles"));
     const mediaInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into media_objects"));
     const profileInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into profiles (id, photos, updated_at)"));
     expect(profileLookup?.[1]).toEqual([userId]);
+    expect(profileLookup?.[0]).toContain("photo_uploads_allowed");
     expect(mediaInsert?.[0]).toContain("encrypted_data_key");
     expect(mediaInsert?.[0]).toContain("insert into media_variants");
     expect(mediaInsert?.[0]).toContain("'pending'");
     expect(profileInsert?.[0]).toContain("array_append(profiles.photos, $3)");
     expect(profileInsert?.[1]).toEqual(expect.arrayContaining([userId, body.data.url]));
+  });
+
+  it("rejects restricted profile-photo uploads before creating pending media", async () => {
+    query.mockImplementation(async (sql: string) => ({
+      rows: sql.includes("select photos from profiles")
+        ? [{ photos: [], photo_uploads_allowed: false }]
+        : []
+    }));
+    const png = await validPng();
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-profile.png",
+      contentType: "image/png",
+      content: png
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const queries = query.mock.calls.map(([sql]) => String(sql));
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "FEATURE_RESTRICTED",
+        message: "Photo uploads are unavailable for this account.",
+        details: null
+      }
+    });
+    expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
   it("deletes quarantined ciphertext when the profile transaction fails", async () => {
