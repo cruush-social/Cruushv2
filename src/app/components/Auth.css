@@ -16,7 +16,7 @@
 .launch-login-auth-rain-pane {
   position: fixed;
   z-index: 12;
-  opacity: 0.5;
+  opacity: 0.68;
   pointer-events: none;
 }
 
@@ -65,7 +65,7 @@
 
 @media (max-width: 640px) {
   .launch-login-auth-shell--mobile-recording-ready .launch-login-auth-rain-pane {
-    opacity: 0.42;
+    opacity: 0.64;
   }
 }
 
