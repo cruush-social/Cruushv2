@@ -14,7 +14,7 @@ describe('LaunchLoginMapTeaser', () => {
     expect(teaser).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-teaser-video')).toHaveAttribute(
       'src',
-      '/teasers/launch-login-teaser-desktop.mp4',
+      '/teasers/launch-login-teaser-desktop.webm',
     );
     expect(screen.getByTestId('launch-login-map-scene')).toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-brand-mark')).not.toBeInTheDocument();
@@ -29,24 +29,6 @@ describe('LaunchLoginMapTeaser', () => {
     expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(24);
     expect(container.querySelectorAll('img')).toHaveLength(0);
     expect(container.querySelectorAll('image')).toHaveLength(0);
-  });
-
-  it('drops the heavy desktop fallback scene once the loop can play', async () => {
-    const handlePlaybackStateChange = vi.fn();
-    render(<LaunchLoginMapTeaser onPlaybackStateChange={handlePlaybackStateChange} />);
-
-    const video = screen.getByTestId('launch-login-teaser-video');
-    fireEvent.canPlay(video);
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('launch-login-frosted-glass')).not.toBeInTheDocument();
-      expect(screen.getByTestId('launch-login-mobile-fallback')).toBeInTheDocument();
-      expect(handlePlaybackStateChange).toHaveBeenCalledWith({
-        isMobileRecording: false,
-        isReady: true,
-      });
-    });
   });
 
   it('uses the portrait loop on phone-sized viewports', () => {

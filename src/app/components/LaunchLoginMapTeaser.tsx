@@ -26,7 +26,7 @@ type LaunchLoginMapTeaserProps = {
   onPlaybackStateChange?: (state: LaunchLoginMapTeaserPlaybackState) => void;
 };
 
-const DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-desktop.mp4';
+const DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-desktop.webm';
 const MOBILE_TEASER_VIDEO = '/teasers/launch-login-teaser-mobile.mp4';
 const MOBILE_VIDEO_QUERY = '(max-width: 640px)';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
@@ -182,7 +182,7 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
   const [videoSource, setVideoSource] = useState<string | null>(() => getTeaserVideoSource());
   const [isMobileViewport, setIsMobileViewport] = useState(() => getIsMobileViewport());
   const isMobileRecording = videoSource === MOBILE_TEASER_VIDEO;
-  const shouldRenderFullScene = !isMobileViewport && !isVideoReady;
+  const shouldRenderFullScene = !isMobileViewport;
   const teaserClassName = [
     'launch-login-map-teaser',
     isVideoReady ? 'launch-login-map-teaser--video-ready' : '',

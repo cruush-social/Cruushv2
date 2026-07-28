@@ -22,6 +22,7 @@ import {
   type ProfileVisibilityRules,
 } from '../lib/profileApi';
 import { resolveMediaUrl } from '../lib/apiClient';
+import { getAppMeta } from '../lib/metaApi';
 import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
 import {
   AVAILABILITY,
@@ -464,6 +465,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [error, setError] = useState<string | null>(null);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
+  const [profilePhotoUploadsAvailable, setProfilePhotoUploadsAvailable] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [pendingPhoto, setPendingPhoto] = useState<PendingProfilePhoto | null>(null);
   const photoPreviewRequestRef = useRef(0);
@@ -489,6 +491,26 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       }
     };
     fetchProfile();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    getAppMeta()
+      .then((meta) => {
+        if (active && typeof meta.photoUploads?.profilePhotos === 'boolean') {
+          setProfilePhotoUploadsAvailable(meta.photoUploads.profilePhotos);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setProfilePhotoUploadsAvailable(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -575,6 +597,11 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     event.target.value = '';
 
     if (!file) {
+      return;
+    }
+
+    if (profilePhotoUploadsAvailable === false) {
+      setPhotoUploadError('Profile photo uploads are temporarily unavailable.');
       return;
     }
 
@@ -752,6 +779,11 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 {photoUploadError}
               </div>
             ) : null}
+            {profilePhotoUploadsAvailable === false ? (
+              <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                Profile photo uploads are temporarily unavailable.
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {normalizedProfile.photos.map((photo, index) => (
                 <div key={photo} className="group overflow-hidden rounded-lg border border-border bg-card/70">
@@ -792,13 +824,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               ))}
 
               {normalizedProfile.photos.length < MAX_PROFILE_PHOTOS ? (
-                <label className="flex aspect-[4/5] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/60 p-4 text-center transition-colors hover:bg-accent/50">
+                <label className={`flex aspect-[4/5] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/60 p-4 text-center transition-colors ${profilePhotoUploadsAvailable === false ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent/50'}`}>
                   <Upload className="h-7 w-7 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">{uploadingPhoto ? 'Uploading...' : 'Upload photo'}</span>
                   <input
                     accept="image/jpeg,image/png,image/webp"
                     className="sr-only"
-                    disabled={uploadingPhoto}
+                    disabled={uploadingPhoto || profilePhotoUploadsAvailable === false}
                     onChange={handlePhotoUpload}
                     type="file"
                   />

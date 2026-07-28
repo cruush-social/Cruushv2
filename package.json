@@ -12,6 +12,8 @@
     "dev": "node scripts/ensure-dev-cert.mjs && vite",
     "dev:local": "node scripts/dev-local.mjs",
     "dev:local:seeded": "node scripts/dev-local.mjs --seed-dev-profiles",
+    "test:profile-photo-apis": "node scripts/smoke-real-profile-photo-upload.mjs",
+    "smoke:profile-photo": "node scripts/smoke-real-profile-photo-upload.mjs",
     "security:check": "bash scripts/security-check.sh",
     "test": "vitest run"
   },

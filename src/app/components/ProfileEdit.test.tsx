@@ -3,10 +3,15 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileEdit, { getPhotoUploadRejectedMessage } from './ProfileEdit';
 
-const { getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
+const { getAppMeta, getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
+  getAppMeta: vi.fn(),
   getMyProfile: vi.fn(),
   saveMyProfile: vi.fn(),
   uploadProfilePhoto: vi.fn(),
+}));
+
+vi.mock('../lib/metaApi', () => ({
+  getAppMeta,
 }));
 
 vi.mock('../lib/profileApi', async () => {
@@ -27,6 +32,7 @@ describe('ProfileEdit', () => {
 
   beforeEach(async () => {
     localStorage.clear();
+    getAppMeta.mockReset();
     getMyProfile.mockReset();
     saveMyProfile.mockReset();
     uploadProfilePhoto.mockReset();
@@ -84,6 +90,22 @@ describe('ProfileEdit', () => {
     };
 
     getMyProfile.mockResolvedValue(profile);
+    getAppMeta.mockResolvedValue({
+      service: 'cruush-server',
+      auth: 'session-cookie',
+      storage: 'postgres',
+      migratedFromSupabase: true,
+      alphaTest: {
+        enabled: false,
+        active: false,
+        endsAt: null,
+        ended: false,
+      },
+      photoUploads: {
+        profilePhotos: true,
+        messagePhotos: true,
+      },
+    });
     saveMyProfile.mockResolvedValue(profile);
     uploadProfilePhoto.mockResolvedValue({
       url: '/media/profile-photos/d271f6da-c51d-4d73-a322-d9c56f45d4fa-7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2.png',
@@ -373,6 +395,37 @@ describe('ProfileEdit', () => {
 
     expect(screen.queryByText('Upload photo')).not.toBeInTheDocument();
     expect(screen.getByText('Add up to 4 photos. Your first photo will be your profile picture.')).toBeInTheDocument();
+  });
+
+  it('disables profile photo upload when the API marks uploads unavailable', async () => {
+    getAppMeta.mockResolvedValueOnce({
+      service: 'cruush-server',
+      auth: 'session-cookie',
+      storage: 'postgres',
+      migratedFromSupabase: true,
+      alphaTest: {
+        enabled: true,
+        active: true,
+        endsAt: '2099-07-28T23:59:00.000Z',
+        ended: false,
+      },
+      photoUploads: {
+        profilePhotos: false,
+        messagePhotos: false,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+
+    expect(await screen.findByText('Profile photo uploads are temporarily unavailable.')).toBeInTheDocument();
+    const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+    expect(uploadInput).toBeDisabled();
   });
 
   it('states the profile photo ownership requirement without extra guidance', async () => {
