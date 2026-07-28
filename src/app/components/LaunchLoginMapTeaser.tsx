@@ -17,6 +17,15 @@ type TeaserStyle = CSSProperties & {
   '--bend'?: string;
 };
 
+export type LaunchLoginMapTeaserPlaybackState = {
+  isMobileRecording: boolean;
+  isReady: boolean;
+};
+
+type LaunchLoginMapTeaserProps = {
+  onPlaybackStateChange?: (state: LaunchLoginMapTeaserPlaybackState) => void;
+};
+
 const DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-desktop.webm';
 const MOBILE_TEASER_VIDEO = '/teasers/launch-login-teaser-mobile.webm';
 const MOBILE_VIDEO_QUERY = '(max-width: 640px)';
@@ -141,9 +150,15 @@ function getTeaserVideoSource() {
   return window.matchMedia(MOBILE_VIDEO_QUERY).matches ? MOBILE_TEASER_VIDEO : DESKTOP_TEASER_VIDEO;
 }
 
-export default function LaunchLoginMapTeaser() {
+export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLoginMapTeaserProps = {}) {
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoSource, setVideoSource] = useState<string | null>(() => getTeaserVideoSource());
+  const isMobileRecording = videoSource === MOBILE_TEASER_VIDEO;
+  const teaserClassName = [
+    'launch-login-map-teaser',
+    isVideoReady ? 'launch-login-map-teaser--video-ready' : '',
+    isMobileRecording ? 'launch-login-map-teaser--mobile-recording' : '',
+  ].filter(Boolean).join(' ');
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -171,10 +186,17 @@ export default function LaunchLoginMapTeaser() {
     };
   }, []);
 
+  useEffect(() => {
+    onPlaybackStateChange?.({
+      isMobileRecording,
+      isReady: Boolean(videoSource && isVideoReady),
+    });
+  }, [isMobileRecording, isVideoReady, onPlaybackStateChange, videoSource]);
+
   return (
     <div
       aria-hidden="true"
-      className={`launch-login-map-teaser${isVideoReady ? ' launch-login-map-teaser--video-ready' : ''}`}
+      className={teaserClassName}
       data-testid="launch-login-map-teaser"
     >
       {videoSource ? (
@@ -189,7 +211,7 @@ export default function LaunchLoginMapTeaser() {
           onCanPlay={() => setIsVideoReady(true)}
           onError={() => setIsVideoReady(false)}
           playsInline
-          preload="metadata"
+          preload={isMobileRecording ? 'auto' : 'metadata'}
           src={videoSource}
         />
       ) : null}

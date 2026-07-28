@@ -8,7 +8,7 @@ import {
 } from '../lib/authApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import { CruushIcon } from './CruushIconImage';
-import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
+import LaunchLoginMapTeaser, { LaunchLoginWaterPane } from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 import './Auth.css';
@@ -48,6 +48,7 @@ export default function Auth({ onAuth }: AuthProps) {
   const [verificationPreviewUrl, setLocalVerificationPreviewUrl] = useState<string | null>(null);
   const [verificationRetryAvailable, setVerificationRetryAvailable] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMobileRecordingReady, setIsMobileRecordingReady] = useState(false);
   const isSignUp = mode === 'signup';
   const isForgotPassword = mode === 'forgot';
   const turnstileSiteKey = getTurnstileSiteKey();
@@ -59,6 +60,9 @@ export default function Auth({ onAuth }: AuthProps) {
     setError(message);
     setNotice('');
     setVerificationRetryAvailable(false);
+  }, []);
+  const handleTeaserPlaybackStateChange = useCallback((state: { isMobileRecording: boolean; isReady: boolean }) => {
+    setIsMobileRecordingReady(state.isMobileRecording && state.isReady);
   }, []);
 
   const resetCaptcha = () => {
@@ -243,14 +247,18 @@ export default function Auth({ onAuth }: AuthProps) {
   };
 
   return (
-    <div className="launch-login-auth-shell min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden overflow-y-auto">
-      <LaunchLoginMapTeaser />
+    <div className={`launch-login-auth-shell min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden overflow-y-auto${isMobileRecordingReady ? ' launch-login-auth-shell--mobile-recording-ready' : ''}`}>
+      <LaunchLoginMapTeaser onPlaybackStateChange={handleTeaserPlaybackStateChange} />
+      <LaunchLoginWaterPane className="launch-login-map-teaser__water-pane--foreground launch-login-auth-rain-pane" />
       <div className="launch-login-auth-card w-full max-w-[20rem] space-y-10 relative z-10" data-testid="launch-login-auth-panel">
         {/* Logo */}
         <div className="text-center">
           <div>
             <h1 className="sr-only">cruush</h1>
             <div className="launch-login-auth-logo-space h-64 sm:h-80" />
+            <p className="launch-login-auth-tagline" data-testid="launch-login-auth-tagline">
+              queer cruisers cruise cruush
+            </p>
           </div>
         </div>
 

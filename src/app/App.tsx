@@ -40,9 +40,6 @@ const EmailVerificationGate = lazy(() => import('./components/EmailVerificationG
 const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
-const FrostedGlassPreview = lazy(() => import('./components/FrostedGlassPreview'));
-
-const FROSTED_GLASS_PREVIEW_ROUTE = '/preview/frosted-glass';
 
 function redirectToMap() {
   window.history.replaceState({}, '', '/map');
@@ -84,13 +81,8 @@ export default function App({
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
-  const isFrostedGlassPreviewRoute = window.location.pathname === FROSTED_GLASS_PREVIEW_ROUTE;
 
   useEffect(() => {
-    if (isFrostedGlassPreviewRoute) {
-      return undefined;
-    }
-
     let isActive = true;
 
     const bootstrap = async () => {
@@ -126,7 +118,7 @@ export default function App({
     return () => {
       isActive = false;
     };
-  }, [isFrostedGlassPreviewRoute]);
+  }, []);
 
   const handleAuth = (session: AuthSessionPayload) => {
     setSession(session);
@@ -168,21 +160,6 @@ export default function App({
     setSession(nextSession);
     setNeedsOnboarding(nextSession.needsOnboarding);
   };
-
-  if (isFrostedGlassPreviewRoute) {
-    return (
-      <BrowserRouter key="frosted-glass-preview-router">
-        <AppErrorBoundary>
-          <Suspense fallback={<RouteLoading />}>
-            <Routes>
-              <Route path={FROSTED_GLASS_PREVIEW_ROUTE} element={<FrostedGlassPreview />} />
-              <Route path="*" element={<FrostedGlassPreview />} />
-            </Routes>
-          </Suspense>
-        </AppErrorBoundary>
-      </BrowserRouter>
-    );
-  }
 
   if (authStatus === 'loading') {
     return (

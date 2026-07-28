@@ -11,8 +11,32 @@
   margin-inline: auto;
 }
 
+.launch-login-auth-rain-pane {
+  position: fixed;
+  z-index: 80;
+}
+
 .launch-login-auth-logo-space {
-  height: clamp(12rem, 34svh, 18rem);
+  height: clamp(11rem, 29svh, 15rem);
+}
+
+.launch-login-auth-tagline {
+  margin-top: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: clamp(1rem, 3.5vw, 1.18rem);
+  font-weight: 700;
+  line-height: 1.18;
+  text-align: center;
+  text-shadow:
+    0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
+    0 0 0.95rem rgba(255, 0, 114, 0.16),
+    0 0 1.1rem rgba(17, 129, 255, 0.14);
+}
+
+@media (max-width: 640px) {
+  .launch-login-auth-shell--mobile-recording-ready .launch-login-auth-tagline {
+    opacity: 0;
+  }
 }
 
 .launch-login-auth-form {
@@ -177,7 +201,7 @@
   }
 
   .launch-login-auth-logo-space {
-    height: clamp(16rem, 35vh, 20rem);
+    height: clamp(13rem, 30vh, 17rem);
   }
 }
 
@@ -192,7 +216,11 @@
   }
 
   .launch-login-auth-logo-space {
-    height: clamp(10.5rem, 29svh, 14rem);
+    height: clamp(9.5rem, 25svh, 12rem);
+  }
+
+  .launch-login-auth-tagline {
+    font-size: clamp(0.95rem, 4vw, 1.08rem);
   }
 
   .launch-login-auth-form {
@@ -211,6 +239,6 @@
   }
 
   .launch-login-auth-logo-space {
-    height: clamp(9rem, 25svh, 12.5rem);
+    height: clamp(8.5rem, 22svh, 10.25rem);
   }
 }

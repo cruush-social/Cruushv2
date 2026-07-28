@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import LaunchLoginMapTeaser, { LaunchLoginWaterPane } from './LaunchLoginMapTeaser';
 
@@ -31,6 +31,7 @@ describe('LaunchLoginMapTeaser', () => {
   });
 
   it('uses the portrait loop on phone-sized viewports', () => {
+    const handlePlaybackStateChange = vi.fn();
     vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
       matches: query === '(max-width: 640px)',
       media: query,
@@ -38,12 +39,23 @@ describe('LaunchLoginMapTeaser', () => {
       removeEventListener: vi.fn(),
     })));
 
-    render(<LaunchLoginMapTeaser />);
+    render(<LaunchLoginMapTeaser onPlaybackStateChange={handlePlaybackStateChange} />);
 
-    expect(screen.getByTestId('launch-login-teaser-video')).toHaveAttribute(
+    const teaser = screen.getByTestId('launch-login-map-teaser');
+    const video = screen.getByTestId('launch-login-teaser-video');
+
+    expect(teaser).toHaveClass('launch-login-map-teaser--mobile-recording');
+    expect(video).toHaveAttribute('preload', 'auto');
+    expect(video).toHaveAttribute(
       'src',
       '/teasers/launch-login-teaser-mobile.webm',
     );
+    fireEvent.canPlay(video);
+
+    return waitFor(() => expect(handlePlaybackStateChange).toHaveBeenCalledWith({
+      isMobileRecording: true,
+      isReady: true,
+    }));
   });
 
   it('renders a foreground water layer with persistent clear trails', () => {

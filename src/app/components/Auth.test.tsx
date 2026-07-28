@@ -65,9 +65,9 @@ describe('Auth', () => {
     expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');
     expect(screen.getByTestId('launch-login-auth-captcha')).toHaveClass('launch-login-auth-captcha');
-    expect(screen.queryByTestId('launch-login-foreground-water-pane')).not.toBeInTheDocument();
+    expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-auth-rain-pane');
     expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
-    expect(screen.queryByText('queer cruisers cruise cruush')).not.toBeInTheDocument();
+    expect(screen.getByTestId('launch-login-auth-tagline')).toHaveTextContent('queer cruisers cruise cruush');
     expect(screen.getByLabelText('Email')).toHaveClass('launch-login-auth-input');
     expect(screen.getByRole('button', { name: 'Sign In' })).toHaveClass('launch-login-auth-submit');
 
