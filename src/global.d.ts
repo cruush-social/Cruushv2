@@ -22,6 +22,7 @@ interface Window {
         'timeout-callback'?: () => void;
         'error-callback': (errorCode?: string) => boolean | void;
         theme?: 'auto' | 'light' | 'dark';
+        size?: 'normal' | 'flexible' | 'compact';
       },
     ) => string;
     remove?: (widgetId: string) => void;

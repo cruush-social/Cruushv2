@@ -33,6 +33,10 @@ describe('Turnstile', () => {
     render(<Turnstile onTokenChange={onTokenChange} onError={onError} />);
 
     expect(renderWidget).toHaveBeenCalledTimes(1);
+    expect(options).toMatchObject({
+      size: 'flexible',
+      theme: 'dark',
+    });
     resetWidget.mockClear();
     onTokenChange.mockClear();
 

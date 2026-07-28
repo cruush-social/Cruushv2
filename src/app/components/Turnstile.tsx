@@ -61,6 +61,7 @@ export default function Turnstile({ onTokenChange, onError, resetKey = 0 }: Turn
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
         theme: 'dark',
+        size: 'flexible',
         callback: onTokenChange,
         'expired-callback': () => onTokenChange(''),
         'timeout-callback': handleTurnstileError,

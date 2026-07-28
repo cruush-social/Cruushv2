@@ -385,12 +385,14 @@ export default function Auth({ onAuth }: AuthProps) {
             </div>
           )}
 
-          {!isForgotPassword && (
-            <Turnstile
-              onTokenChange={handleCaptchaTokenChange}
-              onError={handleCaptchaError}
-              resetKey={captchaResetKey}
-            />
+          {!isForgotPassword && turnstileSiteKey && (
+            <div className="launch-login-auth-captcha" data-testid="launch-login-auth-captcha">
+              <Turnstile
+                onTokenChange={handleCaptchaTokenChange}
+                onError={handleCaptchaError}
+                resetKey={captchaResetKey}
+              />
+            </div>
           )}
 
           <button
