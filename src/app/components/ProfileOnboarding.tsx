@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { IDENTITIES, LOOKING_FOR, PRONOUNS, VIBE_GROUPS } from '../lib/profileOptions';
+import { CROWDS, IDENTITIES, LOOKING_FOR, PRONOUNS, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -10,18 +10,19 @@ import { persistCurrentUser } from '../lib/sessionUser';
 import MultiSelect from './MultiSelect';
 
 interface ProfileOnboardingProps {
-  onComplete: (session?: AuthSessionPayload) => void;
+  onComplete: (session?: AuthSessionPayload, destination?: 'map' | 'rewards') => void;
   needsCodeOfConduct?: boolean;
   codeOfConductVersion?: string;
 }
 
-type OnboardingStep = 'name' | 'age' | 'pronouns' | 'identities' | 'lookingFor' | 'vibes' | 'bio' | 'oath';
+type OnboardingStep = 'name' | 'age' | 'pronouns' | 'identities' | 'crowds' | 'lookingFor' | 'vibes' | 'bio' | 'oath';
 
 const PROFILE_STEPS: OnboardingStep[] = [
   'name',
   'age',
   'pronouns',
   'identities',
+  'crowds',
   'lookingFor',
   'vibes',
   'bio',
@@ -47,6 +48,11 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
     rite: 'name your form',
     title: 'Choose the words that fit.',
     detail: 'Pick up to three.',
+  },
+  crowds: {
+    rite: 'find your crowd',
+    title: 'Which crowds should know you are here?',
+    detail: 'Pick any that apply.',
   },
   lookingFor: {
     rite: 'declare your hunger',
@@ -192,6 +198,8 @@ export default function ProfileOnboarding({
         return profile.pronouns.length > 0;
       case 'identities':
         return profile.identities.length > 0;
+      case 'crowds':
+        return profile.crowds.length > 0;
       case 'lookingFor':
         return profile.lookingFor.length > 0;
       case 'vibes':
@@ -205,7 +213,7 @@ export default function ProfileOnboarding({
     }
   };
 
-  const handleComplete = async () => {
+  const handleComplete = async (destination: 'map' | 'rewards') => {
     setSaving(true);
     setSaveError(null);
     try {
@@ -277,7 +285,7 @@ export default function ProfileOnboarding({
       const nextSession = needsCodeOfConduct
         ? await acceptCodeOfConduct(codeOfConductVersion)
         : undefined;
-      onComplete(nextSession);
+      onComplete(nextSession, destination);
     } catch (error) {
       console.error('Error saving profile:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to save profile.');
@@ -285,12 +293,13 @@ export default function ProfileOnboarding({
       setSaving(false);
     }
   };
+  const isFinalStep = step === steps.length - 1;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#050505] p-4 text-foreground">
       <header className="mb-6 text-center">
         <h1 className="cruush-logo-text text-5xl font-bold mb-2">cruush</h1>
-        <p className="text-center text-white/58 mt-2">the seven rites</p>
+        <p className="text-center text-white/58 mt-2">the rites</p>
       </header>
       <div className="w-full max-w-md rounded-lg border border-white/12 bg-black/82 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur space-y-8">
         {saveError ? (
@@ -404,6 +413,19 @@ export default function ProfileOnboarding({
                   <p className="text-xs text-white/58 mt-1">Select up to 3</p>
                 </div>
               );
+            case 'crowds':
+              return (
+                <div>
+                  <label className="text-sm mb-2 block text-white/82">Crowds</label>
+                  <MultiSelect
+                    ariaLabel="Crowds"
+                    options={CROWDS}
+                    value={profile.crowds}
+                    onChange={(values) => setProfileField('crowds', limitToThree(values))}
+                  />
+                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
+                </div>
+              );
             case 'lookingFor':
               return (
                 <div>
@@ -474,7 +496,15 @@ export default function ProfileOnboarding({
               return null;
           }
         })()}
-        <div className="flex justify-between mt-8">
+        {isFinalStep ? (
+          <div className="rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm leading-6 text-white/78">
+            <p>
+              Protect your account with 2FA next. Referred signups need 2FA before they can qualify
+              for referral rewards from someone else's link.
+            </p>
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-8">
           <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
             Back
           </Button>
@@ -483,9 +513,14 @@ export default function ProfileOnboarding({
               Next rite <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           ) : (
-            <Button onClick={handleComplete} disabled={!canProceed() || saving}>
-              {needsCodeOfConduct ? 'I agree and enter' : 'Enter cruush'} <Check className="ml-2 w-4 h-4" />
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="outline" onClick={() => void handleComplete('map')} disabled={!canProceed() || saving}>
+                Skip 2FA for now <Check className="ml-2 w-4 h-4" />
+              </Button>
+              <Button onClick={() => void handleComplete('rewards')} disabled={!canProceed() || saving}>
+                Protect my account next <ShieldCheck className="ml-2 w-4 h-4" />
+              </Button>
+            </div>
           )}
         </div>
       </div>

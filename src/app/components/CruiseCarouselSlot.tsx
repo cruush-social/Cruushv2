@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Lock, RefreshCw, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
+import CruushPlusWord from './CruushPlusWord';
 import { resolveMediaUrl } from '../lib/apiClient';
 import type { DiscoveryUser } from '../lib/usersApi';
 
@@ -178,7 +179,7 @@ export default function CruiseCarouselSlot({
       ? `Found ${targetUser.name} nearby.`
       : 'Looking for someone nearby.'
     : mode === 'locked'
-    ? 'Browse nearby profiles with cruush+.'
+    ? <>Browse nearby profiles with <CruushPlusWord />.</>
     : 'No eligible nearby profiles are available right now.';
 
   const content = (
@@ -228,7 +229,7 @@ export default function CruiseCarouselSlot({
               onClick={onUpgrade}
             >
               <Lock className="h-4 w-4" />
-              Get cruush+
+              Get <CruushPlusWord />
             </Button>
           ) : null}
           {settled && mode === 'empty' && onRetry ? (

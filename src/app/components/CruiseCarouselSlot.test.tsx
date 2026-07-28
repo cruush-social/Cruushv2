@@ -24,9 +24,16 @@ describe('CruiseCarouselSlot', () => {
       />,
     );
 
-    expect(await screen.findByRole('button', { name: 'Get cruush+' })).toBeInTheDocument();
+    const upgradeButton = await screen.findByRole('button', { name: 'Get cruush+' });
+    const cruushPlusWord = upgradeButton.querySelector('.cruush-logo-font');
+
+    expect(upgradeButton).toBeInTheDocument();
+    expect(cruushPlusWord).toHaveTextContent('cruush+');
     expect(screen.getByLabelText('cruise carousel')).toBeInTheDocument();
-    expect(screen.getByText('Browse nearby profiles with cruush+.')).toBeInTheDocument();
+    expect(screen.getByText((_, element) => (
+      element?.tagName.toLowerCase() === 'p' &&
+      element.textContent === 'Browse nearby profiles with cruush+.'
+    ))).toBeInTheDocument();
     expect(screen.queryByText(/slot|spin|spinning|reel/i)).not.toBeInTheDocument();
   });
 

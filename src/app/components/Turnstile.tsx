@@ -62,6 +62,7 @@ export default function Turnstile({ onTokenChange, onError, resetKey = 0 }: Turn
         sitekey: siteKey,
         theme: 'dark',
         size: 'flexible',
+        appearance: 'interaction-only',
         callback: onTokenChange,
         'expired-callback': () => onTokenChange(''),
         'timeout-callback': handleTurnstileError,

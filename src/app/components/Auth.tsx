@@ -8,7 +8,7 @@ import {
 } from '../lib/authApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import { CruushIcon } from './CruushIconImage';
-import LaunchLoginMapTeaser, { LaunchLoginWaterPane } from './LaunchLoginMapTeaser';
+import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 import './Auth.css';
@@ -301,7 +301,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 autoComplete="nickname"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="how you'll appear"
+                placeholder="your name"
                 className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required={isSignUp}
                 disabled={isLoading}
@@ -457,7 +457,6 @@ export default function Auth({ onAuth }: AuthProps) {
 
         <PublicPolicyLinks variant="compact" />
       </div>
-      <LaunchLoginWaterPane className="launch-login-map-teaser__water-pane--foreground" />
     </div>
   );
 }

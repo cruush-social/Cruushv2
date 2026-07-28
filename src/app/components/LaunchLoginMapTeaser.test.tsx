@@ -18,7 +18,9 @@ describe('LaunchLoginMapTeaser', () => {
     );
     expect(screen.getByTestId('launch-login-map-scene')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-brand-mark')).toBeInTheDocument();
+    expect(screen.getByTestId('launch-login-club-lights')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-frosted-glass')).toBeInTheDocument();
+    expect(screen.getAllByTestId('launch-login-club-beam')).toHaveLength(5);
     expect(screen.getAllByTestId('launch-login-gradient-pin')).toHaveLength(6);
     expect(screen.getAllByTestId('launch-login-ghost-person')).toHaveLength(4);
     expect(screen.getAllByTestId('launch-login-radius-ring')).toHaveLength(3);

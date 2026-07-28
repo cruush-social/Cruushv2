@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   ArrowLeft,
   ChevronRight,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
+import CruushPlusWord from './CruushPlusWord';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -49,7 +50,7 @@ import {
 type SettingsItem = {
   icon?: LucideIcon;
   iconName?: CruushIconName;
-  label: string;
+  label: ReactNode;
   description?: string;
   action: () => void;
   destructive?: boolean;
@@ -230,7 +231,7 @@ export default function Settings() {
         { iconName: 'profile' as const, label: 'Edit Profile', action: () => navigate('/profile/edit') },
         {
           icon: Gift,
-          label: 'Rewards & Cruush+',
+          label: <>Rewards & <CruushPlusWord /></>,
           description: 'Streaks, referrals, promotional access, and 2FA.',
           action: () => navigate('/rewards'),
         },
@@ -367,7 +368,7 @@ export default function Settings() {
                 const Icon = 'icon' in item ? item.icon : null;
                 return (
                   <button
-                    key={item.label}
+                    key={`${section.title}-${index}`}
                     onClick={item.action}
                     className={`w-full p-4 flex items-center gap-3 hover:bg-accent transition-colors ${
                       item.destructive ? 'text-destructive' : ''
@@ -393,6 +394,56 @@ export default function Settings() {
             </div>
           </div>
         ))}
+
+        <div className="space-y-2">
+          <h3 className="text-sm text-muted-foreground px-2">Map attribution</h3>
+          <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+            <div>
+              <p>Open map data</p>
+              <p className="text-sm text-muted-foreground">
+                Cruush maps use open map data and tile services. Map data &copy; OpenStreetMap contributors.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+              <a
+                className="inline-flex items-center gap-1 text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                href="https://www.openstreetmap.org/copyright"
+                rel="noreferrer"
+                target="_blank"
+              >
+                OpenStreetMap contributors
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+              <a
+                className="inline-flex items-center gap-1 text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                href="https://openfreemap.org/"
+                rel="noreferrer"
+                target="_blank"
+              >
+                OpenFreeMap
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+              <a
+                className="inline-flex items-center gap-1 text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                href="https://www.openmaptiles.org/"
+                rel="noreferrer"
+                target="_blank"
+              >
+                OpenMapTiles
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+              <a
+                className="inline-flex items-center gap-1 text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                href="https://carto.com/attributions"
+                rel="noreferrer"
+                target="_blank"
+              >
+                CARTO
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-2">
           <h3 className="text-sm text-muted-foreground px-2">Blocked users</h3>

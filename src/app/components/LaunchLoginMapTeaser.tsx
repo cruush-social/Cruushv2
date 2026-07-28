@@ -65,6 +65,14 @@ const ACTIVITY_SIGNALS = [
   { id: 'signal-five', x: '31%', y: '18%', tx: '6rem', ty: '11rem', scale: '0.7', delay: '-25s' },
 ];
 
+const CLUB_BEAMS = [
+  { id: 'club-pink-left', variant: 'pink', x: '-18%', y: '10%', w: '35rem', h: '9rem', rot: '31deg', delay: '-1s' },
+  { id: 'club-blue-right', variant: 'blue', x: '44%', y: '6%', w: '38rem', h: '10rem', rot: '143deg', delay: '-8s' },
+  { id: 'club-cyan-low', variant: 'cyan', x: '10%', y: '48%', w: '34rem', h: '7rem', rot: '-18deg', delay: '-14s' },
+  { id: 'club-violet-mid', variant: 'violet', x: '30%', y: '30%', w: '33rem', h: '8rem', rot: '12deg', delay: '-20s' },
+  { id: 'club-pink-floor', variant: 'pink', x: '-8%', y: '68%', w: '30rem', h: '8rem', rot: '-8deg', delay: '-25s' },
+];
+
 const DROPLETS = [
   { id: 'drop-one', x: '8%', y: '-18%', w: '0.82rem', h: '8rem', duration: '30s', drift: '0.55rem', driftEnd: '-0.2rem', delay: '-1s' },
   { id: 'drop-two', x: '17%', y: '-26%', w: '1rem', h: '12rem', duration: '30s', drift: '-0.35rem', driftEnd: '0.15rem', delay: '-9s' },
@@ -204,6 +212,19 @@ export default function LaunchLoginMapTeaser() {
         </filter>
       </svg>
       <div className="launch-login-map-teaser__phone-glow" />
+      <div className="launch-login-map-teaser__club" data-testid="launch-login-club-lights">
+        <span className="launch-login-map-teaser__club-stage" />
+        {CLUB_BEAMS.map((beam) => (
+          <span
+            className={`launch-login-map-teaser__club-beam launch-login-map-teaser__club-beam--${beam.variant}`}
+            data-testid="launch-login-club-beam"
+            key={beam.id}
+            style={makeStyle(beam)}
+          />
+        ))}
+        <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--pink" />
+        <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--cyan" />
+      </div>
       <div className="launch-login-map-teaser__brand-mark" data-testid="launch-login-brand-mark" />
       <div className="launch-login-map-teaser__map" data-testid="launch-login-map-scene">
         <div className="launch-login-map-teaser__blocks" />

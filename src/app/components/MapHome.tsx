@@ -1107,18 +1107,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
             className="pointer-events-auto mt-0 flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md"
             data-testid="map-top-actions"
           >
-            {!hasCruushPlus ? (
-              <Button
-                type="button"
-                onClick={() => navigate('/upgrade')}
-                aria-label="cruush+"
-                title="cruush+"
-                className="cruush-logo-font rounded-full px-3 text-lg font-normal leading-none tracking-normal normal-case text-white"
-                style={{ background: 'var(--cruush-gradient)' }}
-              >
-                <CruushPlusWord />
-              </Button>
-            ) : null}
+            <Button
+              type="button"
+              onClick={() => navigate('/rewards')}
+              aria-label="cruush+ rewards"
+              title="cruush+ rewards"
+              className="cruush-logo-font rounded-full px-3 text-lg font-normal leading-none tracking-normal normal-case text-white"
+              style={{ background: 'var(--cruush-gradient)' }}
+            >
+              <CruushPlusWord />
+            </Button>
             <Button
               variant="ghost"
               size="icon"

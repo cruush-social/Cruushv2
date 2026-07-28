@@ -529,7 +529,7 @@ describe('MapHome', () => {
 
     const topActions = screen.getByTestId('map-top-actions');
     const rightActions = screen.getByTestId('map-right-actions');
-    const cruushPlusButton = await screen.findByRole('button', { name: 'cruush+' });
+    const cruushPlusButton = await screen.findByRole('button', { name: 'cruush+ rewards' });
 
     expect(screen.getByTestId('map-home-shell')).toHaveClass('relative');
     expect(screen.getByTestId('map-home-shell')).not.toHaveClass('fixed', 'inset-0');
@@ -642,6 +642,30 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/lucky');
   });
 
+  it('opens rewards from the top cruush+ button', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: true,
+      expiresAt: '2026-08-01T12:00:00.000Z',
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
+          <Route path="/rewards" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'cruush+ rewards' }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
+  });
+
   it('shows the locked cruise carousel side panel for free desktop users', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
@@ -661,7 +685,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('button', { name: 'cruush+' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'cruush+ rewards' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cruise Carousel' }));
 
@@ -694,7 +718,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('button', { name: 'cruush+' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'cruush+ rewards' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /^seeking$/i }));
 

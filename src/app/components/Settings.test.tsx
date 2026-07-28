@@ -204,6 +204,35 @@ describe('Settings', () => {
     expect(screen.queryByLabelText('Contact support')).not.toBeInTheDocument();
   });
 
+  it('shows open map attribution links in settings', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Map attribution')).toBeInTheDocument();
+    expect(screen.getByText(/Cruush maps use open map data/i)).toHaveTextContent(
+      'Map data \u00a9 OpenStreetMap contributors.',
+    );
+    expect(screen.getByRole('link', { name: /OpenStreetMap contributors/i })).toHaveAttribute(
+      'href',
+      'https://www.openstreetmap.org/copyright',
+    );
+    expect(screen.getByRole('link', { name: /OpenFreeMap/i })).toHaveAttribute(
+      'href',
+      'https://openfreemap.org/',
+    );
+    expect(screen.getByRole('link', { name: /OpenMapTiles/i })).toHaveAttribute(
+      'href',
+      'https://www.openmaptiles.org/',
+    );
+    expect(screen.getByRole('link', { name: /CARTO/i })).toHaveAttribute(
+      'href',
+      'https://carto.com/attributions',
+    );
+  });
+
   it('opens notification settings from the account menu', async () => {
     render(
       <MemoryRouter>

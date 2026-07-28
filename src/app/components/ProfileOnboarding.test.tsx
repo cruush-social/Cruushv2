@@ -62,6 +62,9 @@ async function fillProfileRites() {
   await chooseMultiSelect('Gender Identity', 'nonbinary');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
+  await chooseMultiSelect('Crowds', 'Dyke');
+  fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
   await chooseMultiSelect('Looking For', 'cruise');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
@@ -95,17 +98,20 @@ describe('ProfileOnboarding', () => {
 
     await fillProfileRites();
 
-    const enterButton = screen.getByRole('button', { name: /i agree and enter/i });
+    const protectButton = screen.getByRole('button', { name: /protect my account next/i });
+    const skipButton = screen.getByRole('button', { name: /skip 2fa for now/i });
 
     expect(screen.getByText('take the oath')).toBeInTheDocument();
-    expect(enterButton).toBeDisabled();
+    expect(protectButton).toBeDisabled();
+    expect(skipButton).toBeDisabled();
     expect(saveMyProfile).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('checkbox', {
       name: /i have read and agree to the cruush code of conduct/i,
     }));
 
-    expect(enterButton).not.toBeDisabled();
+    expect(protectButton).not.toBeDisabled();
+    expect(skipButton).not.toBeDisabled();
   });
 
   it('keeps the same rites while using profile edit option menus', async () => {
@@ -125,6 +131,10 @@ describe('ProfileOnboarding', () => {
 
     expect(screen.getByText('name your form')).toBeInTheDocument();
     await chooseMultiSelect('Gender Identity', 'nonbinary');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText('find your crowd')).toBeInTheDocument();
+    await chooseMultiSelect('Crowds', 'Gay');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('declare your hunger')).toBeInTheDocument();
@@ -167,6 +177,9 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
+    await chooseMultiSelect('Crowds', 'T4T');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
     await chooseMultiSelect('Looking For', 'cruise');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
@@ -174,7 +187,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
-    fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
+    fireEvent.click(screen.getByRole('button', { name: /protect my account next/i }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       identities: ['trans man', 'trans woman', 'nonbinary'],
@@ -188,13 +201,17 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('checkbox', {
       name: /i have read and agree to the cruush code of conduct/i,
     }));
-    fireEvent.click(screen.getByRole('button', { name: /i agree and enter/i }));
+    fireEvent.click(screen.getByRole('button', { name: /protect my account next/i }));
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
+      needsCodeOfConduct: false,
+    }), 'rewards');
     expect(saveMyProfile).toHaveBeenCalledTimes(1);
     expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       display_name: 'River',
       looking_for: ['cruise'],
+      crowds: ['Dyke'],
       vibes: ['Goth'],
       bio: 'Velvet trouble.',
       pronouns: ['they/them'],

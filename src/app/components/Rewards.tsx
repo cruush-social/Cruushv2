@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import CruushPlusWord from './CruushPlusWord';
 import { Input } from './ui/input';
 import { Progress } from './ui/progress';
 import {
@@ -174,7 +175,7 @@ export default function Rewards() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-semibold">Rewards & Cruush+</h1>
+            <h1 className="text-xl font-semibold">Rewards & <CruushPlusWord /></h1>
             <p className="text-xs text-muted-foreground">Real activity. Real referrals. No spam.</p>
           </div>
         </div>
@@ -233,7 +234,7 @@ export default function Rewards() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Cruush+ time</CardTitle>
+                <CardTitle><CruushPlusWord /> time</CardTitle>
                 <CardDescription>Promotional access stays separate from paid subscriptions.</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-3 text-sm">
@@ -254,7 +255,7 @@ export default function Rewards() {
               <CardHeader>
                 <CardTitle>Invite people you trust</CardTitle>
                 <CardDescription>
-                  You receive {summary.rules.referralRewardDays} Cruush+ days after they secure their
+                  You receive {summary.rules.referralRewardDays} <CruushPlusWord /> days after they secure their
                   account with 2FA, complete their profile, and reach{' '}
                   {summary.rules.referralMinAccountAgeDays} days old.
                 </CardDescription>

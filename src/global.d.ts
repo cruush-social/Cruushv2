@@ -23,6 +23,7 @@ interface Window {
         'error-callback': (errorCode?: string) => boolean | void;
         theme?: 'auto' | 'light' | 'dark';
         size?: 'normal' | 'flexible' | 'compact';
+        appearance?: 'always' | 'execute' | 'interaction-only';
       },
     ) => string;
     remove?: (widgetId: string) => void;

@@ -44,7 +44,21 @@ vi.mock('./components/ProfileEdit', () => {
 });
 
 vi.mock('./components/ProfileOnboarding', () => ({
-  default: () => <div>Mock Onboarding</div>
+  default: ({
+    onComplete,
+  }: {
+    onComplete: (session?: unknown, destination?: 'map' | 'rewards') => void;
+  }) => (
+    <div>
+      <div>Mock Onboarding</div>
+      <button type="button" onClick={() => onComplete(undefined, 'rewards')}>
+        Complete onboarding to rewards
+      </button>
+      <button type="button" onClick={() => onComplete(undefined, 'map')}>
+        Complete onboarding to map
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('./components/CodeOfConductGate', () => ({
@@ -151,6 +165,10 @@ vi.mock('./components/FeelingLucky', () => ({
 
 vi.mock('./components/CruushPlusUpgrade', () => ({
   default: () => <div>Mock Upgrade</div>
+}));
+
+vi.mock('./components/Rewards', () => ({
+  default: () => <div>Mock Rewards</div>
 }));
 
 vi.mock('./components/CruushPlusCheckout', () => ({
@@ -453,6 +471,28 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
+  });
+
+  it('opens rewards after onboarding asks for the 2FA handoff', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: null,
+      needsOnboarding: true,
+      ...acceptedConductSession,
+    });
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Complete onboarding to rewards' }));
+
+    expect(await screen.findByText('Mock Rewards')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/rewards');
   });
 
   it('shows the code of conduct gate for onboarded verified users who have not accepted it', async () => {

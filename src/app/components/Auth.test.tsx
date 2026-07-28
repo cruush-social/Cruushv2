@@ -65,8 +65,7 @@ describe('Auth', () => {
     expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');
     expect(screen.getByTestId('launch-login-auth-captcha')).toHaveClass('launch-login-auth-captcha');
-    expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(6);
+    expect(screen.queryByTestId('launch-login-foreground-water-pane')).not.toBeInTheDocument();
     expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
     expect(screen.queryByText('queer cruisers cruise cruush')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toHaveClass('launch-login-auth-input');
@@ -115,6 +114,7 @@ describe('Auth', () => {
     });
     render(<Auth onAuth={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
+    expect(screen.getByLabelText('Display Name')).toHaveAttribute('placeholder', 'your name');
     fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'River' } });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });

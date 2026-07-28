@@ -137,7 +137,7 @@ export default function LocalFeed() {
           <Textarea
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
-            placeholder={canPost ? 'Share something with nearby people...' : 'Post on the local feed with cruush+.'}
+            placeholder={canPost ? 'Share something with nearby people...' : 'Upgrade to post on the local feed.'}
             className="bg-input-background mb-3 min-h-[100px]"
             disabled={!canPost}
           />

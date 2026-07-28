@@ -1,0 +1,756 @@
+.frosted-preview-shell {
+  position: fixed;
+  inset: 0;
+  min-height: 100svh;
+  width: 100vw;
+  display: flex;
+  justify-content: flex-start;
+  background: #02040a;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+.frosted-preview-shell,
+.frosted-preview-shell * {
+  box-sizing: border-box;
+}
+
+.frosted-preview-device {
+  position: relative;
+  width: min(100vw, 430px);
+  min-height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(148deg, rgba(0, 234, 255, 0.35), transparent 32%),
+    linear-gradient(216deg, rgba(241, 0, 137, 0.42), transparent 38%),
+    linear-gradient(22deg, rgba(12, 98, 255, 0.78), rgba(22, 8, 76, 0.92) 46%, rgba(4, 6, 20, 0.98));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 28px 80px rgba(0, 0, 0, 0.65);
+}
+
+.frosted-preview-device::before,
+.frosted-preview-device::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+}
+
+.frosted-preview-device::before {
+  z-index: -2;
+  opacity: 0.74;
+  background:
+    linear-gradient(90deg, transparent 0 22px, rgba(255, 255, 255, 0.08) 23px 24px, transparent 25px 76px),
+    linear-gradient(0deg, transparent 0 30px, rgba(255, 255, 255, 0.06) 31px 32px, transparent 33px 92px);
+  background-size: 76px 92px;
+  transform: rotate(-7deg) scale(1.18);
+}
+
+.frosted-preview-device::after {
+  z-index: 4;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16), transparent 3px 92%, rgba(255, 255, 255, 0.12)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 12%, transparent 86%, rgba(0, 0, 0, 0.62));
+  mix-blend-mode: screen;
+  opacity: 0.45;
+}
+
+.frosted-preview-background {
+  position: absolute;
+  inset: -8% -18%;
+  z-index: -1;
+  opacity: 0.76;
+  transform: rotate(-8deg);
+}
+
+.frosted-preview-road {
+  position: absolute;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(183, 222, 255, 0.15);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 16px 0 rgba(183, 222, 255, 0.08),
+    0 -18px 0 rgba(183, 222, 255, 0.07);
+}
+
+.frosted-preview-road-1 {
+  top: 17%;
+  left: -5%;
+  width: 88%;
+}
+
+.frosted-preview-road-2 {
+  top: 42%;
+  left: 8%;
+  width: 118%;
+}
+
+.frosted-preview-road-3 {
+  top: 63%;
+  left: -18%;
+  width: 106%;
+}
+
+.frosted-preview-road-4 {
+  top: 23%;
+  left: 45%;
+  width: 84%;
+  transform: rotate(90deg);
+}
+
+.frosted-preview-road-5 {
+  top: 56%;
+  left: 2%;
+  width: 112%;
+  transform: rotate(90deg);
+}
+
+.frosted-preview-street {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.66);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.92rem;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
+  white-space: nowrap;
+}
+
+.frosted-preview-street-1 {
+  left: 5%;
+  top: 67%;
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.frosted-preview-street-2 {
+  left: 10%;
+  top: 27%;
+  transform: rotate(88deg);
+}
+
+.frosted-preview-street-3 {
+  left: 38%;
+  top: 45%;
+  transform: rotate(88deg);
+}
+
+.frosted-preview-street-4 {
+  left: 52%;
+  top: 56%;
+}
+
+.frosted-preview-header {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: max(1.1rem, env(safe-area-inset-top)) 1.05rem 0;
+}
+
+.frosted-preview-logo-lockup {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.frosted-preview-logo-icon {
+  width: 3.8rem;
+  height: 3.8rem;
+  filter: drop-shadow(0 12px 24px rgba(255, 255, 255, 0.18));
+}
+
+.frosted-preview-logo-text {
+  display: block;
+  color: #ffffff;
+  font-size: 2.22rem;
+  line-height: 0.8;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2), 0 12px 30px rgba(0, 0, 0, 0.55);
+}
+
+.frosted-preview-status-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  background: rgba(3, 6, 18, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 16px 32px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(18px) saturate(165%);
+}
+
+.frosted-preview-status-icon {
+  width: 1.38rem;
+  height: 1.38rem;
+}
+
+.frosted-preview-main {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  min-height: calc(100svh - 9.2rem);
+  padding: 0.65rem 1rem 6.45rem;
+}
+
+.frosted-preview-map-screen,
+.frosted-preview-content-screen {
+  position: relative;
+  width: 100%;
+  min-height: calc(100svh - 16rem);
+}
+
+.frosted-preview-pill-row {
+  position: absolute;
+  right: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.55rem;
+}
+
+.frosted-preview-pill-row-top {
+  top: 0.2rem;
+}
+
+.frosted-preview-pill-row-action {
+  top: 6.15rem;
+}
+
+.frosted-preview-chip,
+.frosted-preview-glass-button,
+.frosted-preview-gradient-button {
+  min-height: 2.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.62rem;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 999px;
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.48);
+}
+
+.frosted-preview-chip,
+.frosted-preview-glass-button {
+  background: rgba(1, 5, 19, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 18px 34px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(18px) saturate(170%);
+}
+
+.frosted-preview-chip-small {
+  min-width: 9.2rem;
+  padding: 0 0.9rem;
+  font-size: 0.78rem;
+}
+
+.frosted-preview-chip-wide {
+  min-width: 13.6rem;
+  padding: 0 1rem;
+  font-size: 0.68rem;
+}
+
+.frosted-preview-chip-icon,
+.frosted-preview-button-icon {
+  width: 1.12rem;
+  height: 1.12rem;
+}
+
+.frosted-preview-glass-button,
+.frosted-preview-gradient-button {
+  min-width: 10.8rem;
+  padding: 0 1rem;
+  font-size: 0.68rem;
+}
+
+.frosted-preview-glass-button {
+  cursor: pointer;
+}
+
+.frosted-preview-gradient-button {
+  cursor: pointer;
+  border-color: rgba(255, 255, 255, 0.62);
+  background: linear-gradient(105deg, rgba(245, 0, 132, 0.95), rgba(111, 26, 255, 0.92) 48%, rgba(0, 155, 255, 0.95));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36), 0 18px 40px rgba(0, 111, 255, 0.36);
+}
+
+.frosted-preview-radius-ring {
+  position: absolute;
+  inset: 7.2rem auto auto 50%;
+  width: 30rem;
+  height: 30rem;
+  border: 3px solid rgba(30, 164, 255, 0.88);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: rgba(9, 36, 76, 0.28);
+  box-shadow: 0 0 28px rgba(0, 153, 255, 0.28), inset 0 0 44px rgba(0, 163, 255, 0.12);
+}
+
+.frosted-preview-radius-core {
+  position: absolute;
+  top: 18.4rem;
+  left: 50%;
+  width: 8.6rem;
+  height: 8.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(10px) saturate(130%);
+}
+
+.frosted-preview-heart-pin {
+  position: absolute;
+  z-index: 5;
+  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.48)) drop-shadow(0 0 18px rgba(0, 184, 255, 0.48));
+}
+
+.frosted-preview-heart-pin svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.frosted-preview-heart-pin-primary {
+  top: 19.2rem;
+  left: 50%;
+  width: 6.25rem;
+  transform: translateX(-50%);
+}
+
+.frosted-preview-heart-pin-secondary {
+  top: 22.35rem;
+  left: 63.5%;
+  width: 3.75rem;
+}
+
+.frosted-preview-heart-pin-shape {
+  fill: rgba(2, 8, 22, 0.74);
+  stroke: #28bdff;
+  stroke-width: 5.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.frosted-preview-heart-pin-halo {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.26);
+  stroke-width: 1.4;
+}
+
+.frosted-preview-heart-pin-person-ring,
+.frosted-preview-heart-pin-person-body {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-linecap: round;
+  stroke-width: 2.8;
+}
+
+.frosted-preview-heart-pin-person-head {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 2.8;
+}
+
+.frosted-preview-zoom-stack {
+  position: absolute;
+  top: 12.6rem;
+  right: -0.2rem;
+  z-index: 6;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.frosted-preview-round-button {
+  width: 3.45rem;
+  height: 3.45rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 50%;
+  color: #ffffff;
+  background: rgba(3, 6, 18, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 16px 34px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(18px) saturate(165%);
+  cursor: pointer;
+  font-size: 1.55rem;
+  font-weight: 800;
+}
+
+.frosted-preview-round-icon {
+  width: 1.42rem;
+  height: 1.42rem;
+}
+
+.frosted-preview-content-screen {
+  display: grid;
+  align-content: start;
+  gap: 0.82rem;
+  padding-top: 0.55rem;
+}
+
+.frosted-preview-panel {
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -34px 60px rgba(5, 8, 24, 0.18),
+    0 18px 38px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px) saturate(175%);
+}
+
+.frosted-preview-panel h2,
+.frosted-preview-panel h3,
+.frosted-preview-panel p {
+  margin: 0;
+}
+
+.frosted-preview-panel h2 {
+  font-size: 1.75rem;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.frosted-preview-panel h3 {
+  font-size: 1.06rem;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.frosted-preview-panel p {
+  margin-top: 0.42rem;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.frosted-preview-panel-kicker {
+  margin-bottom: 0.45rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.frosted-preview-panel-feature {
+  padding: 1.05rem;
+  background:
+    linear-gradient(128deg, rgba(255, 255, 255, 0.19), rgba(0, 200, 255, 0.13)),
+    rgba(255, 255, 255, 0.1);
+}
+
+.frosted-preview-feed-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  padding: 0.82rem;
+}
+
+.frosted-preview-feed-grid > div {
+  min-height: 5.8rem;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 8px;
+  background: rgba(4, 9, 28, 0.18);
+}
+
+.frosted-preview-count {
+  display: block;
+  font-size: 2.3rem;
+  line-height: 1;
+  font-weight: 900;
+  text-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.frosted-preview-label {
+  display: block;
+  margin-top: 0.35rem;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.frosted-preview-event-card {
+  padding: 0.95rem;
+}
+
+.frosted-preview-event-meter {
+  height: 0.62rem;
+  margin-top: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(3, 6, 18, 0.34);
+}
+
+.frosted-preview-event-meter span {
+  display: block;
+  width: 68%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff007c, #7c21ff, #00c7ff);
+}
+
+.frosted-preview-profile-card,
+.frosted-preview-message-header,
+.frosted-preview-settings-panel,
+.frosted-preview-preview-card,
+.frosted-preview-thread-card,
+.frosted-preview-slider-panel,
+.frosted-preview-setting-row {
+  padding: 0.95rem;
+}
+
+.frosted-preview-profile-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.frosted-preview-avatar-shell {
+  width: 5.8rem;
+  height: 5.8rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), 0 16px 28px rgba(0, 0, 0, 0.24);
+}
+
+.frosted-preview-avatar-icon {
+  width: 3.8rem;
+  height: 3.8rem;
+}
+
+.frosted-preview-tag-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 0.8rem;
+}
+
+.frosted-preview-tag-panel span {
+  flex: 1 1 8.2rem;
+  min-height: 2.6rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.16);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.frosted-preview-preview-card {
+  display: grid;
+  grid-template-columns: 6.6rem 1fr;
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.frosted-preview-mini-map {
+  height: 5.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 8px;
+  background:
+    linear-gradient(25deg, transparent 0 43%, rgba(255, 255, 255, 0.22) 44% 46%, transparent 47%),
+    linear-gradient(90deg, transparent 0 58%, rgba(255, 255, 255, 0.18) 59% 61%, transparent 62%),
+    rgba(0, 18, 48, 0.35);
+}
+
+.frosted-preview-message-header {
+  display: flex;
+  align-items: center;
+  gap: 0.82rem;
+}
+
+.frosted-preview-message-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0.72rem;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.frosted-preview-thread-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.frosted-preview-thread-card-muted {
+  opacity: 0.72;
+}
+
+.frosted-preview-thread-dot {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-top: 0.18rem;
+  border-radius: 50%;
+  background: #00d8ff;
+  box-shadow: 0 0 18px rgba(0, 216, 255, 0.8);
+}
+
+.frosted-preview-settings-panel,
+.frosted-preview-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.frosted-preview-toggle {
+  position: relative;
+  width: 4.3rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+}
+
+.frosted-preview-toggle input {
+  position: absolute;
+  opacity: 0;
+}
+
+.frosted-preview-toggle span {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  background: rgba(2, 8, 22, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.frosted-preview-toggle span::after {
+  position: absolute;
+  top: 0.25rem;
+  left: 2.15rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffffff, #aeeaff);
+  box-shadow: 0 0 20px rgba(0, 209, 255, 0.42);
+  content: "";
+}
+
+.frosted-preview-slider-panel input {
+  width: 100%;
+  margin-top: 0.85rem;
+  accent-color: #00c7ff;
+}
+
+.frosted-preview-setting-row {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.92rem;
+}
+
+.frosted-preview-setting-row strong {
+  color: #ffffff;
+  font-size: 0.86rem;
+  text-align: right;
+}
+
+.frosted-preview-dock {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 8;
+  height: 4.75rem;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: center;
+  gap: 0.36rem;
+  padding: 0.52rem;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 999px;
+  background: rgba(2, 5, 15, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 22px 46px rgba(0, 0, 0, 0.46);
+  backdrop-filter: blur(22px) saturate(175%);
+}
+
+.frosted-preview-dock-button {
+  width: 100%;
+  height: 3.6rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.frosted-preview-dock-button[data-active="true"] {
+  border-color: rgba(255, 255, 255, 0.32);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.19), rgba(255, 255, 255, 0.06)),
+    rgba(0, 0, 0, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 26px rgba(0, 0, 0, 0.24);
+}
+
+.frosted-preview-dock-icon {
+  width: 2.15rem;
+  height: 2.15rem;
+}
+
+@media (max-width: 360px) {
+  .frosted-preview-logo-icon {
+    width: 3.55rem;
+    height: 3.55rem;
+  }
+
+  .frosted-preview-logo-text {
+    font-size: 2.05rem;
+  }
+
+  .frosted-preview-status-strip {
+    display: none;
+  }
+
+  .frosted-preview-chip-wide,
+  .frosted-preview-glass-button,
+  .frosted-preview-gradient-button {
+    min-width: 10.55rem;
+    font-size: 0.66rem;
+  }
+
+  .frosted-preview-radius-ring {
+    width: 27rem;
+    height: 27rem;
+  }
+
+  .frosted-preview-panel h2 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .frosted-preview-status-strip {
+    display: none;
+  }
+}
+
+@media (min-width: 640px) {
+  .frosted-preview-shell {
+    justify-content: center;
+  }
+}
