@@ -377,7 +377,7 @@ export default function ProfileView() {
                     void handleCruush();
                   }}
                   disabled={cruushDisabled}
-                  aria-label={isAlreadyMutual ? 'Mutual cruush' : hasSentCruush ? 'Cruush sent' : sendingCruush ? 'Sending cruush' : 'Send cruush'}
+                  aria-label={isAlreadyMutual ? 'mutual cruush' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
                   style={{
                     background: cruushDisabled
                       ? '#666'

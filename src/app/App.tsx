@@ -33,9 +33,6 @@ const PrivacyAudit = lazy(() => import('./components/PrivacyAudit'));
 const FeelingLucky = lazy(() => import('./components/FeelingLucky'));
 const RequestsDashboard = lazy(() => import('./components/RequestsDashboard'));
 const CodeOfConductGate = lazy(() => import('./components/CodeOfConductGate'));
-const CruushPlusUpgrade = lazy(() => import('./components/CruushPlusUpgrade'));
-const CruushPlusCheckout = lazy(() => import('./components/CruushPlusCheckout'));
-const CruushPlusSuccess = lazy(() => import('./components/CruushPlusSuccess'));
 const EmailVerificationGate = lazy(() => import('./components/EmailVerificationGate'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
@@ -305,10 +302,10 @@ export default function App({
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
-              <Route path="/upgrade" element={<CruushPlusUpgrade />} />
+              <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
               <Route path="/rewards" element={<Rewards />} />
-              <Route path="/checkout/success" element={<CruushPlusSuccess />} />
-              <Route path="/checkout/:sessionId" element={<CruushPlusCheckout />} />
+              <Route path="/checkout/success" element={<Navigate to="/rewards" replace />} />
+              <Route path="/checkout/:sessionId" element={<Navigate to="/rewards" replace />} />
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
             <MobileInstallPrompt />

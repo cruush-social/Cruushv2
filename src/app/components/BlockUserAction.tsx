@@ -91,7 +91,7 @@ export default function BlockUserAction({
         <AlertDialogHeader>
           <AlertDialogTitle>Block {safeName}?</AlertDialogTitle>
           <AlertDialogDescription>
-            They will no longer be able to interact with you, and you will stop seeing them in discovery, feed, messages, and Cruush surfaces.
+            They will no longer be able to interact with you, and you will stop seeing them in discovery, feed, messages, and cruush surfaces.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

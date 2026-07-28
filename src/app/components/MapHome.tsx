@@ -740,7 +740,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   const handleSaveVisibilitySet = async () => {
     if (!hasCruushPlus) {
-      navigate('/upgrade');
+      navigate('/rewards');
       return;
     }
 
@@ -771,7 +771,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   const handleApplyVisibilitySet = async (setId: string) => {
     if (!hasCruushPlus) {
-      navigate('/upgrade');
+      navigate('/rewards');
       return;
     }
 
@@ -792,7 +792,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   const handleRenameVisibilitySet = async (setId: string, currentName: string) => {
     if (!hasCruushPlus) {
-      navigate('/upgrade');
+      navigate('/rewards');
       return;
     }
 
@@ -825,7 +825,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   const handleDeleteVisibilitySet = async (setId: string) => {
     if (!hasCruushPlus) {
-      navigate('/upgrade');
+      navigate('/rewards');
       return;
     }
 
@@ -1225,7 +1225,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 }
               : undefined}
             onRetry={handleFeelingLucky}
-            onUpgrade={() => navigate('/upgrade')}
+            onUpgrade={() => navigate('/rewards')}
           />
         ) : null}
 
@@ -1452,7 +1452,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onRenameSet={handleRenameVisibilitySet}
           onSaveSet={handleSaveVisibilitySet}
           onSavedSetNameChange={setSavedVisibilitySetName}
-          onUpgradeSavedSets={() => navigate('/upgrade')}
+          onUpgradeSavedSets={() => navigate('/rewards')}
         />
       </div>
     </div>

@@ -163,20 +163,8 @@ vi.mock('./components/FeelingLucky', () => ({
   default: () => <div>Mock Lucky</div>
 }));
 
-vi.mock('./components/CruushPlusUpgrade', () => ({
-  default: () => <div>Mock Upgrade</div>
-}));
-
 vi.mock('./components/Rewards', () => ({
   default: () => <div>Mock Rewards</div>
-}));
-
-vi.mock('./components/CruushPlusCheckout', () => ({
-  default: () => <div>Mock Checkout</div>
-}));
-
-vi.mock('./components/CruushPlusSuccess', () => ({
-  default: () => <div>Mock Checkout Success</div>
 }));
 
 vi.mock('./components/RequestsDashboard', () => ({
@@ -378,7 +366,7 @@ describe('App', () => {
     expect(await screen.findByText('Mock Ghost Mode Settings')).toBeInTheDocument();
   });
 
-  it('renders the cruush+ upgrade route while signed in', async () => {
+  it('redirects the cruush+ upgrade route to rewards while signed in', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -398,10 +386,11 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('Mock Upgrade')).toBeInTheDocument();
+    expect(await screen.findByText('Mock Rewards')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/rewards');
   });
 
-  it('renders the fake cruush+ checkout and success routes while signed in', async () => {
+  it('redirects fake cruush+ checkout routes to rewards while signed in', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -421,13 +410,15 @@ describe('App', () => {
 
     const { unmount } = render(<App />);
 
-    expect(await screen.findByText('Mock Checkout')).toBeInTheDocument();
+    expect(await screen.findByText('Mock Rewards')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/rewards');
 
     unmount();
     window.history.replaceState({}, '', '/checkout/success');
     render(<App />);
 
-    expect(await screen.findByText('Mock Checkout Success')).toBeInTheDocument();
+    expect(await screen.findByText('Mock Rewards')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/rewards');
   });
 
   it('does not expose the retired Safety Center route', async () => {

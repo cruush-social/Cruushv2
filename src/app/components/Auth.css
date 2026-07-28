@@ -56,10 +56,55 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     inset 0 -1.2rem 2.2rem rgba(0, 0, 0, 0.26),
     0 0 0 1px rgba(0, 0, 0, 0.58),
-    0 0 1.35rem rgba(0, 216, 255, 0.1),
+    0 0 1.35rem rgba(42, 78, 255, 0.1),
     0 1.15rem 2.5rem rgba(0, 0, 0, 0.38);
   backdrop-filter: blur(10px) saturate(1.52) contrast(1.08);
   -webkit-backdrop-filter: blur(10px) saturate(1.52) contrast(1.08);
+}
+
+.launch-login-auth-password-field {
+  position: relative;
+}
+
+.launch-login-auth-password-field .launch-login-auth-input {
+  padding-right: 3.1rem;
+}
+
+.launch-login-auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.34rem;
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.68);
+  transform: translateY(-50%);
+  transition:
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.launch-login-auth-password-toggle:hover:not(:disabled),
+.launch-login-auth-password-toggle:focus-visible:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 0 1rem rgba(255, 0, 114, 0.16), 0 0 1rem rgba(17, 129, 255, 0.14);
+}
+
+.launch-login-auth-password-toggle:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.62);
+  outline-offset: 2px;
+}
+
+.launch-login-auth-password-toggle:disabled {
+  opacity: 0.42;
 }
 
 .launch-login-auth-input::placeholder {
@@ -120,7 +165,7 @@
   z-index: 1;
   background:
     radial-gradient(ellipse at 22% 18%, rgba(255, 255, 255, 0.17), transparent 4.2rem),
-    radial-gradient(ellipse at 76% 78%, rgba(0, 216, 255, 0.2), transparent 4rem),
+    radial-gradient(ellipse at 76% 78%, rgba(42, 78, 255, 0.2), transparent 4rem),
     radial-gradient(ellipse at 18% 70%, rgba(255, 0, 114, 0.18), transparent 3.6rem),
     repeating-linear-gradient(96deg, transparent 0 0.72rem, rgba(255, 255, 255, 0.055) 0.78rem 0.84rem);
   backdrop-filter: blur(1.1px) saturate(1.18) brightness(1.08);

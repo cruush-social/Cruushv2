@@ -95,7 +95,7 @@ export const SUBSTANCE_BOUNDARIES = [
 
 export const PROFILE_VISIBILITY_OPTIONS = [
   { value: 'public', label: 'Public' },
-  { value: 'mutual_cruushes', label: 'Mutual Cruushes' },
+  { value: 'mutual_cruushes', label: 'Mutual cruushes' },
   { value: 'mutual_crowds', label: 'Mutual Crowds' },
 ];
 

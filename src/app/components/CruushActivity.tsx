@@ -165,7 +165,7 @@ function IncomingRow({
                 ? 'bg-white/8 opacity-65 grayscale hover:bg-white/8'
                 : 'bg-white/10 hover:bg-white/14',
             ].join(' ')}
-            aria-label={item.mutual ? `Already mutual with ${item.user.name}` : pendingCruush ? `Sending cruush to ${item.user.name}` : `Cruush ${item.user.name} back`}
+            aria-label={item.mutual ? `Already mutual with ${item.user.name}` : pendingCruush ? `sending cruush to ${item.user.name}` : `cruush ${item.user.name} back`}
             disabled={item.mutual || pendingCruush}
             onClick={() => onCruushBack(item)}
           >
@@ -439,7 +439,7 @@ export default function CruushActivity() {
               {!loading && activity ? (
                 <>
                   <TabsContent value="incoming" className="mt-0 space-y-4">
-                    <UpgradeBanner count={lockedIncomingCount} label="have a cruush on you" onUpgrade={() => navigate('/upgrade')} />
+                    <UpgradeBanner count={lockedIncomingCount} label="have a cruush on you" onUpgrade={() => navigate('/rewards')} />
                     <ActivitySurface empty={activity.incoming.length === 0} emptyText="No incoming cruushes yet.">
                       {activity.incoming.map((item) => (
                         <IncomingRow
@@ -477,7 +477,7 @@ export default function CruushActivity() {
                   </TabsContent>
 
                   <TabsContent value="views" className="mt-0 space-y-4">
-                    <UpgradeBanner count={lockedViewsCount} label="viewed your profile" onUpgrade={() => navigate('/upgrade')} />
+                    <UpgradeBanner count={lockedViewsCount} label="viewed your profile" onUpgrade={() => navigate('/rewards')} />
                     <ActivitySurface empty={activity.views.length === 0} emptyText="No profile views yet.">
                       {activity.views.map((item) => (
                         <ViewRow key={item.id} item={item} onOpenProfile={openProfile} />

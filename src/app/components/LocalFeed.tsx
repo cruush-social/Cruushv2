@@ -73,7 +73,7 @@ export default function LocalFeed() {
   const handlePost = async () => {
     if (!newPost.trim()) return;
     if (billingStatus && !billingStatus.cruushPlus) {
-      navigate('/upgrade');
+      navigate('/rewards');
       return;
     }
 
@@ -154,7 +154,7 @@ export default function LocalFeed() {
                 type="button"
                 className="h-10 shrink-0 rounded-lg text-white"
                 style={{ background: 'var(--cruush-gradient)' }}
-                onClick={() => navigate('/upgrade')}
+                onClick={() => navigate('/rewards')}
               >
                 Get <CruushPlusWord />
               </Button>

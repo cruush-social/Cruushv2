@@ -125,7 +125,7 @@ export default function ReportAction({
           <DialogHeader>
             <DialogTitle>Report {safeLabel}?</DialogTitle>
             <DialogDescription>
-              Submitting sends this report to Cruush moderation. Reporting does not automatically block or hide anyone.
+              Submitting sends this report to cruush moderation. Reporting does not automatically block or hide anyone.
             </DialogDescription>
           </DialogHeader>
 

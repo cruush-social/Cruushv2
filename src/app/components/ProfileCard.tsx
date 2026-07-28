@@ -143,7 +143,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
             className="flex-1"
             onClick={handleCruush}
             disabled={cruushDisabled}
-            aria-label={isAlreadyMutual ? 'Already mutual' : hasSentCruush ? 'Cruush sent' : sendingCruush ? 'Sending cruush' : 'Send cruush'}
+            aria-label={isAlreadyMutual ? 'Already mutual' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
             style={{
               borderColor: cruushDisabled ? '#73737C' : 'var(--cruush-pink)',
               color: cruushDisabled ? '#A2A2AA' : 'var(--cruush-pink)',

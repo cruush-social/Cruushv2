@@ -212,7 +212,7 @@ describe('Settings', () => {
     );
 
     expect(await screen.findByText('Map attribution')).toBeInTheDocument();
-    expect(screen.getByText(/Cruush maps use open map data/i)).toHaveTextContent(
+    expect(screen.getByText(/cruush maps use open map data/i)).toHaveTextContent(
       'Map data \u00a9 OpenStreetMap contributors.',
     );
     expect(screen.getByRole('link', { name: /OpenStreetMap contributors/i })).toHaveAttribute(

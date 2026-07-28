@@ -702,7 +702,7 @@ describe('MapView', () => {
     expect(screen.queryByTestId('marker-badge-user-empty')).not.toBeInTheDocument();
   });
 
-  it('creates a custom dark vector style with the Cruush map palette', () => {
+  it('creates a custom dark vector style with the cruush map palette', () => {
     const style = createCruushVectorStyle() as any;
     const layerById = new Map<string, any>(
       style.layers.map((layer: any) => [layer.id, layer] as [string, any])

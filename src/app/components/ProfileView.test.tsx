@@ -263,12 +263,12 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Send cruush' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'send cruush' }));
 
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-1', expect.objectContaining({
       name: 'Jordan',
     })));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Mutual cruush' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'mutual cruush' })).toBeDisabled());
     await waitFor(() => expect(getProfileById).toHaveBeenCalledTimes(2));
 
     expect(eventListener).toHaveBeenCalledWith(expect.objectContaining({
@@ -298,12 +298,12 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    const cruushButton = await screen.findByRole('button', { name: 'Send cruush' });
+    const cruushButton = await screen.findByRole('button', { name: 'send cruush' });
     fireEvent.click(cruushButton);
     fireEvent.click(cruushButton);
 
     expect(sendCruush).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: 'Sending cruush' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'sending cruush' })).toBeDisabled();
 
     resolveCruush({
       id: 'cruush-1',
@@ -313,7 +313,7 @@ describe('ProfileView', () => {
       mutual: false,
     });
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Cruush sent' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'cruush sent' })).toBeDisabled());
   });
 
   it('shows a persisted sent state for outgoing non-mutual cruushes', async () => {
@@ -335,11 +335,11 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    const cruushButton = await screen.findByRole('button', { name: 'Cruush sent' });
+    const cruushButton = await screen.findByRole('button', { name: 'cruush sent' });
 
     expect(cruushButton).toBeDisabled();
     expect(cruushButton).toHaveTextContent('sent');
-    expect(screen.queryByRole('button', { name: 'Mutual cruush' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'mutual cruush' })).not.toBeInTheDocument();
 
     fireEvent.click(cruushButton);
     expect(sendCruush).not.toHaveBeenCalled();
@@ -365,7 +365,7 @@ describe('ProfileView', () => {
 
     expect(await screen.findByTestId('profile-hero-media')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Share profile' })).not.toBeInTheDocument();
-    const cruushButton = screen.getByRole('button', { name: 'Mutual cruush' });
+    const cruushButton = screen.getByRole('button', { name: 'mutual cruush' });
 
     expect(cruushButton).toBeDisabled();
     expect(cruushButton).toHaveTextContent('mutual cruush');

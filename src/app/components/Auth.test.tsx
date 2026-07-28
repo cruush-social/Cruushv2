@@ -105,6 +105,32 @@ describe('Auth', () => {
     expect(screen.queryByLabelText('Support message')).not.toBeInTheDocument();
   });
 
+  it('lets people reveal and hide password fields on sign in and sign up', () => {
+    render(<Auth onAuth={vi.fn()} />);
+
+    const signInPassword = screen.getByLabelText('Password');
+    expect(signInPassword).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
+    expect(signInPassword).toHaveAttribute('type', 'text');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide password' }));
+    expect(signInPassword).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
+
+    const signUpPassword = screen.getByLabelText('Password');
+    const confirmPassword = screen.getByLabelText('Confirm Password');
+    expect(signUpPassword).toHaveAttribute('type', 'password');
+    expect(confirmPassword).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show confirm password' }));
+
+    expect(signUpPassword).toHaveAttribute('type', 'text');
+    expect(confirmPassword).toHaveAttribute('type', 'text');
+  });
+
   it('retains a referral query parameter through signup without displaying it', async () => {
     window.history.replaceState({}, '', '/?ref=abcdefghijklmnop');
     signUp.mockResolvedValue({

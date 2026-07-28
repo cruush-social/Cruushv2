@@ -142,7 +142,7 @@ export default function FeelingLucky() {
             key={`locked-${browseNonce}`}
             mode="locked"
             variant="page"
-            onUpgrade={() => navigate('/upgrade')}
+            onUpgrade={() => navigate('/rewards')}
           />
         ) : null}
 

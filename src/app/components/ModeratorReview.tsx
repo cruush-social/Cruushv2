@@ -399,7 +399,7 @@ export default function ModeratorReview() {
       <div className="min-h-screen bg-background px-4 py-16 text-center">
         <ShieldAlert className="mx-auto h-10 w-10 text-destructive" />
         <h1 className="mt-4 text-2xl">Moderator access required</h1>
-        <p className="mt-2 text-sm text-muted-foreground">This interface is available only to active Cruush moderators.</p>
+        <p className="mt-2 text-sm text-muted-foreground">This interface is available only to active cruush moderators.</p>
         <Button className="mt-6" variant="outline" onClick={() => navigate('/map')}>Return to map</Button>
       </div>
     );

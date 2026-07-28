@@ -257,7 +257,7 @@ describe('LocalFeed', () => {
     expect(screen.queryByRole('button', { name: 'Block me' })).not.toBeInTheDocument();
   });
 
-  it('locks local feed posting for free users and routes them to cruush+', async () => {
+  it('locks local feed posting for free users and routes them to rewards', async () => {
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
       expiresAt: null,
@@ -271,7 +271,7 @@ describe('LocalFeed', () => {
       <MemoryRouter initialEntries={['/feed']}>
         <Routes>
           <Route path="/feed" element={<><LocalFeed /><LocationProbe /></>} />
-          <Route path="/upgrade" element={<LocationProbe />} />
+          <Route path="/rewards" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -285,7 +285,7 @@ describe('LocalFeed', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/upgrade');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
     expect(createFeedPost).not.toHaveBeenCalled();
   });
 });

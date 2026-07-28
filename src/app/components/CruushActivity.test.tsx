@@ -159,7 +159,7 @@ describe('CruushActivity', () => {
     expect(screen.getByText('Someone new')).toBeInTheDocument();
     expect(screen.getByText('Upgrade to view')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cruush luna back' }));
+    fireEvent.click(screen.getByRole('button', { name: 'cruush luna back' }));
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-luna', expect.objectContaining({
       name: 'luna',
     })));

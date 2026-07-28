@@ -680,7 +680,7 @@ describe('MapHome', () => {
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
-          <Route path="/upgrade" element={<LocationProbe />} />
+          <Route path="/rewards" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     );
@@ -696,7 +696,7 @@ describe('MapHome', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/upgrade');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
   });
 
   it('lets free users open seeking and visibility controls from the map', async () => {
@@ -713,7 +713,7 @@ describe('MapHome', () => {
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
-          <Route path="/upgrade" element={<LocationProbe />} />
+          <Route path="/rewards" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     );
@@ -731,7 +731,7 @@ describe('MapHome', () => {
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
-          <Route path="/upgrade" element={<LocationProbe />} />
+          <Route path="/rewards" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     );
@@ -758,7 +758,7 @@ describe('MapHome', () => {
       <MemoryRouter initialEntries={['/map']}>
         <Routes>
           <Route path="/map" element={<><MapHome /><LocationProbe /></>} />
-          <Route path="/upgrade" element={<LocationProbe />} />
+          <Route path="/rewards" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     );
@@ -774,7 +774,7 @@ describe('MapHome', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Upgrade for saved sets' }));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/upgrade');
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
   });
 
   it('lets cruush+ users apply saved visibility sets from the visibility sheet', async () => {
@@ -1021,7 +1021,7 @@ describe('MapHome', () => {
     fireEvent.click(cruushButton);
 
     expect(sendCruush).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: 'Sending cruush' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'sending cruush' })).toBeDisabled();
 
     resolveCruush({
       id: 'cruush-1',

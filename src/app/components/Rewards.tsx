@@ -226,7 +226,7 @@ export default function Rewards() {
                   </div>
                 </div>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  A Cruush, legitimate message, reply, or other eligible social action counts once per
+                  A cruush, legitimate message, reply, or other eligible social action counts once per
                   calendar day. Opening the app or logging in alone does not count.
                 </p>
               </CardContent>
@@ -347,7 +347,7 @@ export default function Rewards() {
                 ) : setup ? (
                   <form className="space-y-4" onSubmit={handleCompleteSetup}>
                     <div className="mx-auto w-fit rounded-lg bg-white p-3">
-                      <img src={setup.qrCodeDataUrl} alt="Cruush authenticator setup QR code" className="h-56 w-56" />
+                      <img src={setup.qrCodeDataUrl} alt="cruush authenticator setup QR code" className="h-56 w-56" />
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Can’t scan? Enter this key once:</p>

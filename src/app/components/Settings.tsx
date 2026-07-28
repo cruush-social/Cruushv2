@@ -401,7 +401,7 @@ export default function Settings() {
             <div>
               <p>Open map data</p>
               <p className="text-sm text-muted-foreground">
-                Cruush maps use open map data and tile services. Map data &copy; OpenStreetMap contributors.
+                cruush maps use open map data and tile services. Map data &copy; OpenStreetMap contributors.
               </p>
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">

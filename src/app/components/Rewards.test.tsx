@@ -137,7 +137,7 @@ describe('Rewards', () => {
       target: { value: 'correct-password' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Set up authenticator app' }));
-    expect(await screen.findByAltText('Cruush authenticator setup QR code')).toBeInTheDocument();
+    expect(await screen.findByAltText('cruush authenticator setup QR code')).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('6-digit authenticator code'), {
       target: { value: '123456' },
