@@ -19,6 +19,18 @@ describe("client security check", () => {
     })).not.toThrow();
   });
 
+  it("accepts a quick saved-credential submission", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-28T12:00:00.000Z"));
+    const now = Date.now();
+
+    expect(() => verifyClientSecurityCheck({
+      startedAt: now - 180,
+      submittedAt: now,
+      trap: ""
+    })).not.toThrow();
+  });
+
   it("rejects bot trap submissions", () => {
     const now = Date.now();
 

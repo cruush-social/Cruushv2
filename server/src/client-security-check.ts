@@ -6,7 +6,7 @@ type ClientSecurityCheck = {
   trap?: string;
 };
 
-const MIN_SUBMIT_DELAY_MS = 450;
+const MIN_SUBMIT_DELAY_MS = 100;
 const MAX_SUBMIT_DELAY_MS = 30 * 60 * 1000;
 const MAX_CLOCK_SKEW_MS = 60 * 1000;
 

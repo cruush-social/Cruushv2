@@ -305,12 +305,18 @@ export default function Auth({ onAuth }: AuthProps) {
         {/* Auth form */}
         <form onSubmit={handleSubmit} className="launch-login-auth-form space-y-5">
           <div className="launch-login-auth-human-check" aria-hidden="true">
-            <label htmlFor="launch-login-company">Company</label>
+            <label htmlFor="launch-login-auth-extra-url">Leave blank</label>
             <input
-              id="launch-login-company"
-              name="company"
+              id="launch-login-auth-extra-url"
+              name="cruush_auth_extra_url"
               type="text"
-              autoComplete="off"
+              autoCapitalize="none"
+              autoComplete="new-password"
+              data-1p-ignore="true"
+              data-form-type="other"
+              data-lpignore="true"
+              inputMode="none"
+              spellCheck={false}
               tabIndex={-1}
               value={humanCheckTrap}
               onChange={(event) => setHumanCheckTrap(event.target.value)}

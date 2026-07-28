@@ -68,7 +68,11 @@ describe('Auth', () => {
     expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');
     expect(screen.getByTestId('launch-login-auth-captcha')).toHaveClass('launch-login-auth-captcha');
     expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-auth-rain-pane');
-    expect(container.querySelector('#launch-login-company')).toHaveAttribute('tabindex', '-1');
+    const humanCheckInput = container.querySelector('#launch-login-auth-extra-url');
+    expect(humanCheckInput).toHaveAttribute('tabindex', '-1');
+    expect(humanCheckInput).toHaveAttribute('name', 'cruush_auth_extra_url');
+    expect(humanCheckInput).toHaveAttribute('autocomplete', 'new-password');
+    expect(humanCheckInput).toHaveAttribute('data-lpignore', 'true');
     expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
     expect(screen.getByTestId('launch-login-auth-tagline')).toHaveTextContent('queer cruisers cruise cruush');
     expect(screen.getByLabelText('Email')).toHaveClass('launch-login-auth-input');
