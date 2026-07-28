@@ -65,7 +65,7 @@
   opacity: 0;
   pointer-events: none;
   transform: translateZ(0);
-  filter: saturate(2.2) contrast(1.62) brightness(0.38);
+  filter: none;
   transition: opacity 320ms ease;
 }
 
@@ -73,8 +73,12 @@
   opacity: 0.86;
 }
 
+.launch-login-map-teaser--video-ready:not(.launch-login-map-teaser--mobile-recording) .launch-login-map-teaser__video {
+  opacity: 0.72;
+}
+
 .launch-login-map-teaser--mobile-recording .launch-login-map-teaser__video {
-  filter: saturate(1.18) contrast(1.08) brightness(0.96);
+  filter: none;
 }
 
 .launch-login-map-teaser__mobile-pulse {
@@ -126,7 +130,18 @@
   position: absolute;
   inset: 0;
   z-index: 2;
+  background:
+    radial-gradient(ellipse at 50% 36%, transparent 0 8rem, rgba(0, 0, 0, 0.44) 18rem, rgba(0, 0, 0, 0.9)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.12) 36%, rgba(0, 0, 0, 0.82)),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.52), transparent 18% 82%, rgba(0, 0, 0, 0.52));
   pointer-events: none;
+}
+
+.launch-login-map-teaser--video-ready:not(.launch-login-map-teaser--mobile-recording) .launch-login-map-teaser__mobile-fallback {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.24) 34%, rgba(0, 0, 0, 0.88)),
+    linear-gradient(96deg, rgba(0, 0, 0, 0.74), rgba(255, 0, 114, 0.12) 26%, rgba(0, 0, 0, 0.34) 52%, rgba(17, 129, 255, 0.14) 76%, rgba(0, 0, 0, 0.78)),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.66), rgba(0, 0, 0, 0.2) 30% 70%, rgba(0, 0, 0, 0.66));
 }
 
 .launch-login-map-teaser--video-ready .launch-login-map-teaser__map,
@@ -143,7 +158,6 @@
 }
 
 .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__phone-glow,
-.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__brand-mark,
 .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__map,
 .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__blocks,
 .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__pin,
@@ -338,27 +352,6 @@
   background: linear-gradient(90deg, transparent, rgba(42, 78, 255, 0.94), rgba(255, 255, 255, 0.28), transparent);
   box-shadow: 0 0 1.5rem rgba(42, 78, 255, 0.5);
   animation-delay: -2.7s;
-}
-
-.launch-login-map-teaser__brand-mark {
-  position: absolute;
-  left: 50%;
-  top: clamp(1rem, 3vh, 2.4rem);
-  z-index: 4;
-  width: min(42rem, 92vw);
-  height: clamp(15rem, 32vh, 25rem);
-  transform: translateX(-50%);
-  background: url('../assets/brand/cruush-logo.svg') center / contain no-repeat;
-  filter:
-    blur(0.12px)
-    saturate(1.44)
-    brightness(1.2)
-    contrast(1.26)
-    drop-shadow(0 1.2rem 2.8rem rgba(0, 0, 0, 0.68))
-    drop-shadow(0 0 3.4rem rgba(17, 129, 255, 0.38))
-    drop-shadow(0 0 2.6rem rgba(255, 0, 114, 0.26));
-  opacity: 0.96;
-  animation: launch-login-brand-behind-glass-loop 30s ease-in-out infinite;
 }
 
 .launch-login-map-teaser__steam {
@@ -1826,10 +1819,6 @@
 
   .launch-login-map-teaser__club-laser--cobalt {
     top: 56%;
-  }
-
-  .launch-login-map-teaser__brand-mark {
-    display: none;
   }
 
   .launch-login-map-teaser__map {

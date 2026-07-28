@@ -26,7 +26,7 @@ type LaunchLoginMapTeaserProps = {
   onPlaybackStateChange?: (state: LaunchLoginMapTeaserPlaybackState) => void;
 };
 
-const DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-desktop.webm';
+const DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-desktop.mp4';
 const MOBILE_TEASER_VIDEO = '/teasers/launch-login-teaser-mobile.mp4';
 const MOBILE_VIDEO_QUERY = '(max-width: 640px)';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
@@ -182,7 +182,7 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
   const [videoSource, setVideoSource] = useState<string | null>(() => getTeaserVideoSource());
   const [isMobileViewport, setIsMobileViewport] = useState(() => getIsMobileViewport());
   const isMobileRecording = videoSource === MOBILE_TEASER_VIDEO;
-  const shouldRenderFullScene = !isMobileViewport;
+  const shouldRenderFullScene = !isMobileViewport && !isVideoReady;
   const teaserClassName = [
     'launch-login-map-teaser',
     isVideoReady ? 'launch-login-map-teaser--video-ready' : '',
@@ -281,7 +281,6 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
             <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--pink" />
             <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--cobalt" />
           </div>
-          <div className="launch-login-map-teaser__brand-mark" data-testid="launch-login-brand-mark" />
           <div className="launch-login-map-teaser__map" data-testid="launch-login-map-scene">
             <div className="launch-login-map-teaser__blocks" />
             <div className="launch-login-map-teaser__streets">
