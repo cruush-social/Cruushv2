@@ -700,6 +700,9 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     visibility_rules: sanitizeVisibilityRules(profile),
     year_of_birth: profile.year_of_birth,
   };
+  const profileMenuProps = {
+    menuPortal: embedded,
+  };
   return (
     <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
       <header className={`${embedded ? 'top-0 border-white/10 bg-black/85 text-white' : 'top-0 border-border bg-card/80'} sticky z-10 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
@@ -819,22 +822,23 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Looking For</Label>
-              <MultiSelect options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', vals)} />
+              <MultiSelect {...profileMenuProps} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', vals)} />
             </div>
 
             <div className="space-y-2">
               <Label>Availability</Label>
-              <MultiSelect options={AVAILABILITY} value={normalizedProfile.availability} onChange={(vals) => handleChange('availability', vals)} />
+              <MultiSelect {...profileMenuProps} options={AVAILABILITY} value={normalizedProfile.availability} onChange={(vals) => handleChange('availability', vals)} />
             </div>
 
             <div className="space-y-2">
               <Label>Hosting/Travel</Label>
-              <MultiSelect options={HOSTING} value={normalizedProfile.hosting_travel} onChange={(vals) => handleChange('hosting_travel', vals)} />
+              <MultiSelect {...profileMenuProps} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={(vals) => handleChange('hosting_travel', vals)} />
             </div>
 
             <div className="space-y-2">
               <Label>Vibes</Label>
               <MultiSelect
+                {...profileMenuProps}
                 ariaLabel="Vibes"
                 optionGroups={VIBE_GROUPS}
                 value={normalizedProfile.vibes}
@@ -857,7 +861,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Pronouns</Label>
-              <MultiSelect options={PRONOUNS} value={normalizedProfile.pronouns} onChange={(vals) => handleChange('pronouns', vals)} />
+              <MultiSelect {...profileMenuProps} options={PRONOUNS} value={normalizedProfile.pronouns} onChange={(vals) => handleChange('pronouns', vals)} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -886,6 +890,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             <div className="space-y-2">
               <Label>Gender Identities</Label>
               <MultiSelect
+                {...profileMenuProps}
                 ariaLabel="Gender Identities"
                 maxSelections={MAX_GENDER_IDENTITIES}
                 options={IDENTITIES}
@@ -898,12 +903,12 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Presentation</Label>
-              <MultiSelect options={PRESENTATIONS} value={normalizedProfile.presentation} onChange={(vals) => handleChange('presentation', vals)} />
+              <MultiSelect {...profileMenuProps} options={PRESENTATIONS} value={normalizedProfile.presentation} onChange={(vals) => handleChange('presentation', vals)} />
             </div>
 
             <div className="space-y-2">
               <Label>Sexuality</Label>
-              <MultiSelect options={SEXUALITY} value={normalizedProfile.sexuality} onChange={(vals) => handleChange('sexuality', vals)} />
+              <MultiSelect {...profileMenuProps} options={SEXUALITY} value={normalizedProfile.sexuality} onChange={(vals) => handleChange('sexuality', vals)} />
             </div>
 
             <div className="space-y-3 rounded-md border border-border bg-card/40 p-4">
@@ -919,6 +924,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <div className="space-y-2">
                 <Label>Trans status visibility</Label>
                 <MultiSelect
+                  {...profileMenuProps}
                   ariaLabel="Trans status visibility"
                   options={VISIBILITY_OPTION_LABELS}
                   value={[getVisibilityLabel(normalizedProfile.trans_status_visibility)]}
@@ -931,6 +937,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <div className="space-y-2">
                 <Label>Crowds</Label>
                 <MultiSelect
+                  {...profileMenuProps}
                   ariaLabel="Crowds"
                   options={normalizedProfile.is_trans === true ? CROWDS : CROWDS.filter((crowd) => crowd !== 'T4T')}
                   value={normalizedProfile.crowds}
@@ -941,7 +948,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Body Type</Label>
-              <MultiSelect options={BODY_TYPES} value={normalizedProfile.body_type} onChange={(vals) => handleChange('body_type', vals)} />
+              <MultiSelect {...profileMenuProps} options={BODY_TYPES} value={normalizedProfile.body_type} onChange={(vals) => handleChange('body_type', vals)} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -957,7 +964,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Hobbies</Label>
-              <MultiSelect options={HOBBIES} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', vals)} />
+              <MultiSelect {...profileMenuProps} options={HOBBIES} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', vals)} />
             </div>
           </TabsContent>
 
@@ -966,6 +973,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <div className="space-y-2">
                 <Label>Position</Label>
                 <MultiSelect
+                  {...profileMenuProps}
                   ariaLabel="Position"
                   options={POSITIONS}
                   value={normalizedProfile.position}
@@ -976,6 +984,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <div className="space-y-2">
                 <Label>Role</Label>
                 <MultiSelect
+                  {...profileMenuProps}
                   ariaLabel="Role"
                   options={ROLES}
                   value={normalizedProfile.role}
@@ -986,15 +995,16 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
             <div className="space-y-2">
               <Label>Availability</Label>
-              <MultiSelect options={AVAILABILITY} value={normalizedProfile.availability} onChange={vals => handleChange('availability', vals)} />
+              <MultiSelect {...profileMenuProps} options={AVAILABILITY} value={normalizedProfile.availability} onChange={vals => handleChange('availability', vals)} />
             </div>
             <div className="space-y-2">
               <Label>Hosting/Travel</Label>
-              <MultiSelect options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', vals)} />
+              <MultiSelect {...profileMenuProps} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', vals)} />
             </div>
             <div className="space-y-2">
               <Label>Kinks & Fetishes</Label>
               <MultiSelect
+                {...profileMenuProps}
                 ariaLabel="Kinks & Fetishes"
                 optionGroups={KINK_GROUPS}
                 value={normalizedProfile.kinks}
@@ -1004,6 +1014,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             <div className="space-y-2">
               <Label>Kinks & Fetishes visibility</Label>
               <MultiSelect
+                {...profileMenuProps}
                 ariaLabel="Kinks & Fetishes visibility"
                 options={VISIBILITY_OPTION_LABELS}
                 value={[getVisibilityLabel(normalizedProfile.kinks_visibility)]}
@@ -1017,35 +1028,34 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           <TabsContent value="health" className="space-y-6 mt-6">
             <div className="space-y-2">
               <Label>HIV Status</Label>
-              <MultiSelect ariaLabel="HIV Status" options={HIV_STATUS} value={normalizedProfile.hiv_status} onChange={vals => handleChange('hiv_status', vals)} />
+              <MultiSelect {...profileMenuProps} ariaLabel="HIV Status" options={HIV_STATUS} value={normalizedProfile.hiv_status} onChange={vals => handleChange('hiv_status', vals)} />
             </div>
             <div className="space-y-2">
               <Label>Condoms</Label>
-              <MultiSelect options={CONDOMS} value={normalizedProfile.condoms} onChange={vals => handleChange('condoms', vals)} />
+              <MultiSelect {...profileMenuProps} options={CONDOMS} value={normalizedProfile.condoms} onChange={vals => handleChange('condoms', vals)} />
             </div>
             <div className="space-y-2">
               <Label>PrEP</Label>
-              <MultiSelect options={PREP} value={normalizedProfile.prep} onChange={vals => handleChange('prep', vals)} />
+              <MultiSelect {...profileMenuProps} options={PREP} value={normalizedProfile.prep} onChange={vals => handleChange('prep', vals)} />
             </div>
             <div className="space-y-2">
               <Label>DoxyPEP</Label>
-              <MultiSelect options={DOXYPEP} value={normalizedProfile.doxypep} onChange={vals => handleChange('doxypep', vals)} />
+              <MultiSelect {...profileMenuProps} options={DOXYPEP} value={normalizedProfile.doxypep} onChange={vals => handleChange('doxypep', vals)} />
             </div>
             <div className="space-y-2">
               <Label>COVID Vaccine</Label>
-              <MultiSelect options={COVID_VACCINE} value={normalizedProfile.covid_vaccine} onChange={vals => handleChange('covid_vaccine', vals)} />
+              <MultiSelect {...profileMenuProps} options={COVID_VACCINE} value={normalizedProfile.covid_vaccine} onChange={vals => handleChange('covid_vaccine', vals)} />
             </div>
             <div className="space-y-2">
               <Label>MPOX Vaccine</Label>
-              <MultiSelect options={MPOX_VACCINE} value={normalizedProfile.mpox_vaccine} onChange={vals => handleChange('mpox_vaccine', vals)} />
+              <MultiSelect {...profileMenuProps} options={MPOX_VACCINE} value={normalizedProfile.mpox_vaccine} onChange={vals => handleChange('mpox_vaccine', vals)} />
             </div>
             <div className="space-y-2">
               <Label>Substance Boundaries</Label>
               <p className="text-sm text-muted-foreground">Select anything you do not want involved when meeting.</p>
               <MultiSelect
+                {...profileMenuProps}
                 ariaLabel="Substance Boundaries"
-                menuPortal={embedded}
-                menuPlacement="top"
                 options={SUBSTANCE_BOUNDARIES}
                 value={normalizedProfile.substance_boundaries}
                 onChange={vals => handleChange('substance_boundaries', vals)}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import CruushIconImage from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { resolveMediaUrl } from '../lib/apiClient';
-import { PROFILE_HERO_ASPECT_STYLE } from '../lib/photoLayout';
+import { PROFILE_HERO_ASPECT_STYLE, PROFILE_HERO_MEDIA_STYLE } from '../lib/photoLayout';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import ReportAction from './ReportAction';
 
@@ -41,7 +41,7 @@ export default function ProfilePhotoGallery({
     <div
       data-testid="profile-hero-media"
       className="relative w-full overflow-hidden"
-      style={{ ...PROFILE_HERO_ASPECT_STYLE, background: 'var(--cruush-gradient)' }}
+      style={{ ...PROFILE_HERO_MEDIA_STYLE, background: 'var(--cruush-gradient)' }}
     >
       {activePhoto ? (
         <img

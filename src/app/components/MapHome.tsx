@@ -5,7 +5,6 @@ import { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Filter, MapPin, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
-import { Switch } from './ui/switch';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
@@ -63,54 +62,6 @@ const CROWD_NOTICE_LABELS: Record<string, string> = {
 const MapView = lazy(() => import('./MapView'));
 
 export { canUseDeveloperMapToolsEmail };
-
-const DEMO_NYC_PROFILE_PHOTO = `data:image/svg+xml,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
-  <defs>
-    <radialGradient id="skin" cx="50%" cy="34%" r="68%">
-      <stop offset="0%" stop-color="#ffd0df"/>
-      <stop offset="58%" stop-color="#b84a65"/>
-      <stop offset="100%" stop-color="#36121d"/>
-    </radialGradient>
-    <linearGradient id="backdrop" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ff0072"/>
-      <stop offset="55%" stop-color="#5d1741"/>
-      <stop offset="100%" stop-color="#070707"/>
-    </linearGradient>
-  </defs>
-  <rect width="320" height="320" fill="url(#backdrop)"/>
-  <circle cx="230" cy="62" r="52" fill="#22b8ff" opacity=".24"/>
-  <circle cx="102" cy="92" r="76" fill="#ffffff" opacity=".08"/>
-  <circle cx="160" cy="128" r="70" fill="url(#skin)"/>
-  <path d="M58 320c8-78 62-126 136-126 62 0 108 42 118 126z" fill="#090909"/>
-  <path d="M75 320c11-46 45-76 93-76 38 0 70 24 84 76z" fill="#d11f3a" opacity=".64"/>
-  <path d="M78 138c12-66 52-96 109-82 42 10 66 42 70 92-30-42-68-52-114-34-22 9-46 24-65 24z" fill="#080808"/>
-  <circle cx="135" cy="136" r="8" fill="#11080d"/>
-  <circle cx="190" cy="136" r="8" fill="#11080d"/>
-  <path d="M134 174c18 15 42 15 60 0" fill="none" stroke="#fff1f6" stroke-width="9" stroke-linecap="round" opacity=".7"/>
-  <path d="M36 42h92" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity=".22"/>
-  <path d="M42 68h58" stroke="#ffffff" stroke-width="6" stroke-linecap="round" opacity=".18"/>
-</svg>
-`)}`;
-
-const DEMO_NYC_DISCOVERY_USER: DiscoveryUser = {
-  id: 'demo-nyc-connected-pin',
-  name: 'Mika Demo',
-  display_name: 'Mika Demo',
-  age: 29,
-  pronouns: 'he/they',
-  lat: 40.7336,
-  lng: -74.0027,
-  lastActive: '3m ago',
-  distance: 'Demo NYC pin',
-  lookingFor: ['Cruising', 'Tonight', 'Consent first'],
-  vibes: ['Red heart pin', 'Photo fill', 'West Village', 'Bear', 'Daddy'],
-  position: ['Versatile'],
-  role: ['Switch'],
-  hostingTravel: ['Can Host'],
-  photo: DEMO_NYC_PROFILE_PHOTO,
-  isDemo: true,
-};
 
 function getLastActiveMinutes(lastActive: string) {
   const value = parseInt(lastActive, 10);
@@ -341,7 +292,7 @@ type LuckySlotState =
       nonce: number;
     };
 
-export default function MapHome({ developerToolsEnabled = false }: MapHomeProps = {}) {
+export default function MapHome(_props: MapHomeProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -369,7 +320,6 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
-  const [npcGhostDemoEnabled, setNpcGhostDemoEnabled] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
@@ -384,8 +334,6 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
   });
   const isMutualMapMode = searchParams.get('mode') === 'mutuals';
   const focusUserId = searchParams.get('focusUserId');
-  const canUseDeveloperMapTools = developerToolsEnabled;
-  const effectiveNpcGhostDemoEnabled = canUseDeveloperMapTools && npcGhostDemoEnabled;
   const routeState = location.state as { openOwnProfilePanel?: boolean } | null;
   const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
   const hasCruushPlus = billingStatus?.cruushPlus !== false;
@@ -571,15 +519,13 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
     void fetchUsers(getCurrentFetchCoordinates(), filters);
   }, [isMutualMapMode]);
 
-  const discoveryRequestOptions = (npcGhostDemo = effectiveNpcGhostDemoEnabled) => ({
+  const discoveryRequestOptions = () => ({
     limit: DISCOVERY_MAP_LIMIT,
-    ...(canUseDeveloperMapTools && npcGhostDemo ? { npcGhostDemo: true } : {}),
   });
 
   const fetchUsers = async (
     coordinates: { lat: number; lng: number } | null,
     filterParams?: FilterState,
-    npcGhostDemoOverride = effectiveNpcGhostDemoEnabled,
   ) => {
     setLoading(true);
     setError(null);
@@ -591,8 +537,8 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
           .map(mutualMapItemToDiscoveryUser));
       } else {
         setUsers(filterParams
-          ? await getNearbyUsers(coordinates, filterParams, discoveryRequestOptions(npcGhostDemoOverride))
-          : await getNearbyUsers(coordinates, undefined, discoveryRequestOptions(npcGhostDemoOverride)));
+          ? await getNearbyUsers(coordinates, filterParams, discoveryRequestOptions())
+          : await getNearbyUsers(coordinates, undefined, discoveryRequestOptions()));
       }
     } catch (fetchError) {
       console.error('Error fetching users:', fetchError);
@@ -620,7 +566,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
       setSelectedUser((currentUser) => currentUser?.id === payload.targetUserId ? null : currentUser);
       void fetchUsers(getCurrentFetchCoordinates(), filters);
     });
-  }, [effectiveNpcGhostDemoEnabled, filters, isMutualMapMode, userApproximateLocation]);
+  }, [filters, isMutualMapMode, userApproximateLocation]);
 
   const requestUserLocation = (centerAfterUpdate = false) => {
     setLocationError(null);
@@ -744,18 +690,6 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
         lng: userApproximateLocation.approximateLongitude,
       }
     : null;
-
-  const handleNpcGhostDemoChange = (enabled: boolean) => {
-    if (!canUseDeveloperMapTools) {
-      return;
-    }
-
-    setNpcGhostDemoEnabled(enabled);
-
-    if (!isMutualMapMode) {
-      void fetchUsers(getCurrentFetchCoordinates(), filters, enabled);
-    }
-  };
 
   const handleVisibilityChange = (nextVisibility: VisibilityControlState) => {
     setVisibility({
@@ -907,8 +841,7 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
     }
   };
 
-  const shouldShowDemoUser = canUseDeveloperMapTools && !isMutualMapMode && !loading && !error && users.length === 0;
-  const displayedUsers = shouldShowDemoUser ? [DEMO_NYC_DISCOVERY_USER] : filteredUsers;
+  const displayedUsers = filteredUsers;
   const savedProfileMapLocation = useMemo(
     () => profileLocationToApproximateCoordinates(currentProfile),
     [currentProfile],
@@ -1047,22 +980,6 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
       ...nearbyMarkers,
     ];
   }, [currentProfile, currentUserMapLocation, displayedUsers, privacySettings, userApproximateLocation]);
-
-  const npcGhostDemoRadiusCircles = useMemo(() => {
-    if (!effectiveNpcGhostDemoEnabled) {
-      return [];
-    }
-
-    return displayedUsers
-      .filter((user) => user.npcGhostDemo)
-      .map((user) => ({
-        center: {
-          approximateLatitude: user.lat,
-          approximateLongitude: user.lng,
-        },
-        radiusMeters: privacySettings.ghostRadiusMeters,
-      }));
-  }, [displayedUsers, effectiveNpcGhostDemoEnabled, privacySettings.ghostRadiusMeters]);
 
   const focusedMutualMapLocation = useMemo(() => {
     if (!isMutualMapMode || !focusUserId) {
@@ -1267,13 +1184,12 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
             markers={mapMarkers}
             fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
             focusCoordinates={focusedMutualMapLocation ?? currentUserMapLocation}
-            radiusCircle={(privacySettings.ghostModeEnabled || effectiveNpcGhostDemoEnabled) && currentUserMapLocation
+            radiusCircle={privacySettings.ghostModeEnabled && currentUserMapLocation
               ? {
                   center: currentUserMapLocation,
                   radiusMeters: privacySettings.ghostRadiusMeters,
                 }
               : null}
-            demoRadiusCircles={npcGhostDemoRadiusCircles}
             onMapReady={(map) => setMapInstance(map)}
           />
         </Suspense>
@@ -1294,15 +1210,6 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
         {loading ? (
           <div className="absolute inset-x-4 top-28 z-20 rounded-md bg-card/90 p-3 text-sm text-muted-foreground backdrop-blur-sm">
             Loading nearby people...
-          </div>
-        ) : null}
-
-        {shouldShowDemoUser ? (
-          <div className="absolute left-4 right-4 top-28 z-20 rounded-2xl border border-white/10 bg-background/88 p-4 text-sm text-white/72 shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur-md sm:right-auto sm:max-w-sm">
-            <div className="text-xs uppercase tracking-[0.18em] text-white/45">Demo NYC pin</div>
-            <p className="mt-2 leading-6">
-              Mika Demo is fake data near the West Village so the connected-user pin design is visible while real discovery is empty.
-            </p>
           </div>
         ) : null}
 
@@ -1350,18 +1257,6 @@ export default function MapHome({ developerToolsEnabled = false }: MapHomeProps 
               <CruushIconImage src={ghostIconColored} className="h-4 w-4" />
               Ghost Mode Active
             </div>
-          ) : null}
-
-          {canUseDeveloperMapTools && !isMutualMapMode ? (
-            <label className="inline-flex h-8 items-center gap-3 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
-              <span>NPC Ghost Test</span>
-              <Switch
-                checked={npcGhostDemoEnabled}
-                onCheckedChange={handleNpcGhostDemoChange}
-                aria-label="NPC Ghost Test"
-                className="data-[state=checked]:bg-[#0ea5ff]"
-              />
-            </label>
           ) : null}
 
           <Button

@@ -108,6 +108,7 @@ describe('ProfileEdit', () => {
     expect(screen.queryByLabelText('leather receive')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Position' }));
+    await waitFor(() => expect(screen.getByRole('listbox', { name: 'Position' }).parentElement).toHaveClass('top-full', 'mt-2'));
     expect(screen.getByRole('option', { name: 'pillow princess' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'stone top' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'vers bottom' })).toBeInTheDocument();

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import HeartPhoto from './HeartPhoto';
 import CruushBadge from './CruushBadge';
-import { CruushIcon, type CruushIconName } from './CruushIconImage';
+import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -416,16 +416,11 @@ export default function CruushActivity() {
               </Button>
             </div>
 
-            <div className="mt-2">
-              <h1 className="text-xl text-white">your cruushes</h1>
-              <p className="text-xs text-white/58">relationships, interest & activity</p>
-            </div>
-
             <TabsList className="mt-4 grid h-auto w-full grid-cols-4 rounded-full border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl">
-              <ActivityTabButton value="incoming" iconName="cruush" label="incoming" count={activity?.counts.incoming ?? 0} />
-              <ActivityTabButton value="sent" iconName="send" label="sent" count={activity?.counts.sent ?? 0} />
-              <ActivityTabButton value="mutual" iconName="cruush" label="mutual" count={activity?.counts.mutual ?? 0} />
-              <ActivityTabButton value="views" iconName="visibility" label="views" count={activity?.counts.views ?? 0} />
+              <ActivityTabButton value="incoming" label="incoming" />
+              <ActivityTabButton value="sent" label="sent" />
+              <ActivityTabButton value="mutual" label="mutual" />
+              <ActivityTabButton value="views" label="views" />
             </TabsList>
           </div>
         </header>
@@ -499,32 +494,17 @@ export default function CruushActivity() {
 
 function ActivityTabButton({
   value,
-  iconName,
   label,
-  count,
 }: {
   value: ActivityTab;
-  iconName: CruushIconName;
   label: string;
-  count: number;
 }) {
   return (
     <TabsTrigger
       value={value}
-      className="group relative min-h-[4.25rem] rounded-full border border-transparent bg-transparent text-white/64 transition-colors hover:border-white/10 hover:bg-white/8 data-[state=active]:border-white/12 data-[state=active]:bg-white/10 data-[state=active]:text-primary"
+      className="relative h-10 rounded-full border border-transparent bg-transparent px-2 text-sm text-white/72"
     >
-      <span className="flex flex-col items-center gap-1">
-        <span className="relative">
-          <CruushIcon name={iconName} className="h-6 w-6 opacity-55 group-data-[state=active]:hidden" />
-          <CruushIcon name={iconName} className="hidden h-6 w-6 group-data-[state=active]:block" variant="colored" />
-          {count > 0 ? (
-            <span className="absolute -right-3 -top-2 rounded-full bg-primary px-1.5 py-0.5 text-[10px] leading-none text-white">
-              {count}
-            </span>
-          ) : null}
-        </span>
-        <span className="text-xs">{label}</span>
-      </span>
+      {label}
     </TabsTrigger>
   );
 }

@@ -428,12 +428,14 @@ export function ProfileDetailsTabs({
   profileView: ProfileViewModel;
   compact?: boolean;
 }) {
+  const tabTriggerClassName = compact ? 'min-h-9' : 'min-h-11';
+
   return (
     <Tabs value={activeTab} onValueChange={onActiveTabChange} className="w-full">
-      <TabsList className={`grid h-auto w-full grid-cols-3 rounded-2xl border border-border bg-card p-1 ${compact ? 'text-xs' : ''}`}>
-        <TabsTrigger value="basics" className={compact ? 'min-h-9' : 'min-h-11'} onClick={() => onActiveTabChange('basics')}>Basics</TabsTrigger>
-        <TabsTrigger value="intimacy" className={compact ? 'min-h-9' : 'min-h-11'} onClick={() => onActiveTabChange('intimacy')}>Intimacy</TabsTrigger>
-        <TabsTrigger value="health" className={compact ? 'min-h-9' : 'min-h-11'} onClick={() => onActiveTabChange('health')}>Health</TabsTrigger>
+      <TabsList className={`grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/25 p-1 ${compact ? 'text-xs' : ''}`}>
+        <TabsTrigger value="basics" className={tabTriggerClassName} onClick={() => onActiveTabChange('basics')}>Basics</TabsTrigger>
+        <TabsTrigger value="intimacy" className={tabTriggerClassName} onClick={() => onActiveTabChange('intimacy')}>Intimacy</TabsTrigger>
+        <TabsTrigger value="health" className={tabTriggerClassName} onClick={() => onActiveTabChange('health')}>Health</TabsTrigger>
       </TabsList>
 
       <TabsContent value="basics" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>

@@ -1242,10 +1242,10 @@ describe('MapHome', () => {
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
-  it('toggles the developer-only NPC Ghost Test discovery flag and shows the owner radius circle without the real Ghost badge', async () => {
+  it('does not expose the retired NPC Ghost Test discovery path for developer tools sessions', async () => {
     useIsMobile.mockReturnValue(false);
     window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
-    const normalDiscoveryUsers = [{
+    const discoveryUsers = [{
       id: 'user-1',
       name: 'Jordan',
       display_name: 'Jordan',
@@ -1262,23 +1262,8 @@ describe('MapHome', () => {
       photo: null,
       displayMode: 'PRECISE' as const,
     }];
-    const demoGhostUsers = [{
-      ...normalDiscoveryUsers[0],
-      id: 'npc-ghost-demo-02',
-      name: 'NPC Ghost 02',
-      display_name: 'NPC Ghost 02',
-      lat: 40.714,
-      lng: -74.004,
-      displayMode: 'GHOST' as const,
-      animationHint: 'FADE_LAST_MINUTE' as const,
-      privacyRadiusMeters: 1609,
-      npcGhostDemo: true,
-    }];
 
-    getNearbyUsers
-      .mockResolvedValueOnce(normalDiscoveryUsers)
-      .mockResolvedValueOnce(demoGhostUsers)
-      .mockResolvedValueOnce(normalDiscoveryUsers);
+    getNearbyUsers.mockResolvedValue(discoveryUsers);
     getMyProfile.mockResolvedValue({
       photos: ['https://example.com/me.jpg'],
       position: ['Bottom'],
@@ -1301,43 +1286,12 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    const npcGhostSwitch = await screen.findByRole('switch', { name: 'NPC Ghost Test' });
     await waitFor(() => expect(getNearbyUsers).toHaveBeenCalledTimes(1));
 
-    expect(npcGhostSwitch).toHaveAttribute('aria-checked', 'false');
+    const lastDiscoveryCall = getNearbyUsers.mock.calls[getNearbyUsers.mock.calls.length - 1];
+    expect(screen.queryByRole('switch', { name: 'NPC Ghost Test' })).not.toBeInTheDocument();
+    expect(lastDiscoveryCall?.[2]).toEqual({ limit: 50 });
     expect(screen.queryByText('Ghost Mode Active')).not.toBeInTheDocument();
-    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '');
-    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-demo-radius-circles', '0');
-
-    fireEvent.click(npcGhostSwitch);
-
-    await waitFor(() => {
-      expect(npcGhostSwitch).toHaveAttribute('aria-checked', 'true');
-      expect(getNearbyUsers).toHaveBeenLastCalledWith(null, expect.objectContaining({
-        distance: 100,
-        vibes: [],
-      }), {
-        limit: 50,
-        npcGhostDemo: true,
-      });
-    });
-    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '1609');
-    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lat', '40.713');
-    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lng', '-74.005');
-    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-demo-radius-circles', '1');
-    expect(screen.getByTestId('marker-npc-ghost-demo-02')).toHaveAttribute('data-display-mode', 'GHOST');
-    expect(screen.getByTestId('marker-npc-ghost-demo-02')).toHaveAttribute('data-npc-ghost-demo', 'true');
-    expect(screen.queryByText('Ghost Mode Active')).not.toBeInTheDocument();
-
-    fireEvent.click(npcGhostSwitch);
-
-    await waitFor(() => {
-      expect(npcGhostSwitch).toHaveAttribute('aria-checked', 'false');
-      expect(getNearbyUsers).toHaveBeenLastCalledWith(null, expect.objectContaining({
-        distance: 100,
-        vibes: [],
-      }), { limit: 50 });
-    });
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-demo-radius-circles', '0');
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-npc-ghost-demo', 'false');
@@ -1570,7 +1524,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
   });
 
-  it('shows a fully designed developer-only demo NYC pin when discovery returns no nearby users', async () => {
+  it('does not inject a developer-only demo NYC pin when discovery returns no nearby users', async () => {
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([]);
 
@@ -1582,14 +1536,12 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('button', { name: 'Pin Mika Demo' })).toBeInTheDocument();
-    expect(screen.getAllByText('Demo NYC pin').length).toBeGreaterThan(0);
-    expect(screen.getByTestId('marker-demo-nyc-connected-pin')).toHaveAttribute('data-badge', 'versatile');
-    expect(screen.getByTestId('marker-demo-nyc-connected-pin')).toHaveAttribute('data-last-active', '3m ago');
-    expect(screen.getByTestId('marker-demo-nyc-connected-pin').getAttribute('data-photo')).toContain('data:image/svg+xml');
+    await waitFor(() => expect(getNearbyUsers).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pin Mika Demo' }));
-    expect(screen.getByRole('button', { name: 'Demo profile' })).toBeDisabled();
+    expect(screen.queryByRole('switch', { name: 'NPC Ghost Test' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('marker-demo-nyc-connected-pin')).not.toBeInTheDocument();
     expect(sendCruush).not.toHaveBeenCalled();
   });
 

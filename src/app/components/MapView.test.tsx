@@ -164,6 +164,9 @@ describe('MapView', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan on map' }));
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1' }));
+    expect(markerInstances[1].element).toHaveAttribute('data-map-marker-pin', 'true');
+    mapInstances[0].trigger('click', { originalEvent: { target: markerInstances[1].element } });
+    expect(onMapClick).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: 'Open You on map' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Your approximate area')).toBeInTheDocument();
     expect(screen.queryByText('YOU')).not.toBeInTheDocument();

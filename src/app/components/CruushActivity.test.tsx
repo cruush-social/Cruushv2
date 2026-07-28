@@ -150,10 +150,12 @@ describe('CruushActivity', () => {
 
     expect(await screen.findByText('luna')).toBeInTheDocument();
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveClass('h-[4.375rem]');
-    expect(screen.getByRole('tab', { name: /incoming/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /sent/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /mutual/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /views/i })).toBeInTheDocument();
+    expect(screen.queryByText('your cruushes')).not.toBeInTheDocument();
+    expect(screen.queryByText('relationships, interest & activity')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'incoming' })).toHaveTextContent(/^incoming$/);
+    expect(screen.getByRole('tab', { name: 'sent' })).toHaveTextContent(/^sent$/);
+    expect(screen.getByRole('tab', { name: 'mutual' })).toHaveTextContent(/^mutual$/);
+    expect(screen.getByRole('tab', { name: 'views' })).toHaveTextContent(/^views$/);
     expect(screen.getByText('Someone new')).toBeInTheDocument();
     expect(screen.getByText('Upgrade to view')).toBeInTheDocument();
 

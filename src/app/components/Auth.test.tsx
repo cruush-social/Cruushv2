@@ -62,6 +62,8 @@ describe('Auth', () => {
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveAttribute('alt', 'cruush');
+    expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
     expect(screen.getByText('queer cruisers cruise cruush')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });

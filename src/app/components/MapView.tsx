@@ -75,6 +75,7 @@ const MAP_RENDER_READY_TIMEOUT_MS = 1200;
 const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
+const MARKER_INTERACTION_SUPPRESS_MS = 350;
 
 export function createRasterStyle(tileUrls: string[], attribution: string): StyleSpecification {
   return {
@@ -572,7 +573,17 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   );
 }
 
-function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) => void) {
+function isMapClickFromMarker(event: unknown) {
+  const target = (event as { originalEvent?: { target?: EventTarget | null } } | undefined)?.originalEvent?.target;
+
+  return target instanceof Element && Boolean(target.closest('[data-map-marker-pin="true"]'));
+}
+
+function createMarkerElement(
+  marker: MapMarker,
+  onPinClick: (marker: MapMarker) => void,
+  onMarkerInteraction: () => void,
+) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
   const element = document.createElement(isCurrentUser ? 'div' : 'button');
   const name = getDisplayName(marker);
@@ -586,6 +597,7 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
   ].filter(Boolean).join(' ');
   element.dataset.animationHint = animationHint;
   element.dataset.displayMode = marker.displayMode ?? 'PRECISE';
+  element.dataset.mapMarkerPin = 'true';
 
   if (isCurrentUser) {
     element.setAttribute('aria-label', 'Your approximate area');
@@ -593,8 +605,19 @@ function createMarkerElement(marker: MapMarker, onPinClick: (marker: MapMarker) 
     const button = element as HTMLButtonElement;
     button.type = 'button';
     button.setAttribute('aria-label', `Open ${name} on map`);
-    button.addEventListener('click', (event) => {
+    const recordMarkerInteraction = (event: Event) => {
       event.stopPropagation();
+      onMarkerInteraction();
+    };
+
+    button.addEventListener('pointerdown', recordMarkerInteraction);
+    button.addEventListener('mousedown', recordMarkerInteraction);
+    button.addEventListener('touchstart', recordMarkerInteraction);
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      onMarkerInteraction();
       onPinClick(marker);
     });
   }
@@ -670,6 +693,7 @@ function MapView({
   const onPinClickRef = useRef(onPinClick);
   const onMapClickRef = useRef(onMapClick);
   const onMapReadyRef = useRef(onMapReady);
+  const lastMarkerInteractionAtRef = useRef(0);
   const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
@@ -823,7 +847,15 @@ function MapView({
           }, MAP_READY_FALLBACK_TIMEOUT_MS);
         }
 
-        map.on('click', () => onMapClickRef.current?.());
+        map.on('click', (event) => {
+          const markerInteractionWasRecent = Date.now() - lastMarkerInteractionAtRef.current < MARKER_INTERACTION_SUPPRESS_MS;
+
+          if (markerInteractionWasRecent || isMapClickFromMarker(event)) {
+            return;
+          }
+
+          onMapClickRef.current?.();
+        });
         map.on('load', markMapReady);
         map.on('idle', markMapReady);
         map.on('render', scheduleRenderedReady);
@@ -1090,7 +1122,13 @@ function MapView({
       }
 
       markersRef.current = visibleMarkers.map((marker) => {
-        const { element, root } = createMarkerElement(marker, (selectedMarker) => onPinClickRef.current(selectedMarker));
+        const { element, root } = createMarkerElement(
+          marker,
+          (selectedMarker) => onPinClickRef.current(selectedMarker),
+          () => {
+            lastMarkerInteractionAtRef.current = Date.now();
+          },
+        );
         const mapMarker = new maplibregl.Marker({ element })
           .setLngLat([marker.approximateLongitude, marker.approximateLatitude])
           .addTo(map);

@@ -147,7 +147,7 @@ describe('ProfileView', () => {
     });
   });
 
-  it('uses a 4:5 hero and exposes Basics, Intimacy, and Health tabs', async () => {
+  it('uses a capped 4:5 hero and exposes Basics, Intimacy, and Health tabs', async () => {
     render(
       <MemoryRouter initialEntries={['/profile/user-1']}>
         <Routes>
@@ -156,8 +156,14 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByTestId('profile-hero-media')).toHaveStyle({ aspectRatio: '4 / 5' });
-    expect(screen.getByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByTestId('profile-hero-media')).toHaveStyle({
+      aspectRatio: '4 / 5',
+      height: 'min(calc(100vw * 1.25), 64vh, 38rem)',
+    });
+    const basicsTab = screen.getByRole('tab', { name: 'Basics' });
+    expect(basicsTab).toHaveAttribute('aria-selected', 'true');
+    expect(basicsTab).toHaveClass('rounded-full', 'hover:bg-white/[0.08]', 'data-[state=active]:bg-white/[0.10]');
+    expect(basicsTab.className).not.toContain('data-[state=active]:text-primary');
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
     expect(screen.getByText('About')).toBeInTheDocument();

@@ -9,6 +9,7 @@ import {
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import { CruushIcon } from './CruushIconImage';
+import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 
@@ -243,6 +244,7 @@ export default function Auth({ onAuth }: AuthProps) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden overflow-y-auto">
+      <LaunchLoginMapTeaser />
       <div className="w-full max-w-md space-y-12 relative z-10">
         {/* Logo and tagline */}
         <div className="text-center space-y-6">
@@ -400,7 +402,7 @@ export default function Auth({ onAuth }: AuthProps) {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-14 text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+            className="w-full h-14 rounded-sm text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
             style={{
               background: 'var(--cruush-gradient)',
             }}
