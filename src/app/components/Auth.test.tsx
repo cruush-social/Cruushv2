@@ -61,10 +61,12 @@ describe('Auth', () => {
     const { container } = render(<Auth onAuth={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveAttribute('alt', 'cruush');
+    expect(screen.getByTestId('launch-login-brand-mark')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(6);
     expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
-    expect(screen.getByText('queer cruisers cruise cruush')).toBeInTheDocument();
+    expect(screen.queryByText('queer cruisers cruise cruush')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });

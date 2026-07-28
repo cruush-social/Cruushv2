@@ -7,11 +7,11 @@ import {
   type AuthSessionPayload
 } from '../lib/authApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
-import cruushLogo from '../assets/brand/cruush-logo.svg';
 import { CruushIcon } from './CruushIconImage';
-import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
+import LaunchLoginMapTeaser, { LaunchLoginWaterPane } from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
+import './Auth.css';
 
 interface AuthProps {
   onAuth: (session: AuthSessionPayload) => void;
@@ -245,18 +245,12 @@ export default function Auth({ onAuth }: AuthProps) {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden overflow-y-auto">
       <LaunchLoginMapTeaser />
-      <div className="w-full max-w-md space-y-12 relative z-10">
-        {/* Logo and tagline */}
-        <div className="text-center space-y-6">
+      <div className="w-full max-w-[20rem] space-y-10 relative z-10">
+        {/* Logo */}
+        <div className="text-center">
           <div>
             <h1 className="sr-only">cruush</h1>
-            <img
-              src={cruushLogo}
-              alt="cruush"
-              className="mx-auto mb-4 h-40 w-auto max-w-[18rem] object-contain sm:h-48"
-              draggable={false}
-            />
-            <p className="text-white/50 text-sm">queer cruisers cruise cruush</p>
+            <div className="h-64 sm:h-80" />
           </div>
         </div>
 
@@ -298,7 +292,7 @@ export default function Auth({ onAuth }: AuthProps) {
 
           {!isForgotPassword && isSignUp && (
             <div className="space-y-2">
-              <label htmlFor="displayName" className="text-sm text-white/60">
+              <label htmlFor="displayName" className="sr-only">
                 Display Name
               </label>
               <input
@@ -308,7 +302,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="how you'll appear"
-                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                className="w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required={isSignUp}
                 disabled={isLoading}
               />
@@ -317,7 +311,7 @@ export default function Auth({ onAuth }: AuthProps) {
 
           {!isForgotPassword && !isSignUp && twoFactorRequired ? (
             <div className="space-y-2">
-              <label htmlFor="twoFactorCode" className="text-sm text-white/60">
+              <label htmlFor="twoFactorCode" className="sr-only">
                 Authenticator or recovery code
               </label>
               <input
@@ -328,7 +322,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={twoFactorCode}
                 onChange={(event) => setTwoFactorCode(event.target.value)}
                 placeholder="123456"
-                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                className="w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required
                 disabled={isLoading}
               />
@@ -336,7 +330,7 @@ export default function Auth({ onAuth }: AuthProps) {
           ) : null}
 
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm text-white/60">
+            <label htmlFor="email" className="sr-only">
               Email
             </label>
             <input
@@ -346,7 +340,7 @@ export default function Auth({ onAuth }: AuthProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+              className="w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
               required
               disabled={isLoading}
             />
@@ -354,7 +348,7 @@ export default function Auth({ onAuth }: AuthProps) {
 
           {!isForgotPassword && (
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm text-white/60">
+              <label htmlFor="password" className="sr-only">
                 Password
               </label>
               <input
@@ -364,7 +358,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                className="w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required
                 disabled={isLoading}
                 minLength={isSignUp ? 8 : 1}
@@ -374,7 +368,7 @@ export default function Auth({ onAuth }: AuthProps) {
 
           {!isForgotPassword && isSignUp && (
             <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm text-white/60">
+              <label htmlFor="confirmPassword" className="sr-only">
                 Confirm Password
               </label>
               <input
@@ -384,7 +378,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                className="w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required={isSignUp}
                 disabled={isLoading}
               />
@@ -402,13 +396,13 @@ export default function Auth({ onAuth }: AuthProps) {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-14 rounded-sm text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+            className="launch-login-auth-submit w-full h-12 rounded-sm text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
             style={{
               background: 'var(--cruush-gradient)',
             }}
           >
             {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
+              <span className="relative z-10 flex items-center justify-center gap-2">
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                   <circle
                     className="opacity-25"
@@ -428,7 +422,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 {isSignUp ? 'Creating Account...' : isForgotPassword ? 'Sending Reset Link...' : 'Signing In...'}
               </span>
             ) : (
-              <>{isSignUp ? 'Create Account' : isForgotPassword ? 'Send Reset Link' : 'Sign In'}</>
+              <span className="relative z-10">{isSignUp ? 'Create Account' : isForgotPassword ? 'Send Reset Link' : 'Sign In'}</span>
             )}
           </button>
 
@@ -461,6 +455,7 @@ export default function Auth({ onAuth }: AuthProps) {
 
         <PublicPolicyLinks variant="compact" />
       </div>
+      <LaunchLoginWaterPane className="launch-login-map-teaser__water-pane--foreground" />
     </div>
   );
 }

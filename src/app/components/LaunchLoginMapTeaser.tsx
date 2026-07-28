@@ -4,10 +4,17 @@ import './LaunchLoginMapTeaser.css';
 type TeaserStyle = CSSProperties & {
   '--x'?: string;
   '--y'?: string;
+  '--tx'?: string;
+  '--ty'?: string;
+  '--h'?: string;
+  '--duration'?: string;
+  '--drift'?: string;
+  '--drift-end'?: string;
   '--w'?: string;
   '--rot'?: string;
   '--delay'?: string;
   '--scale'?: string;
+  '--bend'?: string;
 };
 
 const STREETS = [
@@ -45,21 +52,67 @@ const RADIUS_RINGS = [
   { id: 'radius-north', x: '52%', y: '31%', scale: '0.94', delay: '-24s' },
 ];
 
+const ACTIVITY_SIGNALS = [
+  { id: 'signal-one', x: '19%', y: '43%', tx: '12rem', ty: '-3rem', scale: '0.9', delay: '-1s' },
+  { id: 'signal-two', x: '68%', y: '27%', tx: '-10rem', ty: '7rem', scale: '0.75', delay: '-7s' },
+  { id: 'signal-three', x: '43%', y: '73%', tx: '9rem', ty: '-8rem', scale: '1', delay: '-13s' },
+  { id: 'signal-four', x: '82%', y: '62%', tx: '-13rem', ty: '-2rem', scale: '0.82', delay: '-19s' },
+  { id: 'signal-five', x: '31%', y: '18%', tx: '6rem', ty: '11rem', scale: '0.7', delay: '-25s' },
+];
+
+const DROPLETS = [
+  { id: 'drop-one', x: '8%', y: '-18%', w: '0.82rem', h: '8rem', duration: '30s', drift: '0.55rem', driftEnd: '-0.2rem', delay: '-1s' },
+  { id: 'drop-two', x: '17%', y: '-26%', w: '1rem', h: '12rem', duration: '30s', drift: '-0.35rem', driftEnd: '0.15rem', delay: '-9s' },
+  { id: 'drop-three', x: '29%', y: '-14%', w: '0.68rem', h: '6.5rem', duration: '30s', drift: '0.25rem', driftEnd: '-0.1rem', delay: '-16s' },
+  { id: 'drop-four', x: '43%', y: '-32%', w: '1.08rem', h: '15rem', duration: '30s', drift: '0.75rem', driftEnd: '-0.25rem', delay: '-5s' },
+  { id: 'drop-five', x: '58%', y: '-20%', w: '0.9rem', h: '9.5rem', duration: '30s', drift: '-0.5rem', driftEnd: '0.2rem', delay: '-21s' },
+  { id: 'drop-six', x: '72%', y: '-28%', w: '0.96rem', h: '13rem', duration: '30s', drift: '0.4rem', driftEnd: '-0.15rem', delay: '-12s' },
+  { id: 'drop-seven', x: '86%', y: '-16%', w: '0.72rem', h: '7.25rem', duration: '30s', drift: '-0.25rem', driftEnd: '0.1rem', delay: '-25s' },
+  { id: 'drop-eight', x: '94%', y: '-34%', w: '0.86rem', h: '11rem', duration: '30s', drift: '0.6rem', driftEnd: '-0.2rem', delay: '-18s' },
+  { id: 'drop-nine', x: '35%', y: '-22%', w: '0.48rem', h: '5.6rem', duration: '30s', drift: '-0.22rem', driftEnd: '0.08rem', delay: '-3s' },
+  { id: 'drop-ten', x: '64%', y: '-12%', w: '0.54rem', h: '6.2rem', duration: '30s', drift: '0.18rem', driftEnd: '-0.07rem', delay: '-14s' },
+  { id: 'drop-eleven', x: '78%', y: '-19%', w: '0.44rem', h: '4.8rem', duration: '30s', drift: '-0.12rem', driftEnd: '0.05rem', delay: '-7s' },
+  { id: 'drop-twelve', x: '12%', y: '-9%', w: '0.5rem', h: '5.4rem', duration: '30s', drift: '0.16rem', driftEnd: '-0.05rem', delay: '-23s' },
+];
+
+const CLEAR_TRAILS = [
+  { id: 'trail-one', x: '8.1%', y: '-4vh', w: '1.18rem', h: '116vh', duration: '30s', drift: '0.42rem', driftEnd: '-0.16rem', rot: '-1.4deg', delay: '-1s', bend: '0.42rem' },
+  { id: 'trail-two', x: '17.2%', y: '-8vh', w: '1.34rem', h: '124vh', duration: '30s', drift: '-0.28rem', driftEnd: '0.12rem', rot: '0.8deg', delay: '-9s', bend: '-0.32rem' },
+  { id: 'trail-four', x: '43.3%', y: '-10vh', w: '1.52rem', h: '132vh', duration: '30s', drift: '0.62rem', driftEnd: '-0.2rem', rot: '-0.7deg', delay: '-5s', bend: '0.54rem' },
+  { id: 'trail-logo', x: '50.4%', y: '-7vh', w: '1.18rem', h: '122vh', duration: '30s', drift: '0.28rem', driftEnd: '-0.14rem', rot: '0.4deg', delay: '-16s', bend: '0.16rem' },
+  { id: 'trail-six', x: '72.3%', y: '-9vh', w: '1.26rem', h: '128vh', duration: '30s', drift: '0.36rem', driftEnd: '-0.12rem', rot: '-1deg', delay: '-12s', bend: '0.28rem' },
+  { id: 'trail-eight', x: '94.2%', y: '-11vh', w: '1.12rem', h: '122vh', duration: '30s', drift: '0.5rem', driftEnd: '-0.18rem', rot: '-1.5deg', delay: '-18s', bend: '0.42rem' },
+];
+
 function makeStyle(item: {
   x?: string;
   y?: string;
+  tx?: string;
+  ty?: string;
+  h?: string;
+  duration?: string;
+  drift?: string;
+  driftEnd?: string;
   w?: string;
   rot?: string;
   delay?: string;
   scale?: string;
+  bend?: string;
 }): TeaserStyle {
   return {
     '--x': item.x,
     '--y': item.y,
+    '--tx': item.tx,
+    '--ty': item.ty,
+    '--h': item.h,
+    '--duration': item.duration,
+    '--drift': item.drift,
+    '--drift-end': item.driftEnd,
     '--w': item.w,
     '--rot': item.rot,
     '--delay': item.delay,
     '--scale': item.scale,
+    '--bend': item.bend,
   };
 }
 
@@ -70,6 +123,26 @@ export default function LaunchLoginMapTeaser() {
       className="launch-login-map-teaser"
       data-testid="launch-login-map-teaser"
     >
+      <svg className="launch-login-map-teaser__filters" focusable="false">
+        <filter id="launch-login-water-shimmer">
+          <feTurbulence
+            baseFrequency="0.012 0.038"
+            numOctaves="2"
+            result="waterNoise"
+            seed="7"
+          >
+            <animate
+              attributeName="baseFrequency"
+              dur="30s"
+              repeatCount="indefinite"
+              values="0.012 0.038;0.018 0.052;0.01 0.044;0.012 0.038"
+            />
+          </feTurbulence>
+          <feDisplacementMap in="SourceGraphic" in2="waterNoise" scale="2.8" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
+      <div className="launch-login-map-teaser__phone-glow" />
+      <div className="launch-login-map-teaser__brand-mark" data-testid="launch-login-brand-mark" />
       <div className="launch-login-map-teaser__map" data-testid="launch-login-map-scene">
         <div className="launch-login-map-teaser__blocks" />
         <div className="launch-login-map-teaser__streets">
@@ -89,6 +162,15 @@ export default function LaunchLoginMapTeaser() {
             data-testid="launch-login-radius-ring"
             key={ring.id}
             style={makeStyle(ring)}
+          />
+        ))}
+
+        {ACTIVITY_SIGNALS.map((signal) => (
+          <span
+            className="launch-login-map-teaser__activity-signal"
+            data-testid="launch-login-activity-signal"
+            key={signal.id}
+            style={makeStyle(signal)}
           />
         ))}
 
@@ -130,7 +212,52 @@ export default function LaunchLoginMapTeaser() {
       </div>
 
       <div className="launch-login-map-teaser__frost" data-testid="launch-login-frosted-glass" />
+      <div className="launch-login-map-teaser__steam" data-testid="launch-login-steamy-glass">
+        <span className="launch-login-map-teaser__water-beads" />
+        {DROPLETS.map((droplet) => (
+          <span
+            className="launch-login-map-teaser__droplet"
+            data-testid="launch-login-water-droplet"
+            key={droplet.id}
+            style={makeStyle(droplet)}
+          >
+            <span className="launch-login-map-teaser__droplet-clear" />
+            <span className="launch-login-map-teaser__droplet-bead" />
+          </span>
+        ))}
+      </div>
       <div className="launch-login-map-teaser__shade" />
+    </div>
+  );
+}
+
+export function LaunchLoginWaterPane({ className = '' }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`launch-login-map-teaser__water-pane ${className}`.trim()}
+      data-testid="launch-login-foreground-water-pane"
+    >
+      <span className="launch-login-map-teaser__water-beads" />
+      {CLEAR_TRAILS.map((trail) => (
+        <span
+          className="launch-login-map-teaser__clear-trail"
+          data-testid="launch-login-clear-trail"
+          key={trail.id}
+          style={makeStyle(trail)}
+        />
+      ))}
+      {DROPLETS.map((droplet) => (
+        <span
+          className="launch-login-map-teaser__droplet"
+          data-testid="launch-login-water-droplet"
+          key={`foreground-${droplet.id}`}
+          style={makeStyle(droplet)}
+        >
+          <span className="launch-login-map-teaser__droplet-clear" />
+          <span className="launch-login-map-teaser__droplet-bead" />
+        </span>
+      ))}
     </div>
   );
 }
