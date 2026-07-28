@@ -77,7 +77,7 @@ describe('LaunchLoginMapTeaser', () => {
     expect(container.querySelectorAll('image')).toHaveLength(0);
   });
 
-  it('uses fewer foreground water elements on phone-sized viewports', () => {
+  it('keeps the foreground rain visible on phone-sized viewports', () => {
     vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
       matches: query === '(max-width: 640px)',
       media: query,
@@ -88,7 +88,7 @@ describe('LaunchLoginMapTeaser', () => {
     render(<LaunchLoginWaterPane />);
 
     expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-map-teaser__water-pane--mobile-lite');
-    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(4);
-    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(6);
+    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(12);
+    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(24);
   });
 });

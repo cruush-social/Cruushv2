@@ -570,7 +570,7 @@ export default function Auth({ onAuth }: AuthProps) {
             )}
           </button>
 
-          <div className="space-y-3">
+          <div className="launch-login-auth-secondary-actions space-y-3">
             <button
               type="button"
               onClick={isForgotPassword ? showSignIn : toggleMode}

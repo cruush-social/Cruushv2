@@ -2,6 +2,8 @@
   min-height: 100svh;
   padding-top: max(1rem, env(safe-area-inset-top));
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  background: #000;
+  --cruush-gradient: linear-gradient(90deg, #ff0072 0%, #d900b9 35%, #6f00ff 58%, #3826ff 78%, #004bff 100%);
   isolation: isolate;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -352,5 +354,151 @@
 
   .launch-login-auth-tagline {
     font-size: clamp(1.22rem, 4.9vw, 1.42rem);
+  }
+}
+
+@media (max-width: 640px) {
+  .launch-login-auth-shell {
+    min-height: 100svh;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    padding: max(1rem, env(safe-area-inset-top)) 0 max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .launch-login-auth-card {
+    width: 100%;
+    max-width: 100%;
+    padding-top: clamp(12.9rem, 26.5svh, 18rem);
+  }
+
+  .launch-login-auth-card > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1.1rem;
+  }
+
+  .launch-login-auth-brand {
+    gap: 1.05rem;
+    padding-top: 0;
+  }
+
+  .launch-login-auth-logo-image {
+    width: clamp(9.2rem, 28vw, 10.2rem);
+    filter:
+      drop-shadow(0 0.72rem 1.4rem rgba(0, 0, 0, 0.92))
+      drop-shadow(0 0 1.25rem rgba(56, 38, 255, 0.28))
+      drop-shadow(0 0 1.05rem rgba(255, 0, 114, 0.2));
+  }
+
+  .launch-login-auth-tagline {
+    max-width: 100%;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: clamp(1.05rem, 3.9vw, 1.45rem);
+    line-height: 1.05;
+    text-shadow:
+      0 0.4rem 0.9rem rgba(0, 0, 0, 0.96),
+      0 0 0.55rem rgba(255, 0, 114, 0.12),
+      0 0 0.65rem rgba(56, 38, 255, 0.12);
+    white-space: nowrap;
+  }
+
+  .launch-login-auth-form {
+    width: clamp(12.1rem, 33vw, 12.4rem);
+    margin-top: -0.36rem;
+    transform: translateY(-1.1rem);
+  }
+
+  .launch-login-auth-card > .launch-login-auth-brand + .launch-login-auth-form {
+    margin-top: -0.15rem !important;
+  }
+
+  .launch-login-auth-form > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.5rem;
+  }
+
+  .launch-login-auth-input {
+    min-height: 1.78rem;
+    height: 1.78rem;
+    border-radius: 0.16rem;
+    border-color: rgba(255, 255, 255, 0.24);
+    background-color: rgba(0, 1, 7, 0.9);
+    padding-inline: 0.62rem;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.55rem;
+    line-height: 1;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 0 0 1px rgba(0, 0, 0, 0.78),
+      0 0.58rem 1.2rem rgba(0, 0, 0, 0.52);
+    backdrop-filter: blur(3px) saturate(1.08) brightness(0.7);
+    -webkit-backdrop-filter: blur(3px) saturate(1.08) brightness(0.7);
+  }
+
+  .launch-login-auth-password-field .launch-login-auth-input {
+    padding-right: 1.7rem;
+  }
+
+  .launch-login-auth-input::placeholder {
+    color: rgba(255, 255, 255, 0.56);
+  }
+
+  .launch-login-auth-password-toggle {
+    right: 0.16rem;
+    width: 1.4rem;
+    height: 1.4rem;
+    color: rgba(255, 255, 255, 0.48);
+  }
+
+  .launch-login-auth-password-toggle svg {
+    width: 0.64rem;
+    height: 0.64rem;
+  }
+
+  .launch-login-auth-submit {
+    min-height: 1.86rem;
+    height: 1.86rem;
+    border-radius: 0.22rem;
+    font-size: 0.58rem;
+    font-weight: 700;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.52);
+    box-shadow:
+      0 0.75rem 1.5rem rgba(0, 0, 0, 0.64),
+      0 0 1rem rgba(255, 0, 114, 0.4),
+      0 0 1.25rem rgba(56, 38, 255, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    filter: saturate(1.18) brightness(1.02) contrast(1.04);
+  }
+
+  .launch-login-auth-submit::before {
+    opacity: 0.24;
+  }
+
+  .launch-login-auth-secondary {
+    min-height: 0.86rem;
+    padding-block: 0.06rem;
+    color: rgba(255, 255, 255, 0.66);
+    font-size: 0.46rem;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  .launch-login-auth-form > .launch-login-auth-secondary-actions {
+    margin-top: 0.42rem !important;
+  }
+
+  .launch-login-auth-secondary-actions > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.26rem !important;
+  }
+
+  .launch-login-auth-card [aria-label="Legal and safety links"] {
+    width: clamp(12.1rem, 35vw, 12.8rem);
+    margin-top: 0.22rem !important;
+    color: rgba(255, 255, 255, 0.64);
+    font-size: 0.48rem;
+    line-height: 1.45;
+    text-shadow: 0 0.45rem 1rem rgba(0, 0, 0, 0.96);
+    transform: translateY(-3rem);
+  }
+
+  .launch-login-auth-card [aria-label="Legal and safety links"] a {
+    color: rgba(255, 255, 255, 0.86);
   }
 }
