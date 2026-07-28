@@ -27,7 +27,7 @@ type LaunchLoginMapTeaserProps = {
 };
 
 const DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-desktop.webm';
-const MOBILE_TEASER_VIDEO = '/teasers/launch-login-teaser-mobile.webm';
+const MOBILE_TEASER_VIDEO = '/teasers/launch-login-teaser-mobile.mp4';
 const MOBILE_VIDEO_QUERY = '(max-width: 640px)';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
@@ -124,6 +124,9 @@ const CLEAR_TRAILS = [
   { id: 'trail-eleven', x: '56.6%', y: '-18vh', w: '0.76rem', h: '104vh', duration: '25s', drift: '-0.12rem', driftEnd: '0.05rem', rot: '0.4deg', delay: '-24s', bend: '-0.1rem' },
 ];
 
+const MOBILE_DROPLETS = DROPLETS.filter((_, index) => index % 4 === 0).slice(0, 6);
+const MOBILE_CLEAR_TRAILS = CLEAR_TRAILS.filter((_, index) => index % 3 === 0).slice(0, 4);
+
 function makeStyle(item: {
   x?: string;
   y?: string;
@@ -156,6 +159,12 @@ function makeStyle(item: {
   };
 }
 
+function getIsMobileViewport() {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia(MOBILE_VIDEO_QUERY).matches;
+}
+
 function getTeaserVideoSource() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return DESKTOP_TEASER_VIDEO;
@@ -171,7 +180,9 @@ function getTeaserVideoSource() {
 export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLoginMapTeaserProps = {}) {
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoSource, setVideoSource] = useState<string | null>(() => getTeaserVideoSource());
+  const [isMobileViewport, setIsMobileViewport] = useState(() => getIsMobileViewport());
   const isMobileRecording = videoSource === MOBILE_TEASER_VIDEO;
+  const shouldRenderFullScene = !isMobileViewport;
   const teaserClassName = [
     'launch-login-map-teaser',
     isVideoReady ? 'launch-login-map-teaser--video-ready' : '',
@@ -186,10 +197,12 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
     const mobileQuery = window.matchMedia(MOBILE_VIDEO_QUERY);
     const reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
     const updateVideoSource = () => {
+      const isMobile = mobileQuery.matches;
+      setIsMobileViewport(isMobile);
       setIsVideoReady(false);
       setVideoSource(reducedMotionQuery.matches
         ? null
-        : mobileQuery.matches
+        : isMobile
           ? MOBILE_TEASER_VIDEO
           : DESKTOP_TEASER_VIDEO);
     };
@@ -229,141 +242,167 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
           onCanPlay={() => setIsVideoReady(true)}
           onError={() => setIsVideoReady(false)}
           playsInline
-          preload={isMobileRecording ? 'auto' : 'metadata'}
+          preload="metadata"
           src={videoSource}
         />
       ) : null}
       <div className="launch-login-map-teaser__mobile-pulse" data-testid="launch-login-mobile-pulse" />
-      <svg className="launch-login-map-teaser__filters" focusable="false">
-        <filter id="launch-login-water-shimmer">
-          <feTurbulence
-            baseFrequency="0.012 0.038"
-            numOctaves="2"
-            result="waterNoise"
-            seed="7"
-          >
-            <animate
-              attributeName="baseFrequency"
-              dur="30s"
-              repeatCount="indefinite"
-              values="0.012 0.038;0.018 0.052;0.01 0.044;0.012 0.038"
-            />
-          </feTurbulence>
-          <feDisplacementMap in="SourceGraphic" in2="waterNoise" scale="2.8" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-      </svg>
-      <div className="launch-login-map-teaser__phone-glow" />
-      <div className="launch-login-map-teaser__club" data-testid="launch-login-club-lights">
-        <span className="launch-login-map-teaser__club-stage" />
-        {CLUB_BEAMS.map((beam) => (
-          <span
-            className={`launch-login-map-teaser__club-beam launch-login-map-teaser__club-beam--${beam.variant}`}
-            data-testid="launch-login-club-beam"
-            key={beam.id}
-            style={makeStyle(beam)}
-          />
-        ))}
-        <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--pink" />
-        <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--cobalt" />
-      </div>
-      <div className="launch-login-map-teaser__brand-mark" data-testid="launch-login-brand-mark" />
-      <div className="launch-login-map-teaser__map" data-testid="launch-login-map-scene">
-        <div className="launch-login-map-teaser__blocks" />
-        <div className="launch-login-map-teaser__streets">
-          {STREETS.map((street) => (
-            <span
-              className={`launch-login-map-teaser__street launch-login-map-teaser__street--${street.kind}`}
-              data-testid="launch-login-map-street"
-              key={street.id}
-              style={makeStyle(street)}
-            />
-          ))}
-        </div>
+      {shouldRenderFullScene ? (
+        <>
+          <svg className="launch-login-map-teaser__filters" focusable="false">
+            <filter id="launch-login-water-shimmer">
+              <feTurbulence
+                baseFrequency="0.012 0.038"
+                numOctaves="2"
+                result="waterNoise"
+                seed="7"
+              >
+                <animate
+                  attributeName="baseFrequency"
+                  dur="30s"
+                  repeatCount="indefinite"
+                  values="0.012 0.038;0.018 0.052;0.01 0.044;0.012 0.038"
+                />
+              </feTurbulence>
+              <feDisplacementMap in="SourceGraphic" in2="waterNoise" scale="2.8" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+          </svg>
+          <div className="launch-login-map-teaser__phone-glow" />
+          <div className="launch-login-map-teaser__club" data-testid="launch-login-club-lights">
+            <span className="launch-login-map-teaser__club-stage" />
+            {CLUB_BEAMS.map((beam) => (
+              <span
+                className={`launch-login-map-teaser__club-beam launch-login-map-teaser__club-beam--${beam.variant}`}
+                data-testid="launch-login-club-beam"
+                key={beam.id}
+                style={makeStyle(beam)}
+              />
+            ))}
+            <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--pink" />
+            <span className="launch-login-map-teaser__club-laser launch-login-map-teaser__club-laser--cobalt" />
+          </div>
+          <div className="launch-login-map-teaser__brand-mark" data-testid="launch-login-brand-mark" />
+          <div className="launch-login-map-teaser__map" data-testid="launch-login-map-scene">
+            <div className="launch-login-map-teaser__blocks" />
+            <div className="launch-login-map-teaser__streets">
+              {STREETS.map((street) => (
+                <span
+                  className={`launch-login-map-teaser__street launch-login-map-teaser__street--${street.kind}`}
+                  data-testid="launch-login-map-street"
+                  key={street.id}
+                  style={makeStyle(street)}
+                />
+              ))}
+            </div>
 
-        {RADIUS_RINGS.map((ring) => (
-          <span
-            className="launch-login-map-teaser__radius-ring"
-            data-testid="launch-login-radius-ring"
-            key={ring.id}
-            style={makeStyle(ring)}
-          />
-        ))}
+            {RADIUS_RINGS.map((ring) => (
+              <span
+                className="launch-login-map-teaser__radius-ring"
+                data-testid="launch-login-radius-ring"
+                key={ring.id}
+                style={makeStyle(ring)}
+              />
+            ))}
 
-        {ACTIVITY_SIGNALS.map((signal) => (
-          <span
-            className="launch-login-map-teaser__activity-signal"
-            data-testid="launch-login-activity-signal"
-            key={signal.id}
-            style={makeStyle(signal)}
-          />
-        ))}
+            {ACTIVITY_SIGNALS.map((signal) => (
+              <span
+                className="launch-login-map-teaser__activity-signal"
+                data-testid="launch-login-activity-signal"
+                key={signal.id}
+                style={makeStyle(signal)}
+              />
+            ))}
 
-        {GHOSTS.map((ghost) => (
-          <span
-            className="launch-login-map-teaser__ghost"
-            data-testid="launch-login-ghost-person"
-            key={ghost.id}
-            style={makeStyle(ghost)}
-          >
-            <span className="launch-login-map-teaser__ghost-head" />
-            <span className="launch-login-map-teaser__ghost-body" />
-          </span>
-        ))}
+            {GHOSTS.map((ghost) => (
+              <span
+                className="launch-login-map-teaser__ghost"
+                data-testid="launch-login-ghost-person"
+                key={ghost.id}
+                style={makeStyle(ghost)}
+              >
+                <span className="launch-login-map-teaser__ghost-head" />
+                <span className="launch-login-map-teaser__ghost-body" />
+              </span>
+            ))}
 
-        {PINS.map((pin) => (
-          <span
-            className={`launch-login-map-teaser__pin launch-login-map-teaser__pin--${pin.variant}`}
-            data-testid="launch-login-gradient-pin"
-            key={pin.id}
-            style={makeStyle(pin)}
-          >
-            <span className="launch-login-map-teaser__pin-halo" />
-            <span className="launch-login-map-teaser__pin-heart">
-              <span className="launch-login-map-teaser__pin-heart-shape" />
-            </span>
-          </span>
-        ))}
-      </div>
+            {PINS.map((pin) => (
+              <span
+                className={`launch-login-map-teaser__pin launch-login-map-teaser__pin--${pin.variant}`}
+                data-testid="launch-login-gradient-pin"
+                key={pin.id}
+                style={makeStyle(pin)}
+              >
+                <span className="launch-login-map-teaser__pin-halo" />
+                <span className="launch-login-map-teaser__pin-heart">
+                  <span className="launch-login-map-teaser__pin-heart-shape" />
+                </span>
+              </span>
+            ))}
+          </div>
 
-      <div className="launch-login-map-teaser__ui launch-login-map-teaser__ui--left">
-        <span className="launch-login-map-teaser__logo-mark">cruush</span>
-        <span className="launch-login-map-teaser__pill">NYC beta</span>
-      </div>
-      <div className="launch-login-map-teaser__ui launch-login-map-teaser__ui--right">
-        <span className="launch-login-map-teaser__pill launch-login-map-teaser__pill--ghost">Ghost Mode Active</span>
-        <span className="launch-login-map-teaser__pill">Seeking</span>
-        <span className="launch-login-map-teaser__pill">Visibility</span>
-      </div>
+          <div className="launch-login-map-teaser__ui launch-login-map-teaser__ui--left">
+            <span className="launch-login-map-teaser__logo-mark">cruush</span>
+            <span className="launch-login-map-teaser__pill">NYC beta</span>
+          </div>
+          <div className="launch-login-map-teaser__ui launch-login-map-teaser__ui--right">
+            <span className="launch-login-map-teaser__pill launch-login-map-teaser__pill--ghost">Ghost Mode Active</span>
+            <span className="launch-login-map-teaser__pill">Seeking</span>
+            <span className="launch-login-map-teaser__pill">Visibility</span>
+          </div>
 
-      <div className="launch-login-map-teaser__frost" data-testid="launch-login-frosted-glass" />
-      <div className="launch-login-map-teaser__steam" data-testid="launch-login-steamy-glass">
-        <span className="launch-login-map-teaser__water-beads" />
-        {DROPLETS.map((droplet) => (
-          <span
-            className="launch-login-map-teaser__droplet"
-            data-testid="launch-login-water-droplet"
-            key={droplet.id}
-            style={makeStyle(droplet)}
-          >
-            <span className="launch-login-map-teaser__droplet-clear" />
-            <span className="launch-login-map-teaser__droplet-bead" />
-          </span>
-        ))}
-      </div>
-      <div className="launch-login-map-teaser__shade" />
+          <div className="launch-login-map-teaser__frost" data-testid="launch-login-frosted-glass" />
+          <div className="launch-login-map-teaser__steam" data-testid="launch-login-steamy-glass">
+            <span className="launch-login-map-teaser__water-beads" />
+            {DROPLETS.map((droplet) => (
+              <span
+                className="launch-login-map-teaser__droplet"
+                data-testid="launch-login-water-droplet"
+                key={droplet.id}
+                style={makeStyle(droplet)}
+              >
+                <span className="launch-login-map-teaser__droplet-clear" />
+                <span className="launch-login-map-teaser__droplet-bead" />
+              </span>
+            ))}
+          </div>
+          <div className="launch-login-map-teaser__shade" />
+        </>
+      ) : (
+        <div className="launch-login-map-teaser__mobile-fallback" data-testid="launch-login-mobile-fallback" />
+      )}
     </div>
   );
 }
 
 export function LaunchLoginWaterPane({ className = '' }: { className?: string }) {
+  const [isMobileViewport, setIsMobileViewport] = useState(() => getIsMobileViewport());
+  const trails = isMobileViewport ? MOBILE_CLEAR_TRAILS : CLEAR_TRAILS;
+  const droplets = isMobileViewport ? MOBILE_DROPLETS : DROPLETS;
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+
+    const mobileQuery = window.matchMedia(MOBILE_VIDEO_QUERY);
+    const updateMobileViewport = () => setIsMobileViewport(mobileQuery.matches);
+
+    updateMobileViewport();
+    mobileQuery.addEventListener?.('change', updateMobileViewport);
+
+    return () => {
+      mobileQuery.removeEventListener?.('change', updateMobileViewport);
+    };
+  }, []);
+
   return (
     <div
       aria-hidden="true"
-      className={`launch-login-map-teaser__water-pane ${className}`.trim()}
+      className={`launch-login-map-teaser__water-pane${isMobileViewport ? ' launch-login-map-teaser__water-pane--mobile-lite' : ''} ${className}`.trim()}
       data-testid="launch-login-foreground-water-pane"
     >
       <span className="launch-login-map-teaser__water-beads" />
-      {CLEAR_TRAILS.map((trail) => (
+      {trails.map((trail) => (
         <span
           className="launch-login-map-teaser__clear-trail"
           data-testid="launch-login-clear-trail"
@@ -371,7 +410,7 @@ export function LaunchLoginWaterPane({ className = '' }: { className?: string })
           style={makeStyle(trail)}
         />
       ))}
-      {DROPLETS.map((droplet) => (
+      {droplets.map((droplet) => (
         <span
           className="launch-login-map-teaser__droplet"
           data-testid="launch-login-water-droplet"

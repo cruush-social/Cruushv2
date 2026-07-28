@@ -122,6 +122,13 @@
   display: block;
 }
 
+.launch-login-map-teaser__mobile-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
 .launch-login-map-teaser--video-ready .launch-login-map-teaser__map,
 .launch-login-map-teaser--video-ready .launch-login-map-teaser__ui {
   display: none;
@@ -1720,22 +1727,50 @@
     width: 100%;
     height: 100%;
     object-position: center;
-    transform: translateZ(0) scale(1.04);
-    filter: saturate(1.78) contrast(1.26) brightness(0.58);
+    transform: translateZ(0) scale(1.02);
+    filter: none;
     mask-image: none;
     -webkit-mask-image: none;
   }
 
   .launch-login-map-teaser--video-ready.launch-login-map-teaser--mobile-recording .launch-login-map-teaser__video {
-    opacity: 0.86;
+    opacity: 0.78;
+  }
+
+  .launch-login-map-teaser--mobile-recording .launch-login-map-teaser__mobile-pulse {
+    display: block;
+    inset: 0;
+    height: auto;
+    opacity: 0.22;
+    mask-image: none;
+    -webkit-mask-image: none;
+    mix-blend-mode: screen;
+  }
+
+  .launch-login-map-teaser--mobile-recording .launch-login-map-teaser__mobile-pulse::before {
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 24% 42%, rgba(255, 0, 114, 0.42), transparent 14rem),
+      radial-gradient(ellipse at 76% 36%, rgba(17, 129, 255, 0.42), transparent 14rem),
+      radial-gradient(ellipse at 52% 66%, rgba(111, 0, 255, 0.24), transparent 13rem);
+    filter: none;
+    opacity: 1;
+    animation: none;
+  }
+
+  .launch-login-map-teaser--mobile-recording .launch-login-map-teaser__mobile-pulse::after {
+    display: none;
   }
 
   .launch-login-map-teaser--video-ready.launch-login-map-teaser--mobile-recording .launch-login-map-teaser__mobile-pulse {
-    inset: -10%;
-    height: auto;
-    opacity: 0.34;
-    mask-image: none;
-    -webkit-mask-image: none;
+    opacity: 0.12;
+  }
+
+  .launch-login-map-teaser__mobile-fallback {
+    background:
+      radial-gradient(ellipse at 32% 28%, rgba(255, 0, 114, 0.18), transparent 12rem),
+      radial-gradient(ellipse at 72% 26%, rgba(17, 129, 255, 0.18), transparent 12rem),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0.18) 36%, rgba(0, 0, 0, 0.82));
   }
 
   .launch-login-map-teaser__phone-glow {
@@ -1838,38 +1873,41 @@
   }
 
   .launch-login-map-teaser__water-pane::before {
-    backdrop-filter: blur(0.55px) saturate(1.08) brightness(0.86);
-    -webkit-backdrop-filter: blur(0.55px) saturate(1.08) brightness(0.86);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     opacity: 0.48;
   }
 
   .launch-login-map-teaser__water-pane--foreground::before {
-    backdrop-filter: blur(0.6px) saturate(1.16) brightness(1);
-    -webkit-backdrop-filter: blur(0.6px) saturate(1.16) brightness(1);
-    opacity: 0.38;
+    background:
+      radial-gradient(ellipse at 18% 22%, rgba(0, 0, 0, 0.12), transparent 18rem),
+      radial-gradient(ellipse at 86% 70%, rgba(0, 0, 0, 0.12), transparent 18rem),
+      repeating-linear-gradient(96deg, transparent 0 1.2rem, rgba(255, 255, 255, 0.024) 1.28rem 1.34rem),
+      rgba(0, 0, 0, 0.04);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    opacity: 0.34;
   }
 
   .launch-login-map-teaser__water-pane--foreground::after {
     opacity: 0.16;
+    animation: none;
   }
 
   .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__water-beads {
-    opacity: 0.44;
-  }
-
-  .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__clear-trail:nth-of-type(3n),
-  .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__droplet:nth-of-type(3n) {
-    display: none;
+    opacity: 0.32;
   }
 
   .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__clear-trail {
-    opacity: 0.58;
+    opacity: 0.42;
+    animation-duration: 38s;
   }
 
   .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__droplet {
     filter:
-      drop-shadow(0 0.08rem 0.16rem rgba(0, 0, 0, 0.38))
-      drop-shadow(0 0.12rem 0.34rem rgba(255, 255, 255, 0.18));
+      drop-shadow(0 0.08rem 0.16rem rgba(0, 0, 0, 0.3))
+      drop-shadow(0 0.12rem 0.3rem rgba(255, 255, 255, 0.14));
+    animation-duration: 38s;
   }
 
   .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__clear-trail::before {

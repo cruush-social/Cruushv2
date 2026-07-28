@@ -51,11 +51,14 @@ describe('LaunchLoginMapTeaser', () => {
     expect(video).toHaveAttribute('loop');
     expect((video as HTMLVideoElement).muted).toBe(true);
     expect(video).toHaveAttribute('playsinline');
-    expect(video).toHaveAttribute('preload', 'auto');
+    expect(video).toHaveAttribute('preload', 'metadata');
     expect(video).toHaveAttribute(
       'src',
-      '/teasers/launch-login-teaser-mobile.webm',
+      '/teasers/launch-login-teaser-mobile.mp4',
     );
+    expect(screen.getByTestId('launch-login-mobile-fallback')).toBeInTheDocument();
+    expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('launch-login-frosted-glass')).not.toBeInTheDocument();
     fireEvent.canPlay(video);
 
     return waitFor(() => expect(handlePlaybackStateChange).toHaveBeenCalledWith({
@@ -72,5 +75,20 @@ describe('LaunchLoginMapTeaser', () => {
     expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(24);
     expect(container.querySelectorAll('img')).toHaveLength(0);
     expect(container.querySelectorAll('image')).toHaveLength(0);
+  });
+
+  it('uses fewer foreground water elements on phone-sized viewports', () => {
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+      matches: query === '(max-width: 640px)',
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })));
+
+    render(<LaunchLoginWaterPane />);
+
+    expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-map-teaser__water-pane--mobile-lite');
+    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(4);
+    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(6);
   });
 });
