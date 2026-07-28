@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
+import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { decryptMediaBytes } from "../media-encryption.js";
 import { readEncryptedMediaObject } from "../media-storage.js";
@@ -1213,6 +1214,9 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         filename: upload.filename,
         moderationSurface
       });
+      const isAdultExplicit = mediaAsset.moderation.labels.some((label) =>
+        label.normalized_label === "adult_nudity" || label.normalized_label === "adult_explicit"
+      );
 
     const encryptedContent = encryptTextContent(app.config, "message", payload.content);
     const disappearingTimer = conversation.disappearing_timer ?? "off";
@@ -1255,7 +1259,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
              moderation_scores = $11::jsonb,
              moderation_decided_at = now(),
              moderation_failure_reason = null,
-             explicit_classification = 'non_explicit',
+             explicit_classification = case when $19 then 'explicit' else 'non_explicit' end,
              photodna_status = $14,
              photodna_provider_request_id = $15
          from eligible_sender
@@ -1383,7 +1387,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         mediaAsset.moderation.photoDnaProviderRequestId,
         mediaAsset.displayUrl,
         disappearingTimer,
-        payload.viewOnce
+        payload.viewOnce,
+        isAdultExplicit
       ]
     );
     const created = result.rows[0];
@@ -1391,6 +1396,12 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     if (!created) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
+
+    await recordMeaningfulActivitySafely(app, {
+      userId,
+      activityType: "message",
+      sourceEventId: created.id
+    });
 
     await notifyConversationMessageRecipients(app, {
       conversationId: payload.conversationId,
@@ -1573,6 +1584,12 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     if (!created) {
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
+
+    await recordMeaningfulActivitySafely(app, {
+      userId,
+      activityType: "message",
+      sourceEventId: created.id
+    });
 
     await notifyConversationMessageRecipients(app, {
       conversationId: payload.conversationId,

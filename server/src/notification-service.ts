@@ -8,7 +8,8 @@ export type AppNotificationType =
   | "mutual_cruush"
   | "direct_message"
   | "group_message"
-  | "group_membership";
+  | "group_membership"
+  | "reward";
 
 export type AppNotificationRecord = {
   id: string;

@@ -21,6 +21,7 @@ import { registerReportRoutes } from "./routes/reports.js";
 import { registerSupportRoutes } from "./routes/support.js";
 import { registerUserRoutes } from "./routes/users.js";
 import { registerDevRoutes } from "./routes/dev.js";
+import { registerRewardRoutes } from "./routes/rewards.js";
 import { createPostgresRateLimiter, type RateLimiter } from "./rate-limit.js";
 
 type BuildServerDeps = {
@@ -162,6 +163,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerProfileRoutes(app);
   void registerPrivacyRoutes(app);
   void registerReportRoutes(app);
+  void registerRewardRoutes(app);
   void registerSupportRoutes(app);
   void registerInternalRoutes(app);
   if (config.NODE_ENV !== "production") {

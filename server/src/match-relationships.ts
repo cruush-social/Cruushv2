@@ -61,6 +61,9 @@ type PrivacySettingsRow = {
 type EntitlementRow = {
   cruush_plus_enabled: boolean | null;
   cruush_plus_expires_at: string | Date | null;
+  has_lifetime?: boolean | null;
+  paid_expires_at?: string | Date | null;
+  promotional_expires_at?: string | Date | null;
 };
 
 export const MATCH_PERMISSION_PURPOSE = "permissions";
@@ -223,18 +226,78 @@ export async function savePrivacySettings(
 export async function getCruushEntitlement(app: FastifyInstance, userId: string): Promise<CruushEntitlement> {
   const row = (await safeRows<EntitlementRow>(
     app,
-    `select cruush_plus_enabled, cruush_plus_expires_at
-     from user_entitlements
-     where user_id = $1
-     limit 1`,
+    `with paid_state as (
+       select
+         coalesce((
+           select cruush_plus_enabled
+           from user_entitlements
+           where user_id = $1
+         ), false) as cruush_plus_enabled,
+         (
+           select cruush_plus_expires_at
+           from user_entitlements
+           where user_id = $1
+         ) as cruush_plus_expires_at,
+         exists (
+           select 1 from cruush_plus_lifetime_access
+           where user_id = $1
+         ) as has_lifetime,
+         (
+           select max(current_period_ends_at)
+           from cruush_plus_subscriptions
+           where user_id = $1
+             and status = 'active'
+             and current_period_ends_at > now()
+         ) as paid_expires_at
+     ), activated_promotion as (
+       update promotional_cruush_plus_entitlements promotion
+       set active_until = greatest(coalesce(promotion.active_until, now()), now())
+             + (promotion.banked_seconds * interval '1 second'),
+           banked_seconds = 0,
+           updated_at = now()
+       from paid_state
+       where promotion.user_id = $1
+         and promotion.banked_seconds > 0
+         and paid_state.has_lifetime = false
+         and paid_state.paid_expires_at is null
+         and not (
+           paid_state.cruush_plus_enabled = true
+           and (
+             paid_state.cruush_plus_expires_at is null
+             or paid_state.cruush_plus_expires_at > now()
+           )
+         )
+       returning promotion.active_until
+     )
+     select
+       paid_state.cruush_plus_enabled,
+       paid_state.cruush_plus_expires_at,
+       paid_state.has_lifetime,
+       paid_state.paid_expires_at,
+       coalesce(
+         (select active_until from activated_promotion),
+         (select active_until from promotional_cruush_plus_entitlements where user_id = $1)
+       ) as promotional_expires_at
+     from paid_state`,
     [userId]
   ))[0];
-  const expiresAt = toIsoDate(row?.cruush_plus_expires_at);
-  const isExpired = expiresAt ? new Date(expiresAt).getTime() <= Date.now() : false;
+  const legacyExpiresAt = toIsoDate(row?.cruush_plus_expires_at);
+  const legacyActive = row?.cruush_plus_enabled === true &&
+    (!legacyExpiresAt || new Date(legacyExpiresAt).getTime() > Date.now());
+  const paidExpiresAt = toIsoDate(row?.paid_expires_at);
+  const promotionalExpiresAt = toIsoDate(row?.promotional_expires_at);
+  const paidActive = Boolean(paidExpiresAt && new Date(paidExpiresAt).getTime() > Date.now());
+  const promotionalActive = Boolean(
+    promotionalExpiresAt && new Date(promotionalExpiresAt).getTime() > Date.now()
+  );
+  const lifetime = row?.has_lifetime === true || (legacyActive && !legacyExpiresAt);
+  const datedExpirations = [legacyExpiresAt, paidExpiresAt, promotionalExpiresAt]
+    .filter((value): value is string => Boolean(value))
+    .sort();
 
   return {
-    cruushPlus: row?.cruush_plus_enabled === true && !isExpired,
-    expiresAt
+    cruushPlus: lifetime || legacyActive || paidActive || promotionalActive,
+    expiresAt: lifetime ? null : datedExpirations.at(-1) ?? null
   };
 }
 

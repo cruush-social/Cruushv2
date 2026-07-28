@@ -291,7 +291,7 @@ describe("shared Stream profile-photo automod route", () => {
     await app.close();
   });
 
-  it("allows permitted adult nudity when Stream keeps it", async () => {
+  it("rejects adult nudity from profile photos even when Stream keeps it", async () => {
     providerState.result = {
       provider: "stream",
       provider_request_id: "stream-adult-nudity-1",
@@ -319,7 +319,15 @@ describe("shared Stream profile-photo automod route", () => {
     });
     const mediaCall = query.mock.calls.find(([text]) => String(text).includes("insert into media_objects"));
 
-    expect(response.statusCode, response.body).toBe(201);
+    expect(response.statusCode, response.body).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "CONTENT_REJECTED",
+        message: "Nude or sexually explicit photos are only allowed in private messages."
+      }
+    });
+    expect(query.mock.calls.some(([text]) => String(text).includes("delete from media_objects"))).toBe(true);
+    expect(query.mock.calls.some(([text]) => String(text).includes("insert into profiles"))).toBe(false);
     await app.close();
     await Promise.all([
       mediaCall?.[1]?.[3],

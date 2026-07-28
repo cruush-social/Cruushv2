@@ -22,6 +22,24 @@ export default function Auth({ onAuth }: AuthProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
+  const [referralCode] = useState(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get('ref')?.trim() ?? '';
+    const validUrlCode = /^[A-Za-z0-9_-]{16,64}$/.test(fromUrl) ? fromUrl : '';
+
+    try {
+      if (validUrlCode) {
+        window.sessionStorage.setItem('cruush_referral_code', validUrlCode);
+        return validUrlCode;
+      }
+
+      const stored = window.sessionStorage.getItem('cruush_referral_code') ?? '';
+      return /^[A-Za-z0-9_-]{16,64}$/.test(stored) ? stored : '';
+    } catch {
+      return validUrlCode;
+    }
+  });
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [error, setError] = useState('');
@@ -103,7 +121,13 @@ export default function Auth({ onAuth }: AuthProps) {
           password,
           displayName: displayName.trim(),
           captchaToken,
+          referralCode: referralCode || undefined,
         });
+        try {
+          window.sessionStorage.removeItem('cruush_referral_code');
+        } catch {
+          // Storage can be unavailable in privacy-restricted browsers.
+        }
         setVerificationPreviewUrl(delivery.previewUrl);
         setLocalVerificationPreviewUrl(delivery.previewUrl);
         setNotice('Check your email to verify your account, then sign in.');
@@ -117,6 +141,7 @@ export default function Auth({ onAuth }: AuthProps) {
           email,
           password,
           captchaToken,
+          twoFactorCode: twoFactorRequired ? twoFactorCode : undefined,
         });
         persistSessionUser(session);
         setIsLoading(false);
@@ -126,9 +151,26 @@ export default function Auth({ onAuth }: AuthProps) {
       const errorCode = err instanceof Error ? (err as Error & { code?: string }).code : undefined;
 
       if (errorCode === 'EMAIL_VERIFICATION_REQUIRED') {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'Email verification is required.');
         setVerificationRetryAvailable(true);
         setIsLoading(false);
+        return;
+      }
+
+      if (errorCode === 'TWO_FACTOR_REQUIRED') {
+        setTwoFactorRequired(true);
+        setError('Enter the code from your authenticator app or a recovery code.');
+        setIsLoading(false);
+        resetCaptcha();
+        return;
+      }
+
+      if (errorCode === 'INVALID_TWO_FACTOR_CODE') {
+        setTwoFactorRequired(true);
+        setError(err instanceof Error ? err.message : 'Two-factor code is invalid.');
+        setIsLoading(false);
+        setTwoFactorCode('');
+        resetCaptcha();
         return;
       }
 
@@ -145,6 +187,8 @@ export default function Auth({ onAuth }: AuthProps) {
     setNotice('');
     setVerificationRetryAvailable(false);
     setConfirmPassword('');
+    setTwoFactorCode('');
+    setTwoFactorRequired(false);
     setLocalVerificationPreviewUrl(null);
     resetCaptcha();
   };
@@ -156,6 +200,8 @@ export default function Auth({ onAuth }: AuthProps) {
     setVerificationRetryAvailable(false);
     setPassword('');
     setConfirmPassword('');
+    setTwoFactorCode('');
+    setTwoFactorRequired(false);
     setLocalVerificationPreviewUrl(null);
     resetCaptcha();
   };
@@ -167,6 +213,8 @@ export default function Auth({ onAuth }: AuthProps) {
     setVerificationRetryAvailable(false);
     setPassword('');
     setConfirmPassword('');
+    setTwoFactorCode('');
+    setTwoFactorRequired(false);
     setLocalVerificationPreviewUrl(null);
     resetCaptcha();
   };
@@ -264,6 +312,26 @@ export default function Auth({ onAuth }: AuthProps) {
               />
             </div>
           )}
+
+          {!isForgotPassword && !isSignUp && twoFactorRequired ? (
+            <div className="space-y-2">
+              <label htmlFor="twoFactorCode" className="text-sm text-white/60">
+                Authenticator or recovery code
+              </label>
+              <input
+                id="twoFactorCode"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={twoFactorCode}
+                onChange={(event) => setTwoFactorCode(event.target.value)}
+                placeholder="123456"
+                className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm text-white/60">

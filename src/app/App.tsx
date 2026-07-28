@@ -39,6 +39,7 @@ const CruushPlusSuccess = lazy(() => import('./components/CruushPlusSuccess'));
 const EmailVerificationGate = lazy(() => import('./components/EmailVerificationGate'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
+const Rewards = lazy(() => import('./components/Rewards'));
 
 function redirectToMap() {
   window.history.replaceState({}, '', '/map');
@@ -297,6 +298,7 @@ export default function App({
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
               <Route path="/upgrade" element={<CruushPlusUpgrade />} />
+              <Route path="/rewards" element={<Rewards />} />
               <Route path="/checkout/success" element={<CruushPlusSuccess />} />
               <Route path="/checkout/:sessionId" element={<CruushPlusCheckout />} />
               <Route path="*" element={<Navigate to="/map" replace />} />

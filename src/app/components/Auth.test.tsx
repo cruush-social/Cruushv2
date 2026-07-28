@@ -19,10 +19,16 @@ vi.mock('../lib/authApi', () => ({
 }));
 
 vi.mock('./Turnstile', () => ({
-  default: ({ onTokenChange }: { onTokenChange: (token: string) => void }) => {
+  default: ({
+    onTokenChange,
+    resetKey,
+  }: {
+    onTokenChange: (token: string) => void;
+    resetKey: number;
+  }) => {
     useEffect(() => {
       onTokenChange('captcha-token');
-    }, [onTokenChange]);
+    }, [onTokenChange, resetKey]);
 
     return <div>Mock Turnstile</div>;
   },
@@ -31,6 +37,8 @@ vi.mock('./Turnstile', () => ({
 
 describe('Auth', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/');
+    window.sessionStorage.clear();
     signIn.mockReset();
     resendVerificationEmail.mockReset();
     signUp.mockReset();
@@ -88,5 +96,63 @@ describe('Auth', () => {
     expect(screen.queryByLabelText('Reply email')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Support subject')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Support message')).not.toBeInTheDocument();
+  });
+
+  it('retains a referral query parameter through signup without displaying it', async () => {
+    window.history.replaceState({}, '', '/?ref=abcdefghijklmnop');
+    signUp.mockResolvedValue({
+      alreadyVerified: false,
+      expiresAt: '2026-07-28T12:00:00.000Z',
+      previewUrl: null,
+    });
+    render(<Auth onAuth={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
+    fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'River' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    await waitFor(() => expect(signUp).toHaveBeenCalledWith(expect.objectContaining({
+      referralCode: 'abcdefghijklmnop',
+    })));
+    expect(screen.queryByText('abcdefghijklmnop')).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem('cruush_referral_code')).toBeNull();
+  });
+
+  it('prompts for and submits a second factor only after the backend requires it', async () => {
+    signIn
+      .mockRejectedValueOnce(Object.assign(new Error('Enter your authenticator code.'), {
+        code: 'TWO_FACTOR_REQUIRED',
+      }))
+      .mockResolvedValueOnce({
+        user: {
+          id: '8b2f51cf-65e2-4cb3-b09b-c8cc3e3bbb21',
+          email: 'river@example.com',
+          displayName: 'River',
+          emailVerifiedAt: '2026-07-27T12:00:00.000Z',
+          createdAt: '2026-07-01T12:00:00.000Z',
+        },
+        profile: { displayName: 'River', yearOfBirth: 1990 },
+        needsOnboarding: false,
+        needsCodeOfConduct: false,
+        codeOfConductVersion: '2026-07-07',
+        acceptedCodeOfConductVersion: '2026-07-07',
+        codeOfConductAcceptedAt: '2026-07-01T12:00:00.000Z',
+      });
+    const onAuth = vi.fn();
+    render(<Auth onAuth={onAuth} />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+
+    const codeInput = await screen.findByLabelText('Authenticator or recovery code');
+    fireEvent.change(codeInput, { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+
+    await waitFor(() => expect(signIn).toHaveBeenLastCalledWith(expect.objectContaining({
+      twoFactorCode: '123456',
+    })));
+    expect(onAuth).toHaveBeenCalledTimes(1);
   });
 });

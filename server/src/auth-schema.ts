@@ -7,13 +7,15 @@ export const signUpPayloadSchema = z.object({
   email: authEmailSchema,
   password: z.string().min(8).max(200),
   displayName: singleLineTextSchema({ min: 2, max: 80 }),
-  captchaToken: z.string().trim().max(4096).optional()
+  captchaToken: z.string().trim().max(4096).optional(),
+  referralCode: z.string().trim().regex(/^[A-Za-z0-9_-]{16,64}$/).optional()
 }).strict();
 
 export const signInPayloadSchema = z.object({
   email: authEmailSchema,
   password: z.string().min(1).max(200),
-  captchaToken: z.string().trim().max(4096).optional()
+  captchaToken: z.string().trim().max(4096).optional(),
+  twoFactorCode: z.string().trim().min(6).max(64).optional()
 }).strict();
 
 export const verifyEmailPayloadSchema = z.object({
