@@ -1,6 +1,13 @@
 alter table profiles add column if not exists role text[] not null default '{}';
 alter table profiles add column if not exists kinks_visibility text not null default 'public';
 
+alter table profiles
+  drop constraint if exists profiles_kinks_visibility_check;
+
+alter table profiles
+  add constraint profiles_kinks_visibility_check
+  check (kinks_visibility in ('public', 'mutual_cruushes', 'mutual_crowds'));
+
 update profiles
 set role = (
   select coalesce(array_agg(value), '{}')
@@ -54,13 +61,6 @@ begin
     $visibility_migration$;
   end if;
 end $$;
-
-alter table profiles
-  drop constraint if exists profiles_kinks_visibility_check;
-
-alter table profiles
-  add constraint profiles_kinks_visibility_check
-  check (kinks_visibility in ('public', 'mutual_cruushes', 'mutual_crowds'));
 
 drop index if exists profile_kink_interests_public_seeking_idx;
 drop index if exists profile_kink_interests_roles_idx;

@@ -243,19 +243,19 @@ export default function Auth({ onAuth }: AuthProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden overflow-y-auto">
+    <div className="launch-login-auth-shell min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden overflow-y-auto">
       <LaunchLoginMapTeaser />
-      <div className="w-full max-w-[20rem] space-y-10 relative z-10">
+      <div className="launch-login-auth-card w-full max-w-[20rem] space-y-10 relative z-10" data-testid="launch-login-auth-panel">
         {/* Logo */}
         <div className="text-center">
           <div>
             <h1 className="sr-only">cruush</h1>
-            <div className="h-64 sm:h-80" />
+            <div className="launch-login-auth-logo-space h-64 sm:h-80" />
           </div>
         </div>
 
         {/* Auth form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="launch-login-auth-form space-y-5">
           {error && (
             <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff0072] text-sm rounded">
               {error}
@@ -302,7 +302,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="how you'll appear"
-                className="w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required={isSignUp}
                 disabled={isLoading}
               />
@@ -322,7 +322,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={twoFactorCode}
                 onChange={(event) => setTwoFactorCode(event.target.value)}
                 placeholder="123456"
-                className="w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required
                 disabled={isLoading}
               />
@@ -340,7 +340,7 @@ export default function Auth({ onAuth }: AuthProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+              className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
               required
               disabled={isLoading}
             />
@@ -358,7 +358,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required
                 disabled={isLoading}
                 minLength={isSignUp ? 8 : 1}
@@ -378,7 +378,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                 required={isSignUp}
                 disabled={isLoading}
               />
@@ -431,7 +431,7 @@ export default function Auth({ onAuth }: AuthProps) {
               type="button"
               onClick={isForgotPassword ? showSignIn : toggleMode}
               disabled={isLoading}
-              className="w-full text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-50"
+              className="launch-login-auth-secondary w-full text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-50"
             >
               {isForgotPassword
                 ? 'Back to sign in'
@@ -445,7 +445,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 type="button"
                 onClick={showForgotPassword}
                 disabled={isLoading}
-                className="w-full text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-50"
+                className="launch-login-auth-secondary w-full text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-50"
               >
                 Forgot your password?
               </button>

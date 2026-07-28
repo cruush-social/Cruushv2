@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import './LaunchLoginMapTeaser.css';
 
 type TeaserStyle = CSSProperties & {
@@ -117,12 +117,27 @@ function makeStyle(item: {
 }
 
 export default function LaunchLoginMapTeaser() {
+  const [isVideoReady, setIsVideoReady] = useState(false);
+
   return (
     <div
       aria-hidden="true"
-      className="launch-login-map-teaser"
+      className={`launch-login-map-teaser${isVideoReady ? ' launch-login-map-teaser--video-ready' : ''}`}
       data-testid="launch-login-map-teaser"
     >
+      <video
+        aria-hidden="true"
+        autoPlay
+        className="launch-login-map-teaser__video"
+        data-testid="launch-login-teaser-video"
+        loop
+        muted
+        onCanPlay={() => setIsVideoReady(true)}
+        onError={() => setIsVideoReady(false)}
+        playsInline
+        preload="metadata"
+        src="/teasers/launch-login-teaser.webm"
+      />
       <svg className="launch-login-map-teaser__filters" focusable="false">
         <filter id="launch-login-water-shimmer">
           <feTurbulence

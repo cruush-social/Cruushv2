@@ -63,10 +63,13 @@ describe('Auth', () => {
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
     expect(screen.getByTestId('launch-login-brand-mark')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');
     expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(6);
     expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
     expect(screen.queryByText('queer cruisers cruise cruush')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toHaveClass('launch-login-auth-input');
+    expect(screen.getByRole('button', { name: 'Sign In' })).toHaveClass('launch-login-auth-submit');
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });

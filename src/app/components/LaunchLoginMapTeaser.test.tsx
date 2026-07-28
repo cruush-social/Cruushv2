@@ -8,6 +8,7 @@ describe('LaunchLoginMapTeaser', () => {
     const teaser = screen.getByTestId('launch-login-map-teaser');
 
     expect(teaser).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('launch-login-teaser-video')).toHaveAttribute('src', '/teasers/launch-login-teaser.webm');
     expect(screen.getByTestId('launch-login-map-scene')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-brand-mark')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-frosted-glass')).toBeInTheDocument();

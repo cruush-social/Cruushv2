@@ -55,6 +55,20 @@
   pointer-events: none;
 }
 
+.launch-login-map-teaser__video {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateZ(0);
+  transition: opacity 320ms ease;
+}
+
 .launch-login-map-teaser__phone-glow {
   position: absolute;
   inset: clamp(1.1rem, 3vw, 2.6rem);
@@ -1332,9 +1346,85 @@
 }
 
 @media (max-width: 640px) {
+  .launch-login-map-teaser__video {
+    display: block;
+  }
+
+  .launch-login-map-teaser--video-ready .launch-login-map-teaser__video {
+    opacity: 1;
+  }
+
+  .launch-login-map-teaser--video-ready .launch-login-map-teaser__phone-glow,
+  .launch-login-map-teaser--video-ready .launch-login-map-teaser__brand-mark,
+  .launch-login-map-teaser--video-ready .launch-login-map-teaser__map,
+  .launch-login-map-teaser--video-ready .launch-login-map-teaser__ui,
+  .launch-login-map-teaser--video-ready .launch-login-map-teaser__frost,
+  .launch-login-map-teaser--video-ready .launch-login-map-teaser__steam,
+  .launch-login-map-teaser--video-ready .launch-login-map-teaser__shade {
+    display: none;
+  }
+
+  .launch-login-map-teaser::before,
+  .launch-login-map-teaser::after {
+    inset: 0.5rem;
+    border-radius: 1.35rem;
+  }
+
+  .launch-login-map-teaser__phone-glow {
+    inset: 0.55rem;
+    border-radius: 1.55rem;
+    background:
+      radial-gradient(ellipse at 34% 38%, rgba(255, 0, 114, 0.34), transparent 18rem),
+      radial-gradient(ellipse at 67% 52%, rgba(17, 129, 255, 0.34), transparent 18rem),
+      radial-gradient(ellipse at 48% 82%, rgba(111, 0, 255, 0.2), transparent 13rem),
+      linear-gradient(180deg, rgba(15, 16, 22, 0.9), rgba(3, 3, 4, 0.3));
+  }
+
+  .launch-login-map-teaser__brand-mark {
+    top: max(0.6rem, env(safe-area-inset-top));
+    width: min(35rem, 126vw);
+    height: clamp(13.5rem, 36svh, 20rem);
+    opacity: 0.78;
+    filter:
+      blur(0.18px)
+      saturate(1.2)
+      brightness(0.9)
+      contrast(1.12)
+      drop-shadow(0 1rem 2.4rem rgba(0, 0, 0, 0.72))
+      drop-shadow(0 0 2.1rem rgba(17, 129, 255, 0.22));
+  }
+
   .launch-login-map-teaser__map {
     inset: -10% -42%;
     transform: rotate(-8deg) scale(1.15);
+  }
+
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__phone-glow,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__brand-mark,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__map,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__blocks,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__pin,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__pin-halo,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__ghost,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__radius-ring,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__activity-signal,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__activity-signal::before,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__activity-signal::after,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__frost,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__steam,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__steam::before,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__steam::after,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__water-beads,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet::before,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet::after,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet-clear,
+  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet-bead {
+    animation: none !important;
+  }
+
+  .launch-login-map-teaser__ui--left {
+    top: max(0.65rem, env(safe-area-inset-top));
   }
 
   .launch-login-map-teaser__ui--right {
@@ -1346,6 +1436,68 @@
     min-height: 1.75rem;
     padding: 0 0.65rem;
     font-size: 0.58rem;
+  }
+
+  .launch-login-map-teaser__logo-mark {
+    font-size: clamp(2rem, 13vw, 3.4rem);
+  }
+
+  .launch-login-map-teaser__frost {
+    backdrop-filter: blur(8px) saturate(1.38) contrast(1.08) brightness(0.68);
+    -webkit-backdrop-filter: blur(8px) saturate(1.38) contrast(1.08) brightness(0.68);
+  }
+
+  .launch-login-map-teaser__steam {
+    opacity: 0.62;
+  }
+
+  .launch-login-map-teaser__shade {
+    background:
+      radial-gradient(ellipse at 50% 36%, transparent 0 11rem, rgba(0, 0, 0, 0.34) 22rem, rgba(0, 0, 0, 0.82)),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.08) 32%, rgba(0, 0, 0, 0.64)),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.4), transparent 18% 82%, rgba(0, 0, 0, 0.4));
+  }
+
+  .launch-login-map-teaser__water-pane::before {
+    backdrop-filter: blur(0.55px) saturate(1.08) brightness(0.86);
+    -webkit-backdrop-filter: blur(0.55px) saturate(1.08) brightness(0.86);
+    opacity: 0.48;
+  }
+
+  .launch-login-map-teaser__water-pane--foreground::before {
+    backdrop-filter: blur(0.45px) saturate(1.08) brightness(0.92);
+    -webkit-backdrop-filter: blur(0.45px) saturate(1.08) brightness(0.92);
+    opacity: 0.32;
+  }
+
+  .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__water-beads {
+    opacity: 0.36;
+  }
+
+  .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__clear-trail:nth-of-type(n+5),
+  .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__droplet:nth-of-type(n+9) {
+    display: none;
+  }
+
+  .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__clear-trail::before {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__droplet-clear,
+  .launch-login-map-teaser__water-pane--foreground .launch-login-map-teaser__droplet-bead {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .launch-login-map-teaser__pin {
+    width: 6.5rem;
+    height: 6.5rem;
+  }
+
+  .launch-login-map-teaser__radius-ring {
+    width: 11.5rem;
+    height: 11.5rem;
   }
 }
 
