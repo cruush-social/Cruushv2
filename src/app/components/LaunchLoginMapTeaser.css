@@ -59,14 +59,53 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  display: none;
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   opacity: 0;
   pointer-events: none;
   transform: translateZ(0);
   transition: opacity 320ms ease;
+}
+
+.launch-login-map-teaser--video-ready .launch-login-map-teaser__video {
+  opacity: 1;
+}
+
+.launch-login-map-teaser--video-ready .launch-login-map-teaser__phone-glow,
+.launch-login-map-teaser--video-ready .launch-login-map-teaser__brand-mark,
+.launch-login-map-teaser--video-ready .launch-login-map-teaser__map,
+.launch-login-map-teaser--video-ready .launch-login-map-teaser__ui,
+.launch-login-map-teaser--video-ready .launch-login-map-teaser__frost,
+.launch-login-map-teaser--video-ready .launch-login-map-teaser__steam,
+.launch-login-map-teaser--video-ready .launch-login-map-teaser__shade {
+  display: none;
+}
+
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__phone-glow,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__brand-mark,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__map,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__blocks,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__pin,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__pin-halo,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__ghost,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__radius-ring,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__activity-signal,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__activity-signal::before,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__activity-signal::after,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__frost,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__steam,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__steam::before,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__steam::after,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__water-beads,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet::before,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet::after,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet-clear,
+.launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet-bead {
+  animation: none !important;
 }
 
 .launch-login-map-teaser__phone-glow {
@@ -1346,24 +1385,6 @@
 }
 
 @media (max-width: 640px) {
-  .launch-login-map-teaser__video {
-    display: block;
-  }
-
-  .launch-login-map-teaser--video-ready .launch-login-map-teaser__video {
-    opacity: 1;
-  }
-
-  .launch-login-map-teaser--video-ready .launch-login-map-teaser__phone-glow,
-  .launch-login-map-teaser--video-ready .launch-login-map-teaser__brand-mark,
-  .launch-login-map-teaser--video-ready .launch-login-map-teaser__map,
-  .launch-login-map-teaser--video-ready .launch-login-map-teaser__ui,
-  .launch-login-map-teaser--video-ready .launch-login-map-teaser__frost,
-  .launch-login-map-teaser--video-ready .launch-login-map-teaser__steam,
-  .launch-login-map-teaser--video-ready .launch-login-map-teaser__shade {
-    display: none;
-  }
-
   .launch-login-map-teaser::before,
   .launch-login-map-teaser::after {
     inset: 0.5rem;
@@ -1381,9 +1402,9 @@
   }
 
   .launch-login-map-teaser__brand-mark {
-    top: max(0.6rem, env(safe-area-inset-top));
-    width: min(35rem, 126vw);
-    height: clamp(13.5rem, 36svh, 20rem);
+    top: max(2rem, env(safe-area-inset-top));
+    width: min(32rem, 114vw);
+    height: clamp(12.75rem, 32svh, 18rem);
     opacity: 0.78;
     filter:
       blur(0.18px)
@@ -1397,30 +1418,6 @@
   .launch-login-map-teaser__map {
     inset: -10% -42%;
     transform: rotate(-8deg) scale(1.15);
-  }
-
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__phone-glow,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__brand-mark,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__map,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__blocks,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__pin,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__pin-halo,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__ghost,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__radius-ring,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__activity-signal,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__activity-signal::before,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__activity-signal::after,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__frost,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__steam,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__steam::before,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__steam::after,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__water-beads,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet::before,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet::after,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet-clear,
-  .launch-login-map-teaser:not(.launch-login-map-teaser--video-ready) .launch-login-map-teaser__droplet-bead {
-    animation: none !important;
   }
 
   .launch-login-map-teaser__ui--left {

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import './LaunchLoginMapTeaser.css';
 
 type TeaserStyle = CSSProperties & {
@@ -16,6 +16,11 @@ type TeaserStyle = CSSProperties & {
   '--scale'?: string;
   '--bend'?: string;
 };
+
+const DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-desktop.webm';
+const MOBILE_TEASER_VIDEO = '/teasers/launch-login-teaser-mobile.webm';
+const MOBILE_VIDEO_QUERY = '(max-width: 640px)';
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 const STREETS = [
   { id: 'hudson', kind: 'major', x: '4%', y: '42%', w: '92%', rot: '-17deg' },
@@ -116,8 +121,47 @@ function makeStyle(item: {
   };
 }
 
+function getTeaserVideoSource() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return DESKTOP_TEASER_VIDEO;
+  }
+
+  if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+    return null;
+  }
+
+  return window.matchMedia(MOBILE_VIDEO_QUERY).matches ? MOBILE_TEASER_VIDEO : DESKTOP_TEASER_VIDEO;
+}
+
 export default function LaunchLoginMapTeaser() {
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [videoSource, setVideoSource] = useState<string | null>(() => getTeaserVideoSource());
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+
+    const mobileQuery = window.matchMedia(MOBILE_VIDEO_QUERY);
+    const reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+    const updateVideoSource = () => {
+      setIsVideoReady(false);
+      setVideoSource(reducedMotionQuery.matches
+        ? null
+        : mobileQuery.matches
+          ? MOBILE_TEASER_VIDEO
+          : DESKTOP_TEASER_VIDEO);
+    };
+
+    updateVideoSource();
+    mobileQuery.addEventListener?.('change', updateVideoSource);
+    reducedMotionQuery.addEventListener?.('change', updateVideoSource);
+
+    return () => {
+      mobileQuery.removeEventListener?.('change', updateVideoSource);
+      reducedMotionQuery.removeEventListener?.('change', updateVideoSource);
+    };
+  }, []);
 
   return (
     <div
@@ -125,19 +169,22 @@ export default function LaunchLoginMapTeaser() {
       className={`launch-login-map-teaser${isVideoReady ? ' launch-login-map-teaser--video-ready' : ''}`}
       data-testid="launch-login-map-teaser"
     >
-      <video
-        aria-hidden="true"
-        autoPlay
-        className="launch-login-map-teaser__video"
-        data-testid="launch-login-teaser-video"
-        loop
-        muted
-        onCanPlay={() => setIsVideoReady(true)}
-        onError={() => setIsVideoReady(false)}
-        playsInline
-        preload="metadata"
-        src="/teasers/launch-login-teaser.webm"
-      />
+      {videoSource ? (
+        <video
+          aria-hidden="true"
+          autoPlay
+          className="launch-login-map-teaser__video"
+          data-testid="launch-login-teaser-video"
+          key={videoSource}
+          loop
+          muted
+          onCanPlay={() => setIsVideoReady(true)}
+          onError={() => setIsVideoReady(false)}
+          playsInline
+          preload="metadata"
+          src={videoSource}
+        />
+      ) : null}
       <svg className="launch-login-map-teaser__filters" focusable="false">
         <filter id="launch-login-water-shimmer">
           <feTurbulence
