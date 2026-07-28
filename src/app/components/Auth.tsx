@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import {
   requestPasswordReset,
@@ -7,6 +7,7 @@ import {
   signUp,
   type AuthSessionPayload
 } from '../lib/authApi';
+import { getAppMeta, type AppMetaPayload } from '../lib/metaApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import { CruushIcon } from './CruushIconImage';
 import LaunchLoginMapTeaser, { LaunchLoginWaterPane } from './LaunchLoginMapTeaser';
@@ -27,6 +28,8 @@ export default function Auth({ onAuth }: AuthProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const [alphaPassword, setAlphaPassword] = useState('');
+  const [alphaTest, setAlphaTest] = useState<AppMetaPayload['alphaTest'] | null>(null);
   const [humanCheckStartedAt, setHumanCheckStartedAt] = useState(() => Date.now());
   const [humanCheckTrap, setHumanCheckTrap] = useState('');
   const [twoFactorCode, setTwoFactorCode] = useState('');
@@ -58,6 +61,7 @@ export default function Auth({ onAuth }: AuthProps) {
   const isSignUp = mode === 'signup';
   const isForgotPassword = mode === 'forgot';
   const turnstileSiteKey = getTurnstileSiteKey();
+  const alphaPasswordRequired = Boolean(alphaTest?.enabled);
   const handleCaptchaTokenChange = useCallback((token: string) => {
     setCaptchaToken(token);
   }, []);
@@ -69,6 +73,26 @@ export default function Auth({ onAuth }: AuthProps) {
   }, []);
   const handleTeaserPlaybackStateChange = useCallback((state: { isMobileRecording: boolean; isReady: boolean }) => {
     setIsMobileRecordingReady(state.isMobileRecording && state.isReady);
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    getAppMeta()
+      .then((meta) => {
+        if (isActive) {
+          setAlphaTest(meta.alphaTest);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setAlphaTest(null);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const buildHumanCheck = () => ({
@@ -131,6 +155,11 @@ export default function Auth({ onAuth }: AuthProps) {
         setIsLoading(false);
         return;
       }
+      if (alphaPasswordRequired && !alphaPassword.trim()) {
+        setError('Alpha password is required');
+        setIsLoading(false);
+        return;
+      }
       if (password.length < 8) {
         setError('Password must be at least 8 characters');
         setIsLoading(false);
@@ -149,6 +178,7 @@ export default function Auth({ onAuth }: AuthProps) {
           email,
           password,
           displayName: displayName.trim(),
+          alphaPassword: alphaPasswordRequired ? alphaPassword.trim() : undefined,
           captchaToken,
           clientCheck: buildHumanCheck(),
           referralCode: referralCode || undefined,
@@ -164,6 +194,7 @@ export default function Auth({ onAuth }: AuthProps) {
         setMode('signin');
         setPassword('');
         setConfirmPassword('');
+        setAlphaPassword('');
         setShowPassword(false);
         setShowConfirmPassword(false);
         setIsLoading(false);
@@ -220,6 +251,7 @@ export default function Auth({ onAuth }: AuthProps) {
     setNotice('');
     setVerificationRetryAvailable(false);
     setConfirmPassword('');
+    setAlphaPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
     setTwoFactorCode('');
@@ -235,6 +267,7 @@ export default function Auth({ onAuth }: AuthProps) {
     setVerificationRetryAvailable(false);
     setPassword('');
     setConfirmPassword('');
+    setAlphaPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
     setTwoFactorCode('');
@@ -250,6 +283,7 @@ export default function Auth({ onAuth }: AuthProps) {
     setVerificationRetryAvailable(false);
     setPassword('');
     setConfirmPassword('');
+    setAlphaPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
     setTwoFactorCode('');
@@ -375,6 +409,25 @@ export default function Auth({ onAuth }: AuthProps) {
               />
             </div>
           )}
+
+          {!isForgotPassword && isSignUp && alphaPasswordRequired ? (
+            <div className="space-y-2">
+              <label htmlFor="alphaPassword" className="sr-only">
+                Alpha password
+              </label>
+              <input
+                id="alphaPassword"
+                type="password"
+                autoComplete="off"
+                value={alphaPassword}
+                onChange={(e) => setAlphaPassword(e.target.value)}
+                placeholder="alpha password"
+                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          ) : null}
 
           {!isForgotPassword && !isSignUp && twoFactorRequired ? (
             <div className="space-y-2">

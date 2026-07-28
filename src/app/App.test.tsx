@@ -179,6 +179,10 @@ vi.mock('./components/DebugCruushPlusToggle', () => ({
   default: () => <div data-testid="debug-cruush-plus-toggle" />
 }));
 
+vi.mock('./components/AlphaBugButton', () => ({
+  default: ({ enabled }: { enabled?: boolean }) => (enabled ? <button type="button">Mock Alpha Bug</button> : null)
+}));
+
 vi.mock('./components/ui/sonner', () => ({
   Toaster: () => <div data-testid="toaster" />
 }));

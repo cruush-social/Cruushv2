@@ -4,11 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Auth from './Auth';
 import { AUTH_POLICY_LINKS } from './PublicPolicyLinks';
 
-const { signIn, resendVerificationEmail, signUp, requestPasswordReset } = vi.hoisted(() => ({
+const { signIn, resendVerificationEmail, signUp, requestPasswordReset, getAppMeta } = vi.hoisted(() => ({
   signIn: vi.fn(),
   resendVerificationEmail: vi.fn(),
   signUp: vi.fn(),
   requestPasswordReset: vi.fn(),
+  getAppMeta: vi.fn(),
 }));
 
 vi.mock('../lib/authApi', () => ({
@@ -16,6 +17,10 @@ vi.mock('../lib/authApi', () => ({
   signUp,
   resendVerificationEmail,
   requestPasswordReset,
+}));
+
+vi.mock('../lib/metaApi', () => ({
+  getAppMeta,
 }));
 
 vi.mock('./Turnstile', () => ({
@@ -43,6 +48,19 @@ describe('Auth', () => {
     resendVerificationEmail.mockReset();
     signUp.mockReset();
     requestPasswordReset.mockReset();
+    getAppMeta.mockReset();
+    getAppMeta.mockResolvedValue({
+      service: 'cruush-server',
+      auth: 'session-cookie',
+      storage: 'postgres',
+      migratedFromSupabase: true,
+      alphaTest: {
+        enabled: false,
+        active: false,
+        endsAt: null,
+        ended: false,
+      },
+    });
     signIn.mockRejectedValue(Object.assign(new Error('Verify your email before signing in.'), {
       code: 'EMAIL_VERIFICATION_REQUIRED',
     }));
@@ -159,6 +177,41 @@ describe('Auth', () => {
     })));
     expect(screen.queryByText('abcdefghijklmnop')).not.toBeInTheDocument();
     expect(window.sessionStorage.getItem('cruush_referral_code')).toBeNull();
+  });
+
+  it('requires and submits the alpha password when alpha signup is enabled', async () => {
+    getAppMeta.mockResolvedValue({
+      service: 'cruush-server',
+      auth: 'session-cookie',
+      storage: 'postgres',
+      migratedFromSupabase: true,
+      alphaTest: {
+        enabled: true,
+        active: true,
+        endsAt: '2026-07-29T03:59:00.000Z',
+        ended: false,
+      },
+    });
+    signUp.mockResolvedValue({
+      alreadyVerified: false,
+      expiresAt: '2026-07-28T12:00:00.000Z',
+      previewUrl: null,
+    });
+
+    render(<Auth onAuth={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
+
+    const alphaPasswordInput = await screen.findByLabelText('Alpha password');
+    fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'River' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
+    fireEvent.change(alphaPasswordInput, { target: { value: 'door-password' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    await waitFor(() => expect(signUp).toHaveBeenCalledWith(expect.objectContaining({
+      alphaPassword: 'door-password',
+    })));
   });
 
   it('prompts for and submits a second factor only after the backend requires it', async () => {

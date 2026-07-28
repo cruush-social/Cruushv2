@@ -37,6 +37,7 @@ const EmailVerificationGate = lazy(() => import('./components/EmailVerificationG
 const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
+const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
 
 function redirectToMap() {
   window.history.replaceState({}, '', '/map');
@@ -218,6 +219,7 @@ export default function App({
               )}
             />
           </Routes>
+          <AlphaBugButton enabled={Boolean(session?.alphaTest?.enabled)} />
         </Suspense>
       </BrowserRouter>
     );
@@ -241,6 +243,7 @@ export default function App({
               )}
             />
           </Routes>
+          <AlphaBugButton enabled={Boolean(session?.alphaTest?.enabled)} />
         </Suspense>
       </BrowserRouter>
     );
@@ -263,6 +266,7 @@ export default function App({
               )}
             />
           </Routes>
+          <AlphaBugButton enabled={Boolean(session?.alphaTest?.enabled)} />
         </Suspense>
       </BrowserRouter>
     );
@@ -311,6 +315,7 @@ export default function App({
             <MobileInstallPrompt />
             <BottomNav />
             <DebugCruushPlusToggle />
+            <AlphaBugButton enabled={Boolean(session?.alphaTest?.enabled)} />
           </Suspense>
           <Toaster closeButton position="top-center" richColors />
         </div>

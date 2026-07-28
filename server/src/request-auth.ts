@@ -6,6 +6,7 @@ import {
   normalizeAccountStatus,
   type AccountStatus
 } from "./account-status.js";
+import { isAlphaTestExpired } from "./alpha-test.js";
 import { getSessionTokenFromRequest, hashSessionToken } from "./auth.js";
 import { ApiError } from "./errors.js";
 
@@ -40,6 +41,11 @@ async function lookupSession(request: FastifyRequest, sessionToken: string) {
   const session = sessionLookup.rows[0];
 
   if (!session?.user_id) {
+    return null;
+  }
+
+  if (isAlphaTestExpired(request.server.config)) {
+    await revokeSession(request, tokenHash);
     return null;
   }
 

@@ -12,6 +12,7 @@ export const SESSION_TOKEN_HASH_BYTES = 32;
 type SessionCookieOptions = {
   secure: boolean;
   expiresAt?: Date;
+  maxAgeSeconds?: number;
 };
 
 function toBase64Url(buffer: Buffer) {
@@ -86,7 +87,7 @@ export function createSessionCookie(token: string, options: SessionCookieOptions
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",
-    `Max-Age=${SESSION_TTL_SECONDS}`,
+    `Max-Age=${options.maxAgeSeconds ?? SESSION_TTL_SECONDS}`,
   ];
 
   if (options.expiresAt) {

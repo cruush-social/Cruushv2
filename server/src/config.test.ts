@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { loadConfig } from "./config.js";
 
 const strongSecret = "0123456789abcdef0123456789abcdef";
+const scryptPasswordHash = `scrypt$${"0".repeat(32)}$${"0".repeat(128)}`;
 
 function validProductionEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   return {
@@ -60,6 +61,42 @@ describe("loadConfig", () => {
       ...baseEnv,
       HUMAN_MODERATION_ENABLED: "true"
     }).HUMAN_MODERATION_ENABLED).toBe(true);
+  });
+
+  it("validates alpha test password and cutoff together", () => {
+    const baseEnv = {
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret"
+    };
+
+    expect(loadConfig(baseEnv)).toMatchObject({
+      ALPHA_TEST_ENABLED: false,
+      ALPHA_TEST_PASSWORD_HASH: "",
+      ALPHA_TEST_ENDS_AT: ""
+    });
+
+    expect(() => loadConfig({
+      ...baseEnv,
+      ALPHA_TEST_ENABLED: "true"
+    })).toThrow(/ALPHA_TEST_PASSWORD_HASH/);
+
+    expect(() => loadConfig({
+      ...baseEnv,
+      ALPHA_TEST_ENABLED: "true",
+      ALPHA_TEST_PASSWORD_HASH: scryptPasswordHash,
+      ALPHA_TEST_ENDS_AT: "not-a-date"
+    })).toThrow(/ALPHA_TEST_ENDS_AT/);
+
+    expect(loadConfig({
+      ...baseEnv,
+      ALPHA_TEST_ENABLED: "true",
+      ALPHA_TEST_PASSWORD_HASH: scryptPasswordHash,
+      ALPHA_TEST_ENDS_AT: "2026-07-28T23:59:00-04:00"
+    })).toMatchObject({
+      ALPHA_TEST_ENABLED: true,
+      ALPHA_TEST_PASSWORD_HASH: scryptPasswordHash,
+      ALPHA_TEST_ENDS_AT: "2026-07-28T23:59:00-04:00"
+    });
   });
 
   it("allows local HTTP and HTTPS frontend origins by default", () => {

@@ -1,6 +1,7 @@
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import Fastify, { type FastifyServerOptions } from "fastify";
+import { getAlphaTestState } from "./alpha-test.js";
 import { createPool, type DbClient } from "./db.js";
 import type { AppConfig } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
@@ -22,6 +23,7 @@ import { registerSupportRoutes } from "./routes/support.js";
 import { registerUserRoutes } from "./routes/users.js";
 import { registerDevRoutes } from "./routes/dev.js";
 import { registerRewardRoutes } from "./routes/rewards.js";
+import { photoUploadAvailability } from "./photo-upload-availability.js";
 import { createPostgresRateLimiter, type RateLimiter } from "./rate-limit.js";
 
 type BuildServerDeps = {
@@ -145,7 +147,9 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
       service: "cruush-server",
       auth: "session-cookie",
       storage: "postgres",
-      migratedFromSupabase: true
+      migratedFromSupabase: true,
+      alphaTest: getAlphaTestState(config),
+      photoUploads: photoUploadAvailability(config)
     };
   });
 

@@ -89,6 +89,9 @@ RESEND_API_KEY=<resend-api-key>
 EMAIL_PREVIEW_ENABLED=false
 DEVELOPMENT_ADMIN_ENABLED=false
 DEVELOPMENT_ADMIN_PASSWORD=
+ALPHA_TEST_ENABLED=true
+ALPHA_TEST_PASSWORD_HASH=<scrypt-hash-generated-outside-chat-and-git>
+ALPHA_TEST_ENDS_AT=2026-07-28T23:59:00-04:00
 TURNSTILE_SECRET_KEY=<turnstile-secret-key-or-empty-if-disabled>
 
 PROFILE_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
@@ -119,7 +122,7 @@ GHOST_DERIVATION_KEY_VERSION=v1
 DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION=v1
 ```
 
-Do not open deployed profile-photo uploads until the Microsoft API Management operation path and real allowed/blocked responses are verified. Deployed uploads stay unavailable unless `PHOTODNA_ENABLED`, Stream automod, the signed image bridge, and Rekognition human detection are all enabled. For alpha staging only, `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` temporarily permits profile-photo uploads without PhotoDNA after Stream automod, the signed image bridge, and Rekognition are enabled; message-photo uploads remain unavailable without PhotoDNA.
+Do not open deployed profile-photo uploads until the Microsoft API Management operation path and real allowed/blocked responses are verified. Deployed uploads stay unavailable unless `PHOTODNA_ENABLED`, Stream automod, the signed image bridge, and Rekognition human detection are all enabled. For alpha staging only, an active `ALPHA_TEST_ENABLED=true` gate or `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` temporarily permits profile-photo uploads without PhotoDNA after Stream automod, the signed image bridge, and Rekognition are enabled; message-photo uploads remain unavailable without PhotoDNA.
 
 Stream fetches signed inspection URLs from `MEDIA_PUBLIC_BASE_URL`. Confirm Coolify ingress, proxy, CDN/WAF, and APM logs do not retain signed query strings on that API route. Add a private five-minute scheduled task from the repository root:
 
@@ -214,6 +217,9 @@ RESEND_API_KEY=<resend-api-key>
 EMAIL_PREVIEW_ENABLED=false
 DEVELOPMENT_ADMIN_ENABLED=false
 DEVELOPMENT_ADMIN_PASSWORD=
+ALPHA_TEST_ENABLED=false
+ALPHA_TEST_PASSWORD_HASH=
+ALPHA_TEST_ENDS_AT=
 TURNSTILE_SECRET_KEY=<turnstile-secret-key-or-empty-if-disabled>
 
 PROFILE_ENCRYPTION_KEY=<generate-secret-32-plus-chars>
@@ -288,7 +294,8 @@ These values are safe to add directly if the domains/buckets are correct:
 - `STREAM_IMAGE_BRIDGE_ENABLED=true` only after the dedicated no-cache moderation-media hostname is routed and its upstream logs are verified not to retain raw paths
 - `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true` for the shared bank/open-beta Stream path; keep manual review false
 - `PROFILE_PHOTO_REKOGNITION_ENABLED=true`, a Rekognition-only IAM principal with `DetectFaces` and `DetectLabels`, and the documented human/animal/face/age thresholds
-- `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` only for the temporary alpha staging exception while Microsoft PhotoDNA access is pending; leave false for open beta or production
+- `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` only for the temporary alpha staging exception while Microsoft PhotoDNA access is pending; an active `ALPHA_TEST_ENABLED=true` staging gate now permits the same profile-photo-only exception, but leave both paths false for open beta or production
+- `ALPHA_TEST_ENABLED=true`, `ALPHA_TEST_PASSWORD_HASH=<scrypt hash>`, and `ALPHA_TEST_ENDS_AT=2026-07-28T23:59:00-04:00` only for the current same-night alpha gate. After the timestamp, existing sessions stop resolving and login/signup are blocked.
 - `SEVERE_ACCESS_BANS_ENABLED=true`, `SEVERE_ACCESS_BAN_HMAC_KEY=<32+ byte secret>`, and `TRUST_PROXY_HOPS=1` only after confirming the Coolify/Traefik proxy chain
 - `PHOTODNA_ENABLED=true` only after the Microsoft endpoint and response contract are verified; deployed uploads remain disabled while it is false
 - `PHOTODNA_TIMEOUT_MS=5000`
@@ -322,6 +329,7 @@ These require secret values or dashboard-generated values:
 - `RESEND_API_KEY`
 - `TURNSTILE_SECRET_KEY`
 - `VITE_TURNSTILE_SITE_KEY`
+- `ALPHA_TEST_PASSWORD_HASH`
 - every encryption/index/signing key
 
 ## Coolify Verification After Save

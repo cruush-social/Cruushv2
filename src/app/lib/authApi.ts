@@ -19,6 +19,12 @@ export type AuthSessionPayload = {
   codeOfConductVersion: string;
   acceptedCodeOfConductVersion: string | null;
   codeOfConductAcceptedAt: string | null;
+  alphaTest?: {
+    enabled: boolean;
+    active: boolean;
+    endsAt: string | null;
+    ended: boolean;
+  };
 };
 
 export type VerificationDeliveryPayload = {
@@ -56,7 +62,7 @@ export function getAuthSession() {
   return requestApi<AuthSessionPayload>('/api/auth/me');
 }
 
-export function signUp(payload: { email: string; password: string; displayName: string; captchaToken?: string; clientCheck?: ClientSecurityCheckPayload; referralCode?: string }) {
+export function signUp(payload: { email: string; password: string; displayName: string; alphaPassword?: string; captchaToken?: string; clientCheck?: ClientSecurityCheckPayload; referralCode?: string }) {
   return requestApi<VerificationDeliveryPayload>('/api/auth/signup', {
     method: 'POST',
     body: JSON.stringify(payload),

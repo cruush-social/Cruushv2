@@ -135,6 +135,9 @@ const configSchema = z.object({
   EMAIL_PREVIEW_ENABLED: booleanEnvSchema,
   DEVELOPMENT_ADMIN_ENABLED: booleanEnvSchema,
   DEVELOPMENT_ADMIN_PASSWORD: z.string().optional().default(""),
+  ALPHA_TEST_ENABLED: booleanEnvSchema,
+  ALPHA_TEST_PASSWORD_HASH: z.string().trim().optional().default(""),
+  ALPHA_TEST_ENDS_AT: z.string().trim().optional().default(""),
   TURNSTILE_SECRET_KEY: z.string().optional().default(""),
   PROFILE_ENCRYPTION_KEY: z.string().optional().default(""),
   PROFILE_TOKEN_KEY: z.string().optional().default(""),
@@ -167,6 +170,30 @@ const configSchema = z.object({
   WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional().default(""),
   WEB_PUSH_SUBJECT: z.string().trim().min(1).optional().default("mailto:hello@cruush.app")
 }).superRefine((config, ctx) => {
+  if (config.ALPHA_TEST_ENABLED) {
+    if (!config.ALPHA_TEST_PASSWORD_HASH.startsWith("scrypt$")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "ALPHA_TEST_PASSWORD_HASH must be a scrypt password hash when ALPHA_TEST_ENABLED=true.",
+        path: ["ALPHA_TEST_PASSWORD_HASH"]
+      });
+    }
+
+    if (!config.ALPHA_TEST_ENDS_AT) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "ALPHA_TEST_ENDS_AT is required when ALPHA_TEST_ENABLED=true.",
+        path: ["ALPHA_TEST_ENDS_AT"]
+      });
+    } else if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(config.ALPHA_TEST_ENDS_AT) || Number.isNaN(Date.parse(config.ALPHA_TEST_ENDS_AT))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "ALPHA_TEST_ENDS_AT must be an ISO timestamp with timezone offset.",
+        path: ["ALPHA_TEST_ENDS_AT"]
+      });
+    }
+  }
+
   if (config.WEB_PUSH_ENABLED) {
     for (const keyName of ["WEB_PUSH_VAPID_PUBLIC_KEY", "WEB_PUSH_VAPID_PRIVATE_KEY", "WEB_PUSH_SUBJECT"] as const) {
       if (!config[keyName]) {
@@ -623,13 +650,17 @@ type WebPushConfigKey =
 type TwoFactorConfigKey =
   | "TWO_FACTOR_ENCRYPTION_KEY"
   | "TWO_FACTOR_ENCRYPTION_KEY_VERSION";
+type AlphaTestConfigKey =
+  | "ALPHA_TEST_ENABLED"
+  | "ALPHA_TEST_PASSWORD_HASH"
+  | "ALPHA_TEST_ENDS_AT";
 
 export type AppConfig = Omit<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey
 > & Partial<Pick<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey
 >>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {

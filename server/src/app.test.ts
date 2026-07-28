@@ -660,7 +660,17 @@ describe("server", () => {
       service: "cruush-server",
       auth: "session-cookie",
       storage: "postgres",
-      migratedFromSupabase: true
+      migratedFromSupabase: true,
+      alphaTest: {
+        enabled: false,
+        active: false,
+        endsAt: null,
+        ended: false
+      },
+      photoUploads: {
+        profilePhotos: true,
+        messagePhotos: true
+      }
     });
   });
 

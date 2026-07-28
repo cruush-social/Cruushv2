@@ -1,6 +1,14 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { accountCanAuthenticate, normalizeAccountStatus } from "../account-status.js";
+import {
+  ensureAlphaTestActive,
+  getAlphaSessionExpiry,
+  getAlphaTestState,
+  getSessionMaxAgeSeconds,
+  isAlphaTestExpired,
+  verifyAlphaTestPassword
+} from "../alpha-test.js";
 import { ApiError } from "../errors.js";
 import {
   createClearedSessionCookie,
@@ -148,7 +156,7 @@ function mapSessionRow(row: AuthUserRow) {
 async function createSession(app: FastifyInstance, userId: string) {
   const token = generateSessionToken();
   const tokenHash = hashSessionToken(token);
-  const expiresAt = getSessionExpiryDate();
+  const expiresAt = getAlphaSessionExpiry(app.config, getSessionExpiryDate());
 
   await app.db.query(
     `insert into app_sessions (user_id, token_hash, expires_at)
@@ -237,7 +245,16 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
     throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
-  return mapSessionRow(row);
+  const session = mapSessionRow(row);
+
+  if (app.config.ALPHA_TEST_ENABLED) {
+    return {
+      ...session,
+      alphaTest: getAlphaTestState(app.config)
+    };
+  }
+
+  return session;
 }
 
 async function resolveCurrentSession(request: FastifyRequest) {
@@ -266,6 +283,14 @@ async function resolveCurrentSession(request: FastifyRequest) {
     throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
+  if (isAlphaTestExpired(request.server.config)) {
+    await request.server.db.query(
+      "delete from app_sessions where token_hash = $1",
+      [tokenHash]
+    );
+    throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+  }
+
   if (!accountCanAuthenticate(session.account_status)) {
     await request.server.db.query(
       "delete from app_sessions where token_hash = $1",
@@ -289,6 +314,7 @@ function setSessionCookie(reply: FastifyReply, request: FastifyRequest, token: s
   reply.header("set-cookie", createSessionCookie(token, {
     secure: shouldUseSecureCookies(request),
     expiresAt,
+    maxAgeSeconds: getSessionMaxAgeSeconds(expiresAt),
   }));
 }
 
@@ -388,6 +414,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   app.post("/api/auth/signup", async (request, reply) => {
     await assertRequestNotSeverelyBanned(app, request);
     const payload = signUpPayloadSchema.parse(request.body);
+    ensureAlphaTestActive(app.config);
     await applyRateLimits(app, [
       {
         key: `signup:ip:${getRequestIp(request)}`,
@@ -402,6 +429,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         message: "Too many sign-up attempts. Try again later."
       }
     ]);
+    await verifyAlphaTestPassword(app.config, payload.alphaPassword);
     verifyClientSecurityCheck(payload.clientCheck);
     await verifyTurnstileToken(request, payload.captchaToken);
     const passwordHash = await hashPassword(payload.password);
@@ -500,6 +528,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   app.post("/api/auth/login", async (request, reply) => {
     await assertRequestNotSeverelyBanned(app, request);
     const payload = signInPayloadSchema.parse(request.body);
+    ensureAlphaTestActive(app.config);
 
     await applyRateLimits(app, [
       {

@@ -13,6 +13,7 @@ export const signUpPayloadSchema = z.object({
   email: authEmailSchema,
   password: z.string().min(8).max(200),
   displayName: singleLineTextSchema({ min: 2, max: 80 }),
+  alphaPassword: z.string().trim().min(1).max(200).optional(),
   captchaToken: z.string().trim().max(4096).optional(),
   clientCheck: clientSecurityCheckSchema.optional(),
   referralCode: z.string().trim().regex(/^[A-Za-z0-9_-]{16,64}$/).optional()
