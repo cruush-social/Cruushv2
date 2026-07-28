@@ -67,7 +67,7 @@
 
 @media (max-width: 640px) {
   .launch-login-auth-shell--mobile-recording-ready .launch-login-auth-rain-pane {
-    opacity: 0.64;
+    opacity: 0.54;
   }
 }
 
@@ -368,7 +368,7 @@
   .launch-login-auth-card {
     width: 100%;
     max-width: 100%;
-    padding-top: clamp(12.9rem, 26.5svh, 18rem);
+    padding-top: clamp(13.4rem, 28svh, 18rem);
   }
 
   .launch-login-auth-card > :not([hidden]) ~ :not([hidden]) {
@@ -381,29 +381,38 @@
   }
 
   .launch-login-auth-logo-image {
-    width: clamp(9.2rem, 28vw, 10.2rem);
+    width: clamp(8.4rem, 35vw, 9.6rem);
+    opacity: 0.84;
     filter:
+      blur(0.08px)
+      saturate(0.86)
+      contrast(0.86)
+      brightness(0.94)
       drop-shadow(0 0.72rem 1.4rem rgba(0, 0, 0, 0.92))
-      drop-shadow(0 0 1.25rem rgba(56, 38, 255, 0.28))
-      drop-shadow(0 0 1.05rem rgba(255, 0, 114, 0.2));
+      drop-shadow(0 0 0.9rem rgba(232, 240, 255, 0.12))
+      drop-shadow(0 0 1.05rem rgba(56, 38, 255, 0.22))
+      drop-shadow(0 0 0.9rem rgba(255, 0, 114, 0.14));
   }
 
   .launch-login-auth-tagline {
     max-width: 100%;
-    color: rgba(255, 255, 255, 0.9);
-    font-size: clamp(1.05rem, 3.9vw, 1.45rem);
+    color: rgba(240, 242, 248, 0.78);
+    font-size: clamp(1.02rem, 3.8vw, 1.24rem);
     line-height: 1.05;
+    filter: blur(0.08px) saturate(0.9) contrast(0.88);
     text-shadow:
       0 0.4rem 0.9rem rgba(0, 0, 0, 0.96),
-      0 0 0.55rem rgba(255, 0, 114, 0.12),
-      0 0 0.65rem rgba(56, 38, 255, 0.12);
+      0 0 0.18rem rgba(255, 255, 255, 0.1),
+      0 0 0.52rem rgba(232, 240, 255, 0.1),
+      0 0 0.5rem rgba(255, 0, 114, 0.08),
+      0 0 0.6rem rgba(56, 38, 255, 0.08);
     white-space: nowrap;
   }
 
   .launch-login-auth-form {
-    width: clamp(12.1rem, 33vw, 12.4rem);
+    width: clamp(10.4rem, 42vw, 11.7rem);
     margin-top: -0.36rem;
-    transform: translateY(-1.1rem);
+    transform: translateY(-0.84rem);
   }
 
   .launch-login-auth-card > .launch-login-auth-brand + .launch-login-auth-form {
@@ -415,14 +424,14 @@
   }
 
   .launch-login-auth-input {
-    min-height: 1.78rem;
-    height: 1.78rem;
+    min-height: 1.56rem;
+    height: 1.56rem;
     border-radius: 0.16rem;
     border-color: rgba(255, 255, 255, 0.24);
     background-color: rgba(0, 1, 7, 0.9);
-    padding-inline: 0.62rem;
+    padding-inline: 0.58rem;
     color: rgba(255, 255, 255, 0.82);
-    font-size: 0.55rem;
+    font-size: 0.5rem;
     line-height: 1;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -433,7 +442,7 @@
   }
 
   .launch-login-auth-password-field .launch-login-auth-input {
-    padding-right: 1.7rem;
+    padding-right: 1.5rem;
   }
 
   .launch-login-auth-input::placeholder {
@@ -442,21 +451,21 @@
 
   .launch-login-auth-password-toggle {
     right: 0.16rem;
-    width: 1.4rem;
-    height: 1.4rem;
+    width: 1.2rem;
+    height: 1.2rem;
     color: rgba(255, 255, 255, 0.48);
   }
 
   .launch-login-auth-password-toggle svg {
-    width: 0.64rem;
-    height: 0.64rem;
+    width: 0.56rem;
+    height: 0.56rem;
   }
 
   .launch-login-auth-submit {
-    min-height: 1.86rem;
-    height: 1.86rem;
+    min-height: 1.64rem;
+    height: 1.64rem;
     border-radius: 0.22rem;
-    font-size: 0.58rem;
+    font-size: 0.52rem;
     font-weight: 700;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.52);
     box-shadow:
@@ -472,10 +481,10 @@
   }
 
   .launch-login-auth-secondary {
-    min-height: 0.86rem;
+    min-height: 0.78rem;
     padding-block: 0.06rem;
     color: rgba(255, 255, 255, 0.66);
-    font-size: 0.46rem;
+    font-size: 0.42rem;
     font-weight: 600;
     line-height: 1.1;
   }
@@ -489,13 +498,13 @@
   }
 
   .launch-login-auth-card [aria-label="Legal and safety links"] {
-    width: clamp(12.1rem, 35vw, 12.8rem);
+    width: clamp(10.5rem, 42vw, 11.8rem);
     margin-top: 0.22rem !important;
     color: rgba(255, 255, 255, 0.64);
-    font-size: 0.48rem;
-    line-height: 1.45;
+    font-size: 0.4rem;
+    line-height: 1.42;
     text-shadow: 0 0.45rem 1rem rgba(0, 0, 0, 0.96);
-    transform: translateY(-3rem);
+    transform: translateY(-2.25rem);
   }
 
   .launch-login-auth-card [aria-label="Legal and safety links"] a {

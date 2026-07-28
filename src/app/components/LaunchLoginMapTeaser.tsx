@@ -124,8 +124,8 @@ const CLEAR_TRAILS = [
   { id: 'trail-eleven', x: '56.6%', y: '-18vh', w: '0.76rem', h: '104vh', duration: '25s', drift: '-0.12rem', driftEnd: '0.05rem', rot: '0.4deg', delay: '-24s', bend: '-0.1rem' },
 ];
 
-const MOBILE_DROPLETS = DROPLETS;
-const MOBILE_CLEAR_TRAILS = CLEAR_TRAILS;
+const MOBILE_DROPLETS = DROPLETS.filter((_, index) => index % 2 === 0).slice(0, 12);
+const MOBILE_CLEAR_TRAILS = CLEAR_TRAILS.filter((_, index) => index % 2 === 0).slice(0, 6);
 
 function makeStyle(item: {
   x?: string;
