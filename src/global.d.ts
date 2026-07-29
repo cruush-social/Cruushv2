@@ -24,6 +24,10 @@ interface Window {
         theme?: 'auto' | 'light' | 'dark';
         size?: 'normal' | 'flexible' | 'compact';
         appearance?: 'always' | 'execute' | 'interaction-only';
+        retry?: 'auto' | 'never';
+        'retry-interval'?: number;
+        'refresh-expired'?: 'auto' | 'manual' | 'never';
+        'refresh-timeout'?: 'auto' | 'manual' | 'never';
       },
     ) => string;
     remove?: (widgetId: string) => void;

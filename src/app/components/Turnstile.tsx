@@ -6,8 +6,34 @@ type TurnstileProps = {
   resetKey?: number;
 };
 
-const TURNSTILE_RETRY_DELAY_MS = 750;
-const TURNSTILE_ERROR_MESSAGE = 'Security check restarted. Try again.';
+const TURNSTILE_CONFIGURATION_ERROR_MESSAGE = 'Security check is unavailable. Contact support.';
+const TURNSTILE_CLOCK_ERROR_MESSAGE = 'Security check could not start. Check your device time, then reload.';
+const TURNSTILE_UNKNOWN_ERROR_MESSAGE = 'Security check could not start. Reload and try again.';
+const TURNSTILE_RETRYABLE_ERROR_CODES = new Set(['110600', '110620', '200500']);
+const TURNSTILE_CONFIGURATION_ERROR_CODES = new Set(['110100', '110110', '110200', '400020', '400070']);
+
+function getTurnstileErrorMessage(errorCode?: string) {
+  const normalizedErrorCode = errorCode?.trim() ?? '';
+
+  if (
+    !normalizedErrorCode ||
+    TURNSTILE_RETRYABLE_ERROR_CODES.has(normalizedErrorCode) ||
+    normalizedErrorCode.startsWith('300') ||
+    normalizedErrorCode.startsWith('600')
+  ) {
+    return null;
+  }
+
+  if (TURNSTILE_CONFIGURATION_ERROR_CODES.has(normalizedErrorCode) || normalizedErrorCode.startsWith('110')) {
+    return TURNSTILE_CONFIGURATION_ERROR_MESSAGE;
+  }
+
+  if (normalizedErrorCode === '200100') {
+    return TURNSTILE_CLOCK_ERROR_MESSAGE;
+  }
+
+  return TURNSTILE_UNKNOWN_ERROR_MESSAGE;
+}
 
 export function getTurnstileSiteKey() {
   return import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
@@ -16,15 +42,7 @@ export function getTurnstileSiteKey() {
 export default function Turnstile({ onTokenChange, onError, resetKey = 0 }: TurnstileProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
-  const retryTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const siteKey = getTurnstileSiteKey();
-
-  const clearRetryTimeout = useCallback(() => {
-    if (retryTimeoutRef.current) {
-      window.clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = null;
-    }
-  }, []);
 
   const resetWidget = useCallback(() => {
     if (widgetIdRef.current && window.turnstile?.reset) {
@@ -33,16 +51,21 @@ export default function Turnstile({ onTokenChange, onError, resetKey = 0 }: Turn
     onTokenChange('');
   }, [onTokenChange]);
 
-  const handleTurnstileError = useCallback(() => {
+  const handleTurnstileError = useCallback((errorCode?: string) => {
     onTokenChange('');
-    onError?.(TURNSTILE_ERROR_MESSAGE);
-    clearRetryTimeout();
-    retryTimeoutRef.current = window.setTimeout(() => {
-      retryTimeoutRef.current = null;
-      resetWidget();
-    }, TURNSTILE_RETRY_DELAY_MS);
-    return true;
-  }, [clearRetryTimeout, onError, onTokenChange, resetWidget]);
+    const errorMessage = getTurnstileErrorMessage(errorCode);
+
+    if (errorMessage) {
+      onError?.(errorMessage);
+      return true;
+    }
+
+    return false;
+  }, [onError, onTokenChange]);
+
+  const handleTurnstileTimeout = useCallback(() => {
+    onTokenChange('');
+  }, [onTokenChange]);
 
   useEffect(() => {
     if (!siteKey || !containerRef.current) {
@@ -63,9 +86,13 @@ export default function Turnstile({ onTokenChange, onError, resetKey = 0 }: Turn
         theme: 'dark',
         size: 'flexible',
         appearance: 'interaction-only',
+        retry: 'auto',
+        'retry-interval': 8000,
+        'refresh-expired': 'auto',
+        'refresh-timeout': 'auto',
         callback: onTokenChange,
         'expired-callback': () => onTokenChange(''),
-        'timeout-callback': handleTurnstileError,
+        'timeout-callback': handleTurnstileTimeout,
         'error-callback': handleTurnstileError,
       });
     };
@@ -90,13 +117,12 @@ export default function Turnstile({ onTokenChange, onError, resetKey = 0 }: Turn
     return () => {
       isMounted = false;
       script?.removeEventListener('load', renderWidget);
-      clearRetryTimeout();
       if (widgetIdRef.current && window.turnstile?.remove) {
         window.turnstile.remove(widgetIdRef.current);
       }
       widgetIdRef.current = null;
     };
-  }, [clearRetryTimeout, handleTurnstileError, onTokenChange, siteKey]);
+  }, [handleTurnstileError, handleTurnstileTimeout, onTokenChange, siteKey]);
 
   useEffect(() => {
     resetWidget();
