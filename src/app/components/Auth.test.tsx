@@ -84,7 +84,8 @@ describe('Auth', () => {
     expect(screen.queryByTestId('launch-login-brand-mark')).not.toBeInTheDocument();
     expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');
-    expect(screen.getByTestId('launch-login-auth-captcha')).toHaveClass('launch-login-auth-captcha');
+    const captchaSlot = screen.getByTestId('launch-login-auth-captcha');
+    expect(captchaSlot).toHaveClass('launch-login-auth-captcha');
     expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-auth-rain-pane');
     const humanCheckInput = container.querySelector('#launch-login-auth-extra-url');
     expect(humanCheckInput).toHaveAttribute('tabindex', '-1');
@@ -94,11 +95,13 @@ describe('Auth', () => {
     expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
     expect(screen.getByTestId('launch-login-auth-tagline')).toHaveTextContent('queer cruisers cruise cruush');
     expect(screen.getByLabelText('Email')).toHaveClass('launch-login-auth-input');
-    expect(screen.getByRole('button', { name: 'Sign In' })).toHaveClass('launch-login-auth-submit');
+    const signInButton = screen.getByRole('button', { name: 'Sign In' });
+    expect(signInButton).toHaveClass('launch-login-auth-submit');
+    expect(signInButton.compareDocumentPosition(captchaSlot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+    fireEvent.click(signInButton);
 
     await screen.findByText('Verify your email before signing in.');
     expect(screen.getByRole('button', { name: 'Resend verification email' })).toBeInTheDocument();

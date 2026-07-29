@@ -527,16 +527,6 @@ export default function Auth({ onAuth }: AuthProps) {
             </div>
           )}
 
-          {!isForgotPassword && turnstileSiteKey && (
-            <div className="launch-login-auth-captcha" data-testid="launch-login-auth-captcha">
-              <Turnstile
-                onTokenChange={handleCaptchaTokenChange}
-                onError={handleCaptchaError}
-                resetKey={captchaResetKey}
-              />
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={isLoading}
@@ -569,6 +559,16 @@ export default function Auth({ onAuth }: AuthProps) {
               <span className="relative z-10">{isSignUp ? 'Create Account' : isForgotPassword ? 'Send Reset Link' : 'Sign In'}</span>
             )}
           </button>
+
+          {!isForgotPassword && turnstileSiteKey && (
+            <div className="launch-login-auth-captcha" data-testid="launch-login-auth-captcha">
+              <Turnstile
+                onTokenChange={handleCaptchaTokenChange}
+                onError={handleCaptchaError}
+                resetKey={captchaResetKey}
+              />
+            </div>
+          )}
 
           <div className="launch-login-auth-secondary-actions space-y-3">
             <button
