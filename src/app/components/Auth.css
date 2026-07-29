@@ -368,7 +368,7 @@
   .launch-login-auth-card {
     width: 100%;
     max-width: 100%;
-    padding-top: clamp(13.4rem, 28svh, 18rem);
+    padding-top: clamp(7.8rem, 17svh, 10.25rem);
   }
 
   .launch-login-auth-card > :not([hidden]) ~ :not([hidden]) {
@@ -381,7 +381,7 @@
   }
 
   .launch-login-auth-logo-image {
-    width: clamp(8.4rem, 35vw, 9.6rem);
+    width: clamp(10.4rem, 43vw, 12.25rem);
     opacity: 0.84;
     filter:
       blur(0.08px)
@@ -397,7 +397,7 @@
   .launch-login-auth-tagline {
     max-width: 100%;
     color: rgba(240, 242, 248, 0.78);
-    font-size: clamp(1.02rem, 3.8vw, 1.24rem);
+    font-size: clamp(1.18rem, 4.6vw, 1.52rem);
     line-height: 1.05;
     filter: blur(0.08px) saturate(0.9) contrast(0.88);
     text-shadow:
@@ -410,28 +410,28 @@
   }
 
   .launch-login-auth-form {
-    width: clamp(10.4rem, 42vw, 11.7rem);
-    margin-top: -0.36rem;
-    transform: translateY(-0.84rem);
+    width: clamp(14rem, 70vw, 18.4rem);
+    margin-top: -0.18rem;
+    transform: translateY(-0.4rem);
   }
 
   .launch-login-auth-card > .launch-login-auth-brand + .launch-login-auth-form {
-    margin-top: -0.15rem !important;
+    margin-top: 0.15rem !important;
   }
 
   .launch-login-auth-form > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 0.5rem;
+    margin-top: 0.66rem;
   }
 
   .launch-login-auth-input {
-    min-height: 1.56rem;
-    height: 1.56rem;
+    min-height: 2.22rem;
+    height: 2.22rem;
     border-radius: 0.16rem;
     border-color: rgba(255, 255, 255, 0.24);
     background-color: rgba(0, 1, 7, 0.9);
-    padding-inline: 0.58rem;
+    padding-inline: 0.82rem;
     color: rgba(255, 255, 255, 0.82);
-    font-size: 0.5rem;
+    font-size: 0.68rem;
     line-height: 1;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -442,7 +442,7 @@
   }
 
   .launch-login-auth-password-field .launch-login-auth-input {
-    padding-right: 1.5rem;
+    padding-right: 2.1rem;
   }
 
   .launch-login-auth-input::placeholder {
@@ -450,22 +450,22 @@
   }
 
   .launch-login-auth-password-toggle {
-    right: 0.16rem;
-    width: 1.2rem;
-    height: 1.2rem;
+    right: 0.26rem;
+    width: 1.72rem;
+    height: 1.72rem;
     color: rgba(255, 255, 255, 0.48);
   }
 
   .launch-login-auth-password-toggle svg {
-    width: 0.56rem;
-    height: 0.56rem;
+    width: 0.76rem;
+    height: 0.76rem;
   }
 
   .launch-login-auth-submit {
-    min-height: 1.64rem;
-    height: 1.64rem;
-    border-radius: 0.22rem;
-    font-size: 0.52rem;
+    min-height: 2.34rem;
+    height: 2.34rem;
+    border-radius: 0.28rem;
+    font-size: 0.72rem;
     font-weight: 700;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.52);
     box-shadow:
@@ -481,30 +481,30 @@
   }
 
   .launch-login-auth-secondary {
-    min-height: 0.78rem;
-    padding-block: 0.06rem;
+    min-height: 1rem;
+    padding-block: 0.08rem;
     color: rgba(255, 255, 255, 0.66);
-    font-size: 0.42rem;
+    font-size: 0.52rem;
     font-weight: 600;
     line-height: 1.1;
   }
 
   .launch-login-auth-form > .launch-login-auth-secondary-actions {
-    margin-top: 0.42rem !important;
+    margin-top: 0.62rem !important;
   }
 
   .launch-login-auth-secondary-actions > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 0.26rem !important;
+    margin-top: 0.36rem !important;
   }
 
   .launch-login-auth-card [aria-label="Legal and safety links"] {
-    width: clamp(10.5rem, 42vw, 11.8rem);
-    margin-top: 0.22rem !important;
+    width: clamp(13.8rem, 68vw, 18.2rem);
+    margin-top: 0.35rem !important;
     color: rgba(255, 255, 255, 0.64);
-    font-size: 0.4rem;
-    line-height: 1.42;
+    font-size: 0.48rem;
+    line-height: 1.4;
     text-shadow: 0 0.45rem 1rem rgba(0, 0, 0, 0.96);
-    transform: translateY(-2.25rem);
+    transform: translateY(-1.15rem);
   }
 
   .launch-login-auth-card [aria-label="Legal and safety links"] a {
