@@ -350,6 +350,7 @@ export default function DirectMessages() {
                       className="w-10 shrink-0"
                       label={`${item.user.name} avatar`}
                       photo={item.user.photo}
+                      userId={item.user.id}
                       fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
                     />
                     <span className="min-w-0">
@@ -392,6 +393,7 @@ export default function DirectMessages() {
                       className="w-12"
                       label={`${conversation.user.name} avatar`}
                       photo={conversation.user.photo}
+                      userId={conversation.user.id}
                       fallback={<div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>}
                     />
                     {conversation.unreadCount > 0 ? (
@@ -446,6 +448,7 @@ export default function DirectMessages() {
                         className="w-16 shrink-0"
                         label={`${conversation.user.name} avatar`}
                         photo={conversation.user.photo}
+                        userId={conversation.user.id}
                         fallback={
                           conversation.kind === 'group'
                             ? <CruushIcon name="profile" className="size-6 opacity-80" />

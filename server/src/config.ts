@@ -138,6 +138,19 @@ const configSchema = z.object({
   ALPHA_TEST_ENABLED: booleanEnvSchema,
   ALPHA_TEST_PASSWORD_HASH: z.string().trim().optional().default(""),
   ALPHA_TEST_ENDS_AT: z.string().trim().optional().default(""),
+  LAUNCH_PARTY_ENABLED: booleanEnvSchema.optional().default(true),
+  LAUNCH_PARTY_LATITUDE: z.coerce.number().min(-90).max(90).optional().default(40.70982),
+  LAUNCH_PARTY_LONGITUDE: z.coerce.number().min(-180).max(180).optional().default(-73.92256),
+  LAUNCH_PARTY_RADIUS_MILES: z.coerce.number().positive().max(10).optional().default(1),
+  LAUNCH_PARTY_STARTS_AT: z.string().trim().optional().default("2026-07-31T00:00:00-04:00"),
+  LAUNCH_PARTY_ENDS_AT: z.string().trim().optional().default("2026-08-01T05:00:00-04:00"),
+  LAUNCH_PARTY_CHAT_EXPIRES_AT: z.string().trim().optional().default("2026-08-08T05:00:00-04:00"),
+  LAUNCH_PARTY_RA_URL: z.string().url().optional().default("https://ra.co/events/2483120"),
+  BETA_ACCESS_GEOFENCE_ENABLED: booleanEnvSchema.optional().default(false),
+  BETA_ACCESS_CENTER_LATITUDE: z.coerce.number().min(-90).max(90).optional().default(40.70982),
+  BETA_ACCESS_CENTER_LONGITUDE: z.coerce.number().min(-180).max(180).optional().default(-73.92256),
+  BETA_ACCESS_RADIUS_MILES: z.coerce.number().positive().max(100).optional().default(15),
+  BETA_ACCESS_VENUE_NAME: z.string().trim().min(1).max(120).optional().default("70 Scott Ave"),
   TURNSTILE_SECRET_KEY: z.string().optional().default(""),
   PROFILE_ENCRYPTION_KEY: z.string().optional().default(""),
   PROFILE_TOKEN_KEY: z.string().optional().default(""),
@@ -192,6 +205,36 @@ const configSchema = z.object({
         path: ["ALPHA_TEST_ENDS_AT"]
       });
     }
+  }
+
+  for (const keyName of [
+    "LAUNCH_PARTY_STARTS_AT",
+    "LAUNCH_PARTY_ENDS_AT",
+    "LAUNCH_PARTY_CHAT_EXPIRES_AT"
+  ] as const) {
+    if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(config[keyName]) || Number.isNaN(Date.parse(config[keyName]))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${keyName} must be an ISO timestamp with timezone offset.`,
+        path: [keyName]
+      });
+    }
+  }
+
+  if (Date.parse(config.LAUNCH_PARTY_STARTS_AT) >= Date.parse(config.LAUNCH_PARTY_ENDS_AT)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "LAUNCH_PARTY_STARTS_AT must be before LAUNCH_PARTY_ENDS_AT.",
+      path: ["LAUNCH_PARTY_ENDS_AT"]
+    });
+  }
+
+  if (Date.parse(config.LAUNCH_PARTY_ENDS_AT) >= Date.parse(config.LAUNCH_PARTY_CHAT_EXPIRES_AT)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "LAUNCH_PARTY_CHAT_EXPIRES_AT must be after LAUNCH_PARTY_ENDS_AT.",
+      path: ["LAUNCH_PARTY_CHAT_EXPIRES_AT"]
+    });
   }
 
   if (config.WEB_PUSH_ENABLED) {
@@ -654,13 +697,28 @@ type AlphaTestConfigKey =
   | "ALPHA_TEST_ENABLED"
   | "ALPHA_TEST_PASSWORD_HASH"
   | "ALPHA_TEST_ENDS_AT";
+type LaunchPartyConfigKey =
+  | "LAUNCH_PARTY_ENABLED"
+  | "LAUNCH_PARTY_LATITUDE"
+  | "LAUNCH_PARTY_LONGITUDE"
+  | "LAUNCH_PARTY_RADIUS_MILES"
+  | "LAUNCH_PARTY_STARTS_AT"
+  | "LAUNCH_PARTY_ENDS_AT"
+  | "LAUNCH_PARTY_CHAT_EXPIRES_AT"
+  | "LAUNCH_PARTY_RA_URL";
+type BetaAccessConfigKey =
+  | "BETA_ACCESS_GEOFENCE_ENABLED"
+  | "BETA_ACCESS_CENTER_LATITUDE"
+  | "BETA_ACCESS_CENTER_LONGITUDE"
+  | "BETA_ACCESS_RADIUS_MILES"
+  | "BETA_ACCESS_VENUE_NAME";
 
 export type AppConfig = Omit<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey
 > & Partial<Pick<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey
 >>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {

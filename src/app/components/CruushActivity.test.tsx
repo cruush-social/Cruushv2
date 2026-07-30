@@ -149,12 +149,20 @@ describe('CruushActivity', () => {
     );
 
     expect(await screen.findByText('luna')).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass('overflow-y-scroll', '[scrollbar-gutter:stable]');
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveClass('h-[4.375rem]');
+    expect(screen.getByTestId('cruush-count-grid')).toHaveClass('grid-cols-[repeat(4,minmax(0,1fr))]');
+    expect(screen.getByTestId('cruush-count-grid').children[0]).toHaveClass('min-w-0');
+    expect(screen.getByTestId('cruush-tab-grid')).toHaveClass('grid-cols-[repeat(4,minmax(0,1fr))]');
     expect(screen.queryByText('your cruushes')).not.toBeInTheDocument();
     expect(screen.queryByText('relationships, interest & activity')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'incoming' })).toHaveClass('min-w-0');
     expect(screen.getByRole('tab', { name: 'incoming' })).toHaveTextContent(/^incoming$/);
+    expect(screen.getByRole('tab', { name: 'sent' })).toHaveClass('min-w-0');
     expect(screen.getByRole('tab', { name: 'sent' })).toHaveTextContent(/^sent$/);
+    expect(screen.getByRole('tab', { name: 'mutual' })).toHaveClass('min-w-0');
     expect(screen.getByRole('tab', { name: 'mutual' })).toHaveTextContent(/^mutual$/);
+    expect(screen.getByRole('tab', { name: 'views' })).toHaveClass('min-w-0');
     expect(screen.getByRole('tab', { name: 'views' })).toHaveTextContent(/^views$/);
     expect(screen.getByText('Someone new')).toBeInTheDocument();
     expect(screen.getByText('Upgrade to view')).toBeInTheDocument();

@@ -12,3 +12,6 @@ export const PROFILE_HERO_MEDIA_STYLE = {
   ...PROFILE_HERO_ASPECT_STYLE,
   height: PROFILE_HERO_MEDIA_HEIGHT,
 } as const;
+export const PROFILE_HERO_VIEWPORT_STYLE = {
+  ...PROFILE_HERO_ASPECT_STYLE,
+} as const;

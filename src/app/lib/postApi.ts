@@ -10,6 +10,11 @@ export type FeedPost = {
   expiresAt: string;
   createdAt: string;
   distance: string;
+  crowdTargets?: string[];
+  partyStatus?: {
+    eventSlug: string;
+    label: string;
+  };
   user: {
     id: string;
     name: string;
@@ -22,6 +27,7 @@ export type FeedPost = {
 export type CreateFeedPostPayload = {
   content: string;
   expiresIn: FeedPostExpiry;
+  crowdTargets?: string[];
 };
 
 export async function getFeedPosts() {

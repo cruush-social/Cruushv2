@@ -3,11 +3,12 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LocalFeed from './LocalFeed';
 
-const { createFeedPost, deleteFeedPost, getFeedPosts, getCurrentUserId } = vi.hoisted(() => ({
+const { createFeedPost, deleteFeedPost, getFeedPosts, getCurrentUserId, getMyProfile } = vi.hoisted(() => ({
   createFeedPost: vi.fn(),
   deleteFeedPost: vi.fn(),
   getFeedPosts: vi.fn(),
   getCurrentUserId: vi.fn(),
+  getMyProfile: vi.fn(),
 }));
 
 const { getMyBillingStatus } = vi.hoisted(() => ({
@@ -53,6 +54,14 @@ vi.mock('../lib/billingApi', () => ({
   getMyBillingStatus,
 }));
 
+vi.mock('../lib/profileApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi');
+  return {
+    ...actual,
+    getMyProfile,
+  };
+});
+
 vi.mock('../lib/blockApi', () => ({
   blockUser,
 }));
@@ -79,6 +88,12 @@ describe('LocalFeed', () => {
     toastSuccess.mockReset();
     toastError.mockReset();
     getCurrentUserId.mockResolvedValue('user-1');
+    getMyProfile.mockResolvedValue({
+      id: 'user-1',
+      display_name: 'me',
+      is_trans: false,
+      crowds: ['Dyke', 'Gay'],
+    });
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: true,
       expiresAt: null,
@@ -287,5 +302,78 @@ describe('LocalFeed', () => {
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
     expect(createFeedPost).not.toHaveBeenCalled();
+  });
+
+  it('posts to no crowds or multiple allowed crowds selected from the composer', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    createFeedPost.mockResolvedValue({
+      id: 'post-crowd',
+      content: 'hello crowd',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      crowdTargets: ['Dyke', 'Gay'],
+      user: {
+        id: 'user-1',
+        name: 'me',
+        pronouns: 'they/them',
+        photo: null,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(await screen.findByPlaceholderText('Share something with nearby people...'), {
+      target: { value: 'hello crowd' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Dyke' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gay' }));
+    expect(screen.queryByRole('button', { name: 'T4T' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }));
+
+    await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
+      content: 'hello crowd',
+      expiresIn: '6h',
+      crowdTargets: ['Dyke', 'Gay'],
+    }));
+  });
+
+  it('shows a Chocolate Factory badge for party members and routes it to the venue map center', async () => {
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-party',
+      content: 'see you inside',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      partyStatus: {
+        eventSlug: 'the-chocolate-factory-launch',
+        label: 'at The Chocolate Factory',
+      },
+      user: {
+        id: 'user-2',
+        name: 'River',
+        pronouns: 'he/him',
+        photo: null,
+      },
+    }]);
+
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Routes>
+          <Route path="/feed" element={<><LocalFeed /><LocationProbe /></>} />
+          <Route path="/map" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Center map on The Chocolate Factory' }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 });

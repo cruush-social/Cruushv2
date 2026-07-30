@@ -58,18 +58,24 @@ export type ClientSecurityCheckPayload = {
   trap: string;
 };
 
+export type BetaAccessLocationPayload = {
+  lat: number;
+  lng: number;
+  accuracyMeters?: number;
+};
+
 export function getAuthSession() {
   return requestApi<AuthSessionPayload>('/api/auth/me');
 }
 
-export function signUp(payload: { email: string; password: string; displayName: string; alphaPassword?: string; captchaToken?: string; clientCheck?: ClientSecurityCheckPayload; referralCode?: string }) {
+export function signUp(payload: { email: string; password: string; displayName: string; alphaPassword?: string; captchaToken?: string; clientCheck?: ClientSecurityCheckPayload; referralCode?: string; betaAccessLocation?: BetaAccessLocationPayload }) {
   return requestApi<VerificationDeliveryPayload>('/api/auth/signup', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
-export function signIn(payload: { email: string; password: string; captchaToken?: string; clientCheck?: ClientSecurityCheckPayload; twoFactorCode?: string }) {
+export function signIn(payload: { email: string; password: string; captchaToken?: string; clientCheck?: ClientSecurityCheckPayload; twoFactorCode?: string; betaAccessLocation?: BetaAccessLocationPayload }) {
   return requestApi<AuthSessionPayload>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify(payload),

@@ -47,7 +47,12 @@ const migrationFiles = [
   "039_profile_photo_manual_reviews.sql",
   "040_severe_access_bans.sql",
   "041_unified_moderation_queue.sql",
-  "042_rewards_and_two_factor.sql"
+  "042_rewards_and_two_factor.sql",
+  "043_launch_party_crowd_feed.sql",
+  "044_cruush_match_settings.sql",
+  "045_message_favorite_images.sql",
+  "046_referral_signup_privacy.sql",
+  "047_beta_city_requests.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

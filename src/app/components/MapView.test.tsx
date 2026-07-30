@@ -15,6 +15,7 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     zoomOut = vi.fn();
     setCenter = vi.fn();
     setZoom = vi.fn();
+    getZoom = vi.fn(() => 12);
     fitBounds = vi.fn();
     sources = new Map<string, any>();
     layers = new Map<string, any>();
@@ -93,6 +94,11 @@ vi.mock('maplibre-gl', () => ({
   },
   Map: MockMap,
   Marker: MockMarker,
+}));
+
+vi.mock('canvas-confetti', () => ({
+  __esModule: true,
+  default: vi.fn(),
 }));
 
 describe('MapView', () => {
@@ -700,6 +706,81 @@ describe('MapView', () => {
 
     expect(await screen.findByRole('button', { name: 'Open River on map' })).toBeInTheDocument();
     expect(screen.queryByTestId('marker-badge-user-empty')).not.toBeInTheDocument();
+  });
+
+  it('renders the launch party marker as a dancing party-hat button', async () => {
+    const onPinClick = vi.fn();
+
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          {
+            id: 'event-the-chocolate-factory-launch',
+            kind: 'event',
+            displayName: 'The Chocolate Factory',
+            approximateLatitude: 40.70982,
+            approximateLongitude: -73.92256,
+            event: {
+              slug: 'the-chocolate-factory-launch',
+              venueName: 'The Chocolate Factory',
+              attendeeCount: 500,
+              raUrl: 'https://ra.co/events/2483120',
+              iconAsset: 'party-hat',
+            },
+          },
+        ]}
+      />
+    );
+
+    const marker = await screen.findByRole('button', { name: 'Open The Chocolate Factory launch party on map' });
+    expect(marker).toHaveAttribute('data-map-marker-kind', 'event');
+    expect(screen.getByTestId('launch-party-marker-event-the-chocolate-factory-launch')).toHaveClass('animate-cruush-party-dance');
+    fireEvent.click(marker);
+    expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ kind: 'event' }));
+  });
+
+  it('clusters crowded venue users into a count circle when zoomed out', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        denseVenue={{
+          id: 'launch-party',
+          center: {
+            approximateLatitude: 40.70982,
+            approximateLongitude: -73.92256,
+          },
+          radiusMeters: 220,
+          clusterZoom: 14,
+          clusterThreshold: 3,
+          maxIndividualMarkers: 80,
+        }}
+        markers={[
+          {
+            id: 'user-a',
+            displayName: 'A',
+            approximateLatitude: 40.70982,
+            approximateLongitude: -73.92256,
+          },
+          {
+            id: 'user-b',
+            displayName: 'B',
+            approximateLatitude: 40.70983,
+            approximateLongitude: -73.92257,
+          },
+          {
+            id: 'user-c',
+            displayName: 'C',
+            approximateLatitude: 40.70984,
+            approximateLongitude: -73.92258,
+          },
+        ]}
+      />
+    );
+
+    expect(await screen.findByRole('button', { name: 'Open 3 people at The Chocolate Factory on map' })).toBeInTheDocument();
+    expect(screen.getByTestId('venue-cluster-marker-launch-party')).toHaveTextContent('3');
+    expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
   });
 
   it('creates a custom dark vector style with the cruush map palette', () => {

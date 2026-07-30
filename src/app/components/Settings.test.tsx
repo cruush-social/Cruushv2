@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, useLocation } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import Settings from './Settings';
+import BlockedUsersPage from './BlockedUsersPage';
 
 const { getMyPrivacySettings, saveMyPrivacySettings } = vi.hoisted(() => ({
   getMyPrivacySettings: vi.fn(),
@@ -137,6 +138,7 @@ describe('Settings', () => {
     expect(screen.queryByRole('switch', { name: 'Toggle Ghost Mode' })).not.toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: 'Toggle precise location for mutual cruushes' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Location privacy/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /DL Mode/i })).toBeInTheDocument();
   });
 
   it('shows active moderators a direct dashboard entry', async () => {
@@ -156,7 +158,7 @@ describe('Settings', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/admin/moderation');
   });
 
-  it('loads blocked users and lets users unblock from settings', async () => {
+  it('opens blocked users from settings and lets users unblock there', async () => {
     getBlockedUsers.mockResolvedValue({
       blockedUsers: [{
         userId: 'user-2',
@@ -167,13 +169,19 @@ describe('Settings', () => {
     });
 
     render(
-      <MemoryRouter>
-        <Settings />
+      <MemoryRouter initialEntries={['/settings']}>
+        <Routes>
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
+        </Routes>
+        <LocationProbe />
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Blocked users')).toBeInTheDocument();
-    expect(screen.getByText('River')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Blocked users/i }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/blocked-users');
+    expect(await screen.findByText('River')).toBeInTheDocument();
     expect(screen.getAllByText(/Blocked/).length).toBeGreaterThan(0);
     expect(screen.queryByText('river@example.com')).not.toBeInTheDocument();
 
@@ -257,6 +265,19 @@ describe('Settings', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Location privacy/i }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/ghost-mode');
+  });
+
+  it('opens DL Mode privacy from settings', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /DL Mode/i }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/dl-mode');
   });
 
   it('lets signed-in users change their password from settings', async () => {

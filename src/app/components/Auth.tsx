@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, MapPin } from 'lucide-react';
 import {
   requestPasswordReset,
   resendVerificationEmail,
   signIn,
   signUp,
+  type BetaAccessLocationPayload,
   type AuthSessionPayload
 } from '../lib/authApi';
+import { checkBetaAccess, requestBetaCity } from '../lib/betaAccessApi';
 import { getAppMeta, type AppMetaPayload } from '../lib/metaApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import { CruushIcon } from './CruushIconImage';
@@ -30,6 +32,9 @@ export default function Auth({ onAuth }: AuthProps) {
   const [displayName, setDisplayName] = useState('');
   const [alphaPassword, setAlphaPassword] = useState('');
   const [alphaTest, setAlphaTest] = useState<AppMetaPayload['alphaTest'] | null>(null);
+  const [betaAccess, setBetaAccess] = useState<AppMetaPayload['betaAccess'] | null>(null);
+  const [betaAccessLocation, setBetaAccessLocation] = useState<BetaAccessLocationPayload | null>(null);
+  const [betaAccessStatus, setBetaAccessStatus] = useState<'unknown' | 'checking' | 'allowed' | 'outside'>('unknown');
   const [humanCheckStartedAt, setHumanCheckStartedAt] = useState(() => Date.now());
   const [humanCheckTrap, setHumanCheckTrap] = useState('');
   const [twoFactorCode, setTwoFactorCode] = useState('');
@@ -56,12 +61,16 @@ export default function Auth({ onAuth }: AuthProps) {
   const [notice, setNotice] = useState('');
   const [verificationPreviewUrl, setLocalVerificationPreviewUrl] = useState<string | null>(null);
   const [verificationRetryAvailable, setVerificationRetryAvailable] = useState(false);
+  const [requestedCity, setRequestedCity] = useState('');
+  const [cityRequestNotice, setCityRequestNotice] = useState('');
+  const [cityRequestLoading, setCityRequestLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isMobileRecordingReady, setIsMobileRecordingReady] = useState(false);
   const isSignUp = mode === 'signup';
   const isForgotPassword = mode === 'forgot';
   const turnstileSiteKey = getTurnstileSiteKey();
   const alphaPasswordRequired = Boolean(alphaTest?.enabled);
+  const betaAccessRequired = Boolean(betaAccess?.enabled);
   const handleCaptchaTokenChange = useCallback((token: string) => {
     setCaptchaToken(token);
   }, []);
@@ -82,11 +91,17 @@ export default function Auth({ onAuth }: AuthProps) {
       .then((meta) => {
         if (isActive) {
           setAlphaTest(meta.alphaTest);
+          setBetaAccess(meta.betaAccess ?? null);
+          if (!meta.betaAccess?.enabled) {
+            setBetaAccessStatus('allowed');
+          }
         }
       })
       .catch(() => {
         if (isActive) {
           setAlphaTest(null);
+          setBetaAccess(null);
+          setBetaAccessStatus('allowed');
         }
       });
 
@@ -144,6 +159,12 @@ export default function Auth({ onAuth }: AuthProps) {
       return;
     }
 
+    if (betaAccessRequired && !betaAccessLocation) {
+      setError(`Beta access is currently available within ${betaAccess?.radiusMiles ?? 15} miles of ${betaAccess?.venueName ?? '70 Scott Ave'}. Check your location to continue.`);
+      setIsLoading(false);
+      return;
+    }
+
     if (isSignUp) {
       if (!displayName.trim()) {
         setError('Display name is required');
@@ -182,6 +203,7 @@ export default function Auth({ onAuth }: AuthProps) {
           captchaToken,
           clientCheck: buildHumanCheck(),
           referralCode: referralCode || undefined,
+          betaAccessLocation: betaAccessLocation ?? undefined,
         });
         try {
           window.sessionStorage.removeItem('cruush_referral_code');
@@ -206,6 +228,7 @@ export default function Auth({ onAuth }: AuthProps) {
           captchaToken,
           clientCheck: buildHumanCheck(),
           twoFactorCode: twoFactorRequired ? twoFactorCode : undefined,
+          betaAccessLocation: betaAccessLocation ?? undefined,
         });
         persistSessionUser(session);
         setIsLoading(false);
@@ -242,6 +265,78 @@ export default function Auth({ onAuth }: AuthProps) {
       setVerificationRetryAvailable(false);
       setIsLoading(false);
       resetCaptcha();
+    }
+  };
+
+  const handleBetaAccessCheck = async () => {
+    setError('');
+    setNotice('');
+    setCityRequestNotice('');
+
+    if (!navigator.geolocation) {
+      setError('Location services are required to access the launch beta.');
+      return;
+    }
+
+    setBetaAccessStatus('checking');
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 12_000,
+          maximumAge: 60_000,
+        });
+      });
+      const location = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracyMeters: position.coords.accuracy,
+      };
+      const result = await checkBetaAccess(location);
+
+      if (result.allowed) {
+        setBetaAccessLocation(location);
+        setBetaAccessStatus('allowed');
+        setNotice('Beta access unlocked for your current area.');
+      } else {
+        setBetaAccessLocation(null);
+        setBetaAccessStatus('outside');
+      }
+    } catch {
+      setBetaAccessLocation(null);
+      setBetaAccessStatus('unknown');
+      setError('Unable to confirm your location. Share location to access the launch beta.');
+    }
+  };
+
+  const handleBetaCityRequest = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setCityRequestNotice('');
+
+    if (!email.trim()) {
+      setError('Email is required for the newsletter.');
+      return;
+    }
+
+    if (requestedCity.trim().length < 2) {
+      setError('Requested city is required.');
+      return;
+    }
+
+    setCityRequestLoading(true);
+
+    try {
+      await requestBetaCity({
+        email,
+        requestedCity: requestedCity.trim(),
+      });
+      setCityRequestNotice('You are on the newsletter list. We saved your city request.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to save your city request.');
+    } finally {
+      setCityRequestLoading(false);
     }
   };
 
@@ -318,7 +413,7 @@ export default function Auth({ onAuth }: AuthProps) {
     <div className={`launch-login-auth-shell min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden${isMobileRecordingReady ? ' launch-login-auth-shell--mobile-recording-ready' : ''}`}>
       <LaunchLoginMapTeaser onPlaybackStateChange={handleTeaserPlaybackStateChange} />
       <LaunchLoginWaterPane className="launch-login-map-teaser__water-pane--foreground launch-login-auth-rain-pane" />
-      <div className="launch-login-auth-card w-full max-w-[20rem] space-y-10 relative z-10" data-testid="launch-login-auth-panel">
+      <div className="launch-login-auth-card w-full max-w-[20rem] relative z-10" data-testid="launch-login-auth-panel">
         {/* Logo */}
         <div className="launch-login-auth-brand text-center" data-testid="launch-login-auth-brand">
           <h1 className="sr-only">cruush</h1>
@@ -330,14 +425,112 @@ export default function Auth({ onAuth }: AuthProps) {
             draggable={false}
             src={cruushLogo}
           />
-          <p className="launch-login-auth-tagline" data-testid="launch-login-auth-tagline">
-            <span>queer cruisers cruise</span>{' '}
-            <span>cruush</span>
-          </p>
+          <div className="launch-login-auth-tagline-stack">
+            <p className="launch-login-auth-tagline" data-testid="launch-login-auth-tagline">
+              <span>queer cruisers cruise</span>{' '}
+              <span>cruush</span>
+            </p>
+            <div className="launch-login-auth-beta-capsule" data-testid="launch-login-auth-beta-capsule">
+              nyc open beta
+            </div>
+          </div>
         </div>
 
         {/* Auth form */}
-        <form onSubmit={handleSubmit} className="launch-login-auth-form space-y-5">
+        {betaAccessRequired && betaAccessStatus !== 'allowed' ? (
+          <form onSubmit={handleBetaCityRequest} className="launch-login-auth-form">
+            {error ? (
+              <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff0072] text-sm rounded">
+                {error}
+              </div>
+            ) : null}
+
+            {cityRequestNotice ? (
+              <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded">
+                {cityRequestNotice}
+              </div>
+            ) : null}
+
+            {betaAccessStatus === 'outside' ? (
+              <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-2">
+                <div className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 text-[#ff0072]" />
+                  <p>
+                    Launch beta access is open within {betaAccess?.radiusMiles ?? 15} miles of {betaAccess?.venueName ?? '70 Scott Ave'}.
+                  </p>
+                </div>
+                <p className="text-white/50">Join the newsletter and request your city.</p>
+              </div>
+            ) : (
+              <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-3">
+                <div className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 text-[#0ba8ff]" />
+                  <p>
+                    Beta access opens within {betaAccess?.radiusMiles ?? 15} miles of {betaAccess?.venueName ?? '70 Scott Ave'}.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleBetaAccessCheck}
+                  disabled={betaAccessStatus === 'checking'}
+                  className="w-full h-11 text-sm text-white bg-white/10 border border-white/15 rounded-sm hover:bg-white/15 disabled:opacity-50"
+                >
+                  {betaAccessStatus === 'checking' ? 'Checking location...' : 'Check my location'}
+                </button>
+              </div>
+            )}
+
+            {betaAccessStatus === 'outside' ? (
+              <>
+                <div className="space-y-2">
+                  <label htmlFor="betaNewsletterEmail" className="sr-only">
+                    Email
+                  </label>
+                  <input
+                    id="betaNewsletterEmail"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                    required
+                    disabled={cityRequestLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="requestedCity" className="sr-only">
+                    Requested city
+                  </label>
+                  <input
+                    id="requestedCity"
+                    type="text"
+                    autoComplete="address-level2"
+                    value={requestedCity}
+                    onChange={(e) => setRequestedCity(e.target.value)}
+                    placeholder="request your city"
+                    className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                    required
+                    disabled={cityRequestLoading}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={cityRequestLoading}
+                  className="launch-login-auth-submit w-full h-12 rounded-sm text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+                  style={{
+                    background: 'var(--cruush-gradient)',
+                  }}
+                >
+                  <span className="relative z-10">{cityRequestLoading ? 'Saving...' : 'Join newsletter'}</span>
+                </button>
+              </>
+            ) : null}
+          </form>
+        ) : (
+        <form onSubmit={handleSubmit} className="launch-login-auth-form">
           <div className="launch-login-auth-human-check" aria-hidden="true">
             <label htmlFor="launch-login-auth-extra-url">Leave blank</label>
             <input
@@ -570,7 +763,7 @@ export default function Auth({ onAuth }: AuthProps) {
             </div>
           )}
 
-          <div className="launch-login-auth-secondary-actions space-y-3">
+          <div className="launch-login-auth-secondary-actions">
             <button
               type="button"
               onClick={isForgotPassword ? showSignIn : toggleMode}
@@ -584,7 +777,7 @@ export default function Auth({ onAuth }: AuthProps) {
                   : "Don't have an account? Sign up"}
             </button>
 
-            {!isSignUp && !isForgotPassword ? (
+            {!isForgotPassword ? (
               <button
                 type="button"
                 onClick={showForgotPassword}
@@ -596,6 +789,17 @@ export default function Auth({ onAuth }: AuthProps) {
             ) : null}
           </div>
         </form>
+        )}
+
+      </div>
+      <div className="launch-login-auth-footer" data-testid="launch-login-auth-footer">
+        <a
+          className="launch-login-auth-contact"
+          data-testid="launch-login-auth-contact"
+          href="mailto:hello@cruush.app"
+        >
+          hello@cruush.app
+        </a>
 
         <PublicPolicyLinks variant="compact" />
       </div>

@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
+import { getProfileGradientStops } from '../lib/profileGradient';
 
 interface HeartPinProps {
   user: any;
@@ -14,7 +15,7 @@ export default function HeartPin({ user }: HeartPinProps) {
   const fillId = `heart-pin-fill-${id}`;
   const gradientStops = isCurrentUser
     ? ['#0099FF', '#1968EA', '#3236D4']
-    : ['#FF0072', '#DA045D', '#B40849'];
+    : getProfileGradientStops(user.id);
 
   return (
     <div className="relative w-12 h-12">

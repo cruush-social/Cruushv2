@@ -1,8 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
 import { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Auth from './Auth';
 import { AUTH_POLICY_LINKS } from './PublicPolicyLinks';
+
+const authCss = readFileSync('src/app/components/Auth.css', 'utf8');
 
 const { signIn, resendVerificationEmail, signUp, requestPasswordReset, getAppMeta } = vi.hoisted(() => ({
   signIn: vi.fn(),
@@ -86,13 +89,11 @@ describe('Auth', () => {
   it('does not pin the mobile footer actions over the form', () => {
     render(<Auth onAuth={vi.fn()} />);
 
-    const cssText = Array.from(document.styleSheets).map((sheet) => Array.from(sheet.cssRules ?? []).map((rule) => rule.cssText).join('\n')).join('\n');
-
-    expect(cssText).not.toContain('position: fixed');
-    expect(cssText).not.toContain('overflow-y-auto');
+    expect(authCss).not.toContain('overflow-y-auto');
+    expect(authCss).not.toContain('overflow: visible !important');
   });
 
-  it('allows the mobile auth wrapper and card to grow without clipping', () => {
+  it('keeps the auth landing surface constrained to one viewport', () => {
     const { container } = render(<Auth onAuth={vi.fn()} />);
 
     const shell = container.querySelector('.launch-login-auth-shell');
@@ -105,6 +106,9 @@ describe('Auth', () => {
     expect(card?.className).not.toContain('overflow-y-auto');
     expect(shell?.className).not.toContain('fixed');
     expect(card?.className).not.toContain('fixed');
+    expect(authCss).toContain('height: 100dvh');
+    expect(authCss).toContain('overflow: hidden');
+    expect(authCss).toContain('z-index: 60');
   });
 
   it('shows a resend verification action after an unverified login attempt', async () => {
@@ -119,6 +123,8 @@ describe('Auth', () => {
     const captchaSlot = screen.getByTestId('launch-login-auth-captcha');
     expect(captchaSlot).toHaveClass('launch-login-auth-captcha');
     expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-auth-rain-pane');
+    expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
+    expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
     const humanCheckInput = container.querySelector('#launch-login-auth-extra-url');
     expect(humanCheckInput).toHaveAttribute('tabindex', '-1');
     expect(humanCheckInput).toHaveAttribute('name', 'cruush_auth_extra_url');
@@ -151,6 +157,13 @@ describe('Auth', () => {
     render(<Auth onAuth={vi.fn()} />);
 
     const legalNotice = screen.getByLabelText('Legal and safety links');
+    const contactLink = screen.getByRole('link', { name: 'hello@cruush.app' });
+    const footer = screen.getByTestId('launch-login-auth-footer');
+    expect(footer).toContainElement(contactLink);
+    expect(footer).toContainElement(legalNotice);
+    expect(contactLink).toHaveClass('launch-login-auth-contact');
+    expect(contactLink).toHaveAttribute('href', 'mailto:hello@cruush.app');
+    expect(contactLink.compareDocumentPosition(legalNotice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(legalNotice).toHaveClass('text-xs', 'text-center', 'text-white/30');
     expect(screen.queryByText('Legal and safety')).not.toBeInTheDocument();
     for (const link of AUTH_POLICY_LINKS) {
@@ -189,6 +202,20 @@ describe('Auth', () => {
 
     expect(signUpPassword).toHaveAttribute('type', 'text');
     expect(confirmPassword).toHaveAttribute('type', 'text');
+  });
+
+  it('keeps the password reset link directly under the account switch', () => {
+    render(<Auth onAuth={vi.fn()} />);
+
+    const signUpSwitch = screen.getByRole('button', { name: "Don't have an account? Sign up" });
+    let resetLink = screen.getByRole('button', { name: 'Forgot your password?' });
+    expect(signUpSwitch.compareDocumentPosition(resetLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(signUpSwitch);
+
+    const signInSwitch = screen.getByRole('button', { name: 'Already have an account? Sign in' });
+    resetLink = screen.getByRole('button', { name: 'Forgot your password?' });
+    expect(signInSwitch.compareDocumentPosition(resetLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('retains a referral query parameter through signup without displaying it', async () => {

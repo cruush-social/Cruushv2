@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Clock3, Eye, Image as ImageIcon, MoreHorizontal, Trash2 } from 'lucide-react';
+import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, MoreHorizontal, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
@@ -19,22 +19,29 @@ import {
   createMessagePhoto,
   deleteConversationForEveryone,
   demoteGroupAdmin,
+  getFavoriteMessageImages,
   getConversationMessages,
   getGroupMembers,
+  removeFavoriteMessageImage,
   promoteGroupAdmin,
   removeGroupMember,
+  sendFavoriteMessageImage,
   setConversationDisappearingTimer,
   type ChatMessageRecord,
   type ConversationTimer,
   type ConversationThread,
+  type FavoriteMessageImage,
   type GroupMemberRecord,
   type MessageAttachment,
   type RemoteChatMessage,
   updateGroupConversation,
+  uploadFavoriteMessageImage,
   viewMessageAttachment,
 } from '../lib/messagesApi';
 import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
+import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { getProfileGradientCss } from '../lib/profileGradient';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -78,6 +85,21 @@ function normalizeRemoteMessages(remoteMessages: RemoteChatMessage[], activeUser
   return remoteMessages.map((message) => normalizeRemoteMessage(message, activeUserId));
 }
 
+function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }) {
+  return (
+    <div
+      aria-label="Explicit message photo hidden by DL Mode"
+      className="flex aspect-[4/5] max-h-80 w-full max-w-xs min-w-[12rem] flex-col items-center justify-center gap-2 rounded-[22px] border border-white/10 p-4 text-center text-white shadow-[0_18px_45px_rgba(0,0,0,0.28)]"
+      data-testid={`explicit-message-gradient-${attachmentKey}`}
+      role="img"
+      style={{ background: getProfileGradientCss(attachmentKey) }}
+    >
+      <Eye className="h-7 w-7 opacity-88" strokeWidth={2.35} />
+      <span className="text-[11px] uppercase tracking-[0.18em] text-white/88">DL Mode</span>
+    </div>
+  );
+}
+
 export default function PrivateGroupChat() {
   const { chatId } = useParams();
   const navigate = useNavigate();
@@ -99,7 +121,17 @@ export default function PrivateGroupChat() {
   const [viewedAttachmentUrls, setViewedAttachmentUrls] = useState<Record<string, string>>({});
   const [viewingAttachmentIds, setViewingAttachmentIds] = useState<Record<string, boolean>>({});
   const [mutualRequiredConversationId, setMutualRequiredConversationId] = useState<string | null>(null);
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const [favoriteGalleryOpen, setFavoriteGalleryOpen] = useState(false);
+  const [favoriteImages, setFavoriteImages] = useState<FavoriteMessageImage[]>([]);
+  const [favoriteImagesLoading, setFavoriteImagesLoading] = useState(false);
+  const [favoriteUploading, setFavoriteUploading] = useState(false);
+  const [favoriteSendingId, setFavoriteSendingId] = useState<string | null>(null);
+  const [favoriteRemovingId, setFavoriteRemovingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   useEffect(() => {
     let active = true;
@@ -194,6 +226,103 @@ export default function PrivateGroupChat() {
 
     if (!settingsOpen && conversation?.kind === 'group') {
       void loadGroupSettingsData(conversation.id);
+    }
+  };
+
+  const loadFavoriteImages = async () => {
+    setFavoriteImagesLoading(true);
+
+    try {
+      const data = await getFavoriteMessageImages();
+      setFavoriteImages(Array.isArray(data.images) ? data.images : []);
+      setError(null);
+    } catch (error) {
+      console.error('Error loading favorite images:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load favorite images.');
+    } finally {
+      setFavoriteImagesLoading(false);
+    }
+  };
+
+  const toggleFavoriteGallery = () => {
+    setFavoriteGalleryOpen((current) => {
+      const next = !current;
+
+      if (next) {
+        void loadFavoriteImages();
+      }
+
+      return next;
+    });
+  };
+
+  const handleFavoriteImageSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+
+    if (!file || favoriteUploading || composerDisabled) {
+      return;
+    }
+
+    setFavoriteUploading(true);
+
+    try {
+      const label = file.name.replace(/\.[^.]+$/, '').slice(0, 80);
+      const favorite = await uploadFavoriteMessageImage(file, label);
+      setFavoriteImages((prev) => [favorite, ...prev.filter((item) => item.id !== favorite.id)]);
+      setFavoriteGalleryOpen(true);
+      setError(null);
+    } catch (error) {
+      console.error('Error uploading favorite image:', error);
+      setError(error instanceof Error ? error.message : 'Failed to upload favorite image.');
+    } finally {
+      setFavoriteUploading(false);
+    }
+  };
+
+  const handleSendFavoriteImage = async (favorite: FavoriteMessageImage) => {
+    if (!chatId || !conversation || composerDisabled || favoriteSendingId) {
+      return;
+    }
+
+    const caption = message.trim();
+    setFavoriteSendingId(favorite.id);
+
+    try {
+      const createdMessage = await sendFavoriteMessageImage(favorite.id, {
+        conversationId: chatId,
+        content: caption,
+        viewOnce: photoViewOnce,
+      });
+      setMessages((prev) => [...prev, normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)]);
+      setMessage('');
+      setPhotoViewOnce(false);
+      setError(null);
+    } catch (error) {
+      console.error('Error sending favorite image:', error);
+      if (error instanceof ApiClientError && error.code === 'MUTUAL_CRUUSH_REQUIRED') {
+        setMutualRequiredConversationId(chatId);
+        setError('You need a mutual cruush before messaging. Open their profile to send a cruush first.');
+      } else {
+        setError(error instanceof Error ? error.message : 'Failed to send favorite image.');
+      }
+    } finally {
+      setFavoriteSendingId(null);
+    }
+  };
+
+  const handleRemoveFavoriteImage = async (favorite: FavoriteMessageImage) => {
+    setFavoriteRemovingId(favorite.id);
+
+    try {
+      await removeFavoriteMessageImage(favorite.id);
+      setFavoriteImages((prev) => prev.filter((item) => item.id !== favorite.id));
+      setError(null);
+    } catch (error) {
+      console.error('Error removing favorite image:', error);
+      setError(error instanceof Error ? error.message : 'Failed to remove favorite image.');
+    } finally {
+      setFavoriteRemovingId(null);
     }
   };
 
@@ -471,6 +600,7 @@ export default function PrivateGroupChat() {
                 className="w-12 shrink-0"
                 label={`${conversation.user.name} avatar`}
                 photo={conversation.user.photo}
+                userId={conversation.user.id}
                 fallback={
                   conversation.kind === 'group'
                     ? <CruushIcon name="profile" className="size-5 opacity-80" />
@@ -516,8 +646,15 @@ export default function PrivateGroupChat() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            <Button variant="ghost" size="icon" title="Photo states" aria-label="Open photo options" disabled={!conversation}>
-              <ImageIcon className="w-5 h-5" />
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Favorite images"
+              aria-label="Favorite images"
+              disabled={!conversation}
+              onClick={toggleFavoriteGallery}
+            >
+              <Star className="w-5 h-5" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
             </Button>
             {conversation?.kind === 'dm' ? (
               <Button
@@ -790,6 +927,7 @@ export default function PrivateGroupChat() {
                     className="w-9 shrink-0"
                     label={`${conversation.user.name} avatar`}
                     photo={conversation.user.photo}
+                    userId={conversation.user.id}
                     fallback={<div className="text-[10px] text-white/75">{getConversationInitials(conversation.user.name)}</div>}
                   />
                 ) : null}
@@ -800,6 +938,10 @@ export default function PrivateGroupChat() {
                     const openedViewOnceUrl = viewedAttachmentUrls[attachmentKey];
                     if (attachment.viewOnce) {
                       if (openedViewOnceUrl) {
+                        if (dlModeActive && attachment.explicit) {
+                          return <ExplicitMessagePhotoShield key={attachment.id} attachmentKey={attachmentKey} />;
+                        }
+
                         return (
                           <div
                             key={attachment.id}
@@ -846,15 +988,19 @@ export default function PrivateGroupChat() {
                     return (
                       <div
                         key={attachment.id}
-                        className={`overflow-hidden rounded-[22px] border ${
-                          isOwn ? 'border-primary/30 bg-primary/10' : 'border-border bg-card'
-                        }`}
-                      >
-                        <img
-                          alt="Message photo"
-                          src={resolveMediaUrl(attachment.url)}
-                          className="block max-h-80 w-full max-w-xs object-cover"
-                        />
+                      className={`overflow-hidden rounded-[22px] border ${
+                        isOwn ? 'border-primary/30 bg-primary/10' : 'border-border bg-card'
+                      }`}
+                    >
+                        {dlModeActive && attachment.explicit ? (
+                          <ExplicitMessagePhotoShield attachmentKey={attachmentKey} />
+                        ) : (
+                          <img
+                            alt="Message photo"
+                            src={resolveMediaUrl(attachment.url)}
+                            className="block max-h-80 w-full max-w-xs object-cover"
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -916,6 +1062,114 @@ export default function PrivateGroupChat() {
               </div>
 
               <div className="max-w-full rounded-[28px] border border-border bg-card/85 p-3 shadow-lg shadow-black/20">
+                {favoriteGalleryOpen ? (
+                  <div className="mb-3 space-y-3 rounded-3xl border border-white/10 bg-black/28 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Star className="size-4 text-primary" fill="currentColor" />
+                        <p className="text-sm font-medium">Favorite images</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          ref={favoriteFileInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          aria-label="Choose favorite image"
+                          className="sr-only"
+                          onChange={(event) => void handleFavoriteImageSelected(event)}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={favoriteUploading || composerDisabled}
+                          onClick={() => favoriteFileInputRef.current?.click()}
+                        >
+                          <ImagePlus className="size-4" />
+                          Upload
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Close favorite images"
+                          onClick={() => setFavoriteGalleryOpen(false)}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {favoriteImagesLoading ? (
+                      <div className="rounded-2xl border border-border bg-card/70 p-3 text-sm text-muted-foreground">
+                        Loading favorite images...
+                      </div>
+                    ) : null}
+
+                    {!favoriteImagesLoading && favoriteImages.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-border bg-card/50 p-4 text-center text-sm text-muted-foreground">
+                        No favorite images yet.
+                      </div>
+                    ) : null}
+
+                    {favoriteImages.length > 0 ? (
+                      <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
+                        {favoriteImages.map((favorite) => {
+                          const favoriteBusy = favoriteSendingId === favorite.id || favoriteRemovingId === favorite.id;
+                          const hiddenByDlMode = dlModeActive && favorite.explicit;
+
+                          return (
+                            <div key={favorite.id} className="overflow-hidden rounded-2xl border border-border bg-background/70">
+                              <div className="relative aspect-square overflow-hidden bg-black/40">
+                                {hiddenByDlMode ? (
+                                  <div
+                                    aria-label="Explicit favorite image hidden by DL Mode"
+                                    className="flex h-full w-full items-center justify-center text-white"
+                                    role="img"
+                                    style={{ background: getProfileGradientCss(`favorite:${favorite.id}`) }}
+                                  >
+                                    <Eye className="size-5" />
+                                  </div>
+                                ) : (
+                                  <img
+                                    alt={favorite.label || 'Favorite image'}
+                                    src={resolveMediaUrl(favorite.thumbnailUrl || favorite.url)}
+                                    className="h-full w-full object-cover"
+                                  />
+                                )}
+                              </div>
+                              <div className="flex items-center justify-between gap-1 p-1.5">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 rounded-full"
+                                  aria-label="Send favorite image"
+                                  disabled={composerDisabled || favoriteBusy}
+                                  onClick={() => void handleSendFavoriteImage(favorite)}
+                                >
+                                  <CruushIcon name="send" className="size-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 rounded-full text-destructive hover:bg-destructive/10"
+                                  aria-label="Remove favorite image"
+                                  disabled={favoriteBusy}
+                                  onClick={() => void handleRemoveFavoriteImage(favorite)}
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className="flex min-w-0 items-end gap-2 sm:gap-3">
                   <Textarea
                     value={message}
@@ -949,6 +1203,16 @@ export default function PrivateGroupChat() {
                       />
                       once
                     </label>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Favorite images"
+                      aria-label="Favorite images"
+                      disabled={composerDisabled}
+                      onClick={toggleFavoriteGallery}
+                    >
+                      <Star className="size-4" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

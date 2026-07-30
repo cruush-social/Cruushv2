@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from './ui/sheet';
 import { Slider } from './ui/slider';
@@ -24,7 +23,6 @@ import {
   VIBE_GROUPS,
 } from '../lib/profileOptions';
 import { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
-import type { ProfileVisibilitySet } from '../lib/profileApi';
 
 export interface VisibilityControlState extends FilterState {
   activeCrowdModes: string[];
@@ -48,20 +46,11 @@ interface MapVisibilitySurfaceProps {
   value: VisibilityControlState;
   availableCrowdModes?: string[];
   saving?: boolean;
-  savingSet?: boolean;
   error?: string | null;
   hasCruushPlus?: boolean;
-  savedSetName?: string;
-  savedSets?: ProfileVisibilitySet[];
   onChange: (value: VisibilityControlState) => void;
   onClear: () => void;
   onApply: () => void;
-  onApplySet?: (setId: string) => void;
-  onDeleteSet?: (setId: string) => void;
-  onRenameSet?: (setId: string, name: string) => void;
-  onSaveSet?: () => void;
-  onSavedSetNameChange?: (name: string) => void;
-  onUpgradeSavedSets?: () => void;
 }
 
 type VisibilityListKey = Exclude<keyof VisibilityControlState, 'ageRange' | 'distance' | 'activeCrowdModes' | 'restrictAge' | 'restrictDistance'>;
@@ -152,20 +141,11 @@ export default function MapVisibilitySurface({
   value,
   availableCrowdModes = CROWDS,
   saving = false,
-  savingSet = false,
   error = null,
   hasCruushPlus = false,
-  savedSetName = '',
-  savedSets = [],
   onChange,
   onClear,
   onApply,
-  onApplySet,
-  onDeleteSet,
-  onRenameSet,
-  onSaveSet,
-  onSavedSetNameChange,
-  onUpgradeSavedSets,
 }: MapVisibilitySurfaceProps) {
   const visibleCrowdModes = availableCrowdModes.length > 0 ? availableCrowdModes : [];
   const [limitNotice, setLimitNotice] = useState<string | null>(null);
@@ -206,81 +186,14 @@ export default function MapVisibilitySurface({
             </div>
           ) : null}
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <Label>Saved sets</Label>
-              {!hasCruushPlus ? (
-                <Button type="button" size="sm" onClick={onUpgradeSavedSets}>
-                  Upgrade for saved sets
-                </Button>
-              ) : null}
-            </div>
-
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Free accounts can hide from up to 3 filter groups.</p>
+            <p className="text-sm text-muted-foreground">
+              Pick who should not see you. Crowd Mode is different: it makes you visible only to the active crowds you choose.
+            </p>
             {!hasCruushPlus ? (
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Free accounts can hide from up to 3 filter groups.</p>
-                <p className="text-sm text-muted-foreground">
-                  Pick who should not see you. Crowd Mode is different: it makes you visible only to the active crowds you choose.
-                </p>
-                <p className="text-xs text-muted-foreground">{exclusionCount} of {FREE_VISIBILITY_EXCLUSION_LIMIT} hidden filters used</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <Input
-                    aria-label="Saved set name"
-                    value={savedSetName}
-                    onChange={(event) => onSavedSetNameChange?.(event.target.value)}
-                    placeholder="Night out"
-                    className="bg-input-background select-text"
-                  />
-                  <Button type="button" onClick={onSaveSet} disabled={savingSet || !savedSetName.trim()}>
-                    Save set
-                  </Button>
-                </div>
-
-                {savedSets.length > 0 ? (
-                  <div className="space-y-2">
-                    {savedSets.map((set) => (
-                      <div key={set.id} className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.035] p-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="min-w-0 flex-1 justify-start truncate"
-                          onClick={() => onApplySet?.(set.id)}
-                          disabled={saving || savingSet}
-                          aria-label={`Apply ${set.name}`}
-                        >
-                          {set.name}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onRenameSet?.(set.id, set.name)}
-                          disabled={savingSet}
-                          aria-label={`Rename ${set.name}`}
-                        >
-                          Rename
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onDeleteSet?.(set.id)}
-                          disabled={savingSet}
-                          aria-label={`Delete ${set.name}`}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No saved sets yet.</p>
-                )}
-              </div>
-            )}
+              <p className="text-xs text-muted-foreground">{exclusionCount} of {FREE_VISIBILITY_EXCLUSION_LIMIT} hidden filters used</p>
+            ) : null}
           </div>
 
           {limitNotice ? (

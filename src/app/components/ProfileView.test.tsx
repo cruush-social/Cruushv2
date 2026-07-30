@@ -147,7 +147,7 @@ describe('ProfileView', () => {
     });
   });
 
-  it('uses a capped 4:5 hero and exposes Basics, Intimacy, and Health tabs', async () => {
+  it('uses a viewport-fitted 4:5 hero and exposes Basics, Intimacy, and Health tabs', async () => {
     render(
       <MemoryRouter initialEntries={['/profile/user-1']}>
         <Routes>
@@ -156,10 +156,14 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByTestId('profile-hero-media')).toHaveStyle({
-      aspectRatio: '4 / 5',
-      height: 'min(calc(100vw * 1.25), 64vh, 38rem)',
+    expect(await screen.findByTestId('profile-gallery-frame')).toHaveStyle({
+      width: 'min(100%, calc((100dvh - var(--profile-view-header-height, 4.3125rem) - 1px) * 0.8))',
     });
+    const heroMedia = screen.getByTestId('profile-hero-media');
+    expect(heroMedia).toHaveStyle({
+      aspectRatio: '4 / 5',
+    });
+    expect(heroMedia.getAttribute('style')).not.toContain('64vh');
     const basicsTab = screen.getByRole('tab', { name: 'Basics' });
     expect(basicsTab).toHaveAttribute('aria-selected', 'true');
     expect(basicsTab).toHaveClass('rounded-full', 'hover:bg-white/[0.08]', 'data-[state=active]:bg-white/[0.10]');
@@ -199,7 +203,11 @@ describe('ProfileView', () => {
     expect(within(hero).getByAltText('Jordan')).toHaveAttribute('src', 'https://example.com/main.jpg');
     expect(screen.getByRole('button', { name: 'Show profile photo 2' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show profile photo 3' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Show profile photo 4' })).toBeInTheDocument();
+    const fourthPreview = screen.getByRole('button', { name: 'Show profile photo 4' });
+    expect(fourthPreview).toHaveStyle({
+      height: 'clamp(2.75rem, 9dvh, 4rem)',
+      width: 'clamp(2.75rem, 9dvh, 4rem)',
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Show profile photo 3' }));
 

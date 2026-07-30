@@ -96,7 +96,8 @@ Generate fresh production values for:
 - Resend API key and verified `MAIL_FROM` for account email, trust/safety alerts, and support inbox notifications.
 - `SUPPORT_INBOX_EMAIL` for support requests submitted from login/signup and Settings.
 - Turnstile frontend site key and backend `TURNSTILE_SECRET_KEY` if signup captcha is enabled.
-- Temporary alpha gate, if enabled: `ALPHA_TEST_ENABLED=true`, `ALPHA_TEST_PASSWORD_HASH=<scrypt hash>`, and `ALPHA_TEST_ENDS_AT=2026-07-28T23:59:00-04:00`. Do not store the raw alpha password in chat, docs, commits, screenshots, or frontend variables.
+- Temporary alpha gate, if enabled: `ALPHA_TEST_ENABLED=true`, `ALPHA_TEST_PASSWORD_HASH=<scrypt hash>`, and `ALPHA_TEST_ENDS_AT=2026-07-31T00:00:00-04:00`. Do not store the raw alpha password in chat, docs, commits, screenshots, or frontend variables.
+- Launch beta geofence: set `BETA_ACCESS_GEOFENCE_ENABLED=true`, `BETA_ACCESS_CENTER_LATITUDE=40.70982`, `BETA_ACCESS_CENTER_LONGITUDE=-73.92256`, `BETA_ACCESS_RADIUS_MILES=15`, and `BETA_ACCESS_VENUE_NAME=70 Scott Ave`. Outside-radius newsletter/city requests store encrypted email/city values, not plaintext.
 
 Use deployment secrets first. Move to KMS/Vault later only if operational complexity is justified.
 

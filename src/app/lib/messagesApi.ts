@@ -52,6 +52,20 @@ export type MessageAttachment = {
   mimeType: string;
   viewOnce?: boolean;
   viewedAt?: string | null;
+  explicit?: boolean;
+};
+
+export type FavoriteMessageImage = {
+  id: string;
+  mediaObjectId: string;
+  label: string;
+  url: string;
+  thumbnailUrl: string;
+  mediaType: string;
+  mimeType: string;
+  explicit: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type GroupMemberRecord = {
@@ -186,6 +200,45 @@ export function createMessagePhoto(
   return requestApi<RemoteChatMessage>('/api/messages/photos', {
     method: 'POST',
     body,
+  });
+}
+
+export function getFavoriteMessageImages() {
+  return requestApi<{ images: FavoriteMessageImage[] }>('/api/messages/favorite-images');
+}
+
+export function uploadFavoriteMessageImage(photo: File, label = '') {
+  const body = new FormData();
+  body.set('photo', photo);
+  body.set('label', label);
+
+  return requestApi<FavoriteMessageImage>('/api/messages/favorite-images', {
+    method: 'POST',
+    body,
+  });
+}
+
+export function removeFavoriteMessageImage(favoriteId: string) {
+  return requestApi<void>(`/api/messages/favorite-images/${favoriteId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function sendFavoriteMessageImage(
+  favoriteId: string,
+  input: {
+    conversationId: string;
+    content?: string;
+    viewOnce?: boolean;
+  },
+) {
+  return requestApi<RemoteChatMessage>(`/api/messages/favorite-images/${favoriteId}/send`, {
+    method: 'POST',
+    body: JSON.stringify({
+      conversationId: input.conversationId,
+      content: input.content ?? '',
+      viewOnce: input.viewOnce ?? false,
+    }),
   });
 }
 

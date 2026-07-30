@@ -26,7 +26,10 @@ const MobileInstallPrompt = lazy(() => import('./components/MobileInstallPrompt'
 const ReportPage = lazy(() => import('./components/ReportPage'));
 const ModeratorReview = lazy(() => import('./components/ModeratorReview'));
 const CruushActivity = lazy(() => import('./components/CruushActivity'));
+const CruushMatchSettings = lazy(() => import('./components/CruushMatchSettings'));
 const Settings = lazy(() => import('./components/Settings'));
+const BlockedUsersPage = lazy(() => import('./components/BlockedUsersPage'));
+const DlModeSettings = lazy(() => import('./components/DlModeSettings'));
 const SupportPage = lazy(() => import('./components/SupportPage'));
 const GhostModeSettings = lazy(() => import('./components/GhostModeSettings'));
 const PrivacyAudit = lazy(() => import('./components/PrivacyAudit'));
@@ -299,10 +302,13 @@ export default function App({
                 <Route path="/admin/moderation" element={<ModeratorReview />} />
               ) : null}
               <Route path="/cruush" element={<CruushActivity />} />
+              <Route path="/cruush/settings" element={<CruushMatchSettings />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
               <Route path="/settings/notifications" element={<NotificationSettings />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+              <Route path="/privacy/dl-mode" element={<DlModeSettings />} />
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />

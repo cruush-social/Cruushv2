@@ -9,6 +9,12 @@ const clientSecurityCheckSchema = z.object({
   trap: z.string().max(200).optional().default("")
 }).strict();
 
+const betaAccessLocationSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  accuracyMeters: z.number().nonnegative().max(100_000).optional()
+}).strict();
+
 export const signUpPayloadSchema = z.object({
   email: authEmailSchema,
   password: z.string().min(8).max(200),
@@ -16,7 +22,8 @@ export const signUpPayloadSchema = z.object({
   alphaPassword: z.string().trim().min(1).max(200).optional(),
   captchaToken: z.string().trim().max(4096).optional(),
   clientCheck: clientSecurityCheckSchema.optional(),
-  referralCode: z.string().trim().regex(/^[A-Za-z0-9_-]{16,64}$/).optional()
+  referralCode: z.string().trim().regex(/^[A-Za-z0-9_-]{16,64}$/).optional(),
+  betaAccessLocation: betaAccessLocationSchema.optional()
 }).strict();
 
 export const signInPayloadSchema = z.object({
@@ -24,7 +31,8 @@ export const signInPayloadSchema = z.object({
   password: z.string().min(1).max(200),
   captchaToken: z.string().trim().max(4096).optional(),
   clientCheck: clientSecurityCheckSchema.optional(),
-  twoFactorCode: z.string().trim().min(6).max(64).optional()
+  twoFactorCode: z.string().trim().min(6).max(64).optional(),
+  betaAccessLocation: betaAccessLocationSchema.optional()
 }).strict();
 
 export const verifyEmailPayloadSchema = z.object({

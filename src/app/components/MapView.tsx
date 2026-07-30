@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
+import confetti from 'canvas-confetti';
 import maplibregl, {
   type LngLatLike,
   type Map as MapLibreMap,
@@ -23,11 +24,14 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CruushIcon } from './CruushIconImage';
 import { resolveMediaUrl } from '../lib/apiClient';
+import partyHatIcon from '../assets/ui-icons/party-hat.svg';
+import { applyDenseVenueMarkers, type DenseVenueConfig } from '../lib/denseVenueMarkers';
 import {
   createMapMarkerBadge,
   type MapMarker,
   type MapMarkerBadge,
 } from '../lib/mapMarkers';
+import { getProfileGradientStops } from '../lib/profileGradient';
 
 export { createMapMarkerBadge };
 
@@ -51,6 +55,7 @@ interface MapViewProps {
   } | null;
   radiusCircle?: RadiusCircle | null;
   demoRadiusCircles?: RadiusCircle[];
+  denseVenue?: DenseVenueConfig | null;
 }
 
 const DEFAULT_CENTER: LngLatLike = [-74.006, 40.7128];
@@ -421,6 +426,12 @@ function getDisplayName(marker: MapMarker) {
   return marker.displayName.trim() || 'person';
 }
 
+function shouldReduceMotion() {
+  return typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
   if (!badge?.iconName) {
     return null;
@@ -501,6 +512,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const isNpcGhostDemo = marker.npcGhostDemo === true;
   const borderColor = isNpcGhostDemo ? '#0BA8FF' : isMutualCruush ? '#6f00ff' : isCurrentUser ? '#0BA8FF' : '#FF0072';
   const theme = isNpcGhostDemo ? 'npc-ghost-demo' : isMutualCruush ? 'mutual' : isCurrentUser ? 'current' : 'nearby';
+  const [gradientFrom, gradientMiddle, gradientTo] = getProfileGradientStops(marker.id);
 
   return (
     <svg
@@ -516,9 +528,9 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     >
       <defs>
         <linearGradient id={gradientId} x1="10" x2="55" y1="9" y2="56" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={isNpcGhostDemo ? '#00D8FF' : isMutualCruush ? '#A64DFF' : isCurrentUser ? '#00B8FF' : '#FF0072'} />
-          <stop offset="52%" stopColor={isNpcGhostDemo ? '#0BA8FF' : isMutualCruush ? '#6f00ff' : isCurrentUser ? '#0A7DF4' : '#E00062'} />
-          <stop offset="100%" stopColor={isNpcGhostDemo ? '#3236D4' : isMutualCruush ? '#3B00A8' : isCurrentUser ? '#3236D4' : '#B00045'} />
+          <stop offset="0%" stopColor={isCurrentUser ? '#00B8FF' : gradientFrom} />
+          <stop offset="52%" stopColor={isCurrentUser ? '#0A7DF4' : gradientMiddle} />
+          <stop offset="100%" stopColor={isCurrentUser ? '#3236D4' : gradientTo} />
         </linearGradient>
         <clipPath id={clipId}>
           <path d={HEART_PATH} />
@@ -552,8 +564,43 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   );
 }
 
+function VenueClusterMarker({ marker }: { marker: MapMarker }) {
+  const count = marker.cluster?.count ?? 0;
+
+  return (
+    <span
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
+    >
+      {count > 999 ? '999+' : count}
+    </span>
+  );
+}
+
+function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
+  return (
+    <span className="relative flex h-[92px] w-[92px] items-center justify-center overflow-visible">
+      <span className="absolute h-20 w-20 rounded-full bg-primary/15 blur-xl" />
+      <span
+        className="animate-cruush-party-dance relative flex h-[72px] w-[72px] items-center justify-center rounded-full border border-white/20 bg-black/82 p-3 shadow-[0_0_36px_rgba(255,0,114,0.44)] backdrop-blur-md"
+        data-testid={`launch-party-marker-${marker.id}`}
+      >
+        <img alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} src={partyHatIcon} />
+      </span>
+    </span>
+  );
+}
+
 function MapMarkerPin({ marker }: { marker: MapMarker }) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser === true;
+
+  if (marker.kind === 'cluster') {
+    return <VenueClusterMarker marker={marker} />;
+  }
+
+  if (marker.kind === 'event') {
+    return <LaunchPartyMarker marker={marker} />;
+  }
 
   return (
     <span className="pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
@@ -585,7 +632,8 @@ function createMarkerElement(
   onMarkerInteraction: () => void,
 ) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
-  const element = document.createElement(isCurrentUser ? 'div' : 'button');
+  const isInteractive = !isCurrentUser || marker.kind === 'event' || marker.kind === 'cluster';
+  const element = document.createElement(isInteractive ? 'button' : 'div');
   const name = getDisplayName(marker);
   const animationHint = marker.animationHint ?? 'NONE';
 
@@ -598,13 +646,18 @@ function createMarkerElement(
   element.dataset.animationHint = animationHint;
   element.dataset.displayMode = marker.displayMode ?? 'PRECISE';
   element.dataset.mapMarkerPin = 'true';
+  element.dataset.mapMarkerKind = marker.kind ?? 'person';
 
-  if (isCurrentUser) {
+  if (!isInteractive) {
     element.setAttribute('aria-label', 'Your approximate area');
   } else {
     const button = element as HTMLButtonElement;
     button.type = 'button';
-    button.setAttribute('aria-label', `Open ${name} on map`);
+    button.setAttribute('aria-label', marker.kind === 'event'
+      ? `Open ${marker.event?.venueName ?? name} launch party on map`
+      : marker.kind === 'cluster'
+      ? `Open ${marker.cluster?.label ?? name} on map`
+      : `Open ${name} on map`);
     const recordMarkerInteraction = (event: Event) => {
       event.stopPropagation();
       onMarkerInteraction();
@@ -618,6 +671,19 @@ function createMarkerElement(
       event.stopPropagation();
       event.stopImmediatePropagation();
       onMarkerInteraction();
+      if (marker.kind === 'event' && !shouldReduceMotion()) {
+        try {
+          void confetti({
+            particleCount: 36,
+            spread: 54,
+            startVelocity: 28,
+            origin: { y: 0.56 },
+            scalar: 0.72,
+          });
+        } catch {
+          // Confetti is decorative; marker selection must keep working.
+        }
+      }
       onPinClick(marker);
     });
   }
@@ -682,6 +748,7 @@ function MapView({
   focusCoordinates,
   radiusCircle,
   demoRadiusCircles = [],
+  denseVenue = null,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -697,10 +764,16 @@ function MapView({
   const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
+  const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
   const mapStyle = useMemo(() => getMapStyle(), []);
+  const renderedMarkerResult = useMemo(
+    () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
+    [currentZoom, denseVenue, markers],
+  );
+  const renderedMarkers = renderedMarkerResult.markers;
   const focusLatitude = focusCoordinates?.approximateLatitude ?? null;
   const focusLongitude = focusCoordinates?.approximateLongitude ?? null;
-  const viewportMarkerSignature = useMemo(() => markers
+  const viewportMarkerSignature = useMemo(() => renderedMarkers
     .filter(isMapMarker)
     .map((marker) => [
       marker.id,
@@ -708,7 +781,7 @@ function MapView({
       marker.approximateLongitude.toFixed(6),
     ].join(':'))
     .sort()
-    .join('|'), [markers]);
+    .join('|'), [renderedMarkers]);
   const demoRadiusCircleSignature = useMemo(() => demoRadiusCircles
     .map((circle, index) => [
       index,
@@ -731,8 +804,8 @@ function MapView({
   }, [onMapReady]);
 
   useEffect(() => {
-    viewportMarkersRef.current = markers.filter(isMapMarker);
-  }, [markers]);
+    viewportMarkersRef.current = renderedMarkers.filter(isMapMarker);
+  }, [renderedMarkers]);
 
   useEffect(() => {
     demoRadiusCirclesRef.current = demoRadiusCircles;
@@ -855,6 +928,11 @@ function MapView({
           }
 
           onMapClickRef.current?.();
+        });
+        map.on('zoomend', () => {
+          if (typeof map.getZoom === 'function') {
+            setCurrentZoom(map.getZoom());
+          }
         });
         map.on('load', markMapReady);
         map.on('idle', markMapReady);
@@ -1113,7 +1191,7 @@ function MapView({
     markersRef.current.forEach(cleanupRenderedMarker);
     markersRef.current = [];
 
-    const visibleMarkers = markers.filter(isMapMarker);
+    const visibleMarkers = renderedMarkers.filter(isMapMarker);
     let cancelled = false;
 
     queueMicrotask(() => {
@@ -1142,7 +1220,7 @@ function MapView({
     return () => {
       cancelled = true;
     };
-  }, [markers, mapInstance]);
+  }, [renderedMarkers, mapInstance]);
 
   return (
     <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">

@@ -91,11 +91,11 @@ describe("loadConfig", () => {
       ...baseEnv,
       ALPHA_TEST_ENABLED: "true",
       ALPHA_TEST_PASSWORD_HASH: scryptPasswordHash,
-      ALPHA_TEST_ENDS_AT: "2026-07-28T23:59:00-04:00"
+      ALPHA_TEST_ENDS_AT: "2026-07-31T00:00:00-04:00"
     })).toMatchObject({
       ALPHA_TEST_ENABLED: true,
       ALPHA_TEST_PASSWORD_HASH: scryptPasswordHash,
-      ALPHA_TEST_ENDS_AT: "2026-07-28T23:59:00-04:00"
+      ALPHA_TEST_ENDS_AT: "2026-07-31T00:00:00-04:00"
     });
   });
 

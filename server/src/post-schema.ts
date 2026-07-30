@@ -1,11 +1,36 @@
 import { z } from "zod";
 import { multilineTextSchema } from "./input-schema.js";
+import { normalizeCrowdOption } from "./profile-sensitive.js";
 
 export const postExpirySchema = z.enum(["1h", "6h", "24h"]);
 
+const crowdTargetsSchema = z.array(z.string()).optional().default([])
+  .transform((values, ctx) => {
+    const normalizedValues: string[] = [];
+
+    for (const value of values) {
+      const normalizedValue = normalizeCrowdOption(value);
+
+      if (!normalizedValue) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Invalid crowd target."
+        });
+        return z.NEVER;
+      }
+
+      if (!normalizedValues.includes(normalizedValue)) {
+        normalizedValues.push(normalizedValue);
+      }
+    }
+
+    return normalizedValues;
+  });
+
 export const createPostPayloadSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 }),
-  expiresIn: postExpirySchema.optional().default("6h")
+  expiresIn: postExpirySchema.optional().default("6h"),
+  crowdTargets: crowdTargetsSchema
 }).strict();
 
 export type CreatePostPayload = z.infer<typeof createPostPayloadSchema>;

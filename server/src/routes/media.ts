@@ -319,7 +319,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
        where media.id = $1
          and variant.variant_type = $2
          and media.moderation_status = 'approved'
-         and media.explicit_classification = 'non_explicit'
+         and (media.surface = 'message_photo' or media.explicit_classification = 'non_explicit')
          and media.deleted_at is null
          and variant.deleted_at is null
        limit 1`,
@@ -335,7 +335,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       if (mediaObject.owner_user_id !== userId) {
         await assertUsersNotBlocked(app, userId, mediaObject.owner_user_id);
       }
-    } else {
+    } else if (mediaObject.owner_user_id !== userId) {
       await assertMessageMediaAccess(app, userId, assetId);
     }
 

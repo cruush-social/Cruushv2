@@ -159,6 +159,10 @@ vi.mock('./components/GhostModeSettings', () => ({
   default: () => <div>Mock Ghost Mode Settings</div>
 }));
 
+vi.mock('./components/DlModeSettings', () => ({
+  default: () => <div>Mock DL Mode Settings</div>
+}));
+
 vi.mock('./components/FeelingLucky', () => ({
   default: () => <div>Mock Lucky</div>
 }));
@@ -368,6 +372,29 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Ghost Mode Settings')).toBeInTheDocument();
+  });
+
+  it('renders DL Mode settings as the dedicated privacy route', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    window.history.replaceState({}, '', '/privacy/dl-mode');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock DL Mode Settings')).toBeInTheDocument();
   });
 
   it('redirects the cruush+ upgrade route to rewards while signed in', async () => {

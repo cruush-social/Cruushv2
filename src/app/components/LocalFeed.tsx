@@ -11,6 +11,8 @@ import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
 import { getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { createFeedPost, deleteFeedPost, getFeedPosts, type FeedPost, type FeedPostExpiry } from '../lib/postApi';
+import { getMyProfile } from '../lib/profileApi';
+import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -46,6 +48,8 @@ export default function LocalFeed() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [availableCrowdTargets, setAvailableCrowdTargets] = useState<string[]>([]);
+  const [selectedCrowdTargets, setSelectedCrowdTargets] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,6 +60,19 @@ export default function LocalFeed() {
     void getMyBillingStatus()
       .then(setBillingStatus)
       .catch(() => setBillingStatus(null));
+    void getMyProfile()
+      .then((profile) => {
+        const normalizedCrowds = normalizeCrowdValues(profile.crowds ?? []);
+        const allowedCrowds = CROWDS.filter((crowd) => (
+          normalizedCrowds.includes(crowd) && (crowd !== 'T4T' || profile.is_trans === true)
+        ));
+        setAvailableCrowdTargets(allowedCrowds);
+        setSelectedCrowdTargets((currentTargets) => currentTargets.filter((crowd) => allowedCrowds.includes(crowd)));
+      })
+      .catch(() => {
+        setAvailableCrowdTargets([]);
+        setSelectedCrowdTargets([]);
+      });
   }, []);
 
   const fetchPosts = async () => {
@@ -83,8 +100,10 @@ export default function LocalFeed() {
       const createdPost = await createFeedPost({
         content: newPost.trim(),
         expiresIn,
+        crowdTargets: selectedCrowdTargets,
       });
       setNewPost('');
+      setSelectedCrowdTargets([]);
       setPosts((prev) => [createdPost, ...prev]);
     } catch (error) {
       console.error('Error posting:', error);
@@ -95,6 +114,16 @@ export default function LocalFeed() {
   };
 
   const canPost = billingStatus?.cruushPlus !== false;
+
+  const toggleCrowdTarget = (crowd: string) => {
+    if (!canPost) {
+      return;
+    }
+
+    setSelectedCrowdTargets((currentTargets) => currentTargets.includes(crowd)
+      ? currentTargets.filter((target) => target !== crowd)
+      : [...currentTargets, crowd]);
+  };
 
   const handleDeletePost = async (postId: string) => {
     setDeletingPostId(postId);
@@ -160,8 +189,8 @@ export default function LocalFeed() {
               </Button>
             </div>
           ) : null}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant={expiresIn === '1h' ? 'default' : 'outline'}
                 size="sm"
@@ -186,6 +215,26 @@ export default function LocalFeed() {
               >
                 24h
               </Button>
+              {availableCrowdTargets.length > 0 ? (
+                <div className="ml-0 flex flex-wrap items-center gap-2 sm:ml-2">
+                  {availableCrowdTargets.map((crowd) => {
+                    const selected = selectedCrowdTargets.includes(crowd);
+                    return (
+                      <Button
+                        key={crowd}
+                        type="button"
+                        variant={selected ? 'default' : 'outline'}
+                        size="sm"
+                        className={selected ? 'border-emerald-400/55 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/25' : undefined}
+                        onClick={() => toggleCrowdTarget(crowd)}
+                        disabled={!canPost}
+                      >
+                        {crowd}
+                      </Button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
             <Button
               onClick={handlePost}
@@ -217,6 +266,7 @@ export default function LocalFeed() {
                   className="w-14 flex-shrink-0"
                   label={`${post.user.name} preview`}
                   photo={post.user?.photo}
+                  userId={post.user.id}
                   fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
                 />
 
@@ -227,6 +277,20 @@ export default function LocalFeed() {
                         <span>{post.user.name}</span>
                         <CruushBadge badges={post.user.badges} compact />
                         <span className="text-sm text-white/58">{post.user.pronouns}</span>
+                        {post.partyStatus ? (
+                          <button
+                            type="button"
+                            className="rounded-full border border-emerald-400/28 bg-emerald-400/10 px-2 py-0.5 text-xs text-emerald-300 transition hover:bg-emerald-400/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/65"
+                            aria-label="Center map on The Chocolate Factory"
+                            onClick={() => navigate('/map', {
+                              state: {
+                                centerEventSlug: post.partyStatus?.eventSlug,
+                              },
+                            })}
+                          >
+                            {post.partyStatus.label}
+                          </button>
+                        ) : null}
                       </p>
                       <div className="flex items-center gap-3 text-xs text-white/52">
                         <span className="flex items-center gap-1">

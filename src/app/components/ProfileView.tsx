@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
@@ -19,6 +19,14 @@ type ProfileLocationState = {
   distance?: string;
   lastActive?: string;
 };
+
+const PROFILE_VIEW_HEADER_HEIGHT = '4.3125rem';
+const PROFILE_VIEW_STYLE = {
+  '--profile-view-header-height': PROFILE_VIEW_HEADER_HEIGHT,
+} as CSSProperties;
+const PROFILE_VIEW_GALLERY_FRAME_STYLE = {
+  width: `min(100%, calc((100dvh - var(--profile-view-header-height, ${PROFILE_VIEW_HEADER_HEIGHT}) - 1px) * 0.8))`,
+} as const;
 
 export type ProfileViewModel = {
   id: string;
@@ -305,7 +313,7 @@ export default function ProfileView() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20" style={PROFILE_VIEW_STYLE}>
       <header className="sticky top-0 z-10 border-b border-border bg-card/90 p-4 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -342,8 +350,13 @@ export default function ProfileView() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-2xl">
+      <div
+        data-testid="profile-gallery-frame"
+        className="mx-auto max-w-2xl"
+        style={PROFILE_VIEW_GALLERY_FRAME_STYLE}
+      >
         <ProfilePhotoGallery
+          fitViewport
           name={profileView.name}
           photos={profileView.photos}
           reportTargetUserId={isOwnProfile ? undefined : userId}

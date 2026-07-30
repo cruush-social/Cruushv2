@@ -114,11 +114,19 @@ export async function getReferralInfo(
     flagged: number;
   }>(
     `select
-       count(*) filter (where status in ('pending', 'qualified'))::int as pending,
+       count(*) filter (
+         where referral.status in ('pending', 'qualified')
+           and two_factor.enabled_at is not null
+       )::int as pending,
        count(*) filter (where status = 'rewarded')::int as qualified,
-       count(*) filter (where status = 'flagged')::int as flagged
-     from referrals
-     where referrer_user_id = $1`,
+       count(*) filter (
+         where referral.status = 'flagged'
+           and two_factor.enabled_at is not null
+       )::int as flagged
+     from referrals referral
+     left join user_two_factor_auth two_factor
+       on two_factor.user_id = referral.referred_user_id
+     where referral.referrer_user_id = $1`,
     [userId]
   );
   const code = identity.rows[0]?.code;

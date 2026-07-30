@@ -598,9 +598,15 @@ export async function getRewardSummary(
     ),
     app.db.query<{ pending: number; qualified: number }>(
       `select
-         count(*) filter (where status in ('pending', 'qualified'))::int as pending,
-         count(*) filter (where status = 'rewarded')::int as qualified
-       from referrals where referrer_user_id = $1`,
+         count(*) filter (
+           where referral.status in ('pending', 'qualified')
+             and two_factor.enabled_at is not null
+         )::int as pending,
+         count(*) filter (where referral.status = 'rewarded')::int as qualified
+       from referrals referral
+       left join user_two_factor_auth two_factor
+         on two_factor.user_id = referral.referred_user_id
+       where referral.referrer_user_id = $1`,
       [userId]
     ),
     app.db.query<RewardGrantRow>(

@@ -38,7 +38,7 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
 
 function ActivityBadge({ children }: { children: string }) {
   return (
-    <span className="rounded-full border border-primary/20 bg-primary/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-primary">
+    <span className="rounded-md border border-primary/20 bg-primary/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-primary">
       {children}
     </span>
   );
@@ -72,6 +72,7 @@ function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem
       className="w-20 shrink-0"
       label={`${item.user.name} preview`}
       photo={item.user.photo}
+      userId={item.user.id}
       theme={'mutual' in item && item.mutual ? 'mutual' : 'nearby'}
       fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-25" />}
     />
@@ -96,7 +97,7 @@ function UpgradeBanner({
     : label;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-primary/18 bg-primary/10 px-4 py-4">
+    <div className="relative overflow-hidden rounded-lg border border-primary/18 bg-primary/10 px-4 py-4">
       <div className="absolute inset-0 opacity-40" style={{ background: 'var(--cruush-gradient-soft-28)' }} />
       <div className="relative flex items-center justify-between gap-4">
         <div className="flex items-start gap-3">
@@ -192,6 +193,7 @@ function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; on
         className="w-16 shrink-0"
         label={`${item.user.name} preview`}
         photo={item.user.photo}
+        userId={item.user.id}
         theme={item.mutual ? 'mutual' : 'nearby'}
         fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-25" />}
       />
@@ -228,6 +230,7 @@ function MutualRow({
           className="w-20"
           label={`${item.user.name} preview`}
           photo={item.user.photo}
+          userId={item.user.id}
           theme="mutual"
           fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-30" />}
         />
@@ -395,10 +398,10 @@ export default function CruushActivity() {
   const lockedViewsCount = Math.max(0, (activity?.counts.views ?? 0) - (activity?.views.filter((item) => !item.locked).length ?? 0));
 
   return (
-    <div className="min-h-screen bg-background pb-[calc(7rem+env(safe-area-inset-bottom))]">
+    <div className="h-dvh overflow-y-scroll bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] [scrollbar-gutter:stable]">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
-        <header className="sticky top-0 z-20 border-b border-white/10 bg-background/72 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-          <div className="mx-auto max-w-3xl">
+        <header className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+          <div className="mx-auto w-full max-w-6xl">
             <div className="grid grid-cols-[44px_1fr_44px] items-center">
               <div />
               <div className="flex justify-center">
@@ -409,14 +412,26 @@ export default function CruushActivity() {
                 variant="ghost"
                 size="icon"
                 className="rounded-full text-white/78 hover:bg-white/10"
-                aria-label="Open settings"
-                onClick={() => navigate('/settings')}
+                aria-label="Open cruush match settings"
+                onClick={() => navigate('/cruush/settings')}
               >
                 <CruushIcon name="settings" className="h-5 w-5" />
               </Button>
             </div>
 
-            <TabsList className="mt-4 grid h-auto w-full grid-cols-4 rounded-full border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+            <div data-testid="cruush-count-grid" className="mt-3 grid grid-cols-[repeat(4,minmax(0,1fr))] gap-2">
+              {(['incoming', 'sent', 'mutual', 'views'] as ActivityTab[]).map((tab) => (
+                <div key={tab} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
+                  <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/46">{tab}</p>
+                  <p className="truncate text-sm tabular-nums text-white">{activity?.counts[tab] ?? 0}</p>
+                </div>
+              ))}
+            </div>
+
+            <TabsList
+              data-testid="cruush-tab-grid"
+              className="mt-3 grid h-auto w-full grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+            >
               <ActivityTabButton value="incoming" label="incoming" />
               <ActivityTabButton value="sent" label="sent" />
               <ActivityTabButton value="mutual" label="mutual" />
@@ -425,7 +440,7 @@ export default function CruushActivity() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-3xl px-4 pt-4">
+        <main className="mx-auto w-full max-w-6xl px-4 pt-4">
               {error ? (
                 <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                   {error}
@@ -502,9 +517,9 @@ function ActivityTabButton({
   return (
     <TabsTrigger
       value={value}
-      className="relative h-10 rounded-full border border-transparent bg-transparent px-2 text-sm text-white/72"
+      className="relative min-w-0 h-10 rounded-md border border-transparent bg-transparent px-2 text-sm text-white/72"
     >
-      {label}
+      <span className="block min-w-0 truncate">{label}</span>
     </TabsTrigger>
   );
 }
@@ -520,14 +535,14 @@ function ActivitySurface({
 }) {
   if (empty) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/10 bg-card/60 px-5 py-10 text-center text-sm text-white/58">
+      <div className="rounded-lg border border-dashed border-white/10 bg-card/60 px-5 py-10 text-center text-sm text-white/58">
         {emptyText}
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-background/40 px-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+    <div className="w-full rounded-lg border border-white/10 bg-black/72 px-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
       {children}
     </div>
   );

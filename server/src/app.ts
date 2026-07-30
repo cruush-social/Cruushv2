@@ -6,9 +6,11 @@ import { createPool, type DbClient } from "./db.js";
 import type { AppConfig } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerAdminModerationRoutes } from "./routes/admin-moderation.js";
+import { registerBetaAccessRoutes } from "./routes/beta-access.js";
 import { registerBlockRoutes } from "./routes/blocks.js";
 import { registerBillingRoutes } from "./routes/billing.js";
 import { registerCruushRoutes } from "./routes/cruush.js";
+import { registerEventRoutes } from "./routes/events.js";
 import { ApiError, formatError, toApiError } from "./errors.js";
 import { registerMediaRoutes } from "./routes/media.js";
 import { registerModerationMediaRoutes } from "./routes/moderation-media.js";
@@ -149,12 +151,22 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
       storage: "postgres",
       migratedFromSupabase: true,
       alphaTest: getAlphaTestState(config),
+      betaAccess: {
+        enabled: Boolean(config.BETA_ACCESS_GEOFENCE_ENABLED),
+        center: {
+          lat: config.BETA_ACCESS_CENTER_LATITUDE ?? 40.70982,
+          lng: config.BETA_ACCESS_CENTER_LONGITUDE ?? -73.92256
+        },
+        radiusMiles: config.BETA_ACCESS_RADIUS_MILES ?? 15,
+        venueName: config.BETA_ACCESS_VENUE_NAME ?? "70 Scott Ave"
+      },
       photoUploads: photoUploadAvailability(config)
     };
   });
 
   void registerAuthRoutes(app);
   void registerAdminModerationRoutes(app);
+  void registerBetaAccessRoutes(app);
   void registerBlockRoutes(app);
   void registerBillingRoutes(app);
   void registerModerationMediaRoutes(app);
@@ -163,6 +175,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerNotificationRoutes(app);
   void registerUserRoutes(app);
   void registerCruushRoutes(app);
+  void registerEventRoutes(app);
   void registerPostRoutes(app);
   void registerProfileRoutes(app);
   void registerPrivacyRoutes(app);

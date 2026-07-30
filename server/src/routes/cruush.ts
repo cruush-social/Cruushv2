@@ -1,6 +1,11 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
+import {
+  cruushMatchSettingsPayloadSchema,
+  getCruushMatchSettings,
+  saveCruushMatchSettings
+} from "../cruush-match-settings.js";
 import { createCruushPayloadSchema } from "../cruush-schema.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
@@ -712,6 +717,23 @@ function mapProfileViewRecords(
 }
 
 export async function registerCruushRoutes(app: FastifyInstance) {
+  app.get("/api/cruush/settings", async (request, reply) => {
+    const authenticatedUserId = await getAuthenticatedUserId(request);
+
+    return reply.send({
+      data: await getCruushMatchSettings(app, authenticatedUserId)
+    });
+  });
+
+  app.put("/api/cruush/settings", async (request, reply) => {
+    const authenticatedUserId = await getActiveAccountUserId(request);
+    const payload = cruushMatchSettingsPayloadSchema.parse(request.body);
+
+    return reply.send({
+      data: await saveCruushMatchSettings(app, authenticatedUserId, payload)
+    });
+  });
+
   app.get("/api/cruush/me", async (request, reply) => {
     const authenticatedUserId = await getAuthenticatedUserId(request);
     const entitlement = await getCruushEntitlement(app, authenticatedUserId);

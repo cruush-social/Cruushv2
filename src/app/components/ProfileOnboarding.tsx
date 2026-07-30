@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { CROWDS, IDENTITIES, LOOKING_FOR, PRONOUNS, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { acceptCodeOfConduct, type AuthSessionPayload } from '../lib/authApi';
 import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
 import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload } from '../lib/profileApi';
+import { completeTwoFactorSetup, startTwoFactorSetup, type TwoFactorSetup } from '../lib/rewardsApi';
 import { persistCurrentUser } from '../lib/sessionUser';
 import MultiSelect from './MultiSelect';
 
@@ -15,13 +16,14 @@ interface ProfileOnboardingProps {
   codeOfConductVersion?: string;
 }
 
-type OnboardingStep = 'name' | 'age' | 'pronouns' | 'identities' | 'crowds' | 'lookingFor' | 'vibes' | 'bio' | 'oath';
+type OnboardingStep = 'name' | 'age' | 'pronouns' | 'identities' | 'transStatus' | 'crowds' | 'lookingFor' | 'vibes' | 'bio' | 'oath' | 'twoFactor';
 
 const PROFILE_STEPS: OnboardingStep[] = [
   'name',
   'age',
   'pronouns',
   'identities',
+  'transStatus',
   'crowds',
   'lookingFor',
   'vibes',
@@ -49,6 +51,11 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
     title: 'Choose the words that fit.',
     detail: 'Pick up to three.',
   },
+  transStatus: {
+    rite: 'set your T4T access',
+    title: 'Should T4T be available to you?',
+    detail: 'This controls whether T4T appears in crowd selection.',
+  },
   crowds: {
     rite: 'find your crowd',
     title: 'Which crowds should know you are here?',
@@ -73,6 +80,11 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
     rite: 'take the oath',
     title: 'Before the map opens.',
     detail: 'Every member agrees to the cruush code of conduct.',
+  },
+  twoFactor: {
+    rite: 'protect your key',
+    title: 'Set up 2FA?',
+    detail: 'Optional, but affiliate-link signups count only after the referred account enables 2FA.',
   },
 };
 
@@ -131,7 +143,7 @@ export default function ProfileOnboarding({
   codeOfConductVersion = '',
 }: ProfileOnboardingProps) {
   // Minimal onboarding steps, but state includes all schema fields for upsert
-  const steps = needsCodeOfConduct ? [...PROFILE_STEPS, 'oath'] : PROFILE_STEPS;
+  const steps = needsCodeOfConduct ? [...PROFILE_STEPS, 'oath', 'twoFactor'] : [...PROFILE_STEPS, 'twoFactor'];
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<OnboardingProfileState>({
     name: '',
@@ -181,6 +193,13 @@ export default function ProfileOnboarding({
   const [oathAccepted, setOathAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [twoFactorPassword, setTwoFactorPassword] = useState('');
+  const [twoFactorToken, setTwoFactorToken] = useState('');
+  const [twoFactorSetup, setTwoFactorSetup] = useState<TwoFactorSetup | null>(null);
+  const [twoFactorRecoveryCodes, setTwoFactorRecoveryCodes] = useState<string[]>([]);
+  const [twoFactorSaving, setTwoFactorSaving] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
 
   const setProfileField = <K extends keyof OnboardingProfileState>(field: K, value: OnboardingProfileState[K]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -198,6 +217,8 @@ export default function ProfileOnboarding({
         return profile.pronouns.length > 0;
       case 'identities':
         return profile.identities.length > 0;
+      case 'transStatus':
+        return profile.is_trans !== null;
       case 'crowds':
         return profile.crowds.length > 0;
       case 'lookingFor':
@@ -208,8 +229,56 @@ export default function ProfileOnboarding({
         return profile.bio.trim().length > 0;
       case 'oath':
         return oathAccepted;
+      case 'twoFactor':
+        return true;
       default:
         return true;
+    }
+  };
+
+  const handleStartTwoFactorSetup = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!twoFactorPassword.trim()) {
+      setTwoFactorError('Enter your password to start 2FA setup.');
+      return;
+    }
+
+    setTwoFactorSaving(true);
+    setTwoFactorError(null);
+
+    try {
+      setTwoFactorSetup(await startTwoFactorSetup(twoFactorPassword));
+      setTwoFactorPassword('');
+      setTwoFactorToken('');
+    } catch (error) {
+      setTwoFactorError(error instanceof Error ? error.message : 'Unable to start 2FA setup.');
+    } finally {
+      setTwoFactorSaving(false);
+    }
+  };
+
+  const handleCompleteTwoFactorSetup = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!twoFactorToken.trim()) {
+      setTwoFactorError('Enter the code from your authenticator app.');
+      return;
+    }
+
+    setTwoFactorSaving(true);
+    setTwoFactorError(null);
+
+    try {
+      const result = await completeTwoFactorSetup(twoFactorToken);
+      setTwoFactorRecoveryCodes(result.recoveryCodes);
+      setTwoFactorSetup(null);
+      setTwoFactorToken('');
+      setTwoFactorEnabled(true);
+    } catch (error) {
+      setTwoFactorError(error instanceof Error ? error.message : 'Unable to confirm 2FA.');
+    } finally {
+      setTwoFactorSaving(false);
     }
   };
 
@@ -227,6 +296,9 @@ export default function ProfileOnboarding({
       const customDoxypep = profile.custom_doxypep.trim();
       const customCovidVaccine = profile.custom_covid_vaccine.trim();
       const customMpoxVaccine = profile.custom_mpox_vaccine.trim();
+      const sanitizedCrowds = profile.is_trans === true
+        ? profile.crowds
+        : profile.crowds.filter((crowd) => crowd !== 'T4T');
       const payload: ProfilePayload = {
         display_name: displayName,
         date_of_birth: profile.dateOfBirth,
@@ -246,7 +318,7 @@ export default function ProfileOnboarding({
         role: profile.role,
         is_trans: profile.is_trans,
         trans_status_visibility: 'mutual_cruushes',
-        crowds: profile.crowds,
+        crowds: sanitizedCrowds,
         availability: profile.availability,
         hosting_travel: profile.hosting_travel,
         kinks: profile.kinks,
@@ -294,6 +366,15 @@ export default function ProfileOnboarding({
     }
   };
   const isFinalStep = step === steps.length - 1;
+  const availableCrowds = profile.is_trans === true ? CROWDS : CROWDS.filter((crowd) => crowd !== 'T4T');
+
+  const setTransStatus = (isTrans: boolean) => {
+    setProfile((prev) => ({
+      ...prev,
+      is_trans: isTrans,
+      crowds: isTrans ? prev.crowds : prev.crowds.filter((crowd) => crowd !== 'T4T'),
+    }));
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#050505] p-4 text-foreground">
@@ -413,13 +494,34 @@ export default function ProfileOnboarding({
                   <p className="text-xs text-white/58 mt-1">Select up to 3</p>
                 </div>
               );
+            case 'transStatus':
+              return (
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant={profile.is_trans === true ? 'default' : 'outline'}
+                    onClick={() => setTransStatus(true)}
+                    className="h-12"
+                  >
+                    Yes
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={profile.is_trans === false ? 'default' : 'outline'}
+                    onClick={() => setTransStatus(false)}
+                    className="h-12"
+                  >
+                    No
+                  </Button>
+                </div>
+              );
             case 'crowds':
               return (
                 <div>
                   <label className="text-sm mb-2 block text-white/82">Crowds</label>
                   <MultiSelect
                     ariaLabel="Crowds"
-                    options={CROWDS}
+                    options={availableCrowds}
                     value={profile.crowds}
                     onChange={(values) => setProfileField('crowds', limitToThree(values))}
                   />
@@ -492,18 +594,74 @@ export default function ProfileOnboarding({
                   </label>
                 </div>
               );
+            case 'twoFactor':
+              return (
+                <div className="space-y-4">
+                  {twoFactorError ? (
+                    <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                      {twoFactorError}
+                    </div>
+                  ) : null}
+
+                  {twoFactorRecoveryCodes.length > 0 ? (
+                    <div className="space-y-3 rounded-lg border border-primary/25 bg-primary/10 p-4">
+                      <div className="flex items-center gap-2 text-primary">
+                        <ShieldCheck className="h-5 w-5" />
+                        <p className="text-sm font-semibold">2FA is active.</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 rounded-md bg-black/40 p-3 font-mono text-xs text-white/78">
+                        {twoFactorRecoveryCodes.map((code) => (
+                          <span key={code}>{code}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {!twoFactorSetup && !twoFactorEnabled ? (
+                    <form className="space-y-3" onSubmit={(event) => void handleStartTwoFactorSetup(event)}>
+                      <label className="space-y-2 block">
+                        <span className="text-sm">Password</span>
+                        <Input
+                          type="password"
+                          autoComplete="current-password"
+                          value={twoFactorPassword}
+                          onChange={(event) => setTwoFactorPassword(event.target.value)}
+                        />
+                      </label>
+                      <Button type="submit" className="w-full" disabled={twoFactorSaving}>
+                        {twoFactorSaving ? 'Starting...' : 'Start 2FA setup'}
+                      </Button>
+                    </form>
+                  ) : null}
+
+                  {twoFactorSetup ? (
+                    <form className="space-y-4" onSubmit={(event) => void handleCompleteTwoFactorSetup(event)}>
+                      <div className="rounded-lg border border-white/10 bg-white p-3">
+                        <img src={twoFactorSetup.qrCodeDataUrl} alt="2FA QR code" className="mx-auto h-44 w-44" />
+                      </div>
+                      <div className="rounded-md border border-white/10 bg-black/45 p-3 font-mono text-xs break-all text-white/72">
+                        {twoFactorSetup.secret}
+                      </div>
+                      <label className="space-y-2 block">
+                        <span className="text-sm">Authenticator code</span>
+                        <Input
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          value={twoFactorToken}
+                          onChange={(event) => setTwoFactorToken(event.target.value)}
+                        />
+                      </label>
+                      <Button type="submit" className="w-full" disabled={twoFactorSaving}>
+                        {twoFactorSaving ? 'Confirming...' : 'Confirm and enable 2FA'}
+                      </Button>
+                    </form>
+                  ) : null}
+                </div>
+              );
             default:
               return null;
           }
         })()}
-        {isFinalStep ? (
-          <div className="rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm leading-6 text-white/78">
-            <p>
-              Protect your account with 2FA next. Referred signups need 2FA before they can qualify
-              for referral rewards from someone else's link.
-            </p>
-          </div>
-        ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-8">
           <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
             Back
@@ -514,12 +672,16 @@ export default function ProfileOnboarding({
             </Button>
           ) : (
             <div className="flex flex-wrap justify-end gap-2">
-              <Button variant="outline" onClick={() => void handleComplete('map')} disabled={!canProceed() || saving}>
-                Skip 2FA for now <Check className="ml-2 w-4 h-4" />
-              </Button>
-              <Button onClick={() => void handleComplete('rewards')} disabled={!canProceed() || saving}>
-                Protect my account next <ShieldCheck className="ml-2 w-4 h-4" />
-              </Button>
+              {!twoFactorEnabled ? (
+                <Button variant="outline" onClick={() => void handleComplete('map')} disabled={!canProceed() || saving || twoFactorSaving}>
+                  Skip 2FA for now <Check className="ml-2 w-4 h-4" />
+                </Button>
+              ) : null}
+              {twoFactorEnabled ? (
+                <Button onClick={() => void handleComplete('map')} disabled={!canProceed() || saving}>
+                  Enter cruush <ShieldCheck className="ml-2 w-4 h-4" />
+                </Button>
+              ) : null}
             </div>
           )}
         </div>

@@ -7,7 +7,7 @@ describe('LaunchLoginMapTeaser', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders a decorative frosted map scene without profile imagery', () => {
+  it('renders a video-first background without the old branded fallback scene', () => {
     const { container } = render(<LaunchLoginMapTeaser />);
     const teaser = screen.getByTestId('launch-login-map-teaser');
 
@@ -16,17 +16,15 @@ describe('LaunchLoginMapTeaser', () => {
       'src',
       '/teasers/launch-login-teaser-desktop.webm',
     );
-    expect(screen.getByTestId('launch-login-map-scene')).toBeInTheDocument();
-    expect(screen.queryByTestId('launch-login-brand-mark')).not.toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-club-lights')).toBeInTheDocument();
+    expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-mobile-pulse')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-frosted-glass')).toBeInTheDocument();
-    expect(screen.getAllByTestId('launch-login-club-beam')).toHaveLength(5);
-    expect(screen.getAllByTestId('launch-login-gradient-pin')).toHaveLength(6);
-    expect(screen.getAllByTestId('launch-login-ghost-person')).toHaveLength(4);
-    expect(screen.getAllByTestId('launch-login-radius-ring')).toHaveLength(3);
-    expect(screen.getAllByTestId('launch-login-activity-signal')).toHaveLength(5);
-    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(24);
+    expect(screen.getByTestId('launch-login-video-shade')).toBeInTheDocument();
+    expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('launch-login-brand-mark')).not.toBeInTheDocument();
+    expect(screen.queryByText('cruush')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('launch-login-club-lights')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('launch-login-frosted-glass')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('launch-login-ambient-fallback')).not.toBeInTheDocument();
     expect(container.querySelectorAll('img')).toHaveLength(0);
     expect(container.querySelectorAll('image')).toHaveLength(0);
   });
@@ -56,9 +54,9 @@ describe('LaunchLoginMapTeaser', () => {
       'src',
       '/teasers/launch-login-teaser-mobile.mp4',
     );
-    expect(screen.getByTestId('launch-login-mobile-fallback')).toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-frosted-glass')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('launch-login-ambient-fallback')).not.toBeInTheDocument();
     fireEvent.canPlay(video);
 
     return waitFor(() => expect(handlePlaybackStateChange).toHaveBeenCalledWith({
@@ -67,12 +65,27 @@ describe('LaunchLoginMapTeaser', () => {
     }));
   });
 
+  it('falls back to a static ambient background when reduced motion disables video', () => {
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })));
+
+    render(<LaunchLoginMapTeaser />);
+
+    expect(screen.queryByTestId('launch-login-teaser-video')).not.toBeInTheDocument();
+    expect(screen.getByTestId('launch-login-ambient-fallback')).toBeInTheDocument();
+    expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
+  });
+
   it('renders a foreground water layer with persistent clear trails', () => {
     const { container } = render(<LaunchLoginWaterPane />);
 
     expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(12);
-    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(24);
+    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(6);
+    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(12);
     expect(container.querySelectorAll('img')).toHaveLength(0);
     expect(container.querySelectorAll('image')).toHaveLength(0);
   });
@@ -88,7 +101,7 @@ describe('LaunchLoginMapTeaser', () => {
     render(<LaunchLoginWaterPane />);
 
     expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-map-teaser__water-pane--mobile-lite');
-    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(4);
-    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(8);
+    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(3);
+    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(6);
   });
 });

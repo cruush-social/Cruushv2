@@ -56,6 +56,23 @@ export type VerificationDeliveryResult = {
   previewUrl: string | null;
 };
 
+export type EmailAttachment = {
+  content: string;
+  filename: string;
+};
+
+type EventPassEmailInput = {
+  attachment: EmailAttachment;
+  config: AppConfig;
+  email: string;
+  event: {
+    address: string;
+    passIconName: string;
+    venueName: string;
+  };
+  logger: FastifyBaseLogger;
+};
+
 const CRUUSH_EMAIL_LOGO_URL = "https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e";
 
 function escapeHtml(value: string) {
@@ -247,6 +264,7 @@ function buildVerificationEmailHtml(escapedVerificationUrl: string) {
 }
 
 async function sendResendEmail(input: {
+  attachments?: EmailAttachment[];
   config: AppConfig;
   email: string;
   html: string;
@@ -256,7 +274,7 @@ async function sendResendEmail(input: {
   text: string;
   failureMessage: string;
 }) {
-  const { config, email, failureMessage, html, logger, replyTo, subject, text } = input;
+  const { attachments, config, email, failureMessage, html, logger, replyTo, subject, text } = input;
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -270,6 +288,7 @@ async function sendResendEmail(input: {
       subject,
       html,
       text,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
       ...(replyTo ? { reply_to: replyTo } : {})
     })
   });
@@ -279,6 +298,46 @@ async function sendResendEmail(input: {
     logger.error({ email, responseBody, statusCode: response.status }, failureMessage);
     throw new ApiError(502, "INTERNAL_ERROR", "Failed to send email.");
   }
+}
+
+export async function sendEventPassEmail(input: EventPassEmailInput): Promise<VerificationDeliveryResult> {
+  const { attachment, config, email, event, logger } = input;
+  const escapedVenueName = escapeHtml(event.venueName);
+  const escapedAddress = escapeHtml(event.address);
+  const escapedIconName = escapeHtml(event.passIconName);
+  const subject = `${event.venueName} door pass`;
+
+  if (config.RESEND_API_KEY && config.MAIL_FROM) {
+    await sendResendEmail({
+      attachments: [attachment],
+      config,
+      email,
+      logger,
+      subject,
+      html: `<p>Your cruush door pass for ${escapedVenueName} is attached.</p><p>Show the JPG at the door. Your pass icon is <strong>${escapedIconName}</strong>.</p><p>${escapedAddress}</p>`,
+      text: `Your cruush door pass for ${event.venueName} is attached.\nShow the JPG at the door. Your pass icon is ${event.passIconName}.\n${event.address}`,
+      failureMessage: "event pass email delivery failed"
+    });
+
+    return {
+      previewUrl: null
+    };
+  }
+
+  if (!config.EMAIL_PREVIEW_ENABLED) {
+    throw new ApiError(500, "INTERNAL_ERROR", "Email delivery is not configured.");
+  }
+
+  logger.info({
+    email,
+    eventVenue: event.venueName,
+    passIconName: event.passIconName,
+    attachmentFilename: attachment.filename
+  }, "event pass email preview");
+
+  return {
+    previewUrl: `preview:event-pass:${event.passIconName}`
+  };
 }
 
 export async function sendVerificationEmail(input: VerificationEmailInput): Promise<VerificationDeliveryResult> {

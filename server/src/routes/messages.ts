@@ -8,6 +8,7 @@ import { createPendingMediaAsset, deletePendingMediaAsset, moderatePendingMediaA
 import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { ApiError } from "../errors.js";
+import { assertCanSendNsfwMessagePhoto } from "../cruush-match-settings.js";
 import { hasActiveMutualMessagePermission } from "../match-relationships.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
@@ -15,8 +16,10 @@ import {
   createGroupConversationPayloadSchema,
   createMessagePhotoFieldsSchema,
   createMessagePayloadSchema,
+  favoriteMessageImageUploadFieldsSchema,
   groupMemberPayloadSchema,
   openDirectConversationPayloadSchema,
+  sendFavoriteMessageImagePayloadSchema,
   updateGroupConversationPayloadSchema
 } from "../message-schema.js";
 import { approvedContentReviewCte, moderateMessageTextOrAllowByKeyword } from "../moderation-service.js";
@@ -29,6 +32,10 @@ const conversationParamsSchema = z.object({
 const messageAttachmentViewParamsSchema = z.object({
   messageId: z.uuid(),
   mediaObjectId: z.uuid()
+}).strict();
+
+const favoriteImageParamsSchema = z.object({
+  favoriteId: z.uuid()
 }).strict();
 
 const updateConversationTimerPayloadSchema = z.object({
@@ -96,6 +103,20 @@ type MessageAttachment = {
   mimeType: string;
   viewOnce?: boolean;
   viewedAt?: string | null;
+  explicit?: boolean;
+};
+
+type FavoriteMessageImageRow = {
+  id: string;
+  media_object_id: string;
+  label: string | null;
+  url: string | null;
+  thumbnail_url: string | null;
+  media_type: string;
+  mime_type: string;
+  explicit: boolean;
+  created_at: string | Date;
+  updated_at: string | Date;
 };
 
 type GroupMemberRow = {
@@ -235,6 +256,21 @@ function mapMessageRow(app: FastifyInstance, row: MessageRow) {
     timestamp: new Date(row.created_at).toISOString(),
     ...(row.expires_at ? { expiresAt: new Date(row.expires_at).toISOString() } : {}),
     ...(attachments.length > 0 ? { attachments } : {})
+  };
+}
+
+function mapFavoriteMessageImage(row: FavoriteMessageImageRow) {
+  return {
+    id: row.id,
+    mediaObjectId: row.media_object_id,
+    label: row.label ?? "",
+    url: row.url ?? `/api/media/assets/${row.media_object_id}/display`,
+    thumbnailUrl: row.thumbnail_url ?? `/api/media/assets/${row.media_object_id}/thumbnail`,
+    mediaType: row.media_type,
+    mimeType: row.mime_type,
+    explicit: row.explicit,
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString()
   };
 }
 
@@ -954,6 +990,505 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     });
   });
 
+  app.get("/api/messages/favorite-images", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const result = await app.db.query<FavoriteMessageImageRow>(
+      `select
+         favorite.id::text,
+         favorite.media_object_id::text,
+         favorite.label,
+         media.public_url as url,
+         '/api/media/assets/' || media.id::text || '/thumbnail' as thumbnail_url,
+         media.media_type,
+         coalesce(display_variant.mime_type, media.mime_type) as mime_type,
+         media.explicit_classification = 'explicit' as explicit,
+         favorite.created_at,
+         favorite.updated_at
+       from message_favorite_images favorite
+       join media_objects media on media.id = favorite.media_object_id
+       left join media_variants display_variant
+         on display_variant.media_object_id = media.id
+        and display_variant.variant_type = 'display'
+        and display_variant.deleted_at is null
+       where favorite.user_id = $1
+         and media.owner_user_id = $1
+         and media.surface = 'message_photo'
+         and media.moderation_status = 'approved'
+         and media.deleted_at is null
+       order by favorite.created_at desc
+       limit 100`,
+      [userId]
+    );
+
+    return reply.send({
+      data: {
+        images: result.rows.map(mapFavoriteMessageImage)
+      }
+    });
+  });
+
+  app.post("/api/messages/favorite-images", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+
+    if (!photoUploadAvailability(app.config).messagePhotos) {
+      throw new ApiError(503, "FEATURE_RESTRICTED", "Message photo uploads are temporarily unavailable.");
+    }
+
+    await app.rateLimiter.assert({
+      key: `message-favorite-image-upload:${userId}`,
+      max: 20,
+      windowMs: 60 * 1000,
+      message: "Too many favorite image uploads. Try again later."
+    });
+
+    const fields: Record<string, string> = {};
+    let upload: {
+      filename: string;
+      mimetype: string;
+      buffer: Buffer;
+      truncated: boolean;
+    } | null = null;
+
+    try {
+      for await (const part of request.parts({
+        limits: {
+          fileSize: MAX_IMAGE_BYTES,
+          files: 1,
+          fields: 1
+        }
+      })) {
+        if (part.type === "file") {
+          if (part.fieldname !== "photo") {
+            throw new ApiError(400, "VALIDATION_ERROR", "Upload a favorite image in the photo field.");
+          }
+
+          upload = {
+            filename: part.filename,
+            mimetype: part.mimetype,
+            buffer: await part.toBuffer(),
+            truncated: part.file.truncated
+          };
+          continue;
+        }
+
+        if (part.fieldname === "label") {
+          fields.label = String(part.value ?? "");
+        }
+      }
+    } catch (error) {
+      throw toMessagePhotoUploadError(error);
+    }
+
+    const payload = favoriteMessageImageUploadFieldsSchema.parse(fields);
+
+    if (!upload) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Upload a favorite image in the photo field.");
+    }
+
+    if (upload.buffer.length === 0) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Favorite image cannot be empty.");
+    }
+
+    if (upload.buffer.length > MAX_IMAGE_BYTES || upload.truncated) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Message photo must be 5 MB or smaller.");
+    }
+
+    const processed = await processUploadedImage(upload.buffer, upload.mimetype);
+    const pendingAsset = await createPendingMediaAsset(app, request, {
+      ownerUserId: userId,
+      surface: "message_photo",
+      processed
+    });
+
+    try {
+      const mediaAsset = await moderatePendingMediaAsset(app, request, pendingAsset, {
+        filename: upload.filename,
+        moderationSurface: "direct_message"
+      });
+      const isAdultExplicit = mediaAsset.moderation.labels.some((label) =>
+        label.normalized_label === "adult_nudity" || label.normalized_label === "adult_explicit"
+      );
+      const result = await app.db.query<FavoriteMessageImageRow>(
+        `with eligible_owner as (
+           select u.id
+           from app_users u
+           left join user_trust_profiles trust on trust.user_id = u.id
+           where u.id = $1
+             and u.account_status = 'active'
+             and coalesce(trust.is_suspended, false) = false
+             and coalesce(trust.trust_score, 50) > 20
+             and not exists (
+               select 1
+               from suspensions suspension
+               where suspension.user_id = u.id
+                 and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+             )
+             and not exists (
+               select 1
+               from feature_restrictions restriction
+               where restriction.user_id = u.id
+                 and restriction.feature in ('direct_messages', 'group_messages')
+                 and (restriction.ends_at is null or restriction.ends_at > now())
+             )
+         ), approved_media as (
+           update media_objects media
+           set public_url = $3,
+               moderation_status = 'approved',
+               moderation_provider = $4,
+               moderation_provider_version = $5,
+               moderation_scores = $7::jsonb,
+               moderation_decided_at = now(),
+               moderation_failure_reason = null,
+               explicit_classification = case when $12 then 'explicit' else 'non_explicit' end,
+               photodna_status = $10,
+               photodna_provider_request_id = $11
+           from eligible_owner
+           where media.id = $2
+             and media.owner_user_id = eligible_owner.id
+             and media.surface = 'message_photo'
+             and media.moderation_status = 'pending'
+           returning media.id
+         ), ${approvedContentReviewCte({
+           userIdParam: "$1",
+           surface: "direct_message",
+           contentType: "image",
+           fromCte: "approved_media",
+           providerParam: "$4",
+           providerRequestIdParam: "$6",
+           normalizedLabelsParam: "$7",
+           policyDecisionParam: "$8",
+           moderationStatusParam: "'allowed'",
+           moderationRawResultParam: "$9",
+           contentIdParam: "$2",
+           contentRefParam: "jsonb_build_object('assetId', $2, 'surface', 'message_photo', 'favorite', true)"
+         })}, linked_media as (
+           update media_objects media
+           set content_review_id = moderation_review.id
+           from moderation_review
+           where media.id = $2
+           returning media.id
+         ), favorite as (
+           insert into message_favorite_images (user_id, media_object_id, label)
+           select $1, linked_media.id, $13
+           from linked_media
+           on conflict (user_id, media_object_id) do update
+           set label = excluded.label,
+               updated_at = now()
+           returning id::text, media_object_id::text, label, created_at, updated_at
+         )
+         select
+           favorite.id,
+           favorite.media_object_id,
+           favorite.label,
+           media.public_url as url,
+           '/api/media/assets/' || media.id::text || '/thumbnail' as thumbnail_url,
+           media.media_type,
+           coalesce(display_variant.mime_type, media.mime_type) as mime_type,
+           media.explicit_classification = 'explicit' as explicit,
+           favorite.created_at,
+           favorite.updated_at
+         from favorite
+         join media_objects media on media.id::text = favorite.media_object_id
+         left join media_variants display_variant
+           on display_variant.media_object_id = media.id
+          and display_variant.variant_type = 'display'
+          and display_variant.deleted_at is null`,
+        [
+          userId,
+          mediaAsset.id,
+          mediaAsset.displayUrl,
+          mediaAsset.moderation.provider,
+          mediaAsset.moderation.providerVersion,
+          mediaAsset.moderation.providerRequestId,
+          JSON.stringify(mediaAsset.moderation.labels),
+          JSON.stringify(mediaAsset.moderation.decision),
+          JSON.stringify(mediaAsset.moderation.rawResult),
+          mediaAsset.moderation.photoDnaStatus,
+          mediaAsset.moderation.photoDnaProviderRequestId,
+          isAdultExplicit,
+          payload.label.trim()
+        ]
+      );
+      const favorite = result.rows[0];
+
+      if (!favorite) {
+        throw new ApiError(403, "FEATURE_RESTRICTED", "Favorite image uploads are unavailable for this account.");
+      }
+
+      return reply.code(201).send({
+        data: mapFavoriteMessageImage(favorite)
+      });
+    } catch (error) {
+      await deletePendingMediaAsset(app, request, pendingAsset);
+      throw error;
+    }
+  });
+
+  app.delete("/api/messages/favorite-images/:favoriteId", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { favoriteId } = favoriteImageParamsSchema.parse(request.params);
+    const result = await app.db.query<{ id: string }>(
+      `delete from message_favorite_images
+       where id = $1
+         and user_id = $2
+       returning id::text as id`,
+      [favoriteId, userId]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(404, "NOT_FOUND", "Favorite image not found.");
+    }
+
+    return reply.code(204).send();
+  });
+
+  app.post("/api/messages/favorite-images/:favoriteId/send", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { favoriteId } = favoriteImageParamsSchema.parse(request.params);
+    const payload = sendFavoriteMessageImagePayloadSchema.parse(request.body);
+
+    const favoriteResult = await app.db.query<{
+      media_object_id: string;
+      explicit: boolean;
+    }>(
+      `select
+         media.id::text as media_object_id,
+         media.explicit_classification = 'explicit' as explicit
+       from message_favorite_images favorite
+       join media_objects media on media.id = favorite.media_object_id
+       where favorite.id = $1
+         and favorite.user_id = $2
+         and media.owner_user_id = $2
+         and media.surface = 'message_photo'
+         and media.moderation_status = 'approved'
+         and media.deleted_at is null
+       limit 1`,
+      [favoriteId, userId]
+    );
+    const favorite = favoriteResult.rows[0];
+
+    if (!favorite) {
+      throw new ApiError(404, "NOT_FOUND", "Favorite image not found.");
+    }
+
+    const conversationResult = await app.db.query<ConversationRow>(
+      `${CONVERSATION_SELECT}
+       where cm.user_id = $1
+         and c.id::text = $2
+       limit 1`,
+      [userId, payload.conversationId]
+    );
+    const conversation = conversationResult.rows[0];
+
+    if (!conversation) {
+      throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
+    }
+
+    if (
+      conversation.kind === "dm" &&
+      conversation.other_user_id &&
+      !await hasActiveMutualMessagePermission(app, userId, conversation.other_user_id)
+    ) {
+      throw new ApiError(
+        403,
+        "MUTUAL_CRUUSH_REQUIRED",
+        "You can message after a mutual cruush."
+      );
+    }
+    if (conversation.kind === "group") {
+      await assertNoBlockedConversationMembers(app, userId, payload.conversationId);
+    }
+
+    if (favorite.explicit) {
+      await assertCanSendNsfwMessagePhoto(app, {
+        conversationId: payload.conversationId,
+        senderUserId: userId
+      });
+    }
+
+    const moderationSurface = conversation.kind === "group" ? "group_message" : "direct_message";
+    const restrictedFeature = conversation.kind === "group" ? "group_messages" : "direct_messages";
+    if (payload.content) {
+      await moderateMessageTextOrAllowByKeyword(app, {
+        userId,
+        surface: moderationSurface,
+        text: payload.content
+      });
+    }
+
+    const encryptedContent = encryptTextContent(app.config, "message", payload.content);
+    const disappearingTimer = conversation.disappearing_timer ?? "off";
+    const result = await app.db.query<MessageRow>(
+      `with membership as (
+         select c.id
+         from conversations c
+         join conversation_members cm on cm.conversation_id = c.id
+         where c.id::text = $1
+           and cm.user_id = $2
+           and c.closed_at is null
+         limit 1
+       ), eligible_sender as (
+         select u.id
+         from app_users u
+         left join user_trust_profiles trust on trust.user_id = u.id
+         where u.id = $2
+           and u.account_status = 'active'
+           and coalesce(trust.is_suspended, false) = false
+           and coalesce(trust.trust_score, 50) > 20
+           and not exists (
+             select 1
+             from suspensions suspension
+             where suspension.user_id = u.id
+               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+           )
+           and not exists (
+             select 1
+             from feature_restrictions restriction
+             where restriction.user_id = u.id
+               and restriction.feature = '${restrictedFeature}'
+               and (restriction.ends_at is null or restriction.ends_at > now())
+           )
+       ), favorite_media as (
+         select
+           media.id,
+           media.public_url,
+           media.media_type,
+           coalesce(display_variant.mime_type, media.mime_type) as mime_type,
+           media.explicit_classification
+         from message_favorite_images favorite
+         join media_objects media on media.id = favorite.media_object_id
+         left join media_variants display_variant
+           on display_variant.media_object_id = media.id
+          and display_variant.variant_type = 'display'
+          and display_variant.deleted_at is null
+         where favorite.id = $7
+           and favorite.user_id = $2
+           and media.owner_user_id = $2
+           and media.surface = 'message_photo'
+           and media.moderation_status = 'approved'
+           and media.deleted_at is null
+         limit 1
+       ), inserted as (
+         insert into messages (
+           conversation_id,
+           user_id,
+           content,
+           content_ciphertext,
+           content_nonce,
+           content_auth_tag,
+           content_key_version,
+           expires_at
+         )
+         select
+           membership.id,
+           eligible_sender.id,
+           '[encrypted]',
+           $3,
+           $4,
+           $5,
+           $6,
+           ${expirationSql("$9")}
+         from membership
+         join eligible_sender on true
+         join favorite_media on true
+         returning
+           id::text as id,
+           user_id::text as user_id,
+           content,
+           content_ciphertext,
+           content_nonce,
+           content_auth_tag,
+           content_key_version,
+           created_at,
+           expires_at,
+           conversation_id
+       ), attached as (
+         insert into message_media_attachments (message_id, media_object_id, view_once)
+         select inserted.id::uuid, favorite_media.id, $8
+         from inserted
+         join favorite_media on true
+         returning message_id, media_object_id, view_once
+       ), updated_conversation as (
+         update conversations c
+         set updated_at = now()
+         from inserted
+         where c.id = inserted.conversation_id
+       ), updated_member as (
+         update conversation_members cm
+         set last_read_at = now()
+         from inserted
+         where cm.conversation_id = inserted.conversation_id
+           and cm.user_id = $2
+       )
+       select
+         inserted.id,
+         inserted.user_id,
+         inserted.content,
+         inserted.content_ciphertext,
+         inserted.content_nonce,
+         inserted.content_auth_tag,
+         inserted.content_key_version,
+         inserted.created_at,
+         inserted.expires_at,
+         coalesce(jsonb_agg(jsonb_build_object(
+           'id', favorite_media.id::text,
+           'url', favorite_media.public_url,
+           'mediaType', favorite_media.media_type,
+           'mimeType', favorite_media.mime_type,
+           'viewOnce', attached.view_once,
+           'viewedAt', null,
+           'explicit', favorite_media.explicit_classification = 'explicit'
+         ) order by attached.media_object_id), '[]'::jsonb) as attachments
+       from inserted
+       join attached on attached.message_id = inserted.id::uuid
+       join favorite_media on favorite_media.id = attached.media_object_id
+       group by
+         inserted.id,
+         inserted.user_id,
+         inserted.content,
+         inserted.content_ciphertext,
+         inserted.content_nonce,
+         inserted.content_auth_tag,
+         inserted.content_key_version,
+         inserted.created_at,
+         inserted.expires_at`,
+      [
+        payload.conversationId,
+        userId,
+        encryptedContent.ciphertext,
+        encryptedContent.nonce,
+        encryptedContent.authTag,
+        encryptedContent.keyVersion,
+        favoriteId,
+        payload.viewOnce,
+        disappearingTimer
+      ]
+    );
+    const created = result.rows[0];
+
+    if (!created) {
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
+    }
+
+    await recordMeaningfulActivitySafely(app, {
+      userId,
+      activityType: "message",
+      sourceEventId: created.id
+    });
+
+    await notifyConversationMessageRecipients(app, {
+      conversationId: payload.conversationId,
+      senderUserId: userId,
+      messageId: created.id,
+      conversationKind: conversation.kind,
+      conversationTitle: conversation.title
+    });
+
+    return reply.code(201).send({
+      data: mapMessageRow(app, created)
+    });
+  });
+
   app.get("/api/messages/:conversationId", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const { conversationId } = conversationParamsSchema.parse(request.params);
@@ -997,7 +1532,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            'mediaType', media.media_type,
            'mimeType', coalesce(display_variant.mime_type, media.mime_type),
            'viewOnce', attachment.view_once,
-           'viewedAt', viewed.viewed_at
+           'viewedAt', viewed.viewed_at,
+           'explicit', media.explicit_classification = 'explicit'
          ) order by attachment.created_at asc) as attachments
          from message_media_attachments attachment
          join media_objects media on media.id = attachment.media_object_id
@@ -1218,6 +1754,13 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         label.normalized_label === "adult_nudity" || label.normalized_label === "adult_explicit"
       );
 
+      if (isAdultExplicit) {
+        await assertCanSendNsfwMessagePhoto(app, {
+          conversationId: payload.conversationId,
+          senderUserId: userId
+        });
+      }
+
     const encryptedContent = encryptTextContent(app.config, "message", payload.content);
     const disappearingTimer = conversation.disappearing_timer ?? "off";
     const result = await app.db.query<MessageRow>(
@@ -1354,7 +1897,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
           'mediaType', media.media_type,
           'mimeType', media.mime_type,
           'viewOnce', attached.view_once,
-          'viewedAt', null
+          'viewedAt', null,
+          'explicit', media.explicit_classification = 'explicit'
         ) order by attached.media_object_id), '[]'::jsonb) as attachments
        from inserted
        join attached on attached.message_id = inserted.id::uuid

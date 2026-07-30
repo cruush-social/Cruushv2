@@ -55,6 +55,13 @@ const { getMyBillingStatus } = vi.hoisted(() => ({
   getMyBillingStatus: vi.fn(),
 }));
 
+const { getActiveEvents, revealEventPass, emailEventPass, joinEventChat } = vi.hoisted(() => ({
+  getActiveEvents: vi.fn(),
+  revealEventPass: vi.fn(),
+  emailEventPass: vi.fn(),
+  joinEventChat: vi.fn(),
+}));
+
 const { useIsMobile } = vi.hoisted(() => ({
   useIsMobile: vi.fn(),
 }));
@@ -127,6 +134,13 @@ vi.mock('../lib/privacyApi', async () => {
 
 vi.mock('../lib/billingApi', () => ({
   getMyBillingStatus,
+}));
+
+vi.mock('../lib/eventsApi', () => ({
+  getActiveEvents,
+  revealEventPass,
+  emailEventPass,
+  joinEventChat,
 }));
 
 vi.mock('./ui/use-mobile', () => ({
@@ -243,6 +257,10 @@ describe('MapHome', () => {
     decryptDisplayLocationToken.mockReset();
     getMyPrivacySettings.mockReset();
     getMyBillingStatus.mockReset();
+    getActiveEvents.mockReset();
+    revealEventPass.mockReset();
+    emailEventPass.mockReset();
+    joinEventChat.mockReset();
     useIsMobile.mockReset();
     mapControls.setCenter.mockReset();
     mapControls.setZoom.mockReset();
@@ -415,6 +433,7 @@ describe('MapHome', () => {
       processor: 'fake',
       testCheckout: true,
     });
+    getActiveEvents.mockResolvedValue([]);
     Object.defineProperty(global.navigator, 'geolocation', {
       configurable: true,
       value: {
@@ -502,7 +521,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
   });
 
-  it('renders 25 percent larger Cruush icons on the map controls and opens Ghost Mode settings from the Safety Center slot', async () => {
+  it('renders 25 percent larger Cruush icons on the map controls and opens DL Mode settings from the top slot', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
@@ -517,12 +536,14 @@ describe('MapHome', () => {
         <Routes>
           <Route path="/map" element={<MapHome developerToolsEnabled />} />
           <Route path="/privacy/ghost-mode" element={<LocationProbe />} />
+          <Route path="/privacy/dl-mode" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     );
 
     const luckyIcon = screen.getByRole('button', { name: 'Cruise Carousel' }).querySelector('img');
     const ghostModeButton = screen.getByRole('button', { name: 'Ghost Mode Settings' });
+    const dlModeButton = screen.getByRole('button', { name: 'DL Mode Settings' });
     const ghostModeIcon = ghostModeButton.querySelector('img');
     const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
     const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
@@ -549,9 +570,8 @@ describe('MapHome', () => {
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
-    fireEvent.click(ghostModeButton);
-
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/ghost-mode');
+    fireEvent.click(dlModeButton);
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/dl-mode');
   });
 
   it('shows one combined active crowd notice on the map', async () => {
@@ -744,7 +764,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 
-  it('shows saved visibility sets as a cruush+ affordance while keeping manual controls free', async () => {
+  it('keeps visibility controls manual without saved-set affordances', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
@@ -768,54 +788,10 @@ describe('MapHome', () => {
     fireEvent.click(screen.getByRole('button', { name: /^visibility$/i }));
 
     expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
-    expect(screen.getByText('Saved sets')).toBeInTheDocument();
+    expect(screen.queryByText('Saved sets')).not.toBeInTheDocument();
+    expect(screen.queryByText('Upgrade for saved sets')).not.toBeInTheDocument();
     expect(screen.getByText('Free accounts can hide from up to 3 filter groups.')).toBeInTheDocument();
     expect(screen.getByLabelText('Distance')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Upgrade for saved sets' }));
-
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
-  });
-
-  it('lets cruush+ users apply saved visibility sets from the visibility sheet', async () => {
-    useIsMobile.mockReturnValue(false);
-    const { emptyProfilePayload } = await import('../lib/profileApi');
-    const savedRules = {
-      ...emptyProfilePayload.visibility_rules,
-      distance: 10,
-      looking_for: ['hookup'],
-    };
-    getMyVisibilitySets.mockResolvedValue([{
-      id: 'set-1',
-      name: 'Night out',
-      visibility_rules: savedRules,
-      created_at: '2026-07-08T12:00:00.000Z',
-      updated_at: '2026-07-08T12:00:00.000Z',
-    }]);
-    applyMyVisibilitySet.mockResolvedValue({
-      ...emptyProfilePayload,
-      id: 'me',
-      display_name: 'Me',
-      year_of_birth: 1994,
-      visibility_rules: savedRules,
-      updated_at: '2026-07-08T12:05:00.000Z',
-    });
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route path="/map" element={<MapHome />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByRole('button', { name: /^visibility$/i })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /^visibility$/i }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Apply Night out' }));
-
-    await waitFor(() => expect(applyMyVisibilitySet).toHaveBeenCalledWith('set-1'));
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Visibility' })).not.toBeInTheDocument());
   });
 
   it('floats recently active to the right side on desktop without a profile preview', async () => {

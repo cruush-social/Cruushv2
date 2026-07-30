@@ -11,7 +11,7 @@ function alphaConfig(overrides: Partial<AppConfig> = {}) {
   return {
     ALPHA_TEST_ENABLED: true,
     ALPHA_TEST_PASSWORD_HASH: "scrypt$00$00",
-    ALPHA_TEST_ENDS_AT: "2026-07-28T23:59:00-04:00",
+    ALPHA_TEST_ENDS_AT: "2026-07-31T00:00:00-04:00",
     ...overrides
   } as AppConfig;
 }
@@ -23,15 +23,15 @@ describe("alpha-test", () => {
 
   it("tracks active and ended alpha state from the configured cutoff", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-28T23:58:59-04:00"));
+    vi.setSystemTime(new Date("2026-07-30T23:59:59-04:00"));
     expect(getAlphaTestState(alphaConfig())).toMatchObject({
       enabled: true,
       active: true,
       ended: false,
-      endsAt: "2026-07-29T03:59:00.000Z"
+      endsAt: "2026-07-31T04:00:00.000Z"
     });
 
-    vi.setSystemTime(new Date("2026-07-28T23:59:00-04:00"));
+    vi.setSystemTime(new Date("2026-07-31T00:00:00-04:00"));
     expect(getAlphaTestState(alphaConfig())).toMatchObject({
       enabled: true,
       active: false,
@@ -44,14 +44,14 @@ describe("alpha-test", () => {
     const config = alphaConfig({ ALPHA_TEST_PASSWORD_HASH: passwordHash });
 
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-28T20:00:00-04:00"));
+    vi.setSystemTime(new Date("2026-07-30T20:00:00-04:00"));
     await expect(verifyAlphaTestPassword(config, "door-password")).resolves.toBeUndefined();
 
     await expect(verifyAlphaTestPassword(config, "wrong-password")).rejects.toMatchObject({
       code: "ALPHA_TEST_PASSWORD_REQUIRED"
     });
 
-    vi.setSystemTime(new Date("2026-07-28T23:59:00-04:00"));
+    vi.setSystemTime(new Date("2026-07-31T00:00:00-04:00"));
     await expect(verifyAlphaTestPassword(config, "door-password")).rejects.toMatchObject({
       code: "ALPHA_TEST_ENDED"
     });
@@ -61,7 +61,7 @@ describe("alpha-test", () => {
     const config = alphaConfig();
     const fallback = new Date("2026-08-27T12:00:00-04:00");
 
-    expect(getAlphaSessionExpiry(config, fallback).toISOString()).toBe("2026-07-29T03:59:00.000Z");
+    expect(getAlphaSessionExpiry(config, fallback).toISOString()).toBe("2026-07-31T04:00:00.000Z");
     expect(getAlphaSessionExpiry(alphaConfig({ ALPHA_TEST_ENABLED: false }), fallback)).toBe(fallback);
   });
 });

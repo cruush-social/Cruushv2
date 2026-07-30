@@ -3,10 +3,10 @@
 import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { Filter, MapPin, ZoomIn, ZoomOut } from 'lucide-react';
+import { ExternalLink, Eye, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
-import CruushIconImage from './CruushIconImage';
+import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import MapProfilePopup from './MapProfilePopup';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
@@ -18,20 +18,18 @@ import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } 
 import { getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { addNotificationsChangedListener, getNotificationSummary } from '../lib/notificationsApi';
-import { resolveMediaUrl } from '../lib/apiClient';
+import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
+import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type EventPassReveal, type LaunchEvent } from '../lib/eventsApi';
+import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
+import { getProfileGradientCss } from '../lib/profileGradient';
+import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
   emptyProfilePayload,
-  applyMyVisibilitySet,
-  deleteMyVisibilitySet,
   getMyProfile,
-  getMyVisibilitySets,
-  saveMyVisibilitySet,
   saveMyProfile,
-  updateMyVisibilitySet,
   type ProfilePayload,
   type ProfileRecord,
-  type ProfileVisibilitySet,
   type ProfileVisibilityRules,
 } from '../lib/profileApi';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
@@ -281,6 +279,11 @@ type MapHomeProps = {
   developerToolsEnabled?: boolean;
 };
 
+type MapRouteState = {
+  openOwnProfilePanel?: boolean;
+  centerEventSlug?: string;
+} | null;
+
 type LuckySlotState =
   | {
       mode: 'profile';
@@ -291,6 +294,9 @@ type LuckySlotState =
       mode: 'locked' | 'empty';
       nonce: number;
     };
+
+const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
+const METERS_PER_MILE = 1609.344;
 
 export default function MapHome(_props: MapHomeProps = {}) {
   const location = useLocation();
@@ -313,16 +319,23 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [visibility, setVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [savingVisibility, setSavingVisibility] = useState(false);
-  const [savingVisibilitySet, setSavingVisibilitySet] = useState(false);
-  const [savedVisibilitySetName, setSavedVisibilitySetName] = useState('');
-  const [visibilitySets, setVisibilitySets] = useState<ProfileVisibilitySet[]>([]);
   const [currentProfile, setCurrentProfile] = useState<ProfileRecord | null>(null);
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
+  const [activeEvents, setActiveEvents] = useState<LaunchEvent[]>([]);
+  const [selectedEventSlug, setSelectedEventSlug] = useState<string | null>(null);
+  const [eventPass, setEventPass] = useState<EventPassReveal | null>(null);
+  const [eventActionError, setEventActionError] = useState<string | null>(null);
+  const [eventActionStatus, setEventActionStatus] = useState<string | null>(null);
+  const [revealingEventPass, setRevealingEventPass] = useState(false);
+  const [emailingEventPass, setEmailingEventPass] = useState(false);
+  const [joiningEventChat, setJoiningEventChat] = useState(false);
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const [profileLoaded, setProfileLoaded] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
+  const lastEventCenterRequestKeyRef = useRef<string | null>(null);
   const shouldAlignRecentlyActiveWithPreview = !isMobile && Boolean(selectedUser || luckySlot);
   const recentlyActiveDragRef = useRef({
     hasPointerCapture: false,
@@ -334,9 +347,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
   });
   const isMutualMapMode = searchParams.get('mode') === 'mutuals';
   const focusUserId = searchParams.get('focusUserId');
-  const routeState = location.state as { openOwnProfilePanel?: boolean } | null;
+  const routeState = location.state as MapRouteState;
   const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
   const hasCruushPlus = billingStatus?.cruushPlus !== false;
+
+  const dlModeEyeStyle = dlModeActive ? { stroke: 'url(#cruush-dl-eye-gradient)' } : undefined;
 
   useEffect(() => {
     let isMounted = true;
@@ -350,6 +365,29 @@ export default function MapHome(_props: MapHomeProps = {}) {
       .catch(() => {
         if (isMounted) {
           setBillingStatus(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getActiveEvents()
+      .then((events) => {
+        if (isMounted) {
+          setActiveEvents(events);
+        }
+      })
+      .catch((eventError) => {
+        console.warn('Error loading launch events for map:', eventError);
+        if (isMounted) {
+          setActiveEvents([]);
         }
       });
 
@@ -380,26 +418,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
     return () => {
       isMounted = false;
       removeListener();
-    };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    getMyVisibilitySets()
-      .then((sets) => {
-        if (isMounted) {
-          setVisibilitySets(sets);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setVisibilitySets([]);
-        }
-      });
-
-    return () => {
-      isMounted = false;
     };
   }, []);
 
@@ -738,109 +756,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   };
 
-  const handleSaveVisibilitySet = async () => {
-    if (!hasCruushPlus) {
-      navigate('/rewards');
-      return;
-    }
-
-    const name = savedVisibilitySetName.trim();
-
-    if (!name) {
-      setVisibilityError('Name this visibility set before saving.');
-      return;
-    }
-
-    const visibilityRules = visibilityStateToRules(safeVisibility);
-
-    setSavingVisibilitySet(true);
-    setVisibilityError(null);
-    try {
-      const savedSet = await saveMyVisibilitySet({
-        name,
-        visibility_rules: visibilityRules,
-      });
-      setVisibilitySets((sets) => [savedSet, ...sets.filter((set) => set.id !== savedSet.id)]);
-      setSavedVisibilitySetName('');
-    } catch (saveError) {
-      setVisibilityError(saveError instanceof Error ? saveError.message : 'Failed to save visibility set.');
-    } finally {
-      setSavingVisibilitySet(false);
-    }
-  };
-
-  const handleApplyVisibilitySet = async (setId: string) => {
-    if (!hasCruushPlus) {
-      navigate('/rewards');
-      return;
-    }
-
-    setSavingVisibility(true);
-    setVisibilityError(null);
-    try {
-      const savedProfile = await applyMyVisibilitySet(setId);
-      setCurrentProfile(savedProfile);
-      setVisibility(visibilityRulesToState(savedProfile.visibility_rules));
-      setIsVisibilityOpen(false);
-      void fetchUsers(getCurrentFetchCoordinates(), filters);
-    } catch (applyError) {
-      setVisibilityError(applyError instanceof Error ? applyError.message : 'Failed to apply visibility set.');
-    } finally {
-      setSavingVisibility(false);
-    }
-  };
-
-  const handleRenameVisibilitySet = async (setId: string, currentName: string) => {
-    if (!hasCruushPlus) {
-      navigate('/rewards');
-      return;
-    }
-
-    const nextName = window.prompt('Saved set name', currentName)?.trim();
-
-    if (!nextName) {
-      return;
-    }
-
-    const targetSet = visibilitySets.find((set) => set.id === setId);
-
-    if (!targetSet) {
-      return;
-    }
-
-    setSavingVisibilitySet(true);
-    setVisibilityError(null);
-    try {
-      const updatedSet = await updateMyVisibilitySet(setId, {
-        name: nextName,
-        visibility_rules: targetSet.visibility_rules,
-      });
-      setVisibilitySets((sets) => sets.map((set) => set.id === setId ? updatedSet : set));
-    } catch (renameError) {
-      setVisibilityError(renameError instanceof Error ? renameError.message : 'Failed to rename visibility set.');
-    } finally {
-      setSavingVisibilitySet(false);
-    }
-  };
-
-  const handleDeleteVisibilitySet = async (setId: string) => {
-    if (!hasCruushPlus) {
-      navigate('/rewards');
-      return;
-    }
-
-    setSavingVisibilitySet(true);
-    setVisibilityError(null);
-    try {
-      await deleteMyVisibilitySet(setId);
-      setVisibilitySets((sets) => sets.filter((set) => set.id !== setId));
-    } catch (deleteError) {
-      setVisibilityError(deleteError instanceof Error ? deleteError.message : 'Failed to delete visibility set.');
-    } finally {
-      setSavingVisibilitySet(false);
-    }
-  };
-
   const displayedUsers = filteredUsers;
   const savedProfileMapLocation = useMemo(
     () => profileLocationToApproximateCoordinates(currentProfile),
@@ -850,6 +765,28 @@ export default function MapHome(_props: MapHomeProps = {}) {
     () => userApproximateLocation ?? savedProfileMapLocation,
     [savedProfileMapLocation, userApproximateLocation],
   );
+  const launchPartyEvent = useMemo(
+    () => activeEvents.find((event) => event.slug === LAUNCH_EVENT_SLUG) ?? activeEvents[0] ?? null,
+    [activeEvents],
+  );
+  const selectedEvent = useMemo(
+    () => activeEvents.find((event) => event.slug === selectedEventSlug) ?? null,
+    [activeEvents, selectedEventSlug],
+  );
+  const visibleEventPassIconName = eventPass?.iconName ?? selectedEvent?.passIconName ?? null;
+  const denseVenue = useMemo<DenseVenueConfig | null>(() => launchPartyEvent
+    ? {
+        id: launchPartyEvent.slug,
+        center: {
+          approximateLatitude: launchPartyEvent.coordinates.latitude,
+          approximateLongitude: launchPartyEvent.coordinates.longitude,
+        },
+        radiusMeters: launchPartyEvent.radiusMiles * METERS_PER_MILE,
+        clusterZoom: 14,
+        clusterThreshold: 25,
+        maxIndividualMarkers: 120,
+      }
+    : null, [launchPartyEvent]);
   const ownProfilePreviewUser = useMemo<DiscoveryUser | null>(() => {
     if (!currentProfile) {
       return null;
@@ -891,6 +828,35 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setSelectedUser(ownProfilePreviewUser);
     lastOwnProfilePanelRequestKeyRef.current = location.key;
   }, [location.key, ownProfilePreviewUser, shouldOpenOwnProfilePanel]);
+
+  useEffect(() => {
+    const eventSlug = routeState?.centerEventSlug;
+
+    if (!eventSlug) {
+      lastEventCenterRequestKeyRef.current = null;
+      return;
+    }
+
+    const targetEvent = activeEvents.find((event) => event.slug === eventSlug);
+    const requestKey = `${location.key}:${eventSlug}`;
+
+    if (!mapInstance || !targetEvent || lastEventCenterRequestKeyRef.current === requestKey) {
+      return;
+    }
+
+    setSelectedUser(null);
+    setLuckySlot(null);
+    setSelectedEventSlug(targetEvent.slug);
+    setEventPass(null);
+    setEventActionError(null);
+    setEventActionStatus(null);
+    mapInstance.setCenter([
+      targetEvent.coordinates.longitude,
+      targetEvent.coordinates.latitude,
+    ]);
+    mapInstance.setZoom(15);
+    lastEventCenterRequestKeyRef.current = requestKey;
+  }, [activeEvents, location.key, mapInstance, routeState?.centerEventSlug]);
 
   const showLuckySlot = (nextSlot: Omit<LuckySlotState, 'nonce'>) => {
     setSelectedUser(null);
@@ -936,10 +902,112 @@ export default function MapHome(_props: MapHomeProps = {}) {
     requestUserLocation(true);
   };
 
+  const openEventPanel = (eventSlug: string) => {
+    const targetEvent = activeEvents.find((event) => event.slug === eventSlug);
+
+    if (!targetEvent) {
+      return;
+    }
+
+    setSelectedUser(null);
+    setLuckySlot(null);
+    setSelectedEventSlug(targetEvent.slug);
+    setEventPass(null);
+    setEventActionError(null);
+    setEventActionStatus(null);
+    mapInstance?.setCenter([
+      targetEvent.coordinates.longitude,
+      targetEvent.coordinates.latitude,
+    ]);
+    mapInstance?.setZoom(15);
+  };
+
+  const handleRevealEventPass = async () => {
+    if (!selectedEvent) {
+      return;
+    }
+
+    if (!currentUserMapLocation) {
+      setEventActionStatus(null);
+      setEventActionError('Share your location to reveal the door password within 1 mile of the venue.');
+      requestUserLocation(true);
+      return;
+    }
+
+    setRevealingEventPass(true);
+    setEventActionError(null);
+    setEventActionStatus(null);
+    try {
+      const revealedPass = await revealEventPass(selectedEvent.slug, {
+        latitude: currentUserMapLocation.approximateLatitude,
+        longitude: currentUserMapLocation.approximateLongitude,
+      });
+      setEventPass(revealedPass);
+      setActiveEvents((events) => events.map((event) => event.slug === selectedEvent.slug
+        ? {
+            ...event,
+            joined: true,
+            passIconName: revealedPass.iconName,
+          }
+        : event));
+      setEventActionStatus('Door pass revealed.');
+    } catch (revealError) {
+      setEventActionError(revealError instanceof ApiClientError
+        ? revealError.message
+        : 'Unable to reveal the door pass right now.');
+    } finally {
+      setRevealingEventPass(false);
+    }
+  };
+
+  const handleEmailEventPass = async () => {
+    if (!selectedEvent) {
+      return;
+    }
+
+    setEmailingEventPass(true);
+    setEventActionError(null);
+    setEventActionStatus(null);
+    try {
+      await emailEventPass(selectedEvent.slug);
+      setEventActionStatus('Pass JPG sent to the email you signed up with.');
+    } catch (emailError) {
+      setEventActionError(emailError instanceof Error ? emailError.message : 'Unable to email the pass JPG right now.');
+    } finally {
+      setEmailingEventPass(false);
+    }
+  };
+
+  const handleJoinEventChat = async () => {
+    if (!selectedEvent) {
+      return;
+    }
+
+    setJoiningEventChat(true);
+    setEventActionError(null);
+    setEventActionStatus(null);
+    try {
+      const joinedChat = await joinEventChat(selectedEvent.slug);
+      setActiveEvents((events) => events.map((event) => event.slug === selectedEvent.slug
+        ? {
+            ...event,
+            joined: true,
+            conversationId: joinedChat.conversationId,
+          }
+        : event));
+      navigate(`/chat/group/${joinedChat.conversationId}`);
+    } catch (joinError) {
+      setEventActionError(joinError instanceof Error ? joinError.message : 'Unable to join the party group chat right now.');
+    } finally {
+      setJoiningEventChat(false);
+    }
+  };
+
   const mapMarkers = useMemo<MapMarker[]>(() => {
     const nearbyMarkers = displayedUsers.map((user) => {
       return {
         id: user.id,
+        kind: 'person',
         displayName: user.name,
         approximateLatitude: user.lat,
         approximateLongitude: user.lng,
@@ -960,8 +1028,24 @@ export default function MapHome(_props: MapHomeProps = {}) {
       };
     });
 
+    const eventMarkers = activeEvents.map((event) => ({
+      id: `event-${event.slug}`,
+      kind: 'event' as const,
+      displayName: event.venueName,
+      approximateLatitude: event.coordinates.latitude,
+      approximateLongitude: event.coordinates.longitude,
+      lastActiveLabel: 'launch party',
+      event: {
+        slug: event.slug,
+        venueName: event.venueName,
+        attendeeCount: event.attendeeCount,
+        raUrl: event.raUrl,
+        iconAsset: event.iconAsset,
+      },
+    }));
+
     if (!currentUserMapLocation) {
-      return nearbyMarkers;
+      return [...nearbyMarkers, ...eventMarkers];
     }
 
     return [
@@ -978,8 +1062,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
         privacyRadiusMeters: privacySettings.ghostRadiusMeters,
       },
       ...nearbyMarkers,
+      ...eventMarkers,
     ];
-  }, [currentProfile, currentUserMapLocation, displayedUsers, privacySettings, userApproximateLocation]);
+  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, privacySettings, userApproximateLocation]);
 
   const focusedMutualMapLocation = useMemo(() => {
     if (!isMutualMapMode || !focusUserId) {
@@ -1000,6 +1085,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }, [displayedUsers, focusUserId, isMutualMapMode]);
 
   const handleMarkerSelect = (marker: MapMarker) => {
+    if (marker.kind === 'event' && marker.event) {
+      openEventPanel(marker.event.slug);
+      return;
+    }
+
+    if (marker.kind === 'cluster' && marker.cluster) {
+      const clusteredEvent = activeEvents.find((event) => event.slug === marker.cluster?.id) ?? launchPartyEvent;
+      if (clusteredEvent) {
+        openEventPanel(clusteredEvent.slug);
+      }
+      return;
+    }
+
     const selectedMarkerUser = displayedUsers.find((user) => user.id === marker.id);
 
     if (selectedMarkerUser) {
@@ -1083,6 +1181,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
       className={`cruush-map-shell ${isMobile ? 'fixed inset-0' : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
     >
+      <svg aria-hidden="true" className="absolute h-0 w-0">
+        <defs>
+          <linearGradient id="cruush-dl-eye-gradient" x1="0" x2="24" y1="0" y2="24" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FF0072" />
+            <stop offset="46%" stopColor="#6F00FF" />
+            <stop offset="72%" stopColor="#004BFF" />
+            <stop offset="100%" stopColor="#1181FF" />
+          </linearGradient>
+        </defs>
+      </svg>
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-40 px-3 pb-12 pt-3"
@@ -1140,6 +1248,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => navigate('/privacy/dl-mode')}
+              aria-label="DL Mode Settings"
+              title="DL Mode Settings"
+              className="rounded-full text-white/90 hover:bg-white/10"
+            >
+              <Eye className="h-5 w-5" style={dlModeEyeStyle} strokeWidth={2.35} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => navigate('/notifications')}
               aria-label="Notifications"
               title="Notifications"
@@ -1178,10 +1296,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
         >
           <MapView
             onPinClick={handleMarkerSelect}
-            onMapClick={() => setSelectedUser(null)}
+            onMapClick={() => {
+              setSelectedUser(null);
+              setSelectedEventSlug(null);
+            }}
             markers={mapMarkers}
             fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
             focusCoordinates={focusedMutualMapLocation ?? currentUserMapLocation}
+            denseVenue={denseVenue}
             radiusCircle={privacySettings.ghostModeEnabled && currentUserMapLocation
               ? {
                   center: currentUserMapLocation,
@@ -1239,6 +1361,121 @@ export default function MapHome(_props: MapHomeProps = {}) {
           />
         ) : null}
 
+        {selectedEvent ? (
+          <div
+            className={`pointer-events-auto absolute z-40 rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
+              isMobile
+                ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3'
+                : 'left-4 top-24 w-[22rem]'
+            }`}
+            role="dialog"
+            aria-label={`${selectedEvent.venueName} launch party`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-300">Beta launch</p>
+                <h2 className="mt-1 text-lg text-white">{selectedEvent.venueName}</h2>
+                <p className="mt-1 text-sm text-white/62">{selectedEvent.address}</p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+                aria-label="Close launch party details"
+                onClick={() => setSelectedEventSlug(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/58">
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1">
+                {selectedEvent.attendeeCount} joined
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1">
+                1 mile reveal radius
+              </span>
+            </div>
+
+            <a
+              className="mt-3 inline-flex items-center gap-2 text-sm text-emerald-300 hover:text-emerald-200"
+              href={selectedEvent.raUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              RA event
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+
+            <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.045] p-3">
+              {visibleEventPassIconName ? (
+                <div>
+                  <p className="text-xs uppercase tracking-[0.16em] text-white/52">Door pass</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-lg border border-emerald-300/25 bg-emerald-400/10">
+                      <CruushIcon name={visibleEventPassIconName} variant="colored" className="h-9 w-9" />
+                    </span>
+                    <div>
+                      <p className="text-sm text-white">Show this icon at the door.</p>
+                      <p className="mt-0.5 text-xs text-white/55">{visibleEventPassIconName}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-10 rounded-lg border border-white/10 bg-white/8 text-white hover:bg-white/12"
+                      onClick={handleEmailEventPass}
+                      disabled={emailingEventPass}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      {emailingEventPass ? 'Emailing...' : 'Email JPG'}
+                    </Button>
+                    <Button
+                      type="button"
+                      className="h-10 rounded-lg text-white"
+                      style={{ background: 'var(--cruush-gradient)' }}
+                      onClick={handleJoinEventChat}
+                      disabled={joiningEventChat}
+                    >
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      {joiningEventChat ? 'Joining...' : 'Join chat'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-white">
+                    The door password will be revealed when you are within 1 mile of the venue.
+                  </p>
+                  <Button
+                    type="button"
+                    className="mt-3 h-10 w-full rounded-lg text-white"
+                    style={{ background: 'var(--cruush-gradient)' }}
+                    onClick={handleRevealEventPass}
+                    disabled={revealingEventPass}
+                  >
+                    <MapPin className="mr-2 h-4 w-4" />
+                    {revealingEventPass
+                      ? 'Checking distance...'
+                      : currentUserMapLocation
+                      ? 'Reveal door pass'
+                      : 'Share location to reveal'}
+                  </Button>
+                </div>
+              )}
+
+              {eventActionStatus ? (
+                <p className="mt-3 text-xs text-emerald-300">{eventActionStatus}</p>
+              ) : null}
+              {eventActionError ? (
+                <p className="mt-3 text-xs text-destructive">{eventActionError}</p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         <div
           className="pointer-events-auto absolute right-3 top-20 z-30 flex flex-col items-end gap-2 sm:right-4"
           data-testid="map-right-actions"
@@ -1254,6 +1491,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
               <CruushIconImage src={ghostIconColored} className="h-4 w-4" />
               Ghost Mode Active
+            </div>
+          ) : null}
+
+          {dlModeActive ? (
+            <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
+              <Eye className="h-4 w-4" style={dlModeEyeStyle} strokeWidth={2.35} />
+              DL Mode Active
             </div>
           ) : null}
 
@@ -1397,7 +1641,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                           <div
                             aria-hidden="true"
                             className="flex h-full w-full items-center justify-center"
-                            style={{ background: 'var(--cruush-gradient)' }}
+                            style={{ background: getProfileGradientCss(user.id) }}
                           >
                             <CruushIconImage src={cruushIconWhite} className="h-10 w-10 opacity-75" />
                           </div>
@@ -1439,20 +1683,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
           value={safeVisibility}
           availableCrowdModes={availableCrowdModes}
           saving={savingVisibility}
-          savingSet={savingVisibilitySet}
           error={visibilityError}
           hasCruushPlus={hasCruushPlus}
-          savedSetName={savedVisibilitySetName}
-          savedSets={visibilitySets}
           onChange={handleVisibilityChange}
           onClear={handleClearVisibility}
           onApply={handleApplyVisibility}
-          onApplySet={handleApplyVisibilitySet}
-          onDeleteSet={handleDeleteVisibilitySet}
-          onRenameSet={handleRenameVisibilitySet}
-          onSaveSet={handleSaveVisibilitySet}
-          onSavedSetNameChange={setSavedVisibilitySetName}
-          onUpgradeSavedSets={() => navigate('/rewards')}
         />
       </div>
     </div>

@@ -9,6 +9,11 @@ const { acceptCodeOfConduct, persistCurrentUser, saveMyProfile } = vi.hoisted(()
   saveMyProfile: vi.fn(),
 }));
 
+const { completeTwoFactorSetup, startTwoFactorSetup } = vi.hoisted(() => ({
+  completeTwoFactorSetup: vi.fn(),
+  startTwoFactorSetup: vi.fn(),
+}));
+
 vi.mock('../lib/authApi', () => ({
   acceptCodeOfConduct,
 }));
@@ -23,6 +28,11 @@ vi.mock('../lib/profileApi', () => ({
 
 vi.mock('../lib/sessionUser', () => ({
   persistCurrentUser,
+}));
+
+vi.mock('../lib/rewardsApi', () => ({
+  completeTwoFactorSetup,
+  startTwoFactorSetup,
 }));
 
 async function chooseMultiSelect(label: string, value: string) {
@@ -62,6 +72,9 @@ async function fillProfileRites() {
   await chooseMultiSelect('Gender Identity', 'nonbinary');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
+  fireEvent.click(screen.getByRole('button', { name: 'No' }));
+  fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
   await chooseMultiSelect('Crowds', 'Dyke');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
@@ -78,8 +91,10 @@ async function fillProfileRites() {
 describe('ProfileOnboarding', () => {
   beforeEach(() => {
     acceptCodeOfConduct.mockReset();
+    completeTwoFactorSetup.mockReset();
     persistCurrentUser.mockReset();
     saveMyProfile.mockReset();
+    startTwoFactorSetup.mockReset();
     saveMyProfile.mockResolvedValue({
       id: 'user-1',
       display_name: 'River',
@@ -91,6 +106,15 @@ describe('ProfileOnboarding', () => {
       acceptedCodeOfConductVersion: '2026-07-07',
       codeOfConductAcceptedAt: '2026-07-07T15:00:00.000Z',
     });
+    startTwoFactorSetup.mockResolvedValue({
+      secret: 'JBSWY3DPEHPK3PXP',
+      otpauthUri: 'otpauth://totp/cruush:river',
+      qrCodeDataUrl: 'data:image/png;base64,qr',
+    });
+    completeTwoFactorSetup.mockResolvedValue({
+      enabled: true,
+      recoveryCodes: ['alpha-111', 'beta-222'],
+    });
   });
 
   it('blocks completion on the oath step until the code of conduct is checked', async () => {
@@ -98,20 +122,17 @@ describe('ProfileOnboarding', () => {
 
     await fillProfileRites();
 
-    const protectButton = screen.getByRole('button', { name: /protect my account next/i });
-    const skipButton = screen.getByRole('button', { name: /skip 2fa for now/i });
+    const nextButton = screen.getByRole('button', { name: /next/i });
 
     expect(screen.getByText('take the oath')).toBeInTheDocument();
-    expect(protectButton).toBeDisabled();
-    expect(skipButton).toBeDisabled();
+    expect(nextButton).toBeDisabled();
     expect(saveMyProfile).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('checkbox', {
       name: /i have read and agree to the cruush code of conduct/i,
     }));
 
-    expect(protectButton).not.toBeDisabled();
-    expect(skipButton).not.toBeDisabled();
+    expect(nextButton).not.toBeDisabled();
   });
 
   it('keeps the same rites while using profile edit option menus', async () => {
@@ -131,6 +152,10 @@ describe('ProfileOnboarding', () => {
 
     expect(screen.getByText('name your form')).toBeInTheDocument();
     await chooseMultiSelect('Gender Identity', 'nonbinary');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText('set your T4T access')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'No' }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('find your crowd')).toBeInTheDocument();
@@ -177,6 +202,9 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
+    fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
     await chooseMultiSelect('Crowds', 'T4T');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
@@ -187,11 +215,41 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
-    fireEvent.click(screen.getByRole('button', { name: /protect my account next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       identities: ['trans man', 'trans woman', 'nonbinary'],
+      is_trans: true,
+      crowds: ['T4T'],
     })));
+  });
+
+  it('only offers T4T during onboarding after the user marks that they are trans', async () => {
+    render(<ProfileOnboarding onComplete={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '1998-06-15' } });
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    await chooseMultiSelect('Pronouns', 'they/them');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    await chooseMultiSelect('Gender Identity', 'nonbinary');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText('set your T4T access')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'No' }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
+    expect(screen.queryByRole('option', { name: 'T4T' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /back/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
+    expect(await screen.findByRole('option', { name: 'T4T' })).toBeInTheDocument();
   });
 
   it('saves the profile, accepts the conduct version, then completes onboarding', async () => {
@@ -201,12 +259,13 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('checkbox', {
       name: /i have read and agree to the cruush code of conduct/i,
     }));
-    fireEvent.click(screen.getByRole('button', { name: /protect my account next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
       needsCodeOfConduct: false,
-    }), 'rewards');
+    }), 'map');
     expect(saveMyProfile).toHaveBeenCalledTimes(1);
     expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       display_name: 'River',
@@ -236,6 +295,36 @@ describe('ProfileOnboarding', () => {
     }));
     expect(acceptCodeOfConduct).toHaveBeenCalledWith('2026-07-07');
     expect(saveMyProfile.mock.invocationCallOrder[0]).toBeLessThan(acceptCodeOfConduct.mock.invocationCallOrder[0]);
+  });
+
+  it('lets users enable 2FA directly during onboarding before entering the map', async () => {
+    const onComplete = vi.fn();
+    render(<ProfileOnboarding onComplete={onComplete} />);
+
+    await fillProfileRites();
+
+    expect(screen.getByText('protect your key')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'current-password' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /start 2fa setup/i }));
+
+    await waitFor(() => expect(startTwoFactorSetup).toHaveBeenCalledWith('current-password'));
+    expect(await screen.findByAltText('2FA QR code')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Authenticator code'), {
+      target: { value: '123456' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /confirm and enable 2fa/i }));
+
+    await waitFor(() => expect(completeTwoFactorSetup).toHaveBeenCalledWith('123456'));
+    expect(await screen.findByText('2FA is active.')).toBeInTheDocument();
+    expect(screen.getByText('alpha-111')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
+    expect(onComplete).toHaveBeenCalledWith(undefined, 'map');
   });
 
   it('requires a complete adult date of birth before continuing', () => {

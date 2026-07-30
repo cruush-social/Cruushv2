@@ -34,4 +34,43 @@ describe("migration runner", () => {
     expect(rewardsSql).toContain("user_two_factor_recovery_codes");
     expect(billingSql).toContain("foreign key (user_id) references app_users(id) on delete cascade");
   });
+
+  it("adds the launch party and crowd feed schema after rewards and 2FA", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const launchSql = await readFile(path.join(serverRoot, "sql", "043_launch_party_crowd_feed.sql"), "utf8");
+    const matchSettingsSql = await readFile(path.join(serverRoot, "sql", "044_cruush_match_settings.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"042_rewards_and_two_factor\.sql",\s*"043_launch_party_crowd_feed\.sql",\s*"044_cruush_match_settings\.sql",\s*"045_message_favorite_images\.sql",\s*"046_referral_signup_privacy\.sql",\s*"047_beta_city_requests\.sql"/);
+    expect(launchSql).toContain("create table if not exists launch_events");
+    expect(launchSql).toContain("create table if not exists event_memberships");
+    expect(launchSql).toContain("create table if not exists event_staff");
+    expect(launchSql).toContain("create table if not exists event_pass_icons");
+    expect(launchSql).toContain("create table if not exists event_chats");
+    expect(launchSql).toContain("create table if not exists feed_post_crowd_targets");
+    expect(launchSql).toContain("idx_feed_post_crowd_targets_crowd");
+    expect(launchSql).toContain("the-chocolate-factory-launch");
+    expect(matchSettingsSql).toContain("create table if not exists user_cruush_match_settings");
+    expect(matchSettingsSql).toContain("nsfw_message_visibility");
+  });
+
+  it("adds message favorite images after match settings", async () => {
+    const favoriteImagesSql = await readFile(path.join(serverRoot, "sql", "045_message_favorite_images.sql"), "utf8");
+
+    expect(favoriteImagesSql).toContain("create table if not exists message_favorite_images");
+    expect(favoriteImagesSql).toContain("references media_objects(id) on delete cascade");
+    expect(favoriteImagesSql).toContain("message_favorite_images_unique_media");
+    expect(favoriteImagesSql).toContain("message_favorite_images_user_created_idx");
+  });
+
+  it("encrypts referral signup privacy and outside-radius beta city requests", async () => {
+    const referralPrivacySql = await readFile(path.join(serverRoot, "sql", "046_referral_signup_privacy.sql"), "utf8");
+    const betaCityRequestsSql = await readFile(path.join(serverRoot, "sql", "047_beta_city_requests.sql"), "utf8");
+
+    expect(referralPrivacySql).toContain("signup_privacy_ciphertext");
+    expect(referralPrivacySql).toContain("referrals_signup_privacy_encrypted_check");
+    expect(betaCityRequestsSql).toContain("create table if not exists beta_city_requests");
+    expect(betaCityRequestsSql).toContain("email_ciphertext");
+    expect(betaCityRequestsSql).toContain("requested_city_ciphertext");
+    expect(betaCityRequestsSql).toContain("beta_city_requests_unique_email_city");
+  });
 });

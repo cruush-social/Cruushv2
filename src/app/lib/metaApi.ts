@@ -11,6 +11,15 @@ export type AppMetaPayload = {
     endsAt: string | null;
     ended: boolean;
   };
+  betaAccess?: {
+    enabled: boolean;
+    center: {
+      lat: number;
+      lng: number;
+    };
+    radiusMiles: number;
+    venueName: string;
+  };
   photoUploads?: {
     profilePhotos: boolean;
     messagePhotos: boolean;

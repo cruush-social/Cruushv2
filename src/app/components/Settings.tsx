@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   ArrowLeft,
   ChevronRight,
@@ -9,10 +9,11 @@ import {
   LogOut,
   ShieldAlert,
   Gift,
+  Eye,
   Trash2,
+  UserX,
   type LucideIcon,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
 import {
@@ -35,11 +36,9 @@ import {
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
-import HeartPhoto from './HeartPhoto';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changePassword, deleteAccount, sendVerificationEmail, signOut } from '../lib/authApi';
 import SupportRequestForm from './SupportRequestForm';
-import { getBlockedUsers, unblockUser, type BlockedUser } from '../lib/blockApi';
 import {
   clearCurrentUser,
   getStoredCurrentUser,
@@ -55,20 +54,6 @@ type SettingsItem = {
   action: () => void;
   destructive?: boolean;
 };
-
-function formatBlockedDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Blocked';
-  }
-
-  return `Blocked ${date.toLocaleDateString([], {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })}`;
-}
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -88,10 +73,6 @@ export default function Settings() {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
-  const [blockedUsersLoading, setBlockedUsersLoading] = useState(true);
-  const [blockedUsersError, setBlockedUsersError] = useState<string | null>(null);
-  const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
   const storedUser = useMemo(() => getStoredCurrentUser(), []);
   const [previewUrl, setPreviewUrlState] = useState(() => getVerificationPreviewUrl());
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
@@ -170,51 +151,6 @@ export default function Settings() {
     }
   };
 
-  useEffect(() => {
-    let active = true;
-
-    setBlockedUsersLoading(true);
-    getBlockedUsers()
-      .then((data) => {
-        if (!active) {
-          return;
-        }
-
-        setBlockedUsers(Array.isArray(data.blockedUsers) ? data.blockedUsers : []);
-        setBlockedUsersError(null);
-      })
-      .catch((error) => {
-        console.error('Error loading blocked users:', error);
-        if (active) {
-          setBlockedUsersError('Unable to load blocked users.');
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setBlockedUsersLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const handleUnblock = async (blockedUser: BlockedUser) => {
-    setUnblockingUserId(blockedUser.userId);
-
-    try {
-      await unblockUser(blockedUser.userId);
-      setBlockedUsers((currentUsers) => currentUsers.filter((user) => user.userId !== blockedUser.userId));
-      toast.success(`${blockedUser.displayName || 'User'} unblocked.`);
-    } catch (error) {
-      console.error('Error unblocking user:', error);
-      toast.error('Unable to unblock this user right now.');
-    } finally {
-      setUnblockingUserId(null);
-    }
-  };
-
   const settingsSections: Array<{ title: string; items: SettingsItem[] }> = [
     ...(moderatorRole ? [{
       title: 'Moderation',
@@ -249,6 +185,18 @@ export default function Settings() {
           label: 'Location privacy',
           description: 'Ghost Mode and precise location access for mutual cruushes.',
           action: () => navigate('/privacy/ghost-mode'),
+        },
+        {
+          icon: Eye,
+          label: 'DL Mode',
+          description: 'Mask explicit message and favorite-image previews with gradients.',
+          action: () => navigate('/privacy/dl-mode'),
+        },
+        {
+          icon: UserX,
+          label: 'Blocked users',
+          description: 'Open a dedicated page to review blocks and unblock people.',
+          action: () => navigate('/settings/blocked-users'),
         },
       ],
     },
@@ -442,67 +390,6 @@ export default function Settings() {
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <h3 className="text-sm text-muted-foreground px-2">Blocked users</h3>
-          <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
-            <div>
-              <p>People you have blocked</p>
-              <p className="text-sm text-muted-foreground">
-                Manage people you no longer want to see or interact with.
-              </p>
-            </div>
-
-            {blockedUsersLoading ? (
-              <div className="rounded-xl border border-border bg-background/50 p-3 text-sm text-muted-foreground">
-                Loading blocked users...
-              </div>
-            ) : null}
-
-            {!blockedUsersLoading && blockedUsersError ? (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                {blockedUsersError}
-              </div>
-            ) : null}
-
-            {!blockedUsersLoading && !blockedUsersError && blockedUsers.length === 0 ? (
-              <div className="rounded-xl border border-border bg-background/50 p-3 text-sm text-muted-foreground">
-                You have not blocked anyone.
-              </div>
-            ) : null}
-
-            {!blockedUsersLoading && !blockedUsersError && blockedUsers.map((blockedUser) => (
-              <div
-                key={blockedUser.userId}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/50 p-3"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <HeartPhoto
-                    className="w-11 shrink-0"
-                    label={`${blockedUser.displayName} avatar`}
-                    photo={blockedUser.photo}
-                    fallback={<CruushIcon name="profile" className="size-4 opacity-75" />}
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate">{blockedUser.displayName || 'cruush user'}</p>
-                    <p className="text-xs text-muted-foreground">{formatBlockedDate(blockedUser.createdAt)}</p>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={unblockingUserId === blockedUser.userId}
-                  onClick={() => {
-                    void handleUnblock(blockedUser);
-                  }}
-                >
-                  {unblockingUserId === blockedUser.userId ? 'Unblocking...' : 'Unblock'}
-                </Button>
-              </div>
-            ))}
           </div>
         </div>
 

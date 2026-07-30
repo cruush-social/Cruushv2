@@ -26,6 +26,16 @@ export const createMessagePhotoFieldsSchema = z.object({
   viewOnce: booleanishSchema.optional().default(false)
 }).strict();
 
+export const favoriteMessageImageUploadFieldsSchema = z.object({
+  label: multilineTextSchema({ max: 80 }).optional().default("")
+}).strict();
+
+export const sendFavoriteMessageImagePayloadSchema = z.object({
+  conversationId: uuidSchema,
+  content: multilineTextSchema({ max: 4000 }).optional().default(""),
+  viewOnce: booleanishSchema.optional().default(false)
+}).strict();
+
 export const openDirectConversationPayloadSchema = z.object({
   otherUserId: uuidSchema
 }).strict();
@@ -49,3 +59,5 @@ export const groupMemberPayloadSchema = z.object({
 
 export type CreateMessagePayload = z.infer<typeof createMessagePayloadSchema>;
 export type CreateMessagePhotoFields = z.infer<typeof createMessagePhotoFieldsSchema>;
+export type FavoriteMessageImageUploadFields = z.infer<typeof favoriteMessageImageUploadFieldsSchema>;
+export type SendFavoriteMessageImagePayload = z.infer<typeof sendFavoriteMessageImagePayloadSchema>;

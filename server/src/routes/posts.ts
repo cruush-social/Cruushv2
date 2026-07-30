@@ -5,6 +5,7 @@ import { decryptTextContentOrFallback, encryptTextContent } from "../content-enc
 import { ApiError } from "../errors.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
 import { createPostPayloadSchema } from "../post-schema.js";
+import { createCrowdTokens } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 
@@ -23,9 +24,41 @@ type PostRow = {
   pronouns: string[] | null;
   photos: string[] | null;
   badges?: string[] | null;
+  crowd_targets?: string[] | null;
+  party_status?: {
+    eventSlug?: string;
+    label?: string;
+  } | string | null;
 };
 
+function normalizePartyStatus(value: PostRow["party_status"]) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as PostRow["party_status"];
+      return normalizePartyStatus(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof value.eventSlug !== "string" || typeof value.label !== "string") {
+    return null;
+  }
+
+  return {
+    eventSlug: value.eventSlug,
+    label: value.label
+  };
+}
+
 function mapPostRow(app: FastifyInstance, row: PostRow) {
+  const partyStatus = normalizePartyStatus(row.party_status);
+  const crowdTargets = row.crowd_targets ?? [];
+
   return {
     id: row.id,
     content: decryptTextContentOrFallback(app.config, "feed", {
@@ -38,6 +71,8 @@ function mapPostRow(app: FastifyInstance, row: PostRow) {
     expiresAt: new Date(row.expires_at).toISOString(),
     createdAt: new Date(row.created_at).toISOString(),
     distance: "Nearby",
+    ...(crowdTargets.length > 0 ? { crowdTargets } : {}),
+    ...(partyStatus ? { partyStatus } : {}),
     user: {
       id: row.user_id,
       name: row.display_name?.trim() || "cruush user",
@@ -66,7 +101,27 @@ const POST_COLUMNS = `
     select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
     from user_badges
     where user_badges.user_id = p.user_id
-  ), '{}'::text[]) as badges
+  ), '{}'::text[]) as badges,
+  coalesce((
+    select array_agg(distinct target.crowd order by target.crowd)
+    from feed_post_crowd_targets target
+    where target.post_id = p.id
+  ), '{}'::text[]) as crowd_targets,
+  (
+    select jsonb_build_object(
+      'eventSlug', event.slug,
+      'label', 'at ' || event.venue_name
+    )
+    from event_memberships membership
+    join launch_events event on event.id = membership.event_id
+    where membership.user_id = p.user_id
+      and event.slug = 'the-chocolate-factory-launch'
+      and event.active = true
+      and now() >= event.starts_at
+      and now() < event.chat_expires_at
+    order by membership.last_seen_at desc
+    limit 1
+  ) as party_status
 `;
 
 const postParamsSchema = z.object({
@@ -85,8 +140,24 @@ export async function registerPostRoutes(app: FastifyInstance) {
          and not exists (
            select 1
            from user_blocks block
-           where (block.blocker_user_id = $1 and block.blocked_user_id = p.user_id)
-              or (block.blocker_user_id = p.user_id and block.blocked_user_id = $1)
+         where (block.blocker_user_id = $1 and block.blocked_user_id = p.user_id)
+             or (block.blocker_user_id = p.user_id and block.blocked_user_id = $1)
+         )
+         and (
+           not exists (
+             select 1
+             from feed_post_crowd_targets target
+             where target.post_id = p.id
+           )
+           or exists (
+             select 1
+             from feed_post_crowd_targets target
+             join profile_sensitive_tokens viewer_crowd_token
+               on viewer_crowd_token.user_id = $1
+              and viewer_crowd_token.token_hash = target.token_hash
+              and viewer_crowd_token.token_key_version = target.token_key_version
+             where target.post_id = p.id
+           )
          )
        order by p.created_at desc
        limit 100`,
@@ -108,6 +179,11 @@ export async function registerPostRoutes(app: FastifyInstance) {
       text: payload.content
     });
     const encryptedContent = encryptTextContent(app.config, "feed", payload.content);
+    const crowdTargetTokenRows = payload.crowdTargets.flatMap((crowd) => createCrowdTokens(app.config, [crowd]).map((token) => ({
+      crowd,
+      token_hash: token.token_hash,
+      token_key_version: token.token_key_version
+    })));
 
     const result = await app.db.query<PostRow>(
       `with eligible_user as (
@@ -129,6 +205,19 @@ export async function registerPostRoutes(app: FastifyInstance) {
              where restriction.user_id = u.id
                and restriction.feature = 'feed_posting'
                and (restriction.ends_at is null or restriction.ends_at > now())
+           )
+           and not exists (
+             select requested.crowd
+             from unnest($14::text[]) as requested(crowd)
+             where not exists (
+               select 1
+               from jsonb_to_recordset($15::jsonb) as token(crowd text, token_hash text, token_key_version text)
+               join profile_sensitive_tokens author_crowd_token
+                 on author_crowd_token.user_id = $1
+                and author_crowd_token.token_hash = token.token_hash
+                and author_crowd_token.token_key_version = token.token_key_version
+               where token.crowd = requested.crowd
+             )
            )
        ),
        ${approvedContentReviewCte({
@@ -182,6 +271,23 @@ export async function registerPostRoutes(app: FastifyInstance) {
            expires_at,
            created_at
        )
+       , inserted_targets as (
+         insert into feed_post_crowd_targets (
+           post_id,
+           crowd,
+           token_hash,
+           token_key_version
+         )
+         select
+           inserted.id,
+           target.crowd,
+           target.token_hash,
+           target.token_key_version
+         from inserted
+         join jsonb_to_recordset($15::jsonb) as target(crowd text, token_hash text, token_key_version text) on true
+         on conflict do nothing
+         returning post_id, crowd
+       )
        select
          i.id,
          i.user_id,
@@ -195,7 +301,12 @@ export async function registerPostRoutes(app: FastifyInstance) {
          i.created_at,
          pr.display_name,
          pr.pronouns,
-         pr.photos
+         pr.photos,
+         coalesce((
+           select array_agg(distinct target.crowd order by target.crowd)
+           from feed_post_crowd_targets target
+           where target.post_id = i.id
+         ), '{}'::text[]) as crowd_targets
        from inserted i
        left join profiles pr on pr.id = i.user_id`,
       [
@@ -211,7 +322,9 @@ export async function registerPostRoutes(app: FastifyInstance) {
         JSON.stringify(moderation.decision),
         "allowed",
         null,
-        JSON.stringify(moderation.providerResult.raw_result ?? {})
+        JSON.stringify(moderation.providerResult.raw_result ?? {}),
+        payload.crowdTargets,
+        JSON.stringify(crowdTargetTokenRows)
       ]
     );
     const row = result.rows[0];

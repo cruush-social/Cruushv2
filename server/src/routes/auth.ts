@@ -10,6 +10,7 @@ import {
   verifyAlphaTestPassword
 } from "../alpha-test.js";
 import { ApiError } from "../errors.js";
+import { assertBetaAccessAllowed } from "../beta-access.js";
 import {
   createClearedSessionCookie,
   createSessionCookie,
@@ -42,6 +43,7 @@ import {
   ensureDeviceCookie
 } from "../severe-access-bans.js";
 import { prepareSignupReferral } from "../referrals-service.js";
+import { encryptReferralSignupPrivacy } from "../referral-privacy.js";
 import { verifyLoginSecondFactor } from "../two-factor.js";
 
 type SessionLookupRow = {
@@ -430,10 +432,14 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       }
     ]);
     await verifyAlphaTestPassword(app.config, payload.alphaPassword);
+    assertBetaAccessAllowed(app.config, payload.betaAccessLocation);
     verifyClientSecurityCheck(payload.clientCheck);
     await verifyTurnstileToken(request, payload.captchaToken);
     const passwordHash = await hashPassword(payload.password);
     const referral = await prepareSignupReferral(app, request, payload.referralCode);
+    const referralPrivacy = referral
+      ? encryptReferralSignupPrivacy(app.config, referral)
+      : null;
 
     let createdUser: CreatedUserRow;
 
@@ -465,7 +471,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
              risk_score,
              review_flags,
              signup_ip_hash,
-             signup_device_hash
+             signup_device_hash,
+             signup_privacy_ciphertext,
+             signup_privacy_nonce,
+             signup_privacy_auth_tag,
+             signup_privacy_key_version
            )
            select
              $4::uuid,
@@ -475,7 +485,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
              $7,
              $8::jsonb,
              $9,
-             $10
+             $10,
+             $11,
+             $12,
+             $13,
+             coalesce($14, 'v1')
            from created_user
            where $4::uuid is not null
          )
@@ -491,7 +505,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
           referral?.riskScore ?? 0,
           JSON.stringify(referral?.reviewFlags ?? []),
           referral?.ipHash ?? null,
-          referral?.deviceHash ?? null
+          referral?.deviceHash ?? null,
+          referralPrivacy?.ciphertext ?? null,
+          referralPrivacy?.nonce ?? null,
+          referralPrivacy?.authTag ?? null,
+          referralPrivacy?.keyVersion ?? null
         ]
       );
 
@@ -529,6 +547,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     await assertRequestNotSeverelyBanned(app, request);
     const payload = signInPayloadSchema.parse(request.body);
     ensureAlphaTestActive(app.config);
+    assertBetaAccessAllowed(app.config, payload.betaAccessLocation);
 
     await applyRateLimits(app, [
       {

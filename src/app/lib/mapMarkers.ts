@@ -6,6 +6,7 @@ export type MapMarkerBadge = {
 
 export type MapMarker = {
   id: string;
+  kind?: 'person' | 'event' | 'cluster';
   displayName: string;
   approximateLatitude: number;
   approximateLongitude: number;
@@ -22,6 +23,18 @@ export type MapMarker = {
     precision?: 'fuzzy' | 'precise';
     canMessage: boolean;
   } | null;
+  event?: {
+    slug: string;
+    venueName: string;
+    attendeeCount: number;
+    raUrl: string;
+    iconAsset: string;
+  };
+  cluster?: {
+    id: string;
+    count: number;
+    label: string;
+  };
 };
 
 export type CruushMapInstance = {

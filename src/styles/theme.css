@@ -302,6 +302,29 @@
     }
   }
 
+  @keyframes cruush-party-dance {
+    0%, 100% {
+      transform: translateY(0) rotate(-4deg) scale(1);
+    }
+    35% {
+      transform: translateY(-8px) rotate(5deg) scale(1.04);
+    }
+    68% {
+      transform: translateY(2px) rotate(-2deg) scale(0.98);
+    }
+  }
+
+  .animate-cruush-party-dance {
+    animation: cruush-party-dance 1.05s ease-in-out infinite;
+    transform-origin: 50% 82%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-cruush-party-dance {
+      animation: none;
+    }
+  }
+
   .cruise-carousel-browse {
     animation: cruise-carousel-browse 1.2s ease-in-out infinite;
   }

@@ -667,6 +667,15 @@ describe("server", () => {
         endsAt: null,
         ended: false
       },
+      betaAccess: {
+        enabled: false,
+        center: {
+          lat: 40.70982,
+          lng: -73.92256
+        },
+        radiusMiles: 15,
+        venueName: "70 Scott Ave"
+      },
       photoUploads: {
         profilePhotos: true,
         messagePhotos: true
@@ -4285,6 +4294,24 @@ describe("server", () => {
       })
       .mockResolvedValueOnce({
         rows: [{
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          nsfw_message_visibility: "public",
+          nsfw_send_visibility: "public",
+          updated_at: "2026-04-29T12:05:00.000Z"
+        }, {
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          nsfw_message_visibility: "public",
+          nsfw_send_visibility: "public",
+          updated_at: "2026-04-29T12:05:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
           id: "msg-photo-1",
           user_id: userId,
           content: "photo caption",
@@ -7756,6 +7783,29 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[1]).toEqual([userId]);
   });
 
+  it("filters crowd-targeted posts by the reader's crowd memberships at the query boundary", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/posts",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("feed_post_crowd_targets target");
+    expect(query.mock.calls[1]?.[0]).toContain("profile_sensitive_tokens viewer_crowd_token");
+    expect(query.mock.calls[1]?.[0]).toContain("viewer_crowd_token.user_id = $1");
+  });
+
   it("validates the payload on POST /api/posts", async () => {
     const response = await app.inject({
       method: "POST",
@@ -7866,6 +7916,49 @@ describe("server", () => {
         }
       }
     });
+  });
+
+  it("creates a feed post with multiple crowd targets only when the author belongs to those crowds", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-crowds",
+          user_id: userId,
+          content: "Hosting for the crowd",
+          expires_in: "6h",
+          expires_at: "2026-04-28T18:00:00.000Z",
+          created_at: "2026-04-28T12:10:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: [],
+          crowd_targets: ["Dyke", "Gay"]
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Hosting for the crowd",
+        expiresIn: "6h",
+        crowdTargets: ["Dyke", "Gay"]
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[1]?.[0]).toContain("profile_sensitive_tokens author_crowd_token");
+    expect(query.mock.calls[1]?.[0]).toContain("insert into feed_post_crowd_targets");
+    expect(query.mock.calls[1]?.[1]).toContainEqual(["Dyke", "Gay"]);
+    expect(response.json().data.crowdTargets).toEqual(["Dyke", "Gay"]);
   });
 
   it("deletes the current user's feed post on DELETE /api/posts/:postId", async () => {
