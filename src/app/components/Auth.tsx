@@ -315,7 +315,7 @@ export default function Auth({ onAuth }: AuthProps) {
   };
 
   return (
-    <div className={`launch-login-auth-shell min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden overflow-y-auto${isMobileRecordingReady ? ' launch-login-auth-shell--mobile-recording-ready' : ''}`}>
+    <div className={`launch-login-auth-shell min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden${isMobileRecordingReady ? ' launch-login-auth-shell--mobile-recording-ready' : ''}`}>
       <LaunchLoginMapTeaser onPlaybackStateChange={handleTeaserPlaybackStateChange} />
       <LaunchLoginWaterPane className="launch-login-map-teaser__water-pane--foreground launch-login-auth-rain-pane" />
       <div className="launch-login-auth-card w-full max-w-[20rem] space-y-10 relative z-10" data-testid="launch-login-auth-panel">

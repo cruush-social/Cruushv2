@@ -75,6 +75,38 @@ describe('Auth', () => {
     vi.unstubAllGlobals();
   });
 
+  it('keeps the mobile auth layout centered without a left offset', () => {
+    render(<Auth onAuth={vi.fn()} />);
+
+    const cssText = Array.from(document.styleSheets).map((sheet) => Array.from(sheet.cssRules ?? []).map((rule) => rule.cssText).join('\n')).join('\n');
+
+    expect(cssText).not.toContain('--auth-mobile-center-shift');
+  });
+
+  it('does not pin the mobile footer actions over the form', () => {
+    render(<Auth onAuth={vi.fn()} />);
+
+    const cssText = Array.from(document.styleSheets).map((sheet) => Array.from(sheet.cssRules ?? []).map((rule) => rule.cssText).join('\n')).join('\n');
+
+    expect(cssText).not.toContain('position: fixed');
+    expect(cssText).not.toContain('overflow-y-auto');
+  });
+
+  it('allows the mobile auth wrapper and card to grow without clipping', () => {
+    const { container } = render(<Auth onAuth={vi.fn()} />);
+
+    const shell = container.querySelector('.launch-login-auth-shell');
+    const card = container.querySelector('.launch-login-auth-card');
+
+    expect(shell).toBeInTheDocument();
+    expect(card).toBeInTheDocument();
+    expect(shell?.className).toContain('overflow-x-hidden');
+    expect(shell?.className).not.toContain('overflow-y-auto');
+    expect(card?.className).not.toContain('overflow-y-auto');
+    expect(shell?.className).not.toContain('fixed');
+    expect(card?.className).not.toContain('fixed');
+  });
+
   it('shows a resend verification action after an unverified login attempt', async () => {
     const { container } = render(<Auth onAuth={vi.fn()} />);
 
