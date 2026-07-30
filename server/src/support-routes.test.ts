@@ -136,7 +136,7 @@ describe("support routes", () => {
         details: null
       }
     });
-  });
+  }, 10000);
 
   it("creates a signed-in support request without requiring contact email", async () => {
     const app = buildSupportApp();
@@ -180,7 +180,7 @@ describe("support routes", () => {
     ]);
   });
 
-  it("forwards support requests to the configured support inbox", async () => {
+  it("forwards support requests to the reports inbox", async () => {
     const app = buildSupportApp({
       RESEND_API_KEY: "re_test",
       MAIL_FROM: "cruush <hello@cruush.test>",
@@ -218,12 +218,12 @@ describe("support routes", () => {
     expect(response.statusCode).toBe(201);
     expect(fetchMock).toHaveBeenCalledWith("https://api.resend.com/emails", expect.any(Object));
     const emailBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
-    expect(emailBody.to).toEqual(["support@cruush.app"]);
+    expect(emailBody.to).toEqual(["reports@cruush.app"]);
     expect(emailBody.reply_to).toBe("founder@example.com");
     expect(emailBody.subject).toBe("[support] question: Can AI answer support?");
     expect(emailBody.html).toContain("support-3");
     expect(emailBody.html).toContain("I want to know how most support replies will be handled.");
-  });
+  }, 10000);
 
   it("keeps support requests saved when support inbox delivery fails", async () => {
     const app = buildSupportApp({

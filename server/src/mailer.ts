@@ -46,10 +46,31 @@ export type SupportRequestEmailInput = {
   subject: string;
 };
 
+export type UserReportEmailInput = {
+  conversationId: string | null;
+  createdAt: string;
+  details: string;
+  id: string;
+  mediaObjectId: string | null;
+  messageId: string | null;
+  postId: string | null;
+  profilePhotoUrl: string | null;
+  reason: string;
+  reporterUserId: string;
+  targetType: string;
+  targetUserId: string | null;
+};
+
 type SupportRequestInboxEmailInput = {
   config: AppConfig;
   logger: FastifyBaseLogger;
   request: SupportRequestEmailInput;
+};
+
+type UserReportInboxEmailInput = {
+  config: AppConfig;
+  logger: FastifyBaseLogger;
+  report: UserReportEmailInput;
 };
 
 export type VerificationDeliveryResult = {
@@ -74,6 +95,7 @@ type EventPassEmailInput = {
 };
 
 const CRUUSH_EMAIL_LOGO_URL = "https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e";
+const REPORTS_INBOX_EMAIL = "reports@cruush.app";
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => {
@@ -445,10 +467,9 @@ export async function sendTrustSafetyAlertEmail(input: TrustSafetyAlertEmailInpu
 
 export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEmailInput) {
   const { config, logger, request } = input;
-  const supportInboxEmail = config.SUPPORT_INBOX_EMAIL ?? "";
 
-  if (!config.RESEND_API_KEY || !config.MAIL_FROM || !supportInboxEmail) {
-    throw new ApiError(500, "INTERNAL_ERROR", "Support inbox email is not configured.");
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    throw new ApiError(500, "INTERNAL_ERROR", "Reports inbox email is not configured.");
   }
 
   const fields = [
@@ -474,12 +495,55 @@ export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEma
 
   await sendResendEmail({
     config,
-    email: supportInboxEmail,
+    email: REPORTS_INBOX_EMAIL,
     logger,
     replyTo: request.contactEmail,
     subject: `[support] ${request.category}: ${request.subject}`,
     html: `<p>New cruush support request.</p><table>${htmlRows}</table><h2>${escapeHtml(request.subject)}</h2><p>${escapedMessage}</p>`,
     text,
     failureMessage: "support inbox email delivery failed"
+  });
+}
+
+export async function sendUserReportInboxEmail(input: UserReportInboxEmailInput) {
+  const { config, logger, report } = input;
+
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    throw new ApiError(500, "INTERNAL_ERROR", "Reports inbox email is not configured.");
+  }
+
+  const fields = [
+    ["Report ID", report.id],
+    ["Target type", report.targetType],
+    ["Reason", report.reason],
+    ["Reporter user ID", report.reporterUserId],
+    ["Target user ID", report.targetUserId ?? "none"],
+    ["Conversation ID", report.conversationId ?? "none"],
+    ["Message ID", report.messageId ?? "none"],
+    ["Post ID", report.postId ?? "none"],
+    ["Media object ID", report.mediaObjectId ?? "none"],
+    ["Profile photo URL", report.profilePhotoUrl ?? "none"],
+    ["Created at", report.createdAt]
+  ];
+  const htmlRows = fields
+    .map(([label, value]) => `<tr><th align="left">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`)
+    .join("");
+  const escapedDetails = escapeHtml(report.details).replace(/\n/g, "<br>");
+  const text = [
+    "New cruush moderation report",
+    "",
+    ...fields.map(([label, value]) => `${label}: ${value}`),
+    "",
+    report.details
+  ].join("\n");
+
+  await sendResendEmail({
+    config,
+    email: REPORTS_INBOX_EMAIL,
+    logger,
+    subject: `[report] ${report.targetType}: ${report.reason}`,
+    html: `<p>New cruush moderation report.</p><table>${htmlRows}</table><p>${escapedDetails}</p>`,
+    text,
+    failureMessage: "reports inbox email delivery failed"
   });
 }

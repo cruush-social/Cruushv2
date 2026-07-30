@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
-import confetti from 'canvas-confetti';
-import maplibregl, {
-  type LngLatLike,
-  type Map as MapLibreMap,
-  type Marker as MapLibreMarker,
-  type StyleSpecification,
+import type {
+  GeoJSONSource,
+  LngLatLike,
+  Map as MapLibreMap,
+  Marker as MapLibreMarker,
+  StyleSpecification,
 } from 'maplibre-gl';
 import {
   ArrowDown,
@@ -81,6 +81,29 @@ const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
+
+type MapLibreModule = typeof import('maplibre-gl');
+type MapLibreExport = MapLibreModule['default'];
+
+let mapLibreModulePromise: Promise<MapLibreModule> | null = null;
+let confettiModulePromise: Promise<typeof import('canvas-confetti')> | null = null;
+
+function loadMapLibre() {
+  mapLibreModulePromise ??= import('maplibre-gl');
+  return mapLibreModulePromise;
+}
+
+function playEventMarkerConfetti() {
+  confettiModulePromise ??= import('canvas-confetti');
+
+  return confettiModulePromise.then(({ default: confetti }) => confetti({
+    particleCount: 36,
+    spread: 54,
+    startVelocity: 28,
+    origin: { y: 0.56 },
+    scalar: 0.72,
+  }));
+}
 
 export function createRasterStyle(tileUrls: string[], attribution: string): StyleSpecification {
   return {
@@ -672,17 +695,9 @@ function createMarkerElement(
       event.stopImmediatePropagation();
       onMarkerInteraction();
       if (marker.kind === 'event' && !shouldReduceMotion()) {
-        try {
-          void confetti({
-            particleCount: 36,
-            spread: 54,
-            startVelocity: 28,
-            origin: { y: 0.56 },
-            scalar: 0.72,
-          });
-        } catch {
+        void playEventMarkerConfetti().catch(() => {
           // Confetti is decorative; marker selection must keep working.
-        }
+        });
       }
       onPinClick(marker);
     });
@@ -755,6 +770,7 @@ function MapView({
   const markersRef = useRef<RenderedMapMarker[]>([]);
   const viewportMarkersRef = useRef<MapMarker[]>([]);
   const demoRadiusCirclesRef = useRef<RadiusCircle[]>([]);
+  const mapLibreRef = useRef<MapLibreExport | null>(null);
   const autoFitFocusKeyRef = useRef<string | null>(null);
   const hasAppliedAutoFitRef = useRef(false);
   const onPinClickRef = useRef(onPinClick);
@@ -821,11 +837,17 @@ function MapView({
     const shouldFallbackToRaster = canFallbackToDefaultRasterStyle(mapStyle);
 
     const initializeMap = async () => {
-      await loadMapLabelFonts();
+      const [mapLibreModule] = await Promise.all([
+        loadMapLibre(),
+        loadMapLabelFonts(),
+      ]);
 
       if (!isMounted || !containerRef.current || mapRef.current) {
         return;
       }
+
+      const maplibregl = mapLibreModule.default;
+      mapLibreRef.current = maplibregl;
 
       const startMap = (style: ReturnType<typeof getMapStyle>, isFallbackAttempt = false) => {
         if (!isMounted || !containerRef.current) {
@@ -1079,7 +1101,7 @@ function MapView({
     }
 
     const data = createCirclePolygon(radiusCircle.center, radiusCircle.radiusMeters);
-    const existingSource = getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+    const existingSource = getSource(sourceId) as GeoJSONSource | undefined;
 
     if (existingSource) {
       existingSource.setData(data);
@@ -1145,7 +1167,7 @@ function MapView({
     }
 
     const data = createCircleFeatureCollection(circles);
-    const existingSource = getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+    const existingSource = getSource(sourceId) as GeoJSONSource | undefined;
 
     if (existingSource) {
       existingSource.setData(data);
@@ -1183,8 +1205,9 @@ function MapView({
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
+    const maplibregl = mapLibreRef.current;
 
-    if (!map) {
+    if (!map || !maplibregl) {
       return;
     }
 

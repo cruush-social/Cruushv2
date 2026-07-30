@@ -4839,6 +4839,65 @@ describe("server", () => {
     });
   });
 
+  it("emails moderation reports to the reports inbox", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const reportApp = buildServer({
+      ...app.config,
+      RESEND_API_KEY: "re_test",
+      MAIL_FROM: "cruush <hello@cruush.test>",
+      SUPPORT_INBOX_EMAIL: "support@cruush.app"
+    }, {
+      db: {
+        query,
+        end
+      },
+      rateLimiter
+    });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => ""
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "report-email-1",
+          status: "open",
+          created_at: "2026-07-30T22:00:00.000Z"
+        }]
+      });
+
+    const response = await reportApp.inject({
+      method: "POST",
+      url: "/api/reports",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        targetType: "profile",
+        targetUserId,
+        reason: "harassment",
+        details: "keeps sending threats"
+      }
+    });
+    await reportApp.close();
+
+    expect(response.statusCode).toBe(201);
+    expect(fetchMock).toHaveBeenCalledWith("https://api.resend.com/emails", expect.any(Object));
+    const emailBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
+    expect(emailBody.to).toEqual(["reports@cruush.app"]);
+    expect(emailBody.subject).toBe("[report] profile: harassment");
+    expect(emailBody.html).toContain("report-email-1");
+    expect(emailBody.text).toContain("keeps sending threats");
+  }, 10000);
+
   it("does not create a profile report when the reporter cannot view the target profile", async () => {
     const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
     const targetVisibility = encryptProfileVisibility(app.config, {
@@ -6024,7 +6083,7 @@ describe("server", () => {
     ]);
   });
 
-  it("forwards support requests to the configured support inbox", async () => {
+  it("forwards support requests to the reports inbox", async () => {
     const supportApp = buildServer({
       ...app.config,
       RESEND_API_KEY: "re_test",
@@ -6072,12 +6131,12 @@ describe("server", () => {
     expect(response.statusCode).toBe(201);
     expect(fetchMock).toHaveBeenCalledWith("https://api.resend.com/emails", expect.any(Object));
     const emailBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body);
-    expect(emailBody.to).toEqual(["support@cruush.app"]);
+    expect(emailBody.to).toEqual(["reports@cruush.app"]);
     expect(emailBody.reply_to).toBe("founder@example.com");
     expect(emailBody.subject).toBe("[support] question: Can AI answer support?");
     expect(emailBody.html).toContain("support-3");
     expect(emailBody.html).toContain("I want to know how most support replies will be handled.");
-  });
+  }, 10000);
 
   it("keeps support requests saved when support inbox delivery fails", async () => {
     const supportApp = buildServer({

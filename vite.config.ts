@@ -58,6 +58,18 @@ export default defineConfig({
   build: {
     minify: 'esbuild',
     sourcemap: false,
+    chunkSizeWarningLimit: 1100,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('/node_modules/maplibre-gl/') || id.includes('/node_modules/@maplibre/')) {
+            return 'vendor-maplibre'
+          }
+
+          return undefined
+        },
+      },
+    },
   },
   resolve: {
     alias: {

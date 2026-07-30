@@ -81,7 +81,7 @@ CSAM_REPORTING_ENABLED=true
 CSAM_REPORTING_MODE=manual_packet
 CSAM_REPORTING_TEST_MODE=true
 TRUST_SAFETY_ALERT_EMAIL=<private-trust-safety-inbox>
-SUPPORT_INBOX_EMAIL=<private-support-inbox>
+SUPPORT_INBOX_EMAIL=reports@cruush.app
 
 INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
 MAIL_FROM=cruush <hello@cruush.app>
@@ -223,7 +223,7 @@ CSAM_REPORTING_ENABLED=true
 CSAM_REPORTING_MODE=manual_packet
 CSAM_REPORTING_TEST_MODE=false
 TRUST_SAFETY_ALERT_EMAIL=<private-trust-safety-inbox>
-SUPPORT_INBOX_EMAIL=<private-support-inbox>
+SUPPORT_INBOX_EMAIL=reports@cruush.app
 
 INTERNAL_API_SECRET=<generate-internal-api-secret-or-leave-empty-if-unused>
 MAIL_FROM=cruush <hello@cruush.app>
@@ -311,6 +311,7 @@ These values are safe to add directly if the domains/buckets are correct:
 - `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` only for the temporary alpha staging exception while Microsoft PhotoDNA access is pending; an active `ALPHA_TEST_ENABLED=true` staging gate now permits the same profile-photo-only exception, but leave both paths false for open beta or production
 - `ALPHA_TEST_ENABLED=true`, `ALPHA_TEST_PASSWORD_HASH=<scrypt hash>`, and `ALPHA_TEST_ENDS_AT=2026-07-31T00:00:00-04:00` only through the final alpha cutoff. After the timestamp, existing alpha sessions stop resolving and login/signup are blocked. The no-alpha deployment then sets `ALPHA_TEST_ENABLED=false` without exposing or deleting secrets in logs.
 - `BETA_ACCESS_GEOFENCE_ENABLED=true` limits launch beta signup/signin to the configured 15-mile radius around `70 Scott Ave`. Outside-radius users see the newsletter/city-request path; those email/city entries are encrypted at rest with HMAC-only dedupe indexes.
+- Support requests, alpha bug reports, and in-app moderation reports notify `reports@cruush.app`. Beta launch feedback stays text-only; there is no screenshot prompt or screenshot upload path for beta.
 - Launch party envs should stay backend-only. The Chocolate Factory pin is active from `2026-07-31T00:00:00-04:00` until `2026-08-01T05:00:00-04:00`; the event chat expires at `2026-08-08T05:00:00-04:00`.
 - Use `node scripts/release-main-coolify.mjs --source codex/beta-launch-release-20260731 --target both --confirm-production --no-dry-run` only after checks pass. Dry-run is the default; production deploy is blocked without `--confirm-production`.
 - `SEVERE_ACCESS_BANS_ENABLED=true`, `SEVERE_ACCESS_BAN_HMAC_KEY=<32+ byte secret>`, and `TRUST_PROXY_HOPS=1` only after confirming the Coolify/Traefik proxy chain

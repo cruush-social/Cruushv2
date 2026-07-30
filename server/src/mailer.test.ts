@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   sendPasswordResetEmail,
   sendSupportRequestInboxEmail,
+  sendUserReportInboxEmail,
   sendTrustSafetyAlertEmail,
   sendVerificationEmail
 } from "./mailer.js";
@@ -119,7 +120,7 @@ describe("mailer", () => {
     expect(body.html).not.toContain("data:image");
   });
 
-  it("sends support requests to the configured support inbox with reply-to", async () => {
+  it("sends support requests to the reports inbox with reply-to", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true
     });
@@ -146,10 +147,45 @@ describe("mailer", () => {
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
 
-    expect(body.to).toEqual(["support@cruush.app"]);
+    expect(body.to).toEqual(["reports@cruush.app"]);
     expect(body.reply_to).toBe("founder@example.com");
     expect(body.subject).toBe("[support] question: Support inbox");
     expect(body.html).toContain("support-1");
     expect(body.text).toContain("Can AI answer most support questions?");
+  });
+
+  it("sends moderation reports to the reports inbox without target content", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendUserReportInboxEmail({
+      config,
+      logger,
+      report: {
+        id: "report-1",
+        createdAt: "2026-07-30T22:00:00.000Z",
+        reporterUserId: "user-1",
+        targetType: "profile",
+        targetUserId: "user-2",
+        conversationId: null,
+        messageId: null,
+        postId: null,
+        mediaObjectId: null,
+        profilePhotoUrl: null,
+        reason: "harassment",
+        details: "The profile is threatening people."
+      }
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+
+    expect(body.to).toEqual(["reports@cruush.app"]);
+    expect(body.subject).toBe("[report] profile: harassment");
+    expect(body.html).toContain("report-1");
+    expect(body.text).toContain("The profile is threatening people.");
+    expect(body.html).not.toContain("reported plaintext");
+    expect(body.text).not.toContain("reported plaintext");
   });
 });

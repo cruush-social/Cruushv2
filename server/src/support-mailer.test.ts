@@ -34,7 +34,7 @@ const logger = {
 } as any;
 
 describe("support mailer", () => {
-  it("sends support requests to the configured support inbox with reply-to", async () => {
+  it("sends support requests to the reports inbox with reply-to", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true
     });
@@ -61,7 +61,7 @@ describe("support mailer", () => {
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
 
-    expect(body.to).toEqual(["support@cruush.app"]);
+    expect(body.to).toEqual(["reports@cruush.app"]);
     expect(body.reply_to).toBe("founder@example.com");
     expect(body.subject).toBe("[support] question: Support inbox");
     expect(body.html).toContain("support-1");

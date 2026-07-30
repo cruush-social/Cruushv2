@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { DbClient } from "../db.js";
 import { ApiError } from "../errors.js";
+import { sendUserReportInboxEmail } from "../mailer.js";
 import { createUserReport } from "../moderation-service.js";
 import { createReportPayloadSchema, type CreateReportPayload, type ReportReason } from "../report-schema.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
@@ -412,12 +413,36 @@ export async function registerReportRoutes(app: FastifyInstance) {
     const row = app.db.transaction
       ? await app.db.transaction(createReport)
       : await createReport(app.db);
+    const createdAt = new Date(row.created_at).toISOString();
+
+    if (app.config.RESEND_API_KEY && app.config.MAIL_FROM) {
+      await sendUserReportInboxEmail({
+        config: app.config,
+        logger: app.log,
+        report: {
+          id: row.id,
+          createdAt,
+          reporterUserId,
+          targetType: payload.targetType,
+          targetUserId: target.targetUserId,
+          conversationId: target.conversationId,
+          messageId: target.messageId,
+          postId: target.postId,
+          mediaObjectId: target.mediaObjectId,
+          profilePhotoUrl: target.profilePhotoUrl,
+          reason: payload.reason,
+          details: payload.details
+        }
+      }).catch((error) => {
+        app.log.error({ err: error, reportId: row.id }, "reports inbox email delivery failed");
+      });
+    }
 
     return reply.code(201).send({
       data: {
         id: row.id,
         status: row.status,
-        createdAt: new Date(row.created_at).toISOString()
+        createdAt
       }
     });
   });

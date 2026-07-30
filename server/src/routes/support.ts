@@ -73,7 +73,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
       throw new ApiError(500, "INTERNAL_ERROR", "Failed to create support request.");
     }
 
-    if (app.config.SUPPORT_INBOX_EMAIL && app.config.RESEND_API_KEY && app.config.MAIL_FROM) {
+    if (app.config.RESEND_API_KEY && app.config.MAIL_FROM) {
       await sendSupportRequestInboxEmail({
         config: app.config,
         logger: app.log,
