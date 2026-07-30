@@ -174,6 +174,33 @@ describe("moderation provider", () => {
     ]));
   });
 
+  it("adds launch emoji signals for public drug language while keeping candy context-aware", async () => {
+    const provider = new MockModerationProvider();
+    const labSignal = await provider.moderateText({
+      userId: "user-1",
+      surface: "profile",
+      text: "afters 🧪"
+    });
+    const candyOnly = await provider.moderateText({
+      userId: "user-1",
+      surface: "profile",
+      text: "bringing 🍬 for friends"
+    });
+    const candyWithContext = await provider.moderateText({
+      userId: "user-1",
+      surface: "profile",
+      text: "🍬 chemsex afters"
+    });
+
+    expect(labSignal.labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({ normalized_label: "pnp_discussion" })
+    ]));
+    expect(candyOnly.labels).toEqual([]);
+    expect(candyWithContext.labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({ normalized_label: "pnp_discussion" })
+    ]));
+  });
+
   it("keeps private drug discussion out of the public coded-language rule", async () => {
     const provider = new MockModerationProvider();
     const result = await provider.moderateText({
@@ -201,17 +228,61 @@ describe("moderation provider", () => {
     ]));
   });
 
+  it("keeps money emoji context-aware for commercial sex rules", async () => {
+    const provider = new MockModerationProvider();
+    const allowed = await provider.moderateText({
+      userId: "user-1",
+      surface: "profile",
+      text: "budget talk 💸"
+    });
+    const blocked = await provider.moderateText({
+      userId: "user-1",
+      surface: "profile",
+      text: "💸 for a hookup session"
+    });
+
+    expect(allowed.labels).toEqual([]);
+    expect(blocked.labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        normalized_label: "commercial_sex",
+        provider_label: "public_coded_commercial_sex_language"
+      })
+    ]));
+  });
+
+  it("keeps minor-coded emojis context-aware on public surfaces", async () => {
+    const provider = new MockModerationProvider();
+    const allowed = await provider.moderateText({
+      userId: "user-1",
+      surface: "profile",
+      text: "nostalgia and plush toys 🧸"
+    });
+    const blocked = await provider.moderateText({
+      userId: "user-1",
+      surface: "profile",
+      text: "🧸 explicit meet"
+    });
+
+    expect(allowed.labels).toEqual([]);
+    expect(blocked.labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        normalized_label: "underage_sexual",
+        provider_label: "public_coded_underage_language"
+      })
+    ]));
+  });
+
   it("labels coded bestiality language on public surfaces without banning unrelated kink language", async () => {
     const provider = new MockModerationProvider();
     const allowed = await provider.moderateText({
       userId: "user-1",
       surface: "profile",
-      text: "pup handler into rope classes and consent"
+      text: "pup handler into rope classes and consent 🐶"
     });
     const blocked = await provider.moderateText({
       userId: "user-1",
       surface: "profile",
-      text: "k 9 taboo 🐕"
+      text: "k 9 taboo 🐾"
     });
 
     expect(allowed.labels).toEqual([]);
@@ -220,6 +291,39 @@ describe("moderation provider", () => {
         normalized_label: "bestiality",
         provider_label: "public_coded_bestiality_language"
       })
+    ]));
+  });
+
+  it("adds context-aware weapon and scam emoji review signals", async () => {
+    const provider = new MockModerationProvider();
+    const allowedWeapon = await provider.moderateText({
+      userId: "user-1",
+      surface: "feed",
+      text: "knife skills class 🔪"
+    });
+    const blockedWeapon = await provider.moderateText({
+      userId: "user-1",
+      surface: "feed",
+      text: "I will hurt you 🔪"
+    });
+    const allowedFinance = await provider.moderateText({
+      userId: "user-1",
+      surface: "feed",
+      text: "market chart 📈"
+    });
+    const blockedFinance = await provider.moderateText({
+      userId: "user-1",
+      surface: "feed",
+      text: "📈 guaranteed profit"
+    });
+
+    expect(allowedWeapon.labels).toEqual([]);
+    expect(blockedWeapon.labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({ normalized_label: "threat" })
+    ]));
+    expect(allowedFinance.labels).toEqual([]);
+    expect(blockedFinance.labels).toEqual(expect.arrayContaining([
+      expect.objectContaining({ normalized_label: "spam" })
     ]));
   });
 

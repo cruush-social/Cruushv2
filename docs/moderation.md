@@ -106,6 +106,7 @@ Rejected before save/publish:
 - Feed posts with adult explicit labels, PnP/chemsex discussion, drug sales, hate, threats, harassment, doxxing, location privacy abuse, scams, spam, commercial sex solicitation, non-consensual sexual content, minor/CSAM references, bestiality, revenge porn, or gore.
 - Nude or sexually explicit images on profile photos or any other non-message photo surface. Nudity is restricted to authenticated direct and group-message attachments.
 - Profile and message content with zero-tolerance labels such as minor/CSAM references, bestiality, revenge porn, credible threats, or drug sales.
+- Public/feed/profile coded emoji signals for drug/PnP, commercial sex, underage sexual context, bestiality, threats, and scams. High false-positive emoji categories such as money, minor-coded, animal, weapon, and finance symbols require nearby risky context; ordinary flirting emojis are not blanket-banned.
 - Profile photos that Stream, PhotoDNA, or Rekognition rejects.
 - Any profile-photo response whose Stream recommendation is not an explicit `keep`, including `flag`, `remove`, `block`, `bounce`, and `shadow_block`.
 - Profile photos without a high-confidence person signal or with a detected animal.

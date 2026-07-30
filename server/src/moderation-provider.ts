@@ -69,7 +69,9 @@ const textRules: TextRule[] = [
     patterns: [
       publicSurfacePattern(/\b(?:tina|snow|ski|skiing|skii|skiiing|spun|point|pointing|party|pnp|chem|chemsex|ice|crystal)\b/i),
       publicSurfacePattern(/\bparty\s+(?:and|n)\s+play\b/i),
-      /[💨🎉🥳💊🎈🌀🧊⛷❄]/
+      /(?:💨|🎉|🥳|💊|🎈|🌀|🧊|⛷|❄|🧪|⚗|🔬|🥄|💉|🚬)/u,
+      /(?:🍬|🍭|🍄).{0,48}\b(?:pnp|party\s*(?:and|&|n)\s*play|chem|chemsex|tina|meth|molly|mdma|ketamine|ice|crystal)\b/iu,
+      /\b(?:pnp|party\s*(?:and|&|n)\s*play|chem|chemsex|tina|meth|molly|mdma|ketamine|ice|crystal)\b.{0,48}(?:🍬|🍭|🍄)/iu
     ]
   },
   {
@@ -80,7 +82,9 @@ const textRules: TextRule[] = [
     surfaces: publicProfileSurfaces,
     patterns: [
       /\b(?:gen|generous|roses?)\b/i,
-      /[🎁🌹]/,
+      /(?:🎁|🌹)/u,
+      /(?:💸|💰|💵|🤑|💳|🧾).{0,48}\b(?:meet|session|hour|hh|hookup|sex|menu|rates?|donation|tribute)\b/iu,
+      /\b(?:meet|session|hour|hh|hookup|sex|menu|rates?|donation|tribute)\b.{0,48}(?:💸|💰|💵|🤑|💳|🧾)/iu,
       /\b(?:donation|tribute|rates?|menu|cashapp|venmo|zelle|paypal)\b.{0,48}\b(?:meet|session|hour|hh|hookup|sex)\b/i,
       /\b(?:meet|session|hour|hh|hookup|sex)\b.{0,48}\b(?:donation|tribute|rates?|menu|cashapp|venmo|zelle|paypal)\b/i
     ]
@@ -94,6 +98,8 @@ const textRules: TextRule[] = [
     patterns: [
       /\b(?:underage|pedo)\b/i,
       /🏈/,
+      /(?:👶|🍼|🧒|🎒|🧸).{0,80}\b(?:sex|nudes?|hook ?up|explicit|porn|meet)\b/iu,
+      /\b(?:sex|nudes?|hook ?up|explicit|porn|meet)\b.{0,80}(?:👶|🍼|🧒|🎒|🧸)/iu,
       /\b(?:minor|minors|teen|teens|barely legal)\b.{0,80}\b(?:sex|nudes?|hook ?up|explicit|porn|meet)\b/i,
       /\b(?:sex|nudes?|hook ?up|explicit|porn|meet)\b.{0,80}\b(?:minor|minors|teen|teens|barely legal)\b/i,
       /\b(?:1[0-7])\s?(?:yo|y\/o|years? old)?\b.{0,80}\b(?:sex|nudes?|hook ?up|explicit|porn|meet)\b/i
@@ -107,7 +113,9 @@ const textRules: TextRule[] = [
     surfaces: publicProfileSurfaces,
     patterns: [
       /\b(?:knot|knotting|k\s*9|taboo|zoophilia|zoophile|bestiality|beastiality|canine)\b/i,
-      /[🪢🐕]/
+      /(?:🐾|🦴|🐶).{0,48}\b(?:k\s*9|knot|knotting|taboo|zoophile|zoophilia|bestiality|beastiality|animal sex|sex with animals?)\b/iu,
+      /\b(?:k\s*9|knot|knotting|taboo|zoophile|zoophilia|bestiality|beastiality|animal sex|sex with animals?)\b.{0,48}(?:🐾|🦴|🐶)/iu,
+      /(?:🪢|🐕)/u
     ]
   },
   {
@@ -165,7 +173,9 @@ const textRules: TextRule[] = [
     severity: "critical",
     patterns: [
       /\b(?:i will|i'm going to|im going to|gonna)\s+(?:kill|hurt|stab|shoot|beat)\s+(?:you|them|him|her)\b/i,
-      /\b(?:kill you|hurt you|stab you|shoot you|beat you)\b/i
+      /\b(?:kill you|hurt you|stab you|shoot you|beat you)\b/i,
+      /(?:🔫|🔪|🗡|💣).{0,40}\b(?:kill|hurt|stab|shoot|beat)\b/iu,
+      /\b(?:kill|hurt|stab|shoot|beat)\b.{0,40}(?:🔫|🔪|🗡|💣)/iu
     ]
   },
   {
@@ -227,6 +237,8 @@ const textRules: TextRule[] = [
     confidence: 0.86,
     severity: "medium",
     patterns: [
+      /(?:📈|📉|💹|🪙|₿|🎰).{0,80}\b(?:profit|investment|double|guaranteed|telegram|cash|crypto|forex)\b/iu,
+      /\b(?:profit|investment|double|guaranteed|telegram|cash|crypto|forex)\b.{0,80}(?:📈|📉|💹|🪙|₿|🎰)/iu,
       /\b(?:crypto|forex|investment)\b.{0,80}\b(?:guaranteed|profit|double your money)\b/i,
       /\b(?:click this link|free money|giveaway)\b/i
     ]
