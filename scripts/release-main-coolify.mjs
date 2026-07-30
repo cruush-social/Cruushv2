@@ -160,7 +160,7 @@ function assertExpectedDomain(app, target) {
   }
 }
 
-function alphaEnvData() {
+function releaseRuntimeEnvData() {
   return {
     data: [
       {
@@ -212,6 +212,13 @@ function alphaEnvData() {
         is_buildtime: false,
         is_runtime: true,
       },
+      {
+        key: 'SUPPORT_INBOX_EMAIL',
+        value: 'reports@cruush.app',
+        is_preview: false,
+        is_buildtime: false,
+        is_runtime: true,
+      },
     ],
   };
 }
@@ -253,7 +260,7 @@ async function validateAndPatchApps(targets, dryRun) {
     console.log(`Validated ${target.label} domain ${target.expectedHost}.`);
 
     if (dryRun) {
-      console.log(`[dry-run] Would set ${target.label} git_branch=main, alpha env cutoff values, and 15-mile beta access geofence.`);
+      console.log(`[dry-run] Would set ${target.label} git_branch=main, alpha env cutoff values, 15-mile beta access geofence, and reports inbox.`);
       continue;
     }
 
@@ -263,9 +270,9 @@ async function validateAndPatchApps(targets, dryRun) {
     });
     await coolifyRequest(`/applications/${encodeURIComponent(target.uuid)}/envs/bulk`, {
       method: 'PATCH',
-      body: JSON.stringify(alphaEnvData()),
+      body: JSON.stringify(releaseRuntimeEnvData()),
     });
-    console.log(`Updated ${target.label} branch, alpha envs, and beta access geofence.`);
+    console.log(`Updated ${target.label} branch, alpha envs, beta access geofence, and reports inbox.`);
   }
 }
 
