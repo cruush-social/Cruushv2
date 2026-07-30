@@ -1161,7 +1161,7 @@ describe("server", () => {
         rows: [{
           id: userId,
           email: "river@example.com",
-          display_name: "River",
+          display_name: null,
           email_verified_at: null,
           created_at: "2026-04-28T12:00:00.000Z"
         }]
@@ -1180,13 +1180,13 @@ describe("server", () => {
       url: "/api/auth/signup",
       payload: {
         email: "river@example.com",
-        password: "password-123",
-        displayName: "River"
+        password: "password-123"
       }
     });
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
+    expect(query.mock.calls[0]?.[1]?.[2]).toBeNull();
     expect(query.mock.calls[1]?.[0]).toContain("delete from email_verification_tokens");
     expect(query.mock.calls[2]?.[0]).toContain("insert into email_verification_tokens");
     expect(response.headers["set-cookie"]).toBeUndefined();

@@ -18,7 +18,7 @@ const betaAccessLocationSchema = z.object({
 export const signUpPayloadSchema = z.object({
   email: authEmailSchema,
   password: z.string().min(8).max(200),
-  displayName: singleLineTextSchema({ min: 2, max: 80 }),
+  displayName: singleLineTextSchema({ min: 2, max: 80 }).optional(),
   alphaPassword: z.string().trim().min(1).max(200).optional(),
   captchaToken: z.string().trim().max(4096).optional(),
   clientCheck: clientSecurityCheckSchema.optional(),

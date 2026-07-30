@@ -29,7 +29,6 @@ export default function Auth({ onAuth }: AuthProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [displayName, setDisplayName] = useState('');
   const [alphaPassword, setAlphaPassword] = useState('');
   const [alphaTest, setAlphaTest] = useState<AppMetaPayload['alphaTest'] | null>(null);
   const [betaAccess, setBetaAccess] = useState<AppMetaPayload['betaAccess'] | null>(null);
@@ -166,16 +165,6 @@ export default function Auth({ onAuth }: AuthProps) {
     }
 
     if (isSignUp) {
-      if (!displayName.trim()) {
-        setError('Display name is required');
-        setIsLoading(false);
-        return;
-      }
-      if (displayName.trim().length < 2) {
-        setError('Display name must be at least 2 characters');
-        setIsLoading(false);
-        return;
-      }
       if (alphaPasswordRequired && !alphaPassword.trim()) {
         setError('Alpha password is required');
         setIsLoading(false);
@@ -198,7 +187,6 @@ export default function Auth({ onAuth }: AuthProps) {
         const delivery = await signUp({
           email,
           password,
-          displayName: displayName.trim(),
           alphaPassword: alphaPasswordRequired ? alphaPassword.trim() : undefined,
           captchaToken,
           clientCheck: buildHumanCheck(),
@@ -583,25 +571,6 @@ export default function Auth({ onAuth }: AuthProps) {
               </button>
             </div>
           ) : null}
-
-          {!isForgotPassword && isSignUp && (
-            <div className="space-y-2">
-              <label htmlFor="displayName" className="sr-only">
-                Display Name
-              </label>
-              <input
-                id="displayName"
-                type="text"
-                autoComplete="nickname"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="your name"
-                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
-                required={isSignUp}
-                disabled={isLoading}
-              />
-            </div>
-          )}
 
           {!isForgotPassword && isSignUp && alphaPasswordRequired ? (
             <div className="space-y-2">

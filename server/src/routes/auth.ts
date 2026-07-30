@@ -498,7 +498,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         [
           payload.email,
           passwordHash,
-          payload.displayName,
+          payload.displayName ?? null,
           referral?.referrerUserId ?? null,
           referral?.code ?? null,
           referral?.status ?? null,

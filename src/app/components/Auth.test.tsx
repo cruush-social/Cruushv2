@@ -93,6 +93,13 @@ describe('Auth', () => {
     expect(authCss).not.toContain('overflow: visible !important');
   });
 
+  it('keeps readable spacing between mobile auth form controls', () => {
+    expect(authCss).toContain('margin-top: 0.48rem !important;');
+    expect(authCss).toContain('margin-top: 0.72rem !important;');
+    expect(authCss).toContain('margin-top: 0.42rem !important;');
+    expect(authCss).toContain('gap: 0.16rem;');
+  });
+
   it('keeps the auth landing surface constrained to one viewport', () => {
     const { container } = render(<Auth onAuth={vi.fn()} />);
 
@@ -227,8 +234,7 @@ describe('Auth', () => {
     });
     render(<Auth onAuth={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
-    expect(screen.getByLabelText('Display Name')).toHaveAttribute('placeholder', 'your name');
-    fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'River' } });
+    expect(screen.queryByLabelText('Display Name')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
@@ -237,6 +243,7 @@ describe('Auth', () => {
     await waitFor(() => expect(signUp).toHaveBeenCalledWith(expect.objectContaining({
       referralCode: 'abcdefghijklmnop',
     })));
+    expect(signUp.mock.calls[0]?.[0]).not.toHaveProperty('displayName');
     expect(screen.queryByText('abcdefghijklmnop')).not.toBeInTheDocument();
     expect(window.sessionStorage.getItem('cruush_referral_code')).toBeNull();
   });
@@ -264,7 +271,7 @@ describe('Auth', () => {
     fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
 
     const alphaPasswordInput = await screen.findByLabelText('Alpha password');
-    fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'River' } });
+    expect(screen.queryByLabelText('Display Name')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(alphaPasswordInput, { target: { value: 'door-password' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
@@ -274,6 +281,7 @@ describe('Auth', () => {
     await waitFor(() => expect(signUp).toHaveBeenCalledWith(expect.objectContaining({
       alphaPassword: 'door-password',
     })));
+    expect(signUp.mock.calls[0]?.[0]).not.toHaveProperty('displayName');
   });
 
   it('prompts for and submits a second factor only after the backend requires it', async () => {
