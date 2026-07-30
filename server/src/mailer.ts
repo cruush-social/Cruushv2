@@ -56,6 +56,8 @@ export type VerificationDeliveryResult = {
   previewUrl: string | null;
 };
 
+const CRUUSH_EMAIL_LOGO_URL = "https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e";
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => {
     switch (character) {
@@ -71,6 +73,177 @@ function escapeHtml(value: string) {
         return "&#39;";
     }
   });
+}
+
+function buildVerificationEmailHtml(escapedVerificationUrl: string) {
+  return `<!DOCTYPE html>
+<html dir="ltr" lang="en">
+  <head>
+    <meta content="width=device-width" name="viewport" />
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta content="IE=edge" http-equiv="X-UA-Compatible" />
+    <meta content="telephone=no,address=no,email=no,date=no,url=no" name="format-detection" />
+    <title>Verify your cruush email</title>
+  </head>
+  <body
+    dir="ltr"
+    lang="en"
+    bgcolor="#050507"
+    style="margin:0;padding:0;background-color:#050507;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;"
+  >
+    <table
+      border="0"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      role="presentation"
+      align="center"
+      bgcolor="#050507"
+      style="width:100%;background-color:#050507;color:#ffffff;"
+    >
+      <tbody>
+        <tr>
+          <td
+            align="center"
+            bgcolor="#050507"
+            style="padding:28px 14px;background-color:#050507;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;line-height:155%;"
+          >
+            <table
+              align="center"
+              width="100%"
+              border="0"
+              cellpadding="0"
+              cellspacing="0"
+              role="presentation"
+              bgcolor="#050507"
+              style="max-width:600px;width:100%;background-color:#050507;color:#ffffff;line-height:155%;"
+            >
+              <tbody>
+                <tr>
+                  <td align="center" style="padding:0 0 18px;background-color:#050507;color:#ffffff;">
+                    <img
+                      alt="cruush"
+                      height="156"
+                      src="${CRUUSH_EMAIL_LOGO_URL}"
+                      style="display:block;outline:none;border:none;text-decoration:none;border-radius:8px;"
+                      width="150"
+                    />
+                  </td>
+                </tr>
+
+                <tr>
+                  <td
+                    align="center"
+                    bgcolor="#050507"
+                    style="padding:0;background-color:#050507;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;text-align:center;"
+                  >
+                    <h1
+                      style="margin:0 0 14px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:34px;line-height:1.15;font-weight:700;text-align:center;"
+                    >
+                      verify your email
+                    </h1>
+
+                    <p
+                      style="margin:0 0 20px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:17px;line-height:1.55;text-align:center;"
+                    >
+                      Tap the button below to confirm this address and finish setting up your cruush account.
+                    </p>
+
+                    <table
+                      align="center"
+                      border="0"
+                      cellpadding="0"
+                      cellspacing="0"
+                      role="presentation"
+                      style="margin:0 auto 22px;"
+                    >
+                      <tbody>
+                        <tr>
+                          <td
+                            align="center"
+                            bgcolor="#ff0072"
+                            style="border-radius:8px;background-color:#ff0072;"
+                          >
+                            <a
+                              href="${escapedVerificationUrl}"
+                              rel="noopener noreferrer nofollow"
+                              target="_blank"
+                              style="display:inline-block;padding:13px 22px;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:16px;font-weight:700;text-decoration:none;"
+                            >
+                              Verify email
+                            </a>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <table
+                      align="center"
+                      border="0"
+                      cellpadding="0"
+                      cellspacing="0"
+                      role="presentation"
+                      style="margin:0 auto 20px;width:100%;max-width:430px;"
+                    >
+                      <tbody>
+                        <tr>
+                          <td
+                            align="center"
+                            bgcolor="#111111"
+                            style="padding:14px 16px;border:1px solid #ffffff;background-color:#111111;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;text-align:center;"
+                          >
+                            <p
+                              style="margin:0;padding:0;color:#ffffff;font-size:15px;line-height:1.55;text-align:center;"
+                            >
+                              This verification link expires in 24 hours. If you did not create a cruush account, you can ignore this email.
+                            </p>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <p
+                      style="margin:0 0 20px;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:15px;line-height:1.55;text-align:center;"
+                    >
+                      If the button does not open, copy and paste this link into your browser:
+                    </p>
+
+                    <p
+                      style="margin:0;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:13px;line-height:1.5;text-align:center;word-break:break-all;"
+                    >
+                      <a
+                        href="${escapedVerificationUrl}"
+                        rel="noopener noreferrer nofollow"
+                        target="_blank"
+                        style="color:#ffffff;text-decoration:underline;"
+                      >
+                        ${escapedVerificationUrl}
+                      </a>
+                    </p>
+
+                    <p
+                      style="margin:28px 0 0;padding:0;color:#ffffff;font-family:Georgia,'Times New Roman',Times,serif;font-size:14px;line-height:1.5;text-align:center;"
+                    >
+                      Comments? Questions? Concerns?<br />
+                      <a
+                        href="mailto:hello@cruush.app"
+                        style="color:#ffffff;text-decoration:underline;"
+                        target="_blank"
+                      >
+                        hello@cruush.app
+                      </a>
+                    </p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>`;
 }
 
 async function sendResendEmail(input: {
@@ -119,8 +292,8 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
       email,
       logger,
       subject: "Verify your cruush email",
-      html: `<p>Verify your email for cruush.</p><p><a href="${escapedVerificationUrl}">Verify email</a></p>`,
-      text: `Verify your email for cruush: ${verificationUrl}`,
+      html: buildVerificationEmailHtml(escapedVerificationUrl),
+      text: `Verify your email for cruush within 24 hours: ${verificationUrl}\n\nIf you did not create a cruush account, you can ignore this email.`,
       failureMessage: "verification email delivery failed"
     });
 

@@ -55,6 +55,11 @@ describe("mailer", () => {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.html).toContain("abc&amp;next=&quot; onclick=&quot;alert(1)");
     expect(body.html).not.toContain("onclick=\"alert(1)");
+    expect(body.html).toContain("#050507");
+    expect(body.html).toContain("#ff0072");
+    expect(body.html).toContain("verify your email");
+    expect(body.html).toContain("https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e");
+    expect(body.html).toContain("This verification link expires in 24 hours.");
     expect(body.text).toContain("onclick=\"alert(1)");
   });
 
