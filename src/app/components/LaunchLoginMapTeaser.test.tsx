@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import LaunchLoginMapTeaser, { LaunchLoginWaterPane } from './LaunchLoginMapTeaser';
+import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
+import LaunchLoginRainPane from './LaunchLoginRainPane';
 
 describe('LaunchLoginMapTeaser', () => {
   afterEach(() => {
@@ -80,17 +81,17 @@ describe('LaunchLoginMapTeaser', () => {
     expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
   });
 
-  it('renders a foreground water layer with persistent clear trails', () => {
-    const { container } = render(<LaunchLoginWaterPane />);
+  it('keeps the archived rain layer available for later restoration', () => {
+    const { container } = render(<LaunchLoginRainPane />);
 
-    expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('launch-login-foreground-rain-pane')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(6);
     expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(12);
     expect(container.querySelectorAll('img')).toHaveLength(0);
     expect(container.querySelectorAll('image')).toHaveLength(0);
   });
 
-  it('uses a lighter foreground rain layer on phone-sized viewports', () => {
+  it('keeps the archived rain layer lighter on phone-sized viewports', () => {
     vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
       matches: query === '(max-width: 640px)',
       media: query,
@@ -98,10 +99,12 @@ describe('LaunchLoginMapTeaser', () => {
       removeEventListener: vi.fn(),
     })));
 
-    render(<LaunchLoginWaterPane />);
+    render(<LaunchLoginRainPane />);
 
-    expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-map-teaser__water-pane--mobile-lite');
-    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(3);
-    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(6);
+    expect(screen.getByTestId('launch-login-foreground-rain-pane')).toHaveClass('launch-login-rain-pane--mobile-lite');
+    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(2);
+    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(4);
+    expect(screen.getAllByTestId('launch-login-clear-trail')[0]).toHaveStyle({ '--duration': '12s' });
+    expect(screen.getAllByTestId('launch-login-water-droplet')[0]).toHaveStyle({ '--duration': '9s' });
   });
 });

@@ -12,7 +12,7 @@ import { checkBetaAccess, requestBetaCity } from '../lib/betaAccessApi';
 import { getAppMeta, type AppMetaPayload } from '../lib/metaApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
 import { CruushIcon } from './CruushIconImage';
-import LaunchLoginMapTeaser, { LaunchLoginWaterPane } from './LaunchLoginMapTeaser';
+import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
@@ -83,7 +83,6 @@ export default function Auth({ onAuth }: AuthProps) {
   const [cityRequestNotice, setCityRequestNotice] = useState('');
   const [cityRequestLoading, setCityRequestLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isMobileRecordingReady, setIsMobileRecordingReady] = useState(false);
   const isSignUp = mode === 'signup';
   const isForgotPassword = mode === 'forgot';
   const turnstileSiteKey = getTurnstileSiteKey();
@@ -98,9 +97,6 @@ export default function Auth({ onAuth }: AuthProps) {
     setError(message);
     setNotice('');
     setVerificationRetryAvailable(false);
-  }, []);
-  const handleTeaserPlaybackStateChange = useCallback((state: { isMobileRecording: boolean; isReady: boolean }) => {
-    setIsMobileRecordingReady(state.isMobileRecording && state.isReady);
   }, []);
 
   useEffect(() => {
@@ -424,9 +420,8 @@ export default function Auth({ onAuth }: AuthProps) {
   };
 
   return (
-    <div className={`launch-login-auth-shell min-h-screen bg-background flex flex-col items-center justify-start sm:justify-center px-6 py-8 relative overflow-x-hidden${isMobileRecordingReady ? ' launch-login-auth-shell--mobile-recording-ready' : ''}`}>
-      <LaunchLoginMapTeaser onPlaybackStateChange={handleTeaserPlaybackStateChange} />
-      <LaunchLoginWaterPane className="launch-login-map-teaser__water-pane--foreground launch-login-auth-rain-pane" />
+    <div className="launch-login-auth-shell overflow-x-hidden">
+      <LaunchLoginMapTeaser />
       <div className="launch-login-auth-card w-full max-w-[20rem] relative z-10" data-testid="launch-login-auth-panel">
         {/* Logo */}
         <div className="launch-login-auth-brand text-center" data-testid="launch-login-auth-brand">
@@ -694,7 +689,7 @@ export default function Auth({ onAuth }: AuthProps) {
                   autoComplete={isSignUp ? 'new-password' : 'current-password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="password"
                   className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                   required
                   disabled={isLoading}
@@ -725,7 +720,7 @@ export default function Auth({ onAuth }: AuthProps) {
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="password"
                   className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
                   required={isSignUp}
                   disabled={isLoading}

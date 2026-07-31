@@ -4,9 +4,13 @@
   row-gap: clamp(0.75rem, 1.8dvh, 1.35rem);
   align-items: center;
   justify-items: center;
+  place-items: center;
+  width: 100vw;
+  width: 100dvw;
   height: 100vh;
   height: 100dvh;
   min-height: 0;
+  box-sizing: border-box;
   padding:
     max(0.6rem, env(safe-area-inset-top))
     max(1rem, env(safe-area-inset-right))
@@ -45,8 +49,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: min(100%, calc(100vw - 2rem));
-  max-width: min(34rem, calc(100vw - 2rem));
+  width: min(100%, calc(100dvw - 2rem));
+  max-width: min(34rem, calc(100dvw - 2rem));
   max-height: calc(100dvh - max(1.3rem, env(safe-area-inset-top)) - max(1.3rem, env(safe-area-inset-bottom)));
   margin-inline: auto;
   overflow: visible;
@@ -56,13 +60,6 @@
   --tw-space-y-reverse: 0;
   margin-top: calc(clamp(0.65rem, 1.55dvh, 1.15rem) * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(clamp(0.65rem, 1.55dvh, 1.15rem) * var(--tw-space-y-reverse));
-}
-
-.launch-login-auth-rain-pane {
-  position: fixed;
-  z-index: 60;
-  opacity: 0.62;
-  pointer-events: none;
 }
 
 .launch-login-auth-brand {
@@ -137,14 +134,8 @@
   white-space: nowrap;
 }
 
-@media (max-width: 640px) {
-  .launch-login-auth-shell--mobile-recording-ready .launch-login-auth-rain-pane {
-    opacity: 0.6;
-  }
-}
-
 .launch-login-auth-form {
-  width: min(20rem, calc(100vw - 2.5rem));
+  width: min(20rem, calc(100dvw - 2.5rem));
   max-width: 100%;
   margin-inline: auto;
 }
@@ -441,6 +432,7 @@
   z-index: 20;
   grid-row: 2;
   width: min(20rem, calc(100vw - 3rem));
+  width: min(20rem, calc(100dvw - 3rem));
   max-width: 100%;
   margin-inline: auto;
   margin-bottom: clamp(0.08rem, 0.8dvh, 0.45rem);
@@ -449,6 +441,7 @@
 
 .launch-login-auth-footer [aria-label="Legal and safety links"] {
   width: min(20rem, calc(100vw - 3rem));
+  width: min(20rem, calc(100dvw - 3rem));
   max-width: 100%;
   margin-inline: auto;
   color: rgba(255, 255, 255, 0.62);
@@ -460,6 +453,7 @@
 .launch-login-auth-contact {
   display: inline-flex;
   width: min(20rem, calc(100vw - 3rem));
+  width: min(20rem, calc(100dvw - 3rem));
   max-width: 100%;
   min-height: 1.12rem;
   align-items: center;
@@ -651,12 +645,15 @@
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     row-gap: clamp(0.55rem, 1.15dvh, 0.9rem);
-    width: 100%;
-    max-width: 100%;
+    width: 100vw;
+    width: 100dvw;
+    max-width: none;
     height: 100vh;
     height: 100dvh;
     min-height: 0;
     align-items: center;
+    justify-items: center;
+    place-items: center;
     justify-content: center;
     overflow: hidden;
     padding:
@@ -685,8 +682,8 @@
     flex-direction: column;
     align-items: center;
     flex: none;
-    width: min(100%, calc(100vw - 2rem));
-    max-width: 100%;
+    width: min(20.5rem, calc(100dvw - 1.5rem));
+    max-width: calc(100dvw - 1.5rem);
     min-width: 0;
     margin-inline: auto;
     overflow: visible;
@@ -701,7 +698,7 @@
 
   .launch-login-auth-brand {
     align-items: center;
-    width: min(92vw, 20.5rem);
+    width: 100%;
     min-width: 0;
     gap: 0.48rem;
     padding-top: clamp(0.3rem, 0.75dvh, 0.55rem);
@@ -724,9 +721,9 @@
   }
 
   .launch-login-auth-tagline {
-    width: min(92vw, 20.5rem);
+    width: 100%;
     min-width: 0;
-    max-width: 92vw;
+    max-width: 100%;
     overflow: hidden;
     color: rgba(240, 244, 249, 0.7);
     font-size: clamp(0.96rem, 2.55dvh, 1.16rem);
@@ -744,7 +741,7 @@
   .launch-login-auth-form {
     position: relative;
     left: 0;
-    width: min(82vw, 19.5rem);
+    width: 100%;
     min-width: 0;
     margin-top: 0;
     transform: none;

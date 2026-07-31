@@ -84,6 +84,10 @@ describe('Auth', () => {
     const cssText = Array.from(document.styleSheets).map((sheet) => Array.from(sheet.cssRules ?? []).map((rule) => rule.cssText).join('\n')).join('\n');
 
     expect(cssText).not.toContain('--auth-mobile-center-shift');
+    expect(authCss).toContain('place-items: center;');
+    expect(authCss).toContain('width: 100dvw;');
+    expect(authCss).toContain('width: min(20.5rem, calc(100dvw - 1.5rem));');
+    expect(authCss).toContain('width: 100%;');
   });
 
   it('does not pin the mobile footer actions over the form', () => {
@@ -116,7 +120,7 @@ describe('Auth', () => {
     expect(card?.className).not.toContain('fixed');
     expect(authCss).toContain('height: 100dvh');
     expect(authCss).toContain('overflow: hidden');
-    expect(authCss).toContain('z-index: 60');
+    expect(authCss).not.toContain('launch-login-auth-rain-pane');
   });
 
   it('shows a resend verification action after an unverified login attempt', async () => {
@@ -129,7 +133,7 @@ describe('Auth', () => {
     expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');
     expect(screen.queryByTestId('launch-login-auth-captcha')).not.toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-auth-rain-pane');
+    expect(screen.queryByTestId('launch-login-foreground-rain-pane')).not.toBeInTheDocument();
     expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
     const humanCheckInput = container.querySelector('#launch-login-auth-extra-url');
@@ -195,6 +199,7 @@ describe('Auth', () => {
 
     const signInPassword = screen.getByLabelText('Password');
     expect(signInPassword).toHaveAttribute('type', 'password');
+    expect(signInPassword).toHaveAttribute('placeholder', 'password');
 
     fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
     expect(signInPassword).toHaveAttribute('type', 'text');
@@ -208,6 +213,8 @@ describe('Auth', () => {
     const confirmPassword = screen.getByLabelText('Confirm Password');
     expect(signUpPassword).toHaveAttribute('type', 'password');
     expect(confirmPassword).toHaveAttribute('type', 'password');
+    expect(signUpPassword).toHaveAttribute('placeholder', 'password');
+    expect(confirmPassword).toHaveAttribute('placeholder', 'password');
 
     fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
     fireEvent.click(screen.getByRole('button', { name: 'Show confirm password' }));
@@ -270,7 +277,7 @@ describe('Auth', () => {
     fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
 
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Alpha password')).toBeInTheDocument();
+    expect(screen.getByLabelText('Alpha password')).toHaveAttribute('placeholder', 'alpha password');
     expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute(
       'href',
       'https://ra.co/events/2483120'
