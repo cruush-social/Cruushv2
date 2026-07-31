@@ -68,6 +68,7 @@ function createProfileFixture(overrides: Record<string, unknown> = {}) {
     display_name: 'Jordan',
     photos: [],
     bio: 'Out and about tonight.',
+    signal: '',
     pronouns: ['they/them'],
     custom_pronouns: '',
     year_of_birth: 1998,
@@ -179,6 +180,22 @@ describe('ProfileView', () => {
     expect(screen.getByText('Role')).toBeInTheDocument();
     expect(screen.getByText('Switch')).toBeInTheDocument();
     expect(getProfileById).toHaveBeenCalledWith('user-1');
+  });
+
+  it('shows the saved profile signal on the profile page', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      signal: 'Looking for late-night art kids near the venue.',
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Looking for late-night art kids near the venue.')).toBeInTheDocument();
   });
 
   it('shows HIV, COVID, and MPOX health fields while leaving unfilled values blank', async () => {

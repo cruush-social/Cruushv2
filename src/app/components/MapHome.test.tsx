@@ -936,7 +936,7 @@ describe('MapHome', () => {
 
     expect(await screen.findByRole('heading', { name: 'Map controls' })).toBeInTheDocument();
     expect(screen.getByText(/Seeking and Visibility live on the right side of the map/i)).toBeInTheDocument();
-    expect(screen.getByText(/bug report button stays top center/i)).toBeInTheDocument();
+    expect(screen.getByText(/bug report button stays above the bottom nav and behind open sheets/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
 
