@@ -33,6 +33,22 @@ function getCurrentPageUrl() {
   return `${window.location.pathname}${window.location.search}` || '/';
 }
 
+function getBugButtonPlacement(pageUrl: string) {
+  if (pageUrl.startsWith('/map')) {
+    return 'left-[calc(50%-5.5rem)] top-[calc(5.85rem+env(safe-area-inset-top))] sm:left-1/2 sm:top-[calc(0.75rem+env(safe-area-inset-top))] sm:-translate-x-1/2';
+  }
+
+  return 'left-1/2 top-[calc(0.75rem+env(safe-area-inset-top))] -translate-x-1/2';
+}
+
+function getBugTipPlacement(pageUrl: string) {
+  if (pageUrl.startsWith('/map')) {
+    return 'left-[calc(50%-8rem)] top-[calc(9rem+env(safe-area-inset-top))] sm:left-1/2 sm:top-[calc(4rem+env(safe-area-inset-top))] sm:-translate-x-1/2';
+  }
+
+  return 'left-1/2 top-[calc(4rem+env(safe-area-inset-top))] -translate-x-1/2';
+}
+
 function waitForVideoMetadata(video: HTMLVideoElement) {
   return new Promise<void>((resolve, reject) => {
     const timeout = window.setTimeout(() => reject(new Error('Screenshot timed out.')), 5000);
@@ -180,7 +196,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       }}
     >
       {showTip ? (
-        <div className="fixed left-4 top-[calc(12rem+env(safe-area-inset-top))] z-50 max-w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md">
+        <div className={`fixed z-[60] max-w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(pageUrl)}`}>
           <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"
@@ -194,7 +210,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       <DialogTrigger asChild>
         <button
           aria-label="Report alpha bug"
-          className="fixed left-4 top-[calc(8rem+env(safe-area-inset-top))] z-50 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className={`fixed z-[60] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${getBugButtonPlacement(pageUrl)}`}
           type="button"
         >
           <Bug className="h-5 w-5" />

@@ -28,19 +28,24 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
   const [claiming, setClaiming] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    setOpen(window.localStorage.getItem(offerStorageKey(userId)) !== 'true');
-  }, [userId]);
-
   const markSeen = () => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(offerStorageKey(userId), 'true');
     }
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (window.localStorage.getItem(offerStorageKey(userId)) !== 'true') {
+      markSeen();
+      setOpen(true);
+    } else {
+      setOpen(false);
+    }
+  }, [userId]);
 
   const handleClaim = async () => {
     setClaiming(true);
@@ -48,7 +53,6 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
 
     try {
       const claim = await claimBetaLaunchCruushPlus();
-      markSeen();
       window.dispatchEvent(new CustomEvent(CRUUSH_PLUS_CHANGED_EVENT, { detail: claim }));
       setOpen(false);
     } catch (claimError) {

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DbClient } from "./db.js";
 import type { ModerationContentType, ModerationSurface, PolicyDecision } from "./moderation-types.js";
+import { dbUserHasOwnerFullAccess } from "./owner-access.js";
 
 export type TrustEventInput = {
   userId: string;
@@ -91,6 +92,28 @@ async function ensureTrustProfile(db: DbClient, userId: string) {
   );
 }
 
+async function ensureOwnerTrustProfile(db: DbClient, userId: string) {
+  await db.query(
+    `insert into user_trust_profiles (
+       user_id,
+       trust_score,
+       trust_level,
+       report_weight,
+       max_future_trust,
+       is_suspended
+     )
+     values ($1, 100, 'verified_trusted', 100, 100, false)
+     on conflict (user_id) do update
+     set trust_score = 100,
+         trust_level = 'verified_trusted',
+         report_weight = 100,
+         max_future_trust = 100,
+         is_suspended = false,
+         updated_at = now()`,
+    [userId]
+  );
+}
+
 export async function insertTrustEvent(db: DbClient, input: TrustEventInput) {
   await ensureTrustProfile(db, input.userId);
   await db.query(
@@ -123,6 +146,12 @@ export async function insertTrustEvent(db: DbClient, input: TrustEventInput) {
 
 export async function recalculateTrustProfile(db: DbClient, userId: string) {
   await ensureTrustProfile(db, userId);
+
+  if (await dbUserHasOwnerFullAccess(db, userId)) {
+    await ensureOwnerTrustProfile(db, userId);
+    return;
+  }
+
   await db.query(
     `with event_score as (
        select coalesce(sum(
@@ -361,12 +390,19 @@ export async function applyPolicyDecision(
   decision: PolicyDecision,
   context: PolicyApplicationContext = {}
 ) {
+  const ownerFullAccess = await dbUserHasOwnerFullAccess(db, userId);
+
   if (decision.create_evidence_event) {
     await insertEvidenceEvent(db, userId, decision, context);
   }
 
   if (decision.moderation_history_required) {
     await insertModerationHistory(db, userId, decision, context);
+  }
+
+  if (ownerFullAccess) {
+    await ensureOwnerTrustProfile(db, userId);
+    return;
   }
 
   if (decision.trust_impact !== 0 || decision.set_trust_to_zero) {

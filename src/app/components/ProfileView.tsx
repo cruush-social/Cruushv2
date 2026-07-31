@@ -538,8 +538,8 @@ export function ProfileDetailsTabs({
 
         <Section title="Health" compact={compact}>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <DetailItem label="HIV" value={profileView.hivStatus} compact={compact} />
-            <DetailItem label="Mpox" value={profileView.mpoxStatus} compact={compact} />
+            <DetailItem label="HIV" value={profileView.hivStatus} compact={compact} emptyFallback="" />
+            <DetailItem label="Mpox" value={profileView.mpoxStatus} compact={compact} emptyFallback="" />
           </div>
         </Section>
 
@@ -595,11 +595,21 @@ function BadgeList({
   );
 }
 
-function DetailItem({ label, value, compact = false }: { label: string; value: string | null; compact?: boolean }) {
+function DetailItem({
+  label,
+  value,
+  compact = false,
+  emptyFallback = 'Not shared',
+}: {
+  label: string;
+  value: string | null;
+  compact?: boolean;
+  emptyFallback?: string;
+}) {
   return (
     <div className={`rounded-xl border border-border bg-background/50 ${compact ? 'p-2.5' : 'p-3'}`}>
       <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
-      <div className="mt-1 text-foreground">{value || 'Not shared'}</div>
+      <div className="mt-1 min-h-[1.25rem] text-foreground">{value || emptyFallback}</div>
     </div>
   );
 }

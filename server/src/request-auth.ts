@@ -9,6 +9,7 @@ import {
 import { isAlphaTestExpired } from "./alpha-test.js";
 import { getSessionTokenFromRequest, hashSessionToken } from "./auth.js";
 import { ApiError } from "./errors.js";
+import { isOwnerFullAccessEmail, ownerFullAccessCanBypassAccountStatus } from "./owner-access.js";
 
 const userIdHeaderSchema = z.object({
   "x-user-id": z.uuid()
@@ -16,12 +17,14 @@ const userIdHeaderSchema = z.object({
 
 type SessionLookupRow = {
   user_id: string;
+  email?: string | null;
   account_status?: string | null;
 };
 
 type SessionLookup = {
   userId: string;
   accountStatus: AccountStatus;
+  ownerFullAccess: boolean;
   tokenHash: string;
 };
 
@@ -30,6 +33,7 @@ async function lookupSession(request: FastifyRequest, sessionToken: string) {
   const sessionLookup = await request.server.db.query<SessionLookupRow>(
     `select
        s.user_id,
+       u.email,
        coalesce(u.account_status, 'active') as account_status
      from app_sessions s
      join app_users u on u.id = s.user_id
@@ -52,6 +56,7 @@ async function lookupSession(request: FastifyRequest, sessionToken: string) {
   return {
     userId: session.user_id,
     accountStatus: normalizeAccountStatus(session.account_status),
+    ownerFullAccess: isOwnerFullAccessEmail(session.email),
     tokenHash
   } satisfies SessionLookup;
 }
@@ -80,7 +85,10 @@ export async function getAuthenticatedUserId(request: FastifyRequest) {
     const session = await lookupSession(request, sessionToken);
 
     if (session) {
-      if (accountCanAuthenticate(session.accountStatus)) {
+      if (
+        accountCanAuthenticate(session.accountStatus) ||
+        ownerFullAccessCanBypassAccountStatus(session.ownerFullAccess, session.accountStatus)
+      ) {
         return session.userId;
       }
 
@@ -105,7 +113,10 @@ export async function getActiveAccountUserId(request: FastifyRequest) {
     const session = await lookupSession(request, sessionToken);
 
     if (session) {
-      if (accountCanPerformUnsafeAction(session.accountStatus)) {
+      if (
+        accountCanPerformUnsafeAction(session.accountStatus) ||
+        ownerFullAccessCanBypassAccountStatus(session.ownerFullAccess, session.accountStatus)
+      ) {
         return session.userId;
       }
 
@@ -138,7 +149,10 @@ export async function getOptionalAuthenticatedUserId(request: FastifyRequest) {
     const session = await lookupSession(request, sessionToken);
 
     if (session) {
-      if (accountCanAuthenticate(session.accountStatus)) {
+      if (
+        accountCanAuthenticate(session.accountStatus) ||
+        ownerFullAccessCanBypassAccountStatus(session.ownerFullAccess, session.accountStatus)
+      ) {
         return session.userId;
       }
 

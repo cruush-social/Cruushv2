@@ -511,8 +511,8 @@ describe('MapHome', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-[6.25rem]');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-[7.03125rem]');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-[5.25rem]');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-[6.25rem]');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
 
@@ -584,8 +584,8 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
     expect(topActions).toHaveClass('pointer-events-auto', 'mt-0');
     expect(topActions).not.toHaveClass('mt-11');
-    expect(rightActions).toHaveClass('right-3', 'top-20', 'sm:right-4');
-    expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-lg');
+    expect(rightActions).toHaveClass('right-3', 'top-16', 'sm:right-4');
+    expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-base', 'sm:text-lg');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-[1.5625rem]', 'w-[1.5625rem]');
     expect(ghostModeIcon).toHaveClass('h-4', 'w-4');

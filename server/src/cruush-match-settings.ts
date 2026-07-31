@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ApiError } from "./errors.js";
 import { hasActiveMutualMessagePermission } from "./match-relationships.js";
+import { userHasOwnerFullAccess } from "./owner-access.js";
 
 export const nsfwMessageVisibilitySchema = z.enum(["public", "mutual_cruushes", "none"]);
 
@@ -167,6 +168,10 @@ export async function assertCanSendNsfwMessagePhoto(
     senderUserId: string;
   }
 ) {
+  if (await userHasOwnerFullAccess(app, input.senderUserId)) {
+    return;
+  }
+
   const recipientUserIds = await loadConversationRecipientIds(app, input.conversationId, input.senderUserId);
   const settingsByUserId = await loadSettingsByUserId(app, [input.senderUserId, ...recipientUserIds]);
   const senderSettings = settingsByUserId.get(input.senderUserId) ?? DEFAULT_CRUUSH_MATCH_SETTINGS;

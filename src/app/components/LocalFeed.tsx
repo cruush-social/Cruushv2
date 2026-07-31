@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Clock, MapPin, Settings2, Trash2 } from 'lucide-react';
+import { Clock, MapPin, Settings2, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
@@ -208,12 +208,8 @@ export default function LocalFeed() {
   return (
     <div className="min-h-screen bg-[#050505] pb-20 text-foreground">
       <header className="sticky top-0 bg-black/88 backdrop-blur-sm border-b border-white/10 p-4 flex items-center gap-4 z-10">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
         <div>
           <h2 className="text-xl">Local Feed</h2>
-          <p className="text-xs text-white/58">Nearby posts expire after 24h</p>
         </div>
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogTrigger asChild>

@@ -21,6 +21,7 @@ import {
 } from "./location-privacy.js";
 import { hasUserBlockBetween } from "./user-blocks.js";
 import { getAlphaTestState } from "./alpha-test.js";
+import { userHasOwnerFullAccess } from "./owner-access.js";
 
 export type PreciseLocationVisibility = "none" | "mutual_cruushes";
 
@@ -225,6 +226,13 @@ export async function savePrivacySettings(
 }
 
 export async function getCruushEntitlement(app: FastifyInstance, userId: string): Promise<CruushEntitlement> {
+  if (await userHasOwnerFullAccess(app, userId)) {
+    return {
+      cruushPlus: true,
+      expiresAt: null
+    };
+  }
+
   const row = (await safeRows<EntitlementRow>(
     app,
     `with paid_state as (
@@ -503,6 +511,10 @@ export async function hasActiveMutualMessagePermission(
   userId: string,
   otherUserId: string
 ) {
+  if (await userHasOwnerFullAccess(app, userId) && !await hasUserBlockBetween(app, userId, otherUserId)) {
+    return true;
+  }
+
   return (await getRelationshipPermissions(app, userId, otherUserId)).canMessage;
 }
 

@@ -4,6 +4,7 @@ import { runTransaction, type DbClient } from "./db.js";
 import { ApiError } from "./errors.js";
 import { deleteEncryptedMediaObject } from "./media-storage.js";
 import type { PolicyDecision, ProviderModerationResult } from "./moderation-types.js";
+import { dbUserHasOwnerFullAccess } from "./owner-access.js";
 
 export const BANK_PROFILE_PHOTO_REVIEW_TTL_MS = 30 * 60 * 1000;
 
@@ -362,24 +363,30 @@ export async function approvePendingProfilePhotoReview(
       ]
     );
 
+    const ownerFullAccess = await dbUserHasOwnerFullAccess(client, review.owner_user_id);
     const saved = await client.query<{ photos: string[] }>(
       `with eligible_user as (
          select users.id
          from app_users users
          left join user_trust_profiles trust on trust.user_id = users.id
          where users.id = $1
-           and coalesce(trust.is_suspended, false) = false
-           and coalesce(trust.trust_score, 50) > 20
-           and not exists (
-             select 1 from suspensions suspension
-             where suspension.user_id = users.id
-               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-           )
-           and not exists (
-             select 1 from feature_restrictions restriction
-             where restriction.user_id = users.id
-               and restriction.feature = 'photo_uploads'
-               and (restriction.ends_at is null or restriction.ends_at > now())
+           and (
+             $3::boolean
+             or (
+               coalesce(trust.is_suspended, false) = false
+               and coalesce(trust.trust_score, 50) > 20
+               and not exists (
+                 select 1 from suspensions suspension
+                 where suspension.user_id = users.id
+                   and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+               )
+               and not exists (
+                 select 1 from feature_restrictions restriction
+                 where restriction.user_id = users.id
+                   and restriction.feature = 'photo_uploads'
+                   and (restriction.ends_at is null or restriction.ends_at > now())
+               )
+             )
            )
        )
        insert into profiles (id, photos, updated_at)
@@ -394,7 +401,7 @@ export async function approvePendingProfilePhotoReview(
        where array_position(profiles.photos, $2) is not null
           or coalesce(array_length(profiles.photos, 1), 0) < 4
        returning photos`,
-      [review.owner_user_id, review.public_url]
+      [review.owner_user_id, review.public_url, ownerFullAccess]
     );
 
     if (!saved.rows[0]) {

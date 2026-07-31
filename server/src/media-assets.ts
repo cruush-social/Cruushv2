@@ -5,6 +5,7 @@ import { ApiError } from "./errors.js";
 import { encryptMediaBytes } from "./media-encryption.js";
 import type { ProcessedImage } from "./media-image.js";
 import { createMediaModerationInspectionUrl } from "./media-moderation-url.js";
+import { activeAlphaProfilePhotoUploadBypass } from "./photo-upload-availability.js";
 import {
   cleanupModerationMediaGrants,
   createModerationMediaGrant,
@@ -68,8 +69,16 @@ function deployedSafetyReadyBeforePhotoDna(app: FastifyInstance) {
     app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
 }
 
-function shouldBypassPhotoDnaForLaunchUploads(app: FastifyInstance) {
-  return deployedSafetyReadyBeforePhotoDna(app);
+function shouldBypassPhotoDnaForLaunchUploads(
+  app: FastifyInstance,
+  surface: "profile_photo" | "direct_message" | "group_message"
+) {
+  if (deployedSafetyReadyBeforePhotoDna(app)) {
+    return true;
+  }
+
+  return surface === "profile_photo" &&
+    activeAlphaProfilePhotoUploadBypass(app.config);
 }
 
 async function deleteObjectsBestEffort(
@@ -330,7 +339,7 @@ export async function moderatePendingMediaAsset(
 ): Promise<ApprovedMediaCandidate> {
   try {
     const accessBanIdentity = severeAccessBanIdentity(app.config, request);
-    const photoDnaResult: PhotoDnaResult = shouldBypassPhotoDnaForLaunchUploads(app)
+    const photoDnaResult: PhotoDnaResult = shouldBypassPhotoDnaForLaunchUploads(app, input.moderationSurface)
       ? { status: "not_configured" }
       : await checkPhotoDnaForUploadOrReject(app, {
           userId: asset.ownerUserId,

@@ -23,12 +23,12 @@ export default function DlModeDefaultNotice() {
   useEffect(() => {
     if (shouldShowDlModeDefaultNotice()) {
       setDlModeEnabled(true);
+      markDlModeDefaultNoticeSeen();
       setOpen(true);
     }
   }, []);
 
   const closeNotice = () => {
-    markDlModeDefaultNoticeSeen();
     setOpen(false);
   };
 

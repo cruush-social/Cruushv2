@@ -1135,6 +1135,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     const nearbyMarkers = displayedUsers.map((user) => {
       return {
         id: user.id,
+        userId: user.id,
         kind: 'person',
         displayName: user.name,
         approximateLatitude: user.lat,
@@ -1179,6 +1180,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     return [
       {
         id: 'me',
+        userId: currentProfile?.id ?? 'me',
         displayName: 'You',
         approximateLatitude: currentUserMapLocation.approximateLatitude,
         approximateLongitude: currentUserMapLocation.approximateLongitude,
@@ -1330,7 +1332,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <img
               alt=""
               aria-hidden="true"
-              className="h-[6.25rem] w-auto object-contain sm:h-[7.03125rem]"
+              className="h-[5.25rem] w-auto object-contain sm:h-[6.25rem]"
               draggable={false}
               src={cruushLogo}
             />
@@ -1348,7 +1350,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={() => navigate('/rewards')}
               aria-label="cruush+ rewards"
               title="cruush+ rewards"
-              className="cruush-logo-font rounded-full px-3 text-lg font-normal leading-none tracking-normal normal-case text-white"
+              className="cruush-logo-font h-10 rounded-full px-2.5 text-base font-normal leading-none tracking-normal normal-case text-white sm:h-11 sm:px-3 sm:text-lg"
               style={{ background: 'var(--cruush-gradient)' }}
             >
               <CruushPlusWord />
@@ -1494,7 +1496,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             className={`pointer-events-auto absolute z-40 rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
               isMobile
                 ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3'
-                : 'left-4 top-24 w-[22rem]'
+                : 'left-4 top-[8.75rem] w-[22rem]'
             }`}
             role="dialog"
             aria-label={`${selectedEvent.venueName} launch party`}
@@ -1625,7 +1627,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-20 z-30 flex flex-col items-end gap-2 sm:right-4"
+          className="pointer-events-auto absolute right-3 top-16 z-30 flex flex-col items-end gap-2 sm:right-4"
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (

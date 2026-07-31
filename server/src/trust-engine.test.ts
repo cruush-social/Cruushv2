@@ -78,10 +78,24 @@ describe("trust engine calculations", () => {
 
     await recalculateTrustProfile({ query } as unknown as DbClient, "user-id");
 
-    const recalculationSql = String(query.mock.calls[1]?.[0] ?? "");
+    const recalculationSql = String(query.mock.calls[2]?.[0] ?? "");
     expect(recalculationSql).toContain("extract(epoch from (now() - created_at))");
     expect(recalculationSql).toContain("decays = true");
     expect(recalculationSql).toContain("permanent = false");
+  });
+
+  it("keeps the owner full access account at verified trust", async () => {
+    const query = vi.fn()
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ email: "julienlenazny@gmail.com" }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await recalculateTrustProfile({ query } as unknown as DbClient, "owner-user-id");
+
+    const ownerTrustSql = String(query.mock.calls[2]?.[0] ?? "");
+    expect(ownerTrustSql).toContain("trust_score");
+    expect(ownerTrustSql).toContain("verified_trusted");
+    expect(ownerTrustSql).not.toContain("event_score");
   });
 
   it("recalculates users with decaying negative trust events", async () => {

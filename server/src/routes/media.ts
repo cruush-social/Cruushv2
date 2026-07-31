@@ -18,6 +18,7 @@ import {
   readEncryptedMediaObject
 } from "../media-storage.js";
 import { approvedContentReviewCte } from "../moderation-service.js";
+import { userHasOwnerFullAccess } from "../owner-access.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { assertUsersNotBlocked } from "../user-blocks.js";
@@ -395,6 +396,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
 
   app.post("/api/profile-photos", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
+    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
 
     if (!photoUploadAvailability(app.config).profilePhotos) {
       throw new ApiError(503, "FEATURE_RESTRICTED", "Profile photo uploads are temporarily unavailable.");
@@ -440,22 +442,27 @@ export async function registerMediaRoutes(app: FastifyInstance) {
            from app_users app_user
            left join user_trust_profiles trust on trust.user_id = app_user.id
            where app_user.id = $1
-             and app_user.account_status = 'active'
-             and coalesce(trust.is_suspended, false) = false
-             and coalesce(trust.trust_score, 50) > 20
-             and not exists (
-               select 1 from suspensions suspension
-               where suspension.user_id = app_user.id
-                 and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-             )
-             and not exists (
-               select 1 from feature_restrictions restriction
-               where restriction.user_id = app_user.id
-                 and restriction.feature = 'photo_uploads'
-                 and (restriction.ends_at is null or restriction.ends_at > now())
+             and (
+               $2::boolean
+               or (
+                 app_user.account_status = 'active'
+                 and coalesce(trust.is_suspended, false) = false
+                 and coalesce(trust.trust_score, 50) > 20
+                 and not exists (
+                   select 1 from suspensions suspension
+                   where suspension.user_id = app_user.id
+                     and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+                 )
+                 and not exists (
+                   select 1 from feature_restrictions restriction
+                   where restriction.user_id = app_user.id
+                     and restriction.feature = 'photo_uploads'
+                     and (restriction.ends_at is null or restriction.ends_at > now())
+                 )
+               )
              )
          ) as photo_uploads_allowed`,
-      [userId]
+      [userId, ownerFullAccess]
     );
     const currentPhotoState = currentPhotoResult.rows[0];
     const currentPhotos = currentPhotoState?.photos ?? [];
@@ -490,19 +497,24 @@ export async function registerMediaRoutes(app: FastifyInstance) {
            from app_users app_user
            left join user_trust_profiles trust on trust.user_id = app_user.id
            where app_user.id = $1
-             and app_user.account_status = 'active'
-             and coalesce(trust.is_suspended, false) = false
-             and coalesce(trust.trust_score, 50) > 20
-             and not exists (
-               select 1 from suspensions suspension
-               where suspension.user_id = app_user.id
-                 and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-             )
-             and not exists (
-               select 1 from feature_restrictions restriction
-               where restriction.user_id = app_user.id
-                 and restriction.feature = 'photo_uploads'
-                 and (restriction.ends_at is null or restriction.ends_at > now())
+             and (
+               $13::boolean
+               or (
+                 app_user.account_status = 'active'
+                 and coalesce(trust.is_suspended, false) = false
+                 and coalesce(trust.trust_score, 50) > 20
+                 and not exists (
+                   select 1 from suspensions suspension
+                   where suspension.user_id = app_user.id
+                     and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+                 )
+                 and not exists (
+                   select 1 from feature_restrictions restriction
+                   where restriction.user_id = app_user.id
+                     and restriction.feature = 'photo_uploads'
+                     and (restriction.ends_at is null or restriction.ends_at > now())
+                 )
+               )
              )
          ), candidate_media as (
            select media.id, media.owner_user_id
@@ -566,7 +578,8 @@ export async function registerMediaRoutes(app: FastifyInstance) {
           JSON.stringify(asset.moderation.rawResult),
           asset.moderation.photoDnaStatus,
           asset.moderation.photoDnaProviderRequestId,
-          isAdultExplicit
+          isAdultExplicit,
+          ownerFullAccess
         ]
       );
       if (!savedPhotoResult.rows[0]) {

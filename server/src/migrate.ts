@@ -54,7 +54,8 @@ const migrationFiles = [
   "046_referral_signup_privacy.sql",
   "047_beta_city_requests.sql",
   "048_cruush_plus_promo_codes.sql",
-  "049_feed_location_pin_visibility.sql"
+  "049_feed_location_pin_visibility.sql",
+  "050_owner_full_access_account.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

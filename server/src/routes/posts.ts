@@ -9,6 +9,7 @@ import { createCrowdTokens } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
+import { userHasOwnerFullAccess } from "../owner-access.js";
 
 type PostRow = {
   id: string;
@@ -269,6 +270,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
     await requireCruushPlus(app, userId, "Upgrade to cruush+ to post on the local feed.");
+    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
     const moderation = await moderateTextOrReject(app, {
       userId,
       surface: "feed",
@@ -287,20 +289,25 @@ export async function registerPostRoutes(app: FastifyInstance) {
          from app_users u
          left join user_trust_profiles trust on trust.user_id = u.id
          where u.id = $1
-           and coalesce(trust.is_suspended, false) = false
-           and coalesce(trust.trust_score, 50) > 20
-           and not exists (
-             select 1
-             from suspensions suspension
-             where suspension.user_id = u.id
-               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-           )
-           and not exists (
-             select 1
-             from feature_restrictions restriction
-             where restriction.user_id = u.id
-               and restriction.feature = 'feed_posting'
-               and (restriction.ends_at is null or restriction.ends_at > now())
+           and (
+             $16::boolean
+             or (
+               coalesce(trust.is_suspended, false) = false
+               and coalesce(trust.trust_score, 50) > 20
+               and not exists (
+                 select 1
+                 from suspensions suspension
+                 where suspension.user_id = u.id
+                   and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+               )
+               and not exists (
+                 select 1
+                 from feature_restrictions restriction
+                 where restriction.user_id = u.id
+                   and restriction.feature = 'feed_posting'
+                   and (restriction.ends_at is null or restriction.ends_at > now())
+               )
+             )
            )
            and not exists (
              select requested.crowd
@@ -429,7 +436,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
         null,
         JSON.stringify(moderation.providerResult.raw_result ?? {}),
         payload.crowdTargets,
-        JSON.stringify(crowdTargetTokenRows)
+        JSON.stringify(crowdTargetTokenRows),
+        ownerFullAccess
       ]
     );
     const row = result.rows[0];

@@ -20,6 +20,10 @@ import {
   detectProfilePhotoHuman,
   mergeProfilePhotoSafetyResults
 } from "./profile-photo-human-detection.js";
+import {
+  activeAlphaProfilePhotoUploadBypass,
+  activeAlphaTest
+} from "./photo-upload-availability.js";
 import { applyPolicyDecision } from "./trust-engine.js";
 import {
   persistSevereAccessBan,
@@ -264,6 +268,94 @@ function hasHumanProof(providerResult: ProviderModerationResult) {
     ["adult_human_body", "human_present"].includes(label.normalized_label) &&
     label.confidence >= 0.7
   );
+}
+
+function providerResultUnavailable(providerResult: ProviderModerationResult) {
+  return Boolean(providerResult.error) ||
+    ["partial", "pending", "provider_processing", "error"].includes((providerResult.status ?? "").toLowerCase());
+}
+
+function providerResultComplete(providerResult: ProviderModerationResult) {
+  return !providerResult.error && ["complete", "completed"].includes((providerResult.status ?? "").toLowerCase());
+}
+
+function providerErrorResult(providerName: string, startedAt: number, error: unknown): ProviderModerationResult {
+  return {
+    provider: providerName,
+    provider_request_id: `${providerName}-error-${Date.now().toString(36)}`,
+    labels: [],
+    latency_ms: Date.now() - startedAt,
+    status: "error",
+    raw_result: {
+      error_name: error instanceof Error ? error.name : "UnknownError"
+    },
+    error: error instanceof Error ? error.message : "Image moderation failed."
+  };
+}
+
+function canUseProfilePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
+  return surface === "profile_photo" &&
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
+    (
+      app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
+      (
+        activeAlphaTest(app.config) &&
+        app.config.ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED === true
+      )
+    );
+}
+
+function canUseAlphaProfilePhotoUploadBypass(app: FastifyInstance, surface: ModerationSurface) {
+  return surface === "profile_photo" &&
+    activeAlphaProfilePhotoUploadBypass(app.config);
+}
+
+function profilePhotoRekognitionFallbackResult(
+  primaryResult: ProviderModerationResult,
+  safetyResult: ProviderModerationResult
+): ProviderModerationResult {
+  return {
+    ...safetyResult,
+    provider: `${primaryResult.provider}+${safetyResult.provider}`,
+    provider_request_id: `${primaryResult.provider_request_id}:${safetyResult.provider_request_id}`,
+    latency_ms: primaryResult.latency_ms + safetyResult.latency_ms,
+    raw_result: {
+      primary: primaryResult.raw_result ?? {},
+      primary_provider: primaryResult.provider,
+      primary_status: primaryResult.status ?? null,
+      primary_error: primaryResult.error ?? null,
+      rekognition_safety: safetyResult.raw_result ?? {},
+      rekognition_fallback: true
+    }
+  };
+}
+
+function profilePhotoAlphaUploadBypassResult(providerResult: ProviderModerationResult): ProviderModerationResult {
+  if (providerResult.raw_result?.alpha_profile_photo_upload_bypass === true) {
+    return providerResult;
+  }
+
+  const { error: _error, ...resultWithoutError } = providerResult;
+
+  return {
+    ...resultWithoutError,
+    provider: `${providerResult.provider}+alpha_upload_bypass`,
+    provider_request_id: `${providerResult.provider_request_id}:alpha-profile-photo-upload`,
+    labels: [],
+    status: "completed",
+    recommended_action: "keep",
+    raw_result: {
+      provider_result: providerResult.raw_result ?? {},
+      provider_status: providerResult.status ?? null,
+      provider_error: providerResult.error ?? null,
+      alpha_profile_photo_upload_bypass: true
+    }
+  };
+}
+
+function isProviderUnavailableDecision(decision: PolicyDecision) {
+  return decision.decision === "quarantine" &&
+    (decision.category === "provider_unavailable" || decision.reason_code === "provider_unavailable");
 }
 
 function rejectProfilePhotoWithoutAdultHuman(providerResult: ProviderModerationResult): {
@@ -518,13 +610,32 @@ export async function moderateImageOrReject(
   options: { allowProfilePhotoManualReview?: boolean } = {}
 ) {
   const provider = createModerationProvider(app.config);
-  let providerResult = await provider.moderateImage(input);
+  const useAlphaProfilePhotoUploadBypass = canUseAlphaProfilePhotoUploadBypass(app, input.surface);
+  const useProfilePhotoRekognitionFallback = canUseProfilePhotoRekognitionFallback(app, input.surface);
+  const startedAt = Date.now();
+  let providerResult: ProviderModerationResult;
 
-  if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true) {
+  try {
+    providerResult = await provider.moderateImage(input);
+  } catch (error) {
+    if (!useAlphaProfilePhotoUploadBypass) {
+      throw error;
+    }
+
+    providerResult = providerErrorResult(provider.name, startedAt, error);
+  }
+
+  if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true || useProfilePhotoRekognitionFallback) {
     const safetyResult = input.surface === "profile_photo"
       ? await detectProfilePhotoHuman(app.config, input.bytes)
       : await detectImageChildFaces(app.config, input.bytes);
-    providerResult = mergeProfilePhotoSafetyResults(providerResult, safetyResult);
+
+    providerResult = input.surface === "profile_photo" &&
+      useProfilePhotoRekognitionFallback &&
+      (providerResultUnavailable(providerResult) || providerResult.provider === "mock") &&
+      providerResultComplete(safetyResult)
+      ? profilePhotoRekognitionFallbackResult(providerResult, safetyResult)
+      : mergeProfilePhotoSafetyResults(providerResult, safetyResult);
   }
 
   let decision = mapProviderResultToPolicy({
@@ -534,17 +645,34 @@ export async function moderateImageOrReject(
   });
   let resolvedProviderResult = providerResult;
 
-  if (input.surface === "profile_photo") {
-    const gate = resolveProfilePhotoAdultHumanGate(providerResult, decision, {
-      allowManualReview: options.allowProfilePhotoManualReview === true
+  if (useAlphaProfilePhotoUploadBypass && isProviderUnavailableDecision(decision)) {
+    resolvedProviderResult = profilePhotoAlphaUploadBypassResult(providerResult);
+    decision = mapProviderResultToPolicy({
+      surface: input.surface,
+      contentType: "image",
+      providerResult: resolvedProviderResult
     });
+  }
 
-    if (gate.status === "manual_review_required") {
-      return gate;
+  if (input.surface === "profile_photo") {
+    const skipAdultHumanGateForAlphaUpload = useAlphaProfilePhotoUploadBypass &&
+      decision.decision === "allow" &&
+      !hasHumanProof(resolvedProviderResult);
+
+    if (skipAdultHumanGateForAlphaUpload) {
+      resolvedProviderResult = profilePhotoAlphaUploadBypassResult(resolvedProviderResult);
+    } else {
+      const gate = resolveProfilePhotoAdultHumanGate(resolvedProviderResult, decision, {
+        allowManualReview: options.allowProfilePhotoManualReview === true
+      });
+
+      if (gate.status === "manual_review_required") {
+        return gate;
+      }
+
+      decision = gate.decision;
+      resolvedProviderResult = gate.providerResult;
     }
-
-    decision = gate.decision;
-    resolvedProviderResult = gate.providerResult;
   }
 
   return handlePolicyDecision(app, input.userId, input.surface, "image", resolvedProviderResult, decision, {

@@ -32,7 +32,9 @@ describe('AlphaBugButton', () => {
     render(<AlphaBugButton enabled />);
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
-    expect(reportButton).toHaveClass('left-4', 'top-[calc(8rem+env(safe-area-inset-top))]');
+    expect(reportButton).toHaveClass('left-[calc(50%-5.5rem)]', 'top-[calc(5.85rem+env(safe-area-inset-top))]');
+    expect(reportButton).toHaveClass('sm:left-1/2', 'sm:top-[calc(0.75rem+env(safe-area-inset-top))]');
+    expect(reportButton).not.toHaveClass('left-4', 'top-[calc(8rem+env(safe-area-inset-top))]');
     expect(reportButton).not.toHaveClass('right-4');
 
     fireEvent.click(reportButton);

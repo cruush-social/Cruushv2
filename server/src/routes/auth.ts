@@ -46,9 +46,11 @@ import {
 import { prepareSignupReferral } from "../referrals-service.js";
 import { encryptReferralSignupPrivacy } from "../referral-privacy.js";
 import { verifyLoginSecondFactor } from "../two-factor.js";
+import { isOwnerFullAccessEmail, ownerCanBypassAccountStatus } from "../owner-access.js";
 
 type SessionLookupRow = {
   user_id: string;
+  email?: string | null;
   account_status?: string | null;
 };
 
@@ -103,6 +105,7 @@ type PasswordResetUserRow = {
 
 type PasswordResetLookupRow = {
   user_id: string;
+  email?: string | null;
   account_status?: string | null;
 };
 
@@ -129,6 +132,7 @@ function mapSessionRow(row: AuthUserRow) {
   const profileDisplayName = row.profile_display_name?.trim() || null;
   const needsOnboarding = !profileDisplayName || !row.year_of_birth;
   const acceptedCodeOfConductVersion = row.code_of_conduct_accepted_version?.trim() || null;
+  const moderatorRole = row.moderator_role ?? (isOwnerFullAccessEmail(row.email) ? "admin" : null);
 
   return {
     user: {
@@ -138,7 +142,7 @@ function mapSessionRow(row: AuthUserRow) {
       emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : null,
       createdAt: new Date(row.created_at).toISOString(),
       accountStatus: normalizeAccountStatus(row.account_status),
-      ...(row.moderator_role ? { moderatorRole: row.moderator_role } : {}),
+      ...(moderatorRole ? { moderatorRole } : {}),
     },
     profile: profileDisplayName || row.year_of_birth
       ? {
@@ -244,7 +248,9 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
     throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
-  if (!accountCanAuthenticate(row.account_status)) {
+  const accountStatus = normalizeAccountStatus(row.account_status);
+
+  if (!accountCanAuthenticate(accountStatus) && !ownerCanBypassAccountStatus(row.email, accountStatus)) {
     throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
@@ -271,6 +277,7 @@ async function resolveCurrentSession(request: FastifyRequest) {
   const result = await request.server.db.query<SessionLookupRow>(
     `select
        s.user_id,
+       u.email,
        coalesce(u.account_status, 'active') as account_status
      from app_sessions s
      join app_users u on u.id = s.user_id
@@ -294,7 +301,9 @@ async function resolveCurrentSession(request: FastifyRequest) {
     throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
-  if (!accountCanAuthenticate(session.account_status)) {
+  const accountStatus = normalizeAccountStatus(session.account_status);
+
+  if (!accountCanAuthenticate(accountStatus) && !ownerCanBypassAccountStatus(session.email, accountStatus)) {
     await request.server.db.query(
       "delete from app_sessions where token_hash = $1",
       [tokenHash]
@@ -615,7 +624,9 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 
-    if (!accountCanAuthenticate(user.account_status)) {
+    const accountStatus = normalizeAccountStatus(user.account_status);
+
+    if (!accountCanAuthenticate(accountStatus) && !ownerCanBypassAccountStatus(user.email, accountStatus)) {
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 
@@ -679,7 +690,9 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     const user = result.rows[0];
 
-    if (!user || !accountCanAuthenticate(user.account_status)) {
+    const accountStatus = user ? normalizeAccountStatus(user.account_status) : null;
+
+    if (!user || !accountStatus || (!accountCanAuthenticate(accountStatus) && !ownerCanBypassAccountStatus(user.email, accountStatus))) {
       return reply.code(202).send({
         data: {
           accepted: true,
@@ -723,6 +736,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const resetLookup = await app.db.query<PasswordResetLookupRow>(
       `select
          tokens.user_id,
+         users.email,
          coalesce(users.account_status, 'active') as account_status
        from password_reset_tokens tokens
        join app_users users on users.id = tokens.user_id
@@ -734,7 +748,9 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     const resetToken = resetLookup.rows[0];
 
-    if (!resetToken || !accountCanAuthenticate(resetToken.account_status)) {
+    const accountStatus = resetToken ? normalizeAccountStatus(resetToken.account_status) : null;
+
+    if (!resetToken || !accountStatus || (!accountCanAuthenticate(accountStatus) && !ownerCanBypassAccountStatus(resetToken.email, accountStatus))) {
       throw new ApiError(400, "VALIDATION_ERROR", "Password reset link is invalid or expired.");
     }
 
@@ -919,7 +935,9 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 
-    if (!accountCanAuthenticate(user.account_status)) {
+    const accountStatus = normalizeAccountStatus(user.account_status);
+
+    if (!accountCanAuthenticate(accountStatus) && !ownerCanBypassAccountStatus(user.email, accountStatus)) {
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 

@@ -8,6 +8,7 @@ export type MapMarker = {
   id: string;
   kind?: 'person' | 'event' | 'cluster';
   displayName: string;
+  userId?: string;
   approximateLatitude: number;
   approximateLongitude: number;
   lastActiveLabel?: string;

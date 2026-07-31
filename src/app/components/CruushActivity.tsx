@@ -15,7 +15,6 @@ import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
-import cruushLogo from '../assets/brand/cruush-logo.svg';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 
@@ -408,7 +407,7 @@ export default function CruushActivity() {
             <div className="grid grid-cols-[44px_1fr_44px] items-center">
               <div />
               <div className="flex justify-center">
-                <img alt="cruush" className="h-[4.375rem] w-auto object-contain" src={cruushLogo} draggable={false} />
+                <h1 className="text-2xl text-white sm:text-3xl">Activity</h1>
               </div>
               <Button
                 type="button"
@@ -425,7 +424,7 @@ export default function CruushActivity() {
             <div data-testid="cruush-count-grid" className="mt-3 grid grid-cols-[repeat(4,minmax(0,1fr))] gap-2">
               {(['incoming', 'sent', 'mutual', 'views'] as ActivityTab[]).map((tab) => (
                 <div key={tab} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
-                  <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/46">{tab}</p>
+                  <p className="truncate text-[9px] uppercase tracking-[0.08em] text-white/46 sm:text-[10px]">{tab}</p>
                   <p className="truncate text-sm tabular-nums text-white">{activity?.counts[tab] ?? 0}</p>
                 </div>
               ))}

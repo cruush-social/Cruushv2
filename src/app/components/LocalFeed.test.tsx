@@ -51,6 +51,7 @@ vi.mock('../lib/sessionUser', () => ({
 }));
 
 vi.mock('../lib/billingApi', () => ({
+  CRUUSH_PLUS_CHANGED_EVENT: 'cruush-plus:changed',
   getMyBillingStatus,
 }));
 
@@ -148,6 +149,8 @@ describe('LocalFeed', () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByRole('heading', { name: 'Local Feed' })).toBeInTheDocument();
+    expect(screen.queryByText('Nearby posts expire after 24h')).not.toBeInTheDocument();
     expect(await screen.findByText('mine to delete')).toBeInTheDocument();
     expect(screen.getByText('someone else post')).toBeInTheDocument();
 

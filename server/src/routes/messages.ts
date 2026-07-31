@@ -23,6 +23,7 @@ import {
   updateGroupConversationPayloadSchema
 } from "../message-schema.js";
 import { approvedContentReviewCte, moderateMessageTextOrAllowByKeyword } from "../moderation-service.js";
+import { userHasOwnerFullAccess } from "../owner-access.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 const conversationParamsSchema = z.object({
@@ -616,6 +617,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const payload = createGroupConversationPayloadSchema.parse(request.body);
     const memberIds = [...new Set(payload.memberIds.filter((memberId) => memberId !== userId))];
+    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
 
     await assertMutualGroupInvitees(app, userId, memberIds);
 
@@ -625,20 +627,25 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          from app_users u
          left join user_trust_profiles trust on trust.user_id = u.id
          where u.id = $1
-           and coalesce(trust.is_suspended, false) = false
-           and coalesce(trust.trust_score, 50) > 20
-           and not exists (
-             select 1
-             from suspensions suspension
-             where suspension.user_id = u.id
-               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-           )
-           and not exists (
-             select 1
-             from feature_restrictions restriction
-             where restriction.user_id = u.id
-               and restriction.feature = 'group_creation'
-               and (restriction.ends_at is null or restriction.ends_at > now())
+           and (
+             $5::boolean
+             or (
+               coalesce(trust.is_suspended, false) = false
+               and coalesce(trust.trust_score, 50) > 20
+               and not exists (
+                 select 1
+                 from suspensions suspension
+                 where suspension.user_id = u.id
+                   and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+               )
+               and not exists (
+                 select 1
+                 from feature_restrictions restriction
+                 where restriction.user_id = u.id
+                   and restriction.feature = 'group_creation'
+                   and (restriction.ends_at is null or restriction.ends_at > now())
+               )
+             )
            )
        ), inserted_conversation as (
          insert into conversations (kind, title, created_by, disappearing_timer)
@@ -667,7 +674,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        where cm.user_id = $1
          and c.id = (select id from inserted_conversation)
        limit 1`,
-      [userId, payload.title, memberIds, payload.disappearingTimer]
+      [userId, payload.title, memberIds, payload.disappearingTimer, ownerFullAccess]
     );
     const conversation = result.rows[0];
 
@@ -1096,6 +1103,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     }
 
     const processed = await processUploadedImage(upload.buffer, upload.mimetype);
+    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
     const pendingAsset = await createPendingMediaAsset(app, request, {
       ownerUserId: userId,
       surface: "message_photo",
@@ -1116,21 +1124,26 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            from app_users u
            left join user_trust_profiles trust on trust.user_id = u.id
            where u.id = $1
-             and u.account_status = 'active'
-             and coalesce(trust.is_suspended, false) = false
-             and coalesce(trust.trust_score, 50) > 20
-             and not exists (
-               select 1
-               from suspensions suspension
-               where suspension.user_id = u.id
-                 and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-             )
-             and not exists (
-               select 1
-               from feature_restrictions restriction
-               where restriction.user_id = u.id
-                 and restriction.feature in ('direct_messages', 'group_messages')
-                 and (restriction.ends_at is null or restriction.ends_at > now())
+             and (
+               $14::boolean
+               or (
+                 u.account_status = 'active'
+                 and coalesce(trust.is_suspended, false) = false
+                 and coalesce(trust.trust_score, 50) > 20
+                 and not exists (
+                   select 1
+                   from suspensions suspension
+                   where suspension.user_id = u.id
+                     and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+                 )
+                 and not exists (
+                   select 1
+                   from feature_restrictions restriction
+                   where restriction.user_id = u.id
+                     and restriction.feature in ('direct_messages', 'group_messages')
+                     and (restriction.ends_at is null or restriction.ends_at > now())
+                 )
+               )
              )
          ), approved_media as (
            update media_objects media
@@ -1208,7 +1221,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
           mediaAsset.moderation.photoDnaStatus,
           mediaAsset.moderation.photoDnaProviderRequestId,
           isAdultExplicit,
-          payload.label.trim()
+          payload.label.trim(),
+          ownerFullAccess
         ]
       );
       const favorite = result.rows[0];
@@ -1320,6 +1334,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
     const encryptedContent = encryptTextContent(app.config, "message", payload.content);
     const disappearingTimer = conversation.disappearing_timer ?? "off";
+    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
     const result = await app.db.query<MessageRow>(
       `with membership as (
          select c.id
@@ -1334,21 +1349,26 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          from app_users u
          left join user_trust_profiles trust on trust.user_id = u.id
          where u.id = $2
-           and u.account_status = 'active'
-           and coalesce(trust.is_suspended, false) = false
-           and coalesce(trust.trust_score, 50) > 20
-           and not exists (
-             select 1
-             from suspensions suspension
-             where suspension.user_id = u.id
-               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-           )
-           and not exists (
-             select 1
-             from feature_restrictions restriction
-             where restriction.user_id = u.id
-               and restriction.feature = '${restrictedFeature}'
-               and (restriction.ends_at is null or restriction.ends_at > now())
+           and (
+             $10::boolean
+             or (
+               u.account_status = 'active'
+               and coalesce(trust.is_suspended, false) = false
+               and coalesce(trust.trust_score, 50) > 20
+               and not exists (
+                 select 1
+                 from suspensions suspension
+                 where suspension.user_id = u.id
+                   and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+               )
+               and not exists (
+                 select 1
+                 from feature_restrictions restriction
+                 where restriction.user_id = u.id
+                   and restriction.feature = '${restrictedFeature}'
+                   and (restriction.ends_at is null or restriction.ends_at > now())
+               )
+             )
            )
        ), favorite_media as (
          select
@@ -1463,7 +1483,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         encryptedContent.keyVersion,
         favoriteId,
         payload.viewOnce,
-        disappearingTimer
+        disappearingTimer,
+        ownerFullAccess
       ]
     );
     const created = result.rows[0];
@@ -1834,6 +1855,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
     const encryptedContent = encryptTextContent(app.config, "message", payload.content);
     const disappearingTimer = conversation.disappearing_timer ?? "off";
+    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
     const result = await app.db.query<MessageRow>(
       `with membership as (
          select c.id
@@ -1848,21 +1870,26 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          from app_users u
          left join user_trust_profiles trust on trust.user_id = u.id
          where u.id = $2
-           and u.account_status = 'active'
-           and coalesce(trust.is_suspended, false) = false
-           and coalesce(trust.trust_score, 50) > 20
-           and not exists (
-             select 1
-             from suspensions suspension
-             where suspension.user_id = u.id
-               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-           )
-           and not exists (
-             select 1
-             from feature_restrictions restriction
-             where restriction.user_id = u.id
-               and restriction.feature = '${restrictedFeature}'
-               and (restriction.ends_at is null or restriction.ends_at > now())
+           and (
+             $20::boolean
+             or (
+               u.account_status = 'active'
+               and coalesce(trust.is_suspended, false) = false
+               and coalesce(trust.trust_score, 50) > 20
+               and not exists (
+                 select 1
+                 from suspensions suspension
+                 where suspension.user_id = u.id
+                   and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+               )
+               and not exists (
+                 select 1
+                 from feature_restrictions restriction
+                 where restriction.user_id = u.id
+                   and restriction.feature = '${restrictedFeature}'
+                   and (restriction.ends_at is null or restriction.ends_at > now())
+               )
+             )
            )
        ), approved_media as (
          update media_objects media
@@ -2003,7 +2030,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         mediaAsset.displayUrl,
         disappearingTimer,
         payload.viewOnce,
-        isAdultExplicit
+        isAdultExplicit,
+        ownerFullAccess
       ]
     );
     const created = result.rows[0];
@@ -2076,6 +2104,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     });
     const encryptedContent = encryptTextContent(app.config, "message", payload.content);
     const disappearingTimer = conversation.disappearing_timer ?? "off";
+    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
 
     const result = await app.db.query<MessageRow>(
       `with membership as (
@@ -2091,20 +2120,25 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          from app_users u
          left join user_trust_profiles trust on trust.user_id = u.id
          where u.id = $2
-           and coalesce(trust.is_suspended, false) = false
-           and coalesce(trust.trust_score, 50) > 20
-           and not exists (
-             select 1
-             from suspensions suspension
-             where suspension.user_id = u.id
-               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-           )
-           and not exists (
-             select 1
-             from feature_restrictions restriction
-             where restriction.user_id = u.id
-               and restriction.feature = '${restrictedFeature}'
-               and (restriction.ends_at is null or restriction.ends_at > now())
+           and (
+             $15::boolean
+             or (
+               coalesce(trust.is_suspended, false) = false
+               and coalesce(trust.trust_score, 50) > 20
+               and not exists (
+                 select 1
+                 from suspensions suspension
+                 where suspension.user_id = u.id
+                   and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+               )
+               and not exists (
+                 select 1
+                 from feature_restrictions restriction
+                 where restriction.user_id = u.id
+                   and restriction.feature = '${restrictedFeature}'
+                   and (restriction.ends_at is null or restriction.ends_at > now())
+               )
+             )
            )
        ), ${approvedContentReviewCte({
          userIdParam: "$2",
@@ -2190,7 +2224,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         "allowed",
         null,
         JSON.stringify(moderation.providerResult.raw_result ?? {}),
-        disappearingTimer
+        disappearingTimer,
+        ownerFullAccess
       ]
     );
 

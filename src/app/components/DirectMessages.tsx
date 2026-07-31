@@ -76,6 +76,17 @@ function canDeleteConversation(conversation: ConversationThread) {
   return conversation.kind !== 'group' || ['owner', 'admin'].includes(conversation.currentUserRole ?? '');
 }
 
+const activityBadgeClassName = 'rounded-md border border-primary/20 bg-primary/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-primary';
+const quietBadgeClassName = 'rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/52';
+
+function getConversationHeartTheme(conversation: ConversationThread) {
+  if (conversation.kind === 'group' || conversation.mutual) {
+    return 'mutual';
+  }
+
+  return 'nearby';
+}
+
 export default function DirectMessages() {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
@@ -226,13 +237,12 @@ export default function DirectMessages() {
   };
 
   return (
-    <div className="relative min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/88 px-4 pb-4 pt-4 backdrop-blur-md">
+    <div className="relative min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] text-white">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
         <div className="mx-auto max-w-2xl space-y-4">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Nearby chat</p>
-              <h2 className="text-3xl leading-none">Messages</h2>
+              <h1 className="text-3xl leading-none text-white">Messages</h1>
             </div>
             <Button
               type="button"
@@ -240,41 +250,43 @@ export default function DirectMessages() {
               aria-label="Create group chat"
               title="Create group chat"
               onClick={() => void openGroupComposer()}
+              className="h-11 w-11 rounded-full text-white"
+              style={{ background: 'var(--cruush-gradient)' }}
             >
               <Plus className="size-4" />
             </Button>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-2xl border border-border bg-card/80 px-3 py-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Unread</p>
-              <p className="mt-1 text-xl">{unreadCount}</p>
+            <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
+              <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/46">Unread</p>
+              <p className="truncate text-sm tabular-nums text-white">{unreadCount}</p>
             </div>
-            <div className="rounded-2xl border border-border bg-card/80 px-3 py-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Active now</p>
-              <p className="mt-1 text-xl">{activeNowCount}</p>
+            <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
+              <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/46">Active</p>
+              <p className="truncate text-sm tabular-nums text-white">{activeNowCount}</p>
             </div>
-            <div className="rounded-2xl border border-border bg-card/80 px-3 py-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Open threads</p>
-              <p className="mt-1 text-xl">{conversations.length}</p>
+            <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
+              <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/46">Threads</p>
+              <p className="truncate text-sm tabular-nums text-white">{conversations.length}</p>
             </div>
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/46" />
             <Input
               placeholder="Search people, threads, vibes"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="h-11 rounded-2xl border-border/80 bg-card/80 pl-10"
+              className="h-11 rounded-lg border-white/10 bg-background/25 pl-10 text-white placeholder:text-white/46"
             />
           </div>
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'unread' | 'groups')}>
-            <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-card/80">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="unread">Unread</TabsTrigger>
-              <TabsTrigger value="groups">Groups</TabsTrigger>
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+              <TabsTrigger value="all" className="h-10 rounded-md text-sm text-white/72">All</TabsTrigger>
+              <TabsTrigger value="unread" className="h-10 rounded-md text-sm text-white/72">Unread</TabsTrigger>
+              <TabsTrigger value="groups" className="h-10 rounded-md text-sm text-white/72">Groups</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -386,7 +398,7 @@ export default function DirectMessages() {
                 <button
                   key={conversation.id}
                   onClick={() => navigate(`/chat/${conversation.id}`)}
-                  className="min-w-[150px] rounded-2xl border border-border bg-card/80 p-3 text-left transition-colors hover:bg-accent/60"
+                  className="min-w-[150px] rounded-lg border border-white/10 bg-black/72 p-3 text-left transition-colors hover:bg-white/[0.06]"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <HeartPhoto
@@ -394,6 +406,7 @@ export default function DirectMessages() {
                       label={`${conversation.user.name} avatar`}
                       photo={conversation.user.photo}
                       userId={conversation.user.id}
+                      theme={getConversationHeartTheme(conversation)}
                       fallback={<div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>}
                     />
                     {conversation.unreadCount > 0 ? (
@@ -435,123 +448,118 @@ export default function DirectMessages() {
             return (
               <article
                 key={conversation.id}
-                className="rounded-3xl border border-border bg-card/80 transition-colors hover:bg-accent/60"
+                className="relative rounded-lg border border-white/10 bg-black/72 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-colors hover:bg-white/[0.06]"
               >
-                <div className="flex items-start gap-2 p-4">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/chat/${conversation.id}`)}
-                    className="min-w-0 flex-1 text-left"
-                  >
-                    <div className="flex gap-4">
-                      <HeartPhoto
-                        className="w-16 shrink-0"
-                        label={`${conversation.user.name} avatar`}
-                        photo={conversation.user.photo}
-                        userId={conversation.user.id}
-                        fallback={
-                          conversation.kind === 'group'
-                            ? <CruushIcon name="profile" className="size-6 opacity-80" />
-                            : <div className="text-lg text-white/80">{getConversationInitials(conversation.user.name)}</div>
-                        }
-                      />
+                <button
+                  type="button"
+                  onClick={() => navigate(`/chat/${conversation.id}`)}
+                  className="block w-full p-4 pr-12 text-left"
+                >
+                  <div className="flex gap-4">
+                    <HeartPhoto
+                      className="w-20 shrink-0"
+                      label={`${conversation.user.name} avatar`}
+                      photo={conversation.user.photo}
+                      userId={conversation.user.id}
+                      theme={getConversationHeartTheme(conversation)}
+                      fallback={
+                        conversation.kind === 'group'
+                          ? <CruushIcon name="profile" className="size-7 opacity-80" />
+                          : <div className="text-lg text-white/80">{getConversationInitials(conversation.user.name)}</div>
+                      }
+                    />
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className={`truncate ${conversation.unreadCount > 0 ? 'font-medium' : ''}`}>
-                                {conversation.user.name}
-                              </p>
-                              {conversation.mutual ? (
-                                <Badge variant="outline" className="border-primary/20 bg-primary/10 text-[10px] uppercase tracking-[0.18em] text-primary">
-                                  Mutual
-                                </Badge>
-                              ) : null}
-                              {conversation.kind === 'group' ? (
-                                <Badge variant="outline" className="border-border/80 bg-background/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                                  Group
-                                </Badge>
-                              ) : null}
-                              {conversation.currentUserRole && conversation.currentUserRole !== 'member' ? (
-                                <Badge variant="outline" className="border-primary/20 bg-primary/10 text-[10px] uppercase tracking-[0.18em] text-primary">
-                                  {conversation.currentUserRole}
-                                </Badge>
-                              ) : null}
-                              {conversation.muted ? (
-                                <Badge variant="outline" className="border-border/80 bg-background/60 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                                  Quiet
-                                </Badge>
-                              ) : null}
-                            </div>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                              {conversation.user.pronouns ? <span>{conversation.user.pronouns}</span> : null}
-                              {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
-                              <span className="inline-flex items-center gap-1">
-                                <CruushIcon name="map" className="size-3 opacity-70" />
-                                {conversation.distance}
-                              </span>
-                            </div>
-                          </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <p className={`min-w-0 max-w-full truncate text-base text-white ${conversation.unreadCount > 0 ? 'font-medium' : ''}`}>
+                          {conversation.user.name}
+                        </p>
+                        {conversation.mutual ? (
+                          <Badge variant="outline" className={activityBadgeClassName}>
+                            Mutual
+                          </Badge>
+                        ) : null}
+                        {conversation.kind === 'group' ? (
+                          <Badge variant="outline" className={quietBadgeClassName}>
+                            Group
+                          </Badge>
+                        ) : null}
+                        {conversation.currentUserRole && conversation.currentUserRole !== 'member' ? (
+                          <Badge variant="outline" className={activityBadgeClassName}>
+                            {conversation.currentUserRole}
+                          </Badge>
+                        ) : null}
+                        {conversation.muted ? (
+                          <Badge variant="outline" className={quietBadgeClassName}>
+                            Quiet
+                          </Badge>
+                        ) : null}
+                      </div>
 
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{formatRelativeTime(conversation.updatedAt)}</span>
-                            {conversation.unreadCount > 0 ? (
-                              <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] text-white">
-                                {conversation.unreadCount}
-                              </span>
-                            ) : (
-                              <ChevronRight className="size-4 text-muted-foreground" />
-                            )}
-                          </div>
-                        </div>
+                      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/62">
+                        {conversation.user.pronouns ? <span className="truncate">{conversation.user.pronouns}</span> : null}
+                        {conversation.membersLabel ? <span>{conversation.membersLabel}</span> : null}
+                        <span className="inline-flex items-center gap-1">
+                          <CruushIcon name="map" className="size-3 opacity-70" />
+                          {conversation.distance}
+                        </span>
+                        <span className="text-white/52">{formatRelativeTime(conversation.updatedAt)}</span>
+                        {conversation.unreadCount > 0 ? (
+                          <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] text-white">
+                            {conversation.unreadCount}
+                          </span>
+                        ) : null}
+                      </div>
 
-                        <p className={`mt-3 line-clamp-2 text-sm ${conversation.unreadCount > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {conversation.lastMessage ? (
+                        <p className={`mt-3 line-clamp-2 break-words text-sm ${conversation.unreadCount > 0 ? 'text-white' : 'text-white/62'}`}>
                           {conversation.lastMessage}
                         </p>
+                      ) : null}
 
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {conversation.tags.slice(0, 2).map((tag) => (
-                            <Badge key={tag} variant="outline" className="border-primary/20 bg-primary/10 text-[11px] text-primary">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {conversation.disappearingTimer && conversation.disappearingTimer !== 'off' ? (
-                            <Badge variant="outline" className="border-border/80 bg-background/60 text-[11px] text-muted-foreground">
-                              {conversation.disappearingTimer}
-                            </Badge>
-                          ) : null}
-                          {conversation.closed ? (
-                            <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-[11px] text-destructive">
-                              Closed
-                            </Badge>
-                          ) : null}
-                        </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {conversation.tags.slice(0, 2).map((tag) => (
+                          <Badge key={tag} variant="outline" className={activityBadgeClassName}>
+                            {tag}
+                          </Badge>
+                        ))}
+                        {conversation.disappearingTimer && conversation.disappearingTimer !== 'off' ? (
+                          <Badge variant="outline" className={quietBadgeClassName}>
+                            {conversation.disappearingTimer}
+                          </Badge>
+                        ) : null}
+                        {conversation.closed ? (
+                          <Badge variant="outline" className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-destructive">
+                            Closed
+                          </Badge>
+                        ) : null}
                       </div>
                     </div>
-                  </button>
+                  </div>
+                </button>
 
-                  {canDeleteConversation(conversation) ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label={deleteLabel}
-                      title={deleteLabel}
-                      disabled={deletingConversationId === conversation.id}
-                      onClick={() => void handleDeleteConversation(conversation)}
-                      className="size-9 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  ) : null}
-                </div>
+                {canDeleteConversation(conversation) ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={deleteLabel}
+                    title={deleteLabel}
+                    disabled={deletingConversationId === conversation.id}
+                    onClick={() => void handleDeleteConversation(conversation)}
+                    className="absolute right-3 top-3 size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                ) : (
+                  <ChevronRight className="absolute right-4 top-5 size-4 text-white/40" />
+                )}
               </article>
             );
           })}
 
           {!loading && error ? (
-            <div className="rounded-3xl border border-destructive/30 bg-destructive/10 p-8 text-center">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-8 text-center">
               <CruushIcon name="messages" className="mx-auto mb-4 size-14 opacity-55" />
               <p className="text-destructive">{error}</p>
               <Button className="mt-4" variant="outline" onClick={() => void fetchConversations()}>
@@ -561,7 +569,7 @@ export default function DirectMessages() {
           ) : null}
 
           {!loading && !error && filteredConversations.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center">
+            <div className="rounded-lg border border-dashed border-white/10 bg-card/60 p-12 text-center">
               <CruushIcon name="messages" className="mx-auto mb-4 size-14 opacity-55" />
               {conversations.length === 0 ? (
                 <>

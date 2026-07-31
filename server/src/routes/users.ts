@@ -73,6 +73,7 @@ type DiscoveryProfileRow = {
   lng: number | null;
   fuzzy_lat: number | null;
   fuzzy_lng: number | null;
+  location_updated_at?: string | Date | null;
   updated_at: string | Date;
   badges?: string[] | null;
 };
@@ -458,6 +459,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
       currentUserId,
       createCoarseIndexTokens(app.config, centerLat, centerLng)
     ];
+    const activeLocationWindow = "(extract(epoch from now()) * 1000)::bigint";
     const where = [
       "profiles.id <> $1",
       `not exists (
@@ -466,8 +468,16 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
         where (block.blocker_user_id = $1 and block.blocked_user_id = profiles.id)
            or (block.blocker_user_id = profiles.id and block.blocked_user_id = $1)
       )`,
-      "location_envelopes.expires_at_ms > (extract(epoch from now()) * 1000)::bigint",
-      "location_envelopes.coarse_index_tokens && $2::text[]"
+      `(
+        (
+          location_envelopes.expires_at_ms > ${activeLocationWindow}
+          and location_envelopes.coarse_index_tokens && $2::text[]
+        )
+        or (
+          (profiles.fuzzy_lat is not null and profiles.fuzzy_lng is not null)
+          or (profiles.lat is not null and profiles.lng is not null)
+        )
+      )`
     ];
 
     addTextArrayFilter(where, values, "identities", filters.identities);
@@ -530,10 +540,11 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          profile_visibility_nonce,
          profile_visibility_auth_tag,
          profile_visibility_key_version,
-         null::double precision as lat,
-         null::double precision as lng,
-         null::double precision as fuzzy_lat,
-         null::double precision as fuzzy_lng,
+         profiles.lat,
+         profiles.lng,
+         profiles.fuzzy_lat,
+         profiles.fuzzy_lng,
+         profiles.location_updated_at,
          coalesce((
            select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
            from user_badges
@@ -543,7 +554,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
        from profiles
        join app_users
          on app_users.id = profiles.id
-       join encrypted_location_envelopes location_envelopes
+       left join encrypted_location_envelopes location_envelopes
          on location_envelopes.subject_user_id = profiles.id
        where ${where.join("\n         and ")}
        order by profiles.updated_at desc
@@ -644,7 +655,7 @@ async function mapModernDiscoveryRow(
         subjectUserId: row.id,
         lat: fallbackLat,
         lng: fallbackLng,
-        updatedAt: row.updated_at
+        updatedAt: row.location_updated_at ?? row.updated_at
       })
     : null);
 
