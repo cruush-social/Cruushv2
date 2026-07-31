@@ -96,8 +96,9 @@ describe('Auth', () => {
   it('keeps readable spacing between mobile auth form controls', () => {
     expect(authCss).toContain('margin-top: 0.48rem !important;');
     expect(authCss).toContain('margin-top: 0.72rem !important;');
-    expect(authCss).toContain('margin-top: 0.42rem !important;');
-    expect(authCss).toContain('gap: 0.16rem;');
+    expect(authCss).toContain('margin-top: 0.62rem !important;');
+    expect(authCss).toContain('gap: 0.44rem;');
+    expect(authCss).toContain('min-height: 2rem;');
   });
 
   it('keeps the auth landing surface constrained to one viewport', () => {
@@ -127,8 +128,7 @@ describe('Auth', () => {
     expect(screen.queryByTestId('launch-login-brand-mark')).not.toBeInTheDocument();
     expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');
-    const captchaSlot = screen.getByTestId('launch-login-auth-captcha');
-    expect(captchaSlot).toHaveClass('launch-login-auth-captcha');
+    expect(screen.queryByTestId('launch-login-auth-captcha')).not.toBeInTheDocument();
     expect(screen.getByTestId('launch-login-foreground-water-pane')).toHaveClass('launch-login-auth-rain-pane');
     expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
@@ -142,10 +142,15 @@ describe('Auth', () => {
     expect(screen.getByLabelText('Email')).toHaveClass('launch-login-auth-input');
     const signInButton = screen.getByRole('button', { name: 'Sign In' });
     expect(signInButton).toHaveClass('launch-login-auth-submit');
-    expect(signInButton.compareDocumentPosition(captchaSlot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
+    fireEvent.click(signInButton);
+
+    const captchaSlot = await screen.findByTestId('launch-login-auth-captcha');
+    expect(captchaSlot).toHaveClass('launch-login-auth-captcha');
+    expect(signInButton.compareDocumentPosition(captchaSlot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await screen.findByText('Mock Turnstile');
     fireEvent.click(signInButton);
 
     await screen.findByText('Verify your email before signing in.');
@@ -225,6 +230,24 @@ describe('Auth', () => {
     expect(signInSwitch.compareDocumentPosition(resetLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('shows launch rave tickets before signup security and hides it for Turnstile', async () => {
+    render(<Auth onAuth={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
+
+    const raveLink = screen.getByRole('link', { name: 'Launch rave tickets' });
+    expect(raveLink).toHaveAttribute('href', 'https://ra.co/pro/events/2483120');
+    expect(raveLink).toHaveClass('launch-login-auth-rave-button');
+    expect(screen.queryByTestId('launch-login-auth-captcha')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    expect(screen.queryByRole('link', { name: 'Launch rave tickets' })).not.toBeInTheDocument();
+    expect(await screen.findByTestId('launch-login-auth-captcha')).toBeInTheDocument();
+  });
+
   it('retains a referral query parameter through signup without displaying it', async () => {
     window.history.replaceState({}, '', '/?ref=abcdefghijklmnop');
     signUp.mockResolvedValue({
@@ -238,6 +261,8 @@ describe('Auth', () => {
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+    await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
     await waitFor(() => expect(signUp).toHaveBeenCalledWith(expect.objectContaining({
@@ -277,6 +302,8 @@ describe('Auth', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+    await screen.findByText('Mock Turnstile');
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
     await waitFor(() => expect(signUp).toHaveBeenCalledWith(expect.objectContaining({
       alphaPassword: 'door-password',
@@ -309,9 +336,13 @@ describe('Auth', () => {
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+    await screen.findByText('Mock Turnstile');
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
 
     const codeInput = await screen.findByLabelText('Authenticator or recovery code');
     fireEvent.change(codeInput, { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+    await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
 
     await waitFor(() => expect(signIn).toHaveBeenLastCalledWith(expect.objectContaining({

@@ -547,7 +547,6 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     await assertRequestNotSeverelyBanned(app, request);
     const payload = signInPayloadSchema.parse(request.body);
     ensureAlphaTestActive(app.config);
-    assertBetaAccessAllowed(app.config, payload.betaAccessLocation);
 
     await applyRateLimits(app, [
       {

@@ -1200,6 +1200,44 @@ describe("server", () => {
     });
   });
 
+  it("rejects alpha test signup before creating an account when alpha password is missing", async () => {
+    const alphaSignupApp = buildServer({
+      ...app.config,
+      ALPHA_TEST_ENABLED: true,
+      ALPHA_TEST_PASSWORD_HASH: await hashPassword("door-password"),
+      ALPHA_TEST_ENDS_AT: "2099-08-07T03:59:00-04:00"
+    }, {
+      db: {
+        query,
+        end
+      },
+      rateLimiter: createMemoryRateLimiter()
+    });
+
+    try {
+      const response = await alphaSignupApp.inject({
+        method: "POST",
+        url: "/api/auth/signup",
+        payload: {
+          email: "river@example.com",
+          password: "password-123"
+        }
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(response.json()).toEqual({
+        error: {
+          code: "ALPHA_TEST_PASSWORD_REQUIRED",
+          message: "Enter the alpha password.",
+          details: null
+        }
+      });
+      expect(query).not.toHaveBeenCalled();
+    } finally {
+      await alphaSignupApp.close();
+    }
+  });
+
   it("uses the allowed frontend origin for verification links when the API has its own APP_URL", async () => {
     query
       .mockResolvedValueOnce({
@@ -1386,6 +1424,75 @@ describe("server", () => {
         details: null
       }
     });
+  });
+
+  it("allows existing accounts to log in during beta access without a fresh location gate", async () => {
+    const passwordHash = await hashPassword("password-123");
+    const betaLoginApp = buildServer({
+      ...app.config,
+      BETA_ACCESS_GEOFENCE_ENABLED: true,
+      BETA_ACCESS_CENTER_LATITUDE: 40.70982,
+      BETA_ACCESS_CENTER_LONGITUDE: -73.92256,
+      BETA_ACCESS_RADIUS_MILES: 15,
+      BETA_ACCESS_VENUE_NAME: "70 Scott Ave"
+    }, {
+      db: {
+        query,
+        end
+      },
+      rateLimiter: createMemoryRateLimiter()
+    });
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          password_hash: passwordHash,
+          display_name: "River",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          account_status: "active",
+          two_factor_enabled: false
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          app_display_name: "River",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          profile_display_name: "River",
+          year_of_birth: 1998,
+          code_of_conduct_accepted_version: "2026-07-07",
+          code_of_conduct_accepted_at: "2026-07-07T15:00:00.000Z",
+          account_status: "active"
+        }]
+      });
+
+    try {
+      const response = await betaLoginApp.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        payload: {
+          email: "river@example.com",
+          password: "password-123"
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["set-cookie"]).toEqual(expect.arrayContaining([
+        expect.stringContaining("cruush_session="),
+        expect.stringContaining("cruush_device=")
+      ]));
+      expect(response.json().data.user.email).toBe("river@example.com");
+    } finally {
+      await betaLoginApp.close();
+    }
   });
 
   it("signs in the hardcoded development admin", async () => {

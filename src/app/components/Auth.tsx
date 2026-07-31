@@ -55,6 +55,7 @@ export default function Auth({ onAuth }: AuthProps) {
     }
   });
   const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaRequested, setCaptchaRequested] = useState(false);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -70,6 +71,7 @@ export default function Auth({ onAuth }: AuthProps) {
   const turnstileSiteKey = getTurnstileSiteKey();
   const alphaPasswordRequired = Boolean(alphaTest?.enabled);
   const betaAccessRequired = Boolean(betaAccess?.enabled);
+  const shouldShowCaptcha = Boolean(!isForgotPassword && turnstileSiteKey && captchaRequested);
   const handleCaptchaTokenChange = useCallback((token: string) => {
     setCaptchaToken(token);
   }, []);
@@ -122,6 +124,7 @@ export default function Auth({ onAuth }: AuthProps) {
 
   const resetCaptcha = () => {
     setCaptchaToken('');
+    setCaptchaRequested(false);
     setCaptchaResetKey((current) => current + 1);
     resetHumanCheck();
   };
@@ -152,12 +155,6 @@ export default function Auth({ onAuth }: AuthProps) {
       return;
     }
 
-    if (turnstileSiteKey && !captchaToken) {
-      setError('Security check is still loading. Try again in a moment.');
-      setIsLoading(false);
-      return;
-    }
-
     if (betaAccessRequired && !betaAccessLocation) {
       setError(`Beta access is currently available within ${betaAccess?.radiusMiles ?? 15} miles of ${betaAccess?.venueName ?? '70 Scott Ave'}. Check your location to continue.`);
       setIsLoading(false);
@@ -180,6 +177,13 @@ export default function Auth({ onAuth }: AuthProps) {
         setIsLoading(false);
         return;
       }
+    }
+
+    if (turnstileSiteKey && !captchaToken) {
+      setCaptchaRequested(true);
+      setError('Complete the security check to continue.');
+      setIsLoading(false);
+      return;
     }
 
     try {
@@ -722,7 +726,18 @@ export default function Auth({ onAuth }: AuthProps) {
             )}
           </button>
 
-          {!isForgotPassword && turnstileSiteKey && (
+          {isSignUp && !captchaRequested ? (
+            <a
+              className="launch-login-auth-rave-button"
+              href="https://ra.co/pro/events/2483120"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Launch rave tickets
+            </a>
+          ) : null}
+
+          {shouldShowCaptcha ? (
             <div className="launch-login-auth-captcha" data-testid="launch-login-auth-captcha">
               <Turnstile
                 onTokenChange={handleCaptchaTokenChange}
@@ -730,7 +745,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 resetKey={captchaResetKey}
               />
             </div>
-          )}
+          ) : null}
 
           <div className="launch-login-auth-secondary-actions">
             <button
