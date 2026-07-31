@@ -235,6 +235,29 @@ function LocationProbe() {
   return <div data-testid="location-probe">{location.pathname}</div>;
 }
 
+const launchEvent = {
+  id: 'event-1',
+  slug: 'the-chocolate-factory-launch',
+  title: 'cruush beta launch',
+  venueName: 'The Chocolate Factory',
+  address: '70 Scott Ave, Brooklyn, NY 11237',
+  coordinates: {
+    latitude: 40.70982,
+    longitude: -73.92256,
+  },
+  radiusMiles: 1,
+  startsAt: '2026-07-31T04:00:00.000Z',
+  endsAt: '2026-08-01T09:00:00.000Z',
+  pinDisappearsAt: '2026-08-01T09:00:00.000Z',
+  chatExpiresAt: '2026-08-08T09:00:00.000Z',
+  raUrl: 'https://ra.co/events/2483120',
+  iconAsset: 'party-hat',
+  attendeeCount: 0,
+  joined: false,
+  passIconName: null,
+  conversationId: null,
+};
+
 describe('MapHome', () => {
   it('allows the codeveloper NYC account to use developer-only map tools without bank reviewer access', () => {
     expect(canUseDeveloperMapToolsEmail('admin@cruush.local')).toBe(true);
@@ -525,6 +548,90 @@ describe('MapHome', () => {
     expect(recentPanel).toHaveClass('w-full', 'max-w-full', 'p-2');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
     expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
+  });
+
+  it('does not show a saved launch pass icon outside the one-mile live radius or duplicate the chat invite', async () => {
+    useIsMobile.mockReturnValue(false);
+    getActiveEvents.mockResolvedValue([{
+      ...launchEvent,
+      attendeeCount: 3,
+      passIconName: 'map',
+    }]);
+    Object.defineProperty(global.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: vi.fn().mockImplementation((success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
+          success({
+            coords: {
+              latitude: 40.758,
+              longitude: -73.9855,
+            },
+          });
+        }),
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin The Chocolate Factory' }));
+
+    expect(await screen.findByText('The Chocolate Factory')).toBeInTheDocument();
+    expect(screen.getByText('The door pass unlocks when you are within 1 mile of the venue.')).toBeInTheDocument();
+    expect(screen.queryByText('Show this icon at the door. It changes every hour.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Join launch party' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ask for chat invite/i })).not.toBeInTheDocument();
+    expect(revealEventPass).not.toHaveBeenCalled();
+  });
+
+  it('reveals the hourly launch pass using live browser coordinates inside one mile', async () => {
+    useIsMobile.mockReturnValue(false);
+    getActiveEvents.mockResolvedValue([launchEvent]);
+    revealEventPass.mockResolvedValue({
+      eventSlug: 'the-chocolate-factory-launch',
+      iconName: 'notifications',
+      validFrom: '2026-08-01T02:00:00.000Z',
+      validUntil: '2026-08-01T03:00:00.000Z',
+      hourIndex: 22,
+      withinRadius: true,
+      emailAvailable: true,
+    });
+    Object.defineProperty(global.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: vi.fn().mockImplementation((success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
+          success({
+            coords: {
+              latitude: 40.7099,
+              longitude: -73.9226,
+            },
+          });
+        }),
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin The Chocolate Factory' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Reveal door pass' }));
+
+    await waitFor(() => expect(revealEventPass).toHaveBeenCalledWith('the-chocolate-factory-launch', {
+      latitude: 40.7099,
+      longitude: -73.9226,
+    }));
+    expect(await screen.findByText('Show this icon at the door. It changes every hour.')).toBeInTheDocument();
+    expect(screen.getByText('notifications | hour 23')).toBeInTheDocument();
   });
 
   it('renders 25 percent larger Cruush icons on the map controls and toggles DL Mode from the top slot', async () => {

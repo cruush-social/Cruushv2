@@ -27,8 +27,27 @@ export type LaunchEvent = {
 export type EventPassReveal = {
   eventSlug: string;
   iconName: CruushIconName;
+  validFrom: string;
+  validUntil: string;
+  hourIndex: number;
   withinRadius: true;
   emailAvailable: boolean;
+};
+
+export type EventPassGuideWindow = {
+  iconName: CruushIconName;
+  validFrom: string;
+  validUntil: string;
+  hourIndex: number;
+};
+
+export type EventPassGuide = {
+  eventSlug: string;
+  venueName: string;
+  startsAt: string;
+  endsAt: string;
+  current: EventPassGuideWindow;
+  guide: EventPassGuideWindow[];
 };
 
 export type EventChatJoin = {
@@ -47,6 +66,10 @@ export async function revealEventPass(slug: string, coordinates: { latitude: num
     method: 'POST',
     body: JSON.stringify(coordinates),
   });
+}
+
+export async function getEventPassGuide(slug: string) {
+  return requestApi<EventPassGuide>(`/api/events/${slug}/pass-guide`);
 }
 
 export async function emailEventPass(slug: string) {

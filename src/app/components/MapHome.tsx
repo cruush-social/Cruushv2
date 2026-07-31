@@ -381,6 +381,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [activeEvents, setActiveEvents] = useState<LaunchEvent[]>([]);
   const [selectedEventSlug, setSelectedEventSlug] = useState<string | null>(null);
   const [eventPass, setEventPass] = useState<EventPassReveal | null>(null);
+  const [eventPassCoordinates, setEventPassCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [eventActionError, setEventActionError] = useState<string | null>(null);
   const [eventActionStatus, setEventActionStatus] = useState<string | null>(null);
   const [revealingEventPass, setRevealingEventPass] = useState(false);
@@ -711,7 +712,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
           lat: approximateLocation.approximateLatitude,
           lng: approximateLocation.approximateLongitude,
         };
+        const browserCoordinates = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
 
+        setEventPassCoordinates(browserCoordinates);
         setUserApproximateLocation(approximateLocation);
         setLocationStatus('ready');
         syncApproximateMapLocation(approximateLocation);
@@ -890,26 +896,26 @@ export default function MapHome(_props: MapHomeProps = {}) {
     () => activeEvents.find((event) => event.slug === selectedEventSlug) ?? null,
     [activeEvents, selectedEventSlug],
   );
-  const visibleEventPassIconName = eventPass?.iconName ?? selectedEvent?.passIconName ?? null;
   const selectedEventDistanceMiles = useMemo(() => {
-    if (!selectedEvent || !currentUserMapLocation) {
+    if (!selectedEvent || !eventPassCoordinates) {
       return null;
     }
 
     return distanceMilesBetween(
       {
-        latitude: currentUserMapLocation.approximateLatitude,
-        longitude: currentUserMapLocation.approximateLongitude,
+        latitude: eventPassCoordinates.latitude,
+        longitude: eventPassCoordinates.longitude,
       },
       {
         latitude: selectedEvent.coordinates.latitude,
         longitude: selectedEvent.coordinates.longitude,
       },
     );
-  }, [currentUserMapLocation, selectedEvent]);
+  }, [eventPassCoordinates, selectedEvent]);
   const canRevealSelectedEventPass = selectedEvent && selectedEventDistanceMiles !== null
     ? selectedEventDistanceMiles <= selectedEvent.radiusMiles
     : false;
+  const visibleEventPassIconName = canRevealSelectedEventPass ? eventPass?.iconName ?? null : null;
   const denseVenue = useMemo<DenseVenueConfig | null>(() => launchPartyEvent
     ? {
         id: launchPartyEvent.slug,
@@ -1047,7 +1053,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
-    if (!currentUserMapLocation) {
+    if (!eventPassCoordinates) {
       setEventActionStatus(null);
       setEventActionError(`Share your location to unlock the door pass within ${selectedEvent.radiusMiles} mile of the venue.`);
       requestUserLocation(true);
@@ -1056,8 +1062,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     const distanceMiles = distanceMilesBetween(
       {
-        latitude: currentUserMapLocation.approximateLatitude,
-        longitude: currentUserMapLocation.approximateLongitude,
+        latitude: eventPassCoordinates.latitude,
+        longitude: eventPassCoordinates.longitude,
       },
       {
         latitude: selectedEvent.coordinates.latitude,
@@ -1075,10 +1081,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setEventActionError(null);
     setEventActionStatus(null);
     try {
-      const revealedPass = await revealEventPass(selectedEvent.slug, {
-        latitude: currentUserMapLocation.approximateLatitude,
-        longitude: currentUserMapLocation.approximateLongitude,
-      });
+      const revealedPass = await revealEventPass(selectedEvent.slug, eventPassCoordinates);
       setEventPass(revealedPass);
       setActiveEvents((events) => events.map((event) => event.slug === selectedEvent.slug
         ? {
@@ -1096,6 +1099,23 @@ export default function MapHome(_props: MapHomeProps = {}) {
       setRevealingEventPass(false);
     }
   };
+
+  useEffect(() => {
+    if (!eventPass?.validUntil) {
+      return undefined;
+    }
+
+    const validUntilMs = Date.parse(eventPass.validUntil);
+    if (!Number.isFinite(validUntilMs)) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setEventPass(null);
+    }, Math.max(0, validUntilMs - Date.now() + 500));
+
+    return () => window.clearTimeout(timeout);
+  }, [eventPass?.validUntil]);
 
   const handleEmailEventPass = async () => {
     if (!selectedEvent) {
@@ -1583,22 +1603,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   {joiningEventChat ? 'Joining...' : 'Join launch party'}
                 </Button>
               )}
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-10 rounded-lg border border-white/10 bg-white/8 text-white hover:bg-white/12"
-                onClick={() => {
-                  if (selectedEvent.conversationId) {
-                    navigate(`/chat/group/${selectedEvent.conversationId}`);
-                    return;
-                  }
-                  void handleJoinEventChat({ openChat: true });
-                }}
-                disabled={joiningEventChat}
-              >
-                <MessageCircle className="mr-2 h-4 w-4" />
-                {selectedEvent.joined ? 'Open party chat' : 'Ask for chat invite'}
-              </Button>
+              {selectedEvent.joined && selectedEvent.conversationId ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-10 rounded-lg border border-white/10 bg-white/8 text-white hover:bg-white/12"
+                  onClick={() => navigate(`/chat/group/${selectedEvent.conversationId}`)}
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Open party chat
+                </Button>
+              ) : null}
             </div>
 
             <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.045] p-3">
@@ -1610,8 +1625,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       <CruushIcon name={visibleEventPassIconName} variant="colored" className="h-9 w-9" />
                     </span>
                     <div>
-                      <p className="text-sm text-white">Show this icon at the door.</p>
-                      <p className="mt-0.5 text-xs text-white/55">{visibleEventPassIconName}</p>
+                      <p className="text-sm text-white">Show this icon at the door. It changes every hour.</p>
+                      <p className="mt-0.5 text-xs text-white/55">
+                        {visibleEventPassIconName}
+                        {eventPass?.hourIndex !== undefined ? ` | hour ${eventPass.hourIndex + 1}` : ''}
+                      </p>
                     </div>
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1629,11 +1647,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       type="button"
                       className="h-10 rounded-lg text-white"
                       style={{ background: 'var(--cruush-gradient)' }}
-                      onClick={() => handleJoinEventChat({ openChat: true })}
+                      onClick={() => {
+                        if (selectedEvent.conversationId) {
+                          navigate(`/chat/group/${selectedEvent.conversationId}`);
+                          return;
+                        }
+                        void handleJoinEventChat({ openChat: true });
+                      }}
                       disabled={joiningEventChat}
                     >
                       <MessageCircle className="mr-2 h-4 w-4" />
-                      {joiningEventChat ? 'Joining...' : 'Join chat'}
+                      {joiningEventChat ? 'Joining...' : selectedEvent.conversationId ? 'Open chat' : 'Join chat'}
                     </Button>
                   </div>
                 </div>
@@ -1642,7 +1666,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   <p className="text-sm text-white">
                     The door pass unlocks when you are within {selectedEvent.radiusMiles} mile of the venue.
                   </p>
-                  {!currentUserMapLocation ? (
+                  {!eventPassCoordinates ? (
                     <Button
                       type="button"
                       className="mt-3 h-10 w-full rounded-lg text-white"

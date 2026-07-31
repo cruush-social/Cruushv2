@@ -112,7 +112,7 @@ describe("event routes", () => {
     });
   });
 
-  it("keeps the door pass hidden outside one mile and reveals a stable icon inside one mile", async () => {
+  it("keeps the door pass hidden outside one mile and reveals the current hourly icon inside one mile", async () => {
     query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
@@ -143,8 +143,7 @@ describe("event routes", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [eventRow] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ icon_name: "map" }] });
+      .mockResolvedValueOnce({ rows: [{ icon_name: "notifications" }] });
 
     const inside = await app.inject({
       method: "POST",
@@ -159,14 +158,65 @@ describe("event routes", () => {
     });
 
     expect(inside.statusCode).toBe(200);
-    expect(query.mock.calls[4]?.[0]).toContain("insert into event_pass_icons");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into event_pass_icons");
+    expect(query.mock.calls[3]?.[1]).toEqual([eventId, userId, "notifications"]);
     expect(inside.json()).toMatchObject({
       data: {
-        iconName: "map",
+        iconName: "notifications",
+        validFrom: "2026-08-01T02:00:00.000Z",
+        validUntil: "2026-08-01T03:00:00.000Z",
+        hourIndex: 22,
         withinRadius: true,
         emailAvailable: true
       }
     });
+  });
+
+  it("returns a staff-only hourly door pass guide", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [eventRow] })
+      .mockResolvedValueOnce({ rows: [{ role: "owner" }] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/events/the-chocolate-factory-launch/pass-guide",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(query.mock.calls[3]?.[0]).toContain("from event_staff");
+    expect(body.data.current).toEqual({
+      iconName: "notifications",
+      validFrom: "2026-08-01T02:00:00.000Z",
+      validUntil: "2026-08-01T03:00:00.000Z",
+      hourIndex: 22
+    });
+    expect(body.data.guide).toHaveLength(29);
+    expect(body.data.guide.slice(0, 3)).toEqual([
+      {
+        iconName: "camera",
+        validFrom: "2026-07-31T04:00:00.000Z",
+        validUntil: "2026-07-31T05:00:00.000Z",
+        hourIndex: 0
+      },
+      {
+        iconName: "cruush",
+        validFrom: "2026-07-31T05:00:00.000Z",
+        validUntil: "2026-07-31T06:00:00.000Z",
+        hourIndex: 1
+      },
+      {
+        iconName: "crowds",
+        validFrom: "2026-07-31T06:00:00.000Z",
+        validUntil: "2026-07-31T07:00:00.000Z",
+        hourIndex: 2
+      }
+    ]);
   });
 
   it("joins the launch party chat as a member without making the attendee an admin", async () => {
