@@ -1,3 +1,5 @@
+import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from './persistentNotice';
+
 const DL_MODE_STORAGE_KEY = 'cruush:dl-mode-enabled';
 const DL_MODE_CHANGED_EVENT = 'cruush:dl-mode-changed';
 const DL_MODE_DEFAULT_NOTICE_KEY = 'cruush:dl-mode-default-notice-seen';
@@ -30,7 +32,7 @@ export function shouldShowDlModeDefaultNotice() {
     return false;
   }
 
-  return window.localStorage.getItem(DL_MODE_DEFAULT_NOTICE_KEY) !== 'true';
+  return !hasPersistentNoticeFlag(DL_MODE_DEFAULT_NOTICE_KEY);
 }
 
 export function markDlModeDefaultNoticeSeen() {
@@ -38,7 +40,7 @@ export function markDlModeDefaultNoticeSeen() {
     return;
   }
 
-  window.localStorage.setItem(DL_MODE_DEFAULT_NOTICE_KEY, 'true');
+  setPersistentNoticeFlag(DL_MODE_DEFAULT_NOTICE_KEY);
 }
 
 export function addDlModeChangedListener(listener: (enabled: boolean) => void) {

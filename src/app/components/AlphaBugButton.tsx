@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Bug, CheckCircle2 } from 'lucide-react';
 import { createSupportRequest } from '../lib/supportApi';
+import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -121,7 +122,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       return;
     }
 
-    setShowTip(window.localStorage.getItem(ALPHA_BUG_TIP_STORAGE_KEY) !== 'true');
+    setShowTip(!hasPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY));
   }, [enabled]);
 
   if (!enabled) {
@@ -131,9 +132,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
   const dismissTip = () => {
     setShowTip(false);
 
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(ALPHA_BUG_TIP_STORAGE_KEY, 'true');
-    }
+    setPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
   };
 
   const handleSubmit = async (event: FormEvent) => {

@@ -11,6 +11,7 @@ import {
 } from './ui/dialog';
 import CruushPlusWord from './CruushPlusWord';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
+import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { claimBetaLaunchCruushPlus } from '../lib/rewardsApi';
 
 const BETA_LAUNCH_OFFER_STORAGE_KEY = 'cruush:beta-launch-plus-offer-seen';
@@ -29,9 +30,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
   const [error, setError] = useState('');
 
   const markSeen = () => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(offerStorageKey(userId), 'true');
-    }
+    setPersistentNoticeFlag(offerStorageKey(userId));
   };
 
   useEffect(() => {
@@ -39,7 +38,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
       return;
     }
 
-    if (window.localStorage.getItem(offerStorageKey(userId)) !== 'true') {
+    if (!hasPersistentNoticeFlag(offerStorageKey(userId))) {
       markSeen();
       setOpen(true);
     } else {

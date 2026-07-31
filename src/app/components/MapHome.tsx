@@ -30,6 +30,7 @@ import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type E
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { addDlModeChangedListener, isDlModeEnabled, setDlModeEnabled } from '../lib/dlMode';
+import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { syncMyLocation } from '../lib/locationApi';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
@@ -434,10 +435,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   const dismissMapControlsIntro = () => {
     setMapControlsIntroOpen(false);
-
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(MAP_CONTROLS_INTRO_STORAGE_KEY, 'true');
-    }
+    setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
   };
 
   useEffect(() => {
@@ -469,7 +467,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
-    if (window.localStorage.getItem(MAP_CONTROLS_INTRO_STORAGE_KEY) === 'true') {
+    if (hasPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY)) {
       return;
     }
 
