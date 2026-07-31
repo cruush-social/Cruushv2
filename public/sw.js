@@ -1,6 +1,6 @@
-const CACHE_NAME = 'cruush-app-shell-v5';
+const CACHE_NAME = 'cruush-app-shell-v6';
+const OFFLINE_APP_SHELL_URL = '/';
 const APP_SHELL_URLS = [
-  '/',
   '/manifest.webmanifest',
   '/icons/favicon-16.png',
   '/icons/favicon-32.png',
@@ -9,10 +9,20 @@ const APP_SHELL_URLS = [
   '/icons/apple-touch-icon.png'
 ];
 
+async function refreshOfflineAppShell() {
+  const cache = await caches.open(CACHE_NAME);
+  const response = await fetch(OFFLINE_APP_SHELL_URL, { cache: 'reload' });
+
+  if (response.ok) {
+    await cache.put(OFFLINE_APP_SHELL_URL, response.clone());
+  }
+
+  await cache.addAll(APP_SHELL_URLS);
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL_URLS))
+    refreshOfflineAppShell()
       .then(() => self.skipWaiting())
   );
 });
@@ -36,6 +46,12 @@ self.addEventListener('activate', (event) => {
         }
       })
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('push', (event) => {
@@ -98,7 +114,22 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('/')));
+    event.respondWith(
+      fetch(request, { cache: 'reload' })
+        .then((response) => {
+          if (response.ok) {
+            const responseClone = response.clone();
+            event.waitUntil(
+              caches.open(CACHE_NAME)
+                .then((cache) => cache.put(OFFLINE_APP_SHELL_URL, responseClone))
+                .catch(() => undefined)
+            );
+          }
+
+          return response;
+        })
+        .catch(() => caches.match(OFFLINE_APP_SHELL_URL))
+    );
     return;
   }
 

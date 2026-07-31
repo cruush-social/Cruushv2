@@ -7,8 +7,38 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      void navigator.serviceWorker.register("/sw.js")
-        .then((registration) => registration.update())
+      let hasController = Boolean(navigator.serviceWorker.controller);
+      let reloadStarted = false;
+
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!hasController) {
+          hasController = true;
+          return;
+        }
+
+        if (reloadStarted) {
+          return;
+        }
+
+        reloadStarted = true;
+        window.location.reload();
+      });
+
+      void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })
+        .then((registration) => {
+          registration.waiting?.postMessage({ type: "SKIP_WAITING" });
+          void registration.update();
+
+          registration.addEventListener("updatefound", () => {
+            const nextWorker = registration.installing;
+
+            nextWorker?.addEventListener("statechange", () => {
+              if (nextWorker.state === "installed" && navigator.serviceWorker.controller) {
+                nextWorker.postMessage({ type: "SKIP_WAITING" });
+              }
+            });
+          });
+        })
         .catch(() => {});
     });
   }
