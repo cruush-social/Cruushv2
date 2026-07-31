@@ -4,6 +4,7 @@ import Auth from './components/Auth';
 import VerifyEmail from './components/VerifyEmail';
 import ResetPassword from './components/ResetPassword';
 import AppErrorBoundary from './components/AppErrorBoundary';
+import GoogleAnalyticsPageTracker from './components/GoogleAnalyticsPageTracker';
 import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
@@ -17,6 +18,7 @@ const ProfileOnboarding = lazy(() => import('./components/ProfileOnboarding'));
 const FiltersPanel = lazy(() => import('./components/FiltersPanel'));
 const GroupDetail = lazy(() => import('./components/GroupDetail'));
 const EventDetail = lazy(() => import('./components/EventDetail'));
+const EventPassGuide = lazy(() => import('./components/EventPassGuide'));
 const PlaceDetail = lazy(() => import('./components/PlaceDetail'));
 const PrivateGroupChat = lazy(() => import('./components/PrivateGroupChat'));
 const DirectMessages = lazy(() => import('./components/DirectMessages'));
@@ -43,6 +45,27 @@ const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
+const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
+const PublicInfoPage = lazy(() => import('./components/PublicInfoPage'));
+
+const PUBLIC_INFO_ROUTES = [
+  { path: '/about', page: 'about' },
+  { path: '/terms', page: 'terms' },
+  { path: '/privacy', page: 'privacy' },
+  { path: '/safety', page: 'safety' },
+  { path: '/security', page: 'security' },
+  { path: '/billing-policy', page: 'billing' },
+  { path: '/content-removal', page: 'content-removal' },
+  { path: '/human-trafficking-policy', page: 'human-trafficking' },
+  { path: '/takedown-policy', page: 'takedown' },
+  { path: '/2257', page: '2257' },
+] as const;
+
+function renderPublicInfoRoutes() {
+  return PUBLIC_INFO_ROUTES.map((route) => (
+    <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
+  ));
+}
 
 function redirectToMap() {
   window.history.replaceState({}, '', '/map');
@@ -178,6 +201,7 @@ export default function App({
   if (tokenLinkType === 'verify-email') {
     return (
       <BrowserRouter key="root-verification-router">
+        <GoogleAnalyticsPageTracker />
         <Routes>
           <Route path="*" element={<VerifyEmail />} />
         </Routes>
@@ -191,6 +215,7 @@ export default function App({
   if (tokenLinkType === 'reset-password') {
     return (
       <BrowserRouter key="root-reset-router">
+        <GoogleAnalyticsPageTracker />
         <Routes>
           <Route path="*" element={<ResetPassword />} />
         </Routes>
@@ -204,11 +229,15 @@ export default function App({
   if (authStatus === 'signed_out') {
     return (
       <BrowserRouter key="public-router">
-        <Routes>
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="*" element={<Auth onAuth={handleAuth} />} />
-        </Routes>
+        <GoogleAnalyticsPageTracker />
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            {renderPublicInfoRoutes()}
+            <Route path="*" element={<Auth onAuth={handleAuth} />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     );
   }
@@ -216,10 +245,12 @@ export default function App({
   if (!session?.user.emailVerifiedAt) {
     return (
       <BrowserRouter key="verification-router">
+        <GoogleAnalyticsPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {renderPublicInfoRoutes()}
             <Route
               path="*"
               element={(
@@ -240,10 +271,12 @@ export default function App({
   if (needsOnboarding) {
     return (
       <BrowserRouter key="onboarding-router">
+        <GoogleAnalyticsPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {renderPublicInfoRoutes()}
             <Route
               path="*"
               element={(
@@ -264,10 +297,12 @@ export default function App({
   if (session?.needsCodeOfConduct) {
     return (
       <BrowserRouter key="code-of-conduct-router">
+        <GoogleAnalyticsPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {renderPublicInfoRoutes()}
             <Route
               path="*"
               element={(
@@ -286,6 +321,7 @@ export default function App({
 
   return (
     <BrowserRouter key="app-router">
+      <GoogleAnalyticsPageTracker />
       <AppErrorBoundary>
         <div className="min-h-screen bg-background text-foreground">
           <Suspense fallback={<RouteLoading />}>
@@ -299,7 +335,9 @@ export default function App({
               <Route path="/filters" element={<FiltersPanel />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              {renderPublicInfoRoutes()}
               <Route path="/groups/:groupId" element={<GroupDetail />} />
+              <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
               <Route path="/events/:eventId" element={<EventDetail />} />
               <Route path="/places/:placeId" element={<PlaceDetail />} />
               <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
@@ -315,6 +353,7 @@ export default function App({
               <Route path="/settings" element={<Settings />} />
               <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
               <Route path="/settings/notifications" element={<NotificationSettings />} />
+              <Route path="/settings/2fa" element={<TwoFactorSettings />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />

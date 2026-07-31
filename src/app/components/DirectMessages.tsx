@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { ChevronRight, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
@@ -15,6 +15,7 @@ import {
   type ConversationTimer,
 } from '../lib/messagesApi';
 import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
+import { openConversationOrInbox } from '../lib/openConversation';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -89,11 +90,14 @@ function getConversationHeartTheme(conversation: ConversationThread) {
 
 export default function DirectMessages() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'groups'>('all');
   const [error, setError] = useState<string | null>(null);
+  const [composeChooserOpen, setComposeChooserOpen] = useState(false);
+  const [directComposerOpen, setDirectComposerOpen] = useState(false);
   const [groupComposerOpen, setGroupComposerOpen] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupTimer, setGroupTimer] = useState<ConversationTimer>('24h');
@@ -101,6 +105,8 @@ export default function DirectMessages() {
   const [mutualOptions, setMutualOptions] = useState<MutualCruushActivityItem[]>([]);
   const [groupError, setGroupError] = useState<string | null>(null);
   const [groupLoading, setGroupLoading] = useState(false);
+  const [directError, setDirectError] = useState<string | null>(null);
+  const [directLoading, setDirectLoading] = useState(false);
   const [groupCreating, setGroupCreating] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -153,10 +159,15 @@ export default function DirectMessages() {
   const unreadCount = conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0);
   const activeNowCount = conversations.filter((conversation) => formatRelativeTime(conversation.updatedAt).includes('m')).length;
 
-  const openGroupComposer = async () => {
-    setGroupComposerOpen(true);
-    setGroupError(null);
-    setGroupLoading(true);
+  const loadMessageableMutuals = async ({
+    setComposerError,
+    setComposerLoading,
+  }: {
+    setComposerError: (error: string | null) => void;
+    setComposerLoading: (loading: boolean) => void;
+  }) => {
+    setComposerError(null);
+    setComposerLoading(true);
 
     try {
       const activity = await getMyCruushActivity();
@@ -164,11 +175,42 @@ export default function DirectMessages() {
     } catch (error) {
       console.error('Error loading mutual cruushes:', error);
       setMutualOptions([]);
-      setGroupError(error instanceof Error ? error.message : 'Failed to load mutual cruushes.');
+      setComposerError(error instanceof Error ? error.message : 'Failed to load mutual cruushes.');
     } finally {
-      setGroupLoading(false);
+      setComposerLoading(false);
     }
   };
+
+  const openGroupComposer = async () => {
+    setComposeChooserOpen(false);
+    setDirectComposerOpen(false);
+    setGroupComposerOpen(true);
+    await loadMessageableMutuals({
+      setComposerError: setGroupError,
+      setComposerLoading: setGroupLoading,
+    });
+  };
+
+  const openDirectComposer = async () => {
+    setComposeChooserOpen(false);
+    setGroupComposerOpen(false);
+    setDirectComposerOpen(true);
+    await loadMessageableMutuals({
+      setComposerError: setDirectError,
+      setComposerLoading: setDirectLoading,
+    });
+  };
+
+  useEffect(() => {
+    if (searchParams.get('compose') !== 'group') {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('compose');
+    setSearchParams(nextParams, { replace: true });
+    void openGroupComposer();
+  }, [searchParams, setSearchParams]);
 
   const toggleSelectedMember = (userId: string) => {
     setSelectedMemberIds((prev) => (
@@ -184,6 +226,16 @@ export default function DirectMessages() {
     setGroupTimer('24h');
     setSelectedMemberIds([]);
     setGroupError(null);
+  };
+
+  const resetDirectComposer = () => {
+    setDirectComposerOpen(false);
+    setDirectError(null);
+  };
+
+  const handleStartDirectChat = (userId: string) => {
+    resetDirectComposer();
+    void openConversationOrInbox(navigate, userId);
   };
 
   const handleCreateGroup = async () => {
@@ -247,9 +299,9 @@ export default function DirectMessages() {
             <Button
               type="button"
               size="icon"
-              aria-label="Create group chat"
-              title="Create group chat"
-              onClick={() => void openGroupComposer()}
+              aria-label="New message"
+              title="New message"
+              onClick={() => setComposeChooserOpen(true)}
               className="h-11 w-11 rounded-full text-white"
               style={{ background: 'var(--cruush-gradient)' }}
             >
@@ -291,6 +343,24 @@ export default function DirectMessages() {
           </Tabs>
         </div>
       </header>
+
+      {composeChooserOpen ? (
+        <ComposeChoiceOverlay
+          onClose={() => setComposeChooserOpen(false)}
+          onStartDirect={() => void openDirectComposer()}
+          onStartGroup={() => void openGroupComposer()}
+        />
+      ) : null}
+
+      {directComposerOpen ? (
+        <MutualDirectOverlay
+          error={directError}
+          loading={directLoading}
+          mutuals={mutualOptions}
+          onClose={resetDirectComposer}
+          onMessage={handleStartDirectChat}
+        />
+      ) : null}
 
       {groupComposerOpen ? (
         <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
@@ -586,6 +656,122 @@ export default function DirectMessages() {
               )}
             </div>
           ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ComposeChoiceOverlay({
+  onClose,
+  onStartDirect,
+  onStartGroup,
+}: {
+  onClose: () => void;
+  onStartDirect: () => void;
+  onStartGroup: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
+      <div className="mx-auto max-w-2xl space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">new message</p>
+            <h3 className="text-2xl">Start a conversation</h3>
+          </div>
+          <Button type="button" variant="ghost" size="icon" aria-label="Close message options" onClick={onClose}>
+            <X className="size-4" />
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          <button
+            type="button"
+            className="w-full rounded-2xl border border-border bg-card/80 p-4 text-left transition-colors hover:bg-accent/60"
+            onClick={onStartDirect}
+          >
+            <span className="block">Start chat with mutual</span>
+            <span className="mt-1 block text-sm text-muted-foreground">Pick one mutual cruush and open a direct chat.</span>
+          </button>
+          <button
+            type="button"
+            className="w-full rounded-2xl border border-border bg-card/80 p-4 text-left transition-colors hover:bg-accent/60"
+            onClick={onStartGroup}
+          >
+            <span className="block">Create group message</span>
+            <span className="mt-1 block text-sm text-muted-foreground">Choose mutual cruushes for a group thread.</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MutualDirectOverlay({
+  error,
+  loading,
+  mutuals,
+  onClose,
+  onMessage,
+}: {
+  error: string | null;
+  loading: boolean;
+  mutuals: MutualCruushActivityItem[];
+  onClose: () => void;
+  onMessage: (userId: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
+      <div className="mx-auto max-w-2xl space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">mutual chat</p>
+            <h3 className="text-2xl">Choose a mutual</h3>
+          </div>
+          <Button type="button" variant="ghost" size="icon" aria-label="Close mutual picker" onClick={onClose}>
+            <X className="size-4" />
+          </Button>
+        </div>
+
+        {error ? (
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
+            Loading mutuals...
+          </div>
+        ) : null}
+
+        {!loading && mutuals.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
+            No mutual cruushes available.
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          {mutuals.map((item) => (
+            <button
+              key={item.user.id}
+              type="button"
+              className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card/70 p-3 text-left transition-colors hover:bg-accent/60"
+              onClick={() => onMessage(item.user.id)}
+            >
+              <HeartPhoto
+                className="w-14 shrink-0"
+                label={`${item.user.name} avatar`}
+                photo={item.user.photo}
+                userId={item.user.id}
+                fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
+              />
+              <span className="min-w-0">
+                <span className="block truncate">{item.user.name}</span>
+                <span className="block text-xs text-muted-foreground">{item.distance}</span>
+              </span>
+            </button>
+          ))}
         </div>
       </div>
     </div>

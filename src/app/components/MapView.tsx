@@ -447,6 +447,21 @@ function getDisplayName(marker: MapMarker) {
   return marker.displayName.trim() || 'person';
 }
 
+function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 30) {
+  const normalizedValue = (value ?? '').trim().replace(/\s+/g, ' ');
+
+  if (normalizedValue.length <= maxCharacters) {
+    return normalizedValue;
+  }
+
+  const clippedValue = normalizedValue
+    .slice(0, maxCharacters)
+    .replace(/\s+\S*$/, '')
+    .trim();
+
+  return `${clippedValue || normalizedValue.slice(0, maxCharacters).trim()}...`;
+}
+
 function shouldReduceMotion() {
   return typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
@@ -472,7 +487,7 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const borderClass = marker.relationship?.kind === 'mutual_cruush'
     ? 'border-[#6f00ff]/80'
     : isCurrentUser
-      ? 'border-[#0BA8FF]/80'
+      ? 'border-[#FF0072]/80'
       : 'border-[#FF0072]/80';
 
   return (
@@ -614,6 +629,8 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
 
 function MapMarkerPin({ marker }: { marker: MapMarker }) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser === true;
+  const signalPreview = marker.kind === 'person' ? truncateMarkerPreview(marker.signal) : '';
+  const postPreview = marker.kind === 'person' ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
 
   if (marker.kind === 'cluster') {
     return <VenueClusterMarker marker={marker} />;
@@ -624,8 +641,8 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   }
 
   return (
-    <span className="pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
-      <span className="relative flex h-20 w-[103px] items-center justify-center">
+    <span className="group pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
+      <span className="relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-150 group-focus-within:scale-150">
         {marker.npcGhostDemo ? (
           <span
             aria-hidden="true"
@@ -637,6 +654,20 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
         <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
         <MarkerRelationshipBadge marker={marker} />
       </span>
+      {signalPreview || postPreview ? (
+        <span className="absolute left-1/2 top-0 z-20 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+          {signalPreview ? (
+            <span className="rounded-full border border-white/12 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+              {signalPreview}
+            </span>
+          ) : null}
+          {postPreview ? (
+            <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+              {postPreview}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -659,7 +690,7 @@ function createMarkerElement(
   const animationHint = marker.animationHint ?? 'NONE';
 
   element.className = [
-    'relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0 transition-opacity duration-700',
+    'group relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0 transition-opacity duration-700',
     animationHint === 'FADE_LAST_MINUTE' ? 'opacity-45' : '',
     animationHint === 'SIGNAL_LOSS' ? 'opacity-15 animate-pulse' : '',
     animationHint === 'REAPPEAR' ? 'opacity-100' : '',

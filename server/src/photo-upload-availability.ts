@@ -11,11 +11,7 @@ export function activeAlphaTest(config: Pick<AppConfig, "ALPHA_TEST_ENABLED" | "
 }
 
 export function activeAlphaProfilePhotoUploadBypass(
-  config: Pick<
-    AppConfig,
-    | "ALPHA_TEST_ENABLED"
-    | "ALPHA_TEST_ENDS_AT"
-  >
+  config: Pick<AppConfig, "ALPHA_TEST_ENABLED" | "ALPHA_TEST_ENDS_AT">
 ) {
   return activeAlphaTest(config);
 }

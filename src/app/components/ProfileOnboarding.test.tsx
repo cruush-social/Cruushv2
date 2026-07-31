@@ -165,7 +165,7 @@ describe('ProfileOnboarding', () => {
     expect(await screen.findByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Style & Energy' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
-    expect(await screen.findByRole('option', { name: 'Bear' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Bear' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Archetypes' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Daddy' }));
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
@@ -211,7 +211,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
-      identities: ['trans man', 'trans woman', 'nonbinary'],
+      identities: ['trans woman', 'nonbinary', 'woman'],
       is_trans: true,
       crowds: ['T4T'],
     })));
@@ -293,7 +293,7 @@ describe('ProfileOnboarding', () => {
 
     expect(screen.getByText('protect your key')).toBeInTheDocument();
     expect(screen.getByText('Use the same password you use to sign in. This is not a separate 2FA password.')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('cruush login password'), {
+    fireEvent.change(screen.getByLabelText(/cruush login password/i), {
       target: { value: 'current-password' },
     });
     fireEvent.click(screen.getByRole('button', { name: /start 2fa setup/i }));

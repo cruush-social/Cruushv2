@@ -292,6 +292,9 @@ function labelsFromFilename(filename: string | undefined): ProviderLabel[] {
     ["profile-crop", "adult_human_body", "low", 0.95],
     ["group-photo", "profile_photo_not_adult_human", "high", 0.96],
     ["multiple-people", "profile_photo_not_adult_human", "high", 0.96],
+    ["animal", "animal", "high", 0.96],
+    ["pet", "animal", "high", 0.96],
+    ["screenshot", "screenshot_or_interface", "high", 0.96],
     ["non-human", "profile_photo_not_adult_human", "high", 0.96],
     ["no-human", "profile_photo_not_adult_human", "high", 0.96],
     ["gradient", "profile_photo_not_adult_human", "high", 0.96],
@@ -483,7 +486,15 @@ export function normalizeStreamLabel(
     return null;
   }
 
-  if (/\b(?:group photo|group image|multiple people|more than one person|crowd|no human|non human|not human|no person|no people|animal|object|landscape|abstract|gradient|logo|text only|screenshot|cartoon|drawing|illustration)\b/i.test(normalized)) {
+  if (/\b(?:animal|pet|dog|cat|bird|reptile|wildlife)\b/i.test(normalized)) {
+    return "animal";
+  }
+
+  if (/\b(?:screenshot|screen capture|screen recording|interface|ui capture|text only|logo)\b/i.test(normalized)) {
+    return "screenshot_or_interface";
+  }
+
+  if (/\b(?:group photo|group image|multiple people|more than one person|crowd|no human|non human|not human|no person|no people|object|landscape|abstract|gradient|cartoon|drawing|illustration)\b/i.test(normalized)) {
     return "profile_photo_not_adult_human";
   }
 

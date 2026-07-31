@@ -35,6 +35,16 @@ describe("migration runner", () => {
     expect(billingSql).toContain("foreign key (user_id) references app_users(id) on delete cascade");
   });
 
+  it("seeds existing account notice dismissals for one-time launch popups", async () => {
+    const noticeSql = await readFile(path.join(serverRoot, "sql", "055_user_notice_dismissals.sql"), "utf8");
+
+    expect(noticeSql).toContain("create table if not exists user_notice_dismissals");
+    expect(noticeSql).toContain("cruush:map-controls-intro-seen");
+    expect(noticeSql).toContain("cruush:alpha-bug-tip-seen");
+    expect(noticeSql).toContain("cruush:dl-mode-default-notice-seen");
+    expect(noticeSql).toContain("cruush:beta-launch-plus-offer-seen:");
+  });
+
   it("adds the launch party and crowd feed schema after rewards and 2FA", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const launchSql = await readFile(path.join(serverRoot, "sql", "043_launch_party_crowd_feed.sql"), "utf8");
@@ -51,6 +61,7 @@ describe("migration runner", () => {
     expect(launchSql).toContain("the-chocolate-factory-launch");
     expect(matchSettingsSql).toContain("create table if not exists user_cruush_match_settings");
     expect(matchSettingsSql).toContain("nsfw_message_visibility");
+    expect(matchSettingsSql).toContain("mutual_crowds");
   });
 
   it("adds message favorite images after match settings", async () => {

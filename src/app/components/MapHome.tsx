@@ -29,7 +29,9 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type EventPassReveal, type LaunchEvent } from '../lib/eventsApi';
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
-import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, setDlModeEnabled } from '../lib/dlMode';
+import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
+import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation } from '../lib/locationApi';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
@@ -199,6 +201,32 @@ function profileLocationToApproximateCoordinates(profile: ProfileRecord | null):
   };
 }
 
+function profileRecordToOwnDiscoveryUser(profile: ProfileRecord, location: ApproximateCoordinates | null): DiscoveryUser {
+  return {
+    id: profile.id || 'me',
+    name: profile.display_name || 'Your profile',
+    display_name: profile.display_name || 'Your profile',
+    signal: profile.signal,
+    age: profile.year_of_birth ? new Date().getFullYear() - profile.year_of_birth : null,
+    pronouns: (profile.pronouns ?? []).join(', ') || 'Ask me',
+    lat: location?.approximateLatitude ?? 40.7128,
+    lng: location?.approximateLongitude ?? -74.006,
+    lastActive: 'Now',
+    distance: 'You',
+    lookingFor: profile.looking_for ?? [],
+    vibes: profile.vibes ?? [],
+    scenes: profile.scenes ?? [],
+    archetypes: profile.archetypes ?? [],
+    position: profile.position ?? [],
+    role: profile.role ?? [],
+    hostingTravel: profile.hosting_travel ?? [],
+    photo: profile.photos?.[0] ?? null,
+    photoExplicit: profile.photo_metadata?.[0]?.explicit === true,
+    badges: profile.badges ?? [],
+    isCurrentUser: true,
+  };
+}
+
 function getAvailableCrowdModes(profile: ProfileRecord | null) {
   const profileCrowds = new Set(normalizeCrowdValues(profile?.crowds ?? []));
 
@@ -307,7 +335,7 @@ type LuckySlotState =
 const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
-const GHOST_MODE_INTRO_STORAGE_KEY = 'cruush:ghost-mode-intro-seen';
+const MAP_CONTROLS_INTRO_STORAGE_KEY = 'cruush:map-controls-intro-seen';
 
 function toRadians(degrees: number) {
   return degrees * Math.PI / 180;
@@ -355,6 +383,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [activeEvents, setActiveEvents] = useState<LaunchEvent[]>([]);
   const [selectedEventSlug, setSelectedEventSlug] = useState<string | null>(null);
   const [eventPass, setEventPass] = useState<EventPassReveal | null>(null);
+  const [eventPassCoordinates, setEventPassCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [eventActionError, setEventActionError] = useState<string | null>(null);
   const [eventActionStatus, setEventActionStatus] = useState<string | null>(null);
   const [revealingEventPass, setRevealingEventPass] = useState(false);
@@ -362,7 +391,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [joiningEventChat, setJoiningEventChat] = useState(false);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const [ghostModeIntroOpen, setGhostModeIntroOpen] = useState(false);
+  const [mapControlsIntroOpen, setMapControlsIntroOpen] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
   const lastEventCenterRequestKeyRef = useRef<string | null>(null);
@@ -405,12 +434,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
       });
   };
 
-  const dismissGhostModeIntro = () => {
-    setGhostModeIntroOpen(false);
-
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(GHOST_MODE_INTRO_STORAGE_KEY, 'true');
-    }
+  const dismissMapControlsIntro = () => {
+    setMapControlsIntroOpen(false);
+    setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
+    void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
   };
 
   useEffect(() => {
@@ -442,12 +469,40 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
-    if (window.localStorage.getItem(GHOST_MODE_INTRO_STORAGE_KEY) === 'true') {
+    let isMounted = true;
+
+    if (hasPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY)) {
+      void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
+      setMapControlsIntroOpen(false);
       return;
     }
 
-    setGhostModeIntroOpen(true);
-  }, [currentProfile, profileLoaded]);
+    getUserNoticeDismissal(MAP_CONTROLS_INTRO_STORAGE_KEY)
+      .then((notice) => {
+        if (!isMounted) {
+          return;
+        }
+
+        if (notice.dismissed) {
+          setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
+          setMapControlsIntroOpen(false);
+          return;
+        }
+
+        setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
+        void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
+        setMapControlsIntroOpen(true);
+      })
+      .catch(() => {
+        if (isMounted) {
+          setMapControlsIntroOpen(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentProfile?.id, profileLoaded]);
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
@@ -663,6 +718,38 @@ export default function MapHome(_props: MapHomeProps = {}) {
     });
   }, [filters, isMutualMapMode, userApproximateLocation]);
 
+  const applyBrowserPositionToMap = (position: GeolocationPosition, centerAfterUpdate = false) => {
+    // Exact browser coordinates stay local here. Only approximate coordinates
+    // should ever be displayed on the map or shared with other users.
+    const approximateLocation = approximateDisplayCoordinates({
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    });
+    const fetchCoordinates = {
+      lat: approximateLocation.approximateLatitude,
+      lng: approximateLocation.approximateLongitude,
+    };
+    const browserCoordinates = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
+
+    setEventPassCoordinates(browserCoordinates);
+    setUserApproximateLocation(approximateLocation);
+    setLocationStatus('ready');
+    syncApproximateMapLocation(approximateLocation);
+    if (centerAfterUpdate) {
+      mapInstance?.setCenter([
+        approximateLocation.approximateLongitude,
+        approximateLocation.approximateLatitude,
+      ]);
+      mapInstance?.setZoom(14);
+    }
+    void fetchUsers(fetchCoordinates);
+
+    return browserCoordinates;
+  };
+
   const requestUserLocation = (centerAfterUpdate = false) => {
     setLocationError(null);
 
@@ -675,28 +762,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setLocationStatus('locating');
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        // Exact browser coordinates stay local here. Only approximate coordinates
-        // should ever be displayed on the map or shared with other users.
-        const approximateLocation = approximateDisplayCoordinates({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        const fetchCoordinates = {
-          lat: approximateLocation.approximateLatitude,
-          lng: approximateLocation.approximateLongitude,
-        };
-
-        setUserApproximateLocation(approximateLocation);
-        setLocationStatus('ready');
-        syncApproximateMapLocation(approximateLocation);
-        if (centerAfterUpdate) {
-          mapInstance?.setCenter([
-            approximateLocation.approximateLongitude,
-            approximateLocation.approximateLatitude,
-          ]);
-          mapInstance?.setZoom(14);
-        }
-        void fetchUsers(fetchCoordinates);
+        applyBrowserPositionToMap(position, centerAfterUpdate);
       },
       () => {
         setLocationStatus('error');
@@ -705,6 +771,30 @@ export default function MapHome(_props: MapHomeProps = {}) {
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 60_000 },
     );
   };
+
+  const requestFreshEventPassCoordinates = () => new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
+    setLocationError(null);
+
+    if (!navigator.geolocation) {
+      setLocationStatus('error');
+      setLocationError('Your browser does not support location sharing.');
+      reject(new Error('Geolocation unavailable.'));
+      return;
+    }
+
+    setLocationStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve(applyBrowserPositionToMap(position));
+      },
+      (positionError) => {
+        setLocationStatus('error');
+        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
+        reject(positionError);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+    );
+  });
 
   useEffect(() => {
     const savedProfileLocation = profileLocationToApproximateCoordinates(currentProfile);
@@ -864,26 +954,26 @@ export default function MapHome(_props: MapHomeProps = {}) {
     () => activeEvents.find((event) => event.slug === selectedEventSlug) ?? null,
     [activeEvents, selectedEventSlug],
   );
-  const visibleEventPassIconName = eventPass?.iconName ?? selectedEvent?.passIconName ?? null;
   const selectedEventDistanceMiles = useMemo(() => {
-    if (!selectedEvent || !currentUserMapLocation) {
+    if (!selectedEvent || !eventPassCoordinates) {
       return null;
     }
 
     return distanceMilesBetween(
       {
-        latitude: currentUserMapLocation.approximateLatitude,
-        longitude: currentUserMapLocation.approximateLongitude,
+        latitude: eventPassCoordinates.latitude,
+        longitude: eventPassCoordinates.longitude,
       },
       {
         latitude: selectedEvent.coordinates.latitude,
         longitude: selectedEvent.coordinates.longitude,
       },
     );
-  }, [currentUserMapLocation, selectedEvent]);
+  }, [eventPassCoordinates, selectedEvent]);
   const canRevealSelectedEventPass = selectedEvent && selectedEventDistanceMiles !== null
     ? selectedEventDistanceMiles <= selectedEvent.radiusMiles
     : false;
+  const visibleEventPassIconName = canRevealSelectedEventPass ? eventPass?.iconName ?? null : null;
   const denseVenue = useMemo<DenseVenueConfig | null>(() => launchPartyEvent
     ? {
         id: launchPartyEvent.slug,
@@ -902,28 +992,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return null;
     }
 
-    return {
-      id: currentProfile.id || 'me',
-      name: currentProfile.display_name || 'Your profile',
-      display_name: currentProfile.display_name || 'Your profile',
-      age: currentProfile.year_of_birth ? new Date().getFullYear() - currentProfile.year_of_birth : null,
-      pronouns: (currentProfile.pronouns ?? []).join(', ') || 'Ask me',
-      lat: currentUserMapLocation?.approximateLatitude ?? 40.7128,
-      lng: currentUserMapLocation?.approximateLongitude ?? -74.006,
-      lastActive: currentProfile.location?.location_updated_at ? 'Saved area' : 'Now',
-      distance: 'You',
-      lookingFor: currentProfile.looking_for ?? [],
-      vibes: currentProfile.vibes ?? [],
-      scenes: currentProfile.scenes ?? [],
-      archetypes: currentProfile.archetypes ?? [],
-      position: currentProfile.position ?? [],
-      role: currentProfile.role ?? [],
-      hostingTravel: currentProfile.hosting_travel ?? [],
-      photo: currentProfile.photos?.[0] ?? null,
-      photoExplicit: currentProfile.photo_metadata?.[0]?.explicit === true,
-      badges: currentProfile.badges ?? [],
-      isCurrentUser: true,
-    };
+    return profileRecordToOwnDiscoveryUser(currentProfile, currentUserMapLocation);
   }, [currentProfile, currentUserMapLocation]);
 
   useEffect(() => {
@@ -999,6 +1068,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
     showLuckySlot({ mode: 'profile', targetUser: luckyUser });
   };
 
+  const handleToggleDlMode = () => {
+    setDlModeEnabled(!dlModeActive);
+  };
+
   const handleCenterMyLocation = () => {
     if (currentUserMapLocation) {
       setLocationError(null);
@@ -1038,17 +1111,25 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
-    if (!currentUserMapLocation) {
+    if (!navigator.geolocation) {
+      setEventActionStatus(null);
+      setEventActionError('Your browser does not support location sharing.');
+      return;
+    }
+
+    let passCoordinates: { latitude: number; longitude: number };
+    try {
+      passCoordinates = await requestFreshEventPassCoordinates();
+    } catch {
       setEventActionStatus(null);
       setEventActionError(`Share your location to unlock the door pass within ${selectedEvent.radiusMiles} mile of the venue.`);
-      requestUserLocation(true);
       return;
     }
 
     const distanceMiles = distanceMilesBetween(
       {
-        latitude: currentUserMapLocation.approximateLatitude,
-        longitude: currentUserMapLocation.approximateLongitude,
+        latitude: passCoordinates.latitude,
+        longitude: passCoordinates.longitude,
       },
       {
         latitude: selectedEvent.coordinates.latitude,
@@ -1066,16 +1147,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setEventActionError(null);
     setEventActionStatus(null);
     try {
-      const revealedPass = await revealEventPass(selectedEvent.slug, {
-        latitude: currentUserMapLocation.approximateLatitude,
-        longitude: currentUserMapLocation.approximateLongitude,
-      });
+      const revealedPass = await revealEventPass(selectedEvent.slug, passCoordinates);
       setEventPass(revealedPass);
       setActiveEvents((events) => events.map((event) => event.slug === selectedEvent.slug
         ? {
             ...event,
             joined: true,
-            passIconName: revealedPass.iconName,
           }
         : event));
       setEventActionStatus('Door pass revealed.');
@@ -1087,6 +1164,23 @@ export default function MapHome(_props: MapHomeProps = {}) {
       setRevealingEventPass(false);
     }
   };
+
+  useEffect(() => {
+    if (!eventPass?.validUntil) {
+      return undefined;
+    }
+
+    const validUntilMs = Date.parse(eventPass.validUntil);
+    if (!Number.isFinite(validUntilMs)) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setEventPass(null);
+    }, Math.max(0, validUntilMs - Date.now() + 500));
+
+    return () => window.clearTimeout(timeout);
+  }, [eventPass?.validUntil]);
 
   const handleEmailEventPass = async () => {
     if (!selectedEvent) {
@@ -1106,7 +1200,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   };
 
-  const handleJoinEventChat = async () => {
+  const handleJoinEventChat = async ({ openChat = true }: { openChat?: boolean } = {}) => {
     if (!selectedEvent) {
       return;
     }
@@ -1121,9 +1215,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
             ...event,
             joined: true,
             conversationId: joinedChat.conversationId,
+            attendeeCount: event.joined ? event.attendeeCount : event.attendeeCount + 1,
           }
         : event));
-      navigate(`/chat/group/${joinedChat.conversationId}`);
+      if (openChat) {
+        navigate(`/chat/group/${joinedChat.conversationId}`);
+      } else {
+        setEventActionStatus('You joined. The party chat is in Messages and notifications are off by default.');
+      }
     } catch (joinError) {
       setEventActionError(joinError instanceof Error ? joinError.message : 'Unable to join the party group chat right now.');
     } finally {
@@ -1138,6 +1237,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
         userId: user.id,
         kind: 'person',
         displayName: user.name,
+        signal: user.signal,
+        latestFeedPostPreview: user.latestFeedPostPreview,
         approximateLatitude: user.lat,
         approximateLongitude: user.lng,
         lastActiveLabel: user.lastActive,
@@ -1182,9 +1283,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
         id: 'me',
         userId: currentProfile?.id ?? 'me',
         displayName: 'You',
+        signal: currentProfile?.signal ?? '',
         approximateLatitude: currentUserMapLocation.approximateLatitude,
         approximateLongitude: currentUserMapLocation.approximateLongitude,
-        lastActiveLabel: userApproximateLocation ? 'Now' : 'Saved area',
+        lastActiveLabel: 'Now',
         photo: currentProfile?.photos[0] ?? null,
         isCurrentUser: true,
         badge: createMapMarkerBadge(currentProfile?.position ?? []),
@@ -1378,9 +1480,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/privacy/dl-mode')}
-              aria-label="DL Mode Settings"
-              title="DL Mode Settings"
+              onClick={handleToggleDlMode}
+              aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
+              title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               className="rounded-full text-white/90 hover:bg-white/10"
             >
               <Eye className="h-5 w-5" style={dlModeEyeStyle} strokeWidth={2.35} />
@@ -1446,7 +1548,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
 
         {error ? (
-          <div className="absolute left-4 right-20 top-24 z-20 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          <div className="absolute left-4 right-20 top-[8.75rem] z-20 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
           </div>
         ) : null}
@@ -1488,6 +1590,18 @@ export default function MapHome(_props: MapHomeProps = {}) {
             fixed={selectedUser.isCurrentUser === true}
             isOwnProfile={selectedUser.isCurrentUser === true}
             onBlockedUser={handleBlockedUser}
+            onProfileSaved={(savedProfile) => {
+              const nextProfile = {
+                ...emptyProfilePayload,
+                ...savedProfile,
+              };
+              const nextLocation = userApproximateLocation ?? profileLocationToApproximateCoordinates(nextProfile);
+
+              setCurrentProfile(nextProfile);
+              setSelectedUser((currentUser) => currentUser?.isCurrentUser === true
+                ? profileRecordToOwnDiscoveryUser(nextProfile, nextLocation)
+                : currentUser);
+            }}
           />
         ) : null}
 
@@ -1503,7 +1617,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-300">Beta launch</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[#03ecfc]">Beta launch</p>
                 <h2 className="mt-1 text-lg text-white">{selectedEvent.venueName}</h2>
                 <p className="mt-1 text-sm text-white/62">{selectedEvent.address}</p>
               </div>
@@ -1529,7 +1643,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </div>
 
             <a
-              className="mt-3 inline-flex items-center gap-2 text-sm text-emerald-300 hover:text-emerald-200"
+              className="mt-3 inline-flex items-center gap-2 text-sm text-[#03ecfc] hover:text-[#c9fbff]"
               href={selectedEvent.raUrl}
               rel="noreferrer"
               target="_blank"
@@ -1538,17 +1652,49 @@ export default function MapHome(_props: MapHomeProps = {}) {
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
 
+            <div className="mt-4 grid grid-cols-1 gap-2">
+              {selectedEvent.joined ? (
+                <div className="rounded-lg border border-[#03ecfc]/20 bg-[#03ecfc]/10 p-3 text-sm text-[#c9fbff]">
+                  You're joining. The party chat is available in Messages and muted by default.
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  className="h-10 rounded-lg text-white"
+                  style={{ background: 'var(--cruush-gradient)' }}
+                  onClick={() => handleJoinEventChat({ openChat: false })}
+                  disabled={joiningEventChat}
+                >
+                  {joiningEventChat ? 'Joining...' : 'Join launch party'}
+                </Button>
+              )}
+              {selectedEvent.joined && selectedEvent.conversationId ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-10 rounded-lg border border-white/10 bg-white/8 text-white hover:bg-white/12"
+                  onClick={() => navigate(`/chat/group/${selectedEvent.conversationId}`)}
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Open party chat
+                </Button>
+              ) : null}
+            </div>
+
             <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.045] p-3">
               {visibleEventPassIconName ? (
                 <div>
                   <p className="text-xs uppercase tracking-[0.16em] text-white/52">Door pass</p>
                   <div className="mt-2 flex items-center gap-3">
-                    <span className="flex h-14 w-14 items-center justify-center rounded-lg border border-emerald-300/25 bg-emerald-400/10">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-lg border border-[#03ecfc]/25 bg-[#03ecfc]/10">
                       <CruushIcon name={visibleEventPassIconName} variant="colored" className="h-9 w-9" />
                     </span>
                     <div>
-                      <p className="text-sm text-white">Show this icon at the door.</p>
-                      <p className="mt-0.5 text-xs text-white/55">{visibleEventPassIconName}</p>
+                      <p className="text-sm text-white">Show this icon at the door. It changes every hour.</p>
+                      <p className="mt-0.5 text-xs text-white/55">
+                        {visibleEventPassIconName}
+                        {eventPass?.hourIndex !== undefined ? ` | hour ${eventPass.hourIndex + 1}` : ''}
+                      </p>
                     </div>
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1566,11 +1712,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       type="button"
                       className="h-10 rounded-lg text-white"
                       style={{ background: 'var(--cruush-gradient)' }}
-                      onClick={handleJoinEventChat}
+                      onClick={() => {
+                        if (selectedEvent.conversationId) {
+                          navigate(`/chat/group/${selectedEvent.conversationId}`);
+                          return;
+                        }
+                        void handleJoinEventChat({ openChat: true });
+                      }}
                       disabled={joiningEventChat}
                     >
                       <MessageCircle className="mr-2 h-4 w-4" />
-                      {joiningEventChat ? 'Joining...' : 'Join chat'}
+                      {joiningEventChat ? 'Joining...' : selectedEvent.conversationId ? 'Open chat' : 'Join chat'}
                     </Button>
                   </div>
                 </div>
@@ -1579,7 +1731,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   <p className="text-sm text-white">
                     The door pass unlocks when you are within {selectedEvent.radiusMiles} mile of the venue.
                   </p>
-                  {!currentUserMapLocation ? (
+                  {!eventPassCoordinates ? (
                     <Button
                       type="button"
                       className="mt-3 h-10 w-full rounded-lg text-white"
@@ -1617,7 +1769,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               )}
 
               {eventActionStatus ? (
-                <p className="mt-3 text-xs text-emerald-300">{eventActionStatus}</p>
+                <p className="mt-3 text-xs text-[#03ecfc]">{eventActionStatus}</p>
               ) : null}
               {eventActionError ? (
                 <p className="mt-3 text-xs text-destructive">{eventActionError}</p>
@@ -1631,10 +1783,18 @@ export default function MapHome(_props: MapHomeProps = {}) {
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (
-            <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
+            <button
+              type="button"
+              className="inline-flex h-8 items-center gap-2 rounded-full border border-white/15 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+              style={{ background: 'var(--cruush-gradient)' }}
+              onClick={() => {
+                setVisibilityError(null);
+                setIsVisibilityOpen(true);
+              }}
+            >
               <CruushIconImage src={crowdIconColored} className="h-4 w-4" />
               {activeCrowdNotice}
-            </div>
+            </button>
           ) : null}
 
           {privacySettings.ghostModeEnabled ? (
@@ -1642,17 +1802,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
               <CruushIconImage src={ghostIconColored} className="h-4 w-4" />
               Ghost Mode Active
             </div>
-          ) : null}
-
-          {dlModeActive ? (
-            <button
-              type="button"
-              className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
-              onClick={() => navigate('/privacy/dl-mode')}
-            >
-              <Eye className="h-4 w-4" style={dlModeEyeStyle} strokeWidth={2.35} />
-              DL Mode Active
-            </button>
           ) : null}
 
           <Button
@@ -1845,26 +1994,32 @@ export default function MapHome(_props: MapHomeProps = {}) {
         />
 
         <Dialog
-          open={ghostModeIntroOpen}
+          open={mapControlsIntroOpen}
           onOpenChange={(open) => {
             if (!open) {
-              dismissGhostModeIntro();
+              dismissMapControlsIntro();
             }
           }}
         >
           <DialogContent className="max-w-md rounded-lg border-white/10 bg-background text-white">
             <DialogHeader>
-              <DialogTitle>Ghost Mode protects your map location</DialogTitle>
+              <DialogTitle>Map controls</DialogTitle>
               <DialogDescription>
-                Other people see a shifting area around you instead of your exact position. You can change the radius or turn on precise location for mutual cruushes from Ghost Mode settings.
+                Seeking and Visibility live on the right side of the map. The bug report button stays top center so it is not hidden under menus.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-white/72">
+              <p><span className="text-white">Seeking:</span> filter nearby people by what you want to find.</p>
+              <p><span className="text-white">Visibility:</span> hide yourself from selected audiences.</p>
+              <p><span className="text-white">Crowds:</span> use Dyke, Gay, and T4T modes when you only want those active crowds to see you.</p>
+              <p><span className="text-white">DL Mode:</span> tap the eye in the top menu to mask or reveal NSFW images.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
               <Button
                 type="button"
                 variant="outline"
                 className="rounded-lg border-white/12 bg-white/[0.035] text-white hover:bg-white/[0.08]"
-                onClick={dismissGhostModeIntro}
+                onClick={dismissMapControlsIntro}
               >
                 Got it
               </Button>
@@ -1873,11 +2028,22 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 className="rounded-lg text-white"
                 style={{ background: 'var(--cruush-gradient)' }}
                 onClick={() => {
-                  dismissGhostModeIntro();
-                  navigate('/privacy/ghost-mode');
+                  dismissMapControlsIntro();
+                  setIsFiltersOpen(true);
                 }}
               >
-                Ghost Mode settings
+                Seeking
+              </Button>
+              <Button
+                type="button"
+                className="rounded-lg text-white"
+                style={{ background: 'var(--cruush-gradient)' }}
+                onClick={() => {
+                  dismissMapControlsIntro();
+                  setIsVisibilityOpen(true);
+                }}
+              >
+                Visibility
               </Button>
             </div>
           </DialogContent>

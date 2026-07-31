@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import { Eye } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -11,25 +11,62 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import {
+  DL_MODE_DEFAULT_NOTICE_KEY,
   markDlModeDefaultNoticeSeen,
   setDlModeEnabled,
   shouldShowDlModeDefaultNotice,
 } from '../lib/dlMode';
+import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 
 export default function DlModeDefaultNotice() {
-  const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (shouldShowDlModeDefaultNotice()) {
-      setDlModeEnabled(true);
-      markDlModeDefaultNoticeSeen();
-      setOpen(true);
+    if (!location.pathname.startsWith('/map')) {
+      return;
     }
-  }, []);
+
+    let isMounted = true;
+
+    if (!shouldShowDlModeDefaultNotice()) {
+      void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
+      setOpen(false);
+      return;
+    }
+
+    getUserNoticeDismissal(DL_MODE_DEFAULT_NOTICE_KEY)
+      .then((notice) => {
+        if (!isMounted) {
+          return;
+        }
+
+        if (notice.dismissed) {
+          markDlModeDefaultNoticeSeen();
+          setOpen(false);
+          return;
+        }
+
+        setDlModeEnabled(true);
+        markDlModeDefaultNoticeSeen();
+        void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
+        setOpen(true);
+      })
+      .catch(() => {
+        if (isMounted) {
+          setOpen(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [location.pathname]);
 
   const closeNotice = () => {
     setOpen(false);
+    markDlModeDefaultNoticeSeen();
+    void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
   };
 
   return (
@@ -46,23 +83,18 @@ export default function DlModeDefaultNotice() {
           <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.045]">
             <Eye className="h-5 w-5 text-primary" strokeWidth={2.35} />
           </div>
-          <DialogTitle>DL Mode is on</DialogTitle>
+          <DialogTitle>DL Mode</DialogTitle>
           <DialogDescription>
-            NSFW images are hidden behind gradients. Turning DL Mode off shows NSFW images in profile photos, messages, and saved image previews.
+            DL Mode starts on by default. Tap the eye in the top map menu to turn it on or off; when it is on, NSFW images stay behind gradients.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={closeNotice}>
-            Keep on
-          </Button>
           <Button
-            onClick={() => {
-              closeNotice();
-              navigate('/privacy/dl-mode');
-            }}
+            className="w-full"
+            onClick={closeNotice}
             style={{ background: 'var(--cruush-gradient)' }}
           >
-            DL Mode settings
+            Got it
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -21,8 +21,7 @@ import {
   mergeProfilePhotoSafetyResults
 } from "./profile-photo-human-detection.js";
 import {
-  activeAlphaProfilePhotoUploadBypass,
-  activeAlphaTest
+  activeAlphaProfilePhotoUploadBypass
 } from "./photo-upload-availability.js";
 import { applyPolicyDecision } from "./trust-engine.js";
 import {
@@ -298,10 +297,7 @@ function canUseProfilePhotoRekognitionFallback(app: FastifyInstance, surface: Mo
     app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
     (
       app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
-      (
-        activeAlphaTest(app.config) &&
-        app.config.ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED === true
-      )
+      activeAlphaProfilePhotoUploadBypass(app.config)
     );
 }
 

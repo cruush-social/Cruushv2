@@ -292,7 +292,8 @@ describe("notification routes", () => {
         push_enabled: true,
         cruush_enabled: true,
         messages_enabled: true,
-        groups_enabled: true
+        groups_enabled: true,
+        sound_enabled: true
       }]
     });
 
@@ -321,7 +322,8 @@ describe("notification routes", () => {
         pushEnabled: true,
         cruushEnabled: true,
         messagesEnabled: true,
-        groupsEnabled: true
+        groupsEnabled: true,
+        soundEnabled: true
       }
     });
   }, 10000);

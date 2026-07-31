@@ -27,25 +27,25 @@ function selectVisibilityOption(label: string, option: string) {
 }
 
 describe('MapVisibilitySurface', () => {
-  it('limits free users to three hidden-audience filter groups', () => {
+  it('limits non-cruush+ users to three hidden audiences without account-plan copy', () => {
     render(<VisibilityHarness />);
 
-    expect(screen.getByText('Free accounts can hide from up to 3 filter groups.')).toBeInTheDocument();
+    expect(screen.queryByText('Free accounts can hide from up to 3 audiences.')).not.toBeInTheDocument();
     expect(screen.getByText('Pick who should not see you. Crowd Mode is different: it makes you visible only to the active crowds you choose.')).toBeInTheDocument();
 
     selectVisibilityOption('Gender Identities', 'man');
     selectVisibilityOption('Presentation', 'masc');
     selectVisibilityOption('Crowds', 'Gay');
 
-    expect(screen.getByText('3 of 3 hidden filters used')).toBeInTheDocument();
+    expect(screen.queryByText('3 of 3 hidden filters used')).not.toBeInTheDocument();
 
     selectVisibilityOption('Body Type', 'athletic');
 
-    expect(screen.getByText('Free accounts can use up to 3 hidden filters. Remove one or upgrade for more.')).toBeInTheDocument();
+    expect(screen.getByText('You can use up to 3 hidden filters. Remove one before adding another.')).toBeInTheDocument();
     expect(screen.getByTestId('hidden-body-types')).toHaveTextContent('');
   });
 
-  it('lets cruush+ users use more than three hidden-audience filter groups', () => {
+  it('lets cruush+ users use more than three hidden audiences', () => {
     render(<VisibilityHarness hasCruushPlus />);
 
     selectVisibilityOption('Gender Identities', 'man');
@@ -54,6 +54,6 @@ describe('MapVisibilitySurface', () => {
     selectVisibilityOption('Body Type', 'athletic');
 
     expect(screen.getByTestId('hidden-body-types')).toHaveTextContent('athletic');
-    expect(screen.queryByText('Free accounts can use up to 3 hidden filters. Remove one or upgrade for more.')).not.toBeInTheDocument();
+    expect(screen.queryByText('You can use up to 3 hidden filters. Remove one before adding another.')).not.toBeInTheDocument();
   });
 });

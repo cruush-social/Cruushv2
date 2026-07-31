@@ -80,6 +80,18 @@ describe("loadConfig", () => {
       ALPHA_TEST_ENABLED: "true"
     })).toThrow(/ALPHA_TEST_PASSWORD_HASH/);
 
+    expect(loadConfig({
+      ...baseEnv,
+      ALPHA_TEST_ENABLED: "true",
+      ALPHA_TEST_ENDS_AT: "2026-07-31T00:00:00-04:00",
+      BETA_ACCESS_GEOFENCE_ENABLED: "true"
+    })).toMatchObject({
+      ALPHA_TEST_ENABLED: true,
+      ALPHA_TEST_PASSWORD_HASH: "",
+      ALPHA_TEST_ENDS_AT: "2026-07-31T00:00:00-04:00",
+      BETA_ACCESS_GEOFENCE_ENABLED: true
+    });
+
     expect(() => loadConfig({
       ...baseEnv,
       ALPHA_TEST_ENABLED: "true",

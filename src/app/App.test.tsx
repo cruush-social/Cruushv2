@@ -195,6 +195,10 @@ vi.mock('./components/AlphaBugButton', () => ({
   default: ({ enabled }: { enabled?: boolean }) => (enabled ? <button type="button">Mock Alpha Bug</button> : null)
 }));
 
+vi.mock('./components/PublicInfoPage', () => ({
+  default: ({ page }: { page: string }) => <div>Mock Public Info {page}</div>
+}));
+
 vi.mock('./components/ui/sonner', () => ({
   Toaster: () => <div data-testid="toaster" />
 }));
@@ -234,6 +238,15 @@ describe('App', () => {
       'ProfileView',
       'ProfileEdit',
     ]));
+  });
+
+  it('renders public info pages before authentication', async () => {
+    window.history.replaceState({}, '', '/about');
+    loadCurrentSession.mockResolvedValue(null);
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Public Info about')).toBeInTheDocument();
   });
 
   it('renders the authenticated shell on the map by default', async () => {
@@ -541,7 +554,7 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/rewards');
   });
 
-  it('does not expose the retired Safety Center route', async () => {
+  it('renders the public safety page for signed-in users', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -561,7 +574,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('Mock Map')).toBeInTheDocument();
+    expect(await screen.findByText('Mock Public Info safety')).toBeInTheDocument();
   });
 
   it('renders the reset password route while onboarding is required', async () => {

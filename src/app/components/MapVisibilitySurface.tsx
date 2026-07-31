@@ -38,7 +38,7 @@ export const DEFAULT_VISIBILITY_STATE: VisibilityControlState = {
 };
 
 export const FREE_VISIBILITY_EXCLUSION_LIMIT = 3;
-const VISIBILITY_EXCLUSION_LIMIT_MESSAGE = 'Free accounts can use up to 3 hidden filters. Remove one or upgrade for more.';
+const VISIBILITY_EXCLUSION_LIMIT_MESSAGE = 'You can use up to 3 hidden filters. Remove one before adding another.';
 
 interface MapVisibilitySurfaceProps {
   open: boolean;
@@ -191,9 +191,6 @@ export default function MapVisibilitySurface({
             <p className="text-sm text-muted-foreground">
               Pick who should not see you. Crowd Mode is different: it makes you visible only to the active crowds you choose.
             </p>
-            {!hasCruushPlus ? (
-              <p className="text-xs text-muted-foreground">{exclusionCount} of {FREE_VISIBILITY_EXCLUSION_LIMIT} hidden filters used</p>
-            ) : null}
           </div>
 
           {limitNotice ? (

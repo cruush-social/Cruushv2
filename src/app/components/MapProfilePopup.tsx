@@ -22,6 +22,7 @@ interface MapProfilePopupProps {
   fixed?: boolean;
   isOwnProfile?: boolean;
   onBlockedUser?: (userId: string) => void;
+  onProfileSaved?: (profile: ProfileRecord) => void;
 }
 
 export default function MapProfilePopup({
@@ -30,6 +31,7 @@ export default function MapProfilePopup({
   fixed = false,
   isOwnProfile = false,
   onBlockedUser,
+  onProfileSaved,
 }: MapProfilePopupProps) {
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
@@ -40,7 +42,6 @@ export default function MapProfilePopup({
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [ownProfileMode, setOwnProfileMode] = useState<'view' | 'edit'>('view');
-  const [profileReloadKey, setProfileReloadKey] = useState(0);
   const isDemo = user.isDemo === true;
 
   useEffect(() => {
@@ -91,7 +92,7 @@ export default function MapProfilePopup({
     return () => {
       isMounted = false;
     };
-  }, [isDemo, isOwnProfile, profileReloadKey, user.id]);
+  }, [isDemo, isOwnProfile, user.id]);
 
   const profileView = useMemo(() => {
     if (!fullProfile) {
@@ -166,9 +167,15 @@ export default function MapProfilePopup({
           <ProfileEdit
             embedded
             onCancel={() => setOwnProfileMode('view')}
-            onSaved={() => {
+            onSaved={(savedProfile) => {
+              const nextProfile = {
+                ...emptyProfilePayload,
+                ...savedProfile,
+              };
+
+              setFullProfile(nextProfile);
+              onProfileSaved?.(nextProfile);
               setOwnProfileMode('view');
-              setProfileReloadKey((key) => key + 1);
             }}
           />
         </div>

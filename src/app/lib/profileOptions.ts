@@ -18,7 +18,7 @@ export const SEXUALITY = ['asexual', 'bisexual', 'straight', 'gay', 'queer', 'qu
 export const ETHNICITIES = ['Black', 'East Asian', 'Indigenous', 'Latino/Latina', 'Middle Eastern', 'Mixed', 'Other', 'Pacific Islander', 'South Asian', 'Southeast Asian', 'White'];
 
 export const BODY_TYPES = [
-  'athletic', 'average', 'chubby', 'curvy', 'full-figured', 'muscular', 'petite', 'plus-size', 'slim', 'stocky', 'toned'
+  'BBW', 'BBM', 'athletic', 'average', 'bear', 'chubby', 'curvy', 'full-figured', 'muscular', 'otter', 'petite', 'plus-size', 'slim', 'stocky', 'toned', 'twink'
 ].sort();
 
 export const POSITIONS = [
@@ -52,7 +52,7 @@ export const VIBE_GROUPS = [
   {
     label: 'Scenes',
     options: [
-      'Ballroom', 'Bear', 'Chub', 'Cub', 'Drag', 'Furry', 'Leather', 'Otter', 'Rave', 'Twink', 'Wolf'
+      'Ballroom', 'Chub', 'Cub', 'Drag', 'Furry', 'Leather', 'Rave', 'Wolf'
     ].sort(),
   },
   {

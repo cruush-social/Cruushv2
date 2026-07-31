@@ -192,6 +192,31 @@ describe('CruushActivity', () => {
     expect(screen.queryByRole('button', { name: /See mutual cruushes on the map/i })).not.toBeInTheDocument();
   }, 10000);
 
+  it('offers direct and group chat choices from the cruush plus menu', async () => {
+    render(
+      <MemoryRouter initialEntries={['/cruush']}>
+        <Routes>
+          <Route path="/cruush" element={<><CruushActivity /><LocationProbe /></>} />
+          <Route path="/messages" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('luna')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'New cruush chat' }));
+    expect(screen.getByRole('button', { name: /^Start chat with mutual/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Create group message/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Start chat with mutual/ }));
+    fireEvent.click(screen.getByRole('button', { name: /river/ }));
+    expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river');
+
+    fireEvent.click(screen.getByRole('button', { name: 'New cruush chat' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Create group message/ }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/messages?compose=group');
+  });
+
   it('shows locked profile views for free users', async () => {
     render(
       <MemoryRouter>

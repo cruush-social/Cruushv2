@@ -1,8 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { KeyRound } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { CruushIcon } from './CruushIconImage';
+import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
+import PublicPolicyLinks from './PublicPolicyLinks';
+import cruushLogo from '../assets/brand/cruush-logo.svg';
 import { resetPassword } from '../lib/authApi';
+import './Auth.css';
 
 export default function ResetPassword() {
   const token = useMemo(() => {
@@ -14,6 +18,8 @@ export default function ResetPassword() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -50,23 +56,27 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative overflow-hidden">
-      <div className="w-full max-w-md space-y-10 relative z-10">
-        <div className="text-center space-y-6">
-          <div className="flex justify-center">
-            <CruushIcon name="cruush" className="h-14 w-14 opacity-15" />
-          </div>
-          <div>
-            <h1
-              className="cruush-logo-text text-6xl mb-4"
-            >
-              cruush
-            </h1>
-            <p className="text-white/50 text-sm">Reset your password</p>
+    <div className="launch-login-auth-shell overflow-x-hidden">
+      <LaunchLoginMapTeaser />
+      <div className="launch-login-auth-card w-full max-w-[20rem] relative z-10" data-testid="reset-password-panel">
+        <div className="launch-login-auth-brand text-center" data-testid="reset-password-brand">
+          <h1 className="sr-only">cruush</h1>
+          <img
+            alt=""
+            aria-hidden="true"
+            className="launch-login-auth-logo-image"
+            data-testid="reset-password-logo"
+            draggable={false}
+            src={cruushLogo}
+          />
+          <div className="launch-login-auth-tagline-stack">
+            <p className="launch-login-auth-tagline" data-testid="reset-password-title">
+              reset your password
+            </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="launch-login-auth-form" autoComplete="on">
           {error && (
             <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff0072] text-sm rounded">
               {error}
@@ -74,62 +84,100 @@ export default function ResetPassword() {
           )}
 
           {notice && (
-            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded flex items-start gap-2">
-              <KeyRound className="mt-0.5 h-4 w-4 text-[#004bff]" />
-              <span>{notice}</span>
+            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-2">
+              <div className="flex items-start gap-2">
+                <CruushIcon name="notifications" className="mt-0.5 h-4 w-4" variant="colored" />
+                <span>{notice}</span>
+              </div>
             </div>
           )}
 
           <div className="space-y-2">
-            <label htmlFor="newPassword" className="text-sm text-white/60">
-              New Password
+            <label htmlFor="newPassword" className="sr-only">
+              New password
             </label>
-            <input
-              id="newPassword"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
-              required
-              minLength={8}
-              disabled={isLoading}
-            />
+            <div className="launch-login-auth-password-field">
+              <input
+                id="newPassword"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="new password"
+                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                required
+                minLength={8}
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="launch-login-auth-password-toggle"
+                disabled={isLoading}
+                onClick={() => setShowPassword((visible) => !visible)}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="confirmNewPassword" className="text-sm text-white/60">
-              Confirm New Password
+            <label htmlFor="confirmNewPassword" className="sr-only">
+              Confirm new password
             </label>
-            <input
-              id="confirmNewPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              className="w-full h-12 px-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
-              required
-              minLength={8}
-              disabled={isLoading}
-            />
+            <div className="launch-login-auth-password-field">
+              <input
+                id="confirmNewPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="confirm password"
+                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                required
+                minLength={8}
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                className="launch-login-auth-password-toggle"
+                disabled={isLoading}
+                onClick={() => setShowConfirmPassword((visible) => !visible)}
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-14 text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="launch-login-auth-submit w-full h-12 rounded-sm text-white transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
             style={{
               background: 'var(--cruush-gradient)',
             }}
           >
-            {isLoading ? 'Resetting Password...' : 'Reset Password'}
+            <span className="relative z-10">{isLoading ? 'Resetting password...' : 'Reset password'}</span>
           </button>
 
           <Link
             to="/"
-            className="block w-full text-center text-sm text-white/40 hover:text-white/70 transition-colors"
+            className="launch-login-auth-secondary block w-full text-center text-sm text-white/40 hover:text-white/70 transition-colors"
           >
             Back to sign in
           </Link>
         </form>
+      </div>
+      <div className="launch-login-auth-footer" data-testid="reset-password-footer">
+        <a
+          className="launch-login-auth-contact"
+          data-testid="reset-password-contact"
+          href="mailto:hello@cruush.app"
+        >
+          hello@cruush.app
+        </a>
+        <PublicPolicyLinks variant="compact" />
       </div>
     </div>
   );

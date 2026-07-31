@@ -136,11 +136,12 @@ describe('Auth', () => {
     expect(screen.queryByTestId('launch-login-foreground-rain-pane')).not.toBeInTheDocument();
     expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
-    const humanCheckInput = container.querySelector('#launch-login-auth-extra-url');
+    const humanCheckInput = screen.getByTestId('launch-login-auth-human-check-input');
     expect(humanCheckInput).toHaveAttribute('tabindex', '-1');
-    expect(humanCheckInput).toHaveAttribute('name', 'cruush_auth_extra_url');
-    expect(humanCheckInput).toHaveAttribute('autocomplete', 'new-password');
+    expect(humanCheckInput).toHaveAttribute('name', 'cruush_auth_middle_name');
+    expect(humanCheckInput).toHaveAttribute('autocomplete', 'off');
     expect(humanCheckInput).toHaveAttribute('data-lpignore', 'true');
+    expect(humanCheckInput).toHaveAttribute('data-bwignore', 'true');
     expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
     expect(screen.getByTestId('launch-login-auth-tagline')).toHaveTextContent('queer cruisers cruise cruush');
     expect(screen.getByLabelText('Email')).toHaveClass('launch-login-auth-input');
@@ -185,7 +186,7 @@ describe('Auth', () => {
     for (const link of AUTH_POLICY_LINKS) {
       expect(within(legalNotice).getByRole('link', { name: link.label })).toHaveAttribute(
         'href',
-        `https://www.cruush.app${link.path}`,
+        link.path,
       );
     }
     expect(screen.queryByLabelText('Contact support')).not.toBeInTheDocument();
@@ -315,7 +316,7 @@ describe('Auth', () => {
     fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
 
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Alpha password')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
     expect(screen.getByText('Beta access opens within 15 miles of 70 Scott Ave.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute('href', 'https://ra.co/events/2483120');
@@ -331,7 +332,7 @@ describe('Auth', () => {
     fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
 
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Alpha password')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
     expect(screen.getByText('Beta access opens within 15 miles of 70 Scott Ave.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute('href', 'https://ra.co/events/2483120');

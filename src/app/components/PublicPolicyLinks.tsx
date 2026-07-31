@@ -2,9 +2,8 @@ import { Fragment } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { cn } from './ui/utils';
 
-const PUBLIC_POLICY_BASE_URL = 'https://www.cruush.app';
-
 export const PUBLIC_POLICY_LINKS = [
+  { label: 'About', path: '/about' },
   { label: 'Human trafficking policy', path: '/human-trafficking-policy' },
   { label: 'Report or request removal of content', path: '/content-removal' },
   { label: 'Safety', path: '/safety' },
@@ -40,7 +39,7 @@ export default function PublicPolicyLinks({ className, variant = 'card' }: Publi
             {index > 0 ? (index === AUTH_POLICY_LINKS.length - 1 ? ', and ' : ', ') : null}
             <a
               className="underline hover:text-white/50"
-              href={`${PUBLIC_POLICY_BASE_URL}${link.path}`}
+              href={link.path}
               rel="noreferrer"
               target="_blank"
             >
@@ -60,7 +59,7 @@ export default function PublicPolicyLinks({ className, variant = 'card' }: Publi
           <a
             key={link.path}
             className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent"
-            href={`${PUBLIC_POLICY_BASE_URL}${link.path}`}
+            href={link.path}
             rel="noreferrer"
             target="_blank"
           >

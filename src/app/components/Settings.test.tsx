@@ -160,6 +160,10 @@ describe('Settings', () => {
     expect(screen.queryByRole('switch', { name: 'Toggle precise location for mutual cruushes' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Location privacy/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /DL Mode/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Two-factor authentication/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Rewards/i })).toHaveTextContent(
+      'Streaks, referrals, and promotional access.',
+    );
   });
 
   it('shows active moderators a direct dashboard entry', async () => {
@@ -223,12 +227,13 @@ describe('Settings', () => {
 
     expect(await screen.findByRole('link', { name: 'Human trafficking policy' })).toHaveAttribute(
       'href',
-      'https://www.cruush.app/human-trafficking-policy',
+      '/human-trafficking-policy',
     );
     expect(screen.getByRole('link', { name: 'Report or request removal of content' })).toHaveAttribute(
       'href',
-      'https://www.cruush.app/content-removal',
+      '/content-removal',
     );
+    expect(screen.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
     expect(screen.getByRole('button', { name: 'Contact support' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Contact support')).not.toBeInTheDocument();
   });

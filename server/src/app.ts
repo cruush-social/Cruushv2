@@ -22,6 +22,7 @@ import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerPrivacyRoutes } from "./routes/privacy.js";
 import { registerReportRoutes } from "./routes/reports.js";
 import { registerSupportRoutes } from "./routes/support.js";
+import { registerUserNoticeRoutes } from "./routes/user-notices.js";
 import { registerUserRoutes } from "./routes/users.js";
 import { registerDevRoutes } from "./routes/dev.js";
 import { registerRewardRoutes } from "./routes/rewards.js";
@@ -187,6 +188,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerMediaRoutes(app);
   void registerMessageRoutes(app);
   void registerNotificationRoutes(app);
+  void registerUserNoticeRoutes(app);
   void registerUserRoutes(app);
   void registerCruushRoutes(app);
   void registerEventRoutes(app);

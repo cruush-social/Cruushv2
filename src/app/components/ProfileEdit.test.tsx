@@ -476,7 +476,7 @@ describe('ProfileEdit', () => {
     expect(uploadProfilePhoto).not.toHaveBeenCalled();
   });
 
-  it('lets users set trans status visibility, crowds, gender identities, categorized vibes, and HIV status', async () => {
+  it('lets users set trans status visibility, crowds, gender identities, categorized vibes, body type, and HIV status', async () => {
     render(
       <MemoryRouter>
         <ProfileEdit />
@@ -491,7 +491,7 @@ describe('ProfileEdit', () => {
     expect(screen.getByRole('group', { name: 'Style & Energy' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
     const scenesGroup = screen.getByRole('group', { name: 'Scenes' });
-    fireEvent.click(within(scenesGroup).getByRole('option', { name: 'Bear' }));
+    expect(within(scenesGroup).queryByRole('option', { name: 'Bear' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Archetypes' }));
     const archetypesGroup = screen.getByRole('group', { name: 'Archetypes' });
@@ -509,6 +509,10 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('option', { name: 'nonbinary' }));
     fireEvent.click(screen.getByRole('option', { name: 'woman' }));
     fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Body Type' }));
+    fireEvent.click(screen.getByRole('option', { name: 'bear' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Body Type' }));
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'I am trans' }));
     expect(screen.queryByRole('button', { name: 'Trans status visibility' })).not.toBeInTheDocument();
@@ -528,17 +532,52 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
-      identities: ['trans man', 'trans woman', 'nonbinary'],
+      identities: ['trans woman', 'nonbinary', 'woman'],
       is_trans: true,
       trans_status_visibility: 'mutual_cruushes',
       crowds: ['T4T', 'Dyke'],
-      vibes: ['Bear', 'Daddy'],
+      body_type: ['bear'],
+      vibes: ['Daddy'],
       scenes: [],
       archetypes: [],
       hiv_status: ['undetectable'],
       hiv_status_visibility: 'mutual_cruushes',
     })));
   }, 10000);
+
+  it('saves only one selected value for each health status field', async () => {
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    const healthTab = await screen.findByRole('tab', { name: 'Health' });
+    fireEvent.click(healthTab);
+
+    fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'negative' }));
+    fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'positive' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'COVID Vaccine' }));
+    fireEvent.click(screen.getByRole('option', { name: 'yes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'COVID Vaccine' }));
+    fireEvent.click(screen.getByRole('option', { name: 'no' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'MPOX Vaccine' }));
+    fireEvent.click(screen.getByRole('option', { name: 'yes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'MPOX Vaccine' }));
+    fireEvent.click(screen.getByRole('option', { name: 'partial' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      hiv_status: ['positive'],
+      covid_vaccine: ['no'],
+      mpox_vaccine: ['partial'],
+    })));
+  });
 
   it('drops stale T4T crowd membership and normalizes legacy Sapphic when trans status is not selected', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
@@ -662,6 +701,10 @@ describe('ProfileEdit', () => {
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'user-1',
+      display_name: 'Jordan',
+    }));
   });
 
   it('lets desktop embedded users edit substance boundaries', async () => {
@@ -677,8 +720,10 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Substance Boundaries' }));
     const menu = screen.getByRole('listbox', { name: 'Substance Boundaries' });
 
-    expect(menu.parentElement).toHaveClass('z-[100]');
-    expect(menu.parentElement).toHaveStyle({ position: 'fixed' });
+    expect(menu.parentElement).toHaveStyle({
+      position: 'fixed',
+      zIndex: '121',
+    });
 
     fireEvent.click(screen.getByRole('option', { name: 'No alcohol involved' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));

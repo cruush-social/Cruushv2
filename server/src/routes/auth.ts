@@ -441,8 +441,12 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         message: "Too many sign-up attempts. Try again later."
       }
     ]);
-    await verifyAlphaTestPassword(app.config, payload.alphaPassword);
-    assertBetaAccessAllowed(app.config, payload.betaAccessLocation);
+    if (app.config.BETA_ACCESS_GEOFENCE_ENABLED) {
+      assertBetaAccessAllowed(app.config, payload.betaAccessLocation);
+    } else {
+      await verifyAlphaTestPassword(app.config, payload.alphaPassword);
+      assertBetaAccessAllowed(app.config, payload.betaAccessLocation);
+    }
     verifyClientSecurityCheck(payload.clientCheck);
     await verifyTurnstileToken(request, payload.captchaToken);
     const passwordHash = await hashPassword(payload.password);

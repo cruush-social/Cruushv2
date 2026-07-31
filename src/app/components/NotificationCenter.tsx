@@ -10,6 +10,7 @@ import {
 } from '../lib/notificationsApi';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { CruushIcon } from './CruushIconImage';
 
 function formatNotificationTime(value: string) {
   try {
@@ -121,6 +122,16 @@ export default function NotificationCenter() {
             {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
           </p>
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate('/settings/notifications')}
+          aria-label="Notification settings"
+          className="rounded-full text-white/88 hover:bg-white/10"
+        >
+          <CruushIcon name="settings" className="h-5 w-5" />
+        </Button>
         <Button
           type="button"
           variant="outline"

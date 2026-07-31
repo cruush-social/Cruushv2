@@ -84,6 +84,11 @@ const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastError: vi.fn(),
 }));
 
+const { dismissUserNotice, getUserNoticeDismissal } = vi.hoisted(() => ({
+  dismissUserNotice: vi.fn(),
+  getUserNoticeDismissal: vi.fn(),
+}));
+
 vi.mock('sonner', () => ({
   toast: {
     success: toastSuccess,
@@ -140,16 +145,25 @@ vi.mock('../lib/locationApi', () => ({
   syncMyLocation,
 }));
 
-vi.mock('../lib/billingApi', () => ({
-  CRUUSH_PLUS_CHANGED_EVENT: 'cruush-plus:changed',
-  getMyBillingStatus,
-}));
+vi.mock('../lib/billingApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/billingApi')>('../lib/billingApi');
+  return {
+    ...actual,
+    CRUUSH_PLUS_CHANGED_EVENT: 'cruush-plus:changed',
+    getMyBillingStatus,
+  };
+});
 
 vi.mock('../lib/eventsApi', () => ({
   getActiveEvents,
   revealEventPass,
   emailEventPass,
   joinEventChat,
+}));
+
+vi.mock('../lib/userNoticesApi', () => ({
+  dismissUserNotice,
+  getUserNoticeDismissal,
 }));
 
 vi.mock('./ui/use-mobile', () => ({
@@ -240,6 +254,29 @@ function LocationProbe() {
   return <div data-testid="location-probe">{location.pathname}</div>;
 }
 
+const launchEvent = {
+  id: 'event-1',
+  slug: 'the-chocolate-factory-launch',
+  title: 'cruush beta launch',
+  venueName: 'The Chocolate Factory',
+  address: '70 Scott Ave, Brooklyn, NY 11237',
+  coordinates: {
+    latitude: 40.70982,
+    longitude: -73.92256,
+  },
+  radiusMiles: 1,
+  startsAt: '2026-07-31T04:00:00.000Z',
+  endsAt: '2026-08-01T09:00:00.000Z',
+  pinDisappearsAt: '2026-08-01T09:00:00.000Z',
+  chatExpiresAt: '2026-08-08T09:00:00.000Z',
+  raUrl: 'https://ra.co/events/2483120',
+  iconAsset: 'party-hat',
+  attendeeCount: 0,
+  joined: false,
+  passIconName: null,
+  conversationId: null,
+};
+
 describe('MapHome', () => {
   it('allows the codeveloper NYC account to use developer-only map tools without bank reviewer access', () => {
     expect(canUseDeveloperMapToolsEmail('admin@cruush.local')).toBe(true);
@@ -271,6 +308,8 @@ describe('MapHome', () => {
     revealEventPass.mockReset();
     emailEventPass.mockReset();
     joinEventChat.mockReset();
+    dismissUserNotice.mockReset();
+    getUserNoticeDismissal.mockReset();
     useIsMobile.mockReset();
     mapControls.setCenter.mockReset();
     mapControls.setZoom.mockReset();
@@ -279,7 +318,11 @@ describe('MapHome', () => {
     toastSuccess.mockReset();
     toastError.mockReset();
     window.sessionStorage.clear();
+    window.localStorage.clear();
     window.localStorage.setItem('cruush:ghost-mode-intro-seen', 'true');
+    window.localStorage.setItem('cruush:map-controls-intro-seen', 'true');
+    dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
+    getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -548,7 +591,91 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
   });
 
-  it('renders 25 percent larger Cruush icons on the map controls and opens DL Mode settings from the top slot', async () => {
+  it('does not show a saved launch pass icon outside the one-mile live radius or duplicate the chat invite', async () => {
+    useIsMobile.mockReturnValue(false);
+    getActiveEvents.mockResolvedValue([{
+      ...launchEvent,
+      attendeeCount: 3,
+      passIconName: 'map',
+    }]);
+    Object.defineProperty(global.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: vi.fn().mockImplementation((success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
+          success({
+            coords: {
+              latitude: 40.758,
+              longitude: -73.9855,
+            },
+          });
+        }),
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin The Chocolate Factory' }));
+
+    expect(await screen.findByText('The Chocolate Factory')).toBeInTheDocument();
+    expect(screen.getByText('The door pass unlocks when you are within 1 mile of the venue.')).toBeInTheDocument();
+    expect(screen.queryByText('Show this icon at the door. It changes every hour.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Join launch party' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ask for chat invite/i })).not.toBeInTheDocument();
+    expect(revealEventPass).not.toHaveBeenCalled();
+  });
+
+  it('reveals the hourly launch pass using live browser coordinates inside one mile', async () => {
+    useIsMobile.mockReturnValue(false);
+    getActiveEvents.mockResolvedValue([launchEvent]);
+    revealEventPass.mockResolvedValue({
+      eventSlug: 'the-chocolate-factory-launch',
+      iconName: 'notifications',
+      validFrom: '2026-08-01T02:00:00.000Z',
+      validUntil: '2026-08-01T03:00:00.000Z',
+      hourIndex: 22,
+      withinRadius: true,
+      emailAvailable: true,
+    });
+    Object.defineProperty(global.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: vi.fn().mockImplementation((success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
+          success({
+            coords: {
+              latitude: 40.7099,
+              longitude: -73.9226,
+            },
+          });
+        }),
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin The Chocolate Factory' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Reveal door pass' }));
+
+    await waitFor(() => expect(revealEventPass).toHaveBeenCalledWith('the-chocolate-factory-launch', {
+      latitude: 40.7099,
+      longitude: -73.9226,
+    }));
+    expect(await screen.findByText('Show this icon at the door. It changes every hour.')).toBeInTheDocument();
+    expect(screen.getByText('notifications | hour 23')).toBeInTheDocument();
+  });
+
+  it('renders 25 percent larger Cruush icons on the map controls and toggles DL Mode from the top slot', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
@@ -570,7 +697,7 @@ describe('MapHome', () => {
 
     const luckyIcon = screen.getByRole('button', { name: 'Cruise Carousel' }).querySelector('img');
     const ghostModeButton = screen.getByRole('button', { name: 'Ghost Mode Settings' });
-    const dlModeButton = screen.getByRole('button', { name: 'DL Mode Settings' });
+    const dlModeButton = screen.getByRole('button', { name: 'Turn DL Mode off' });
     const ghostModeIcon = ghostModeButton.querySelector('img');
     const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
     const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
@@ -594,11 +721,14 @@ describe('MapHome', () => {
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
     expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
+    expect(screen.queryByText('DL Mode Active')).not.toBeInTheDocument();
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
     fireEvent.click(dlModeButton);
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/dl-mode');
+    expect(window.localStorage.getItem('cruush:dl-mode-enabled')).toBe('false');
+    expect(screen.queryByTestId('location-probe')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Turn DL Mode on' })).toBeInTheDocument();
   });
 
   it('shows one combined active crowd notice on the map', async () => {
@@ -791,6 +921,43 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 
+  it('shows the map controls intro once and dismisses it permanently', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.localStorage.removeItem('cruush:map-controls-intro-seen');
+    getUserNoticeDismissal.mockResolvedValue({ dismissed: false, dismissedAt: null });
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Map controls' })).toBeInTheDocument();
+    expect(screen.getByText(/Seeking and Visibility live on the right side of the map/i)).toBeInTheDocument();
+    expect(screen.getByText(/bug report button stays top center/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Map controls' })).not.toBeInTheDocument());
+    expect(window.localStorage.getItem('cruush:map-controls-intro-seen')).toBe('true');
+    expect(dismissUserNotice).toHaveBeenCalledWith('cruush:map-controls-intro-seen');
+
+    unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: /^seeking$/i });
+    expect(screen.queryByRole('heading', { name: 'Map controls' })).not.toBeInTheDocument();
+  });
+
   it('keeps visibility controls manual without saved-set affordances', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
@@ -817,7 +984,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
     expect(screen.queryByText('Saved sets')).not.toBeInTheDocument();
     expect(screen.queryByText('Upgrade for saved sets')).not.toBeInTheDocument();
-    expect(screen.getByText('Free accounts can hide from up to 3 filter groups.')).toBeInTheDocument();
+    expect(screen.queryByText(/Free accounts/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Distance')).toBeInTheDocument();
   });
 
@@ -1169,7 +1336,7 @@ describe('MapHome', () => {
       expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lng', '-74.005');
     });
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
-    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Saved area');
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
   });
 
@@ -1204,7 +1371,7 @@ describe('MapHome', () => {
         lng: -74.005,
       }, undefined, { limit: 50 });
     });
-    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Saved area');
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.713');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-74.005');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');

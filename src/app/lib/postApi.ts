@@ -2,6 +2,7 @@ import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
 
 export type FeedPostExpiry = '1h' | '6h' | '24h';
+export type FeedPostWindow = '1h' | '3h' | '6h' | '24h';
 export type FeedLocationPinVisibility = 'off' | 'mutuals' | 'same_crowd' | 'public';
 
 export type FeedPost = {
@@ -26,11 +27,24 @@ export type FeedPost = {
     pronouns: string;
     photo: string | null;
     badges?: CruushBadge[];
+    attendingLaunchParty?: boolean;
   };
 };
 
 export type FeedSettings = {
   locationPinVisibility: FeedLocationPinVisibility;
+  showDistanceLabels: boolean;
+};
+
+export type FeedPostFilters = {
+  within?: FeedPostWindow;
+  distanceMiles?: number;
+  limit?: number;
+  before?: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  } | null;
 };
 
 export type CreateFeedPostPayload = {
@@ -39,8 +53,32 @@ export type CreateFeedPostPayload = {
   crowdTargets?: string[];
 };
 
-export async function getFeedPosts() {
-  return requestApi<FeedPost[]>('/api/posts');
+export async function getFeedPosts(filters: FeedPostFilters = {}) {
+  const params = new URLSearchParams();
+
+  if (filters.within) {
+    params.set('within', filters.within);
+  }
+
+  if (typeof filters.distanceMiles === 'number' && Number.isFinite(filters.distanceMiles)) {
+    params.set('distanceMiles', String(filters.distanceMiles));
+  }
+
+  if (typeof filters.limit === 'number' && Number.isFinite(filters.limit)) {
+    params.set('limit', String(filters.limit));
+  }
+
+  if (filters.before) {
+    params.set('before', filters.before);
+  }
+
+  if (filters.coordinates) {
+    params.set('lat', String(filters.coordinates.lat));
+    params.set('lng', String(filters.coordinates.lng));
+  }
+
+  const query = params.toString();
+  return requestApi<FeedPost[]>(query ? `/api/posts?${query}` : '/api/posts');
 }
 
 export async function createFeedPost(payload: CreateFeedPostPayload) {

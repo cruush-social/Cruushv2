@@ -23,6 +23,7 @@ const providerState = vi.hoisted(() => ({
     Confidence: 99,
     AgeRange: { Low: 25, High: 35 }
   }],
+  rekognitionModerationLabels: [] as Array<{ Name: string; ParentName?: string; Confidence: number }>,
   lastImageUrl: null as string | null
 }));
 
@@ -33,12 +34,22 @@ vi.mock("@aws-sdk/client-rekognition", () => ({
   DetectFacesCommand: class DetectFacesCommand {
     constructor(readonly input: unknown) {}
   },
+  DetectModerationLabelsCommand: class DetectModerationLabelsCommand {
+    constructor(readonly input: unknown) {}
+  },
   RekognitionClient: class RekognitionClient {
     async send(command: { constructor: { name: string } }) {
       if (command.constructor.name === "DetectFacesCommand") {
         return {
           FaceDetails: providerState.rekognitionFaces,
           $metadata: { requestId: "rekognition-faces-request-1" }
+        };
+      }
+
+      if (command.constructor.name === "DetectModerationLabelsCommand") {
+        return {
+          ModerationLabels: providerState.rekognitionModerationLabels,
+          $metadata: { requestId: "rekognition-moderation-request-1" }
         };
       }
 
@@ -173,6 +184,7 @@ describe("shared Stream profile-photo automod route", () => {
       Confidence: 99,
       AgeRange: { Low: 25, High: 35 }
     }];
+    providerState.rekognitionModerationLabels = [];
     providerState.lastImageUrl = null;
   });
 
@@ -375,7 +387,7 @@ describe("shared Stream profile-photo automod route", () => {
     await app.close();
   });
 
-  it("fails closed and removes ciphertext for a partial Stream response", async () => {
+  it("publishes through Rekognition fallback when Stream returns a partial response", async () => {
     providerState.result = {
       provider: "stream",
       provider_request_id: "stream-partial-1",
@@ -399,20 +411,18 @@ describe("shared Stream profile-photo automod route", () => {
     });
     const sql = query.mock.calls.map(([text]) => String(text));
     const mediaCall = query.mock.calls.find(([text]) => String(text).includes("insert into media_objects"));
-    const objectKeys = [
+
+    expect(response.statusCode, response.body).toBe(201);
+    expect(sql.some((text) => text.includes("insert into media_objects"))).toBe(true);
+    expect(sql.some((text) => text.includes("insert into profiles"))).toBe(true);
+    expect(sql.some((text) => text.includes("insert into profile_photo_manual_reviews"))).toBe(false);
+    expect(sql.some((text) => text.includes("delete from media_objects"))).toBe(false);
+    expect(JSON.stringify(query.mock.calls)).toContain("rekognition_fallback");
+    await Promise.all([
       mediaCall?.[1]?.[3],
       mediaCall?.[1]?.[14],
       mediaCall?.[1]?.[25]
-    ] as string[];
-
-    expect(response.statusCode, response.body).toBe(503);
-    expect(sql.some((text) => text.includes("insert into media_objects"))).toBe(true);
-    expect(sql.some((text) => text.includes("insert into profiles"))).toBe(false);
-    expect(sql.some((text) => text.includes("insert into profile_photo_manual_reviews"))).toBe(false);
-    expect(sql.some((text) => text.includes("delete from media_objects"))).toBe(true);
-    for (const objectKey of objectKeys) {
-      await expect(readEncryptedMediaObject(app.config, objectKey)).rejects.toThrow();
-    }
+    ].map((objectKey) => deleteEncryptedMediaObject(app.config, objectKey as string)));
 
     await app.close();
   });

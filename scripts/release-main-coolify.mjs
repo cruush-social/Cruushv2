@@ -276,6 +276,20 @@ function releaseRuntimeEnvData() {
         is_runtime: true,
       },
       {
+        key: 'LAUNCH_PARTY_CHAT_ADMIN_EMAIL',
+        value: 'julienlenazny@gmail.com',
+        is_preview: false,
+        is_buildtime: false,
+        is_runtime: true,
+      },
+      {
+        key: 'LAUNCH_PARTY_CHAT_MAX_MEMBERS',
+        value: '500',
+        is_preview: false,
+        is_buildtime: false,
+        is_runtime: true,
+      },
+      {
         key: 'LAUNCH_PARTY_RA_URL',
         value: 'https://ra.co/events/2483120',
         is_preview: false,

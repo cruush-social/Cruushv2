@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { hasPremiumDiscoveryFilters, requireCruushPlus } from "../billing.js";
+import { decryptTextContentOrFallback } from "../content-encryption.js";
 import {
   formatDistanceMiles,
   formatLastActiveFromDate,
@@ -43,6 +44,7 @@ type DiscoveryProfileRow = {
   id: string;
   email: string | null;
   display_name: string | null;
+  signal: string | null;
   year_of_birth: number | null;
   pronouns: string[] | null;
   looking_for: string[] | null;
@@ -76,6 +78,13 @@ type DiscoveryProfileRow = {
   location_updated_at?: string | Date | null;
   updated_at: string | Date;
   badges?: string[] | null;
+  latest_feed_post_content: string | null;
+  latest_feed_post_content_ciphertext: string | null;
+  latest_feed_post_content_nonce: string | null;
+  latest_feed_post_content_auth_tag: string | null;
+  latest_feed_post_content_key_version: string | null;
+  latest_feed_location_pin_visibility: "off" | "mutuals" | "same_crowd" | "public" | null;
+  latest_feed_has_shared_crowd: boolean | null;
 };
 
 const CODEVELOPER_NYC_EMAIL = "codeveloper-nyc@cruush.local";
@@ -451,6 +460,32 @@ function discoveryRowIsVisibleToViewer(
   return canSubjectViewProfile(targetVisibilityRules, viewer.subject, getCoordinates(row));
 }
 
+function canViewLatestFeedPreview(
+  row: DiscoveryProfileRow,
+  viewerUserId: string,
+  relationship: Awaited<ReturnType<typeof getRelationshipPermissions>> | null
+) {
+  const visibility = row.latest_feed_location_pin_visibility ?? "mutuals";
+
+  if (!row.latest_feed_post_content && !row.latest_feed_post_content_ciphertext) {
+    return false;
+  }
+
+  if (visibility === "off") {
+    return false;
+  }
+
+  if (viewerUserId === row.id || visibility === "public") {
+    return true;
+  }
+
+  if (visibility === "same_crowd") {
+    return row.latest_feed_has_shared_crowd === true;
+  }
+
+  return relationship?.isMutualCruush === true;
+}
+
 async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, filters: DiscoveryQuery) {
   try {
     const centerLat = filters.lat ?? DEFAULT_CENTER.lat;
@@ -462,6 +497,10 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     const activeLocationWindow = "(extract(epoch from now()) * 1000)::bigint";
     const where = [
       "profiles.id <> $1",
+      `(
+        profiles.location_updated_at >= now() - interval '1 day'
+        or location_envelopes.expires_at_ms > ${activeLocationWindow}
+      )`,
       `not exists (
         select 1
         from user_blocks block
@@ -504,6 +543,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          profiles.id::text as id,
          app_users.email,
          profiles.display_name as display_name,
+         profiles.signal,
          year_of_birth,
          pronouns,
          looking_for,
@@ -545,6 +585,13 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          profiles.fuzzy_lat,
          profiles.fuzzy_lng,
          profiles.location_updated_at,
+         latest_feed.content as latest_feed_post_content,
+         latest_feed.content_ciphertext as latest_feed_post_content_ciphertext,
+         latest_feed.content_nonce as latest_feed_post_content_nonce,
+         latest_feed.content_auth_tag as latest_feed_post_content_auth_tag,
+         latest_feed.content_key_version as latest_feed_post_content_key_version,
+         coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as latest_feed_location_pin_visibility,
+         latest_feed.has_shared_crowd as latest_feed_has_shared_crowd,
          coalesce((
            select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
            from user_badges
@@ -556,8 +603,48 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          on app_users.id = profiles.id
        left join encrypted_location_envelopes location_envelopes
          on location_envelopes.subject_user_id = profiles.id
+       left join user_privacy_settings pin_settings
+         on pin_settings.user_id = profiles.id
+       left join lateral (
+         select
+           posts.content,
+           posts.content_ciphertext,
+           posts.content_nonce,
+           posts.content_auth_tag,
+           posts.content_key_version,
+           exists (
+             select 1
+             from profile_sensitive_tokens viewer_crowd_token
+             join profile_sensitive_tokens author_crowd_token
+               on author_crowd_token.token_hash = viewer_crowd_token.token_hash
+              and author_crowd_token.token_key_version = viewer_crowd_token.token_key_version
+             where viewer_crowd_token.user_id = $1
+               and author_crowd_token.user_id = profiles.id
+           ) as has_shared_crowd
+         from posts
+         where posts.user_id = profiles.id
+           and posts.expires_at > now()
+           and (
+             not exists (
+               select 1
+               from feed_post_crowd_targets target
+               where target.post_id = posts.id
+             )
+             or exists (
+               select 1
+               from feed_post_crowd_targets target
+               join profile_sensitive_tokens viewer_crowd_token
+                 on viewer_crowd_token.user_id = $1
+                and viewer_crowd_token.token_hash = target.token_hash
+                and viewer_crowd_token.token_key_version = target.token_key_version
+               where target.post_id = posts.id
+             )
+           )
+         order by posts.created_at desc
+         limit 1
+       ) latest_feed on true
        where ${where.join("\n         and ")}
-       order by profiles.updated_at desc
+       order by coalesce(profiles.location_updated_at, profiles.updated_at) desc
        limit ${limitPlaceholder}`,
       values
     );
@@ -586,6 +673,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lat,
          fuzzy_lng
        from profiles
+       where last_active >= now() - interval '1 day'
        order by last_active desc nulls last
        limit $1`,
       [filters.limit]
@@ -694,14 +782,24 @@ async function mapModernDiscoveryRow(
     displayMode,
     relationshipGrantVersion: relationship?.isMutualCruush ? 1 : 0
   });
+  const latestFeedPostPreview = canViewLatestFeedPreview(row, viewerUserId, relationship)
+    ? decryptTextContentOrFallback(app.config, "feed", {
+        ciphertext: row.latest_feed_post_content_ciphertext ?? undefined,
+        nonce: row.latest_feed_post_content_nonce ?? undefined,
+        authTag: row.latest_feed_post_content_auth_tag ?? undefined,
+        keyVersion: row.latest_feed_post_content_key_version ?? undefined
+      }, row.latest_feed_post_content ?? "")
+    : "";
 
   return {
     profileToken: row.id,
     name: coerceDisplayName(row.display_name),
     display_name: coerceDisplayName(row.display_name),
+    signal: row.signal ?? "",
+    latestFeedPostPreview,
     age: row.year_of_birth ? new Date().getFullYear() - row.year_of_birth : null,
     pronouns: coerceStringArray(row.pronouns).join(", "),
-    lastActive: formatLastActiveFromDate(row.updated_at),
+    lastActive: formatLastActiveFromDate(row.location_updated_at ?? row.updated_at),
     distanceLabel: formatDistanceLabel({
       displayMode,
       viewerLat: centerLat,

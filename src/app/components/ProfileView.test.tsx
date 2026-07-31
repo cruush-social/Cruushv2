@@ -181,6 +181,35 @@ describe('ProfileView', () => {
     expect(getProfileById).toHaveBeenCalledWith('user-1');
   });
 
+  it('shows HIV, COVID, and MPOX health fields while leaving unfilled values blank', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      hiv_status: ['Negative'],
+      covid_vaccine: ['yes'],
+      mpox_vaccine: [],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const healthTab = await screen.findByRole('tab', { name: 'Health' });
+    fireEvent.click(healthTab);
+
+    const healthHeading = screen.getAllByText('Health').find((node) => node.tagName.toLowerCase() === 'h2');
+    expect(healthHeading).toBeDefined();
+    const healthSection = healthHeading?.closest('section') as HTMLElement;
+    expect(within(healthSection).getByText('HIV')).toBeInTheDocument();
+    expect(within(healthSection).getByText('Negative')).toBeInTheDocument();
+    expect(within(healthSection).getByText('COVID')).toBeInTheDocument();
+    expect(within(healthSection).getByText('yes')).toBeInTheDocument();
+    expect(within(healthSection).getByText('Mpox')).toBeInTheDocument();
+    expect(within(healthSection).queryByText('Not shared')).not.toBeInTheDocument();
+  });
+
   it('renders heart previews and swaps the active profile photo without saving order', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       photos: [

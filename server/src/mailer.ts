@@ -337,8 +337,8 @@ export async function sendEventPassEmail(input: EventPassEmailInput): Promise<Ve
       email,
       logger,
       subject,
-      html: `<p>Your cruush door pass for ${escapedVenueName} is attached.</p><p>Show the JPG at the door. Your pass icon is <strong>${escapedIconName}</strong>.</p><p>${escapedAddress}</p>`,
-      text: `Your cruush door pass for ${event.venueName} is attached.\nShow the JPG at the door. Your pass icon is ${event.passIconName}.\n${event.address}`,
+      html: `<p>Your cruush door pass for ${escapedVenueName} is attached.</p><p>Show the JPG at the door during the current hour. Your pass icon is <strong>${escapedIconName}</strong>.</p><p>${escapedAddress}</p>`,
+      text: `Your cruush door pass for ${event.venueName} is attached.\nShow the JPG at the door during the current hour. Your pass icon is ${event.passIconName}.\n${event.address}`,
       failureMessage: "event pass email delivery failed"
     });
 

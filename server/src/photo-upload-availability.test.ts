@@ -69,7 +69,16 @@ describe("deployed photo upload availability", () => {
     });
   });
 
-  it("allows active alpha-test uploads without PhotoDNA after the automated safety layers are ready", () => {
+  it("allows profile-photo uploads during the active alpha test even before PhotoDNA is ready", () => {
+    expect(photoUploadAvailability({
+      ...baseConfig,
+      ALPHA_TEST_ENABLED: true,
+      ALPHA_TEST_ENDS_AT: "2099-07-28T23:59:00-04:00"
+    })).toEqual({
+      profilePhotos: true,
+      messagePhotos: false
+    });
+
     expect(photoUploadAvailability({
       ...baseConfig,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
@@ -84,9 +93,6 @@ describe("deployed photo upload availability", () => {
 
     expect(photoUploadAvailability({
       ...baseConfig,
-      STREAM_IMAGE_BRIDGE_ENABLED: true,
-      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
-      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
       ALPHA_TEST_ENABLED: true,
       ALPHA_TEST_ENDS_AT: "2020-07-28T23:59:00-04:00"
     })).toEqual({

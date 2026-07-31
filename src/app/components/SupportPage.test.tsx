@@ -32,7 +32,7 @@ describe('SupportPage', () => {
     expect(await screen.findByRole('heading', { name: 'Support' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Human trafficking policy' })).toHaveAttribute(
       'href',
-      'https://www.cruush.app/human-trafficking-policy',
+      '/human-trafficking-policy',
     );
 
     fireEvent.change(screen.getByLabelText('Support subject'), {

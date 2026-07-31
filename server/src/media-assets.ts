@@ -359,8 +359,11 @@ export async function moderatePendingMediaAsset(
     const provider = createModerationProvider(app.config);
     const bridgeEnabled = app.config.STREAM_IMAGE_BRIDGE_ENABLED === true;
     const signedInspectionEnabled = app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true;
+    const alphaProfilePhotoUploadBypass = input.moderationSurface === "profile_photo" &&
+      activeAlphaProfilePhotoUploadBypass(app.config);
+    const useStreamImageUrl = bridgeEnabled && (signedInspectionEnabled || Boolean(asset.grant));
 
-    if (bridgeEnabled && !signedInspectionEnabled && !asset.grant) {
+    if (bridgeEnabled && !signedInspectionEnabled && !asset.grant && !alphaProfilePhotoUploadBypass) {
       throw new Error("Stream image moderation grant was not created.");
     }
 
@@ -383,8 +386,8 @@ export async function moderatePendingMediaAsset(
         userId: asset.ownerUserId,
         surface: input.moderationSurface,
         mimeType: asset.mimeType,
-        filename: bridgeEnabled ? undefined : input.filename,
-        imageUrl: bridgeEnabled ? moderationMediaUrl(app, asset) : undefined,
+        filename: useStreamImageUrl ? undefined : input.filename,
+        imageUrl: useStreamImageUrl ? moderationMediaUrl(app, asset) : undefined,
         contentId: asset.id,
         contentRef: {
           assetId: asset.id,
@@ -421,7 +424,7 @@ export async function moderatePendingMediaAsset(
       stage: "image_moderation_result"
     }, "image moderation result");
 
-    if (bridgeEnabled && !signedInspectionEnabled && asset.grant) {
+    if (useStreamImageUrl && !signedInspectionEnabled && asset.grant) {
       const redeemed = await wasModerationMediaGrantRedeemed(app.db, asset.grant.id);
 
       if (!redeemed) {

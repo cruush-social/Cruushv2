@@ -6,19 +6,33 @@ const { createSupportRequest } = vi.hoisted(() => ({
   createSupportRequest: vi.fn(),
 }));
 
+const { dismissUserNotice, getUserNoticeDismissal } = vi.hoisted(() => ({
+  dismissUserNotice: vi.fn(),
+  getUserNoticeDismissal: vi.fn(),
+}));
+
 vi.mock('../lib/supportApi', () => ({
   createSupportRequest,
+}));
+
+vi.mock('../lib/userNoticesApi', () => ({
+  dismissUserNotice,
+  getUserNoticeDismissal,
 }));
 
 describe('AlphaBugButton', () => {
   beforeEach(() => {
     createSupportRequest.mockReset();
+    dismissUserNotice.mockReset();
+    getUserNoticeDismissal.mockReset();
     createSupportRequest.mockResolvedValue({
       id: 'support-1',
       status: 'open',
       aiTriageStatus: 'pending',
       createdAt: '2026-07-28T12:00:00.000Z',
     });
+    dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
+    getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     window.history.replaceState({}, '', '/map?layer=nearby');
   });
 
@@ -38,6 +52,7 @@ describe('AlphaBugButton', () => {
     expect(reportButton).not.toHaveClass('right-4');
 
     fireEvent.click(reportButton);
+    expect(screen.getByText('/map?layer=nearby')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('What broke?'), {
       target: { value: 'Map pins disappeared after I changed filters.' },
     });

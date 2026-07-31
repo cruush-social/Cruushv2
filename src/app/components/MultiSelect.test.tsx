@@ -17,7 +17,7 @@ function mockTriggerRect(button: HTMLElement, rect: Partial<DOMRect>) {
 }
 
 describe('MultiSelect', () => {
-  it('caps multi-select choices when a max selection count is set', () => {
+  it('keeps the latest multi-select choices when a max selection count is set', () => {
     const onChange = vi.fn();
 
     render(
@@ -36,8 +36,8 @@ describe('MultiSelect', () => {
     fireEvent.click(screen.getByRole('option', { name: 'trans woman' }));
     fireEvent.click(screen.getByRole('option', { name: 'woman' }));
 
-    expect(onChange).toHaveBeenLastCalledWith(['nonbinary', 'trans man', 'trans woman']);
-    expect(onChange).toHaveBeenCalledTimes(3);
+    expect(onChange).toHaveBeenLastCalledWith(['trans man', 'trans woman', 'woman']);
+    expect(onChange).toHaveBeenCalledTimes(4);
   });
 
   it('lets grouped menus switch categories before choosing options', () => {
@@ -140,10 +140,11 @@ describe('MultiSelect', () => {
     await waitFor(() => {
       expect(menuSurface).toHaveStyle({
         bottom: '78px',
-        left: '20px',
+        left: '16px',
         maxHeight: '288px',
         position: 'fixed',
-        width: '280px',
+        width: '328px',
+        zIndex: '121',
       });
     });
     expect(menuSurface?.style.top).toBe('');

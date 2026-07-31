@@ -94,6 +94,8 @@ describe('Rewards', () => {
 
     expect(await screen.findByText('6-day streak')).toBeInTheDocument();
     expect(screen.getByText('Opening the app or logging in alone does not count.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('Next log in bonus')).toBeInTheDocument();
+    expect(screen.queryByText('Real activity. Real referrals. No spam.')).not.toBeInTheDocument();
     expect(screen.getByText('Your first confirmed reward will appear here.')).toBeInTheDocument();
     expect(screen.getByDisplayValue(summary.referrals.link)).toHaveAttribute('readonly');
   });
@@ -117,34 +119,11 @@ describe('Rewards', () => {
     expect(toastSuccess).toHaveBeenCalledWith('Referral link copied.');
   });
 
-  it('supports setup confirmation and one-time recovery-code display', async () => {
-    api.startTwoFactorSetup.mockResolvedValue({
-      secret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
-      otpauthUri: 'otpauth://totp/Cruush:test',
-      qrCodeDataUrl: 'data:image/png;base64,AAAA',
-    });
-    api.completeTwoFactorSetup.mockResolvedValue({
-      enabled: true,
-      recoveryCodes: ['AAAAA-BBBBB', 'CCCCC-DDDDD'],
-    });
-    api.getTwoFactorStatus
-      .mockResolvedValueOnce({ enabled: false, enabledAt: null, recoveryCodesRemaining: 0 })
-      .mockResolvedValueOnce({ enabled: true, enabledAt: '2026-07-27T12:00:00.000Z', recoveryCodesRemaining: 10 });
+  it('keeps 2FA off the rewards page', async () => {
     renderRewards();
     await screen.findByText('6-day streak');
 
-    expect(screen.getByText('Use the same password you use to sign in. This is not a separate 2FA password.')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('cruush login password'), {
-      target: { value: 'correct-password' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Set up authenticator app' }));
-    expect(await screen.findByAltText('cruush authenticator setup QR code')).toBeInTheDocument();
-
-    fireEvent.change(screen.getByPlaceholderText('6-digit authenticator code'), {
-      target: { value: '123456' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm and enable 2FA' }));
-    expect(await screen.findByText('Save these one-use recovery codes now.')).toBeInTheDocument();
-    expect(screen.getByText('AAAAA-BBBBB')).toBeInTheDocument();
+    expect(screen.queryByText('Two-factor authentication')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Set up authenticator app' })).not.toBeInTheDocument();
   });
 });

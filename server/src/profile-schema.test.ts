@@ -41,6 +41,58 @@ describe("profile schema", () => {
     expect(parsed.visibility_rules.crowds).toEqual(["Dyke"]);
   });
 
+  it("limits explicitly capped profile option groups", () => {
+    const baseProfile = {
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994
+    };
+
+    expect(profilePayloadSchema.parse({
+      ...baseProfile,
+      pronouns: ["they/them", "she/her", "he/him"],
+      identities: ["nonbinary", "woman", "genderqueer"],
+      looking_for: ["chat", "dating", "friends"],
+      vibes: ["Goth", "Rave", "Leather"],
+      body_type: ["bear", "otter", "twink"],
+      position: ["top"],
+      role: ["switch"],
+      hiv_status: ["prefer not to say"],
+      covid_vaccine: ["yes"],
+      mpox_vaccine: ["yes"]
+    })).toMatchObject({
+      pronouns: ["they/them", "she/her", "he/him"],
+      body_type: ["bear", "otter", "twink"],
+      position: ["top"],
+      role: ["switch"]
+    });
+
+    expect(profilePayloadSchema.parse({
+      ...baseProfile,
+      vibes: ["Goth", "Rave", "Leather", "Punk", "Playful", "Kinky"]
+    }).vibes).toEqual(["Rave", "Leather", "Punk", "Playful", "Kinky"]);
+
+    expect(profilePayloadSchema.parse({
+      ...baseProfile,
+      body_type: ["bear", "otter", "twink", "stocky"]
+    }).body_type).toEqual(["otter", "twink", "stocky"]);
+
+    expect(profilePayloadSchema.parse({
+      ...baseProfile,
+      position: ["top", "bottom"]
+    }).position).toEqual(["bottom"]);
+
+    expect(profilePayloadSchema.parse({
+      ...baseProfile,
+      role: ["switch", "dominant"]
+    }).role).toEqual(["dominant"]);
+
+    expect(profilePayloadSchema.parse({
+      ...baseProfile,
+      covid_vaccine: ["yes", "partial"]
+    }).covid_vaccine).toEqual(["partial"]);
+  });
+
   it("accepts a complete adult date of birth and calculates age by month and day", () => {
     const parsed = profilePayloadSchema.parse({
       ...emptyProfile,
