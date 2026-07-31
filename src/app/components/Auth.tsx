@@ -22,6 +22,23 @@ interface AuthProps {
   onAuth: (session: AuthSessionPayload) => void;
 }
 
+const LAUNCH_RAVE_TICKETS_URL = 'https://ra.co/events/2483120';
+const FALLBACK_ALPHA_TEST = {
+  enabled: true,
+  active: true,
+  endsAt: null,
+  ended: false,
+} satisfies AppMetaPayload['alphaTest'];
+const FALLBACK_BETA_ACCESS = {
+  enabled: true,
+  center: {
+    lat: 40.70982,
+    lng: -73.92256,
+  },
+  radiusMiles: 15,
+  venueName: '70 Scott Ave',
+} satisfies NonNullable<AppMetaPayload['betaAccess']>;
+
 export default function Auth({ onAuth }: AuthProps) {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
@@ -101,9 +118,9 @@ export default function Auth({ onAuth }: AuthProps) {
       })
       .catch(() => {
         if (isActive) {
-          setAlphaTest(null);
-          setBetaAccess(null);
-          setBetaAccessStatus('allowed');
+          setAlphaTest(FALLBACK_ALPHA_TEST);
+          setBetaAccess(FALLBACK_BETA_ACCESS);
+          setBetaAccessStatus('unknown');
         }
       });
 
@@ -129,12 +146,6 @@ export default function Auth({ onAuth }: AuthProps) {
     setCaptchaResetKey((current) => current + 1);
     resetHumanCheck();
   };
-
-  useEffect(() => {
-    if (alphaPasswordRequired && !modeSelectedByUser && mode === 'signin') {
-      setMode('signup');
-    }
-  }, [alphaPasswordRequired, mode, modeSelectedByUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,7 +173,7 @@ export default function Auth({ onAuth }: AuthProps) {
       return;
     }
 
-    if (betaAccessRequired && !betaAccessLocation) {
+    if (isSignUp && betaAccessRequired && !betaAccessLocation) {
       setError(`Beta access is currently available within ${betaAccess?.radiusMiles ?? 15} miles of ${betaAccess?.venueName ?? '70 Scott Ave'}. Check your location to continue.`);
       setIsLoading(false);
       return;
@@ -439,8 +450,17 @@ export default function Auth({ onAuth }: AuthProps) {
           </div>
         </div>
 
+        <a
+          className="launch-login-auth-rave-button"
+          href={LAUNCH_RAVE_TICKETS_URL}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Launch rave tickets
+        </a>
+
         {/* Auth form */}
-        {betaAccessRequired && betaAccessStatus !== 'allowed' ? (
+        {isSignUp && betaAccessRequired && betaAccessStatus === 'outside' ? (
           <form onSubmit={handleBetaCityRequest} className="launch-login-auth-form">
             {error ? (
               <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff0072] text-sm rounded">
@@ -573,38 +593,57 @@ export default function Auth({ onAuth }: AuthProps) {
             </div>
           )}
 
-          {verificationRetryAvailable && !notice ? (
-            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-3">
-              <p>That account is not verified yet.</p>
-              <button
-                type="button"
+	          {verificationRetryAvailable && !notice ? (
+	            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-3">
+	              <p>That account is not verified yet.</p>
+	              <button
+	                type="button"
                 onClick={handleResendVerification}
                 disabled={isLoading}
                 className="w-full h-11 text-sm text-white bg-white/10 border border-white/15 rounded-sm hover:bg-white/15 disabled:opacity-50"
               >
                 Resend verification email
               </button>
-            </div>
-          ) : null}
+	            </div>
+	          ) : null}
 
-          {!isForgotPassword && isSignUp && alphaPasswordRequired ? (
-            <div className="space-y-2">
-              <label htmlFor="alphaPassword" className="sr-only">
-                Alpha password
-              </label>
-              <input
-                id="alphaPassword"
-                type="password"
-                autoComplete="off"
-                value={alphaPassword}
-                onChange={(e) => setAlphaPassword(e.target.value)}
-                placeholder="alpha password"
-                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
-                required
-                disabled={isLoading}
-              />
-            </div>
-          ) : null}
+	          {!isForgotPassword && isSignUp && alphaPasswordRequired ? (
+	            <div className="space-y-2">
+	              <label htmlFor="alphaPassword" className="sr-only">
+	                Alpha password
+	              </label>
+	              <input
+	                id="alphaPassword"
+	                type="password"
+	                autoComplete="off"
+	                value={alphaPassword}
+	                onChange={(e) => setAlphaPassword(e.target.value)}
+	                placeholder="alpha password"
+	                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+	                required
+	                disabled={isLoading}
+	              />
+	            </div>
+	          ) : null}
+
+	          {!isForgotPassword && isSignUp && betaAccessRequired && betaAccessStatus !== 'allowed' ? (
+	            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-3">
+	              <div className="flex items-start gap-2">
+	                <MapPin className="mt-0.5 h-4 w-4 text-[#0ba8ff]" />
+	                <p>
+	                  Beta access opens within {betaAccess?.radiusMiles ?? 15} miles of {betaAccess?.venueName ?? '70 Scott Ave'}.
+	                </p>
+	              </div>
+	              <button
+	                type="button"
+	                onClick={handleBetaAccessCheck}
+	                disabled={betaAccessStatus === 'checking'}
+	                className="w-full h-11 text-sm text-white bg-white/10 border border-white/15 rounded-sm hover:bg-white/15 disabled:opacity-50"
+	              >
+	                {betaAccessStatus === 'checking' ? 'Checking location...' : 'Check my location'}
+	              </button>
+	            </div>
+	          ) : null}
 
           {!isForgotPassword && !isSignUp && twoFactorRequired ? (
             <div className="space-y-2">
@@ -737,18 +776,7 @@ export default function Auth({ onAuth }: AuthProps) {
             )}
           </button>
 
-          {isSignUp && !captchaRequested ? (
-            <a
-              className="launch-login-auth-rave-button"
-              href="https://ra.co/events/2483120"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Launch rave tickets
-            </a>
-          ) : null}
-
-          {shouldShowCaptcha ? (
+	          {shouldShowCaptcha ? (
             <div className="launch-login-auth-captcha" data-testid="launch-login-auth-captcha">
               <Turnstile
                 onTokenChange={handleCaptchaTokenChange}

@@ -230,13 +230,14 @@ describe('Auth', () => {
     expect(signInSwitch.compareDocumentPosition(resetLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('shows launch rave tickets before signup security and hides it for Turnstile', async () => {
+  it('keeps launch rave tickets public through signup security', async () => {
     render(<Auth onAuth={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
 
     const raveLink = screen.getByRole('link', { name: 'Launch rave tickets' });
     expect(raveLink).toHaveAttribute('href', 'https://ra.co/events/2483120');
     expect(raveLink).toHaveClass('launch-login-auth-rave-button');
+
+    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
     expect(screen.queryByTestId('launch-login-auth-captcha')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
@@ -244,7 +245,7 @@ describe('Auth', () => {
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
-    expect(screen.queryByRole('link', { name: 'Launch rave tickets' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute('href', 'https://ra.co/events/2483120');
     expect(await screen.findByTestId('launch-login-auth-captcha')).toBeInTheDocument();
   });
 
@@ -264,12 +265,69 @@ describe('Auth', () => {
 
     render(<Auth onAuth={vi.fn()} />);
 
-    expect(await screen.findByRole('button', { name: 'Create Account' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Sign In' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
+
+    expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
     expect(screen.getByLabelText('Alpha password')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute(
       'href',
       'https://ra.co/events/2483120'
     );
+  });
+
+  it('shows alpha signup and the beta radius check before account creation', async () => {
+    getAppMeta.mockResolvedValue({
+      service: 'cruush-server',
+      auth: 'session-cookie',
+      storage: 'postgres',
+      migratedFromSupabase: true,
+      alphaTest: {
+        enabled: true,
+        active: true,
+        endsAt: '2026-08-07T07:59:00.000Z',
+        ended: false,
+      },
+      betaAccess: {
+        enabled: true,
+        center: {
+          lat: 40.70982,
+          lng: -73.92256,
+        },
+        radiusMiles: 15,
+        venueName: '70 Scott Ave',
+      },
+    });
+
+    render(<Auth onAuth={vi.fn()} />);
+
+    expect(await screen.findByRole('button', { name: 'Sign In' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check my location' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
+
+    expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Alpha password')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
+    expect(screen.getByText('Beta access opens within 15 miles of 70 Scott Ave.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute('href', 'https://ra.co/events/2483120');
+  });
+
+  it('fails closed to alpha signup and beta radius check when launch metadata is unavailable', async () => {
+    getAppMeta.mockRejectedValue(new Error('meta unavailable'));
+
+    render(<Auth onAuth={vi.fn()} />);
+
+    expect(await screen.findByRole('button', { name: 'Sign In' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
+
+    expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Alpha password')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
+    expect(screen.getByText('Beta access opens within 15 miles of 70 Scott Ave.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute('href', 'https://ra.co/events/2483120');
   });
 
   it('retains a referral query parameter through signup without displaying it', async () => {
