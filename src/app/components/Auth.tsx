@@ -59,6 +59,7 @@ export default function Auth({ onAuth }: AuthProps) {
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [modeSelectedByUser, setModeSelectedByUser] = useState(false);
   const [verificationPreviewUrl, setLocalVerificationPreviewUrl] = useState<string | null>(null);
   const [verificationRetryAvailable, setVerificationRetryAvailable] = useState(false);
   const [requestedCity, setRequestedCity] = useState('');
@@ -128,6 +129,12 @@ export default function Auth({ onAuth }: AuthProps) {
     setCaptchaResetKey((current) => current + 1);
     resetHumanCheck();
   };
+
+  useEffect(() => {
+    if (alphaPasswordRequired && !modeSelectedByUser && mode === 'signin') {
+      setMode('signup');
+    }
+  }, [alphaPasswordRequired, mode, modeSelectedByUser]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,6 +212,7 @@ export default function Auth({ onAuth }: AuthProps) {
         setVerificationPreviewUrl(delivery.previewUrl);
         setLocalVerificationPreviewUrl(delivery.previewUrl);
         setNotice('Check your email to verify your account, then sign in.');
+        setModeSelectedByUser(true);
         setMode('signin');
         setPassword('');
         setConfirmPassword('');
@@ -333,6 +341,7 @@ export default function Auth({ onAuth }: AuthProps) {
   };
 
   const toggleMode = () => {
+    setModeSelectedByUser(true);
     setMode(isSignUp ? 'signin' : 'signup');
     setError('');
     setNotice('');
@@ -348,6 +357,7 @@ export default function Auth({ onAuth }: AuthProps) {
   };
 
   const showForgotPassword = () => {
+    setModeSelectedByUser(true);
     setMode('forgot');
     setError('');
     setNotice('');
@@ -364,6 +374,7 @@ export default function Auth({ onAuth }: AuthProps) {
   };
 
   const showSignIn = () => {
+    setModeSelectedByUser(true);
     setMode('signin');
     setError('');
     setNotice('');

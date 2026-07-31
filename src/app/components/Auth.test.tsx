@@ -248,6 +248,30 @@ describe('Auth', () => {
     expect(await screen.findByTestId('launch-login-auth-captcha')).toBeInTheDocument();
   });
 
+  it('opens alpha visitors on signup with launch rave tickets visible', async () => {
+    getAppMeta.mockResolvedValue({
+      service: 'cruush-server',
+      auth: 'session-cookie',
+      storage: 'postgres',
+      migratedFromSupabase: true,
+      alphaTest: {
+        enabled: true,
+        active: true,
+        endsAt: '2026-08-07T07:59:00.000Z',
+        ended: false,
+      },
+    });
+
+    render(<Auth onAuth={vi.fn()} />);
+
+    expect(await screen.findByRole('button', { name: 'Create Account' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Alpha password')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute(
+      'href',
+      'https://ra.co/pro/events/2483120'
+    );
+  });
+
   it('retains a referral query parameter through signup without displaying it', async () => {
     window.history.replaceState({}, '', '/?ref=abcdefghijklmnop');
     signUp.mockResolvedValue({
