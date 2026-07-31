@@ -833,7 +833,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
     expect(screen.queryByText('Saved sets')).not.toBeInTheDocument();
     expect(screen.queryByText('Upgrade for saved sets')).not.toBeInTheDocument();
-    expect(screen.getByText('Free accounts can hide from up to 3 audiences.')).toBeInTheDocument();
+    expect(screen.queryByText('Free accounts can hide from up to 3 audiences.')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Distance')).toBeInTheDocument();
   });
 
@@ -1159,7 +1159,7 @@ describe('MapHome', () => {
       expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lng', '-74.005');
     });
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
-    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Saved area');
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
   });
 
@@ -1194,7 +1194,7 @@ describe('MapHome', () => {
         lng: -74.005,
       }, undefined, { limit: 50 });
     });
-    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Saved area');
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.713');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-74.005');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');

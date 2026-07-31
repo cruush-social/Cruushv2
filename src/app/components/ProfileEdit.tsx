@@ -54,6 +54,9 @@ import {
 
 const MAX_PROFILE_PHOTOS = 4;
 const MAX_PROFILE_GROUP_SELECTIONS = 3;
+const MAX_PROFILE_VIBES = 5;
+const MAX_PROFILE_HOBBIES = 5;
+const MAX_PROFILE_KINKS = 5;
 const MAX_GENDER_IDENTITIES = MAX_PROFILE_GROUP_SELECTIONS;
 const PROFILE_PHOTO_LOAD_ERROR = 'This image could not be loaded. Try a JPG, PNG, or WebP file.';
 
@@ -113,6 +116,14 @@ function singleValue(values: string[] = []) {
 
 function limitToThree(values: string[] = []) {
   return latestUniqueValues(values).slice(-MAX_PROFILE_GROUP_SELECTIONS);
+}
+
+function limitToFive(values: string[] = []) {
+  return latestUniqueValues(values).slice(-5);
+}
+
+function limitToFiveKinks(values: string[] = []) {
+  return latestUniqueValues(values).slice(-MAX_PROFILE_KINKS);
 }
 
 function limitGenderIdentities(values: string[]) {
@@ -434,13 +445,14 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     display_name: getSaveDisplayName(profile),
     photos: profile.photos ?? [],
     bio: (profile.bio ?? '').trim(),
+    signal: (profile.signal ?? '').trim(),
     pronouns: limitToThree(profile.pronouns ?? []),
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
     year_of_birth: profile.year_of_birth ?? null,
     ethnicity: profile.ethnicity ?? '',
     identities: limitGenderIdentities(profile.identities ?? []),
-    presentation: profile.presentation ?? [],
-    sexuality: profile.sexuality ?? [],
+    presentation: singleValue(profile.presentation ?? []),
+    sexuality: singleValue(profile.sexuality ?? []),
     body_type: limitToThree(profile.body_type ?? []),
     height: profile.height ?? '',
     weight: profile.weight ?? '',
@@ -449,25 +461,25 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     is_trans: profile.is_trans ?? null,
     trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
-    availability: profile.availability ?? [],
-    hosting_travel: profile.hosting_travel ?? [],
-    kinks: profile.kinks ?? [],
-    kink_interests: sanitizeKinkInterests(profile),
+    availability: singleValue(profile.availability ?? []),
+    hosting_travel: singleValue(profile.hosting_travel ?? []),
+    kinks: limitToFiveKinks(profile.kinks ?? []),
+    kink_interests: sanitizeKinkInterests(profile).slice(-MAX_PROFILE_KINKS),
     kinks_visibility: profile.kinks_visibility ?? 'public',
-    vibes: limitToThree(mergeCategorizedVibes(profile)),
+    vibes: limitToFive(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
-    hobbies: profile.hobbies ?? [],
+    hobbies: limitToFive(profile.hobbies ?? []),
     custom_hobby: (profile.custom_hobby ?? '').trim(),
     looking_for: limitToThree(profile.looking_for ?? []),
     hiv_status: singleValue(profile.hiv_status ?? []),
     hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     custom_hiv_status: (profile.custom_hiv_status ?? '').trim(),
-    condoms: profile.condoms ?? [],
+    condoms: singleValue(profile.condoms ?? []),
     custom_condoms: (profile.custom_condoms ?? '').trim(),
-    prep: profile.prep ?? [],
+    prep: singleValue(profile.prep ?? []),
     custom_prep: (profile.custom_prep ?? '').trim(),
-    doxypep: profile.doxypep ?? [],
+    doxypep: singleValue(profile.doxypep ?? []),
     custom_doxypep: (profile.custom_doxypep ?? '').trim(),
     covid_vaccine: singleValue(profile.covid_vaccine ?? []),
     custom_covid_vaccine: (profile.custom_covid_vaccine ?? '').trim(),
@@ -582,12 +594,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
   const handleKinksChange = (selectedKinks: string[]) => {
     setProfile((prev) => {
+      const limitedSelectedKinks = limitToFiveKinks(selectedKinks);
       const existingById = new Map((prev.kink_interests ?? []).map((interest) => [interest.kink_id, interest]));
 
       return {
         ...prev,
-        kinks: selectedKinks,
-        kink_interests: selectedKinks.map((kink) => existingById.get(toKinkId(kink)) ?? toDefaultKinkInterest(kink)),
+        kinks: limitedSelectedKinks,
+        kink_interests: limitedSelectedKinks.map((kink) => existingById.get(toKinkId(kink)) ?? toDefaultKinkInterest(kink)),
       };
     });
   };
@@ -727,31 +740,32 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const normalizedProfile: ProfilePayload = {
     ...profile,
     photos: (profile.photos || []).slice(0, MAX_PROFILE_PHOTOS),
+    signal: profile.signal ?? '',
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),
-    presentation: profile.presentation || [],
-    sexuality: profile.sexuality || [],
+    presentation: singleValue(profile.presentation || []),
+    sexuality: singleValue(profile.sexuality || []),
     body_type: limitToThree(profile.body_type || []),
     position: singleValue(profile.position || []),
     role: singleValue(profile.role || []),
     is_trans: profile.is_trans ?? null,
     trans_status_visibility: profile.trans_status_visibility ?? FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
-    availability: profile.availability || [],
-    hosting_travel: profile.hosting_travel || [],
+    availability: singleValue(profile.availability || []),
+    hosting_travel: singleValue(profile.hosting_travel || []),
     kinks: profile.kinks || [],
     kink_interests: profile.kink_interests || [],
     kinks_visibility: profile.kinks_visibility || 'public',
-    vibes: limitToThree(mergeCategorizedVibes(profile)),
+    vibes: limitToFive(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
-    hobbies: profile.hobbies || [],
+    hobbies: limitToFive(profile.hobbies || []),
     looking_for: limitToThree(profile.looking_for || []),
     hiv_status: singleValue(profile.hiv_status || []),
     hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
-    condoms: profile.condoms || [],
-    prep: profile.prep || [],
-    doxypep: profile.doxypep || [],
+    condoms: singleValue(profile.condoms || []),
+    prep: singleValue(profile.prep || []),
+    doxypep: singleValue(profile.doxypep || []),
     covid_vaccine: singleValue(profile.covid_vaccine || []),
     mpox_vaccine: singleValue(profile.mpox_vaccine || []),
     substance_boundaries: profile.substance_boundaries || [],
@@ -890,12 +904,12 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Availability</Label>
-              <MultiSelect {...profileMenuProps} options={AVAILABILITY} value={normalizedProfile.availability} onChange={(vals) => handleChange('availability', vals)} />
+              <MultiSelect {...profileMenuProps} options={AVAILABILITY} value={normalizedProfile.availability} onChange={(vals) => handleChange('availability', singleValue(vals))} selectionMode="single" />
             </div>
 
             <div className="space-y-2">
               <Label>Hosting/Travel</Label>
-              <MultiSelect {...profileMenuProps} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={(vals) => handleChange('hosting_travel', vals)} />
+              <MultiSelect {...profileMenuProps} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={(vals) => handleChange('hosting_travel', singleValue(vals))} selectionMode="single" />
             </div>
 
             <div className="space-y-2">
@@ -903,10 +917,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <MultiSelect
                 {...profileMenuProps}
                 ariaLabel="Vibes"
-                maxSelections={MAX_PROFILE_GROUP_SELECTIONS}
+                maxSelections={MAX_PROFILE_VIBES}
                 optionGroups={VIBE_GROUPS}
                 value={normalizedProfile.vibes}
-                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
+                onChange={(vals) => handleChange('vibes', limitToFive(vals))}
               />
             </div>
           </TabsContent>
@@ -921,6 +935,19 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 onChange={e => handleChange('bio', e.target.value)}
                 className="min-h-[120px] bg-input-background"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="signal">Signal</Label>
+              <Input
+                id="signal"
+                maxLength={180}
+                placeholder="A short hover note for your map pin"
+                value={normalizedProfile.signal}
+                onChange={(e) => handleChange('signal', e.target.value)}
+                className="bg-input-background"
+              />
+              <p className="text-xs text-muted-foreground">This appears when someone hovers over your heart pin on the map.</p>
             </div>
 
             <div className="space-y-2">
@@ -967,12 +994,12 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Presentation</Label>
-              <MultiSelect {...profileMenuProps} options={PRESENTATIONS} value={normalizedProfile.presentation} onChange={(vals) => handleChange('presentation', vals)} />
+              <MultiSelect {...profileMenuProps} options={PRESENTATIONS} value={normalizedProfile.presentation} onChange={(vals) => handleChange('presentation', singleValue(vals))} selectionMode="single" />
             </div>
 
             <div className="space-y-2">
               <Label>Sexuality</Label>
-              <MultiSelect {...profileMenuProps} options={SEXUALITY} value={normalizedProfile.sexuality} onChange={(vals) => handleChange('sexuality', vals)} />
+              <MultiSelect {...profileMenuProps} options={SEXUALITY} value={normalizedProfile.sexuality} onChange={(vals) => handleChange('sexuality', singleValue(vals))} selectionMode="single" />
             </div>
 
             <div className="space-y-3 rounded-md border border-border bg-card/40 p-4">
@@ -1016,7 +1043,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Hobbies</Label>
-              <MultiSelect {...profileMenuProps} options={HOBBIES} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', vals)} />
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_HOBBIES} options={HOBBIES} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToFive(vals))} />
             </div>
           </TabsContent>
 
@@ -1029,7 +1056,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   ariaLabel="Position"
                   options={POSITIONS}
                   value={normalizedProfile.position}
-                  onChange={(vals) => handleChange('position', vals)}
+                  onChange={(vals) => handleChange('position', singleValue(vals))}
                   selectionMode="single"
                 />
               </div>
@@ -1040,24 +1067,25 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   ariaLabel="Role"
                   options={ROLES}
                   value={normalizedProfile.role}
-                  onChange={(vals) => handleChange('role', vals)}
+                  onChange={(vals) => handleChange('role', singleValue(vals))}
                   selectionMode="single"
                 />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Availability</Label>
-              <MultiSelect {...profileMenuProps} options={AVAILABILITY} value={normalizedProfile.availability} onChange={vals => handleChange('availability', vals)} />
+              <MultiSelect {...profileMenuProps} options={AVAILABILITY} value={normalizedProfile.availability} onChange={vals => handleChange('availability', singleValue(vals))} selectionMode="single" />
             </div>
             <div className="space-y-2">
               <Label>Hosting/Travel</Label>
-              <MultiSelect {...profileMenuProps} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', vals)} />
+              <MultiSelect {...profileMenuProps} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', singleValue(vals))} selectionMode="single" />
             </div>
             <div className="space-y-2">
               <Label>Kinks & Fetishes</Label>
               <MultiSelect
                 {...profileMenuProps}
                 ariaLabel="Kinks & Fetishes"
+                maxSelections={MAX_PROFILE_KINKS}
                 optionGroups={KINK_GROUPS}
                 value={normalizedProfile.kinks}
                 onChange={handleKinksChange}
@@ -1085,21 +1113,21 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 ariaLabel="HIV Status"
                 options={HIV_STATUS}
                 value={normalizedProfile.hiv_status}
-                onChange={vals => handleChange('hiv_status', vals)}
+                onChange={vals => handleChange('hiv_status', singleValue(vals))}
                 selectionMode="single"
               />
             </div>
             <div className="space-y-2">
               <Label>Condoms</Label>
-              <MultiSelect {...profileMenuProps} options={CONDOMS} value={normalizedProfile.condoms} onChange={vals => handleChange('condoms', vals)} />
+              <MultiSelect {...profileMenuProps} options={CONDOMS} value={normalizedProfile.condoms} onChange={vals => handleChange('condoms', singleValue(vals))} selectionMode="single" />
             </div>
             <div className="space-y-2">
               <Label>PrEP</Label>
-              <MultiSelect {...profileMenuProps} options={PREP} value={normalizedProfile.prep} onChange={vals => handleChange('prep', vals)} />
+              <MultiSelect {...profileMenuProps} options={PREP} value={normalizedProfile.prep} onChange={vals => handleChange('prep', singleValue(vals))} selectionMode="single" />
             </div>
             <div className="space-y-2">
               <Label>DoxyPEP</Label>
-              <MultiSelect {...profileMenuProps} options={DOXYPEP} value={normalizedProfile.doxypep} onChange={vals => handleChange('doxypep', vals)} />
+              <MultiSelect {...profileMenuProps} options={DOXYPEP} value={normalizedProfile.doxypep} onChange={vals => handleChange('doxypep', singleValue(vals))} selectionMode="single" />
             </div>
             <div className="space-y-2">
               <Label>COVID Vaccine</Label>
@@ -1108,7 +1136,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 ariaLabel="COVID Vaccine"
                 options={COVID_VACCINE}
                 value={normalizedProfile.covid_vaccine}
-                onChange={vals => handleChange('covid_vaccine', vals)}
+                onChange={vals => handleChange('covid_vaccine', singleValue(vals))}
                 selectionMode="single"
               />
             </div>
@@ -1119,7 +1147,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 ariaLabel="MPOX Vaccine"
                 options={MPOX_VACCINE}
                 value={normalizedProfile.mpox_vaccine}
-                onChange={vals => handleChange('mpox_vaccine', vals)}
+                onChange={vals => handleChange('mpox_vaccine', singleValue(vals))}
                 selectionMode="single"
               />
             </div>

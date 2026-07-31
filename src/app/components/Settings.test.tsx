@@ -160,6 +160,10 @@ describe('Settings', () => {
     expect(screen.queryByRole('switch', { name: 'Toggle precise location for mutual cruushes' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Location privacy/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /DL Mode/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Two-factor authentication/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Rewards/i })).toHaveTextContent(
+      'Streaks, referrals, and promotional access.',
+    );
   });
 
   it('shows active moderators a direct dashboard entry', async () => {

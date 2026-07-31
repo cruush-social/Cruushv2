@@ -204,11 +204,12 @@ function profileRecordToOwnDiscoveryUser(profile: ProfileRecord, location: Appro
     id: profile.id || 'me',
     name: profile.display_name || 'Your profile',
     display_name: profile.display_name || 'Your profile',
+    signal: profile.signal,
     age: profile.year_of_birth ? new Date().getFullYear() - profile.year_of_birth : null,
     pronouns: (profile.pronouns ?? []).join(', ') || 'Ask me',
     lat: location?.approximateLatitude ?? 40.7128,
     lng: location?.approximateLongitude ?? -74.006,
-    lastActive: profile.location?.location_updated_at ? 'Saved area' : 'Now',
+    lastActive: 'Now',
     distance: 'You',
     lookingFor: profile.looking_for ?? [],
     vibes: profile.vibes ?? [],
@@ -1151,6 +1152,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
         userId: user.id,
         kind: 'person',
         displayName: user.name,
+        signal: user.signal,
+        latestFeedPostPreview: user.latestFeedPostPreview,
         approximateLatitude: user.lat,
         approximateLongitude: user.lng,
         lastActiveLabel: user.lastActive,
@@ -1195,9 +1198,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
         id: 'me',
         userId: currentProfile?.id ?? 'me',
         displayName: 'You',
+        signal: currentProfile?.signal ?? '',
         approximateLatitude: currentUserMapLocation.approximateLatitude,
         approximateLongitude: currentUserMapLocation.approximateLongitude,
-        lastActiveLabel: userApproximateLocation ? 'Now' : 'Saved area',
+        lastActiveLabel: 'Now',
         photo: currentProfile?.photos[0] ?? null,
         isCurrentUser: true,
         badge: createMapMarkerBadge(currentProfile?.position ?? []),
@@ -1528,7 +1532,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-300">Beta launch</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[#03ecfc]">Beta launch</p>
                 <h2 className="mt-1 text-lg text-white">{selectedEvent.venueName}</h2>
                 <p className="mt-1 text-sm text-white/62">{selectedEvent.address}</p>
               </div>
@@ -1554,7 +1558,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </div>
 
             <a
-              className="mt-3 inline-flex items-center gap-2 text-sm text-emerald-300 hover:text-emerald-200"
+              className="mt-3 inline-flex items-center gap-2 text-sm text-[#03ecfc] hover:text-[#c9fbff]"
               href={selectedEvent.raUrl}
               rel="noreferrer"
               target="_blank"
@@ -1565,7 +1569,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
             <div className="mt-4 grid grid-cols-1 gap-2">
               {selectedEvent.joined ? (
-                <div className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">
+                <div className="rounded-lg border border-[#03ecfc]/20 bg-[#03ecfc]/10 p-3 text-sm text-[#c9fbff]">
                   You're joining. The party chat is available in Messages and muted by default.
                 </div>
               ) : (
@@ -1602,7 +1606,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <div>
                   <p className="text-xs uppercase tracking-[0.16em] text-white/52">Door pass</p>
                   <div className="mt-2 flex items-center gap-3">
-                    <span className="flex h-14 w-14 items-center justify-center rounded-lg border border-emerald-300/25 bg-emerald-400/10">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-lg border border-[#03ecfc]/25 bg-[#03ecfc]/10">
                       <CruushIcon name={visibleEventPassIconName} variant="colored" className="h-9 w-9" />
                     </span>
                     <div>
@@ -1676,7 +1680,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               )}
 
               {eventActionStatus ? (
-                <p className="mt-3 text-xs text-emerald-300">{eventActionStatus}</p>
+                <p className="mt-3 text-xs text-[#03ecfc]">{eventActionStatus}</p>
               ) : null}
               {eventActionError ? (
                 <p className="mt-3 text-xs text-destructive">{eventActionError}</p>
@@ -1690,10 +1694,18 @@ export default function MapHome(_props: MapHomeProps = {}) {
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (
-            <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
+            <button
+              type="button"
+              className="inline-flex h-8 items-center gap-2 rounded-full border border-white/15 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+              style={{ background: 'var(--cruush-gradient)' }}
+              onClick={() => {
+                setVisibilityError(null);
+                setIsVisibilityOpen(true);
+              }}
+            >
               <CruushIconImage src={crowdIconColored} className="h-4 w-4" />
               {activeCrowdNotice}
-            </div>
+            </button>
           ) : null}
 
           {privacySettings.ghostModeEnabled ? (

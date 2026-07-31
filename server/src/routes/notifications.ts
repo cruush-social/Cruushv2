@@ -28,7 +28,8 @@ const notificationPreferencesPayloadSchema = z.object({
   pushEnabled: z.boolean().optional(),
   cruushEnabled: z.boolean().optional(),
   messagesEnabled: z.boolean().optional(),
-  groupsEnabled: z.boolean().optional()
+  groupsEnabled: z.boolean().optional(),
+  soundEnabled: z.boolean().optional()
 }).strict();
 
 const pushSubscriptionPayloadSchema = z.object({

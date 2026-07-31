@@ -14,6 +14,7 @@ import { addCruushChangedListener } from '../lib/cruushEvents';
 import { handleCruushSendSuccess, notifyCruushSendError, notifyMutualCruushRequired } from '../lib/cruushNotifications';
 import { emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
+import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 type ProfileLocationState = {
   distance?: string;
@@ -38,6 +39,7 @@ export type ProfileViewModel = {
   photos: string[];
   photoMetadata: NonNullable<ProfileRecord['photo_metadata']>;
   badges: ProfileRecord['badges'];
+  attendingLaunchParty: boolean;
   bio: string;
   identities: string[];
   presentation: string[];
@@ -99,6 +101,7 @@ export function profileRecordToProfileView(
     photos: profile.photos,
     photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: false })),
     badges: profile.badges ?? [],
+    attendingLaunchParty: profile.attendingLaunchParty === true,
     bio: profile.bio,
     identities: profile.identities,
     presentation: profile.presentation,
@@ -382,6 +385,21 @@ export default function ProfileView() {
               <h1 className="text-4xl mb-2">
                 {profileView.name}
                 {profileView.age ? <span>, {profileView.age}</span> : null}
+                {profileView.attendingLaunchParty ? (
+                  <button
+                    type="button"
+                    className="ml-3 inline-flex h-8 w-8 translate-y-1 items-center justify-center rounded-full border border-[#03ecfc]/25 bg-black/45 transition hover:bg-[#03ecfc]/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
+                    aria-label="Center map on launch party"
+                    title="Center map on launch party"
+                    onClick={() => navigate('/map', {
+                      state: {
+                        centerEventSlug: 'the-chocolate-factory-launch',
+                      },
+                    })}
+                  >
+                    <img alt="" aria-hidden="true" className="h-5 w-5" src={partyHatIcon} />
+                  </button>
+                ) : null}
               </h1>
               <CruushBadge badges={profileView.badges} />
               <p className="text-muted-foreground">{profileView.pronouns}</p>

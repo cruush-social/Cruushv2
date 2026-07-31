@@ -69,6 +69,7 @@ describe('NotificationCenter', () => {
     expect(screen.getByText('Jordan sent you a message')).toBeInTheDocument();
     expect(screen.getByText('Open cruush to reply.')).toBeInTheDocument();
     expect(screen.getByText('Unread')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Notification settings' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Jordan sent you a message' }));
     await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('notification-1'));

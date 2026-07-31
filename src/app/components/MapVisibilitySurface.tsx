@@ -187,7 +187,6 @@ export default function MapVisibilitySurface({
           ) : null}
 
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Free accounts can hide from up to 3 audiences.</p>
             <p className="text-sm text-muted-foreground">
               Pick who should not see you. Crowd Mode is different: it makes you visible only to the active crowds you choose.
             </p>

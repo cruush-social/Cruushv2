@@ -225,7 +225,7 @@ describe('LocalFeed', () => {
     );
 
     const preview = await screen.findByRole('img', { name: 'River preview' });
-    expect(preview.parentElement).toHaveClass('w-[4.5rem]');
+    expect(preview.parentElement).toHaveClass('w-20');
   });
 
   it('blocks another feed author and removes all of their posts locally', async () => {

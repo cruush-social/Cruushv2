@@ -35,7 +35,8 @@ export const createPostPayloadSchema = z.object({
 }).strict();
 
 export const updateFeedSettingsPayloadSchema = z.object({
-  locationPinVisibility: feedLocationPinVisibilitySchema
+  locationPinVisibility: feedLocationPinVisibilitySchema,
+  showDistanceLabels: z.boolean().optional().default(true)
 }).strict();
 
 export type CreatePostPayload = z.infer<typeof createPostPayloadSchema>;

@@ -113,6 +113,7 @@ type ProfileRow = {
   photos: string[] | null;
   photo_metadata?: ProfilePhotoMetadata[] | null;
   bio: string | null;
+  signal: string | null;
   pronouns: string[] | null;
   custom_pronouns: string | null;
   year_of_birth: number | null;
@@ -168,6 +169,7 @@ type ProfileRow = {
   location_fuzz_radius_meters?: number | null;
   location_updated_at?: string | Date | null;
   badges?: string[] | null;
+  attending_launch_party?: boolean | null;
   updated_at: string | Date;
 };
 
@@ -282,6 +284,7 @@ const PROFILE_COLUMNS = [
   "display_name",
   "photos",
   "bio",
+  "signal",
   "pronouns",
   "custom_pronouns",
   "year_of_birth",
@@ -489,6 +492,8 @@ function mapProfileRow(
     photos,
     photo_metadata: photoMetadata,
     bio: row.bio ?? "",
+    signal: row.signal ?? "",
+    ...(row.attending_launch_party === true ? { attendingLaunchParty: true } : {}),
     pronouns: row.pronouns ?? [],
     custom_pronouns: row.custom_pronouns ?? "",
     year_of_birth: row.year_of_birth,
@@ -586,6 +591,7 @@ function profilePayloadFromRow(
     display_name: row.display_name ?? "",
     photos: row.photos ?? [],
     bio: row.bio ?? "",
+    signal: row.signal ?? "",
     pronouns: row.pronouns ?? [],
     custom_pronouns: row.custom_pronouns ?? "",
     year_of_birth: row.year_of_birth,
@@ -1016,6 +1022,7 @@ function buildProfileModerationFields(payload: ProfilePayload, kinkInterests: Pr
   return {
     display_name: payload.display_name,
     bio: payload.bio,
+    signal: payload.signal,
     custom_pronouns: payload.custom_pronouns,
     custom_hobby: payload.custom_hobby,
     kinks: kinkInterests.map((interest) => interest.label ?? interest.kink_id),
@@ -1180,6 +1187,15 @@ async function loadProfileData(
               from user_badges
               where user_badges.user_id = profiles.id
             ), '{}'::text[]) as badges,
+            exists (
+              select 1
+              from event_memberships membership
+              join launch_events event on event.id = membership.event_id
+              where membership.user_id = profiles.id
+                and event.slug = 'the-chocolate-factory-launch'
+                and event.active = true
+                and now() < event.chat_expires_at
+            ) as attending_launch_party,
             updated_at
      from profiles
      where id = $1`,

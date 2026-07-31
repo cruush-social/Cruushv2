@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Badge } from './ui/badge';
 import { X } from 'lucide-react';
@@ -14,6 +14,7 @@ const MENU_MIN_HEIGHT = 96;
 const MENU_OFFSET = 8;
 const MENU_VIEWPORT_PADDING = 16;
 const MENU_FLIP_THRESHOLD = 220;
+const MULTI_SELECT_OPEN_EVENT = 'cruush:multiselect-open';
 
 type ResolvedMenuPlacement = 'bottom' | 'top';
 
@@ -48,6 +49,7 @@ export default function MultiSelect({
 }: MultiSelectProps) {
   const [selected, setSelected] = useState<string[]>(value);
   const [isOpen, setIsOpen] = useState(false);
+  const instanceId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [resolvedMenuPlacement, setResolvedMenuPlacement] = useState<ResolvedMenuPlacement>(menuPlacement);
   const [localMenuStyle, setLocalMenuStyle] = useState<CSSProperties | null>(null);
@@ -66,6 +68,32 @@ export default function MultiSelect({
       setActiveGroupLabel(groups[0]?.label ?? '');
     }
   }, [activeGroupLabel, groups]);
+
+  useEffect(() => {
+    const closeWhenAnotherSelectOpens = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== instanceId) {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener(MULTI_SELECT_OPEN_EVENT, closeWhenAnotherSelectOpens);
+
+    return () => {
+      window.removeEventListener(MULTI_SELECT_OPEN_EVENT, closeWhenAnotherSelectOpens);
+    };
+  }, [instanceId]);
+
+  const toggleMenu = () => {
+    setIsOpen((current) => {
+      const nextOpen = !current;
+
+      if (nextOpen) {
+        window.dispatchEvent(new CustomEvent(MULTI_SELECT_OPEN_EVENT, { detail: instanceId }));
+      }
+
+      return nextOpen;
+    });
+  };
 
   useLayoutEffect(() => {
     if (!isOpen || !triggerRef.current) {
@@ -282,7 +310,7 @@ export default function MultiSelect({
           aria-label={ariaLabel}
           aria-haspopup="listbox"
           aria-expanded={isOpen}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={toggleMenu}
           className="w-full h-10 px-3 text-left rounded-md bg-input-background border border-input hover:border-primary transition-colors"
         >
           {selected.length > 0 ? `${selected.length} selected` : placeholder}

@@ -30,7 +30,7 @@ describe('MapVisibilitySurface', () => {
   it('limits free users to three hidden audiences', () => {
     render(<VisibilityHarness />);
 
-    expect(screen.getByText('Free accounts can hide from up to 3 audiences.')).toBeInTheDocument();
+    expect(screen.queryByText('Free accounts can hide from up to 3 audiences.')).not.toBeInTheDocument();
     expect(screen.getByText('Pick who should not see you. Crowd Mode is different: it makes you visible only to the active crowds you choose.')).toBeInTheDocument();
 
     selectVisibilityOption('Gender Identities', 'man');

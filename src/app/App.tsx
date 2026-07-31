@@ -43,6 +43,7 @@ const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
+const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
 
 function redirectToMap() {
   window.history.replaceState({}, '', '/map');
@@ -315,6 +316,7 @@ export default function App({
               <Route path="/settings" element={<Settings />} />
               <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
               <Route path="/settings/notifications" element={<NotificationSettings />} />
+              <Route path="/settings/2fa" element={<TwoFactorSettings />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />

@@ -100,10 +100,29 @@ function limitToThree(values: string[]) {
   return nextValues.slice(-3);
 }
 
+function limitToFive(values: string[]) {
+  const seen = new Set<string>();
+  const nextValues: string[] = [];
+
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const value = values[index]?.trim();
+
+    if (!value || seen.has(value)) {
+      continue;
+    }
+
+    seen.add(value);
+    nextValues.unshift(value);
+  }
+
+  return nextValues.slice(-5);
+}
+
 type OnboardingProfileState = {
   name: string;
   dateOfBirth: string;
   bio: string;
+  signal: string;
   identities: string[];
   pronouns: string[];
   lookingFor: string[];
@@ -157,6 +176,7 @@ export default function ProfileOnboarding({
     name: '',
     dateOfBirth: '',
     bio: '',
+    signal: '',
     identities: [],
     pronouns: [],
     lookingFor: [],
@@ -294,6 +314,7 @@ export default function ProfileOnboarding({
     try {
       const displayName = profile.name.trim();
       const bio = profile.bio.trim();
+      const signal = profile.signal.trim();
       const customPronouns = profile.custom_pronouns.trim();
       const customHobby = profile.custom_hobby.trim();
       const customHivStatus = profile.custom_hiv_status.trim();
@@ -314,6 +335,7 @@ export default function ProfileOnboarding({
         looking_for: profile.lookingFor,
         vibes: profile.vibes,
         bio,
+        signal,
         photos: profile.photos,
         presentation: profile.gender_presentation,
         ethnicity: Array.isArray(profile.ethnicity) ? profile.ethnicity[0] ?? '' : '',
@@ -546,12 +568,12 @@ export default function ProfileOnboarding({
                   <label className="text-sm mb-2 block text-white/82">Vibes</label>
                   <MultiSelect
                     ariaLabel="Vibes"
-                    maxSelections={3}
+                    maxSelections={5}
                     optionGroups={VIBE_GROUPS}
                     value={profile.vibes}
-                    onChange={(values) => setProfileField('vibes', limitToThree(values))}
+                    onChange={(values) => setProfileField('vibes', limitToFive(values))}
                   />
-                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
+                  <p className="text-xs text-white/58 mt-1">Select up to 5</p>
                 </div>
               );
             case 'bio':
@@ -564,6 +586,15 @@ export default function ProfileOnboarding({
                     value={profile.bio}
                     onChange={e => setProfileField('bio', e.target.value)}
                   />
+                  <label className="mt-4 text-sm mb-2 block">Signal</label>
+                  <Input
+                    type="text"
+                    maxLength={180}
+                    placeholder="A few words people see when they hover your heart pin"
+                    value={profile.signal}
+                    onChange={e => setProfileField('signal', e.target.value)}
+                  />
+                  <p className="mt-2 text-xs text-white/50">Your signal appears when someone hovers over your heart pin on the map.</p>
                 </div>
               );
             case 'oath':

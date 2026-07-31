@@ -34,6 +34,7 @@ describe('NotificationSettings', () => {
       cruushEnabled: true,
       messagesEnabled: true,
       groupsEnabled: true,
+      soundEnabled: true,
     });
     getVapidPublicKey.mockResolvedValue({
       enabled: false,
@@ -44,6 +45,7 @@ describe('NotificationSettings', () => {
       cruushEnabled: true,
       messagesEnabled: false,
       groupsEnabled: true,
+      soundEnabled: true,
       ...partial,
     }));
   });
@@ -60,6 +62,12 @@ describe('NotificationSettings', () => {
 
     await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
       messagesEnabled: false,
+    }));
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Toggle Heartbeat sound' }));
+
+    await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
+      soundEnabled: false,
     }));
   });
 

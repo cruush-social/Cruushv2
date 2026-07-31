@@ -28,6 +28,7 @@ export type NotificationPreferences = {
   cruushEnabled: boolean;
   messagesEnabled: boolean;
   groupsEnabled: boolean;
+  soundEnabled: boolean;
 };
 
 export type PushSubscriptionPayload = {

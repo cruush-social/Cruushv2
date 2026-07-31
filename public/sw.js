@@ -38,13 +38,18 @@ self.addEventListener('push', (event) => {
 
   const title = typeof payload.title === 'string' ? payload.title : 'cruush';
   const body = typeof payload.body === 'string' ? payload.body : 'Open cruush to check it.';
+  const sound = typeof payload.sound === 'string' ? payload.sound : 'heartbeat';
+  const soundEnabled = typeof payload.soundEnabled === 'boolean' ? payload.soundEnabled : true;
   const url = typeof payload.url === 'string' ? payload.url : '/notifications';
 
   event.waitUntil(self.registration.showNotification(title, {
     body,
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
+    silent: !soundEnabled,
+    sound: soundEnabled ? sound : undefined,
     data: {
+      sound: soundEnabled ? sound : '',
       url
     }
   }));

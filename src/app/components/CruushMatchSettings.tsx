@@ -146,8 +146,7 @@ export default function CruushMatchSettings() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h2 className="text-xl">cruush match settings</h2>
-          <p className="text-xs text-white/58">Mutual cruush rules and NSFW photo consent.</p>
+          <h2 className="text-xl">mutual cruush settings</h2>
         </div>
       </header>
 

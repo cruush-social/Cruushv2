@@ -2,6 +2,7 @@ create table if not exists profiles (
   id uuid primary key references app_users(id) on delete cascade,
   display_name text,
   bio text,
+  signal text not null default '',
   photos text[] not null default '{}',
   pronouns text[] not null default '{}',
   custom_pronouns text not null default '',

@@ -7052,7 +7052,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
     expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
-    expect(query.mock.calls[1]?.[0]).toContain("profiles.updated_at >= now() - interval '1 day'");
+    expect(query.mock.calls[1]?.[0]).toContain("profiles.location_updated_at >= now() - interval '1 day'");
     expect(query.mock.calls[1]?.[0]).not.toContain("discovery_match");
     expect(query.mock.calls[1]?.[0]).toContain("limit $3");
     expect(query.mock.calls[1]?.[1]?.[0]).toBe(userId);
@@ -8011,7 +8011,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("from user_blocks block");
     expect(query.mock.calls[1]?.[0]).toContain("blocker_user_id = $1");
     expect(query.mock.calls[1]?.[0]).toContain("blocked_user_id = p.user_id");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId]);
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "24h", null, null, 1, null, 30]);
   });
 
   it("filters crowd-targeted posts by the reader's crowd memberships at the query boundary", async () => {
@@ -9174,6 +9174,7 @@ describe("server", () => {
         photos: [],
         photo_metadata: [],
         bio: "Hello",
+        signal: "",
         pronouns: ["they/them"],
         custom_pronouns: "",
         year_of_birth: 1994,
@@ -9244,6 +9245,7 @@ describe("server", () => {
         photos: [],
         photo_metadata: [],
         bio: "Hello",
+        signal: "",
         pronouns: ["they/them"],
         custom_pronouns: "",
         year_of_birth: 1994,
@@ -9974,6 +9976,7 @@ describe("server", () => {
       display_name: "Cruusher",
       photos: [],
       bio: "Updated bio",
+      signal: "",
       pronouns: ["they/them"],
       custom_pronouns: "",
       year_of_birth: 1994,
@@ -10027,8 +10030,8 @@ describe("server", () => {
     const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
     expect(profileInsertCall?.[0]).toContain("insert into profiles");
     expect(profileInsertCall?.[1]?.[0]).toBe(userId);
-    expect(profileInsertCall?.[1]?.[6]).toBe(1994);
-    expect(profileInsertCall?.[1]?.[7]).toEqual(["Latinx"]);
+    expect(profileInsertCall?.[1]?.[7]).toBe(1994);
+    expect(profileInsertCall?.[1]?.[8]).toEqual(["Latinx"]);
     expect(profileInsertCall?.[0]).not.toContain("updated_at)");
     expect(response.json()).toEqual({
       data: {

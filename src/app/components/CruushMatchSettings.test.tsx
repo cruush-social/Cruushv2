@@ -71,7 +71,7 @@ describe('CruushMatchSettings', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'cruush match settings' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'mutual cruush settings' })).toBeInTheDocument();
     expect(screen.getAllByText('Mutual crowds')).toHaveLength(2);
     expect(screen.getAllByText('Only people who share one of your crowds may exchange NSFW photos.')).toHaveLength(2);
 

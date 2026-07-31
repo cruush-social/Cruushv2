@@ -29,6 +29,8 @@ type PostRow = {
   feed_location_pin_visibility?: FeedLocationPinVisibility | null;
   has_live_location?: boolean | null;
   has_shared_crowd?: boolean | null;
+  distance_miles?: number | null;
+  attending_launch_party?: boolean | null;
   party_status?: {
     eventSlug?: string;
     label?: string;
@@ -37,7 +39,32 @@ type PostRow = {
 
 type FeedSettingsRow = {
   feed_location_pin_visibility: FeedLocationPinVisibility | null;
+  feed_show_distance_labels: boolean | null;
 };
+
+function formatCoarseDistance(miles: number) {
+  if (!Number.isFinite(miles)) {
+    return "Nearby";
+  }
+
+  if (miles < 1) {
+    return "<1 mi";
+  }
+
+  if (miles < 3) {
+    return "1-3 mi";
+  }
+
+  if (miles < 5) {
+    return "3-5 mi";
+  }
+
+  if (miles < 10) {
+    return "5-10 mi";
+  }
+
+  return "10-15 mi";
+}
 
 function normalizePartyStatus(value: PostRow["party_status"]) {
   if (!value) {
@@ -103,7 +130,9 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
     expiresIn: row.expires_in,
     expiresAt: new Date(row.expires_at).toISOString(),
     createdAt: new Date(row.created_at).toISOString(),
-    distance: "Nearby",
+    distance: typeof row.distance_miles === "number"
+      ? formatCoarseDistance(row.distance_miles)
+      : "Nearby",
     ...(crowdTargets.length > 0 ? { crowdTargets } : {}),
     ...(locationPinVisible ? {
       locationPin: {
@@ -117,6 +146,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       name: row.display_name?.trim() || "cruush user",
       pronouns: row.pronouns?.join(", ") ?? "",
       photo: row.photos?.[0] ?? null,
+      ...(row.attending_launch_party === true ? { attendingLaunchParty: true } : {}),
       ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
     }
   };
@@ -137,6 +167,15 @@ const POST_COLUMNS = `
   pr.pronouns,
   pr.photos,
   coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as feed_location_pin_visibility,
+  case
+    when $3::double precision is null or $4::double precision is null then null
+    when coalesce(pr.fuzzy_lat, pr.lat) is null or coalesce(pr.fuzzy_lng, pr.lng) is null then null
+    else 3958.8 * 2 * asin(sqrt(
+      power(sin(radians((coalesce(pr.fuzzy_lat, pr.lat) - $3::double precision) / 2)), 2)
+      + cos(radians($3::double precision)) * cos(radians(coalesce(pr.fuzzy_lat, pr.lat)))
+        * power(sin(radians((coalesce(pr.fuzzy_lng, pr.lng) - $4::double precision) / 2)), 2)
+    ))
+  end as distance_miles,
   exists (
     select 1
     from encrypted_location_envelopes location_envelopes
@@ -157,6 +196,15 @@ const POST_COLUMNS = `
     from user_badges
     where user_badges.user_id = p.user_id
   ), '{}'::text[]) as badges,
+  exists (
+    select 1
+    from event_memberships membership
+    join launch_events event on event.id = membership.event_id
+    where membership.user_id = p.user_id
+      and event.slug = 'the-chocolate-factory-launch'
+      and event.active = true
+      and now() < event.chat_expires_at
+  ) as attending_launch_party,
   coalesce((
     select array_agg(distinct target.crowd order by target.crowd)
     from feed_post_crowd_targets target
@@ -183,9 +231,19 @@ const postParamsSchema = z.object({
   postId: z.uuid()
 });
 
+const feedPostQuerySchema = z.object({
+  within: z.enum(["1h", "3h", "6h", "24h"]).default("24h"),
+  distanceMiles: z.coerce.number().min(1).max(15).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(30),
+  before: z.string().datetime().optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional()
+}).strict();
+
 export async function registerPostRoutes(app: FastifyInstance) {
   app.get("/api/posts", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
+    const query = feedPostQuerySchema.parse(request.query);
 
     const result = await app.db.query<PostRow>(
       `select ${POST_COLUMNS}
@@ -193,6 +251,26 @@ export async function registerPostRoutes(app: FastifyInstance) {
        left join profiles pr on pr.id = p.user_id
        left join user_privacy_settings pin_settings on pin_settings.user_id = p.user_id
        where p.expires_at > now()
+         and p.created_at >= now() - case
+           when $2 = '1h' then interval '1 hour'
+           when $2 = '3h' then interval '3 hours'
+           when $2 = '6h' then interval '6 hours'
+           else interval '24 hours'
+         end
+         and (
+           $3::double precision is null
+           or $4::double precision is null
+           or (
+             coalesce(pr.fuzzy_lat, pr.lat) is not null
+             and coalesce(pr.fuzzy_lng, pr.lng) is not null
+             and 3958.8 * 2 * asin(sqrt(
+               power(sin(radians((coalesce(pr.fuzzy_lat, pr.lat) - $3::double precision) / 2)), 2)
+               + cos(radians($3::double precision)) * cos(radians(coalesce(pr.fuzzy_lat, pr.lat)))
+                 * power(sin(radians((coalesce(pr.fuzzy_lng, pr.lng) - $4::double precision) / 2)), 2)
+             )) <= $5::double precision
+           )
+         )
+         and ($6::timestamptz is null or p.created_at < $6::timestamptz)
          and not exists (
            select 1
            from user_blocks block
@@ -216,8 +294,16 @@ export async function registerPostRoutes(app: FastifyInstance) {
            )
          )
        order by p.created_at desc
-       limit 100`,
-      [userId]
+       limit $7`,
+      [
+        userId,
+        query.within,
+        query.lat ?? null,
+        query.lng ?? null,
+        query.distanceMiles,
+        query.before ?? null,
+        query.limit
+      ]
     );
 
     return reply.send({
@@ -228,7 +314,9 @@ export async function registerPostRoutes(app: FastifyInstance) {
   app.get("/api/feed/settings", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const row = (await app.db.query<FeedSettingsRow>(
-      `select feed_location_pin_visibility
+      `select
+         feed_location_pin_visibility,
+         feed_show_distance_labels
        from user_privacy_settings
        where user_id = $1
        limit 1`,
@@ -237,7 +325,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
 
     return reply.send({
       data: {
-        locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals"
+        locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals",
+        showDistanceLabels: row?.feed_show_distance_labels ?? true
       }
     });
   });
@@ -248,19 +337,22 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const row = (await app.db.query<FeedSettingsRow>(
       `insert into user_privacy_settings (
          user_id,
-         feed_location_pin_visibility
+         feed_location_pin_visibility,
+         feed_show_distance_labels
        )
-       values ($1, $2)
+       values ($1, $2, $3)
        on conflict (user_id) do update
        set feed_location_pin_visibility = excluded.feed_location_pin_visibility,
+           feed_show_distance_labels = excluded.feed_show_distance_labels,
            updated_at = now()
-       returning feed_location_pin_visibility`,
-      [userId, payload.locationPinVisibility]
+       returning feed_location_pin_visibility, feed_show_distance_labels`,
+      [userId, payload.locationPinVisibility, payload.showDistanceLabels]
     )).rows[0];
 
     return reply.send({
       data: {
-        locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals"
+        locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals",
+        showDistanceLabels: row?.feed_show_distance_labels ?? true
       }
     });
   });
@@ -407,10 +499,39 @@ export async function registerPostRoutes(app: FastifyInstance) {
          ) as has_live_location,
          true as has_shared_crowd,
          coalesce((
+           select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
+           from user_badges
+           where user_badges.user_id = i.user_id
+         ), '{}'::text[]) as badges,
+         exists (
+           select 1
+           from event_memberships membership
+           join launch_events event on event.id = membership.event_id
+           where membership.user_id = i.user_id
+             and event.slug = 'the-chocolate-factory-launch'
+             and event.active = true
+             and now() < event.chat_expires_at
+         ) as attending_launch_party,
+         coalesce((
            select array_agg(distinct target.crowd order by target.crowd)
            from feed_post_crowd_targets target
            where target.post_id = i.id
-         ), '{}'::text[]) as crowd_targets
+         ), '{}'::text[]) as crowd_targets,
+         (
+           select jsonb_build_object(
+             'eventSlug', event.slug,
+             'label', 'at ' || event.venue_name
+           )
+           from event_memberships membership
+           join launch_events event on event.id = membership.event_id
+           where membership.user_id = i.user_id
+             and event.slug = 'the-chocolate-factory-launch'
+             and event.active = true
+             and now() >= event.starts_at
+             and now() < event.chat_expires_at
+           order by membership.last_seen_at desc
+           limit 1
+         ) as party_status
        from inserted i
        left join profiles pr on pr.id = i.user_id
        left join user_privacy_settings pin_settings on pin_settings.user_id = i.user_id`,

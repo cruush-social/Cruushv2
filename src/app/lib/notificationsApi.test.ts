@@ -38,7 +38,7 @@ describe('notificationsApi', () => {
 
   it('calls preference and push subscription endpoints', async () => {
     await getNotificationPreferences();
-    await updateNotificationPreferences({ pushEnabled: true, messagesEnabled: false });
+    await updateNotificationPreferences({ pushEnabled: true, messagesEnabled: false, soundEnabled: false });
     await subscribeToPushNotifications({
       endpoint: 'https://push.example/sub',
       keys: {
@@ -50,7 +50,7 @@ describe('notificationsApi', () => {
     expect(fetch).toHaveBeenNthCalledWith(1, '/api/notification-preferences', expect.any(Object));
     expect(fetch).toHaveBeenNthCalledWith(2, '/api/notification-preferences', expect.objectContaining({
       method: 'PATCH',
-      body: JSON.stringify({ pushEnabled: true, messagesEnabled: false }),
+      body: JSON.stringify({ pushEnabled: true, messagesEnabled: false, soundEnabled: false }),
     }));
     expect(fetch).toHaveBeenNthCalledWith(3, '/api/push/subscriptions', expect.objectContaining({
       method: 'POST',

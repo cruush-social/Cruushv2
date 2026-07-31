@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Clock, MapPin, Settings2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
@@ -8,6 +8,7 @@ import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import HeartPhoto from './HeartPhoto';
+import { Switch } from './ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -27,11 +28,13 @@ import {
   type FeedLocationPinVisibility,
   type FeedPost,
   type FeedPostExpiry,
+  type FeedPostWindow,
   type FeedSettings,
 } from '../lib/postApi';
-import { getMyProfile } from '../lib/profileApi';
+import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
+import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -63,9 +66,34 @@ const FEED_LOCATION_PIN_OPTIONS: Array<{ value: FeedLocationPinVisibility; label
   { value: 'off', label: 'off', description: 'Do not show a feed pin on your posts.' },
 ];
 
+const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
+  { value: '24h', label: '24h' },
+  { value: '6h', label: '6h' },
+  { value: '3h', label: '3h' },
+  { value: '1h', label: '1h' },
+];
+const FEED_PAGE_SIZE = 30;
+const DEFAULT_FEED_RADIUS_MILES = 1;
+const LAUNCH_PARTY_EVENT_SLUG = 'the-chocolate-factory-launch';
 const DEFAULT_FEED_SETTINGS: FeedSettings = {
   locationPinVisibility: 'mutuals',
+  showDistanceLabels: true,
 };
+
+type FeedCoordinates = {
+  lat: number;
+  lng: number;
+};
+
+function profileFeedCoordinates(profile: ProfileRecord): FeedCoordinates | null {
+  const location = profile.location;
+  const lat = location?.fuzzy_lat ?? location?.lat ?? null;
+  const lng = location?.fuzzy_lng ?? location?.lng ?? null;
+
+  return typeof lat === 'number' && Number.isFinite(lat) && typeof lng === 'number' && Number.isFinite(lng)
+    ? { lat, lng }
+    : null;
+}
 
 export default function LocalFeed() {
   const navigate = useNavigate();
@@ -80,9 +108,71 @@ export default function LocalFeed() {
   const [availableCrowdTargets, setAvailableCrowdTargets] = useState<string[]>([]);
   const [selectedCrowdTargets, setSelectedCrowdTargets] = useState<string[]>([]);
   const [feedSettings, setFeedSettings] = useState<FeedSettings>(DEFAULT_FEED_SETTINGS);
+  const [feedWindow, setFeedWindow] = useState<FeedPostWindow>('24h');
+  const [feedDistanceMiles, setFeedDistanceMiles] = useState(DEFAULT_FEED_RADIUS_MILES);
+  const [feedCoordinates, setFeedCoordinates] = useState<FeedCoordinates | null>(null);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const fetchPosts = useCallback(async (options: {
+    append?: boolean;
+    before?: string | null;
+    coordinates?: FeedCoordinates | null;
+    distanceMiles?: number;
+    within?: FeedPostWindow;
+  } = {}) => {
+    const append = options.append === true;
+    const nextCoordinates = options.coordinates === undefined ? feedCoordinates : options.coordinates;
+    const nextDistanceMiles = options.distanceMiles ?? feedDistanceMiles;
+    const nextWindow = options.within ?? feedWindow;
+
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
+    setError(null);
+    try {
+      const nextPosts = await getFeedPosts({
+        before: options.before ?? undefined,
+        coordinates: nextCoordinates,
+        distanceMiles: nextDistanceMiles,
+        limit: FEED_PAGE_SIZE,
+        within: nextWindow,
+      });
+
+      setPosts((currentPosts) => {
+        if (!append) {
+          return nextPosts;
+        }
+
+        const knownPostIds = new Set(currentPosts.map((post) => post.id));
+        return [
+          ...currentPosts,
+          ...nextPosts.filter((post) => !knownPostIds.has(post.id)),
+        ];
+      });
+      setHasMorePosts(nextPosts.length >= FEED_PAGE_SIZE);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load the local feed.');
+      if (!append) {
+        setPosts([]);
+        setHasMorePosts(false);
+      }
+    } finally {
+      if (append) {
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
+    }
+  }, [feedCoordinates, feedDistanceMiles, feedWindow]);
 
   useEffect(() => {
     const loadBillingStatus = () => {
@@ -91,9 +181,8 @@ export default function LocalFeed() {
         .catch(() => setBillingStatus(null));
     };
 
-    void fetchPosts();
     void getFeedSettings()
-      .then(setFeedSettings)
+      .then((settings) => setFeedSettings({ ...DEFAULT_FEED_SETTINGS, ...settings }))
       .catch(() => setFeedSettings(DEFAULT_FEED_SETTINGS));
     void getCurrentUserId()
       .then(setCurrentUserId)
@@ -105,12 +194,17 @@ export default function LocalFeed() {
         const allowedCrowds = CROWDS.filter((crowd) => (
           normalizedCrowds.includes(crowd) && (crowd !== 'T4T' || profile.is_trans === true)
         ));
+        const coordinates = profileFeedCoordinates(profile);
         setAvailableCrowdTargets(allowedCrowds);
         setSelectedCrowdTargets((currentTargets) => currentTargets.filter((crowd) => allowedCrowds.includes(crowd)));
+        setFeedCoordinates(coordinates);
+        void fetchPosts({ coordinates });
       })
       .catch(() => {
         setAvailableCrowdTargets([]);
         setSelectedCrowdTargets([]);
+        setFeedCoordinates(null);
+        void fetchPosts({ coordinates: null });
       });
 
     window.addEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
@@ -120,17 +214,37 @@ export default function LocalFeed() {
     };
   }, []);
 
-  const fetchPosts = async () => {
-    setError(null);
-    try {
-      setPosts(await getFeedPosts());
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load the local feed.');
-    } finally {
-      setLoading(false);
+  const loadMorePosts = useCallback(() => {
+    if (loading || loadingMore || !hasMorePosts) {
+      return;
     }
-  };
+
+    const before = posts[posts.length - 1]?.createdAt ?? null;
+
+    if (!before) {
+      return;
+    }
+
+    void fetchPosts({ append: true, before });
+  }, [fetchPosts, hasMorePosts, loading, loadingMore, posts]);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+
+    if (!node || !hasMorePosts || typeof IntersectionObserver === 'undefined') {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        loadMorePosts();
+      }
+    }, { rootMargin: '280px' });
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [hasMorePosts, loadMorePosts]);
 
   const handlePost = async () => {
     if (!newPost.trim()) return;
@@ -190,7 +304,10 @@ export default function LocalFeed() {
     setError(null);
 
     try {
-      const nextSettings = await updateFeedSettings({ locationPinVisibility });
+      const nextSettings = await updateFeedSettings({
+        ...feedSettings,
+        locationPinVisibility,
+      });
       setFeedSettings(nextSettings);
       void fetchPosts();
     } catch (error) {
@@ -199,6 +316,34 @@ export default function LocalFeed() {
     } finally {
       setSettingsSaving(false);
     }
+  };
+
+  const handleDistanceLabelVisibilityChange = async (showDistanceLabels: boolean) => {
+    setSettingsSaving(true);
+    setError(null);
+
+    try {
+      const nextSettings = await updateFeedSettings({
+        ...feedSettings,
+        showDistanceLabels,
+      });
+      setFeedSettings(nextSettings);
+    } catch (error) {
+      console.error('Error saving feed settings:', error);
+      setError(error instanceof Error ? error.message : 'Failed to save feed settings.');
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleFeedWindowChange = (nextWindow: FeedPostWindow) => {
+    setFeedWindow(nextWindow);
+    void fetchPosts({ before: null, within: nextWindow });
+  };
+
+  const handleFeedDistanceChange = (nextDistanceMiles: number) => {
+    setFeedDistanceMiles(nextDistanceMiles);
+    void fetchPosts({ before: null, distanceMiles: nextDistanceMiles });
   };
 
   const handleBlockedUser = (blockedUserId: string) => {
@@ -223,41 +368,98 @@ export default function LocalFeed() {
               aria-label="Feed settings"
               title="Feed settings"
             >
-              <Settings2 className="h-5 w-5" />
+              <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
             <DialogHeader>
               <DialogTitle>Feed settings</DialogTitle>
               <DialogDescription>
-                Choose who can tap your feed posts to center your map pin.
+                Control which nearby posts load and how your feed location appears.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-2">
-              {FEED_LOCATION_PIN_OPTIONS.map((option) => {
-                const active = feedSettings.locationPinVisibility === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={[
-                      'w-full rounded-lg border p-3 text-left transition',
-                      active
-                        ? 'border-primary/70 bg-primary/12 text-white'
-                        : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                    ].join(' ')}
-                    aria-pressed={active}
-                    disabled={settingsSaving}
-                    onClick={() => void handleFeedPinVisibilityChange(option.value)}
-                  >
-                    <span className="flex items-center justify-between gap-3">
-                      <span className="font-semibold">{option.label}</span>
-                      {active ? <span className="text-xs uppercase tracking-[0.16em] text-primary">active</span> : null}
-                    </span>
-                    <span className="mt-1 block text-xs text-white/58">{option.description}</span>
-                  </button>
-                );
-              })}
+            <div className="space-y-4">
+              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+                <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {FEED_WINDOW_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={[
+                        'h-10 rounded-full border text-sm font-semibold transition',
+                        feedWindow === option.value
+                          ? 'border-white/15 text-white'
+                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
+                      ].join(' ')}
+                      style={feedWindow === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
+                      aria-pressed={feedWindow === option.value}
+                      onClick={() => handleFeedWindowChange(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-white">Distance</p>
+                  <span className="rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-xs text-white/70">
+                    {feedDistanceMiles} mi
+                  </span>
+                </div>
+                <input
+                  aria-label="Feed distance radius"
+                  className="w-full accent-primary"
+                  max={15}
+                  min={1}
+                  step={1}
+                  type="range"
+                  value={feedDistanceMiles}
+                  onChange={(event) => handleFeedDistanceChange(Number(event.target.value))}
+                />
+              </section>
+
+              <section className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/42 p-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">Distance labels</p>
+                  <p className="mt-1 text-xs text-white/58">Show broad ranges like 1-3 mi.</p>
+                </div>
+                <Switch
+                  checked={feedSettings.showDistanceLabels !== false}
+                  disabled={settingsSaving}
+                  onCheckedChange={(checked) => void handleDistanceLabelVisibilityChange(checked)}
+                />
+              </section>
+
+              <section className="space-y-2 rounded-lg border border-white/10 bg-black/42 p-3">
+                <p className="text-sm font-semibold text-white">Feed map pin</p>
+                {FEED_LOCATION_PIN_OPTIONS.map((option) => {
+                  const active = feedSettings.locationPinVisibility === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={[
+                        'w-full rounded-lg border p-3 text-left transition',
+                        active
+                          ? 'border-primary/70 bg-primary/12 text-white'
+                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
+                      ].join(' ')}
+                      aria-pressed={active}
+                      disabled={settingsSaving}
+                      onClick={() => void handleFeedPinVisibilityChange(option.value)}
+                    >
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="font-semibold">{option.label}</span>
+                        {active ? <span className="text-xs uppercase tracking-[0.16em] text-primary">active</span> : null}
+                      </span>
+                      <span className="mt-1 block text-xs text-white/58">{option.description}</span>
+                    </button>
+                  );
+                })}
+              </section>
             </div>
           </DialogContent>
         </Dialog>
@@ -332,7 +534,7 @@ export default function LocalFeed() {
                         type="button"
                         variant={selected ? 'default' : 'outline'}
                         size="sm"
-                        className={selected ? 'border-emerald-400/55 bg-emerald-500/20 text-emerald-100 hover:bg-emerald-500/25' : undefined}
+                        className={selected ? 'border-[#03ecfc]/55 bg-[#03ecfc]/14 text-[#c9fbff] hover:bg-[#03ecfc]/20' : undefined}
                         onClick={() => toggleCrowdTarget(crowd)}
                         disabled={!canPost}
                       >
@@ -370,7 +572,7 @@ export default function LocalFeed() {
             <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
               <div className="flex gap-3">
                 <HeartPhoto
-                  className="w-[4.5rem] flex-shrink-0"
+                  className="w-20 flex-shrink-0"
                   label={`${post.user.name} preview`}
                   photo={post.user?.photo}
                   userId={post.user.id}
@@ -383,11 +585,26 @@ export default function LocalFeed() {
                       <p className="flex flex-wrap items-center gap-2">
                         <span>{post.user.name}</span>
                         <CruushBadge badges={post.user.badges} compact />
+                        {post.user.attendingLaunchParty ? (
+                          <button
+                            type="button"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#03ecfc]/25 bg-black/50 transition hover:bg-[#03ecfc]/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
+                            aria-label="Center map on launch party"
+                            title="Center map on launch party"
+                            onClick={() => navigate('/map', {
+                              state: {
+                                centerEventSlug: LAUNCH_PARTY_EVENT_SLUG,
+                              },
+                            })}
+                          >
+                            <img alt="" aria-hidden="true" className="h-4 w-4" src={partyHatIcon} />
+                          </button>
+                        ) : null}
                         <span className="text-sm text-white/58">{post.user.pronouns}</span>
                         {post.partyStatus ? (
                           <button
                             type="button"
-                            className="rounded-full border border-emerald-400/28 bg-emerald-400/10 px-2 py-0.5 text-xs text-emerald-300 transition hover:bg-emerald-400/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/65"
+                            className="rounded-full border border-[#03ecfc]/28 bg-[#03ecfc]/10 px-2 py-0.5 text-xs text-[#c9fbff] transition hover:bg-[#03ecfc]/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
                             aria-label="Center map on The Chocolate Factory"
                             onClick={() => navigate('/map', {
                               state: {
@@ -400,10 +617,12 @@ export default function LocalFeed() {
                         ) : null}
                       </p>
                       <div className="flex items-center gap-3 text-xs text-white/52">
-                        <span className="flex items-center gap-1">
-                          <CruushIcon name="map" className="h-3 w-3 opacity-70" />
-                          {post.distance}
-                        </span>
+                        {feedSettings.showDistanceLabels !== false ? (
+                          <span className="flex items-center gap-1">
+                            <CruushIcon name="map" className="h-3 w-3 opacity-70" />
+                            {post.distance}
+                          </span>
+                        ) : null}
                         <span>{formatRelativeTime(post.createdAt)}</span>
                       </div>
                     </div>
@@ -466,6 +685,15 @@ export default function LocalFeed() {
               </div>
             </div>
           ))}
+          {hasMorePosts || loadingMore ? (
+            <div
+              ref={loadMoreRef}
+              className="min-h-12 rounded-2xl border border-white/0 p-3 text-center text-sm text-white/45"
+              aria-live="polite"
+            >
+              {loadingMore ? 'Loading more posts...' : ''}
+            </div>
+          ) : null}
           </div>
         ) : null}
 

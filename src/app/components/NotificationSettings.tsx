@@ -60,6 +60,11 @@ function isStandaloneDisplay() {
 function preferenceRows(preferences: NotificationPreferences) {
   return [
     {
+      key: 'soundEnabled' as const,
+      label: 'Heartbeat sound',
+      checked: preferences.soundEnabled,
+    },
+    {
       key: 'cruushEnabled' as const,
       label: 'cruush alerts',
       checked: preferences.cruushEnabled,

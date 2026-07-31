@@ -53,14 +53,15 @@ Do not replace this with generic copy such as `{displayName} liked you`, `Someon
 - Logo font: UnifrakturMaguntia.
 - Heading font: Cormorant Garamond.
 - Body and UI font: Spectral.
-- Core colors: #FF0072, #6F00FF, #3826FF, #004BFF, #1181FF 
+- Core colors: #FF0072, #6F00FF, #3826FF, #004BFF, #1181FF, #03ECFC
 - Logo gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 53.27%, #004BFF 100%)
 - Button gradient: linear-gradient(90deg, #FF0072 6.08%, #6F00FF 43.11%, #3826FF 58.46%, #004BFF 73.81%, #1181FF 100%);
 - All gradient accents across the app should reuse the same pink-to-violet-to-blue progression as the logo mock, without extra glow.
+- The cyan accent is `#03ECFC`; use it where older green/emerald success or launch accents need to feel on-brand.
 - No glow rule: do not use halo effects, neon shadows, drop-shadow glows, blurred light blooms, or radial glow overlays. Use flat colors, solid surfaces, borders, and approved gradients instead.
 - Heart fallback rules:
   - Map pins for other users without photos use the red-to-crimson heart gradient.
-  - The signed-in user without a photo uses the blue heart gradient.
+  - The signed-in user without a photo uses the same pink-to-red heart treatment and must not appear blue.
   - Compact heart avatars on feed, messages, and similar surfaces use the pink-to-red heart gradient instead of the older red-to-crimson version.
 - Fallback heart colors for profiles without photos: `#d11f3a`, `#9f1730`, `#690f1f`.
 - Overall interface: mostly monochrome with selective gradient accents.

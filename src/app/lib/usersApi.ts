@@ -11,6 +11,8 @@ export type DiscoveryUser = {
   id: string;
   name: string;
   display_name: string;
+  signal?: string;
+  latestFeedPostPreview?: string;
   age: number | null;
   pronouns: string;
   lat: number;
@@ -72,6 +74,8 @@ type TokenizedDiscoveryProfile = {
   profileToken: string;
   name: string;
   display_name: string;
+  signal?: string;
+  latestFeedPostPreview?: string;
   age: number | null;
   pronouns: string;
   lastActive: string;
@@ -157,6 +161,8 @@ export async function getNearbyUsers(
       id: profile.profileToken,
       name: profile.name,
       display_name: profile.display_name,
+      signal: profile.signal,
+      latestFeedPostPreview: profile.latestFeedPostPreview,
       age: profile.age,
       pronouns: profile.pronouns,
       lat: displayPayload.latitude,

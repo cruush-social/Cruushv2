@@ -34,6 +34,7 @@ export type ProfilePayload = {
   display_name: string;
   photos: string[];
   bio: string;
+  signal: string;
   pronouns: string[];
   custom_pronouns: string;
   year_of_birth: number | null;
@@ -88,6 +89,7 @@ export type ProfileRecord = ProfilePayload & {
   updated_at: string;
   photo_metadata?: ProfilePhotoMetadata[];
   badges?: CruushBadge[];
+  attendingLaunchParty?: boolean;
   location?: {
     id: string;
     display_location_token?: DisplayLocationToken;
@@ -127,6 +129,7 @@ export const emptyProfilePayload: ProfilePayload = {
   display_name: '',
   photos: [],
   bio: '',
+  signal: '',
   pronouns: [],
   custom_pronouns: '',
   year_of_birth: null,

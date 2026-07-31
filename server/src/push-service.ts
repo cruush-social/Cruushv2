@@ -22,6 +22,7 @@ type NotificationPreferencesRow = {
   cruush_enabled: boolean;
   messages_enabled: boolean;
   groups_enabled: boolean;
+  sound_enabled: boolean;
 };
 
 export type NotificationPreferences = {
@@ -29,6 +30,7 @@ export type NotificationPreferences = {
   cruushEnabled: boolean;
   messagesEnabled: boolean;
   groupsEnabled: boolean;
+  soundEnabled: boolean;
 };
 
 export type PushSubscriptionPayload = {
@@ -46,7 +48,8 @@ function mapPreferences(row?: Partial<NotificationPreferencesRow> | null): Notif
     pushEnabled: Boolean(row?.push_enabled),
     cruushEnabled: row?.cruush_enabled ?? true,
     messagesEnabled: row?.messages_enabled ?? true,
-    groupsEnabled: row?.groups_enabled ?? true
+    groupsEnabled: row?.groups_enabled ?? true,
+    soundEnabled: row?.sound_enabled ?? true
   };
 }
 
@@ -139,7 +142,7 @@ export function getVapidPublicKey(config: AppConfig) {
 
 export async function getNotificationPreferences(app: PushApp, userId: string) {
   const result = await app.db.query<NotificationPreferencesRow>(
-    `select push_enabled, cruush_enabled, messages_enabled, groups_enabled
+    `select push_enabled, cruush_enabled, messages_enabled, groups_enabled, sound_enabled
      from notification_preferences
      where user_id = $1
      limit 1`,
@@ -166,22 +169,25 @@ export async function updateNotificationPreferences(
        push_enabled,
        cruush_enabled,
        messages_enabled,
-       groups_enabled
+       groups_enabled,
+       sound_enabled
      )
-     values ($1, $2, $3, $4, $5)
+     values ($1, $2, $3, $4, $5, $6)
      on conflict (user_id) do update
        set push_enabled = excluded.push_enabled,
            cruush_enabled = excluded.cruush_enabled,
            messages_enabled = excluded.messages_enabled,
            groups_enabled = excluded.groups_enabled,
+           sound_enabled = excluded.sound_enabled,
            updated_at = now()
-     returning push_enabled, cruush_enabled, messages_enabled, groups_enabled`,
+     returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, sound_enabled`,
     [
       userId,
       next.pushEnabled,
       next.cruushEnabled,
       next.messagesEnabled,
-      next.groupsEnabled
+      next.groupsEnabled,
+      next.soundEnabled
     ]
   );
 
@@ -219,9 +225,9 @@ export async function upsertPushSubscription(
        on conflict (user_id) do update
          set push_enabled = true,
              updated_at = now()
-       returning push_enabled, cruush_enabled, messages_enabled, groups_enabled
+       returning push_enabled, cruush_enabled, messages_enabled, groups_enabled, sound_enabled
      )
-     select push_enabled, cruush_enabled, messages_enabled, groups_enabled
+     select push_enabled, cruush_enabled, messages_enabled, groups_enabled, sound_enabled
      from preferences_upsert`,
     [
       userId,
@@ -310,6 +316,8 @@ export async function sendPushForNotification(app: PushApp, notification: AppNot
   const payload = JSON.stringify({
     title: copy.title,
     body: copy.body,
+    sound: "heartbeat",
+    soundEnabled: preferences.soundEnabled,
     url: notification.linkUrl || "/notifications",
     notificationId: notification.id
   });
