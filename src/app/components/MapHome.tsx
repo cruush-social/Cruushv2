@@ -199,6 +199,31 @@ function profileLocationToApproximateCoordinates(profile: ProfileRecord | null):
   };
 }
 
+function profileRecordToOwnDiscoveryUser(profile: ProfileRecord, location: ApproximateCoordinates | null): DiscoveryUser {
+  return {
+    id: profile.id || 'me',
+    name: profile.display_name || 'Your profile',
+    display_name: profile.display_name || 'Your profile',
+    age: profile.year_of_birth ? new Date().getFullYear() - profile.year_of_birth : null,
+    pronouns: (profile.pronouns ?? []).join(', ') || 'Ask me',
+    lat: location?.approximateLatitude ?? 40.7128,
+    lng: location?.approximateLongitude ?? -74.006,
+    lastActive: profile.location?.location_updated_at ? 'Saved area' : 'Now',
+    distance: 'You',
+    lookingFor: profile.looking_for ?? [],
+    vibes: profile.vibes ?? [],
+    scenes: profile.scenes ?? [],
+    archetypes: profile.archetypes ?? [],
+    position: profile.position ?? [],
+    role: profile.role ?? [],
+    hostingTravel: profile.hosting_travel ?? [],
+    photo: profile.photos?.[0] ?? null,
+    photoExplicit: profile.photo_metadata?.[0]?.explicit === true,
+    badges: profile.badges ?? [],
+    isCurrentUser: true,
+  };
+}
+
 function getAvailableCrowdModes(profile: ProfileRecord | null) {
   const profileCrowds = new Set(normalizeCrowdValues(profile?.crowds ?? []));
 
@@ -902,28 +927,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return null;
     }
 
-    return {
-      id: currentProfile.id || 'me',
-      name: currentProfile.display_name || 'Your profile',
-      display_name: currentProfile.display_name || 'Your profile',
-      age: currentProfile.year_of_birth ? new Date().getFullYear() - currentProfile.year_of_birth : null,
-      pronouns: (currentProfile.pronouns ?? []).join(', ') || 'Ask me',
-      lat: currentUserMapLocation?.approximateLatitude ?? 40.7128,
-      lng: currentUserMapLocation?.approximateLongitude ?? -74.006,
-      lastActive: currentProfile.location?.location_updated_at ? 'Saved area' : 'Now',
-      distance: 'You',
-      lookingFor: currentProfile.looking_for ?? [],
-      vibes: currentProfile.vibes ?? [],
-      scenes: currentProfile.scenes ?? [],
-      archetypes: currentProfile.archetypes ?? [],
-      position: currentProfile.position ?? [],
-      role: currentProfile.role ?? [],
-      hostingTravel: currentProfile.hosting_travel ?? [],
-      photo: currentProfile.photos?.[0] ?? null,
-      photoExplicit: currentProfile.photo_metadata?.[0]?.explicit === true,
-      badges: currentProfile.badges ?? [],
-      isCurrentUser: true,
-    };
+    return profileRecordToOwnDiscoveryUser(currentProfile, currentUserMapLocation);
   }, [currentProfile, currentUserMapLocation]);
 
   useEffect(() => {
@@ -1488,6 +1492,18 @@ export default function MapHome(_props: MapHomeProps = {}) {
             fixed={selectedUser.isCurrentUser === true}
             isOwnProfile={selectedUser.isCurrentUser === true}
             onBlockedUser={handleBlockedUser}
+            onProfileSaved={(savedProfile) => {
+              const nextProfile = {
+                ...emptyProfilePayload,
+                ...savedProfile,
+              };
+              const nextLocation = userApproximateLocation ?? profileLocationToApproximateCoordinates(nextProfile);
+
+              setCurrentProfile(nextProfile);
+              setSelectedUser((currentUser) => currentUser?.isCurrentUser === true
+                ? profileRecordToOwnDiscoveryUser(nextProfile, nextLocation)
+                : currentUser);
+            }}
           />
         ) : null}
 

@@ -50,9 +50,14 @@ vi.mock('../lib/sessionUser', () => ({
   getCurrentUserId,
 }));
 
-vi.mock('../lib/billingApi', () => ({
-  getMyBillingStatus,
-}));
+vi.mock('../lib/billingApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/billingApi')>('../lib/billingApi');
+
+  return {
+    ...actual,
+    getMyBillingStatus,
+  };
+});
 
 vi.mock('../lib/profileApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi');
@@ -195,6 +200,32 @@ describe('LocalFeed', () => {
     }));
     expect(toastSuccess).toHaveBeenCalledWith('Report submitted.');
     expect(screen.getByText('suspicious link in this post')).toBeInTheDocument();
+  });
+
+  it('renders feed profile previews at the same visible size as map pins', async () => {
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-other',
+      content: 'hello nearby',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-2',
+        name: 'River',
+        pronouns: 'he/him',
+        photo: null,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    const preview = await screen.findByRole('img', { name: 'River preview' });
+    expect(preview.parentElement).toHaveClass('w-[4.5rem]');
   });
 
   it('blocks another feed author and removes all of their posts locally', async () => {

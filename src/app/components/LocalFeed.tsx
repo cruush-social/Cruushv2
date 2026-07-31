@@ -371,7 +371,7 @@ export default function LocalFeed() {
             <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
               <div className="flex gap-3">
                 <HeartPhoto
-                  className="w-14 flex-shrink-0"
+                  className="w-[4.5rem] flex-shrink-0"
                   label={`${post.user.name} preview`}
                   photo={post.user?.photo}
                   userId={post.user.id}

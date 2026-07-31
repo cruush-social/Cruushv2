@@ -59,6 +59,7 @@ export type ProfileViewModel = {
   hobbies: string[];
   protection: string[];
   hivStatus: string | null;
+  covidStatus: string | null;
   mpoxStatus: string | null;
   substanceBoundaries: string | null;
   relationship: ProfileRecord['viewer_relationship'] | null;
@@ -70,6 +71,10 @@ function deriveAge(yearOfBirth: number | null) {
 
 function formatJoined(values: string[]) {
   return values.length ? values.join(', ') : null;
+}
+
+function formatSingle(values: string[]) {
+  return values.find((value) => value.trim()) ?? null;
 }
 
 function profileIdentityItems(profileView: Pick<ProfileViewModel, 'identities' | 'isTrans'>) {
@@ -114,8 +119,9 @@ export function profileRecordToProfileView(
     kinks: profile.kinks,
     hobbies: profile.hobbies,
     protection: [...profile.condoms, ...profile.prep, ...profile.doxypep].filter(Boolean),
-    hivStatus: formatJoined(profile.hiv_status),
-    mpoxStatus: formatJoined(profile.mpox_vaccine),
+    hivStatus: formatSingle(profile.hiv_status),
+    covidStatus: formatSingle(profile.covid_vaccine),
+    mpoxStatus: formatSingle(profile.mpox_vaccine),
     substanceBoundaries: formatJoined(profile.substance_boundaries),
     relationship: profile.viewer_relationship ?? null,
   };
@@ -537,8 +543,9 @@ export function ProfileDetailsTabs({
         </Section>
 
         <Section title="Health" compact={compact}>
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-3 gap-3 text-sm">
             <DetailItem label="HIV" value={profileView.hivStatus} compact={compact} emptyFallback="" />
+            <DetailItem label="COVID" value={profileView.covidStatus} compact={compact} emptyFallback="" />
             <DetailItem label="Mpox" value={profileView.mpoxStatus} compact={compact} emptyFallback="" />
           </div>
         </Section>

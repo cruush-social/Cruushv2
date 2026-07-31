@@ -1,7 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MapProfilePopup from './MapProfilePopup';
+
+const { embeddedSavedProfile } = vi.hoisted(() => ({
+  embeddedSavedProfile: {
+    current: null as any,
+  },
+}));
 
 const { getMyProfile, getProfileById } = vi.hoisted(() => ({
   getMyProfile: vi.fn(),
@@ -39,10 +45,13 @@ vi.mock('../lib/openConversation', () => ({
   openConversationOrInbox,
 }));
 
-function LocationProbe() {
-  const location = useLocation();
-  return <div data-testid="location-probe">{location.pathname}</div>;
-}
+vi.mock('./ProfileEdit', () => ({
+  default: ({ onSaved }: { onSaved?: (profile: any) => void }) => (
+    <button type="button" onClick={() => onSaved?.(embeddedSavedProfile.current)}>
+      Save embedded edit
+    </button>
+  ),
+}));
 
 describe('MapProfilePopup', () => {
   beforeEach(() => {
@@ -92,41 +101,84 @@ describe('MapProfilePopup', () => {
     });
   });
 
-  it('opens the full profile from a map preview', () => {
+  it('does not render a redundant full-profile button on desktop previews', () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route
-            path="/map"
-            element={(
-              <>
-                <MapProfilePopup
-                  user={{
-                    id: 'user-1',
-                    name: 'River',
-                    age: 28,
-                    pronouns: 'they/them',
-                    distance: '0.4 mi',
-                    lastActive: 'now',
-                    photo: null,
-                    badges: [],
-                    relationship: {
-                      canMessage: false,
-                    },
-                  }}
-                  onClose={vi.fn()}
-                />
-                <LocationProbe />
-              </>
-            )}
-          />
-          <Route path="/profile/:userId" element={<LocationProbe />} />
-        </Routes>
+        <MapProfilePopup
+          user={{
+            id: 'user-1',
+            name: 'River',
+            age: 28,
+            pronouns: 'they/them',
+            distance: '0.4 mi',
+            lastActive: 'now',
+            photo: null,
+            badges: [],
+            relationship: {
+              canMessage: false,
+            },
+          }}
+          onClose={vi.fn()}
+        />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'View profile' }));
+    expect(screen.queryByRole('button', { name: 'View profile' })).not.toBeInTheDocument();
+  });
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
+  it('updates the desktop own-profile preview immediately after an embedded save', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+    const onProfileSaved = vi.fn();
+    const initialProfile = {
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: 'River',
+      pronouns: ['they/them'],
+      year_of_birth: 1998,
+      photos: [],
+      photo_metadata: [],
+      updated_at: '2026-07-31T05:00:00.000Z',
+    };
+    const savedProfile = {
+      ...initialProfile,
+      display_name: 'Updated River',
+      pronouns: ['he/him'],
+      year_of_birth: 1996,
+    };
+    embeddedSavedProfile.current = savedProfile;
+    getMyProfile.mockResolvedValue(initialProfile);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <MapProfilePopup
+          user={{
+            id: 'user-1',
+            name: 'River',
+            age: 28,
+            pronouns: 'they/them',
+            distance: 'You',
+            lastActive: 'Now',
+            photo: null,
+            badges: [],
+            isCurrentUser: true,
+          }}
+          onClose={vi.fn()}
+          isOwnProfile
+          onProfileSaved={onProfileSaved}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('River')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save embedded edit' }));
+
+    expect(onProfileSaved).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'user-1',
+      display_name: 'Updated River',
+    }));
+    expect(await screen.findByText('Updated River')).toBeInTheDocument();
+    expect(screen.getByText('he/him')).toBeInTheDocument();
   });
 });

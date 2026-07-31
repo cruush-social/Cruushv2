@@ -17,6 +17,7 @@ import {
   toDefaultKinkInterest,
   toKinkId,
   uploadProfilePhoto,
+  type ProfileRecord,
   type ProfileVisibility,
   type ProfilePayload,
   type ProfileVisibilityRules,
@@ -85,6 +86,10 @@ function getSaveDisplayName(profile: ProfilePayload) {
 
 function uniqueValues(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function singleValue(values: string[] = []) {
+  return uniqueValues(values).slice(0, 1);
 }
 
 function limitGenderIdentities(values: string[]) {
@@ -432,7 +437,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     hobbies: profile.hobbies ?? [],
     custom_hobby: (profile.custom_hobby ?? '').trim(),
     looking_for: profile.looking_for ?? [],
-    hiv_status: profile.hiv_status ?? [],
+    hiv_status: singleValue(profile.hiv_status ?? []),
     hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     custom_hiv_status: (profile.custom_hiv_status ?? '').trim(),
     condoms: profile.condoms ?? [],
@@ -441,9 +446,9 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     custom_prep: (profile.custom_prep ?? '').trim(),
     doxypep: profile.doxypep ?? [],
     custom_doxypep: (profile.custom_doxypep ?? '').trim(),
-    covid_vaccine: profile.covid_vaccine ?? [],
+    covid_vaccine: singleValue(profile.covid_vaccine ?? []),
     custom_covid_vaccine: (profile.custom_covid_vaccine ?? '').trim(),
-    mpox_vaccine: profile.mpox_vaccine ?? [],
+    mpox_vaccine: singleValue(profile.mpox_vaccine ?? []),
     custom_mpox_vaccine: (profile.custom_mpox_vaccine ?? '').trim(),
     substance_boundaries: profile.substance_boundaries ?? [],
     visibility_rules: sanitizeVisibilityRules(profile),
@@ -453,7 +458,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
 interface ProfileEditProps {
   embedded?: boolean;
   onCancel?: () => void;
-  onSaved?: () => void;
+  onSaved?: (savedProfile: ProfileRecord) => void;
 }
 
 export default function ProfileEdit({ embedded = false, onCancel, onSaved }: ProfileEditProps = {}) {
@@ -581,7 +586,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
         year_of_birth: savedProfile.year_of_birth,
       });
       if (embedded) {
-        onSaved?.();
+        onSaved?.({
+          ...emptyProfilePayload,
+          ...savedProfile,
+        });
       } else {
         navigate(-1);
       }
@@ -716,13 +724,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     archetypes: [],
     hobbies: profile.hobbies || [],
     looking_for: profile.looking_for || [],
-    hiv_status: profile.hiv_status || [],
+    hiv_status: singleValue(profile.hiv_status || []),
     hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     condoms: profile.condoms || [],
     prep: profile.prep || [],
     doxypep: profile.doxypep || [],
-    covid_vaccine: profile.covid_vaccine || [],
-    mpox_vaccine: profile.mpox_vaccine || [],
+    covid_vaccine: singleValue(profile.covid_vaccine || []),
+    mpox_vaccine: singleValue(profile.mpox_vaccine || []),
     substance_boundaries: profile.substance_boundaries || [],
     visibility_rules: sanitizeVisibilityRules(profile),
     year_of_birth: profile.year_of_birth,
@@ -1047,7 +1055,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           <TabsContent value="health" className="space-y-6 mt-6">
             <div className="space-y-2">
               <Label>HIV Status</Label>
-              <MultiSelect {...profileMenuProps} ariaLabel="HIV Status" options={HIV_STATUS} value={normalizedProfile.hiv_status} onChange={vals => handleChange('hiv_status', vals)} />
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="HIV Status"
+                options={HIV_STATUS}
+                value={normalizedProfile.hiv_status}
+                onChange={vals => handleChange('hiv_status', vals)}
+                selectionMode="single"
+              />
             </div>
             <div className="space-y-2">
               <Label>Condoms</Label>
@@ -1063,11 +1078,25 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
             <div className="space-y-2">
               <Label>COVID Vaccine</Label>
-              <MultiSelect {...profileMenuProps} options={COVID_VACCINE} value={normalizedProfile.covid_vaccine} onChange={vals => handleChange('covid_vaccine', vals)} />
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="COVID Vaccine"
+                options={COVID_VACCINE}
+                value={normalizedProfile.covid_vaccine}
+                onChange={vals => handleChange('covid_vaccine', vals)}
+                selectionMode="single"
+              />
             </div>
             <div className="space-y-2">
               <Label>MPOX Vaccine</Label>
-              <MultiSelect {...profileMenuProps} options={MPOX_VACCINE} value={normalizedProfile.mpox_vaccine} onChange={vals => handleChange('mpox_vaccine', vals)} />
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="MPOX Vaccine"
+                options={MPOX_VACCINE}
+                value={normalizedProfile.mpox_vaccine}
+                onChange={vals => handleChange('mpox_vaccine', vals)}
+                selectionMode="single"
+              />
             </div>
             <div className="space-y-2">
               <Label>Substance Boundaries</Label>

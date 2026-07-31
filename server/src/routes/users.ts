@@ -462,6 +462,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     const activeLocationWindow = "(extract(epoch from now()) * 1000)::bigint";
     const where = [
       "profiles.id <> $1",
+      "profiles.updated_at >= now() - interval '1 day'",
       `not exists (
         select 1
         from user_blocks block
@@ -586,6 +587,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lat,
          fuzzy_lng
        from profiles
+       where last_active >= now() - interval '1 day'
        order by last_active desc nulls last
        limit $1`,
       [filters.limit]

@@ -682,10 +682,6 @@ describe("server", () => {
       },
       moderation: {
         provider: "mock",
-        streamModeration: false,
-        streamImageBridge: false,
-        profilePhotoStreamAutomod: false,
-        profilePhotoRekognition: false,
         mediaPublicBaseUrlConfigured: true,
         streamConfigKeyConfigured: false,
         streamAppIdConfigured: false
@@ -6339,7 +6335,8 @@ describe("server", () => {
     const body = response.json();
     expect(body).toEqual({
       data: {
-        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/)
+        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/),
+        explicit: false
       }
     });
     expect(body.data.url).not.toContain(userId);
@@ -6491,7 +6488,7 @@ describe("server", () => {
   it.each([
     "adult-human-nude-face.png",
     "adult-human-nude-body-part.png"
-  ])("rejects an adult nude profile photo and deletes quarantine storage: %s", async (filename) => {
+  ])("accepts and classifies an adult nude profile photo for alpha upload testing: %s", async (filename) => {
     mockPendingProfileMediaQueries();
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -6511,16 +6508,15 @@ describe("server", () => {
     });
     const queries = query.mock.calls.map(([sql]) => String(sql));
 
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode).toBe(201);
     expect(response.json()).toEqual({
-      error: {
-        code: "CONTENT_REJECTED",
-        message: "Nude or sexually explicit photos are only allowed on your own profile or in messages.",
-        details: null
+      data: {
+        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/),
+        explicit: true
       }
     });
-    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(true);
-    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(true);
   });
 
   it("allows an age-inference filename when content-safety otherwise passes", async () => {
@@ -6998,7 +6994,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
     expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
-    expect(query.mock.calls[1]?.[0]).toContain("profiles.updated_at");
+    expect(query.mock.calls[1]?.[0]).toContain("profiles.updated_at >= now() - interval '1 day'");
     expect(query.mock.calls[1]?.[0]).not.toContain("discovery_match");
     expect(query.mock.calls[1]?.[0]).toContain("limit $3");
     expect(query.mock.calls[1]?.[1]?.[0]).toBe(userId);
@@ -7847,6 +7843,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(5);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
+    expect(query.mock.calls[2]?.[0]).toContain("where last_active >= now() - interval '1 day'");
 
     expect(response.json()).toEqual({
       data: expect.objectContaining({
@@ -9117,6 +9114,7 @@ describe("server", () => {
         id: userId,
         display_name: "Cruusher",
         photos: [],
+        photo_metadata: [],
         bio: "Hello",
         pronouns: ["they/them"],
         custom_pronouns: "",
@@ -9186,6 +9184,7 @@ describe("server", () => {
         id: userId,
         display_name: "Cruusher",
         photos: [],
+        photo_metadata: [],
         bio: "Hello",
         pronouns: ["they/them"],
         custom_pronouns: "",
@@ -9977,6 +9976,7 @@ describe("server", () => {
       data: {
         id: userId,
         ...payload,
+        photo_metadata: [],
         is_trans: null,
         trans_status_visibility: "mutual_cruushes",
         crowds: [],

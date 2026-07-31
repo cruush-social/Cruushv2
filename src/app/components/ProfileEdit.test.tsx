@@ -540,6 +540,40 @@ describe('ProfileEdit', () => {
     })));
   }, 10000);
 
+  it('saves only one selected value for each health status field', async () => {
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    const healthTab = await screen.findByRole('tab', { name: 'Health' });
+    fireEvent.click(healthTab);
+
+    fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'negative' }));
+    fireEvent.click(screen.getByRole('button', { name: 'HIV Status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'positive' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'COVID Vaccine' }));
+    fireEvent.click(screen.getByRole('option', { name: 'yes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'COVID Vaccine' }));
+    fireEvent.click(screen.getByRole('option', { name: 'no' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'MPOX Vaccine' }));
+    fireEvent.click(screen.getByRole('option', { name: 'yes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'MPOX Vaccine' }));
+    fireEvent.click(screen.getByRole('option', { name: 'partial' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      hiv_status: ['positive'],
+      covid_vaccine: ['no'],
+      mpox_vaccine: ['partial'],
+    })));
+  });
+
   it('drops stale T4T crowd membership and normalizes legacy Sapphic when trans status is not selected', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
 
@@ -662,6 +696,10 @@ describe('ProfileEdit', () => {
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'user-1',
+      display_name: 'Jordan',
+    }));
   });
 
   it('lets desktop embedded users edit substance boundaries', async () => {
