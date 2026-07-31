@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useId } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
+import { getProfileGradientStops } from '../lib/profileGradient';
 
 interface HeartPhotoProps {
   borderColor?: string;
@@ -22,13 +23,14 @@ export default function HeartPhoto({
   masked = false,
   photo = null,
   theme = 'nearby',
+  userId = null,
 }: HeartPhotoProps) {
   const id = useId();
   const patternId = `heart-photo-${id}`;
   const gradientId = `heart-gradient-${id}`;
   const resolvedTheme = HEART_PIN_THEMES[theme];
   const showPhoto = Boolean(photo && !masked);
-  const gradientStops = resolvedTheme.stops;
+  const gradientStops = userId && !showPhoto ? getProfileGradientStops(userId) : resolvedTheme.stops;
   const resolvedBorderColor = borderColor ?? resolvedTheme.border;
   const resolvedPhoto = showPhoto && photo ? resolveMediaUrl(photo) : null;
 

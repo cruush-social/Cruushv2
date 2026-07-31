@@ -11,15 +11,9 @@ export function activeAlphaTest(config: Pick<AppConfig, "ALPHA_TEST_ENABLED" | "
 }
 
 export function activeAlphaProfilePhotoUploadBypass(
-  config: Pick<
-    AppConfig,
-    | "ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED"
-    | "ALPHA_TEST_ENABLED"
-    | "ALPHA_TEST_ENDS_AT"
-  >
+  config: Pick<AppConfig, "ALPHA_TEST_ENABLED" | "ALPHA_TEST_ENDS_AT">
 ) {
-  return activeAlphaTest(config) &&
-    config.ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED === true;
+  return activeAlphaTest(config);
 }
 
 export function photoUploadAvailability(

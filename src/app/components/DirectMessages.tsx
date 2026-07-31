@@ -231,7 +231,6 @@ export default function DirectMessages() {
         <div className="mx-auto max-w-2xl space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Nearby chat</p>
               <h2 className="text-3xl leading-none">Messages</h2>
             </div>
             <Button
