@@ -136,11 +136,12 @@ describe('Auth', () => {
     expect(screen.queryByTestId('launch-login-foreground-rain-pane')).not.toBeInTheDocument();
     expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
-    const humanCheckInput = container.querySelector('#launch-login-auth-extra-url');
+    const humanCheckInput = screen.getByTestId('launch-login-auth-human-check-input');
     expect(humanCheckInput).toHaveAttribute('tabindex', '-1');
-    expect(humanCheckInput).toHaveAttribute('name', 'cruush_auth_extra_url');
-    expect(humanCheckInput).toHaveAttribute('autocomplete', 'new-password');
+    expect(humanCheckInput).toHaveAttribute('name', 'cruush_auth_middle_name');
+    expect(humanCheckInput).toHaveAttribute('autocomplete', 'off');
     expect(humanCheckInput).toHaveAttribute('data-lpignore', 'true');
+    expect(humanCheckInput).toHaveAttribute('data-bwignore', 'true');
     expect(container.querySelectorAll('[data-testid="launch-login-map-teaser"] img')).toHaveLength(0);
     expect(screen.getByTestId('launch-login-auth-tagline')).toHaveTextContent('queer cruisers cruise cruush');
     expect(screen.getByLabelText('Email')).toHaveClass('launch-login-auth-input');

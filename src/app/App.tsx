@@ -17,6 +17,7 @@ const ProfileOnboarding = lazy(() => import('./components/ProfileOnboarding'));
 const FiltersPanel = lazy(() => import('./components/FiltersPanel'));
 const GroupDetail = lazy(() => import('./components/GroupDetail'));
 const EventDetail = lazy(() => import('./components/EventDetail'));
+const EventPassGuide = lazy(() => import('./components/EventPassGuide'));
 const PlaceDetail = lazy(() => import('./components/PlaceDetail'));
 const PrivateGroupChat = lazy(() => import('./components/PrivateGroupChat'));
 const DirectMessages = lazy(() => import('./components/DirectMessages'));
@@ -301,6 +302,7 @@ export default function App({
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/groups/:groupId" element={<GroupDetail />} />
+              <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
               <Route path="/events/:eventId" element={<EventDetail />} />
               <Route path="/places/:placeId" element={<PlaceDetail />} />
               <Route path="/chat/:chatId" element={<PrivateGroupChat />} />

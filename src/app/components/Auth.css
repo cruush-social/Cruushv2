@@ -156,6 +156,19 @@
 
 .launch-login-auth-human-check {
   position: absolute;
+  top: auto;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.launch-login-auth-username-decoy {
+  position: absolute;
+  top: auto;
+  left: -10000px;
   width: 1px;
   height: 1px;
   overflow: hidden;

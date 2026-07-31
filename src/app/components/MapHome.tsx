@@ -690,6 +690,38 @@ export default function MapHome(_props: MapHomeProps = {}) {
     });
   }, [filters, isMutualMapMode, userApproximateLocation]);
 
+  const applyBrowserPositionToMap = (position: GeolocationPosition, centerAfterUpdate = false) => {
+    // Exact browser coordinates stay local here. Only approximate coordinates
+    // should ever be displayed on the map or shared with other users.
+    const approximateLocation = approximateDisplayCoordinates({
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    });
+    const fetchCoordinates = {
+      lat: approximateLocation.approximateLatitude,
+      lng: approximateLocation.approximateLongitude,
+    };
+    const browserCoordinates = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
+
+    setEventPassCoordinates(browserCoordinates);
+    setUserApproximateLocation(approximateLocation);
+    setLocationStatus('ready');
+    syncApproximateMapLocation(approximateLocation);
+    if (centerAfterUpdate) {
+      mapInstance?.setCenter([
+        approximateLocation.approximateLongitude,
+        approximateLocation.approximateLatitude,
+      ]);
+      mapInstance?.setZoom(14);
+    }
+    void fetchUsers(fetchCoordinates);
+
+    return browserCoordinates;
+  };
+
   const requestUserLocation = (centerAfterUpdate = false) => {
     setLocationError(null);
 
@@ -702,33 +734,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setLocationStatus('locating');
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        // Exact browser coordinates stay local here. Only approximate coordinates
-        // should ever be displayed on the map or shared with other users.
-        const approximateLocation = approximateDisplayCoordinates({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        const fetchCoordinates = {
-          lat: approximateLocation.approximateLatitude,
-          lng: approximateLocation.approximateLongitude,
-        };
-        const browserCoordinates = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
-
-        setEventPassCoordinates(browserCoordinates);
-        setUserApproximateLocation(approximateLocation);
-        setLocationStatus('ready');
-        syncApproximateMapLocation(approximateLocation);
-        if (centerAfterUpdate) {
-          mapInstance?.setCenter([
-            approximateLocation.approximateLongitude,
-            approximateLocation.approximateLatitude,
-          ]);
-          mapInstance?.setZoom(14);
-        }
-        void fetchUsers(fetchCoordinates);
+        applyBrowserPositionToMap(position, centerAfterUpdate);
       },
       () => {
         setLocationStatus('error');
@@ -737,6 +743,30 @@ export default function MapHome(_props: MapHomeProps = {}) {
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 60_000 },
     );
   };
+
+  const requestFreshEventPassCoordinates = () => new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
+    setLocationError(null);
+
+    if (!navigator.geolocation) {
+      setLocationStatus('error');
+      setLocationError('Your browser does not support location sharing.');
+      reject(new Error('Geolocation unavailable.'));
+      return;
+    }
+
+    setLocationStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve(applyBrowserPositionToMap(position));
+      },
+      (positionError) => {
+        setLocationStatus('error');
+        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
+        reject(positionError);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+    );
+  });
 
   useEffect(() => {
     const savedProfileLocation = profileLocationToApproximateCoordinates(currentProfile);
@@ -1053,17 +1083,25 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
-    if (!eventPassCoordinates) {
+    if (!navigator.geolocation) {
+      setEventActionStatus(null);
+      setEventActionError('Your browser does not support location sharing.');
+      return;
+    }
+
+    let passCoordinates: { latitude: number; longitude: number };
+    try {
+      passCoordinates = await requestFreshEventPassCoordinates();
+    } catch {
       setEventActionStatus(null);
       setEventActionError(`Share your location to unlock the door pass within ${selectedEvent.radiusMiles} mile of the venue.`);
-      requestUserLocation(true);
       return;
     }
 
     const distanceMiles = distanceMilesBetween(
       {
-        latitude: eventPassCoordinates.latitude,
-        longitude: eventPassCoordinates.longitude,
+        latitude: passCoordinates.latitude,
+        longitude: passCoordinates.longitude,
       },
       {
         latitude: selectedEvent.coordinates.latitude,
@@ -1081,13 +1119,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setEventActionError(null);
     setEventActionStatus(null);
     try {
-      const revealedPass = await revealEventPass(selectedEvent.slug, eventPassCoordinates);
+      const revealedPass = await revealEventPass(selectedEvent.slug, passCoordinates);
       setEventPass(revealedPass);
       setActiveEvents((events) => events.map((event) => event.slug === selectedEvent.slug
         ? {
             ...event,
             joined: true,
-            passIconName: revealedPass.iconName,
           }
         : event));
       setEventActionStatus('Door pass revealed.');

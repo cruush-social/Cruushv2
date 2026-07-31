@@ -548,23 +548,39 @@ export default function Auth({ onAuth }: AuthProps) {
             ) : null}
           </form>
         ) : (
-        <form onSubmit={handleSubmit} className="launch-login-auth-form">
+        <form onSubmit={handleSubmit} className="launch-login-auth-form" autoComplete="on">
           <div className="launch-login-auth-human-check" aria-hidden="true">
-            <label htmlFor="launch-login-auth-extra-url">Leave blank</label>
+            <label htmlFor="launch-login-auth-middle-name">Leave blank</label>
             <input
-              id="launch-login-auth-extra-url"
-              name="cruush_auth_extra_url"
+              id="launch-login-auth-middle-name"
+              name="cruush_auth_middle_name"
               type="text"
               autoCapitalize="none"
-              autoComplete="new-password"
+              autoComplete="off"
               data-1p-ignore="true"
+              data-bwignore="true"
               data-form-type="other"
               data-lpignore="true"
+              data-protonpass-ignore="true"
+              data-testid="launch-login-auth-human-check-input"
               inputMode="none"
               spellCheck={false}
               tabIndex={-1}
               value={humanCheckTrap}
               onChange={(event) => setHumanCheckTrap(event.target.value)}
+              onFocus={(event) => event.currentTarget.blur()}
+            />
+            <input
+              aria-hidden="true"
+              name="username"
+              type="text"
+              autoComplete="username"
+              className="launch-login-auth-username-decoy"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              tabIndex={-1}
+              value={email}
+              readOnly
             />
           </div>
 
