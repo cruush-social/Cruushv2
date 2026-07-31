@@ -1135,6 +1135,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     const nearbyMarkers = displayedUsers.map((user) => {
       return {
         id: user.id,
+        userId: user.id,
         kind: 'person',
         displayName: user.name,
         approximateLatitude: user.lat,
@@ -1179,6 +1180,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     return [
       {
         id: 'me',
+        userId: currentProfile?.id ?? 'me',
         displayName: 'You',
         approximateLatitude: currentUserMapLocation.approximateLatitude,
         approximateLongitude: currentUserMapLocation.approximateLongitude,
@@ -1494,7 +1496,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             className={`pointer-events-auto absolute z-40 rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
               isMobile
                 ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3'
-                : 'left-4 top-24 w-[22rem]'
+                : 'left-4 top-[8.75rem] w-[22rem]'
             }`}
             role="dialog"
             aria-label={`${selectedEvent.venueName} launch party`}

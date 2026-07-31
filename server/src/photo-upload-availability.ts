@@ -10,6 +10,18 @@ export function activeAlphaTest(config: Pick<AppConfig, "ALPHA_TEST_ENABLED" | "
   return !Number.isNaN(endsAt) && endsAt > Date.now();
 }
 
+export function activeAlphaProfilePhotoUploadBypass(
+  config: Pick<
+    AppConfig,
+    | "ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED"
+    | "ALPHA_TEST_ENABLED"
+    | "ALPHA_TEST_ENDS_AT"
+  >
+) {
+  return activeAlphaTest(config) &&
+    config.ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED === true;
+}
+
 export function photoUploadAvailability(
   config: Pick<
     AppConfig,
@@ -28,10 +40,10 @@ export function photoUploadAvailability(
     config.STREAM_IMAGE_BRIDGE_ENABLED === true &&
     config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true &&
     config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
-  const deployedPhotoSafetyReady = deployedSafetyReadyBeforePhotoDna;
+  const alphaProfilePhotoUploadBypass = activeAlphaProfilePhotoUploadBypass(config);
 
   return {
-    profilePhotos: !deployed || deployedPhotoSafetyReady,
-    messagePhotos: !deployed || deployedPhotoSafetyReady
+    profilePhotos: !deployed || deployedSafetyReadyBeforePhotoDna || alphaProfilePhotoUploadBypass,
+    messagePhotos: !deployed || deployedSafetyReadyBeforePhotoDna
   };
 }

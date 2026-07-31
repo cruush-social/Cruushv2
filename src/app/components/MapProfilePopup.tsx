@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
@@ -32,7 +31,6 @@ export default function MapProfilePopup({
   isOwnProfile = false,
   onBlockedUser,
 }: MapProfilePopupProps) {
-  const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
   const [sendingCruush, setSendingCruush] = useState(false);
@@ -161,19 +159,6 @@ export default function MapProfilePopup({
     }
   };
 
-  const handleViewProfile = () => {
-    if (isDemo || isOwnProfile) {
-      return;
-    }
-
-    navigate(`/profile/${user.id}`, {
-      state: {
-        distance: displayDistance,
-        lastActive: displayLastActive,
-      },
-    });
-  };
-
   if (isOwnProfile && ownProfileMode === 'edit') {
     return (
       <aside className={popupClassName} aria-label="Edit profile preview">
@@ -289,15 +274,6 @@ export default function MapProfilePopup({
 
         {!isOwnProfile ? (
           <div className="sticky bottom-0 border-t border-white/10 bg-black/85 px-5 py-4 backdrop-blur-xl">
-          <Button
-            type="button"
-            variant="outline"
-            className="mb-3 h-11 w-full justify-center rounded-2xl border-white/12 bg-white/[0.035] text-white hover:bg-white/[0.08]"
-            disabled={isDemo}
-            onClick={handleViewProfile}
-          >
-            View profile
-          </Button>
           <div className="grid grid-cols-[auto_1fr] gap-3">
             <Button
               onClick={handleCruush}

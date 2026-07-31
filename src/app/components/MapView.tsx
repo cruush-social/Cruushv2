@@ -24,6 +24,7 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CruushIcon } from './CruushIconImage';
 import { resolveMediaUrl } from '../lib/apiClient';
+import { getProfileGradientStops } from '../lib/profileGradient';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 import { applyDenseVenueMarkers, type DenseVenueConfig } from '../lib/denseVenueMarkers';
 import {
@@ -533,7 +534,9 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const theme = isMutualCruush ? 'mutual' : isCurrentUser || isNpcGhostDemo ? 'current' : 'nearby';
   const markerTheme = HEART_PIN_THEMES[theme];
   const borderColor = markerTheme.border;
-  const [gradientFrom, gradientMiddle, gradientTo] = markerTheme.stops;
+  const [gradientFrom, gradientMiddle, gradientTo] = hasPhoto
+    ? markerTheme.stops
+    : getProfileGradientStops(marker.userId ?? marker.id);
 
   return (
     <svg
@@ -571,7 +574,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
         </>
       ) : isCurrentUser && !isMutualCruush ? (
         <>
-          <path d={HEART_PIN_PATH} fill="#050505" stroke="#0BA8FF" strokeWidth="3.2" />
+          <path d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
           <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
             <div className="flex h-9 w-9 items-center justify-center">
               <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
