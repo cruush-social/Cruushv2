@@ -2005,7 +2005,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <DialogHeader>
               <DialogTitle>Map controls</DialogTitle>
               <DialogDescription>
-                Seeking and Visibility live on the right side of the map. The bug report button stays top center so it is not hidden under menus.
+                Seeking and Visibility live on the right side of the map. The bug report button stays above the bottom nav and behind open sheets.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-white/72">

@@ -41,6 +41,7 @@ export type ProfileViewModel = {
   badges: ProfileRecord['badges'];
   attendingLaunchParty: boolean;
   bio: string;
+  signal: string;
   identities: string[];
   presentation: string[];
   sexuality: string[];
@@ -103,6 +104,7 @@ export function profileRecordToProfileView(
     badges: profile.badges ?? [],
     attendingLaunchParty: profile.attendingLaunchParty === true,
     bio: profile.bio,
+    signal: profile.signal ?? '',
     identities: profile.identities,
     presentation: profile.presentation,
     sexuality: profile.sexuality,
@@ -410,6 +412,11 @@ export default function ProfileView() {
                   {profileView.lastActive ? <span>• {profileView.lastActive}</span> : null}
                 </div>
               ) : null}
+              {profileView.signal ? (
+                <p className="mt-3 rounded-2xl border border-white/10 bg-card/70 px-4 py-3 text-sm leading-6 text-foreground shadow-[0_12px_32px_rgba(0,0,0,0.24)]">
+                  {profileView.signal}
+                </p>
+              ) : null}
             </div>
 
             {!isOwnProfile ? (
@@ -482,6 +489,12 @@ export function ProfileDetailsTabs({
       </TabsList>
 
       <TabsContent value="basics" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
+        {compact && profileView.signal ? (
+          <Section title="Signal" compact={compact}>
+            <p className="text-muted-foreground">{profileView.signal}</p>
+          </Section>
+        ) : null}
+
         {profileView.bio ? (
           <Section title="About" compact={compact}>
             <p className="text-muted-foreground">{profileView.bio}</p>

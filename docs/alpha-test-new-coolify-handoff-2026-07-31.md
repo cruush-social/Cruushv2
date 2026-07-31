@@ -149,7 +149,8 @@ VITE_TURNSTILE_SITE_KEY=<turnstile-site-key-or-empty-if-disabled>
 VITE_MAP_STYLE_URL=
 VITE_MAP_VECTOR_TILEJSON_URL=https://tiles.openfreemap.org/planet
 VITE_MAP_GLYPHS_URL=
-VITE_MAP_TILE_URL=https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png
+VITE_MAP_USE_RASTER_TILES=false
+VITE_MAP_TILE_URL=
 VITE_MAP_ATTRIBUTION=&copy; CARTO &copy; OpenStreetMap contributors
 ```
 

@@ -831,7 +831,22 @@ describe('MapView', () => {
     expect(getMapStyle()).toBe('https://example.com/custom-style.json');
   });
 
-  it('uses the raster tile URL override as a fallback before the default vector style', () => {
+  it('keeps the custom vector style when only a raster fallback URL is configured', () => {
+    vi.stubEnv('VITE_MAP_TILE_URL', 'https://tiles.example.com/{z}/{x}/{y}.png');
+    vi.stubEnv('VITE_MAP_ATTRIBUTION', '&copy; Example Tiles');
+
+    const style = getMapStyle() as any;
+
+    expect(style.sources.openmaptiles).toEqual({
+      type: 'vector',
+      url: 'https://tiles.openfreemap.org/planet',
+    });
+    expect(style.sources.osmRasterTiles).toBeUndefined();
+    expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
+  });
+
+  it('uses configured raster tiles only when explicitly enabled', () => {
+    vi.stubEnv('VITE_MAP_USE_RASTER_TILES', 'true');
     vi.stubEnv('VITE_MAP_TILE_URL', 'https://tiles.example.com/{z}/{x}/{y}.png');
     vi.stubEnv('VITE_MAP_ATTRIBUTION', '&copy; Example Tiles');
 

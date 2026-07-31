@@ -128,7 +128,7 @@ export function createRasterStyle(tileUrls: string[], attribution: string): Styl
 }
 
 function createDefaultRasterStyle() {
-  return createRasterStyle(DEFAULT_TILE_URLS, DEFAULT_ATTRIBUTION);
+  return createConfiguredRasterStyle();
 }
 
 function canFallbackToDefaultRasterStyle(style: ReturnType<typeof getMapStyle>) {
@@ -137,6 +137,20 @@ function canFallbackToDefaultRasterStyle(style: ReturnType<typeof getMapStyle>) 
   }
 
   return Boolean(style.sources?.openmaptiles) && !style.sources?.osmRasterTiles;
+}
+
+function isEnabledEnvFlag(value: string | undefined) {
+  return ['1', 'true', 'yes', 'on'].includes(value?.trim().toLowerCase() ?? '');
+}
+
+function createConfiguredRasterStyle() {
+  const configuredTileUrl = import.meta.env.VITE_MAP_TILE_URL?.trim();
+  const configuredAttribution = import.meta.env.VITE_MAP_ATTRIBUTION?.trim();
+
+  return createRasterStyle(
+    configuredTileUrl ? [configuredTileUrl] : DEFAULT_TILE_URLS,
+    configuredAttribution || DEFAULT_ATTRIBUTION,
+  );
 }
 
 async function loadMapLabelFonts() {
@@ -404,11 +418,8 @@ export function getMapStyle() {
     return configuredStyleUrl;
   }
 
-  const configuredTileUrl = import.meta.env.VITE_MAP_TILE_URL?.trim();
-  const configuredAttribution = import.meta.env.VITE_MAP_ATTRIBUTION?.trim();
-
-  if (configuredTileUrl) {
-    return createRasterStyle([configuredTileUrl], configuredAttribution || DEFAULT_ATTRIBUTION);
+  if (isEnabledEnvFlag(import.meta.env.VITE_MAP_USE_RASTER_TILES)) {
+    return createConfiguredRasterStyle();
   }
 
   const configuredVectorTileJsonUrl = import.meta.env.VITE_MAP_VECTOR_TILEJSON_URL?.trim();
