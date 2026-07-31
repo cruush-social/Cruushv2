@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Bug, CheckCircle2 } from 'lucide-react';
 import { createSupportRequest } from '../lib/supportApi';
 import { Button } from './ui/button';
@@ -17,6 +17,8 @@ type AlphaBugButtonProps = {
   enabled?: boolean;
 };
 
+const ALPHA_BUG_TIP_STORAGE_KEY = 'cruush:alpha-bug-tip-seen';
+
 function getCurrentPageUrl() {
   if (typeof window === 'undefined') {
     return '/';
@@ -30,11 +32,28 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [error, setError] = useState('');
+  const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
+
+  useEffect(() => {
+    if (!enabled || typeof window === 'undefined') {
+      return;
+    }
+
+    setShowTip(window.localStorage.getItem(ALPHA_BUG_TIP_STORAGE_KEY) !== 'true');
+  }, [enabled]);
 
   if (!enabled) {
     return null;
   }
+
+  const dismissTip = () => {
+    setShowTip(false);
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(ALPHA_BUG_TIP_STORAGE_KEY, 'true');
+    }
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -68,16 +87,31 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
+        if (nextOpen) {
+          dismissTip();
+        }
         if (!nextOpen) {
           setError('');
           setStatus('idle');
         }
       }}
     >
+      {showTip ? (
+        <div className="fixed right-4 top-[calc(8.5rem+env(safe-area-inset-top))] z-50 max-w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md md:top-20">
+          <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
+          <button
+            className="mt-2 text-xs font-semibold text-primary"
+            onClick={dismissTip}
+            type="button"
+          >
+            Got it
+          </button>
+        </div>
+      ) : null}
       <DialogTrigger asChild>
         <button
           aria-label="Report alpha bug"
-          className="fixed right-4 z-50 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bottom-[calc(6.25rem+env(safe-area-inset-bottom))] md:bottom-5"
+          className="fixed right-4 top-[calc(4.75rem+env(safe-area-inset-top))] z-50 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary md:top-5"
           type="button"
         >
           <Bug className="h-5 w-5" />

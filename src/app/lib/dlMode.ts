@@ -1,12 +1,15 @@
 const DL_MODE_STORAGE_KEY = 'cruush:dl-mode-enabled';
 const DL_MODE_CHANGED_EVENT = 'cruush:dl-mode-changed';
+const DL_MODE_DEFAULT_NOTICE_KEY = 'cruush:dl-mode-default-notice-seen';
 
 export function isDlModeEnabled() {
   if (typeof window === 'undefined') {
-    return false;
+    return true;
   }
 
-  return window.localStorage.getItem(DL_MODE_STORAGE_KEY) === 'true';
+  const storedValue = window.localStorage.getItem(DL_MODE_STORAGE_KEY);
+
+  return storedValue === null ? true : storedValue === 'true';
 }
 
 export function setDlModeEnabled(enabled: boolean) {
@@ -20,6 +23,22 @@ export function setDlModeEnabled(enabled: boolean) {
       enabled,
     },
   }));
+}
+
+export function shouldShowDlModeDefaultNotice() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.localStorage.getItem(DL_MODE_DEFAULT_NOTICE_KEY) !== 'true';
+}
+
+export function markDlModeDefaultNoticeSeen() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(DL_MODE_DEFAULT_NOTICE_KEY, 'true');
 }
 
 export function addDlModeChangedListener(listener: (enabled: boolean) => void) {

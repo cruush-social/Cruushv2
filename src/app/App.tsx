@@ -30,6 +30,7 @@ const CruushMatchSettings = lazy(() => import('./components/CruushMatchSettings'
 const Settings = lazy(() => import('./components/Settings'));
 const BlockedUsersPage = lazy(() => import('./components/BlockedUsersPage'));
 const DlModeSettings = lazy(() => import('./components/DlModeSettings'));
+const DlModeDefaultNotice = lazy(() => import('./components/DlModeDefaultNotice'));
 const SupportPage = lazy(() => import('./components/SupportPage'));
 const GhostModeSettings = lazy(() => import('./components/GhostModeSettings'));
 const PrivacyAudit = lazy(() => import('./components/PrivacyAudit'));
@@ -320,6 +321,7 @@ export default function App({
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
             <MobileInstallPrompt />
+            <DlModeDefaultNotice />
             <BottomNav />
             <DebugCruushPlusToggle />
             <AlphaBugButton enabled={bugReportingEnabled} />

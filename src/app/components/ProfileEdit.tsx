@@ -767,7 +767,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
           <TabsContent value="photos" className="space-y-4 mt-6">
             <div className="rounded-md border border-border bg-card/70 p-3 text-sm text-muted-foreground">
-              photos must be of you only. no nudity—nude photos are allowed only in private messages.
+              photos must be of you only. add at least one SFW photo if you want people browsing in DL Mode to still see you.
             </div>
             {photoUploadNotice ? (
               <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-foreground">
@@ -837,7 +837,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 </label>
               ) : null}
             </div>
-            <p className="text-sm text-muted-foreground">Add up to {MAX_PROFILE_PHOTOS} photos. Your first photo will be your profile picture.</p>
+            <p className="text-sm text-muted-foreground">Add up to {MAX_PROFILE_PHOTOS} photos. Your first photo will be your profile picture. SFW photos are suggested, not required.</p>
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-6 mt-6">

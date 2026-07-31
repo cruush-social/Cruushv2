@@ -125,6 +125,11 @@ function isEventPinVisible(app: FastifyInstance, event: LaunchEvent) {
   }
 
   const now = Date.now();
+
+  if (event.slug === LAUNCH_PARTY_SLUG) {
+    return now < Date.parse(event.pinDisappearsAt);
+  }
+
   return now >= Date.parse(event.startsAt) && now < Date.parse(event.pinDisappearsAt);
 }
 
