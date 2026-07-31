@@ -720,8 +720,10 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Substance Boundaries' }));
     const menu = screen.getByRole('listbox', { name: 'Substance Boundaries' });
 
-    expect(menu.parentElement).toHaveClass('z-[100]');
-    expect(menu.parentElement).toHaveStyle({ position: 'fixed' });
+    expect(menu.parentElement).toHaveStyle({
+      position: 'fixed',
+      zIndex: '121',
+    });
 
     fireEvent.click(screen.getByRole('option', { name: 'No alcohol involved' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));

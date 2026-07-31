@@ -140,10 +140,11 @@ describe('MultiSelect', () => {
     await waitFor(() => {
       expect(menuSurface).toHaveStyle({
         bottom: '78px',
-        left: '20px',
+        left: '16px',
         maxHeight: '288px',
         position: 'fixed',
-        width: '280px',
+        width: '328px',
+        zIndex: '121',
       });
     });
     expect(menuSurface?.style.top).toBe('');

@@ -14,6 +14,8 @@ const MENU_MIN_HEIGHT = 96;
 const MENU_OFFSET = 8;
 const MENU_VIEWPORT_PADDING = 16;
 const MENU_FLIP_THRESHOLD = 220;
+const MENU_MOBILE_BREAKPOINT = 640;
+const MENU_PORTAL_Z_INDEX = 120;
 const MULTI_SELECT_OPEN_EVENT = 'cruush:multiselect-open';
 
 type ResolvedMenuPlacement = 'bottom' | 'top';
@@ -126,12 +128,16 @@ export default function MultiSelect({
         return;
       }
 
-      const availableWidth = Math.max(0, window.innerWidth - MENU_VIEWPORT_PADDING * 2);
-      const width = Math.min(rect.width, availableWidth);
-      const left = Math.min(
-        Math.max(MENU_VIEWPORT_PADDING, rect.left),
-        Math.max(MENU_VIEWPORT_PADDING, window.innerWidth - width - MENU_VIEWPORT_PADDING),
-      );
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+      const availableWidth = Math.max(0, viewportWidth - MENU_VIEWPORT_PADDING * 2);
+      const useMobileSheetWidth = viewportWidth < MENU_MOBILE_BREAKPOINT;
+      const width = useMobileSheetWidth ? availableWidth : Math.min(rect.width, availableWidth);
+      const left = useMobileSheetWidth
+        ? MENU_VIEWPORT_PADDING
+        : Math.min(
+            Math.max(MENU_VIEWPORT_PADDING, rect.left),
+            Math.max(MENU_VIEWPORT_PADDING, viewportWidth - width - MENU_VIEWPORT_PADDING),
+          );
 
       setPortalStyle(placeAbove
         ? {
@@ -274,12 +280,20 @@ export default function MultiSelect({
     ? createPortal(
         <>
           <div
-            className="fixed inset-0 z-[90]"
+            className="fixed inset-0"
+            style={{ zIndex: MENU_PORTAL_Z_INDEX }}
             onClick={() => setIsOpen(false)}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
           />
           <div
-            className="z-[100] overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg"
-            style={portalStyle}
+            className="overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg"
+            style={{ ...portalStyle, zIndex: MENU_PORTAL_Z_INDEX + 1 }}
+            onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
           >
             {menuContent}
           </div>
