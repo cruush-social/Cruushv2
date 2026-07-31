@@ -154,9 +154,8 @@ describe('Auth', () => {
 
     const captchaSlot = await screen.findByTestId('launch-login-auth-captcha');
     expect(captchaSlot).toHaveClass('launch-login-auth-captcha');
-    expect(signInButton.compareDocumentPosition(captchaSlot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(captchaSlot.compareDocumentPosition(signInButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await screen.findByText('Mock Turnstile');
-    fireEvent.click(signInButton);
 
     await screen.findByText('Verify your email before signing in.');
     expect(screen.getByRole('button', { name: 'Resend verification email' })).toBeInTheDocument();
@@ -251,7 +250,6 @@ describe('Auth', () => {
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
     expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute('href', 'https://ra.co/events/2483120');
     expect(await screen.findByTestId('launch-login-auth-captcha')).toBeInTheDocument();
@@ -351,7 +349,6 @@ describe('Auth', () => {
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
     await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
@@ -391,7 +388,6 @@ describe('Auth', () => {
     fireEvent.change(alphaPasswordInput, { target: { value: 'door-password' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
     await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
@@ -425,13 +421,11 @@ describe('Auth', () => {
     render(<Auth onAuth={onAuth} />);
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
     await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
 
     const codeInput = await screen.findByLabelText('Authenticator or recovery code');
     fireEvent.change(codeInput, { target: { value: '123456' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
     await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
 

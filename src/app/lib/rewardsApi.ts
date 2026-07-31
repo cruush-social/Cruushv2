@@ -15,6 +15,7 @@ export type RewardSummary = {
     todayQualified: boolean;
     nextRecurringInDays: number;
     nextLongBonusInDays: number;
+    nextLoginBonusAtDays: number;
   };
   promotionalAccess: {
     active: boolean;

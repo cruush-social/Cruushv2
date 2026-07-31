@@ -411,9 +411,9 @@ export default function CruushActivity() {
   const lockedViewsCount = Math.max(0, (activity?.counts.views ?? 0) - (activity?.views.filter((item) => !item.locked).length ?? 0));
 
   return (
-    <div className="h-dvh overflow-y-scroll bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] [scrollbar-gutter:stable]">
+    <div className="min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
-        <header className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+        <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-2xl space-y-4">
             <div className="grid grid-cols-[44px_1fr_44px] items-center gap-2">
               <Button

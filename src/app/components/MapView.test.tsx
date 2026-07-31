@@ -181,10 +181,15 @@ describe('MapView', () => {
     expect(screen.queryByLabelText('bottom')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
     expect(screen.getByLabelText('top')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#FF0072]/80');
+    expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]/80');
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('border-[#FF0072]/80');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
+    expect(Array.from(screen.getByTestId('marker-heart-me').querySelectorAll('stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
+      '#00B8FF',
+      '#0A7DF4',
+      '#3236D4',
+    ]);
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
     expect(screen.getByTestId('marker-current-fallback-me')).toBeInTheDocument();
     expect(screen.getByTestId('marker-current-fallback-me').querySelector('div')).not.toHaveClass('rounded-full', 'bg-black/70');
@@ -469,6 +474,7 @@ describe('MapView', () => {
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
+    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
     expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-photo-fill-user-photo')).toHaveAttribute('href', 'https://example.com/kai.jpg');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-has-photo', 'true');
@@ -477,6 +483,32 @@ describe('MapView', () => {
     expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
+  });
+
+  it('keeps the current user pin blue even when relationship metadata is present', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'me',
+            displayName: 'You',
+            approximateLatitude: 40.73,
+            approximateLongitude: -73.99,
+            photo: 'https://example.com/me.jpg',
+            isCurrentUser: true,
+            relationship: {
+              kind: 'mutual_cruush',
+              canMessage: true,
+            },
+          },
+        ]}
+      />
+    );
+
+    expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
+    expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
+    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
   });
 
   it('renders mutual markers with the stable grey heart state', async () => {

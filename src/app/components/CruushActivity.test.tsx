@@ -149,7 +149,11 @@ describe('CruushActivity', () => {
     );
 
     expect(await screen.findByText('luna')).toBeInTheDocument();
-    expect(container.firstElementChild).toHaveClass('overflow-y-scroll', '[scrollbar-gutter:stable]');
+    expect(container.firstElementChild).toHaveClass('min-h-screen');
+    expect(container.firstElementChild).not.toHaveClass('h-dvh');
+    expect(container.firstElementChild).not.toHaveClass('overflow-y-scroll');
+    expect(container.firstElementChild).not.toHaveClass('[scrollbar-gutter:stable]');
+    expect(screen.getByTestId('cruush-activity-header')).toHaveClass('sticky', 'top-0');
     expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).not.toBeInTheDocument();
     expect(screen.getByTestId('cruush-count-grid')).toHaveClass('grid-cols-[repeat(4,minmax(0,1fr))]');

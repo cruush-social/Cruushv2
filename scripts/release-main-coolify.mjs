@@ -256,7 +256,7 @@ function releaseRuntimeEnvData() {
       },
       {
         key: 'LAUNCH_PARTY_STARTS_AT',
-        value: '2026-07-31T00:00:00-04:00',
+        value: '2026-07-31T22:00:00-04:00',
         is_preview: false,
         is_buildtime: false,
         is_runtime: true,

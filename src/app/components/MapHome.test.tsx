@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { ApiClientError } from '../lib/apiClient';
 import MapHome, { canUseDeveloperMapToolsEmail } from './MapHome';
 
 const { getNearbyUsers } = vi.hoisted(() => ({
@@ -265,7 +266,7 @@ const launchEvent = {
     longitude: -73.92256,
   },
   radiusMiles: 1,
-  startsAt: '2026-07-31T04:00:00.000Z',
+  startsAt: '2026-08-01T02:00:00.000Z',
   endsAt: '2026-08-01T09:00:00.000Z',
   pinDisappearsAt: '2026-08-01T09:00:00.000Z',
   chatExpiresAt: '2026-08-08T09:00:00.000Z',
@@ -673,6 +674,47 @@ describe('MapHome', () => {
     }));
     expect(await screen.findByText('Show this icon at the door. It changes every hour.')).toBeInTheDocument();
     expect(screen.getByText('notifications | hour 23')).toBeInTheDocument();
+  });
+
+  it('hides recently active while launch event details are open', async () => {
+    useIsMobile.mockReturnValue(false);
+    getActiveEvents.mockResolvedValue([launchEvent]);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+    expect(screen.getByTestId('recently-active-panel')).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin The Chocolate Factory' }));
+
+    expect(await screen.findByText('The Chocolate Factory')).toBeInTheDocument();
+    expect(screen.queryByTestId('recently-active-panel')).not.toBeInTheDocument();
+  });
+
+  it('does not show raw server errors from launch event actions', async () => {
+    useIsMobile.mockReturnValue(false);
+    getActiveEvents.mockResolvedValue([launchEvent]);
+    joinEventChat.mockRejectedValue(new ApiClientError(500, 'INTERNAL_ERROR', 'Internal server error'));
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin The Chocolate Factory' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Join launch party' }));
+
+    expect(await screen.findByText('Unable to join the party chat right now. Try again in a moment.')).toBeInTheDocument();
+    expect(screen.queryByText('Internal server error')).not.toBeInTheDocument();
   });
 
   it('renders 25 percent larger Cruush icons on the map controls and toggles DL Mode from the top slot', async () => {

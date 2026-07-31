@@ -149,4 +149,54 @@ describe('MultiSelect', () => {
     });
     expect(menuSurface?.style.top).toBe('');
   });
+
+  it('does not render a full-screen blocker over portaled menus', async () => {
+    const onOutsideTap = vi.fn();
+
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 720,
+    });
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 360,
+    });
+
+    render(
+      <>
+        <button type="button" onClick={onOutsideTap}>Basics</button>
+        <MultiSelect
+          ariaLabel="Vibes"
+          menuPortal
+          optionGroups={[
+            { label: 'Style & Energy', options: ['Chill', 'Goth'] },
+            { label: 'Scenes', options: ['Bear', 'Drag'] },
+          ]}
+          value={[]}
+        />
+      </>
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Vibes' });
+    mockTriggerRect(trigger, {
+      bottom: 200,
+      left: 20,
+      top: 160,
+      width: 280,
+    });
+
+    fireEvent.click(trigger);
+
+    expect(await screen.findByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
+    expect(document.body.querySelector('.fixed.inset-0')).not.toBeInTheDocument();
+
+    const outsideButton = screen.getByRole('button', { name: 'Basics' });
+    fireEvent.pointerDown(outsideButton);
+    fireEvent.click(outsideButton);
+
+    expect(onOutsideTap).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.queryByRole('tablist', { name: 'Vibes categories' })).not.toBeInTheDocument();
+    });
+  });
 });

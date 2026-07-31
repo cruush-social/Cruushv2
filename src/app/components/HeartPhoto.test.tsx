@@ -19,6 +19,28 @@ describe('HeartPhoto', () => {
     expect(stops).toEqual(['#FF0072', '#DA045D', '#B40849']);
   });
 
+  it('uses the blue current-user theme when requested', () => {
+    render(<HeartPhoto label="Your map pin preview" theme="current" />);
+
+    const heart = screen.getByRole('img', { name: 'Your map pin preview' });
+    const stops = Array.from(heart.querySelectorAll('stop'))
+      .map((stop) => stop.getAttribute('stop-color'));
+
+    expect(stops).toEqual(['#00B8FF', '#0A7DF4', '#3236D4']);
+    expect(heart.querySelector('path')).toHaveAttribute('stroke', '#0BA8FF');
+  });
+
+  it('keeps current-user no-photo hearts blue even with a user id', () => {
+    render(<HeartPhoto label="Your feed pin preview" theme="current" userId="user-a" />);
+
+    const heart = screen.getByRole('img', { name: 'Your feed pin preview' });
+    const stops = Array.from(heart.querySelectorAll('stop'))
+      .map((stop) => stop.getAttribute('stop-color'));
+
+    expect(stops).toEqual(['#00B8FF', '#0A7DF4', '#3236D4']);
+    expect(stops).not.toEqual(getProfileGradientStops('user-a'));
+  });
+
   it('uses a deterministic randomized no-photo gradient when a user id is provided', () => {
     render(<HeartPhoto label="Gradient preview" userId="user-a" />);
 

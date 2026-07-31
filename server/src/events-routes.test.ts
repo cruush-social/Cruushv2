@@ -47,7 +47,7 @@ const eventRow = {
   latitude: "40.70982",
   longitude: "-73.92256",
   radius_miles: "1",
-  starts_at: "2026-07-31T04:00:00.000Z",
+  starts_at: "2026-08-01T02:00:00.000Z",
   ends_at: "2026-08-01T09:00:00.000Z",
   pin_disappears_at: "2026-08-01T09:00:00.000Z",
   chat_expires_at: "2026-08-08T09:00:00.000Z",
@@ -98,7 +98,7 @@ describe("event routes", () => {
           longitude: -73.92256
         },
         radiusMiles: 1,
-        startsAt: "2026-07-31T04:00:00.000Z",
+        startsAt: "2026-08-01T02:00:00.000Z",
         endsAt: "2026-08-01T09:00:00.000Z",
         pinDisappearsAt: "2026-08-01T09:00:00.000Z",
         chatExpiresAt: "2026-08-08T09:00:00.000Z",
@@ -143,7 +143,7 @@ describe("event routes", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [eventRow] })
-      .mockResolvedValueOnce({ rows: [{ icon_name: "notifications" }] });
+      .mockResolvedValueOnce({ rows: [{ icon_name: "camera" }] });
 
     const inside = await app.inject({
       method: "POST",
@@ -159,15 +159,45 @@ describe("event routes", () => {
 
     expect(inside.statusCode).toBe(200);
     expect(query.mock.calls[3]?.[0]).toContain("insert into event_pass_icons");
-    expect(query.mock.calls[3]?.[1]).toEqual([eventId, userId, "notifications"]);
+    expect(query.mock.calls[3]?.[1]).toEqual([eventId, userId, "camera"]);
     expect(inside.json()).toMatchObject({
       data: {
-        iconName: "notifications",
+        iconName: "camera",
         validFrom: "2026-08-01T02:00:00.000Z",
         validUntil: "2026-08-01T03:00:00.000Z",
-        hourIndex: 22,
+        hourIndex: 0,
         withinRadius: true,
         emailAvailable: true
+      }
+    });
+  });
+
+  it("returns a named unavailable error when door pass storage is not migrated", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [eventRow] })
+      .mockRejectedValueOnce(Object.assign(new Error("relation event_pass_icons does not exist"), {
+        code: "42P01"
+      }));
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/events/the-chocolate-factory-launch/reveal-pass",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        latitude: 40.7099,
+        longitude: -73.9226
+      }
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "EVENT_PASS_UNAVAILABLE",
+        message: "Launch party door pass storage is unavailable until the latest database migrations run."
       }
     });
   });
@@ -191,29 +221,29 @@ describe("event routes", () => {
     const body = response.json();
     expect(query.mock.calls[3]?.[0]).toContain("from event_staff");
     expect(body.data.current).toEqual({
-      iconName: "notifications",
+      iconName: "camera",
       validFrom: "2026-08-01T02:00:00.000Z",
       validUntil: "2026-08-01T03:00:00.000Z",
-      hourIndex: 22
+      hourIndex: 0
     });
-    expect(body.data.guide).toHaveLength(29);
+    expect(body.data.guide).toHaveLength(7);
     expect(body.data.guide.slice(0, 3)).toEqual([
       {
         iconName: "camera",
-        validFrom: "2026-07-31T04:00:00.000Z",
-        validUntil: "2026-07-31T05:00:00.000Z",
+        validFrom: "2026-08-01T02:00:00.000Z",
+        validUntil: "2026-08-01T03:00:00.000Z",
         hourIndex: 0
       },
       {
         iconName: "cruush",
-        validFrom: "2026-07-31T05:00:00.000Z",
-        validUntil: "2026-07-31T06:00:00.000Z",
+        validFrom: "2026-08-01T03:00:00.000Z",
+        validUntil: "2026-08-01T04:00:00.000Z",
         hourIndex: 1
       },
       {
         iconName: "crowds",
-        validFrom: "2026-07-31T06:00:00.000Z",
-        validUntil: "2026-07-31T07:00:00.000Z",
+        validFrom: "2026-08-01T04:00:00.000Z",
+        validUntil: "2026-08-01T05:00:00.000Z",
         hourIndex: 2
       }
     ]);
@@ -241,6 +271,7 @@ describe("event routes", () => {
     expect(joinedSql).toContain("count(*)::int as member_count");
     expect(joinedSql).toContain("true, now()");
     expect(joinedSql).toContain("'member'");
+    expect(joinedSql).toContain("coalesce(selected_staff_owner.user_id, $2)");
     expect(joinedSql).toContain("lower(app_user.email) = lower($2)");
     expect(joinedSql).not.toContain("'owner' as attendee_role");
     expect(response.json()).toMatchObject({
@@ -248,6 +279,32 @@ describe("event routes", () => {
         conversationId,
         joined: true,
         currentUserRole: "member"
+      }
+    });
+  });
+
+  it("returns a named unavailable error when launch party chat storage is not migrated", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [eventRow] })
+      .mockRejectedValueOnce(Object.assign(new Error("column conversations.disappearing_timer does not exist"), {
+        code: "42703"
+      }));
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/events/the-chocolate-factory-launch/join-chat",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "EVENT_CHAT_UNAVAILABLE",
+        message: "Launch party chat is unavailable until the latest database migrations run."
       }
     });
   });

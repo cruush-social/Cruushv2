@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AlphaBugButton from './AlphaBugButton';
 
@@ -20,6 +21,14 @@ vi.mock('../lib/userNoticesApi', () => ({
   getUserNoticeDismissal,
 }));
 
+function renderAlphaBugButton(enabled = true, initialEntry = '/map?layer=nearby') {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <AlphaBugButton enabled={enabled} />
+    </MemoryRouter>
+  );
+}
+
 describe('AlphaBugButton', () => {
   beforeEach(() => {
     createSupportRequest.mockReset();
@@ -37,17 +46,17 @@ describe('AlphaBugButton', () => {
   });
 
   it('stays hidden when alpha reporting is not enabled', () => {
-    render(<AlphaBugButton enabled={false} />);
+    renderAlphaBugButton(false);
 
     expect(screen.queryByRole('button', { name: 'Report alpha bug' })).not.toBeInTheDocument();
   });
 
   it('submits a fast bug report with page context', async () => {
-    render(<AlphaBugButton enabled />);
+    renderAlphaBugButton();
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
     expect(reportButton).toHaveClass('right-4', 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]');
-    expect(reportButton).toHaveClass('z-[35]');
+    expect(reportButton).toHaveClass('z-30');
     expect(reportButton).not.toHaveClass('left-[calc(50%-5.5rem)]', 'top-[calc(5.85rem+env(safe-area-inset-top))]');
 
     fireEvent.click(reportButton);
@@ -66,5 +75,16 @@ describe('AlphaBugButton', () => {
     }));
     expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
     expect(screen.getByText('This report includes the current page and attaches a screenshot when your browser allows it.')).toBeInTheDocument();
+  });
+
+  it('floats above the fixed chat composer on chat routes', () => {
+    window.history.replaceState({}, '', '/chat/group/group-1');
+    renderAlphaBugButton(true, '/chat/group/group-1');
+
+    expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
+      'right-4',
+      'bottom-[calc(19rem+env(safe-area-inset-bottom))]',
+      'z-30',
+    );
   });
 });

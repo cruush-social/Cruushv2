@@ -149,7 +149,7 @@ export default function Rewards() {
                   </div>
                   <div className="rounded-lg bg-muted/40 p-3">
                     <p className="text-muted-foreground">Next log in bonus</p>
-                    <p className="mt-1 font-medium">{summary.streak.nextLongBonusInDays} active days</p>
+                    <p className="mt-1 font-medium">{summary.streak.nextLoginBonusAtDays} active days</p>
                   </div>
                 </div>
                 <p className="text-xs leading-5 text-muted-foreground">

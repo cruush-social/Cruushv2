@@ -32,9 +32,9 @@ insert into reward_settings (key, value)
 values
   ('recurring_streak_days', '7'::jsonb),
   ('recurring_streak_reward_days', '1'::jsonb),
-  ('long_streak_days', '30'::jsonb),
-  ('long_streak_bonus_days', '3'::jsonb),
-  ('activity_reward_cap_days', '7'::jsonb),
+  ('long_streak_days', '1'::jsonb),
+  ('long_streak_bonus_days', '1'::jsonb),
+  ('activity_reward_cap_days', '30'::jsonb),
   ('activity_reward_cap_period_days', '30'::jsonb),
   ('referral_min_account_age_days', '7'::jsonb),
   ('referral_reward_days', '7'::jsonb),

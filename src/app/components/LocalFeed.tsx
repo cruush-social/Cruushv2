@@ -351,7 +351,7 @@ export default function LocalFeed() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] pb-20 text-foreground">
+    <div className="min-h-screen bg-[#050505] pb-[calc(9rem+env(safe-area-inset-bottom))] text-foreground">
       <header className="sticky top-0 bg-black/88 backdrop-blur-sm border-b border-white/10 p-4 flex items-center gap-4 z-10">
         <div>
           <h2 className="text-xl">Local Feed</h2>
@@ -368,7 +368,7 @@ export default function LocalFeed() {
               <CruushIcon name="settings" className="h-5 w-5" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
+          <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
             <DialogHeader>
               <DialogTitle>Feed settings</DialogTitle>
               <DialogDescription>
@@ -572,6 +572,7 @@ export default function LocalFeed() {
                   className="w-20 flex-shrink-0"
                   label={`${post.user.name} preview`}
                   photo={post.user?.photo}
+                  theme={currentUserId && post.user.id === currentUserId ? 'current' : 'nearby'}
                   userId={post.user.id}
                   fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
                 />
@@ -585,7 +586,7 @@ export default function LocalFeed() {
                         {post.user.attendingLaunchParty ? (
                           <button
                             type="button"
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#03ecfc]/25 bg-black/50 transition hover:bg-[#03ecfc]/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
+                            className="inline-flex h-6 w-6 items-center justify-center border-0 bg-transparent p-0 transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
                             aria-label="Center map on launch party"
                             title="Center map on launch party"
                             onClick={() => navigate('/map', {
@@ -594,14 +595,14 @@ export default function LocalFeed() {
                               },
                             })}
                           >
-                            <img alt="" aria-hidden="true" className="h-4 w-4" src={partyHatIcon} />
+                            <img alt="" aria-hidden="true" className="h-5 w-5 drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]" src={partyHatIcon} />
                           </button>
                         ) : null}
                         <span className="text-sm text-white/58">{post.user.pronouns}</span>
                         {post.partyStatus ? (
                           <button
                             type="button"
-                            className="rounded-full border border-[#03ecfc]/28 bg-[#03ecfc]/10 px-2 py-0.5 text-xs text-[#c9fbff] transition hover:bg-[#03ecfc]/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
+                            className="inline-flex items-center border-0 bg-transparent p-0 text-xs text-[#03ecfc] underline-offset-4 transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
                             aria-label="Center map on The Chocolate Factory"
                             onClick={() => navigate('/map', {
                               state: {

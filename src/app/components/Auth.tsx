@@ -88,7 +88,11 @@ export default function Auth({ onAuth }: AuthProps) {
   const turnstileSiteKey = getTurnstileSiteKey();
   const alphaPasswordRequired = Boolean(alphaTest?.enabled && !betaAccess?.enabled);
   const betaAccessRequired = Boolean(betaAccess?.enabled);
-  const shouldShowCaptcha = Boolean(!isForgotPassword && turnstileSiteKey && captchaRequested);
+  const shouldShowCaptcha = Boolean(
+    !isForgotPassword &&
+    turnstileSiteKey &&
+    (captchaRequested || email.trim() || password || alphaPassword || twoFactorCode)
+  );
   const handleCaptchaTokenChange = useCallback((token: string) => {
     setCaptchaToken(token);
   }, []);
@@ -195,7 +199,7 @@ export default function Auth({ onAuth }: AuthProps) {
 
     if (turnstileSiteKey && !captchaToken) {
       setCaptchaRequested(true);
-      setError('Complete the security check to continue.');
+      setNotice(`Complete the security check below, then tap ${isSignUp ? 'Create Account' : 'Sign In'}.`);
       setIsLoading(false);
       return;
     }
@@ -754,6 +758,16 @@ export default function Auth({ onAuth }: AuthProps) {
             </div>
           )}
 
+          {shouldShowCaptcha ? (
+            <div className="launch-login-auth-captcha" data-testid="launch-login-auth-captcha">
+              <Turnstile
+                onTokenChange={handleCaptchaTokenChange}
+                onError={handleCaptchaError}
+                resetKey={captchaResetKey}
+              />
+            </div>
+          ) : null}
+
           <button
             type="submit"
             disabled={isLoading}
@@ -786,16 +800,6 @@ export default function Auth({ onAuth }: AuthProps) {
               <span className="relative z-10">{isSignUp ? 'Create Account' : isForgotPassword ? 'Send Reset Link' : 'Sign In'}</span>
             )}
           </button>
-
-	          {shouldShowCaptcha ? (
-            <div className="launch-login-auth-captcha" data-testid="launch-login-auth-captcha">
-              <Turnstile
-                onTokenChange={handleCaptchaTokenChange}
-                onError={handleCaptchaError}
-                resetKey={captchaResetKey}
-              />
-            </div>
-          ) : null}
 
           <div className="launch-login-auth-secondary-actions">
             <button

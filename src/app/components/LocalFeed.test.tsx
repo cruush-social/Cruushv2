@@ -3,10 +3,20 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LocalFeed from './LocalFeed';
 
-const { createFeedPost, deleteFeedPost, getFeedPosts, getCurrentUserId, getMyProfile } = vi.hoisted(() => ({
+const {
+  createFeedPost,
+  deleteFeedPost,
+  getFeedPosts,
+  getFeedSettings,
+  updateFeedSettings,
+  getCurrentUserId,
+  getMyProfile,
+} = vi.hoisted(() => ({
   createFeedPost: vi.fn(),
   deleteFeedPost: vi.fn(),
   getFeedPosts: vi.fn(),
+  getFeedSettings: vi.fn(),
+  updateFeedSettings: vi.fn(),
   getCurrentUserId: vi.fn(),
   getMyProfile: vi.fn(),
 }));
@@ -43,6 +53,8 @@ vi.mock('../lib/postApi', async () => {
     createFeedPost,
     deleteFeedPost,
     getFeedPosts,
+    getFeedSettings,
+    updateFeedSettings,
   };
 });
 
@@ -87,6 +99,8 @@ describe('LocalFeed', () => {
     createFeedPost.mockReset();
     deleteFeedPost.mockReset();
     getFeedPosts.mockReset();
+    getFeedSettings.mockReset();
+    updateFeedSettings.mockReset();
     getCurrentUserId.mockReset();
     getMyBillingStatus.mockReset();
     blockUser.mockReset();
@@ -94,6 +108,11 @@ describe('LocalFeed', () => {
     toastSuccess.mockReset();
     toastError.mockReset();
     getCurrentUserId.mockResolvedValue('user-1');
+    getFeedSettings.mockResolvedValue({
+      locationPinVisibility: 'mutuals',
+      showDistanceLabels: true,
+    });
+    updateFeedSettings.mockImplementation(async (settings) => settings);
     getMyProfile.mockResolvedValue({
       id: 'user-1',
       display_name: 'me',
@@ -116,6 +135,27 @@ describe('LocalFeed', () => {
       status: 'open',
       createdAt: '2026-07-11T12:00:00.000Z',
     });
+  });
+
+  it('keeps the feed settings menu scrollable and tappable on mobile', async () => {
+    getFeedPosts.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Feed settings' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Feed settings' });
+    expect(dialog).toHaveClass(
+      'max-h-[calc(100dvh-2rem)]',
+      'overflow-y-auto',
+      'overscroll-contain',
+      'pb-[calc(1.5rem+env(safe-area-inset-bottom))]',
+    );
+    expect(within(dialog).getByRole('button', { name: /off/i })).toBeEnabled();
   });
 
   it('lets users delete their own feed posts without showing delete for other posts', async () => {
@@ -158,6 +198,14 @@ describe('LocalFeed', () => {
     expect(screen.queryByText('Nearby posts expire after 24h')).not.toBeInTheDocument();
     expect(await screen.findByText('mine to delete')).toBeInTheDocument();
     expect(screen.getByText('someone else post')).toBeInTheDocument();
+    await waitFor(() => {
+      const ownPreview = screen.getByRole('img', { name: 'me preview' });
+      const stops = Array.from(ownPreview.querySelectorAll('stop'))
+        .map((stop) => stop.getAttribute('stop-color'));
+
+      expect(stops).toEqual(['#00B8FF', '#0A7DF4', '#3236D4']);
+      expect(ownPreview.querySelector('path')).toHaveAttribute('stroke', '#0BA8FF');
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete feed post: mine to delete' }));
 
@@ -182,6 +230,7 @@ describe('LocalFeed', () => {
         name: 'River',
         pronouns: 'he/him',
         photo: null,
+        attendingLaunchParty: true,
       },
     }]);
 
@@ -394,6 +443,7 @@ describe('LocalFeed', () => {
         name: 'River',
         pronouns: 'he/him',
         photo: null,
+        attendingLaunchParty: true,
       },
     }]);
 
@@ -406,7 +456,13 @@ describe('LocalFeed', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Center map on The Chocolate Factory' }));
+    const launchPartyButton = await screen.findByRole('button', { name: 'Center map on launch party' });
+    const chocolateFactoryButton = await screen.findByRole('button', { name: 'Center map on The Chocolate Factory' });
+
+    expect(launchPartyButton).not.toHaveClass('rounded-full', 'border', 'bg-black/50');
+    expect(chocolateFactoryButton).not.toHaveClass('rounded-full', 'border', 'bg-[#03ecfc]/10');
+
+    fireEvent.click(chocolateFactoryButton);
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });

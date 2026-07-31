@@ -37,9 +37,9 @@ export type RewardActivityType = z.infer<typeof activityTypeSchema>;
 export const DEFAULT_REWARD_CONFIG: RewardConfig = {
   recurringStreakDays: 7,
   recurringStreakRewardDays: 1,
-  longStreakDays: 30,
-  longStreakBonusDays: 3,
-  activityRewardCapDays: 7,
+  longStreakDays: 1,
+  longStreakBonusDays: 1,
+  activityRewardCapDays: 30,
   activityRewardCapPeriodDays: 30,
   referralMinAccountAgeDays: 7,
   referralRewardDays: 7,

@@ -27,9 +27,9 @@ provider records, PhotoDNA, Rekognition, age estimation, or moderation policy.
   UTC. Each credit stores the timezone and resolved date.
 - A gap of one or more calendar days resets the current streak.
 - Every seventh consecutive day grants one promotional day.
-- Every thirtieth consecutive day grants three additional days.
-- Both milestones continue at later multiples.
-- Activity grants default to seven days per rolling 30 days.
+- After the first seventh-day reward, each eligible day between seventh-day
+  rewards grants one additional promotional day.
+- Activity grants default to 30 days per rolling 30 days.
 
 ### Referrals
 
@@ -173,9 +173,9 @@ documented defaults.
 | --- | ---: |
 | `recurring_streak_days` | 7 |
 | `recurring_streak_reward_days` | 1 |
-| `long_streak_days` | 30 |
-| `long_streak_bonus_days` | 3 |
-| `activity_reward_cap_days` | 7 |
+| `long_streak_days` | 1 |
+| `long_streak_bonus_days` | 1 |
+| `activity_reward_cap_days` | 30 |
 | `activity_reward_cap_period_days` | 30 |
 | `referral_min_account_age_days` | 7 |
 | `referral_reward_days` | 7 |

@@ -495,10 +495,10 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     return null;
   }
 
-  const borderClass = marker.relationship?.kind === 'mutual_cruush'
-    ? 'border-[#6f00ff]/80'
-    : isCurrentUser
-      ? 'border-[#FF0072]/80'
+  const borderClass = isCurrentUser
+    ? 'border-[#0BA8FF]/80'
+    : marker.relationship?.kind === 'mutual_cruush'
+      ? 'border-[#6f00ff]/80'
       : 'border-[#FF0072]/80';
 
   return (
@@ -557,10 +557,10 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const clipId = `marker-photo-clip-${marker.id}`;
   const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
   const isNpcGhostDemo = marker.npcGhostDemo === true;
-  const theme = isMutualCruush ? 'mutual' : isCurrentUser || isNpcGhostDemo ? 'current' : 'nearby';
+  const theme = isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
   const markerTheme = HEART_PIN_THEMES[theme];
   const borderColor = markerTheme.border;
-  const [gradientFrom, gradientMiddle, gradientTo] = hasPhoto
+  const [gradientFrom, gradientMiddle, gradientTo] = hasPhoto || isCurrentUser || isNpcGhostDemo
     ? markerTheme.stops
     : getProfileGradientStops(marker.userId ?? marker.id);
 

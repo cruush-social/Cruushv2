@@ -238,10 +238,10 @@ describe("rewards activity and promotional entitlement service", () => {
     expect(reset).toMatchObject({ currentStreak: 1 });
   });
 
-  it("awards the recurring and long-streak milestones through day 30 without retry duplication", async () => {
+  it("awards one-day login bonuses between recurring rewards without retry duplication", async () => {
     const db = new RewardTestDb();
 
-    for (let day = 1; day <= 30; day += 1) {
+    for (let day = 1; day <= 14; day += 1) {
       await recordMeaningfulActivity(appFor(db), {
         userId,
         activityType: "cruush",
@@ -251,12 +251,15 @@ describe("rewards activity and promotional entitlement service", () => {
 
     expect(db.grants.map((grant) => [grant.source, grant.days])).toEqual([
       ["activity_recurring", 1],
-      ["activity_recurring", 1],
-      ["activity_recurring", 1],
-      ["activity_recurring", 1],
-      ["activity_long_bonus", 3]
+      ["activity_long_bonus", 1],
+      ["activity_long_bonus", 1],
+      ["activity_long_bonus", 1],
+      ["activity_long_bonus", 1],
+      ["activity_long_bonus", 1],
+      ["activity_long_bonus", 1],
+      ["activity_recurring", 1]
     ]);
-    expect(db.grants.reduce((total, grant) => total + grant.days, 0)).toBe(7);
+    expect(db.grants.reduce((total, grant) => total + grant.days, 0)).toBe(8);
   });
 
   it("enforces activity caps and the maximum promotional bank", async () => {

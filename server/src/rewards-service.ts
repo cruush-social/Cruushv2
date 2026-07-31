@@ -557,7 +557,7 @@ async function grantActivityMilestones(
     }
   }
 
-  if (input.streak % config.longStreakDays === 0) {
+  if (isLoginBonusMilestone(input.streak, config)) {
     const grant = await grantPromotionalDaysInTransaction(db, {
       userId: input.userId,
       source: "activity_long_bonus",
@@ -577,6 +577,27 @@ async function grantActivityMilestones(
   }
 
   return grants;
+}
+
+function isLoginBonusMilestone(streak: number, config: RewardConfig) {
+  return streak > config.recurringStreakDays &&
+    streak % config.recurringStreakDays !== 0 &&
+    (streak - config.recurringStreakDays) % config.longStreakDays === 0;
+}
+
+function nextLoginBonusTargetStreak(currentStreak: number, config: RewardConfig) {
+  let candidate = Math.max(currentStreak + 1, config.recurringStreakDays + config.longStreakDays);
+  const maxAttempts = Math.max(config.recurringStreakDays, config.longStreakDays) * 2 + 2;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    if (isLoginBonusMilestone(candidate, config)) {
+      return candidate;
+    }
+
+    candidate += 1;
+  }
+
+  return Math.max(currentStreak + 1, config.recurringStreakDays + 1);
 }
 
 export async function recordMeaningfulActivity(
@@ -877,7 +898,7 @@ export async function getRewardSummary(
   const activeUntil = asDate(promotion.active_until);
   const promotionalActive = Boolean(activeUntil && activeUntil > new Date());
   const recurringRemainder = currentStreak % config.recurringStreakDays;
-  const longRemainder = currentStreak % config.longStreakDays;
+  const nextLoginBonusAtDays = nextLoginBonusTargetStreak(currentStreak, config);
 
   return {
     streak: {
@@ -887,9 +908,8 @@ export async function getRewardSummary(
       nextRecurringInDays: recurringRemainder === 0
         ? config.recurringStreakDays
         : config.recurringStreakDays - recurringRemainder,
-      nextLongBonusInDays: longRemainder === 0
-        ? config.longStreakDays
-        : config.longStreakDays - longRemainder
+      nextLongBonusInDays: Math.max(1, nextLoginBonusAtDays - currentStreak),
+      nextLoginBonusAtDays
     },
     promotionalAccess: {
       active: promotionalActive,

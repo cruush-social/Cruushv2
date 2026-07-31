@@ -142,7 +142,7 @@ const configSchema = z.object({
   LAUNCH_PARTY_LATITUDE: z.coerce.number().min(-90).max(90).optional().default(40.70982),
   LAUNCH_PARTY_LONGITUDE: z.coerce.number().min(-180).max(180).optional().default(-73.92256),
   LAUNCH_PARTY_RADIUS_MILES: z.coerce.number().positive().max(10).optional().default(1),
-  LAUNCH_PARTY_STARTS_AT: z.string().trim().optional().default("2026-07-31T00:00:00-04:00"),
+  LAUNCH_PARTY_STARTS_AT: z.string().trim().optional().default("2026-07-31T22:00:00-04:00"),
   LAUNCH_PARTY_ENDS_AT: z.string().trim().optional().default("2026-08-01T05:00:00-04:00"),
   LAUNCH_PARTY_CHAT_EXPIRES_AT: z.string().trim().optional().default("2026-08-07T03:59:00-04:00"),
   LAUNCH_PARTY_RA_URL: z.string().url().optional().default("https://ra.co/events/2483120"),

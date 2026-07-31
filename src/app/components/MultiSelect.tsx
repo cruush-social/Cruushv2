@@ -53,6 +53,7 @@ export default function MultiSelect({
   const [isOpen, setIsOpen] = useState(false);
   const instanceId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const portalMenuRef = useRef<HTMLDivElement | null>(null);
   const [resolvedMenuPlacement, setResolvedMenuPlacement] = useState<ResolvedMenuPlacement>(menuPlacement);
   const [localMenuStyle, setLocalMenuStyle] = useState<CSSProperties | null>(null);
   const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
@@ -165,6 +166,28 @@ export default function MultiSelect({
       window.removeEventListener('scroll', updatePortalStyle, true);
     };
   }, [isOpen, menuPlacement, menuPortal]);
+
+  useEffect(() => {
+    if (!isOpen || !menuPortal) {
+      return;
+    }
+
+    const closeOnOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target instanceof Node ? event.target : null;
+
+      if (!target || triggerRef.current?.contains(target) || portalMenuRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsOpen(false);
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsidePointerDown, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointerDown, true);
+    };
+  }, [isOpen, menuPortal]);
 
   const toggleOption = (option: string) => {
     if (selectionMode === 'multiple' && disableAddingOptions && !selected.includes(option)) {
@@ -280,14 +303,7 @@ export default function MultiSelect({
     ? createPortal(
         <>
           <div
-            className="fixed inset-0"
-            style={{ zIndex: MENU_PORTAL_Z_INDEX }}
-            onClick={() => setIsOpen(false)}
-            onMouseDown={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-            onTouchStart={(event) => event.stopPropagation()}
-          />
-          <div
+            ref={portalMenuRef}
             className="overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg"
             style={{ ...portalStyle, zIndex: MENU_PORTAL_Z_INDEX + 1 }}
             onClick={(event) => event.stopPropagation()}

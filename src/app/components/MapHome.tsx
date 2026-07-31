@@ -1,7 +1,7 @@
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
 import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
-import { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ExternalLink, Eye, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
@@ -353,6 +353,22 @@ function distanceMilesBetween(
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
 
   return 2 * EARTH_RADIUS_MILES * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getRevealEventPassErrorMessage(error: unknown) {
+  if (error instanceof ApiClientError && error.code === 'EVENT_RADIUS_REQUIRED') {
+    return error.message;
+  }
+
+  return 'Unable to reveal the door pass right now. Try again in a moment.';
+}
+
+function getJoinEventChatErrorMessage(error: unknown) {
+  if (error instanceof ApiClientError && error.status === 409) {
+    return error.message;
+  }
+
+  return 'Unable to join the party chat right now. Try again in a moment.';
 }
 
 export default function MapHome(_props: MapHomeProps = {}) {
@@ -1157,9 +1173,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         : event));
       setEventActionStatus('Door pass revealed.');
     } catch (revealError) {
-      setEventActionError(revealError instanceof ApiClientError
-        ? revealError.message
-        : 'Unable to reveal the door pass right now.');
+      setEventActionError(getRevealEventPassErrorMessage(revealError));
     } finally {
       setRevealingEventPass(false);
     }
@@ -1224,7 +1238,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         setEventActionStatus('You joined. The party chat is in Messages and notifications are off by default.');
       }
     } catch (joinError) {
-      setEventActionError(joinError instanceof Error ? joinError.message : 'Unable to join the party group chat right now.');
+      setEventActionError(getJoinEventChatErrorMessage(joinError));
     } finally {
       setJoiningEventChat(false);
     }
@@ -1408,6 +1422,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
     event.preventDefault();
   };
 
+  const handleMapReady = useCallback((map: CruushMapInstance) => {
+    setMapInstance((currentMap) => currentMap === map ? currentMap : map);
+  }, []);
+
   return (
     <div
       className={`cruush-map-shell ${isMobile ? 'fixed inset-0' : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
@@ -1542,7 +1560,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   radiusMeters: privacySettings.ghostRadiusMeters,
                 }
               : null}
-            onMapReady={(map) => setMapInstance(map)}
+            onMapReady={handleMapReady}
           />
         </Suspense>
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
@@ -1607,7 +1625,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
         {selectedEvent ? (
           <div
-            className={`pointer-events-auto absolute z-40 rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
+            className={`pointer-events-auto absolute z-[45] rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
               isMobile
                 ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3'
                 : 'left-4 top-[8.75rem] w-[22rem]'
@@ -1867,7 +1885,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           </div>
         </div>
 
-        {displayedUsers.length > 0 && (
+        {displayedUsers.length > 0 && !selectedEvent && (
           <div
             className={`pointer-events-none absolute ${
               isMobile

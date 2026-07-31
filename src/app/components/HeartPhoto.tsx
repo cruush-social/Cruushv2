@@ -30,7 +30,7 @@ export default function HeartPhoto({
   const gradientId = `heart-gradient-${id}`;
   const resolvedTheme = HEART_PIN_THEMES[theme];
   const showPhoto = Boolean(photo && !masked);
-  const gradientStops = userId && !showPhoto ? getProfileGradientStops(userId) : resolvedTheme.stops;
+  const gradientStops = userId && !showPhoto && theme !== 'current' ? getProfileGradientStops(userId) : resolvedTheme.stops;
   const resolvedBorderColor = borderColor ?? resolvedTheme.border;
   const resolvedPhoto = showPhoto && photo ? resolveMediaUrl(photo) : null;
 

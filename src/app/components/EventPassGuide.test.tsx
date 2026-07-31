@@ -20,25 +20,25 @@ describe('EventPassGuide', () => {
     getEventPassGuide.mockResolvedValue({
       eventSlug: 'the-chocolate-factory-launch',
       venueName: 'The Chocolate Factory',
-      startsAt: '2026-07-31T04:00:00.000Z',
+      startsAt: '2026-08-01T02:00:00.000Z',
       endsAt: '2026-08-01T09:00:00.000Z',
       current: {
-        iconName: 'notifications',
+        iconName: 'camera',
         validFrom: '2026-08-01T02:00:00.000Z',
         validUntil: '2026-08-01T03:00:00.000Z',
-        hourIndex: 22,
+        hourIndex: 0,
       },
       guide: [
         {
           iconName: 'camera',
-          validFrom: '2026-07-31T04:00:00.000Z',
-          validUntil: '2026-07-31T05:00:00.000Z',
+          validFrom: '2026-08-01T02:00:00.000Z',
+          validUntil: '2026-08-01T03:00:00.000Z',
           hourIndex: 0,
         },
         {
           iconName: 'cruush',
-          validFrom: '2026-07-31T05:00:00.000Z',
-          validUntil: '2026-07-31T06:00:00.000Z',
+          validFrom: '2026-08-01T03:00:00.000Z',
+          validUntil: '2026-08-01T04:00:00.000Z',
           hourIndex: 1,
         },
       ],
@@ -53,9 +53,9 @@ describe('EventPassGuide', () => {
     );
 
     expect(await screen.findByText('Current icon')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'notifications' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'camera' })).toBeInTheDocument();
     expect(screen.getByText('The Chocolate Factory')).toBeInTheDocument();
-    expect(screen.getByText('camera')).toBeInTheDocument();
+    expect(screen.getAllByText('camera')).toHaveLength(2);
     expect(screen.getByText('Hour 1')).toBeInTheDocument();
     expect(getEventPassGuide).toHaveBeenCalledWith('the-chocolate-factory-launch');
   });
