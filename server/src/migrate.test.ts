@@ -51,6 +51,7 @@ describe("migration runner", () => {
     expect(launchSql).toContain("the-chocolate-factory-launch");
     expect(matchSettingsSql).toContain("create table if not exists user_cruush_match_settings");
     expect(matchSettingsSql).toContain("nsfw_message_visibility");
+    expect(matchSettingsSql).toContain("mutual_crowds");
   });
 
   it("adds message favorite images after match settings", async () => {

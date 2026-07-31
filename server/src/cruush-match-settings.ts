@@ -2,8 +2,9 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ApiError } from "./errors.js";
 import { hasActiveMutualMessagePermission } from "./match-relationships.js";
+import { decryptSensitiveProfile } from "./profile-sensitive.js";
 
-export const nsfwMessageVisibilitySchema = z.enum(["public", "mutual_cruushes", "none"]);
+export const nsfwMessageVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds", "none"]);
 
 export const cruushMatchSettingsPayloadSchema = z.object({
   nsfwMessageVisibility: nsfwMessageVisibilitySchema,
@@ -27,6 +28,14 @@ type CruushMatchSettingsRow = {
 
 type ConversationMemberRow = {
   user_id: string;
+};
+
+type ProfileCrowdsRow = {
+  id: string;
+  profile_sensitive_ciphertext: string | null;
+  profile_sensitive_nonce: string | null;
+  profile_sensitive_auth_tag: string | null;
+  profile_sensitive_key_version: string | null;
 };
 
 const DEFAULT_CRUUSH_MATCH_SETTINGS: CruushMatchSettings = {
@@ -160,6 +169,49 @@ async function everyRecipientIsMutual(app: FastifyInstance, senderUserId: string
   return permissions.every(Boolean);
 }
 
+async function loadCrowdsByUserId(app: FastifyInstance, userIds: string[]) {
+  const crowdsByUserId = new Map<string, string[]>();
+  const uniqueUserIds = [...new Set(userIds)];
+  uniqueUserIds.forEach((userId) => crowdsByUserId.set(userId, []));
+
+  if (uniqueUserIds.length === 0) {
+    return crowdsByUserId;
+  }
+
+  try {
+    const result = await app.db.query<ProfileCrowdsRow>(
+      `select id::text as id,
+              profile_sensitive_ciphertext,
+              profile_sensitive_nonce,
+              profile_sensitive_auth_tag,
+              profile_sensitive_key_version
+       from profiles
+       where id = any($1::uuid[])`,
+      [uniqueUserIds]
+    );
+
+    result.rows.forEach((row) => {
+      const sensitiveProfile = decryptSensitiveProfile(app.config, row);
+      crowdsByUserId.set(row.id, sensitiveProfile?.crowds ?? []);
+    });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) {
+      throw error;
+    }
+  }
+
+  return crowdsByUserId;
+}
+
+function sharesCrowd(sourceCrowds: string[], targetCrowds: string[]) {
+  if (sourceCrowds.length === 0 || targetCrowds.length === 0) {
+    return false;
+  }
+
+  const targetCrowdSet = new Set(targetCrowds.map((crowd) => crowd.trim().toLowerCase()).filter(Boolean));
+  return sourceCrowds.some((crowd) => targetCrowdSet.has(crowd.trim().toLowerCase()));
+}
+
 export async function assertCanSendNsfwMessagePhoto(
   app: FastifyInstance,
   input: {
@@ -170,6 +222,11 @@ export async function assertCanSendNsfwMessagePhoto(
   const recipientUserIds = await loadConversationRecipientIds(app, input.conversationId, input.senderUserId);
   const settingsByUserId = await loadSettingsByUserId(app, [input.senderUserId, ...recipientUserIds]);
   const senderSettings = settingsByUserId.get(input.senderUserId) ?? DEFAULT_CRUUSH_MATCH_SETTINGS;
+  let participantCrowdsPromise: Promise<Map<string, string[]>> | null = null;
+  const getParticipantCrowds = () => {
+    participantCrowdsPromise ??= loadCrowdsByUserId(app, [input.senderUserId, ...recipientUserIds]);
+    return participantCrowdsPromise;
+  };
 
   if (senderSettings.nsfwSendVisibility === "none") {
     throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "Your cruush match settings block sending NSFW photos.");
@@ -180,6 +237,18 @@ export async function assertCanSendNsfwMessagePhoto(
     !await everyRecipientIsMutual(app, input.senderUserId, recipientUserIds)
   ) {
     throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "Your cruush match settings only allow NSFW photos with mutual cruushes.");
+  }
+
+  if (senderSettings.nsfwSendVisibility === "mutual_crowds") {
+    const crowdsByUserId = await getParticipantCrowds();
+    const senderCrowds = crowdsByUserId.get(input.senderUserId) ?? [];
+    const everyRecipientSharesCrowd = recipientUserIds.every((recipientUserId) => (
+      sharesCrowd(senderCrowds, crowdsByUserId.get(recipientUserId) ?? [])
+    ));
+
+    if (!everyRecipientSharesCrowd) {
+      throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "Your cruush match settings only allow NSFW photos with mutual crowds.");
+    }
   }
 
   for (const recipientUserId of recipientUserIds) {
@@ -194,6 +263,16 @@ export async function assertCanSendNsfwMessagePhoto(
       !await hasActiveMutualMessagePermission(app, input.senderUserId, recipientUserId)
     ) {
       throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "A recipient only allows NSFW photos from mutual cruushes.");
+    }
+
+    if (recipientSettings.nsfwMessageVisibility === "mutual_crowds") {
+      const crowdsByUserId = await getParticipantCrowds();
+      const senderCrowds = crowdsByUserId.get(input.senderUserId) ?? [];
+      const recipientCrowds = crowdsByUserId.get(recipientUserId) ?? [];
+
+      if (!sharesCrowd(senderCrowds, recipientCrowds)) {
+        throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "A recipient only allows NSFW photos from mutual crowds.");
+      }
     }
   }
 }

@@ -33,6 +33,11 @@ const visibilityOptions: Array<{
     description: 'Only mutual cruushes may exchange NSFW photos.',
   },
   {
+    value: 'mutual_crowds',
+    label: 'Mutual crowds',
+    description: 'Only people who share one of your crowds may exchange NSFW photos.',
+  },
+  {
     value: 'none',
     label: 'No one',
     description: 'Block NSFW photo sends.',

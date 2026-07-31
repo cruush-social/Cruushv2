@@ -1,6 +1,6 @@
 import { requestApi } from './apiClient';
 
-export type NsfwMessageVisibility = 'public' | 'mutual_cruushes' | 'none';
+export type NsfwMessageVisibility = 'public' | 'mutual_cruushes' | 'mutual_crowds' | 'none';
 
 export type CruushMatchSettings = {
   nsfwMessageVisibility: NsfwMessageVisibility;

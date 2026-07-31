@@ -55,7 +55,8 @@ const migrationFiles = [
   "047_beta_city_requests.sql",
   "048_cruush_plus_promo_codes.sql",
   "049_feed_location_pin_visibility.sql",
-  "050_body_type_taxonomy_cleanup.sql"
+  "050_body_type_taxonomy_cleanup.sql",
+  "051_cruush_match_mutual_crowds.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;
