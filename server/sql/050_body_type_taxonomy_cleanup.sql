@@ -1,4 +1,4 @@
-create or replace function pg_temp.cruush_moved_body_type_vibe_values(values text[])
+create or replace function pg_temp.cruush_moved_body_type_vibe_values(input_values text[])
 returns text[]
 language sql
 immutable
@@ -11,19 +11,19 @@ as $$
         when 'otter' then 'otter'
         when 'twink' then 'twink'
       end as value
-    from unnest(coalesce(values, '{}'::text[])) as items(item)
+    from unnest(coalesce(input_values, '{}'::text[])) as items(item)
     where lower(item) in ('bear', 'otter', 'twink')
   ) moved
   where value is not null;
 $$;
 
-create or replace function pg_temp.cruush_without_body_type_vibe_values(values text[])
+create or replace function pg_temp.cruush_without_body_type_vibe_values(input_values text[])
 returns text[]
 language sql
 immutable
 as $$
   select coalesce(array_agg(item order by ord), '{}'::text[])
-  from unnest(coalesce(values, '{}'::text[])) with ordinality as items(item, ord)
+  from unnest(coalesce(input_values, '{}'::text[])) with ordinality as items(item, ord)
   where lower(item) not in ('bear', 'otter', 'twink');
 $$;
 
