@@ -31,7 +31,11 @@ describe('AlphaBugButton', () => {
   it('submits a fast bug report with page context', async () => {
     render(<AlphaBugButton enabled />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+    const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
+    expect(reportButton).toHaveClass('left-4', 'top-[calc(8rem+env(safe-area-inset-top))]');
+    expect(reportButton).not.toHaveClass('right-4');
+
+    fireEvent.click(reportButton);
     fireEvent.change(screen.getByLabelText('What broke?'), {
       target: { value: 'Map pins disappeared after I changed filters.' },
     });

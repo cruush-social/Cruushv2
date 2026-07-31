@@ -51,6 +51,10 @@ const { getMyPrivacySettings } = vi.hoisted(() => ({
   getMyPrivacySettings: vi.fn(),
 }));
 
+const { syncMyLocation } = vi.hoisted(() => ({
+  syncMyLocation: vi.fn(),
+}));
+
 const { getMyBillingStatus } = vi.hoisted(() => ({
   getMyBillingStatus: vi.fn(),
 }));
@@ -132,7 +136,12 @@ vi.mock('../lib/privacyApi', async () => {
   };
 });
 
+vi.mock('../lib/locationApi', () => ({
+  syncMyLocation,
+}));
+
 vi.mock('../lib/billingApi', () => ({
+  CRUUSH_PLUS_CHANGED_EVENT: 'cruush-plus:changed',
   getMyBillingStatus,
 }));
 
@@ -256,6 +265,7 @@ describe('MapHome', () => {
     createReport.mockReset();
     decryptDisplayLocationToken.mockReset();
     getMyPrivacySettings.mockReset();
+    syncMyLocation.mockReset();
     getMyBillingStatus.mockReset();
     getActiveEvents.mockReset();
     revealEventPass.mockReset();
@@ -269,6 +279,7 @@ describe('MapHome', () => {
     toastSuccess.mockReset();
     toastError.mockReset();
     window.sessionStorage.clear();
+    window.localStorage.setItem('cruush:ghost-mode-intro-seen', 'true');
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -425,6 +436,22 @@ describe('MapHome', () => {
       preciseToMutualCrowds: [],
       preciseLocationVisibility: 'none',
       updatedAtMs: 0,
+    });
+    syncMyLocation.mockResolvedValue({
+      id: 'me',
+      display_location_token: {
+        version: 1,
+        tokenId: 'synced-token',
+        keyId: 'synced-key',
+        ciphertext: 'encrypted-location',
+        nonce: 'nonce',
+        expiresAtMs: Date.now() + 60_000,
+        tokenVersion: 1,
+      },
+      display_expires_at_ms: Date.now() + 60_000,
+      display_mode: 'PRECISE',
+      animation_hint: 'NONE',
+      location_updated_at: '2026-07-31T12:00:00.000Z',
     });
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: true,
@@ -1021,6 +1048,11 @@ describe('MapHome', () => {
 
     await waitFor(() => {
       expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+      expect(syncMyLocation).toHaveBeenCalledWith({
+        lat: expect.any(Number),
+        lng: expect.any(Number),
+        fuzz_radius_meters: expect.any(Number),
+      });
       expect(getNearbyUsers).toHaveBeenLastCalledWith({
         lat: expect.any(Number),
         lng: expect.any(Number),
@@ -1028,8 +1060,29 @@ describe('MapHome', () => {
       expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
       expect(screen.getByTestId('marker-me')).toHaveAttribute('data-badge', 'bottom');
     });
+    expect(syncMyLocation.mock.calls[0]?.[0]?.lat).not.toBe(40.701);
+    expect(syncMyLocation.mock.calls[0]?.[0]?.lng).not.toBe(-73.901);
     expect(getNearbyUsers.mock.calls.at(-1)?.[0]).not.toEqual({ lat: 40.701, lng: -73.901 });
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
+  });
+
+  it('explains Ghost Mode once after onboarding reaches the map', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.localStorage.removeItem('cruush:ghost-mode-intro-seen');
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+          <Route path="/privacy/ghost-mode" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Ghost Mode protects your map location')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ghost Mode settings' }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/ghost-mode');
+    expect(window.localStorage.getItem('cruush:ghost-mode-intro-seen')).toBe('true');
   });
 
   it('requests geolocation again after a same-session reload when no saved location exists', async () => {

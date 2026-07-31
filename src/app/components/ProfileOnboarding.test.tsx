@@ -292,7 +292,8 @@ describe('ProfileOnboarding', () => {
     await fillProfileRites();
 
     expect(screen.getByText('protect your key')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Password'), {
+    expect(screen.getByText('Use the same password you use to sign in. This is not a separate 2FA password.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('cruush login password'), {
       target: { value: 'current-password' },
     });
     fireEvent.click(screen.getByRole('button', { name: /start 2fa setup/i }));
