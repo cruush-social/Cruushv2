@@ -19,7 +19,6 @@ import {
 import { createModerationProvider } from "./moderation-provider.js";
 import { moderateImageOrReject } from "./moderation-service.js";
 import type { PolicyDecision, ProviderModerationResult } from "./moderation-types.js";
-import { activeAlphaTest } from "./photo-upload-availability.js";
 import type { PhotoDnaResult } from "./photodna.js";
 import { severeAccessBanIdentity } from "./severe-access-bans.js";
 
@@ -63,21 +62,14 @@ function assetUrl(assetId: string, variant: "display" | "thumbnail") {
   return `/api/media/assets/${assetId}/${variant}`;
 }
 
-function alphaProfilePhotoSafetyReady(app: FastifyInstance) {
+function deployedSafetyReadyBeforePhotoDna(app: FastifyInstance) {
   return app.config.STREAM_IMAGE_BRIDGE_ENABLED === true &&
     app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true &&
-    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
-    (
-      app.config.ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED === true ||
-      activeAlphaTest(app.config)
-    );
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
 }
 
-function shouldSkipPhotoDnaForAlphaProfilePhoto(
-  app: FastifyInstance,
-  moderationSurface: "profile_photo" | "direct_message" | "group_message"
-) {
-  return moderationSurface === "profile_photo" && alphaProfilePhotoSafetyReady(app);
+function shouldBypassPhotoDnaForLaunchUploads(app: FastifyInstance) {
+  return deployedSafetyReadyBeforePhotoDna(app);
 }
 
 async function deleteObjectsBestEffort(
@@ -338,7 +330,7 @@ export async function moderatePendingMediaAsset(
 ): Promise<ApprovedMediaCandidate> {
   try {
     const accessBanIdentity = severeAccessBanIdentity(app.config, request);
-    const photoDnaResult: PhotoDnaResult = shouldSkipPhotoDnaForAlphaProfilePhoto(app, input.moderationSurface)
+    const photoDnaResult: PhotoDnaResult = shouldBypassPhotoDnaForLaunchUploads(app)
       ? { status: "not_configured" }
       : await checkPhotoDnaForUploadOrReject(app, {
           userId: asset.ownerUserId,

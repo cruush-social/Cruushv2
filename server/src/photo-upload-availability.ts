@@ -28,18 +28,10 @@ export function photoUploadAvailability(
     config.STREAM_IMAGE_BRIDGE_ENABLED === true &&
     config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true &&
     config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
-  const deployedPhotoSafetyReady =
-    deployedSafetyReadyBeforePhotoDna &&
-    config.PHOTODNA_ENABLED === true;
-  const alphaProfilePhotoSafetyReady =
-    deployedSafetyReadyBeforePhotoDna &&
-    (
-      config.ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED === true ||
-      activeAlphaTest(config)
-    );
+  const deployedPhotoSafetyReady = deployedSafetyReadyBeforePhotoDna;
 
   return {
-    profilePhotos: !deployed || deployedPhotoSafetyReady || alphaProfilePhotoSafetyReady,
+    profilePhotos: !deployed || deployedPhotoSafetyReady,
     messagePhotos: !deployed || deployedPhotoSafetyReady
   };
 }

@@ -23,13 +23,12 @@ describe("deployed photo upload availability", () => {
     });
   });
 
-  it("enables deployed profile photos only when every strict safety gate is configured", () => {
+  it("enables deployed photos when the non-PhotoDNA safety gates are configured", () => {
     expect(photoUploadAvailability({
       ...baseConfig,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
-      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
-      PHOTODNA_ENABLED: true
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true
     })).toEqual({
       profilePhotos: true,
       messagePhotos: true
@@ -38,14 +37,15 @@ describe("deployed photo upload availability", () => {
       ...baseConfig,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
-      PROFILE_PHOTO_REKOGNITION_ENABLED: true
+      PROFILE_PHOTO_REKOGNITION_ENABLED: false,
+      PHOTODNA_ENABLED: true
     })).toEqual({
       profilePhotos: false,
       messagePhotos: false
     });
   });
 
-  it("allows only deployed profile-photo uploads during the explicit alpha PhotoDNA exception", () => {
+  it("keeps uploads closed when the non-PhotoDNA safety gates are incomplete", () => {
     expect(photoUploadAvailability({
       ...baseConfig,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
@@ -54,7 +54,7 @@ describe("deployed photo upload availability", () => {
       ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: true
     })).toEqual({
       profilePhotos: true,
-      messagePhotos: false
+      messagePhotos: true
     });
 
     expect(photoUploadAvailability({
@@ -69,10 +69,9 @@ describe("deployed photo upload availability", () => {
     });
   });
 
-  it("allows staging alpha-test profile photos without PhotoDNA after the automated safety layers are ready", () => {
+  it("allows active alpha-test uploads without PhotoDNA after the automated safety layers are ready", () => {
     expect(photoUploadAvailability({
       ...baseConfig,
-      APP_DEPLOYMENT_STAGE: "staging",
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
@@ -80,12 +79,11 @@ describe("deployed photo upload availability", () => {
       ALPHA_TEST_ENDS_AT: "2099-07-28T23:59:00-04:00"
     })).toEqual({
       profilePhotos: true,
-      messagePhotos: false
+      messagePhotos: true
     });
 
     expect(photoUploadAvailability({
       ...baseConfig,
-      APP_DEPLOYMENT_STAGE: "staging",
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
