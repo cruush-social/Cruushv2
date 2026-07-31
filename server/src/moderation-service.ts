@@ -249,7 +249,7 @@ function userMessageForDecision(decision: PolicyDecision) {
   }
 
   if (decision.user_message_code === "nudity_private_messages_only") {
-    return "Nude or sexually explicit photos are only allowed in private messages.";
+    return "Nude or sexually explicit photos are only allowed on your own profile or in messages.";
   }
 
   if (decision.user_message_code === "content_rejected_zero_tolerance") {

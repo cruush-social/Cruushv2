@@ -323,7 +323,7 @@ describe("shared Stream profile-photo automod route", () => {
     expect(response.json()).toMatchObject({
       error: {
         code: "CONTENT_REJECTED",
-        message: "Nude or sexually explicit photos are only allowed in private messages."
+        message: "Nude or sexually explicit photos are only allowed on your own profile or in messages."
       }
     });
     expect(query.mock.calls.some(([text]) => String(text).includes("delete from media_objects"))).toBe(true);

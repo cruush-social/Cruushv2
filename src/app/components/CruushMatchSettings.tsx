@@ -158,7 +158,7 @@ export default function CruushMatchSettings() {
             <ImageIcon className="mt-1 h-5 w-5 text-primary" />
             <div>
               <h3 className="text-base">Who can send you NSFW photos</h3>
-              <p className="mt-1 text-sm text-white/58">NSFW uploads are only allowed in messages. This controls who can send them to you.</p>
+              <p className="mt-1 text-sm text-white/58">This controls who can send NSFW photos to you in messages.</p>
             </div>
           </div>
           <div className="mt-4 grid gap-2">

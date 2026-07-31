@@ -6515,7 +6515,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "CONTENT_REJECTED",
-        message: "Nude or sexually explicit photos are only allowed in private messages.",
+        message: "Nude or sexually explicit photos are only allowed on your own profile or in messages.",
         details: null
       }
     });
