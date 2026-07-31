@@ -218,7 +218,17 @@ export async function checkPhotoDnaForUploadOrReject(app: FastifyInstance, input
   try {
     photoDnaResult = await checkPhotoDna(app.config, input.imageBytes);
   } catch (error) {
-    app.log.error({ err: error, surface: input.surface }, "photodna check unavailable");
+    app.log.error({
+      err: error,
+      surface: input.surface,
+      sourceRoute: input.sourceRoute,
+      contentId: input.contentId,
+      photoDnaEnabled: app.config.PHOTODNA_ENABLED,
+      apiUrlConfigured: Boolean(app.config.PHOTODNA_API_URL),
+      operationPathConfigured: Boolean(app.config.PHOTODNA_OPERATION_PATH),
+      subscriptionKeyConfigured: Boolean(app.config.PHOTODNA_SUBSCRIPTION_KEY),
+      timeoutMs: app.config.PHOTODNA_TIMEOUT_MS
+    }, "photodna check unavailable");
     throw new ApiError(503, "MODERATION_UNAVAILABLE", PHOTODNA_UNAVAILABLE_MESSAGE);
   }
 

@@ -7,6 +7,10 @@ import { sendEventPassEmail } from "../mailer.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 const LAUNCH_PARTY_SLUG = "the-chocolate-factory-launch";
+const LAUNCH_PARTY_EVENT_ID = "4c18a3ac-5dbd-48b6-b24f-703fd6fbb11e";
+const LAUNCH_PARTY_TITLE = "cruush beta launch";
+const LAUNCH_PARTY_VENUE_NAME = "The Chocolate Factory";
+const LAUNCH_PARTY_ADDRESS = "70 Scott Ave, Brooklyn, NY 11237";
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
 const EVENT_PASS_ICON_NAMES = [
@@ -163,6 +167,10 @@ function eventSelectSql(whereClause: string) {
 }
 
 async function loadEvent(app: FastifyInstance, userId: string, slug: string) {
+  if (slug === LAUNCH_PARTY_SLUG) {
+    await ensureConfiguredLaunchEvent(app);
+  }
+
   const result = await app.db.query<EventRow>(
     eventSelectSql("where event.slug = $2 and event.active = true limit 1"),
     [userId, slug]
@@ -174,6 +182,64 @@ async function loadEvent(app: FastifyInstance, userId: string, slug: string) {
   }
 
   return mapEventRow(app, row);
+}
+
+async function ensureConfiguredLaunchEvent(app: FastifyInstance) {
+  if (app.config.LAUNCH_PARTY_ENABLED === false) {
+    return;
+  }
+
+  await app.db.query(
+    `insert into launch_events (
+       id,
+       slug,
+       title,
+       venue_name,
+       address,
+       latitude,
+       longitude,
+       radius_miles,
+       starts_at,
+       ends_at,
+       pin_disappears_at,
+       chat_expires_at,
+       ra_url,
+       icon_asset,
+       active
+     ) values (
+       $1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz, $10::timestamptz, $10::timestamptz, $11::timestamptz, $12, 'party-hat', true
+     )
+     on conflict (slug) do update
+     set
+       title = excluded.title,
+       venue_name = excluded.venue_name,
+       address = excluded.address,
+       latitude = excluded.latitude,
+       longitude = excluded.longitude,
+       radius_miles = excluded.radius_miles,
+       starts_at = excluded.starts_at,
+       ends_at = excluded.ends_at,
+       pin_disappears_at = excluded.pin_disappears_at,
+       chat_expires_at = excluded.chat_expires_at,
+       ra_url = excluded.ra_url,
+       icon_asset = excluded.icon_asset,
+       active = excluded.active,
+       updated_at = now()`,
+    [
+      LAUNCH_PARTY_EVENT_ID,
+      LAUNCH_PARTY_SLUG,
+      LAUNCH_PARTY_TITLE,
+      LAUNCH_PARTY_VENUE_NAME,
+      LAUNCH_PARTY_ADDRESS,
+      app.config.LAUNCH_PARTY_LATITUDE,
+      app.config.LAUNCH_PARTY_LONGITUDE,
+      app.config.LAUNCH_PARTY_RADIUS_MILES,
+      app.config.LAUNCH_PARTY_STARTS_AT,
+      app.config.LAUNCH_PARTY_ENDS_AT,
+      app.config.LAUNCH_PARTY_CHAT_EXPIRES_AT,
+      app.config.LAUNCH_PARTY_RA_URL
+    ]
+  );
 }
 
 function degreesToRadians(value: number) {
@@ -268,6 +334,7 @@ async function buildPassJpeg(event: LaunchEvent, iconName: EventPassIconName) {
 export async function registerEventRoutes(app: FastifyInstance) {
   app.get("/api/events/active", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
+    await ensureConfiguredLaunchEvent(app);
     const result = await app.db.query<EventRow>(
       `${eventSelectSql("where event.active = true order by event.starts_at asc")}`,
       [userId]

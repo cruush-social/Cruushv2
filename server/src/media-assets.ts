@@ -19,6 +19,8 @@ import {
 import { createModerationProvider } from "./moderation-provider.js";
 import { moderateImageOrReject } from "./moderation-service.js";
 import type { PolicyDecision, ProviderModerationResult } from "./moderation-types.js";
+import { activeAlphaTest } from "./photo-upload-availability.js";
+import type { PhotoDnaResult } from "./photodna.js";
 import { severeAccessBanIdentity } from "./severe-access-bans.js";
 
 export type MediaSurface = "profile_photo" | "message_photo";
@@ -59,6 +61,23 @@ export type ApprovedMediaCandidate = PendingMediaAsset & {
 
 function assetUrl(assetId: string, variant: "display" | "thumbnail") {
   return `/api/media/assets/${assetId}/${variant}`;
+}
+
+function alphaProfilePhotoSafetyReady(app: FastifyInstance) {
+  return app.config.STREAM_IMAGE_BRIDGE_ENABLED === true &&
+    app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true &&
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
+    (
+      app.config.ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED === true ||
+      activeAlphaTest(app.config)
+    );
+}
+
+function shouldSkipPhotoDnaForAlphaProfilePhoto(
+  app: FastifyInstance,
+  moderationSurface: "profile_photo" | "direct_message" | "group_message"
+) {
+  return moderationSurface === "profile_photo" && alphaProfilePhotoSafetyReady(app);
 }
 
 async function deleteObjectsBestEffort(
@@ -319,21 +338,23 @@ export async function moderatePendingMediaAsset(
 ): Promise<ApprovedMediaCandidate> {
   try {
     const accessBanIdentity = severeAccessBanIdentity(app.config, request);
-    const photoDnaResult = await checkPhotoDnaForUploadOrReject(app, {
-      userId: asset.ownerUserId,
-      surface: input.moderationSurface,
-      imageBytes: asset.canonicalBytes,
-      mimeType: asset.mimeType,
-      sourceRoute: asset.surface === "profile_photo" ? "/api/profile-photos" : "/api/messages/photos",
-      requestIp: request.ip,
-      userAgent: request.headers["user-agent"],
-      severeAccessBanIdentity: accessBanIdentity,
-      contentId: asset.id,
-      contentRef: {
-        assetId: asset.id,
-        surface: asset.surface
-      }
-    });
+    const photoDnaResult: PhotoDnaResult = shouldSkipPhotoDnaForAlphaProfilePhoto(app, input.moderationSurface)
+      ? { status: "not_configured" }
+      : await checkPhotoDnaForUploadOrReject(app, {
+          userId: asset.ownerUserId,
+          surface: input.moderationSurface,
+          imageBytes: asset.canonicalBytes,
+          mimeType: asset.mimeType,
+          sourceRoute: asset.surface === "profile_photo" ? "/api/profile-photos" : "/api/messages/photos",
+          requestIp: request.ip,
+          userAgent: request.headers["user-agent"],
+          severeAccessBanIdentity: accessBanIdentity,
+          contentId: asset.id,
+          contentRef: {
+            assetId: asset.id,
+            surface: asset.surface
+          }
+        });
     const provider = createModerationProvider(app.config);
     const bridgeEnabled = app.config.STREAM_IMAGE_BRIDGE_ENABLED === true;
     const signedInspectionEnabled = app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true;
