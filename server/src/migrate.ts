@@ -59,7 +59,8 @@ const migrationFiles = [
   "051_cruush_match_mutual_crowds.sql",
   "052_profile_signal.sql",
   "053_feed_distance_label_setting.sql",
-  "054_notification_sound_preference.sql"
+  "054_notification_sound_preference.sql",
+  "055_user_notice_dismissals.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

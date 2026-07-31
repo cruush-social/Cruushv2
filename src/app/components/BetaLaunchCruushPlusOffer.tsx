@@ -13,6 +13,7 @@ import CruushPlusWord from './CruushPlusWord';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { claimBetaLaunchCruushPlus } from '../lib/rewardsApi';
+import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 
 const BETA_LAUNCH_OFFER_STORAGE_KEY = 'cruush:beta-launch-plus-offer-seen';
 
@@ -30,7 +31,9 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
   const [error, setError] = useState('');
 
   const markSeen = () => {
-    setPersistentNoticeFlag(offerStorageKey(userId));
+    const key = offerStorageKey(userId);
+    setPersistentNoticeFlag(key);
+    void dismissUserNotice(key).catch(() => {});
   };
 
   useEffect(() => {
@@ -38,12 +41,39 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
       return;
     }
 
-    if (!hasPersistentNoticeFlag(offerStorageKey(userId))) {
-      markSeen();
-      setOpen(true);
-    } else {
+    let isMounted = true;
+    const key = offerStorageKey(userId);
+
+    if (hasPersistentNoticeFlag(key)) {
+      void dismissUserNotice(key).catch(() => {});
       setOpen(false);
+      return;
     }
+
+    getUserNoticeDismissal(key)
+      .then((notice) => {
+        if (!isMounted) {
+          return;
+        }
+
+        if (notice.dismissed) {
+          setPersistentNoticeFlag(key);
+          setOpen(false);
+          return;
+        }
+
+        markSeen();
+        setOpen(true);
+      })
+      .catch(() => {
+        if (isMounted) {
+          setOpen(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [userId]);
 
   const handleClaim = async () => {

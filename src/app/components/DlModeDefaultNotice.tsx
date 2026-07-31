@@ -11,23 +11,60 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import {
+  DL_MODE_DEFAULT_NOTICE_KEY,
   markDlModeDefaultNoticeSeen,
   shouldShowDlModeDefaultNotice,
 } from '../lib/dlMode';
+import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 
 export default function DlModeDefaultNotice() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (location.pathname.startsWith('/map') && shouldShowDlModeDefaultNotice()) {
-      markDlModeDefaultNoticeSeen();
-      setOpen(true);
+    if (!location.pathname.startsWith('/map')) {
+      return;
     }
+
+    let isMounted = true;
+
+    if (!shouldShowDlModeDefaultNotice()) {
+      void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
+      setOpen(false);
+      return;
+    }
+
+    getUserNoticeDismissal(DL_MODE_DEFAULT_NOTICE_KEY)
+      .then((notice) => {
+        if (!isMounted) {
+          return;
+        }
+
+        if (notice.dismissed) {
+          markDlModeDefaultNoticeSeen();
+          setOpen(false);
+          return;
+        }
+
+        markDlModeDefaultNoticeSeen();
+        void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
+        setOpen(true);
+      })
+      .catch(() => {
+        if (isMounted) {
+          setOpen(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [location.pathname]);
 
   const closeNotice = () => {
     setOpen(false);
+    markDlModeDefaultNoticeSeen();
+    void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
   };
 
   return (

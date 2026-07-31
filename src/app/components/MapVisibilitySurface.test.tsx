@@ -27,7 +27,7 @@ function selectVisibilityOption(label: string, option: string) {
 }
 
 describe('MapVisibilitySurface', () => {
-  it('limits free users to three hidden audiences', () => {
+  it('limits non-cruush+ users to three hidden audiences without account-plan copy', () => {
     render(<VisibilityHarness />);
 
     expect(screen.queryByText('Free accounts can hide from up to 3 audiences.')).not.toBeInTheDocument();
@@ -37,11 +37,11 @@ describe('MapVisibilitySurface', () => {
     selectVisibilityOption('Presentation', 'masc');
     selectVisibilityOption('Crowds', 'Gay');
 
-    expect(screen.getByText('3 of 3 hidden filters used')).toBeInTheDocument();
+    expect(screen.queryByText('3 of 3 hidden filters used')).not.toBeInTheDocument();
 
     selectVisibilityOption('Body Type', 'athletic');
 
-    expect(screen.getByText('Free accounts can use up to 3 hidden filters. Remove one or upgrade for more.')).toBeInTheDocument();
+    expect(screen.getByText('You can use up to 3 hidden filters. Remove one before adding another.')).toBeInTheDocument();
     expect(screen.getByTestId('hidden-body-types')).toHaveTextContent('');
   });
 
@@ -54,6 +54,6 @@ describe('MapVisibilitySurface', () => {
     selectVisibilityOption('Body Type', 'athletic');
 
     expect(screen.getByTestId('hidden-body-types')).toHaveTextContent('athletic');
-    expect(screen.queryByText('Free accounts can use up to 3 hidden filters. Remove one or upgrade for more.')).not.toBeInTheDocument();
+    expect(screen.queryByText('You can use up to 3 hidden filters. Remove one before adding another.')).not.toBeInTheDocument();
   });
 });

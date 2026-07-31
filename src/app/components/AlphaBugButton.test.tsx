@@ -6,19 +6,33 @@ const { createSupportRequest } = vi.hoisted(() => ({
   createSupportRequest: vi.fn(),
 }));
 
+const { dismissUserNotice, getUserNoticeDismissal } = vi.hoisted(() => ({
+  dismissUserNotice: vi.fn(),
+  getUserNoticeDismissal: vi.fn(),
+}));
+
 vi.mock('../lib/supportApi', () => ({
   createSupportRequest,
+}));
+
+vi.mock('../lib/userNoticesApi', () => ({
+  dismissUserNotice,
+  getUserNoticeDismissal,
 }));
 
 describe('AlphaBugButton', () => {
   beforeEach(() => {
     createSupportRequest.mockReset();
+    dismissUserNotice.mockReset();
+    getUserNoticeDismissal.mockReset();
     createSupportRequest.mockResolvedValue({
       id: 'support-1',
       status: 'open',
       aiTriageStatus: 'pending',
       createdAt: '2026-07-28T12:00:00.000Z',
     });
+    dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
+    getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     window.history.replaceState({}, '', '/map?layer=nearby');
   });
 
@@ -32,7 +46,7 @@ describe('AlphaBugButton', () => {
     render(<AlphaBugButton enabled />);
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
-    expect(reportButton).toHaveClass('left-1/2', 'top-[calc(0.75rem+env(safe-area-inset-top))]', '-translate-x-1/2');
+    expect(reportButton).toHaveClass('left-[calc(50%-5.5rem)]', 'top-[calc(5.85rem+env(safe-area-inset-top))]');
     expect(reportButton).not.toHaveClass('right-4');
 
     fireEvent.click(reportButton);

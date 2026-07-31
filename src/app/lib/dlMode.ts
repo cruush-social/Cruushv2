@@ -2,7 +2,7 @@ import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from './persistentNo
 
 const DL_MODE_STORAGE_KEY = 'cruush:dl-mode-enabled';
 const DL_MODE_CHANGED_EVENT = 'cruush:dl-mode-changed';
-const DL_MODE_DEFAULT_NOTICE_KEY = 'cruush:dl-mode-default-notice-seen';
+export const DL_MODE_DEFAULT_NOTICE_KEY = 'cruush:dl-mode-default-notice-seen';
 
 export function isDlModeEnabled() {
   if (typeof window === 'undefined') {

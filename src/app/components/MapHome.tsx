@@ -31,6 +31,7 @@ import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { addDlModeChangedListener, isDlModeEnabled, setDlModeEnabled } from '../lib/dlMode';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
+import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation } from '../lib/locationApi';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
@@ -436,6 +437,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const dismissMapControlsIntro = () => {
     setMapControlsIntroOpen(false);
     setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
+    void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
   };
 
   useEffect(() => {
@@ -467,12 +469,40 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
+    let isMounted = true;
+
     if (hasPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY)) {
+      void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
+      setMapControlsIntroOpen(false);
       return;
     }
 
-    setMapControlsIntroOpen(true);
-  }, [currentProfile, profileLoaded]);
+    getUserNoticeDismissal(MAP_CONTROLS_INTRO_STORAGE_KEY)
+      .then((notice) => {
+        if (!isMounted) {
+          return;
+        }
+
+        if (notice.dismissed) {
+          setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
+          setMapControlsIntroOpen(false);
+          return;
+        }
+
+        setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
+        void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
+        setMapControlsIntroOpen(true);
+      })
+      .catch(() => {
+        if (isMounted) {
+          setMapControlsIntroOpen(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentProfile?.id, profileLoaded]);
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
@@ -1404,7 +1434,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <img
               alt=""
               aria-hidden="true"
-              className="h-[6.25rem] w-auto object-contain sm:h-[7.03125rem]"
+              className="h-[5.25rem] w-auto object-contain sm:h-[6.25rem]"
               draggable={false}
               src={cruushLogo}
             />
@@ -1422,7 +1452,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={() => navigate('/rewards')}
               aria-label="cruush+ rewards"
               title="cruush+ rewards"
-              className="cruush-logo-font rounded-full px-3 text-lg font-normal leading-none tracking-normal normal-case text-white"
+              className="cruush-logo-font h-10 rounded-full px-2.5 text-base font-normal leading-none tracking-normal normal-case text-white sm:h-11 sm:px-3 sm:text-lg"
               style={{ background: 'var(--cruush-gradient)' }}
             >
               <CruushPlusWord />
@@ -1518,7 +1548,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-background/65 to-transparent" />
 
         {error ? (
-          <div className="absolute left-4 right-20 top-24 z-20 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          <div className="absolute left-4 right-20 top-[8.75rem] z-20 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
           </div>
         ) : null}
@@ -1749,7 +1779,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-20 z-30 flex flex-col items-end gap-2 sm:right-4"
+          className="pointer-events-auto absolute right-3 top-16 z-30 flex flex-col items-end gap-2 sm:right-4"
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (

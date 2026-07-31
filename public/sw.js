@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cruush-app-shell-v4';
+const CACHE_NAME = 'cruush-app-shell-v5';
 const APP_SHELL_URLS = [
   '/',
   '/manifest.webmanifest',
@@ -24,6 +24,17 @@ self.addEventListener('activate', (event) => {
         .filter((key) => key !== CACHE_NAME)
         .map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true
+      }))
+      .then((clients) => {
+        for (const client of clients) {
+          if (client.url.startsWith(self.location.origin) && 'navigate' in client) {
+            client.navigate(client.url);
+          }
+        }
+      })
   );
 });
 

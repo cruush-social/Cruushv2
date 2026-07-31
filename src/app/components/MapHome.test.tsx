@@ -80,6 +80,11 @@ const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastError: vi.fn(),
 }));
 
+const { dismissUserNotice, getUserNoticeDismissal } = vi.hoisted(() => ({
+  dismissUserNotice: vi.fn(),
+  getUserNoticeDismissal: vi.fn(),
+}));
+
 vi.mock('sonner', () => ({
   toast: {
     success: toastSuccess,
@@ -145,6 +150,11 @@ vi.mock('../lib/eventsApi', () => ({
   revealEventPass,
   emailEventPass,
   joinEventChat,
+}));
+
+vi.mock('../lib/userNoticesApi', () => ({
+  dismissUserNotice,
+  getUserNoticeDismissal,
 }));
 
 vi.mock('./ui/use-mobile', () => ({
@@ -288,6 +298,8 @@ describe('MapHome', () => {
     revealEventPass.mockReset();
     emailEventPass.mockReset();
     joinEventChat.mockReset();
+    dismissUserNotice.mockReset();
+    getUserNoticeDismissal.mockReset();
     useIsMobile.mockReset();
     mapControls.setCenter.mockReset();
     mapControls.setZoom.mockReset();
@@ -298,6 +310,8 @@ describe('MapHome', () => {
     window.sessionStorage.clear();
     window.localStorage.clear();
     window.localStorage.setItem('cruush:map-controls-intro-seen', 'true');
+    dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
+    getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -513,8 +527,8 @@ describe('MapHome', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-[6.25rem]');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-[7.03125rem]');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-[5.25rem]');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-[6.25rem]');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
 
@@ -670,8 +684,8 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
     expect(topActions).toHaveClass('pointer-events-auto', 'mt-0');
     expect(topActions).not.toHaveClass('mt-11');
-    expect(rightActions).toHaveClass('right-3', 'top-20', 'sm:right-4');
-    expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-lg');
+    expect(rightActions).toHaveClass('right-3', 'top-16', 'sm:right-4');
+    expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-base', 'sm:text-lg');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-[1.5625rem]', 'w-[1.5625rem]');
     expect(ghostModeIcon).toHaveClass('h-4', 'w-4');
@@ -883,6 +897,7 @@ describe('MapHome', () => {
   it('shows the map controls intro once and dismisses it permanently', async () => {
     useIsMobile.mockReturnValue(false);
     window.localStorage.removeItem('cruush:map-controls-intro-seen');
+    getUserNoticeDismissal.mockResolvedValue({ dismissed: false, dismissedAt: null });
 
     const { unmount } = render(
       <MemoryRouter initialEntries={['/map']}>
@@ -900,6 +915,7 @@ describe('MapHome', () => {
 
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Map controls' })).not.toBeInTheDocument());
     expect(window.localStorage.getItem('cruush:map-controls-intro-seen')).toBe('true');
+    expect(dismissUserNotice).toHaveBeenCalledWith('cruush:map-controls-intro-seen');
 
     unmount();
 
@@ -941,7 +957,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
     expect(screen.queryByText('Saved sets')).not.toBeInTheDocument();
     expect(screen.queryByText('Upgrade for saved sets')).not.toBeInTheDocument();
-    expect(screen.queryByText('Free accounts can hide from up to 3 audiences.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Free accounts/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Distance')).toBeInTheDocument();
   });
 
