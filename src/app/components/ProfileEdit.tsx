@@ -975,7 +975,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Body Type</Label>
-              <MultiSelect {...profileMenuProps} options={BODY_TYPES} value={normalizedProfile.body_type} onChange={(vals) => handleChange('body_type', vals)} />
+              <MultiSelect {...profileMenuProps} ariaLabel="Body Type" options={BODY_TYPES} value={normalizedProfile.body_type} onChange={(vals) => handleChange('body_type', vals)} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -165,7 +165,7 @@ describe('ProfileOnboarding', () => {
     expect(await screen.findByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Style & Energy' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
-    expect(await screen.findByRole('option', { name: 'Bear' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Bear' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Archetypes' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Daddy' }));
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
@@ -292,7 +292,7 @@ describe('ProfileOnboarding', () => {
     await fillProfileRites();
 
     expect(screen.getByText('protect your key')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Password'), {
+    fireEvent.change(screen.getByLabelText(/cruush login password/i), {
       target: { value: 'current-password' },
     });
     fireEvent.click(screen.getByRole('button', { name: /start 2fa setup/i }));

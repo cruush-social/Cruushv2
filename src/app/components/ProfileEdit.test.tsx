@@ -476,7 +476,7 @@ describe('ProfileEdit', () => {
     expect(uploadProfilePhoto).not.toHaveBeenCalled();
   });
 
-  it('lets users set trans status visibility, crowds, gender identities, categorized vibes, and HIV status', async () => {
+  it('lets users set trans status visibility, crowds, gender identities, categorized vibes, body type, and HIV status', async () => {
     render(
       <MemoryRouter>
         <ProfileEdit />
@@ -491,7 +491,7 @@ describe('ProfileEdit', () => {
     expect(screen.getByRole('group', { name: 'Style & Energy' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
     const scenesGroup = screen.getByRole('group', { name: 'Scenes' });
-    fireEvent.click(within(scenesGroup).getByRole('option', { name: 'Bear' }));
+    expect(within(scenesGroup).queryByRole('option', { name: 'Bear' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Archetypes' }));
     const archetypesGroup = screen.getByRole('group', { name: 'Archetypes' });
@@ -509,6 +509,10 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('option', { name: 'nonbinary' }));
     fireEvent.click(screen.getByRole('option', { name: 'woman' }));
     fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Body Type' }));
+    fireEvent.click(screen.getByRole('option', { name: 'bear' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Body Type' }));
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'I am trans' }));
     expect(screen.queryByRole('button', { name: 'Trans status visibility' })).not.toBeInTheDocument();
@@ -532,7 +536,8 @@ describe('ProfileEdit', () => {
       is_trans: true,
       trans_status_visibility: 'mutual_cruushes',
       crowds: ['T4T', 'Dyke'],
-      vibes: ['Bear', 'Daddy'],
+      body_type: ['bear'],
+      vibes: ['Daddy'],
       scenes: [],
       archetypes: [],
       hiv_status: ['undetectable'],

@@ -10160,7 +10160,7 @@ describe("server", () => {
         hiv_status: [],
         hiv_status_visibility: "mutual_cruushes",
         vibes: ["Goth"],
-        scenes: ["Bear"],
+        scenes: ["Leather"],
         archetypes: ["Daddy"],
         hobbies: [],
         custom_hobby: "",
@@ -10202,7 +10202,7 @@ describe("server", () => {
       hiv_status: ["undetectable"],
       hiv_status_visibility: "mutual_cruushes",
       vibes: ["Goth"],
-      scenes: ["Bear"],
+      scenes: ["Leather"],
       archetypes: ["Daddy"]
     };
 
@@ -10239,7 +10239,7 @@ describe("server", () => {
         kinks_visibility: "mutual_crowds",
         hiv_status: ["undetectable"],
         hiv_status_visibility: "mutual_cruushes",
-        scenes: ["Bear"],
+        scenes: ["Leather"],
         archetypes: ["Daddy"]
       })
     });
@@ -10325,13 +10325,13 @@ describe("server", () => {
         looking_for: [],
         timing: [],
         hosting: [],
-        vibes: ["Bear"],
+        vibes: [],
         crowds: ["Dyke"],
         hobbies: [],
         positions: [],
         roles: [],
         kinks: ["leather"],
-        body_types: [],
+        body_types: ["bear"],
         sexuality: [],
         substance_boundaries: []
       }
