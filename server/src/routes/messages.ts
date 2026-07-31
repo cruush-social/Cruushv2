@@ -29,6 +29,10 @@ const conversationParamsSchema = z.object({
   conversationId: z.uuid()
 }).strict();
 
+const messageParamsSchema = z.object({
+  messageId: z.uuid()
+}).strict();
+
 const messageAttachmentViewParamsSchema = z.object({
   messageId: z.uuid(),
   mediaObjectId: z.uuid()
@@ -882,8 +886,6 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
     }
 
-    assertCanManageConversation(conversation, "clear");
-
     const result = await app.db.query<ConversationRow>(
       `with updated as (
          update conversations
@@ -1570,6 +1572,75 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         messages: messagesResult.rows.map((row) => mapMessageRow(app, row))
       }
     });
+  });
+
+  app.delete("/api/messages/:messageId", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const { messageId } = messageParamsSchema.parse(request.params);
+    const result = await app.db.query<{ conversation_id: string | null; object_key: string | null }>(
+      `with target_message as (
+         select
+           message.id,
+           message.conversation_id,
+           message.user_id,
+           conversation.kind,
+           member.role
+         from messages message
+         join conversations conversation on conversation.id = message.conversation_id
+         join conversation_members member
+           on member.conversation_id = conversation.id
+          and member.user_id = $2
+         where message.id::text = $1
+         limit 1
+       ), authorized as (
+         select *
+         from target_message
+         where user_id = $2
+            or (kind = 'group' and role in ('owner', 'admin'))
+       ), target_media as (
+         select media.id, media.object_key
+         from message_media_attachments attachment
+         join media_objects media on media.id = attachment.media_object_id
+         join authorized on authorized.id = attachment.message_id
+         where media.deleted_at is null
+       ), removed_variants as (
+         update media_variants variant
+         set deleted_at = now()
+         from target_media
+         where variant.media_object_id = target_media.id
+           and variant.deleted_at is null
+         returning variant.object_key
+       ), removed_media as (
+         update media_objects media
+         set deleted_at = now()
+         from target_media
+         where media.id = target_media.id
+         returning media.object_key
+       ), removed_message as (
+         delete from messages message
+         using authorized
+         where message.id = authorized.id
+         returning authorized.conversation_id
+       ), touched_conversation as (
+         update conversations conversation
+         set updated_at = now()
+         from removed_message
+         where conversation.id = removed_message.conversation_id
+         returning conversation.id::text as conversation_id
+       )
+       select conversation_id, null::text as object_key from touched_conversation
+       union all
+       select (select conversation_id::text from removed_message), object_key from removed_variants where object_key is not null
+       union all
+       select (select conversation_id::text from removed_message), object_key from removed_media where object_key is not null`,
+      [messageId, userId]
+    );
+
+    if (!result.rows[0]?.conversation_id) {
+      throw new ApiError(404, "NOT_FOUND", "Message not found.");
+    }
+
+    return reply.code(204).send();
   });
 
   app.post("/api/messages/:messageId/attachments/:mediaObjectId/view", async (request, reply) => {

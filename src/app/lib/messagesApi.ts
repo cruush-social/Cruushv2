@@ -185,6 +185,12 @@ export function createMessage(conversationId: string, content: string) {
   });
 }
 
+export function deleteMessage(messageId: string) {
+  return requestApi<void>(`/api/messages/${messageId}`, {
+    method: 'DELETE',
+  });
+}
+
 export function createMessagePhoto(
   conversationId: string,
   photo: File,

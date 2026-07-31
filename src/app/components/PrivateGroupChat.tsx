@@ -18,6 +18,7 @@ import {
   createMessage,
   createMessagePhoto,
   deleteConversationForEveryone,
+  deleteMessage,
   demoteGroupAdmin,
   getFavoriteMessageImages,
   getConversationMessages,
@@ -128,6 +129,7 @@ export default function PrivateGroupChat() {
   const [favoriteUploading, setFavoriteUploading] = useState(false);
   const [favoriteSendingId, setFavoriteSendingId] = useState<string | null>(null);
   const [favoriteRemovingId, setFavoriteRemovingId] = useState<string | null>(null);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -346,7 +348,13 @@ export default function PrivateGroupChat() {
   };
 
   const handleClearForEveryone = async () => {
-    if (!conversation || !canManageConversation) {
+    if (!conversation) {
+      return;
+    }
+
+    const confirmed = window.confirm('Clear all messages in this chat for everyone?');
+
+    if (!confirmed) {
       return;
     }
 
@@ -363,6 +371,24 @@ export default function PrivateGroupChat() {
       setError(error instanceof Error ? error.message : 'Failed to clear chat.');
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    setDeletingMessageId(messageId);
+    setError(null);
+
+    try {
+      await deleteMessage(messageId);
+      setMessages((prev) => prev.filter((item) => item.id !== messageId));
+      setViewedAttachmentUrls((prev) => Object.fromEntries(
+        Object.entries(prev).filter(([key]) => !key.startsWith(`${messageId}:`)),
+      ));
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete message.');
+    } finally {
+      setDeletingMessageId(null);
     }
   };
 
@@ -732,11 +758,11 @@ export default function PrivateGroupChat() {
               type="button"
               variant="outline"
               className="w-full justify-center border-destructive/30 text-destructive hover:bg-destructive/10"
-              disabled={!canManageConversation || settingsSaving}
+              disabled={settingsSaving}
               onClick={() => void handleClearForEveryone()}
             >
               <Trash2 className="size-4" />
-              Clear chat for everyone
+              Clear all messages
             </Button>
 
             <Button
@@ -1021,6 +1047,19 @@ export default function PrivateGroupChat() {
                       {formatMessageTime(msg.timestamp)}
                       {msg.expiresAt ? ` · ${formatExpirationTime(msg.expiresAt)}` : ''}
                     </span>
+                    {(isOwn || (conversation?.kind === 'group' && canManageConversation)) ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-muted-foreground hover:text-destructive"
+                        aria-label="Delete message"
+                        disabled={deletingMessageId === msg.id}
+                        onClick={() => void handleDeleteMessage(msg.id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    ) : null}
                     {!isOwn ? (
                       <ReportAction
                         targetType="message"
