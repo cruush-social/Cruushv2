@@ -21,7 +21,6 @@ describe('authApi', () => {
     await signUp({
       email: 'river@example.com',
       password: 'password-123',
-      displayName: 'River',
       captchaToken: 'captcha-token',
     });
     await signIn({
@@ -34,7 +33,6 @@ describe('authApi', () => {
       body: JSON.stringify({
         email: 'river@example.com',
         password: 'password-123',
-        displayName: 'River',
         captchaToken: 'captcha-token',
       }),
     }));
