@@ -69,7 +69,7 @@ SESSION_SECRET=<generate-secret-32-plus-chars>
 
 ALPHA_TEST_ENABLED=true
 ALPHA_TEST_PASSWORD_HASH=<scrypt-hash-generated-outside-chat-and-git>
-ALPHA_TEST_ENDS_AT=2026-08-01T05:00:00-04:00
+ALPHA_TEST_ENDS_AT=<planned-beta-launch-timestamp-with-timezone>
 SUPPORT_INBOX_EMAIL=reports@cruush.app
 
 BETA_ACCESS_GEOFENCE_ENABLED=false

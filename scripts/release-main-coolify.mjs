@@ -270,7 +270,7 @@ function releaseRuntimeEnvData() {
       },
       {
         key: 'LAUNCH_PARTY_CHAT_EXPIRES_AT',
-        value: '2026-08-08T05:00:00-04:00',
+        value: '2026-08-07T03:59:00-04:00',
         is_preview: false,
         is_buildtime: false,
         is_runtime: true,
