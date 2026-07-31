@@ -112,7 +112,7 @@ describe("image child-face and profile-photo human detection", () => {
     });
   });
 
-  it("rejects profile photos with Rekognition nudity moderation labels", () => {
+  it("flags but allows adult profile photos with Rekognition nudity moderation labels", () => {
     expect(classifyProfilePhotoSafety({
       Labels: [{ Name: "Person", Confidence: 99 }],
       $metadata: { requestId: "rekognition-labels-adult" }
@@ -127,7 +127,7 @@ describe("image child-face and profile-photo human detection", () => {
       }],
       $metadata: { requestId: "rekognition-moderation-explicit" }
     }, config)).toMatchObject({
-      recommended_action: "remove",
+      recommended_action: "keep",
       labels: expect.arrayContaining([
         expect.objectContaining({ normalized_label: "adult_explicit", confidence: 0.96 })
       ]),

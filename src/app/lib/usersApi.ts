@@ -25,6 +25,7 @@ export type DiscoveryUser = {
   role: string[];
   hostingTravel: string[];
   photo: string | null;
+  photoExplicit?: boolean;
   badges?: CruushBadge[];
   isDemo?: boolean;
   isCurrentUser?: boolean;
@@ -88,6 +89,7 @@ type TokenizedDiscoveryProfile = {
   role: string[];
   hostingTravel: string[];
   photo: string | null;
+  photoExplicit?: boolean;
   badges?: CruushBadge[];
   relationship?: DiscoveryUser['relationship'];
 };
@@ -169,6 +171,7 @@ export async function getNearbyUsers(
       role: profile.role,
       hostingTravel: profile.hostingTravel,
       photo: profile.photo,
+      photoExplicit: profile.photoExplicit === true,
       badges: profile.badges,
       displayMode: displayPayload.displayMode,
       animationHint: profile.animationHint ?? displayPayload.animationHint,

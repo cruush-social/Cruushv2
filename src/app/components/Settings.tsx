@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   ArrowLeft,
   ChevronRight,
@@ -36,8 +36,11 @@ import {
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
+import HeartPhoto from './HeartPhoto';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changePassword, deleteAccount, sendVerificationEmail, signOut } from '../lib/authApi';
+import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import SupportRequestForm from './SupportRequestForm';
 import {
   clearCurrentUser,
@@ -74,11 +77,34 @@ export default function Settings() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const storedUser = useMemo(() => getStoredCurrentUser(), []);
+  const [profile, setProfile] = useState<ProfileRecord | null>(null);
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const [previewUrl, setPreviewUrlState] = useState(() => getVerificationPreviewUrl());
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
   const displayName = storedUser?.display_name ?? storedUser?.name ?? 'cruush user';
   const age = storedUser?.age ?? null;
   const moderatorRole = storedUser?.moderator_role ?? null;
+
+  useEffect(() => {
+    let active = true;
+
+    getMyProfile()
+      .then((loadedProfile) => {
+        if (active) {
+          setProfile(loadedProfile);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setProfile(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const resetPasswordDialog = () => {
     setCurrentPassword('');
@@ -213,14 +239,14 @@ export default function Settings() {
 
       <div className="max-w-2xl mx-auto p-6 space-y-8">
         <div className="flex items-center gap-4 p-6 bg-card rounded-2xl border border-border">
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center text-2xl"
-            style={{
-              background: 'var(--cruush-gradient)',
-            }}
-          >
-            A
-          </div>
+          <HeartPhoto
+            className="w-16 shrink-0"
+            label={`${displayName} profile photo`}
+            masked={dlModeActive && profile?.photo_metadata?.[0]?.explicit === true}
+            photo={profile?.photos?.[0] ?? null}
+            theme="current"
+            userId={profile?.id ?? storedUser?.id ?? null}
+          />
           <div className="flex-1">
             <h3 className="text-xl">{displayName}</h3>
             <p className="text-sm text-muted-foreground">{age ? `${age}` : 'Profile in progress'}</p>

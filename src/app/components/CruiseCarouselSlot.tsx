@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import { resolveMediaUrl } from '../lib/apiClient';
+import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
 import type { DiscoveryUser } from '../lib/usersApi';
 
 export type CruiseCarouselSlotMode = 'profile' | 'locked' | 'empty';
@@ -91,13 +92,18 @@ function makeBrowseItems(mode: CruiseCarouselSlotMode, targetUser?: DiscoveryUse
 }
 
 function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolean }) {
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const sizeClass = featured ? 'h-[6.25rem] w-[6.25rem]' : 'h-[5rem] w-[5rem]';
   const frameClass = featured
     ? 'border-white/34 bg-white/[0.12] shadow-[0_0_34px_rgba(255,0,114,0.26)]'
     : 'border-white/12 bg-white/[0.055]';
 
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
   if (item.kind === 'profile') {
-    const photo = item.user.photo ? resolveMediaUrl(item.user.photo) : null;
+    const photo = item.user.photo && !(dlModeActive && item.user.photoExplicit === true)
+      ? resolveMediaUrl(item.user.photo)
+      : null;
     const initial = item.user.name.trim().charAt(0).toUpperCase() || '?';
 
     return (

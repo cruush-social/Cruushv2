@@ -33,7 +33,7 @@ describe("policy mapper", () => {
     expect(decision.reason_code).toBe("private_pnp_discussion_allowed");
   });
 
-  it.each(["profile_photo", "private_photo", "feed"] as const)(
+  it.each(["private_photo", "feed"] as const)(
     "rejects nudity on the non-message %s surface",
     (surface) => {
       const decision = mapProviderResultToPolicy({
@@ -50,6 +50,24 @@ describe("policy mapper", () => {
       });
     }
   );
+
+  it("allows adult nudity on profile photos so DL Mode can mask the image client-side", () => {
+    const decision = mapProviderResultToPolicy({
+      surface: "profile_photo",
+      contentType: "image",
+      providerResult: {
+        ...providerResult("adult_nudity", 0.98),
+        recommended_action: "remove",
+        status: "complete"
+      }
+    });
+
+    expect(decision).toMatchObject({
+      decision: "allow",
+      reason_code: "profile_photo_nudity_allowed",
+      trust_impact: 0
+    });
+  });
 
   it.each(["direct_message", "group_message"] as const)(
     "allows adult nudity only in %s image messages",

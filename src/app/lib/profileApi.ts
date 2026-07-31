@@ -78,9 +78,15 @@ export type ProfilePayload = {
   visibility_rules: ProfileVisibilityRules;
 };
 
+export type ProfilePhotoMetadata = {
+  url: string;
+  explicit: boolean;
+};
+
 export type ProfileRecord = ProfilePayload & {
   id: string;
   updated_at: string;
+  photo_metadata?: ProfilePhotoMetadata[];
   badges?: CruushBadge[];
   location?: {
     id: string;
@@ -248,7 +254,7 @@ export async function uploadProfilePhoto(photo: File) {
   const formData = new FormData();
   formData.set('photo', photo);
 
-  return requestApi<{ url: string; status?: 'pending_review' }>('/api/profile-photos', {
+  return requestApi<{ url: string; explicit?: boolean; status?: 'pending_review' }>('/api/profile-photos', {
     method: 'POST',
     body: formData,
   });

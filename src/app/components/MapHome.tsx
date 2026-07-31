@@ -810,6 +810,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       role: currentProfile.role ?? [],
       hostingTravel: currentProfile.hosting_travel ?? [],
       photo: currentProfile.photos?.[0] ?? null,
+      photoExplicit: currentProfile.photo_metadata?.[0]?.explicit === true,
       badges: currentProfile.badges ?? [],
       isCurrentUser: true,
     };
@@ -1629,7 +1630,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       data-testid={`recently-active-tile-${user.id}`}
                     >
                       <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">
-                        {user.photo ? (
+                        {user.photo && !(dlModeActive && user.photoExplicit === true) ? (
                           <img
                             alt=""
                             aria-hidden="true"

@@ -53,6 +53,7 @@ type DiscoveryProfileRow = {
   role: string[] | null;
   hosting_travel: string[] | null;
   photos: string[] | null;
+  primary_photo_explicit?: boolean | null;
   identities: string[] | null;
   presentation: string[] | null;
   sexuality: string[] | null;
@@ -503,6 +504,17 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          role,
          hosting_travel,
          photos,
+         coalesce((
+           select media.explicit_classification = 'explicit'
+           from unnest(coalesce(profiles.photos, '{}'::text[])) with ordinality as photo(photo_url, ordinality)
+           left join media_objects media
+             on media.owner_user_id = profiles.id
+            and media.public_url = photo.photo_url
+            and media.surface = 'profile_photo'
+            and media.deleted_at is null
+           order by photo.ordinality
+           limit 1
+         ), false) as primary_photo_explicit,
          identities,
          presentation,
          sexuality,
@@ -703,6 +715,7 @@ async function mapModernDiscoveryRow(
     role: coerceStringArray(row.role),
     hostingTravel: coerceStringArray(row.hosting_travel),
     photo: row.photos?.[0] ?? null,
+    photoExplicit: row.primary_photo_explicit === true,
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     relationship: relationship?.isMutualCruush
       ? {

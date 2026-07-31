@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { X } from 'lucide-react';
+import { Eye, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import CruushBadge from './CruushBadge';
@@ -10,6 +10,8 @@ import { resolveMediaUrl } from '../lib/apiClient';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
+import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { getProfileGradientCss } from '../lib/profileGradient';
 
 interface ProfileCardProps {
   user: any;
@@ -24,10 +26,14 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
   const [sendingCruush, setSendingCruush] = useState(false);
   const [openingMessage, setOpeningMessage] = useState(false);
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const isAlreadyMutual = cruushBecameMutual || user.relationship?.mutualCruush === true;
   const hasSentCruush = cruushed || user.relationship?.outgoingCruush === true;
   const canMessage = user.relationship?.canMessage !== false;
   const cruushDisabled = sendingCruush || hasSentCruush || isAlreadyMutual;
+  const maskPhoto = Boolean(dlModeActive && user.photo && user.photoExplicit === true);
+
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const handleCruush = async () => {
     if (sendingCruush || hasSentCruush || isAlreadyMutual) {
@@ -79,8 +85,17 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
         className="relative w-full"
         style={{ ...PROFILE_CARD_MEDIA_ASPECT_STYLE, background: 'var(--cruush-gradient)' }}
       >
-        {user.photo ? (
+        {user.photo && !maskPhoto ? (
           <img src={resolveMediaUrl(user.photo)} alt={user.name} className="w-full h-full object-cover" style={PROFILE_CARD_MEDIA_ASPECT_STYLE} />
+        ) : maskPhoto ? (
+          <div
+            aria-label={user.name}
+            className="flex h-full w-full items-center justify-center"
+            role="img"
+            style={{ ...PROFILE_CARD_MEDIA_ASPECT_STYLE, background: getProfileGradientCss(user.id) }}
+          >
+            <Eye className="h-12 w-12 text-white/80" strokeWidth={2.35} />
+          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <CruushIcon name="cruush" className="h-24 w-24 opacity-20" />

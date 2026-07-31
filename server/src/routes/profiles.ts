@@ -111,6 +111,7 @@ type ProfileRow = {
   id: string;
   display_name: string | null;
   photos: string[] | null;
+  photo_metadata?: ProfilePhotoMetadata[] | null;
   bio: string | null;
   pronouns: string[] | null;
   custom_pronouns: string | null;
@@ -252,6 +253,29 @@ type ProfileLocationRow = {
   location_updated_at: string | Date | null;
   badges?: string[] | null;
 };
+
+type ProfilePhotoMetadata = {
+  url: string;
+  explicit: boolean;
+};
+
+function profilePhotoMetadataSelect(profileAlias = "profiles") {
+  return `coalesce((
+              select jsonb_agg(
+                jsonb_build_object(
+                  'url', photo.photo_url,
+                  'explicit', coalesce(media.explicit_classification = 'explicit', false)
+                )
+                order by photo.ordinality
+              )
+              from unnest(coalesce(${profileAlias}.photos, '{}'::text[])) with ordinality as photo(photo_url, ordinality)
+              left join media_objects media
+                on media.owner_user_id = ${profileAlias}.id
+               and media.public_url = photo.photo_url
+               and media.surface = 'profile_photo'
+               and media.deleted_at is null
+            ), '[]'::jsonb) as photo_metadata`;
+}
 
 const PROFILE_COLUMNS = [
   "id",
@@ -447,11 +471,23 @@ function mapProfileRow(
       : legacyKinks
       .map((kink) => legacyKinkToInterest(kink))
       .filter((interest): interest is ProfileKinkInterest => Boolean(interest));
+  const photos = row.photos ?? [];
+  const metadataByUrl = new Map(
+    (Array.isArray(row.photo_metadata) ? row.photo_metadata : [])
+      .filter((metadata) => typeof metadata?.url === "string")
+      .map((metadata) => [metadata.url, Boolean(metadata.explicit)])
+  );
+  const photoMetadata = photos.map((photo) => ({
+    url: photo,
+    explicit: metadataByUrl.get(photo) === true
+  }));
+
   return {
     id: row.id,
     ...emptyProfile,
     display_name: row.display_name ?? "",
-    photos: row.photos ?? [],
+    photos,
+    photo_metadata: photoMetadata,
     bio: row.bio ?? "",
     pronouns: row.pronouns ?? [],
     custom_pronouns: row.custom_pronouns ?? "",
@@ -1132,6 +1168,7 @@ async function loadProfileData(
 ) {
   const result = await app.db.query<ProfileRow>(
     `select ${PROFILE_COLUMNS.join(", ")},
+            ${profilePhotoMetadataSelect("profiles")},
             lat,
             lng,
             fuzzy_lat,

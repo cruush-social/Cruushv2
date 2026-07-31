@@ -111,6 +111,10 @@ export default function MapProfilePopup({
   const displayPronouns = profileView?.pronouns ?? user.pronouns;
   const displayPhoto = profileView?.photos[0] ?? user.photo;
   const displayPhotos = profileView?.photos ?? (user.photo ? [user.photo] : []);
+  const displayPhotoMetadata = profileView?.photoMetadata ?? (user.photo ? [{
+    url: user.photo,
+    explicit: user.photoExplicit === true,
+  }] : []);
   const displayBadges = profileView?.badges ?? user.badges;
   const displayDistance = profileView?.distance ?? user.distance;
   const displayLastActive = profileView?.lastActive ?? user.lastActive;
@@ -191,7 +195,12 @@ export default function MapProfilePopup({
     <aside className={popupClassName}>
       <div className="scrollbar-hide h-full overflow-y-auto">
         <div className="relative overflow-hidden">
-          <ProfilePhotoGallery name={displayName} photos={displayPhotos} />
+          <ProfilePhotoGallery
+            name={displayName}
+            photoMetadata={displayPhotoMetadata}
+            photos={displayPhotos}
+            userId={profileView?.id ?? user.id}
+          />
           <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
             <div className="rounded-full border border-white/10 bg-black/45 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/80 backdrop-blur-sm">
               {isOwnProfile ? 'Your profile' : 'Nearby now'}

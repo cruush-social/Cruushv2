@@ -58,6 +58,10 @@ function isPrivateMessageSurface(surface: ModerationSurface) {
   return surface === "direct_message" || surface === "group_message";
 }
 
+function adultExplicitProfilePhotosAllowed(surface: ModerationSurface) {
+  return surface === "profile_photo" || isPrivateMessageSurface(surface);
+}
+
 function isPhotoSurface(surface: ModerationSurface, contentType: ModerationContentType) {
   return contentType === "image" || surface === "profile_photo" || surface === "private_photo";
 }
@@ -214,7 +218,7 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
   }
 
   if (normalizedLabel === "adult_nudity" || normalizedLabel === "adult_explicit") {
-    if (!isPrivateMessageSurface(surface) && label.confidence >= 0.85) {
+    if (!adultExplicitProfilePhotosAllowed(surface) && label.confidence >= 0.85) {
       return baseDecision({
         decision: "reject",
         category: normalizedLabel,
@@ -234,7 +238,9 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
       category: normalizedLabel,
       severity: label.severity ?? "low",
       confidence: label.confidence,
-      reason_code: isPrivateMessageSurface(surface)
+      reason_code: surface === "profile_photo"
+        ? "profile_photo_nudity_allowed"
+        : isPrivateMessageSurface(surface)
         ? "private_message_nudity_allowed"
         : "adult_content_below_rejection_threshold"
     });
@@ -449,8 +455,18 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
       label.normalized_label === "adult_nudity" || label.normalized_label === "adult_explicit"
     )
   );
+  const isAllowedAdultProfilePhoto = (
+    input.surface === "profile_photo" &&
+    input.contentType === "image" &&
+    input.providerResult.labels.some((label) =>
+      label.normalized_label === "adult_nudity" || label.normalized_label === "adult_explicit"
+    ) &&
+    input.providerResult.labels.every((label) =>
+      ["adult_human_body", "human_present", "adult_nudity", "adult_explicit"].includes(label.normalized_label)
+    )
+  );
 
-  if (decision.decision === "allow" && isPrivateAdultImageOnly) {
+  if (decision.decision === "allow" && (isPrivateAdultImageOnly || isAllowedAdultProfilePhoto)) {
     return decision;
   }
 

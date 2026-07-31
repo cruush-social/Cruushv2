@@ -8,6 +8,7 @@ interface HeartPhotoProps {
   className?: string;
   fallback?: ReactNode;
   label: string;
+  masked?: boolean;
   photo?: string | null;
   theme?: 'current' | 'mutual' | 'nearby';
   userId?: string | null;
@@ -36,6 +37,7 @@ export default function HeartPhoto({
   className = '',
   fallback = null,
   label,
+  masked = false,
   photo = null,
   theme = 'nearby',
   userId = null,
@@ -44,9 +46,10 @@ export default function HeartPhoto({
   const patternId = `heart-photo-${id}`;
   const gradientId = `heart-gradient-${id}`;
   const resolvedTheme = HEART_THEME[theme];
-  const gradientStops = !photo && userId ? getProfileGradientStops(userId) : resolvedTheme.stops;
+  const showPhoto = Boolean(photo && !masked);
+  const gradientStops = (!showPhoto && userId) ? getProfileGradientStops(userId) : resolvedTheme.stops;
   const resolvedBorderColor = borderColor ?? resolvedTheme.border;
-  const resolvedPhoto = photo ? resolveMediaUrl(photo) : null;
+  const resolvedPhoto = showPhoto && photo ? resolveMediaUrl(photo) : null;
 
   return (
     <div className={`relative aspect-square ${className}`.trim()}>

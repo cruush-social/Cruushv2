@@ -229,7 +229,7 @@ export function classifyProfilePhotoSafety(
     });
   }
 
-  const recommendedAction = childGate.outcome === "minor" || hasAnimal || !hasHuman || moderationLabels.length > 0
+  const recommendedAction = childGate.outcome === "minor" || hasAnimal || !hasHuman
     ? "remove"
     : "keep";
 

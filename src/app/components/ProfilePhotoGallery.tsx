@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Eye } from 'lucide-react';
 import CruushIconImage from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { PROFILE_HERO_ASPECT_STYLE, PROFILE_HERO_MEDIA_STYLE, PROFILE_HERO_VIEWPORT_STYLE } from '../lib/photoLayout';
+import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { getProfileGradientCss } from '../lib/profileGradient';
+import type { ProfilePhotoMetadata } from '../lib/profileApi';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import ReportAction from './ReportAction';
 
@@ -11,26 +15,38 @@ interface ProfilePhotoGalleryProps {
   fallbackLabel?: string;
   name: string;
   photos: string[];
+  photoMetadata?: ProfilePhotoMetadata[];
   reportTargetUserId?: string;
+  userId?: string | null;
 }
 
 export default function ProfilePhotoGallery({
   fitViewport = false,
   fallbackLabel = 'Profile photo',
   name,
+  photoMetadata = [],
   photos,
   reportTargetUserId,
+  userId = null,
 }: ProfilePhotoGalleryProps) {
   const visiblePhotos = useMemo(() => photos.slice(0, 4), [photos]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const explicitPhotoUrls = useMemo(() => new Set(
+    photoMetadata
+      .filter((metadata) => metadata.explicit)
+      .map((metadata) => metadata.url)
+  ), [photoMetadata]);
 
   useEffect(() => {
     if (activeIndex >= visiblePhotos.length) {
       setActiveIndex(0);
     }
   }, [activeIndex, visiblePhotos.length]);
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const activePhoto = visiblePhotos[activeIndex] ?? null;
+  const activePhotoMasked = Boolean(activePhoto && dlModeActive && explicitPhotoUrls.has(activePhoto));
   const previewPhotos = visiblePhotos
     .map((photo, index) => ({
       index,
@@ -46,13 +62,22 @@ export default function ProfilePhotoGallery({
       className="relative w-full overflow-hidden"
       style={{ ...mediaStyle, background: 'var(--cruush-gradient)' }}
     >
-      {activePhoto ? (
+      {activePhoto && !activePhotoMasked ? (
         <img
           src={resolveMediaUrl(activePhoto)}
           alt={name}
           className="h-full w-full object-cover"
           style={PROFILE_HERO_ASPECT_STYLE}
         />
+      ) : activePhotoMasked ? (
+        <div
+          aria-label={name}
+          className="flex h-full w-full items-center justify-center"
+          role="img"
+          style={{ ...PROFILE_HERO_ASPECT_STYLE, background: getProfileGradientCss(userId ?? activePhoto) }}
+        >
+          <Eye className="h-12 w-12 text-white/80" strokeWidth={2.35} />
+        </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center">
           <CruushIconImage src={cruushIconWhite} className="h-24 w-24 opacity-15" />
@@ -90,8 +115,10 @@ export default function ProfilePhotoGallery({
             >
               <HeartPhoto
                 label={`${fallbackLabel} ${index + 1}`}
+                masked={dlModeActive && explicitPhotoUrls.has(photo)}
                 photo={photo}
                 className="h-full w-full"
+                userId={userId ?? photo}
               />
             </button>
           ))}

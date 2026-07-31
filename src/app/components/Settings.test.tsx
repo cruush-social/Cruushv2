@@ -16,6 +16,10 @@ const { changePassword, deleteAccount, sendVerificationEmail, signOut } = vi.hoi
   signOut: vi.fn(),
 }));
 
+const { getMyProfile } = vi.hoisted(() => ({
+  getMyProfile: vi.fn(),
+}));
+
 const { getBlockedUsers, unblockUser } = vi.hoisted(() => ({
   getBlockedUsers: vi.fn(),
   unblockUser: vi.fn(),
@@ -62,6 +66,15 @@ vi.mock('../lib/authApi', () => ({
   signOut,
 }));
 
+vi.mock('../lib/profileApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi');
+
+  return {
+    ...actual,
+    getMyProfile,
+  };
+});
+
 vi.mock('../lib/blockApi', () => ({
   getBlockedUsers,
   unblockUser,
@@ -87,6 +100,7 @@ describe('Settings', () => {
     deleteAccount.mockReset();
     sendVerificationEmail.mockReset();
     signOut.mockReset();
+    getMyProfile.mockReset();
     getBlockedUsers.mockReset();
     unblockUser.mockReset();
     toastSuccess.mockReset();
@@ -101,6 +115,13 @@ describe('Settings', () => {
       email_verified_at: '2026-04-29T12:00:00.000Z',
     });
     getVerificationPreviewUrl.mockReturnValue(null);
+    getMyProfile.mockResolvedValue({
+      id: 'settings-user',
+      display_name: 'Jordan',
+      photos: ['/api/media/assets/photo-1/display'],
+      photo_metadata: [{ url: '/api/media/assets/photo-1/display', explicit: false }],
+      updated_at: '2026-07-31T00:00:00.000Z',
+    });
     getMyPrivacySettings.mockResolvedValue({
       ghostModeEnabled: false,
       preciseLocationVisibility: 'none',

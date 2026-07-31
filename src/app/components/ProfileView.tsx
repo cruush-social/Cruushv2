@@ -36,6 +36,7 @@ export type ProfileViewModel = {
   distance: string | null;
   lastActive: string | null;
   photos: string[];
+  photoMetadata: NonNullable<ProfileRecord['photo_metadata']>;
   badges: ProfileRecord['badges'];
   bio: string;
   identities: string[];
@@ -91,6 +92,7 @@ export function profileRecordToProfileView(
     distance: previewState?.distance ?? null,
     lastActive: previewState?.lastActive ?? null,
     photos: profile.photos,
+    photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: false })),
     badges: profile.badges ?? [],
     bio: profile.bio,
     identities: profile.identities,
@@ -358,8 +360,10 @@ export default function ProfileView() {
         <ProfilePhotoGallery
           fitViewport
           name={profileView.name}
+          photoMetadata={profileView.photoMetadata}
           photos={profileView.photos}
           reportTargetUserId={isOwnProfile ? undefined : userId}
+          userId={profileView.id}
         />
       </div>
 

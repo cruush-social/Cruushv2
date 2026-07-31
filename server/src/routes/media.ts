@@ -319,7 +319,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
        where media.id = $1
          and variant.variant_type = $2
          and media.moderation_status = 'approved'
-         and (media.surface = 'message_photo' or media.explicit_classification = 'non_explicit')
+         and media.surface in ('message_photo', 'profile_photo')
          and media.deleted_at is null
          and variant.deleted_at is null
        limit 1`,
@@ -480,6 +480,9 @@ export async function registerMediaRoutes(app: FastifyInstance) {
         filename: upload.filename,
         moderationSurface: "profile_photo"
       });
+      const isAdultExplicit = asset.moderation.labels.some((label) =>
+        label.normalized_label === "adult_nudity" || label.normalized_label === "adult_explicit"
+      );
 
       const savedPhotoResult = await app.db.query<{ photos: string[] | null }>(
         `with eligible_user as (
@@ -531,7 +534,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
                moderation_scores = $7::jsonb,
                moderation_decided_at = now(),
                moderation_failure_reason = null,
-               explicit_classification = 'non_explicit',
+               explicit_classification = case when $12 then 'explicit' else 'non_explicit' end,
                photodna_status = $10,
                photodna_provider_request_id = $11,
                content_review_id = moderation_review.id
@@ -562,7 +565,8 @@ export async function registerMediaRoutes(app: FastifyInstance) {
           JSON.stringify(asset.moderation.decision),
           JSON.stringify(asset.moderation.rawResult),
           asset.moderation.photoDnaStatus,
-          asset.moderation.photoDnaProviderRequestId
+          asset.moderation.photoDnaProviderRequestId,
+          isAdultExplicit
         ]
       );
       if (!savedPhotoResult.rows[0]) {
@@ -571,7 +575,8 @@ export async function registerMediaRoutes(app: FastifyInstance) {
 
       return reply.code(201).send({
         data: {
-          url: asset.displayUrl
+          url: asset.displayUrl,
+          explicit: isAdultExplicit
         }
       });
     } catch (error) {
