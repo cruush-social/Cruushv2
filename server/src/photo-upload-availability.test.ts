@@ -93,9 +93,6 @@ describe("deployed photo upload availability", () => {
 
     expect(photoUploadAvailability({
       ...baseConfig,
-      STREAM_IMAGE_BRIDGE_ENABLED: true,
-      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
-      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
       ALPHA_TEST_ENABLED: true,
       ALPHA_TEST_ENDS_AT: "2020-07-28T23:59:00-04:00"
     })).toEqual({

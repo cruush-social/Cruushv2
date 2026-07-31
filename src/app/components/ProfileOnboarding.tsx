@@ -53,7 +53,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   crowds: {
     rite: 'find your crowd',
     title: 'Which crowds should know you are here?',
-    detail: 'Pick any that apply.',
+    detail: 'Pick up to three.',
   },
   lookingFor: {
     rite: 'declare your hunger',
@@ -83,7 +83,21 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
 };
 
 function limitToThree(values: string[]) {
-  return values.slice(0, 3);
+  const seen = new Set<string>();
+  const nextValues: string[] = [];
+
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const value = values[index]?.trim();
+
+    if (!value || seen.has(value)) {
+      continue;
+    }
+
+    seen.add(value);
+    nextValues.unshift(value);
+  }
+
+  return nextValues.slice(-3);
 }
 
 type OnboardingProfileState = {
@@ -465,6 +479,7 @@ export default function ProfileOnboarding({
                   <label className="text-sm mb-2 block text-white/82">Pronouns</label>
                   <MultiSelect
                     ariaLabel="Pronouns"
+                    maxSelections={3}
                     options={PRONOUNS}
                     value={profile.pronouns}
                     onChange={(values) => setProfileField('pronouns', limitToThree(values))}
@@ -503,6 +518,7 @@ export default function ProfileOnboarding({
                   <label className="text-sm mb-2 block text-white/82">Crowds</label>
                   <MultiSelect
                     ariaLabel="Crowds"
+                    maxSelections={3}
                     options={availableCrowds}
                     value={profile.crowds}
                     onChange={(values) => setProfileField('crowds', limitToThree(values))}
@@ -516,6 +532,7 @@ export default function ProfileOnboarding({
                   <label className="text-sm mb-2 block text-white/82">Looking For</label>
                   <MultiSelect
                     ariaLabel="Looking For"
+                    maxSelections={3}
                     options={LOOKING_FOR}
                     value={profile.lookingFor}
                     onChange={(values) => setProfileField('lookingFor', limitToThree(values))}
@@ -529,6 +546,7 @@ export default function ProfileOnboarding({
                   <label className="text-sm mb-2 block text-white/82">Vibes</label>
                   <MultiSelect
                     ariaLabel="Vibes"
+                    maxSelections={3}
                     optionGroups={VIBE_GROUPS}
                     value={profile.vibes}
                     onChange={(values) => setProfileField('vibes', limitToThree(values))}

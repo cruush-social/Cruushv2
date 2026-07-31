@@ -211,7 +211,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
-      identities: ['trans man', 'trans woman', 'nonbinary'],
+      identities: ['trans woman', 'nonbinary', 'woman'],
       is_trans: true,
       crowds: ['T4T'],
     })));
@@ -292,6 +292,7 @@ describe('ProfileOnboarding', () => {
     await fillProfileRites();
 
     expect(screen.getByText('protect your key')).toBeInTheDocument();
+    expect(screen.getByText('Use the same password you use to sign in. This is not a separate 2FA password.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/cruush login password/i), {
       target: { value: 'current-password' },
     });

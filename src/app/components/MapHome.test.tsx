@@ -132,9 +132,13 @@ vi.mock('../lib/privacyApi', async () => {
   };
 });
 
-vi.mock('../lib/billingApi', () => ({
-  getMyBillingStatus,
-}));
+vi.mock('../lib/billingApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/billingApi')>('../lib/billingApi');
+  return {
+    ...actual,
+    getMyBillingStatus,
+  };
+});
 
 vi.mock('../lib/eventsApi', () => ({
   getActiveEvents,
@@ -269,6 +273,8 @@ describe('MapHome', () => {
     toastSuccess.mockReset();
     toastError.mockReset();
     window.sessionStorage.clear();
+    window.localStorage.clear();
+    window.localStorage.setItem('cruush:map-controls-intro-seen', 'true');
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -764,6 +770,40 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 
+  it('shows the map controls intro once and dismisses it permanently', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.localStorage.removeItem('cruush:map-controls-intro-seen');
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Map controls' })).toBeInTheDocument();
+    expect(screen.getByText(/Seeking changes who appears on your map/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Map controls' })).not.toBeInTheDocument());
+    expect(window.localStorage.getItem('cruush:map-controls-intro-seen')).toBe('true');
+
+    unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: /^seeking$/i });
+    expect(screen.queryByRole('heading', { name: 'Map controls' })).not.toBeInTheDocument();
+  });
+
   it('keeps visibility controls manual without saved-set affordances', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
@@ -790,7 +830,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
     expect(screen.queryByText('Saved sets')).not.toBeInTheDocument();
     expect(screen.queryByText('Upgrade for saved sets')).not.toBeInTheDocument();
-    expect(screen.getByText('Free accounts can hide from up to 3 filter groups.')).toBeInTheDocument();
+    expect(screen.getByText('Free accounts can hide from up to 3 audiences.')).toBeInTheDocument();
     expect(screen.getByLabelText('Distance')).toBeInTheDocument();
   });
 

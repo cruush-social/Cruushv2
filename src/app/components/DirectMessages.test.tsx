@@ -10,6 +10,10 @@ const { createGroupConversation, deleteConversationForEveryone, getConversations
   getMyCruushActivity: vi.fn(),
 }));
 
+const { openConversationOrInbox } = vi.hoisted(() => ({
+  openConversationOrInbox: vi.fn(),
+}));
+
 vi.mock('../lib/messagesApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/messagesApi')>('../lib/messagesApi');
 
@@ -30,12 +34,17 @@ vi.mock('../lib/cruushApi', async () => {
   };
 });
 
+vi.mock('../lib/openConversation', () => ({
+  openConversationOrInbox,
+}));
+
 describe('DirectMessages', () => {
   beforeEach(() => {
     createGroupConversation.mockReset();
     deleteConversationForEveryone.mockReset();
     getConversations.mockReset();
     getMyCruushActivity.mockReset();
+    openConversationOrInbox.mockReset();
   });
 
   it('shows an empty live inbox without preview conversations', async () => {
@@ -188,7 +197,8 @@ describe('DirectMessages', () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Create group chat' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Create group message/ }));
     expect(await screen.findByText('River')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Group name'), {
@@ -207,5 +217,42 @@ describe('DirectMessages', () => {
         disappearingTimer: '1h',
       });
     });
+  });
+
+  it('starts a direct chat with a mutual from the plus menu', async () => {
+    getConversations.mockResolvedValue([]);
+    getMyCruushActivity.mockResolvedValue({
+      mutual: [{
+        id: 'mutual-row-1',
+        matchId: 'match-1',
+        createdAt: '2026-04-29T12:00:00.000Z',
+        locked: false,
+        user: {
+          id: '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        mutualCrowds: [],
+        vibes: [],
+        distance: 'Nearby',
+        lastActive: 'now',
+        canMessage: true,
+        canRevealPreciseLocation: false,
+        coordinates: null,
+      }],
+    });
+
+    render(
+      <MemoryRouter>
+        <DirectMessages />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Start chat with mutual/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /River/ }));
+
+    expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
   });
 });

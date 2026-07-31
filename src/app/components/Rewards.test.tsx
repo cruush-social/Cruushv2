@@ -133,7 +133,8 @@ describe('Rewards', () => {
     renderRewards();
     await screen.findByText('6-day streak');
 
-    fireEvent.change(screen.getByPlaceholderText('Current password'), {
+    expect(screen.getByText('Use the same password you use to sign in. This is not a separate 2FA password.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('cruush login password'), {
       target: { value: 'correct-password' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Set up authenticator app' }));

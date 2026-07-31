@@ -53,7 +53,8 @@ import {
 } from '../lib/profileOptions';
 
 const MAX_PROFILE_PHOTOS = 4;
-const MAX_GENDER_IDENTITIES = 3;
+const MAX_PROFILE_GROUP_SELECTIONS = 3;
+const MAX_GENDER_IDENTITIES = MAX_PROFILE_GROUP_SELECTIONS;
 const PROFILE_PHOTO_LOAD_ERROR = 'This image could not be loaded. Try a JPG, PNG, or WebP file.';
 
 const VISIBILITY_OPTION_LABELS = PROFILE_VISIBILITY_OPTIONS.map((option) => option.label);
@@ -88,12 +89,34 @@ function uniqueValues(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
+function latestUniqueValues(values: string[]) {
+  const seen = new Set<string>();
+  const nextValues: string[] = [];
+
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const value = values[index]?.trim();
+
+    if (!value || seen.has(value)) {
+      continue;
+    }
+
+    seen.add(value);
+    nextValues.unshift(value);
+  }
+
+  return nextValues;
+}
+
 function singleValue(values: string[] = []) {
-  return uniqueValues(values).slice(0, 1);
+  return latestUniqueValues(values).slice(-1);
+}
+
+function limitToThree(values: string[] = []) {
+  return latestUniqueValues(values).slice(-MAX_PROFILE_GROUP_SELECTIONS);
 }
 
 function limitGenderIdentities(values: string[]) {
-  return uniqueValues(values).slice(0, MAX_GENDER_IDENTITIES);
+  return limitToThree(values);
 }
 
 function canvasToJpegFile(canvas: HTMLCanvasElement) {
@@ -386,14 +409,14 @@ function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRule
   return {
     ...emptyProfilePayload.visibility_rules,
     ...rules,
-    active_crowd_modes: normalizeCrowdValues(rules.active_crowd_modes ?? []).filter((crowd) => allowedActiveCrowds.has(crowd)),
+    active_crowd_modes: normalizeCrowdValues(rules.active_crowd_modes ?? []).filter((crowd) => allowedActiveCrowds.has(crowd)).slice(0, MAX_PROFILE_GROUP_SELECTIONS),
     identities: uniqueValues(rules.identities ?? []),
     presentations: uniqueValues(rules.presentations ?? []),
     looking_for: uniqueValues(rules.looking_for ?? []),
     timing: uniqueValues(rules.timing ?? []),
     hosting: uniqueValues(rules.hosting ?? []),
     vibes: uniqueValues(rules.vibes ?? []),
-    crowds: normalizeCrowdValues(rules.crowds ?? []),
+    crowds: normalizeCrowdValues(rules.crowds ?? []).slice(0, MAX_PROFILE_GROUP_SELECTIONS),
     hobbies: uniqueValues(rules.hobbies ?? []),
     positions: uniqueValues(rules.positions ?? []),
     roles: uniqueValues(rules.roles ?? []),
@@ -411,18 +434,18 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     display_name: getSaveDisplayName(profile),
     photos: profile.photos ?? [],
     bio: (profile.bio ?? '').trim(),
-    pronouns: profile.pronouns ?? [],
+    pronouns: limitToThree(profile.pronouns ?? []),
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
     year_of_birth: profile.year_of_birth ?? null,
     ethnicity: profile.ethnicity ?? '',
     identities: limitGenderIdentities(profile.identities ?? []),
     presentation: profile.presentation ?? [],
     sexuality: profile.sexuality ?? [],
-    body_type: profile.body_type ?? [],
+    body_type: limitToThree(profile.body_type ?? []),
     height: profile.height ?? '',
     weight: profile.weight ?? '',
-    position: profile.position ?? [],
-    role: profile.role ?? [],
+    position: singleValue(profile.position ?? []),
+    role: singleValue(profile.role ?? []),
     is_trans: profile.is_trans ?? null,
     trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
@@ -431,12 +454,12 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     kinks: profile.kinks ?? [],
     kink_interests: sanitizeKinkInterests(profile),
     kinks_visibility: profile.kinks_visibility ?? 'public',
-    vibes: mergeCategorizedVibes(profile),
+    vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
     hobbies: profile.hobbies ?? [],
     custom_hobby: (profile.custom_hobby ?? '').trim(),
-    looking_for: profile.looking_for ?? [],
+    looking_for: limitToThree(profile.looking_for ?? []),
     hiv_status: singleValue(profile.hiv_status ?? []),
     hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     custom_hiv_status: (profile.custom_hiv_status ?? '').trim(),
@@ -708,9 +731,9 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     identities: limitGenderIdentities(profile.identities || []),
     presentation: profile.presentation || [],
     sexuality: profile.sexuality || [],
-    body_type: profile.body_type || [],
-    position: profile.position || [],
-    role: profile.role || [],
+    body_type: limitToThree(profile.body_type || []),
+    position: singleValue(profile.position || []),
+    role: singleValue(profile.role || []),
     is_trans: profile.is_trans ?? null,
     trans_status_visibility: profile.trans_status_visibility ?? FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
@@ -719,11 +742,11 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     kinks: profile.kinks || [],
     kink_interests: profile.kink_interests || [],
     kinks_visibility: profile.kinks_visibility || 'public',
-    vibes: mergeCategorizedVibes(profile),
+    vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
     hobbies: profile.hobbies || [],
-    looking_for: profile.looking_for || [],
+    looking_for: limitToThree(profile.looking_for || []),
     hiv_status: singleValue(profile.hiv_status || []),
     hiv_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     condoms: profile.condoms || [],
@@ -862,7 +885,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Looking For</Label>
-              <MultiSelect {...profileMenuProps} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', vals)} />
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', limitToThree(vals))} />
             </div>
 
             <div className="space-y-2">
@@ -880,9 +903,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <MultiSelect
                 {...profileMenuProps}
                 ariaLabel="Vibes"
+                maxSelections={MAX_PROFILE_GROUP_SELECTIONS}
                 optionGroups={VIBE_GROUPS}
                 value={normalizedProfile.vibes}
-                onChange={(vals) => handleChange('vibes', vals)}
+                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
               />
             </div>
           </TabsContent>
@@ -901,7 +925,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Pronouns</Label>
-              <MultiSelect {...profileMenuProps} options={PRONOUNS} value={normalizedProfile.pronouns} onChange={(vals) => handleChange('pronouns', vals)} />
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={PRONOUNS} value={normalizedProfile.pronouns} onChange={(vals) => handleChange('pronouns', limitToThree(vals))} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -966,6 +990,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <MultiSelect
                   {...profileMenuProps}
                   ariaLabel="Crowds"
+                  maxSelections={MAX_PROFILE_GROUP_SELECTIONS}
                   options={normalizedProfile.is_trans === true ? CROWDS : CROWDS.filter((crowd) => crowd !== 'T4T')}
                   value={normalizedProfile.crowds}
                   onChange={handleCrowdsChange}
@@ -975,7 +1000,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Body Type</Label>
-              <MultiSelect {...profileMenuProps} ariaLabel="Body Type" options={BODY_TYPES} value={normalizedProfile.body_type} onChange={(vals) => handleChange('body_type', vals)} />
+              <MultiSelect {...profileMenuProps} ariaLabel="Body Type" maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={BODY_TYPES} value={normalizedProfile.body_type} onChange={(vals) => handleChange('body_type', limitToThree(vals))} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

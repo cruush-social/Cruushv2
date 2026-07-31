@@ -27,10 +27,10 @@ function selectVisibilityOption(label: string, option: string) {
 }
 
 describe('MapVisibilitySurface', () => {
-  it('limits free users to three hidden-audience filter groups', () => {
+  it('limits free users to three hidden audiences', () => {
     render(<VisibilityHarness />);
 
-    expect(screen.getByText('Free accounts can hide from up to 3 filter groups.')).toBeInTheDocument();
+    expect(screen.getByText('Free accounts can hide from up to 3 audiences.')).toBeInTheDocument();
     expect(screen.getByText('Pick who should not see you. Crowd Mode is different: it makes you visible only to the active crowds you choose.')).toBeInTheDocument();
 
     selectVisibilityOption('Gender Identities', 'man');
@@ -45,7 +45,7 @@ describe('MapVisibilitySurface', () => {
     expect(screen.getByTestId('hidden-body-types')).toHaveTextContent('');
   });
 
-  it('lets cruush+ users use more than three hidden-audience filter groups', () => {
+  it('lets cruush+ users use more than three hidden audiences', () => {
     render(<VisibilityHarness hasCruushPlus />);
 
     selectVisibilityOption('Gender Identities', 'man');

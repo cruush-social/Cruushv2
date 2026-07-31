@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Lock,
+  Plus,
+  X,
 } from 'lucide-react';
 import HeartPhoto from './HeartPhoto';
 import CruushBadge from './CruushBadge';
@@ -15,7 +17,6 @@ import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
-import cruushLogo from '../assets/brand/cruush-logo.svg';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 
@@ -324,6 +325,8 @@ export default function CruushActivity() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingCruushUserIds, setPendingCruushUserIds] = useState<Set<string>>(() => new Set());
+  const [composeChooserOpen, setComposeChooserOpen] = useState(false);
+  const [directComposerOpen, setDirectComposerOpen] = useState(false);
 
   const fetchCruushActivity = async () => {
     setError(null);
@@ -394,8 +397,15 @@ export default function CruushActivity() {
   const openProfile = (userId: string) => navigate(`/profile/${userId}`);
   const openMutualOnMap = (userId: string) => navigate(`/map?mode=mutuals&focusUserId=${encodeURIComponent(userId)}`);
   const openMessage = (userId: string) => {
+    setDirectComposerOpen(false);
     void openConversationOrInbox(navigate, userId);
   };
+  const openGroupComposer = () => {
+    setComposeChooserOpen(false);
+    navigate('/messages?compose=group');
+  };
+
+  const messageableMutuals = (activity?.mutual ?? []).filter((item) => item.canMessage !== false);
 
   const lockedIncomingCount = Math.max(0, (activity?.counts.incoming ?? 0) - (activity?.incoming.filter((item) => !item.locked).length ?? 0));
   const lockedViewsCount = Math.max(0, (activity?.counts.views ?? 0) - (activity?.views.filter((item) => !item.locked).length ?? 0));
@@ -404,25 +414,36 @@ export default function CruushActivity() {
     <div className="h-dvh overflow-y-scroll bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] [scrollbar-gutter:stable]">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
         <header className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-          <div className="mx-auto w-full max-w-6xl">
-            <div className="grid grid-cols-[44px_1fr_44px] items-center">
-              <div />
-              <div className="flex justify-center">
-                <img alt="cruush" className="h-[4.375rem] w-auto object-contain" src={cruushLogo} draggable={false} />
+          <div className="mx-auto w-full max-w-2xl space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-3xl leading-none text-white">cruush</h2>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="rounded-full text-white/78 hover:bg-white/10"
-                aria-label="Open cruush match settings"
-                onClick={() => navigate('/cruush/settings')}
-              >
-                <CruushIcon name="settings" className="h-5 w-5" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="icon"
+                  className="rounded-full text-white"
+                  aria-label="New cruush chat"
+                  title="New cruush chat"
+                  onClick={() => setComposeChooserOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full text-white/78 hover:bg-white/10"
+                  aria-label="Open cruush match settings"
+                  onClick={() => navigate('/cruush/settings')}
+                >
+                  <CruushIcon name="settings" className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
 
-            <div data-testid="cruush-count-grid" className="mt-3 grid grid-cols-[repeat(4,minmax(0,1fr))] gap-2">
+            <div data-testid="cruush-count-grid" className="grid grid-cols-[repeat(4,minmax(0,1fr))] gap-2">
               {(['incoming', 'sent', 'mutual', 'views'] as ActivityTab[]).map((tab) => (
                 <div key={tab} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
                   <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/46">{tab}</p>
@@ -433,7 +454,7 @@ export default function CruushActivity() {
 
             <TabsList
               data-testid="cruush-tab-grid"
-              className="mt-3 grid h-auto w-full grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+              className="grid h-auto w-full grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
             >
               <ActivityTabButton value="incoming" label="incoming" />
               <ActivityTabButton value="sent" label="sent" />
@@ -443,7 +464,26 @@ export default function CruushActivity() {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl px-4 pt-4">
+        {composeChooserOpen ? (
+          <ComposeChoiceOverlay
+            onClose={() => setComposeChooserOpen(false)}
+            onStartDirect={() => {
+              setComposeChooserOpen(false);
+              setDirectComposerOpen(true);
+            }}
+            onStartGroup={openGroupComposer}
+          />
+        ) : null}
+
+        {directComposerOpen ? (
+          <MutualDirectOverlay
+            mutuals={messageableMutuals}
+            onClose={() => setDirectComposerOpen(false)}
+            onMessage={openMessage}
+          />
+        ) : null}
+
+        <main className="mx-auto w-full max-w-2xl px-4 pt-4">
               {error ? (
                 <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                   {error}
@@ -547,6 +587,106 @@ function ActivitySurface({
   return (
     <div className="w-full rounded-lg border border-white/10 bg-black/72 px-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
       {children}
+    </div>
+  );
+}
+
+function ComposeChoiceOverlay({
+  onClose,
+  onStartDirect,
+  onStartGroup,
+}: {
+  onClose: () => void;
+  onStartDirect: () => void;
+  onStartGroup: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 text-white backdrop-blur-md">
+      <div className="mx-auto max-w-2xl space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/52">new chat</p>
+            <h3 className="text-2xl">Start a conversation</h3>
+          </div>
+          <Button type="button" variant="ghost" size="icon" aria-label="Close chat options" onClick={onClose}>
+            <X className="size-4" />
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          <button
+            type="button"
+            className="w-full rounded-lg border border-white/10 bg-card/80 p-4 text-left transition hover:bg-white/8"
+            onClick={onStartDirect}
+          >
+            <span className="block text-base text-white">Start chat with mutual</span>
+            <span className="mt-1 block text-sm text-white/58">Pick one mutual cruush and open a direct chat.</span>
+          </button>
+          <button
+            type="button"
+            className="w-full rounded-lg border border-white/10 bg-card/80 p-4 text-left transition hover:bg-white/8"
+            onClick={onStartGroup}
+          >
+            <span className="block text-base text-white">Create group message</span>
+            <span className="mt-1 block text-sm text-white/58">Choose mutual cruushes for a group thread.</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MutualDirectOverlay({
+  mutuals,
+  onClose,
+  onMessage,
+}: {
+  mutuals: MutualCruushActivityItem[];
+  onClose: () => void;
+  onMessage: (userId: string) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 text-white backdrop-blur-md">
+      <div className="mx-auto max-w-2xl space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-white/52">mutual chat</p>
+            <h3 className="text-2xl">Choose a mutual</h3>
+          </div>
+          <Button type="button" variant="ghost" size="icon" aria-label="Close mutual picker" onClick={onClose}>
+            <X className="size-4" />
+          </Button>
+        </div>
+
+        {mutuals.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-white/12 bg-card/60 p-5 text-sm text-white/58">
+            No mutual cruushes available.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {mutuals.map((item) => (
+              <button
+                key={item.user.id}
+                type="button"
+                className="flex w-full items-center gap-3 rounded-lg border border-white/10 bg-card/70 p-3 text-left transition hover:bg-white/8"
+                onClick={() => onMessage(item.user.id)}
+              >
+                <HeartPhoto
+                  className="w-14 shrink-0"
+                  label={`${item.user.name} avatar`}
+                  photo={item.user.photo}
+                  userId={item.user.id}
+                  fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-25" />}
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-white">{item.user.name}</span>
+                  <span className="block text-xs text-white/52">{item.distance}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -4,5 +4,5 @@ export const CODE_OF_CONDUCT_ITEMS = [
   'Adults only. No minors, CSAM, non-consensual sexual content, revenge porn, bestiality, or gore.',
   'Keep private things private. No doxxing, location abuse, or sharing private chats/photos without consent.',
   'No scams, spam, drug sales, or commercial sex solicitation.',
-  'Blocks are final. Reports should be used when someone crosses the line.',
+  'Use blocks for boundaries. Use reports when someone crosses the line.',
 ];

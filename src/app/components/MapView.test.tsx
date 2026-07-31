@@ -734,8 +734,10 @@ describe('MapView', () => {
     );
 
     const marker = await screen.findByRole('button', { name: 'Open The Chocolate Factory launch party on map' });
+    const partyHat = screen.getByTestId('launch-party-marker-event-the-chocolate-factory-launch');
     expect(marker).toHaveAttribute('data-map-marker-kind', 'event');
-    expect(screen.getByTestId('launch-party-marker-event-the-chocolate-factory-launch')).toHaveClass('animate-cruush-party-dance');
+    expect(partyHat).toHaveClass('animate-cruush-party-dance');
+    expect(partyHat).not.toHaveClass('rounded-full', 'border', 'bg-black/82');
     fireEvent.click(marker);
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ kind: 'event' }));
   });

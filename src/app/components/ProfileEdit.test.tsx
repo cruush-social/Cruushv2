@@ -532,7 +532,7 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
-      identities: ['trans man', 'trans woman', 'nonbinary'],
+      identities: ['trans woman', 'nonbinary', 'woman'],
       is_trans: true,
       trans_status_visibility: 'mutual_cruushes',
       crowds: ['T4T', 'Dyke'],

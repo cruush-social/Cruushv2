@@ -66,6 +66,30 @@ const adultDateOfBirthSchema = z.string()
 
 const shortStringField = optionalSingleLineTextSchema(120);
 const arrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(25).optional().default([]);
+const cappedArrayField = (max: number) =>
+  z.array(singleLineTextSchema({ min: 1, max: 120 }))
+    .max(25)
+    .optional()
+    .default([])
+    .transform((values) => {
+      const seen = new Set<string>();
+      const nextValues: string[] = [];
+
+      for (let index = values.length - 1; index >= 0; index -= 1) {
+        const value = values[index]?.trim();
+
+        if (!value || seen.has(value)) {
+          continue;
+        }
+
+        seen.add(value);
+        nextValues.unshift(value);
+      }
+
+      return nextValues.slice(-max);
+    });
+const upToThreeArrayField = cappedArrayField(3);
+const singleArrayField = cappedArrayField(1);
 const kinkArrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(50).optional().default([]);
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
@@ -129,19 +153,19 @@ export const profilePayloadSchema = z.object({
   display_name: singleLineTextSchema({ min: 2, max: 80 }),
   photos: z.array(appOwnedProfilePhotoPathSchema).max(4).optional().default([]),
   bio: multilineTextSchema({ max: 2000 }).optional().default(""),
-  pronouns: arrayField,
+  pronouns: upToThreeArrayField,
   custom_pronouns: shortStringField,
   year_of_birth: z.number().int().min(currentYear - 120).max(currentYear - 18).nullable().optional().default(null),
   date_of_birth: adultDateOfBirthSchema.optional(),
   ethnicity: optionalSingleLineTextSchema(120),
-  identities: arrayField,
+  identities: upToThreeArrayField,
   presentation: arrayField,
   sexuality: arrayField,
-  body_type: arrayField,
+  body_type: upToThreeArrayField,
   height: shortStringField,
   weight: shortStringField,
-  position: arrayField,
-  role: arrayField,
+  position: singleArrayField,
+  role: singleArrayField,
   is_trans: transStatusSchema,
   trans_status_visibility: profileVisibilitySchema.optional().default("mutual_cruushes"),
   crowds: z.array(crowdSchema).max(3).optional().default([]),
@@ -150,13 +174,13 @@ export const profilePayloadSchema = z.object({
   kinks: kinkArrayField,
   kink_interests: z.array(profileKinkInterestSchema).max(50).optional().default([]),
   kinks_visibility: profileVisibilitySchema.optional().default("public"),
-  vibes: arrayField,
+  vibes: upToThreeArrayField,
   scenes: arrayField,
   archetypes: arrayField,
   hobbies: arrayField,
   custom_hobby: shortStringField,
-  looking_for: arrayField,
-  hiv_status: arrayField,
+  looking_for: upToThreeArrayField,
+  hiv_status: singleArrayField,
   hiv_status_visibility: profileVisibilitySchema.optional().default("mutual_cruushes"),
   custom_hiv_status: shortStringField,
   condoms: arrayField,
@@ -165,9 +189,9 @@ export const profilePayloadSchema = z.object({
   custom_prep: shortStringField,
   doxypep: arrayField,
   custom_doxypep: shortStringField,
-  covid_vaccine: arrayField,
+  covid_vaccine: singleArrayField,
   custom_covid_vaccine: shortStringField,
-  mpox_vaccine: arrayField,
+  mpox_vaccine: singleArrayField,
   custom_mpox_vaccine: shortStringField,
   substance_boundaries: arrayField,
   visibility_rules: profileVisibilityRulesSchema.optional().default({

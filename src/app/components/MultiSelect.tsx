@@ -138,15 +138,13 @@ export default function MultiSelect({
       return;
     }
 
-    if (selectionMode === 'multiple' && maxSelections && selected.length >= maxSelections && !selected.includes(option)) {
-      return;
-    }
-
     const newSelected = selectionMode === 'single'
       ? selected.includes(option) ? [] : [option]
       : selected.includes(option)
         ? selected.filter((s) => s !== option)
-        : [...selected, option];
+        : maxSelections && selected.length >= maxSelections
+          ? [...selected.slice(1), option]
+          : [...selected, option];
     setSelected(newSelected);
     onChange?.(newSelected);
     if (selectionMode === 'single') {

@@ -332,7 +332,7 @@ type LuckySlotState =
 const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
-const GHOST_MODE_INTRO_STORAGE_KEY = 'cruush:ghost-mode-intro-seen';
+const MAP_CONTROLS_INTRO_STORAGE_KEY = 'cruush:map-controls-intro-seen';
 
 function toRadians(degrees: number) {
   return degrees * Math.PI / 180;
@@ -387,7 +387,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [joiningEventChat, setJoiningEventChat] = useState(false);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const [ghostModeIntroOpen, setGhostModeIntroOpen] = useState(false);
+  const [mapControlsIntroOpen, setMapControlsIntroOpen] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
   const lastEventCenterRequestKeyRef = useRef<string | null>(null);
@@ -430,11 +430,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
       });
   };
 
-  const dismissGhostModeIntro = () => {
-    setGhostModeIntroOpen(false);
+  const dismissMapControlsIntro = () => {
+    setMapControlsIntroOpen(false);
 
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(GHOST_MODE_INTRO_STORAGE_KEY, 'true');
+      window.localStorage.setItem(MAP_CONTROLS_INTRO_STORAGE_KEY, 'true');
     }
   };
 
@@ -467,11 +467,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
-    if (window.localStorage.getItem(GHOST_MODE_INTRO_STORAGE_KEY) === 'true') {
+    if (window.localStorage.getItem(MAP_CONTROLS_INTRO_STORAGE_KEY) === 'true') {
       return;
     }
 
-    setGhostModeIntroOpen(true);
+    setMapControlsIntroOpen(true);
   }, [currentProfile, profileLoaded]);
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
@@ -1861,26 +1861,31 @@ export default function MapHome(_props: MapHomeProps = {}) {
         />
 
         <Dialog
-          open={ghostModeIntroOpen}
+          open={mapControlsIntroOpen}
           onOpenChange={(open) => {
             if (!open) {
-              dismissGhostModeIntro();
+              dismissMapControlsIntro();
             }
           }}
         >
           <DialogContent className="max-w-md rounded-lg border-white/10 bg-background text-white">
             <DialogHeader>
-              <DialogTitle>Ghost Mode protects your map location</DialogTitle>
+              <DialogTitle>Map controls</DialogTitle>
               <DialogDescription>
-                Other people see a shifting area around you instead of your exact position. You can change the radius or turn on precise location for mutual cruushes from Ghost Mode settings.
+                Seeking changes who appears on your map. Visibility changes who can see you. Crowd Mode makes you visible only to the active crowds you choose.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-white/72">
+              <p><span className="text-white">Seeking:</span> filter nearby people by what you want to find.</p>
+              <p><span className="text-white">Visibility:</span> hide yourself from selected audiences.</p>
+              <p><span className="text-white">Crowds:</span> use Dyke, Gay, and T4T modes when you only want those active crowds to see you.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
               <Button
                 type="button"
                 variant="outline"
                 className="rounded-lg border-white/12 bg-white/[0.035] text-white hover:bg-white/[0.08]"
-                onClick={dismissGhostModeIntro}
+                onClick={dismissMapControlsIntro}
               >
                 Got it
               </Button>
@@ -1889,11 +1894,22 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 className="rounded-lg text-white"
                 style={{ background: 'var(--cruush-gradient)' }}
                 onClick={() => {
-                  dismissGhostModeIntro();
-                  navigate('/privacy/ghost-mode');
+                  dismissMapControlsIntro();
+                  setIsFiltersOpen(true);
                 }}
               >
-                Ghost Mode settings
+                Seeking
+              </Button>
+              <Button
+                type="button"
+                className="rounded-lg text-white"
+                style={{ background: 'var(--cruush-gradient)' }}
+                onClick={() => {
+                  dismissMapControlsIntro();
+                  setIsVisibilityOpen(true);
+                }}
+              >
+                Visibility
               </Button>
             </div>
           </DialogContent>
