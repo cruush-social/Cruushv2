@@ -1,5 +1,7 @@
 import { requestApi } from './apiClient';
 
+export const CRUUSH_PLUS_CHANGED_EVENT = 'cruush-plus-changed';
+
 export type CruushBadge = 'founder' | 'lifetime_founder';
 
 export type CruushPlusPlanId =

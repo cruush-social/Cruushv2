@@ -15,7 +15,7 @@ import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlS
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
-import { getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
+import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { addNotificationsChangedListener, getNotificationSummary } from '../lib/notificationsApi';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
@@ -356,7 +356,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   useEffect(() => {
     let isMounted = true;
 
-    getMyBillingStatus()
+    const loadBillingStatus = () => getMyBillingStatus()
       .then((loadedBillingStatus) => {
         if (isMounted) {
           setBillingStatus(loadedBillingStatus);
@@ -368,8 +368,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
         }
       });
 
+    void loadBillingStatus();
+    window.addEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
+
     return () => {
       isMounted = false;
+      window.removeEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
     };
   }, []);
 

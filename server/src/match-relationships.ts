@@ -20,6 +20,7 @@ import {
   type VisibilityBaseMode
 } from "./location-privacy.js";
 import { hasUserBlockBetween } from "./user-blocks.js";
+import { getAlphaTestState } from "./alpha-test.js";
 
 export type PreciseLocationVisibility = "none" | "mutual_cruushes";
 
@@ -294,10 +295,32 @@ export async function getCruushEntitlement(app: FastifyInstance, userId: string)
   const datedExpirations = [legacyExpiresAt, paidExpiresAt, promotionalExpiresAt]
     .filter((value): value is string => Boolean(value))
     .sort();
-
-  return {
+  const alphaTest = getAlphaTestState(app.config);
+  const baseEntitlement = {
     cruushPlus: lifetime || legacyActive || paidActive || promotionalActive,
     expiresAt: lifetime ? null : datedExpirations.at(-1) ?? null
+  };
+
+  if (!alphaTest.active) {
+    return baseEntitlement;
+  }
+
+  if (!baseEntitlement.cruushPlus) {
+    return {
+      cruushPlus: true,
+      expiresAt: alphaTest.endsAt
+    };
+  }
+
+  if (!baseEntitlement.expiresAt || !alphaTest.endsAt) {
+    return baseEntitlement;
+  }
+
+  return {
+    cruushPlus: true,
+    expiresAt: new Date(baseEntitlement.expiresAt).getTime() >= new Date(alphaTest.endsAt).getTime()
+      ? baseEntitlement.expiresAt
+      : alphaTest.endsAt
   };
 }
 

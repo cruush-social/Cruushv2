@@ -9,6 +9,8 @@ import {
 } from "./reward-config.js";
 
 const DAY_SECONDS = 86_400;
+export const BETA_LAUNCH_CRUUSH_PLUS_ENDS_AT = "2026-08-07T00:00:00-04:00";
+const BETA_LAUNCH_GRANT_DAYS = 7;
 
 type RewardSource = "activity_recurring" | "activity_long_bonus" | "referral" | "admin";
 
@@ -52,11 +54,28 @@ type RewardGrantRow = {
   reversed_at?: string | Date | null;
 };
 
+type PromoCodeRow = {
+  id: string;
+  code: string;
+  label: string;
+  grant_days: string | number | null;
+  active_until: string | Date | null;
+  max_redemptions: string | number | null;
+};
+
 export type RewardGrantResult = {
   id: string;
   source: RewardSource;
   days: number;
   createdAt: string;
+};
+
+export type PromotionalClaimResult = {
+  claimed: boolean;
+  alreadyRedeemed?: boolean;
+  label: string;
+  activeUntil: string | null;
+  grant: RewardGrantResult | null;
 };
 
 function asDate(value: string | Date | null | undefined) {
@@ -286,6 +305,230 @@ export async function grantPromotionalDays(
 ) {
   const config = await loadRewardConfig(app.db);
   return runTransaction(app.db, (db) => grantPromotionalDaysInTransaction(db, input, config));
+}
+
+async function grantPromotionalAccessUntilInTransaction(
+  db: DbClient,
+  input: {
+    userId: string;
+    activeUntil: Date;
+    days: number;
+    idempotencyKey: string;
+    label: string;
+    auditMetadata?: Record<string, unknown>;
+  }
+): Promise<PromotionalClaimResult> {
+  await db.query("select id from app_users where id = $1 for update", [input.userId]);
+  await ensurePromotionRow(db, input.userId);
+
+  const inserted = await db.query<RewardGrantRow>(
+    `insert into reward_grants (
+       user_id,
+       source,
+       days,
+       idempotency_key,
+       milestone_key,
+       referral_id,
+       audit_metadata
+     )
+     values ($1, 'admin', $2, $3, $4, null, $5::jsonb)
+     on conflict do nothing
+     returning id::text, user_id::text, source, days, milestone_key,
+       referral_id::text, audit_metadata, created_at`,
+    [
+      input.userId,
+      input.days,
+      input.idempotencyKey,
+      input.idempotencyKey,
+      JSON.stringify({
+        label: input.label,
+        activeUntil: input.activeUntil.toISOString(),
+        ...input.auditMetadata
+      })
+    ]
+  );
+  const grant = inserted.rows[0] ?? null;
+
+  await db.query(
+    `update promotional_cruush_plus_entitlements
+     set active_until = greatest(coalesce(active_until, now()), $2::timestamptz),
+         updated_at = now()
+     where user_id = $1`,
+    [input.userId, input.activeUntil.toISOString()]
+  );
+
+  if (grant) {
+    await db.query(
+      `insert into app_notifications (
+         user_id, type, title, body, link_url, dedupe_key, metadata
+       )
+       values ($1, 'reward', 'Cruush+ reward earned',
+         $2, '/rewards', $3, $4::jsonb)
+       on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing`,
+      [
+        input.userId,
+        `${input.label} activated through ${input.activeUntil.toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`,
+        `reward:${input.idempotencyKey}`,
+        JSON.stringify({ grantId: grant.id, source: "admin", activeUntil: input.activeUntil.toISOString() })
+      ]
+    );
+  }
+
+  return {
+    claimed: Boolean(grant),
+    label: input.label,
+    activeUntil: input.activeUntil.toISOString(),
+    grant: grant ? {
+      id: grant.id,
+      source: grant.source,
+      days: grant.days,
+      createdAt: new Date(grant.created_at).toISOString()
+    } : null
+  };
+}
+
+export async function claimBetaLaunchCruushPlus(
+  app: Pick<FastifyInstance, "db">,
+  userId: string
+) {
+  const activeUntil = new Date(BETA_LAUNCH_CRUUSH_PLUS_ENDS_AT);
+
+  if (Number.isNaN(activeUntil.getTime()) || activeUntil.getTime() <= Date.now()) {
+    throw new ApiError(400, "VALIDATION_ERROR", "The beta launch cruush+ offer has ended.");
+  }
+
+  return runTransaction(app.db, (db) => grantPromotionalAccessUntilInTransaction(db, {
+    userId,
+    activeUntil,
+    days: BETA_LAUNCH_GRANT_DAYS,
+    idempotencyKey: `beta-launch-2026:${userId}`,
+    label: "Beta launch cruush+",
+    auditMetadata: {
+      offer: "beta_launch_2026"
+    }
+  }));
+}
+
+export async function redeemCruushPlusPromoCode(
+  app: Pick<FastifyInstance, "db">,
+  input: { userId: string; code: string }
+): Promise<PromotionalClaimResult> {
+  const normalizedCode = input.code.trim().toUpperCase();
+
+  if (!normalizedCode) {
+    throw new ApiError(400, "VALIDATION_ERROR", "Enter a cruush+ code.");
+  }
+
+  const config = await loadRewardConfig(app.db);
+
+  return runTransaction(app.db, async (db) => {
+    const promo = (await db.query<PromoCodeRow>(
+      `select id::text, code, label, grant_days, active_until, max_redemptions
+       from cruush_plus_promo_codes
+       where upper(code) = $1
+         and active = true
+         and starts_at <= now()
+         and (expires_at is null or expires_at > now())
+       limit 1
+       for update`,
+      [normalizedCode]
+    )).rows[0];
+
+    if (!promo) {
+      throw new ApiError(404, "NOT_FOUND", "Cruush+ code is invalid or expired.");
+    }
+
+    const existing = (await db.query<{ id: string }>(
+      `select id::text
+       from cruush_plus_promo_code_redemptions
+       where promo_code_id = $1 and user_id = $2
+       limit 1`,
+      [promo.id, input.userId]
+    )).rows[0];
+
+    if (existing) {
+      return {
+        claimed: false,
+        alreadyRedeemed: true,
+        label: promo.label,
+        activeUntil: asDate(promo.active_until)?.toISOString() ?? null,
+        grant: null
+      };
+    }
+
+    if (promo.max_redemptions !== null) {
+      const redemptionCount = (await db.query<{ total: string | number }>(
+        `select count(*)::int as total
+         from cruush_plus_promo_code_redemptions
+         where promo_code_id = $1`,
+        [promo.id]
+      )).rows[0];
+
+      if (Number(redemptionCount?.total ?? 0) >= Number(promo.max_redemptions)) {
+        throw new ApiError(409, "VALIDATION_ERROR", "Cruush+ code has already been fully redeemed.");
+      }
+    }
+
+    let result: PromotionalClaimResult;
+
+    if (promo.grant_days !== null) {
+      const grant = await grantPromotionalDaysInTransaction(db, {
+        userId: input.userId,
+        source: "admin",
+        days: Number(promo.grant_days),
+        idempotencyKey: `promo-code:${promo.id}:${input.userId}`,
+        milestoneKey: `promo-code:${promo.id}`,
+        auditMetadata: {
+          promoCodeId: promo.id,
+          label: promo.label
+        }
+      }, config);
+
+      if (!grant) {
+        throw new ApiError(409, "VALIDATION_ERROR", "Cruush+ code could not be applied.");
+      }
+
+      result = {
+        claimed: true,
+        label: promo.label,
+        activeUntil: null,
+        grant
+      };
+    } else {
+      const activeUntil = asDate(promo.active_until);
+
+      if (!activeUntil || activeUntil.getTime() <= Date.now()) {
+        throw new ApiError(404, "NOT_FOUND", "Cruush+ code is invalid or expired.");
+      }
+
+      result = await grantPromotionalAccessUntilInTransaction(db, {
+        userId: input.userId,
+        activeUntil,
+        days: Math.max(1, Math.ceil((activeUntil.getTime() - Date.now()) / (DAY_SECONDS * 1000))),
+        idempotencyKey: `promo-code:${promo.id}:${input.userId}`,
+        label: promo.label,
+        auditMetadata: {
+          promoCodeId: promo.id
+        }
+      });
+    }
+
+    await db.query(
+      `insert into cruush_plus_promo_code_redemptions (
+         promo_code_id,
+         user_id,
+         grant_id
+       )
+       values ($1, $2, $3)
+       on conflict (promo_code_id, user_id) do nothing`,
+      [promo.id, input.userId, result.grant?.id ?? null]
+    );
+
+    return {
+      ...result,
+      activeUntil: result.activeUntil ?? asDate(promo.active_until)?.toISOString() ?? null
+    };
+  });
 }
 
 async function grantActivityMilestones(

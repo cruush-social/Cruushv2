@@ -5,8 +5,10 @@ import { getModeratorUser } from "../moderator-auth.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { getReferralInfo } from "../referrals-service.js";
 import {
+  claimBetaLaunchCruushPlus,
   getRewardSummary,
   normalizeTimeZone,
+  redeemCruushPlusPromoCode,
   reverseRewardGrant
 } from "../rewards-service.js";
 import {
@@ -32,6 +34,10 @@ const sensitiveTwoFactorPayloadSchema = z.object({
 
 const timezonePayloadSchema = z.object({
   timezone: z.string().trim().min(1).max(100)
+}).strict();
+
+const promoCodePayloadSchema = z.object({
+  code: z.string().trim().min(1).max(120)
 }).strict();
 
 const reversalParamsSchema = z.object({
@@ -120,6 +126,24 @@ export async function registerRewardRoutes(app: FastifyInstance) {
       [userId, timezone]
     );
     return reply.send({ data: { timezone } });
+  });
+
+  app.post("/api/rewards/beta-launch/claim", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    return reply.send({
+      data: await claimBetaLaunchCruushPlus(app, userId)
+    });
+  });
+
+  app.post("/api/rewards/promo-codes/redeem", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const payload = promoCodePayloadSchema.parse(request.body);
+    return reply.send({
+      data: await redeemCruushPlusPromoCode(app, {
+        userId,
+        code: payload.code
+      })
+    });
   });
 
   app.get("/api/auth/2fa", async (request, reply) => {

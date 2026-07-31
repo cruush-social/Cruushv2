@@ -9,7 +9,7 @@ import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
-import { getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
+import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { createFeedPost, deleteFeedPost, getFeedPosts, type FeedPost, type FeedPostExpiry } from '../lib/postApi';
 import { getMyProfile } from '../lib/profileApi';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
@@ -53,13 +53,17 @@ export default function LocalFeed() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const loadBillingStatus = () => {
+      void getMyBillingStatus()
+        .then(setBillingStatus)
+        .catch(() => setBillingStatus(null));
+    };
+
     void fetchPosts();
     void getCurrentUserId()
       .then(setCurrentUserId)
       .catch(() => setCurrentUserId(null));
-    void getMyBillingStatus()
-      .then(setBillingStatus)
-      .catch(() => setBillingStatus(null));
+    loadBillingStatus();
     void getMyProfile()
       .then((profile) => {
         const normalizedCrowds = normalizeCrowdValues(profile.crowds ?? []);
@@ -73,6 +77,12 @@ export default function LocalFeed() {
         setAvailableCrowdTargets([]);
         setSelectedCrowdTargets([]);
       });
+
+    window.addEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
+
+    return () => {
+      window.removeEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
+    };
   }, []);
 
   const fetchPosts = async () => {

@@ -11,6 +11,7 @@ import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { getMyCruushActivity, sendCruush, type CruushActivity, type CruushLockableActivityItem, type MutualCruushActivityItem, type ProfileViewActivityItem } from '../lib/cruushApi';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
+import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
@@ -346,9 +347,11 @@ export default function CruushActivity() {
     };
 
     window.addEventListener(DEBUG_CRUUSH_PLUS_EVENT, handleDebugCruushPlusChange);
+    window.addEventListener(CRUUSH_PLUS_CHANGED_EVENT, handleDebugCruushPlusChange);
 
     return () => {
       window.removeEventListener(DEBUG_CRUUSH_PLUS_EVENT, handleDebugCruushPlusChange);
+      window.removeEventListener(CRUUSH_PLUS_CHANGED_EVENT, handleDebugCruushPlusChange);
     };
   }, []);
 

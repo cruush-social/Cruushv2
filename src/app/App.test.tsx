@@ -167,6 +167,10 @@ vi.mock('./components/DlModeDefaultNotice', () => ({
   default: () => <div data-testid="mock-dl-mode-default-notice" />
 }));
 
+vi.mock('./components/BetaLaunchCruushPlusOffer', () => ({
+  default: () => <div data-testid="mock-beta-launch-plus-offer" />
+}));
+
 vi.mock('./components/FeelingLucky', () => ({
   default: () => <div>Mock Lucky</div>
 }));

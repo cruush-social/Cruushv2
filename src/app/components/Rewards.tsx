@@ -20,6 +20,7 @@ import {
   completeTwoFactorSetup,
   disableTwoFactor,
   getRewardSummary,
+  redeemCruushPlusPromoCode,
   getTwoFactorStatus,
   regenerateTwoFactorRecoveryCodes,
   startTwoFactorSetup,
@@ -28,6 +29,7 @@ import {
   type TwoFactorSetup,
   type TwoFactorStatus,
 } from '../lib/rewardsApi';
+import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 
 function sourceLabel(source: RewardSummary['recentGrants'][number]['source']) {
   switch (source) {
@@ -62,8 +64,10 @@ export default function Rewards() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
+  const [promoCode, setPromoCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [promoSaving, setPromoSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -167,6 +171,24 @@ export default function Rewards() {
     }
   };
 
+  const handleRedeemPromoCode = async (event: FormEvent) => {
+    event.preventDefault();
+    setPromoSaving(true);
+    setError(null);
+
+    try {
+      const claim = await redeemCruushPlusPromoCode(promoCode);
+      setPromoCode('');
+      await load();
+      window.dispatchEvent(new CustomEvent(CRUUSH_PLUS_CHANGED_EVENT, { detail: claim }));
+      toast.success('cruush+ code applied.');
+    } catch (promoError) {
+      setError(promoError instanceof Error ? promoError.message : 'Unable to apply cruush+ code.');
+    } finally {
+      setPromoSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 border-b border-border bg-card/90 px-4 py-4 backdrop-blur">
@@ -248,6 +270,29 @@ export default function Rewards() {
                   <p className="text-muted-foreground">Banked</p>
                   <p className="mt-1 font-medium">{summary.promotionalAccess.bankedDays} days</p>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Have a code?</CardTitle>
+                <CardDescription>Enter a cruush+ code from a launch, waitlist, or support grant.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form className="flex gap-2" onSubmit={handleRedeemPromoCode}>
+                  <Input
+                    aria-label="cruush+ code"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    placeholder="cruush+ code"
+                    value={promoCode}
+                    onChange={(event) => setPromoCode(event.target.value)}
+                    required
+                  />
+                  <Button type="submit" disabled={promoSaving || !promoCode.trim()}>
+                    {promoSaving ? 'Applying...' : 'Apply'}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
 

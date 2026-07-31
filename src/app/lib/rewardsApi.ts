@@ -42,6 +42,14 @@ export type RewardSummary = {
   };
 };
 
+export type PromotionalClaim = {
+  claimed: boolean;
+  alreadyRedeemed?: boolean;
+  label: string;
+  activeUntil: string | null;
+  grant: RewardGrant | null;
+};
+
 export type TwoFactorStatus = {
   enabled: boolean;
   enabledAt: string | null;
@@ -62,6 +70,19 @@ export function updateRewardTimezone(timezone: string) {
   return requestApi<{ timezone: string }>('/api/rewards/timezone', {
     method: 'PUT',
     body: JSON.stringify({ timezone }),
+  });
+}
+
+export function claimBetaLaunchCruushPlus() {
+  return requestApi<PromotionalClaim>('/api/rewards/beta-launch/claim', {
+    method: 'POST',
+  });
+}
+
+export function redeemCruushPlusPromoCode(code: string) {
+  return requestApi<PromotionalClaim>('/api/rewards/promo-codes/redeem', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
   });
 }
 
