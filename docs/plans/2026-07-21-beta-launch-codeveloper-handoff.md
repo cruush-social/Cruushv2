@@ -130,8 +130,11 @@ Create one launch event record with:
 - `map_pin_kind = 'warehouse'`
 - `chat_enabled = true`
 - `feed_enabled = true`
+- `starts_at = '2026-07-31T00:00:00-04:00'`
+- `ends_at = '2026-08-01T05:00:00-04:00'`
+- `chat_expires_at = '2026-08-08T05:00:00-04:00'`
 
-Production coordinates, radius, start time, end time, and staff users must come from seed/config data. Local dev may use documented placeholder coordinates only if the event is not marked production-active.
+Production coordinates, radius, event window, and staff users must come from seed/config data. Local dev may use documented placeholder coordinates only if the event is not marked production-active.
 
 ---
 
