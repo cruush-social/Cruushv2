@@ -206,6 +206,14 @@ describe('App', () => {
     acceptedCodeOfConductVersion: '2026-07-07',
     codeOfConductAcceptedAt: '2026-07-07T15:00:00.000Z',
   };
+  const activeAlphaTest = {
+    alphaTest: {
+      enabled: true,
+      active: true,
+      endsAt: '2026-08-01T03:59:00.000Z',
+      ended: false,
+    },
+  };
 
   beforeEach(() => {
     localStorage.clear();
@@ -249,6 +257,79 @@ describe('App', () => {
 
     expect(await screen.findByText('Mock Map')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Bottom Navigation' })).toBeInTheDocument();
+  });
+
+  it('does not show the alpha bug button for signed-in users outside active alpha testing', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Map')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mock Alpha Bug' })).not.toBeInTheDocument();
+  });
+
+  it('shows the alpha bug button on authenticated app routes for active alpha testers', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'alpha@example.com',
+        displayName: 'Alpha User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Alpha User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+      ...activeAlphaTest,
+    });
+    window.history.replaceState({}, '', '/settings');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Settings')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toBeInTheDocument();
+  });
+
+  it('keeps the alpha bug button on token-link routes for active alpha testers', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'alpha@example.com',
+        displayName: 'Alpha User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Alpha User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+      ...activeAlphaTest,
+    });
+    window.history.replaceState({}, '', '/?resetPasswordToken=reset-token-1234567890');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toBeInTheDocument();
   });
 
   it('redirects to /map after login', async () => {

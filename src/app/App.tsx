@@ -173,7 +173,7 @@ export default function App({
   }
 
   const tokenLinkType = getTokenLinkType();
-  const bugReportingEnabled = session?.alphaTest?.enabled ?? authStatus === 'signed_in';
+  const alphaBugControl = session?.alphaTest?.active ? <AlphaBugButton enabled /> : null;
 
   if (tokenLinkType === 'verify-email') {
     return (
@@ -181,6 +181,9 @@ export default function App({
         <Routes>
           <Route path="*" element={<VerifyEmail />} />
         </Routes>
+        <Suspense fallback={null}>
+          {alphaBugControl}
+        </Suspense>
       </BrowserRouter>
     );
   }
@@ -191,6 +194,9 @@ export default function App({
         <Routes>
           <Route path="*" element={<ResetPassword />} />
         </Routes>
+        <Suspense fallback={null}>
+          {alphaBugControl}
+        </Suspense>
       </BrowserRouter>
     );
   }
@@ -225,7 +231,7 @@ export default function App({
               )}
             />
           </Routes>
-          <AlphaBugButton enabled={bugReportingEnabled} />
+          {alphaBugControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -249,7 +255,7 @@ export default function App({
               )}
             />
           </Routes>
-          <AlphaBugButton enabled={bugReportingEnabled} />
+          {alphaBugControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -272,7 +278,7 @@ export default function App({
               )}
             />
           </Routes>
-          <AlphaBugButton enabled={bugReportingEnabled} />
+          {alphaBugControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -326,7 +332,7 @@ export default function App({
             <BetaLaunchCruushPlusOffer userId={session.user.id} />
             <BottomNav />
             <DebugCruushPlusToggle />
-            <AlphaBugButton enabled={bugReportingEnabled} />
+            {alphaBugControl}
           </Suspense>
           <Toaster closeButton position="top-center" richColors />
         </div>

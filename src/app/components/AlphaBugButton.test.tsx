@@ -45,6 +45,6 @@ describe('AlphaBugButton', () => {
       pageUrl: '/map?layer=nearby',
     }));
     expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
-    expect(screen.getByText('Screenshots are allowed for alpha feedback. This report includes the current page.')).toBeInTheDocument();
+    expect(screen.getByText('This report includes the current page and attaches a screenshot when your browser allows it.')).toBeInTheDocument();
   });
 });
