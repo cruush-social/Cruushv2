@@ -14,8 +14,7 @@ describe('profileOptions', () => {
   });
 
   it('keeps looking-for choices focused on immediate local intent', () => {
-    expect(LOOKING_FOR).toEqual(['chat', 'cruise', 'friends', 'group', 'hookup', 'right now']);
-    expect(LOOKING_FOR).not.toContain('date');
+    expect(LOOKING_FOR).toEqual(['chat', 'cruise', 'dating', 'friends', 'group', 'hookup', 'networking', 'right now', 'threesome']);
     expect(LOOKING_FOR).not.toContain('relationship');
   });
 

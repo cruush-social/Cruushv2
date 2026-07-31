@@ -433,9 +433,10 @@ function mapProfileRow(
   const sensitiveProfile = options.sensitiveProfile ?? null;
   const visibilityRules = options.visibilityRules ?? null;
   const showKinks = options.showKinks ?? canShowByVisibility(row.kinks_visibility);
-  const showTransStatus = canShowByVisibility(row.trans_status_visibility);
-  const showHivStatus = canShowByVisibility(FIXED_PRIVATE_HEALTH_VISIBILITY);
   const visibleCrowds = options.visibleCrowds ?? (includePrivateSensitive ? sensitiveProfile?.crowds ?? [] : []);
+  const showTransStatus = includePrivateSensitive ||
+    (sensitiveProfile?.is_trans === true && visibleCrowds.includes("T4T"));
+  const showHivStatus = canShowByVisibility(FIXED_PRIVATE_HEALTH_VISIBILITY);
   const legacyKinks = showKinks ? row.kinks ?? [] : [];
   const sensitiveKinkInterests = showKinks ? sensitiveProfile?.kink_interests ?? [] : [];
   const sensitiveKinks = showKinks ? sensitiveProfile?.kinks ?? [] : [];
@@ -1019,6 +1020,7 @@ function stringArraysEqual(first: string[], second: string[]) {
 type ExistingIdentityState = {
   exists: boolean;
   yearOfBirth: number | null;
+  identities: string[];
   sensitiveProfile: SensitiveProfileData | null;
   changedAt: Date | null;
 };
@@ -1031,6 +1033,7 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
       profile_sensitive_auth_tag: string | null;
       profile_sensitive_key_version: string | null;
       trans_crowds_changed_at: string | Date | null;
+      identities: string[] | null;
       year_of_birth: number | null;
     }>(
       `select
@@ -1039,6 +1042,7 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
          profile_sensitive_auth_tag,
          profile_sensitive_key_version,
          trans_crowds_changed_at,
+         identities,
          year_of_birth
        from profiles
        where id = $1`,
@@ -1050,6 +1054,7 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
       return {
         exists: false,
         yearOfBirth: null,
+        identities: [],
         sensitiveProfile: null,
         changedAt: null
       };
@@ -1066,6 +1071,7 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
     return {
       exists: true,
       yearOfBirth: row.year_of_birth,
+      identities: row.identities ?? [],
       sensitiveProfile,
       changedAt: row.trans_crowds_changed_at ? new Date(row.trans_crowds_changed_at) : null
     };
@@ -1074,6 +1080,7 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
       return {
         exists: false,
         yearOfBirth: null,
+        identities: [],
         sensitiveProfile: null,
         changedAt: null
       };
@@ -1083,20 +1090,25 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
   }
 }
 
-function hasTransCrowdChange(existingState: ExistingIdentityState, sensitiveProfile: SensitiveProfileData) {
+function hasIdentityGateChange(
+  existingState: ExistingIdentityState,
+  payload: ProfilePayload,
+  sensitiveProfile: SensitiveProfileData
+) {
   if (!existingState.exists) {
-    return sensitiveProfile.is_trans !== null || sensitiveProfile.crowds.length > 0;
+    return payload.identities.length > 0 || sensitiveProfile.is_trans !== null || sensitiveProfile.crowds.length > 0;
   }
 
   if (!existingState.sensitiveProfile) {
-    return sensitiveProfile.is_trans !== null || sensitiveProfile.crowds.length > 0;
+    return payload.identities.length > 0 || sensitiveProfile.is_trans !== null || sensitiveProfile.crowds.length > 0;
   }
 
   return existingState.sensitiveProfile.is_trans !== sensitiveProfile.is_trans ||
+    !stringArraysEqual(existingState.identities, payload.identities) ||
     !stringArraysEqual(existingState.sensitiveProfile.crowds, sensitiveProfile.crowds);
 }
 
-function assertTransCrowdChangeAllowed(existingState: ExistingIdentityState, hasChange: boolean) {
+function assertIdentityGateChangeAllowed(existingState: ExistingIdentityState, hasChange: boolean) {
   if (!hasChange || !existingState.changedAt) {
     return;
   }
@@ -1108,7 +1120,7 @@ function assertTransCrowdChangeAllowed(existingState: ExistingIdentityState, has
     throw new ApiError(
       400,
       "VALIDATION_ERROR",
-      "Trans status and crowd selection can only be changed once every 14 days."
+      "Gender identity, trans status, and crowd selection can only be changed once every 14 days."
     );
   }
 }
@@ -1149,11 +1161,9 @@ async function loadProfileData(
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
   const needsMutualCrowd =
-    row.kinks_visibility === "mutual_crowds" ||
-    row.trans_status_visibility === "mutual_crowds";
+    row.kinks_visibility === "mutual_crowds";
   const needsMutualCruush =
     row.kinks_visibility === "mutual_cruushes" ||
-    row.trans_status_visibility === "mutual_cruushes" ||
     FIXED_PRIVATE_HEALTH_VISIBILITY === "mutual_cruushes";
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
   const visibleCrowds = !options.includePrivateSensitive && options.viewerUserId
@@ -1516,8 +1526,8 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       fields: buildProfileModerationFields(payload, kinkInterests),
       contentId: userId
     });
-    const hasIdentityChange = hasTransCrowdChange(existingIdentityState, sensitiveProfile);
-    assertTransCrowdChangeAllowed(existingIdentityState, hasIdentityChange);
+    const hasIdentityChange = hasIdentityGateChange(existingIdentityState, payload, sensitiveProfile);
+    assertIdentityGateChangeAllowed(existingIdentityState, hasIdentityChange);
     const encryptedSensitiveProfile = encryptSensitiveProfile(app.config, sensitiveProfile);
     const encryptedProfileVisibility = encryptProfileVisibility(app.config, payload.visibility_rules);
     const payloadForColumns: ProfilePayload = {

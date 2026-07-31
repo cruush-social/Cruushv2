@@ -72,9 +72,6 @@ async function fillProfileRites() {
   await chooseMultiSelect('Gender Identity', 'nonbinary');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-  fireEvent.click(screen.getByRole('button', { name: 'No' }));
-  fireEvent.click(screen.getByRole('button', { name: /next/i }));
-
   await chooseMultiSelect('Crowds', 'Dyke');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
@@ -152,10 +149,7 @@ describe('ProfileOnboarding', () => {
 
     expect(screen.getByText('name your form')).toBeInTheDocument();
     await chooseMultiSelect('Gender Identity', 'nonbinary');
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
-
-    expect(screen.getByText('set your T4T access')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'No' }));
+    expect(screen.getByRole('checkbox', { name: 'I am trans' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('find your crowd')).toBeInTheDocument();
@@ -200,9 +194,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('option', { name: 'nonbinary' }));
     fireEvent.click(screen.getByRole('option', { name: 'woman' }));
     fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'I am trans' }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     await chooseMultiSelect('Crowds', 'T4T');
@@ -237,16 +229,12 @@ describe('ProfileOnboarding', () => {
     await chooseMultiSelect('Gender Identity', 'nonbinary');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('set your T4T access')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'No' }));
-    fireEvent.click(screen.getByRole('button', { name: /next/i }));
-
     fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
     expect(screen.queryByRole('option', { name: 'T4T' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
 
     fireEvent.click(screen.getByRole('button', { name: /back/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Yes' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'I am trans' }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
     expect(await screen.findByRole('option', { name: 'T4T' })).toBeInTheDocument();

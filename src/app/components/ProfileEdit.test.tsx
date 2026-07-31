@@ -511,9 +511,7 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'I am trans' }));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Trans status visibility' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Mutual Crowds' }));
+    expect(screen.queryByRole('button', { name: 'Trans status visibility' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Crowds' }));
     fireEvent.click(screen.getByRole('option', { name: 'T4T' }));
@@ -532,7 +530,7 @@ describe('ProfileEdit', () => {
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       identities: ['trans man', 'trans woman', 'nonbinary'],
       is_trans: true,
-      trans_status_visibility: 'mutual_crowds',
+      trans_status_visibility: 'mutual_cruushes',
       crowds: ['T4T', 'Dyke'],
       vibes: ['Bear', 'Daddy'],
       scenes: [],

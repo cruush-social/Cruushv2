@@ -30,7 +30,7 @@ export const ROLES = [
 ].sort();
 
 export const LOOKING_FOR = [
-  'chat', 'cruise', 'friends', 'group', 'hookup', 'right now'
+  'chat', 'cruise', 'dating', 'friends', 'group', 'hookup', 'networking', 'right now', 'threesome'
 ].sort();
 
 export const AVAILABILITY = [

@@ -85,7 +85,7 @@ export default function Turnstile({ onTokenChange, onError, resetKey = 0 }: Turn
         sitekey: siteKey,
         theme: 'dark',
         size: 'flexible',
-        appearance: 'interaction-only',
+        appearance: 'always',
         retry: 'auto',
         'retry-interval': 8000,
         'refresh-expired': 'auto',

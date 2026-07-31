@@ -163,11 +163,11 @@ export default function MultiSelect({
   const menuContent = (
     <>
       {hasCategoryPicker ? (
-        <div className="grid max-h-80 sm:grid-cols-[11rem_minmax(0,1fr)]">
+        <div className="grid max-h-[inherit] sm:grid-cols-[11rem_minmax(0,1fr)]">
           <div
             role="tablist"
             aria-label={`${ariaLabel ?? 'Options'} categories`}
-            className="flex gap-1 overflow-x-auto border-b border-border p-2 sm:max-h-80 sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
+            className="scrollbar-subtle flex gap-1 overflow-x-auto border-b border-border p-2 sm:max-h-[inherit] sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
           >
             {groups.map((group) => {
               const selectedCount = group.options.filter((option) => selected.includes(option)).length;
@@ -195,7 +195,7 @@ export default function MultiSelect({
             })}
           </div>
 
-          <div role="listbox" aria-label={ariaLabel} className="max-h-64 overflow-y-auto py-1 sm:max-h-80">
+          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle max-h-[inherit] overflow-y-auto py-1">
             <div role="group" aria-label={activeGroup.label || undefined}>
               {activeGroup.options.map((option) => (
                 <button
@@ -215,7 +215,7 @@ export default function MultiSelect({
           </div>
         </div>
       ) : (
-        <div role="listbox" aria-label={ariaLabel} className="max-h-72 overflow-y-auto">
+        <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle max-h-[inherit] overflow-y-auto">
           {groups.map((group) => (
             <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
               {group.label ? (
@@ -252,7 +252,7 @@ export default function MultiSelect({
             onClick={() => setIsOpen(false)}
           />
           <div
-            className="z-[100] overflow-x-hidden overflow-y-auto overscroll-contain rounded-md border border-border bg-popover shadow-lg"
+            className="z-[100] overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg"
             style={portalStyle}
           >
             {menuContent}
@@ -299,7 +299,7 @@ export default function MultiSelect({
               onClick={() => setIsOpen(false)}
             />
             <div
-              className={`absolute left-0 right-0 z-20 overflow-x-hidden overflow-y-auto overscroll-contain rounded-md border border-border bg-popover shadow-lg ${
+              className={`absolute left-0 right-0 z-20 overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg ${
                 resolvedMenuPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
               }`}
               style={localMenuStyle ?? undefined}

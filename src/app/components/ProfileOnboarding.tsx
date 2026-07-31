@@ -16,14 +16,13 @@ interface ProfileOnboardingProps {
   codeOfConductVersion?: string;
 }
 
-type OnboardingStep = 'name' | 'age' | 'pronouns' | 'identities' | 'transStatus' | 'crowds' | 'lookingFor' | 'vibes' | 'bio' | 'oath' | 'twoFactor';
+type OnboardingStep = 'name' | 'age' | 'pronouns' | 'identities' | 'crowds' | 'lookingFor' | 'vibes' | 'bio' | 'oath' | 'twoFactor';
 
 const PROFILE_STEPS: OnboardingStep[] = [
   'name',
   'age',
   'pronouns',
   'identities',
-  'transStatus',
   'crowds',
   'lookingFor',
   'vibes',
@@ -50,11 +49,6 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
     rite: 'name your form',
     title: 'Choose the words that fit.',
     detail: 'Pick up to three.',
-  },
-  transStatus: {
-    rite: 'set your T4T access',
-    title: 'Should T4T be available to you?',
-    detail: 'This controls whether T4T appears in crowd selection.',
   },
   crowds: {
     rite: 'find your crowd',
@@ -161,7 +155,7 @@ export default function ProfileOnboarding({
     weight: '',
     position: [],
     role: [],
-    is_trans: null,
+    is_trans: false,
     trans_status_visibility: 'mutual_cruushes',
     crowds: [],
     availability: [],
@@ -217,8 +211,6 @@ export default function ProfileOnboarding({
         return profile.pronouns.length > 0;
       case 'identities':
         return profile.identities.length > 0;
-      case 'transStatus':
-        return profile.is_trans !== null;
       case 'crowds':
         return profile.crowds.length > 0;
       case 'lookingFor':
@@ -482,37 +474,27 @@ export default function ProfileOnboarding({
               );
             case 'identities':
               return (
-                <div>
-                  <label className="text-sm mb-2 block text-white/82">Gender Identity</label>
-                  <MultiSelect
-                    ariaLabel="Gender Identity"
-                    maxSelections={3}
-                    options={IDENTITIES}
-                    value={profile.identities}
-                    onChange={(values) => setProfileField('identities', limitToThree(values))}
-                  />
-                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
-                </div>
-              );
-            case 'transStatus':
-              return (
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    type="button"
-                    variant={profile.is_trans === true ? 'default' : 'outline'}
-                    onClick={() => setTransStatus(true)}
-                    className="h-12"
-                  >
-                    Yes
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={profile.is_trans === false ? 'default' : 'outline'}
-                    onClick={() => setTransStatus(false)}
-                    className="h-12"
-                  >
-                    No
-                  </Button>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm mb-2 block text-white/82">Gender Identity</label>
+                    <MultiSelect
+                      ariaLabel="Gender Identity"
+                      maxSelections={3}
+                      options={IDENTITIES}
+                      value={profile.identities}
+                      onChange={(values) => setProfileField('identities', limitToThree(values))}
+                    />
+                    <p className="text-xs text-white/58 mt-1">Select up to 3</p>
+                  </div>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-md border border-white/12 bg-white/[0.04] p-3 text-sm text-white/82">
+                    <input
+                      type="checkbox"
+                      checked={profile.is_trans === true}
+                      onChange={(event) => setTransStatus(event.target.checked)}
+                      className="h-4 w-4 rounded border-white/25 bg-input-background accent-primary"
+                    />
+                    <span>I am trans</span>
+                  </label>
                 </div>
               );
             case 'crowds':

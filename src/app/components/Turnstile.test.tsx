@@ -34,7 +34,7 @@ describe('Turnstile', () => {
 
     expect(renderWidget).toHaveBeenCalledTimes(1);
     expect(options).toMatchObject({
-      appearance: 'interaction-only',
+      appearance: 'always',
       retry: 'auto',
       'retry-interval': 8000,
       'refresh-expired': 'auto',

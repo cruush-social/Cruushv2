@@ -419,7 +419,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     position: profile.position ?? [],
     role: profile.role ?? [],
     is_trans: profile.is_trans ?? null,
-    trans_status_visibility: profile.trans_status_visibility ?? FIXED_PRIVATE_PROFILE_VISIBILITY,
+    trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
     availability: profile.availability ?? [],
     hosting_travel: profile.hosting_travel ?? [],
@@ -951,19 +951,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                   onCheckedChange={(checked) => handleTransChange(checked === true)}
                 />
                 <Label htmlFor="is_trans">I am trans</Label>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Trans status visibility</Label>
-                <MultiSelect
-                  {...profileMenuProps}
-                  ariaLabel="Trans status visibility"
-                  options={VISIBILITY_OPTION_LABELS}
-                  value={[getVisibilityLabel(normalizedProfile.trans_status_visibility)]}
-                  onChange={(values) => handleChange('trans_status_visibility', getVisibilityValue(values[0]))}
-                  selectionMode="single"
-                  placeholder="Select visibility..."
-                />
               </div>
 
               <div className="space-y-2">
