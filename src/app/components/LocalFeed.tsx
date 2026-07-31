@@ -213,7 +213,6 @@ export default function LocalFeed() {
         </Button>
         <div>
           <h2 className="text-xl">Local Feed</h2>
-          <p className="text-xs text-white/58">Nearby posts expire after 24h</p>
         </div>
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogTrigger asChild>
