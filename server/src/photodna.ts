@@ -17,14 +17,19 @@ function photoDnaUrl(config: AppConfig) {
 
 function responseIndicatesMatch(body: Record<string, unknown>) {
   return body.isMatch === true ||
+    body.IsMatch === true ||
     body.match === true ||
+    body.Match === true ||
     body.blocked === true ||
+    body.Blocked === true ||
     body.status === "matched" ||
-    body.status === "blocked";
+    body.status === "blocked" ||
+    body.Status === "matched" ||
+    body.Status === "blocked";
 }
 
 function providerRequestId(body: Record<string, unknown>) {
-  for (const key of ["trackingId", "requestId", "id", "matchId"]) {
+  for (const key of ["trackingId", "TrackingId", "requestId", "RequestId", "id", "Id", "matchId", "MatchId"]) {
     const value = body[key];
 
     if (typeof value === "string" && value.trim()) {
@@ -33,6 +38,23 @@ function providerRequestId(body: Record<string, unknown>) {
   }
 
   return null;
+}
+
+async function responseErrorMessage(response: Response) {
+  let body = "";
+
+  try {
+    body = await response.text();
+  } catch {
+    body = "";
+  }
+
+  const details = body.trim().replace(/\s+/g, " ").slice(0, 500);
+  const statusText = response.statusText ? ` ${response.statusText}` : "";
+
+  return details
+    ? `PhotoDNA request failed with status ${response.status}${statusText}: ${details}`
+    : `PhotoDNA request failed with status ${response.status}${statusText}`;
 }
 
 export async function checkPhotoDna(config: AppConfig, imageBytes: Buffer): Promise<PhotoDnaResult> {
@@ -57,7 +79,7 @@ export async function checkPhotoDna(config: AppConfig, imageBytes: Buffer): Prom
     });
 
     if (!response.ok) {
-      throw new Error(`PhotoDNA request failed with status ${response.status}`);
+      throw new Error(await responseErrorMessage(response));
     }
 
     const body = await response.json() as Record<string, unknown>;
