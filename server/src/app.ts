@@ -55,6 +55,19 @@ function refererOrigin(value: string | string[] | undefined) {
   }
 }
 
+function moderationRuntimeStatus(config: AppConfig) {
+  return {
+    provider: config.STREAM_MODERATION_ENABLED ? "stream" : "mock",
+    streamModeration: config.STREAM_MODERATION_ENABLED,
+    streamImageBridge: config.STREAM_IMAGE_BRIDGE_ENABLED,
+    profilePhotoStreamAutomod: config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED,
+    profilePhotoRekognition: config.PROFILE_PHOTO_REKOGNITION_ENABLED,
+    mediaPublicBaseUrlConfigured: Boolean(config.MEDIA_PUBLIC_BASE_URL),
+    streamConfigKeyConfigured: Boolean(config.STREAM_MODERATION_CONFIG_KEY),
+    streamAppIdConfigured: Boolean(config.STREAM_APP_ID)
+  };
+}
+
 export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   const app = Fastify({
     logger: deps.logger ?? config.NODE_ENV !== "test",
@@ -160,7 +173,8 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
         radiusMiles: config.BETA_ACCESS_RADIUS_MILES ?? 15,
         venueName: config.BETA_ACCESS_VENUE_NAME ?? "70 Scott Ave"
       },
-      photoUploads: photoUploadAvailability(config)
+      photoUploads: photoUploadAvailability(config),
+      moderation: moderationRuntimeStatus(config)
     };
   });
 

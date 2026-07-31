@@ -355,21 +355,62 @@ export async function moderatePendingMediaAsset(
       throw new Error("Stream image moderation grant was not created.");
     }
 
-    const moderation = await moderateImageOrReject(app, {
-      userId: asset.ownerUserId,
+    request.log.info({
+      assetId: asset.id,
       surface: input.moderationSurface,
-      mimeType: asset.mimeType,
-      filename: bridgeEnabled ? undefined : input.filename,
-      imageUrl: bridgeEnabled ? moderationMediaUrl(app, asset) : undefined,
-      contentId: asset.id,
-      contentRef: {
+      provider: provider.name,
+      streamModerationEnabled: app.config.STREAM_MODERATION_ENABLED,
+      streamImageBridgeEnabled: bridgeEnabled,
+      signedInspectionEnabled,
+      mediaPublicBaseUrlConfigured: Boolean(app.config.MEDIA_PUBLIC_BASE_URL),
+      photoDnaStatus: photoDnaResult.status,
+      stage: "image_moderation_attempt"
+    }, "image moderation attempt");
+
+    let moderation: Awaited<ReturnType<typeof moderateImageOrReject>>;
+
+    try {
+      moderation = await moderateImageOrReject(app, {
+        userId: asset.ownerUserId,
+        surface: input.moderationSurface,
+        mimeType: asset.mimeType,
+        filename: bridgeEnabled ? undefined : input.filename,
+        imageUrl: bridgeEnabled ? moderationMediaUrl(app, asset) : undefined,
+        contentId: asset.id,
+        contentRef: {
+          assetId: asset.id,
+          surface: asset.surface,
+          photoDnaStatus: photoDnaResult.status
+        },
+        bytes: asset.canonicalBytes,
+        severeAccessBanIdentity: accessBanIdentity
+      });
+    } catch (error) {
+      request.log.error({
+        err: error,
         assetId: asset.id,
-        surface: asset.surface,
-        photoDnaStatus: photoDnaResult.status
-      },
-      bytes: asset.canonicalBytes,
-      severeAccessBanIdentity: accessBanIdentity
-    });
+        surface: input.moderationSurface,
+        provider: provider.name,
+        streamModerationEnabled: app.config.STREAM_MODERATION_ENABLED,
+        streamImageBridgeEnabled: bridgeEnabled,
+        signedInspectionEnabled,
+        stage: "image_moderation_failed"
+      }, "image moderation failed");
+      throw error;
+    }
+
+    request.log.info({
+      assetId: asset.id,
+      surface: input.moderationSurface,
+      provider: moderation.providerResult.provider,
+      providerRequestId: moderation.providerResult.provider_request_id,
+      providerStatus: moderation.providerResult.status,
+      recommendedAction: moderation.providerResult.recommended_action,
+      decision: moderation.decision.decision,
+      reasonCode: moderation.decision.reason_code,
+      labelCount: moderation.providerResult.labels.length,
+      stage: "image_moderation_result"
+    }, "image moderation result");
 
     if (bridgeEnabled && !signedInspectionEnabled && asset.grant) {
       const redeemed = await wasModerationMediaGrantRedeemed(app.db, asset.grant.id);

@@ -679,6 +679,16 @@ describe("server", () => {
       photoUploads: {
         profilePhotos: true,
         messagePhotos: true
+      },
+      moderation: {
+        provider: "mock",
+        streamModeration: false,
+        streamImageBridge: false,
+        profilePhotoStreamAutomod: false,
+        profilePhotoRekognition: false,
+        mediaPublicBaseUrlConfigured: true,
+        streamConfigKeyConfigured: false,
+        streamAppIdConfigured: false
       }
     });
   });
