@@ -1776,17 +1776,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </div>
           ) : null}
 
-          {dlModeActive ? (
-            <button
-              type="button"
-              className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
-              onClick={() => navigate('/privacy/dl-mode')}
-            >
-              <Eye className="h-4 w-4" style={dlModeEyeStyle} strokeWidth={2.35} />
-              DL Mode Active
-            </button>
-          ) : null}
-
           <Button
             className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] shadow-[0_12px_35px_rgba(0,0,0,0.25)] ${
               hasActiveFilters

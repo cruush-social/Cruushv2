@@ -680,6 +680,7 @@ describe('MapHome', () => {
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
     expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
+    expect(screen.queryByText('DL Mode Active')).not.toBeInTheDocument();
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
