@@ -53,7 +53,8 @@ const migrationFiles = [
   "045_message_favorite_images.sql",
   "046_referral_signup_privacy.sql",
   "047_beta_city_requests.sql",
-  "048_cruush_plus_promo_codes.sql"
+  "048_cruush_plus_promo_codes.sql",
+  "049_feed_location_pin_visibility.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;
