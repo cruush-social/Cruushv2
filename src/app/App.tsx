@@ -171,6 +171,7 @@ export default function App({
   }
 
   const tokenLinkType = getTokenLinkType();
+  const bugReportingEnabled = session?.alphaTest?.enabled ?? authStatus === 'signed_in';
 
   if (tokenLinkType === 'verify-email') {
     return (
@@ -222,7 +223,7 @@ export default function App({
               )}
             />
           </Routes>
-          <AlphaBugButton enabled={Boolean(session?.alphaTest?.enabled)} />
+          <AlphaBugButton enabled={bugReportingEnabled} />
         </Suspense>
       </BrowserRouter>
     );
@@ -246,7 +247,7 @@ export default function App({
               )}
             />
           </Routes>
-          <AlphaBugButton enabled={Boolean(session?.alphaTest?.enabled)} />
+          <AlphaBugButton enabled={bugReportingEnabled} />
         </Suspense>
       </BrowserRouter>
     );
@@ -269,7 +270,7 @@ export default function App({
               )}
             />
           </Routes>
-          <AlphaBugButton enabled={Boolean(session?.alphaTest?.enabled)} />
+          <AlphaBugButton enabled={bugReportingEnabled} />
         </Suspense>
       </BrowserRouter>
     );
@@ -321,7 +322,7 @@ export default function App({
             <MobileInstallPrompt />
             <BottomNav />
             <DebugCruushPlusToggle />
-            <AlphaBugButton enabled={Boolean(session?.alphaTest?.enabled)} />
+            <AlphaBugButton enabled={bugReportingEnabled} />
           </Suspense>
           <Toaster closeButton position="top-center" richColors />
         </div>
