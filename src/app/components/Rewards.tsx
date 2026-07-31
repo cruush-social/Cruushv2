@@ -419,11 +419,16 @@ export default function Rewards() {
                     <Input
                       type="password"
                       autoComplete="current-password"
-                      placeholder="Current password"
+                      aria-describedby="rewards-two-factor-password-help"
+                      aria-label="cruush login password"
+                      placeholder="cruush login password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       required
                     />
+                    <p id="rewards-two-factor-password-help" className="text-xs leading-5 text-muted-foreground">
+                      Use the same password you use to sign in. This is not a separate 2FA password.
+                    </p>
                     <Button type="submit" disabled={saving}>
                       <KeyRound className="mr-2 h-4 w-4" />
                       Set up authenticator app

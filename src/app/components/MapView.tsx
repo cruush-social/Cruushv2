@@ -600,14 +600,11 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 
 function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
   return (
-    <span className="relative flex h-[92px] w-[92px] items-center justify-center overflow-visible">
-      <span className="absolute h-20 w-20 rounded-full bg-primary/15 blur-xl" />
-      <span
-        className="animate-cruush-party-dance relative flex h-[72px] w-[72px] items-center justify-center rounded-full border border-white/20 bg-black/82 p-3 shadow-[0_0_36px_rgba(255,0,114,0.44)] backdrop-blur-md"
-        data-testid={`launch-party-marker-${marker.id}`}
-      >
-        <img alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} src={partyHatIcon} />
-      </span>
+    <span
+      className="animate-cruush-party-dance flex h-16 w-16 items-center justify-center overflow-visible"
+      data-testid={`launch-party-marker-${marker.id}`}
+    >
+      <img alt="" aria-hidden="true" className="h-full w-full object-contain drop-shadow-[0_8px_22px_rgba(0,0,0,0.55)]" draggable={false} src={partyHatIcon} />
     </span>
   );
 }

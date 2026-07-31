@@ -232,7 +232,7 @@ export default function ProfileOnboarding({
     event.preventDefault();
 
     if (!twoFactorPassword.trim()) {
-      setTwoFactorError('Enter your password to start 2FA setup.');
+      setTwoFactorError('Enter your cruush login password to start 2FA setup.');
       return;
     }
 
@@ -602,13 +602,17 @@ export default function ProfileOnboarding({
                   {!twoFactorSetup && !twoFactorEnabled ? (
                     <form className="space-y-3" onSubmit={(event) => void handleStartTwoFactorSetup(event)}>
                       <label className="space-y-2 block">
-                        <span className="text-sm">Password</span>
+                        <span className="text-sm">cruush login password</span>
                         <Input
                           type="password"
                           autoComplete="current-password"
+                          aria-describedby="two-factor-password-help"
                           value={twoFactorPassword}
                           onChange={(event) => setTwoFactorPassword(event.target.value)}
                         />
+                        <span id="two-factor-password-help" className="block text-xs leading-5 text-white/58">
+                          Use the same password you use to sign in. This is not a separate 2FA password.
+                        </span>
                       </label>
                       <Button type="submit" className="w-full" disabled={twoFactorSaving}>
                         {twoFactorSaving ? 'Starting...' : 'Start 2FA setup'}

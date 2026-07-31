@@ -5,6 +5,13 @@ import { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ExternalLink, Eye, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
@@ -23,6 +30,7 @@ import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type E
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { syncMyLocation } from '../lib/locationApi';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
   emptyProfilePayload,
@@ -298,6 +306,26 @@ type LuckySlotState =
 
 const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
+const EARTH_RADIUS_MILES = 3958.7613;
+const GHOST_MODE_INTRO_STORAGE_KEY = 'cruush:ghost-mode-intro-seen';
+
+function toRadians(degrees: number) {
+  return degrees * Math.PI / 180;
+}
+
+function distanceMilesBetween(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number },
+) {
+  const dLat = toRadians(to.latitude - from.latitude);
+  const dLng = toRadians(to.longitude - from.longitude);
+  const lat1 = toRadians(from.latitude);
+  const lat2 = toRadians(to.latitude);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+
+  return 2 * EARTH_RADIUS_MILES * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export default function MapHome(_props: MapHomeProps = {}) {
   const location = useLocation();
@@ -334,6 +362,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [joiningEventChat, setJoiningEventChat] = useState(false);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [ghostModeIntroOpen, setGhostModeIntroOpen] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
   const lastEventCenterRequestKeyRef = useRef<string | null>(null);
@@ -353,6 +382,36 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const hasCruushPlus = billingStatus?.cruushPlus !== false;
 
   const dlModeEyeStyle = dlModeActive ? { stroke: 'url(#cruush-dl-eye-gradient)' } : undefined;
+
+  const syncApproximateMapLocation = (approximateLocation: ApproximateCoordinates) => {
+    void syncMyLocation({
+      lat: approximateLocation.approximateLatitude,
+      lng: approximateLocation.approximateLongitude,
+      fuzz_radius_meters: approximateLocation.privacyRadiusMeters,
+    })
+      .then((syncedLocation) => {
+        setCurrentProfile((profile) => profile
+          ? {
+              ...profile,
+              location: {
+                ...(profile.location ?? { id: profile.id, location_updated_at: null }),
+                ...syncedLocation,
+              },
+            }
+          : profile);
+      })
+      .catch((syncError) => {
+        console.warn('Error syncing map location:', syncError);
+      });
+  };
+
+  const dismissGhostModeIntro = () => {
+    setGhostModeIntroOpen(false);
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(GHOST_MODE_INTRO_STORAGE_KEY, 'true');
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -377,6 +436,18 @@ export default function MapHome(_props: MapHomeProps = {}) {
       window.removeEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
     };
   }, []);
+
+  useEffect(() => {
+    if (!profileLoaded || !currentProfile || typeof window === 'undefined') {
+      return;
+    }
+
+    if (window.localStorage.getItem(GHOST_MODE_INTRO_STORAGE_KEY) === 'true') {
+      return;
+    }
+
+    setGhostModeIntroOpen(true);
+  }, [currentProfile, profileLoaded]);
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
@@ -507,6 +578,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               lat: savedProfileLocation.approximateLatitude,
               lng: savedProfileLocation.approximateLongitude,
             };
+            syncApproximateMapLocation(savedProfileLocation);
           }
         }
 
@@ -609,9 +681,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         });
+        const fetchCoordinates = {
+          lat: approximateLocation.approximateLatitude,
+          lng: approximateLocation.approximateLongitude,
+        };
 
         setUserApproximateLocation(approximateLocation);
         setLocationStatus('ready');
+        syncApproximateMapLocation(approximateLocation);
         if (centerAfterUpdate) {
           mapInstance?.setCenter([
             approximateLocation.approximateLongitude,
@@ -619,10 +696,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           ]);
           mapInstance?.setZoom(14);
         }
-        void fetchUsers({
-          lat: approximateLocation.approximateLatitude,
-          lng: approximateLocation.approximateLongitude,
-        });
+        void fetchUsers(fetchCoordinates);
       },
       () => {
         setLocationStatus('error');
@@ -791,6 +865,25 @@ export default function MapHome(_props: MapHomeProps = {}) {
     [activeEvents, selectedEventSlug],
   );
   const visibleEventPassIconName = eventPass?.iconName ?? selectedEvent?.passIconName ?? null;
+  const selectedEventDistanceMiles = useMemo(() => {
+    if (!selectedEvent || !currentUserMapLocation) {
+      return null;
+    }
+
+    return distanceMilesBetween(
+      {
+        latitude: currentUserMapLocation.approximateLatitude,
+        longitude: currentUserMapLocation.approximateLongitude,
+      },
+      {
+        latitude: selectedEvent.coordinates.latitude,
+        longitude: selectedEvent.coordinates.longitude,
+      },
+    );
+  }, [currentUserMapLocation, selectedEvent]);
+  const canRevealSelectedEventPass = selectedEvent && selectedEventDistanceMiles !== null
+    ? selectedEventDistanceMiles <= selectedEvent.radiusMiles
+    : false;
   const denseVenue = useMemo<DenseVenueConfig | null>(() => launchPartyEvent
     ? {
         id: launchPartyEvent.slug,
@@ -947,8 +1040,25 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     if (!currentUserMapLocation) {
       setEventActionStatus(null);
-      setEventActionError('Share your location to reveal the door password within 1 mile of the venue.');
+      setEventActionError(`Share your location to unlock the door pass within ${selectedEvent.radiusMiles} mile of the venue.`);
       requestUserLocation(true);
+      return;
+    }
+
+    const distanceMiles = distanceMilesBetween(
+      {
+        latitude: currentUserMapLocation.approximateLatitude,
+        longitude: currentUserMapLocation.approximateLongitude,
+      },
+      {
+        latitude: selectedEvent.coordinates.latitude,
+        longitude: selectedEvent.coordinates.longitude,
+      },
+    );
+
+    if (distanceMiles > selectedEvent.radiusMiles) {
+      setEventActionStatus(null);
+      setEventActionError(`Door pass unlocks within ${selectedEvent.radiusMiles} mile of the venue.`);
       return;
     }
 
@@ -1465,22 +1575,42 @@ export default function MapHome(_props: MapHomeProps = {}) {
               ) : (
                 <div>
                   <p className="text-sm text-white">
-                    The door password will be revealed when you are within 1 mile of the venue.
+                    The door pass unlocks when you are within {selectedEvent.radiusMiles} mile of the venue.
                   </p>
-                  <Button
-                    type="button"
-                    className="mt-3 h-10 w-full rounded-lg text-white"
-                    style={{ background: 'var(--cruush-gradient)' }}
-                    onClick={handleRevealEventPass}
-                    disabled={revealingEventPass}
-                  >
-                    <MapPin className="mr-2 h-4 w-4" />
-                    {revealingEventPass
-                      ? 'Checking distance...'
-                      : currentUserMapLocation
-                      ? 'Reveal door pass'
-                      : 'Share location to reveal'}
-                  </Button>
+                  {!currentUserMapLocation ? (
+                    <Button
+                      type="button"
+                      className="mt-3 h-10 w-full rounded-lg text-white"
+                      style={{ background: 'var(--cruush-gradient)' }}
+                      onClick={() => requestUserLocation(true)}
+                      disabled={locationStatus === 'locating'}
+                    >
+                      <MapPin className="mr-2 h-4 w-4" />
+                      {locationStatus === 'locating' ? 'Checking location...' : 'Share location'}
+                    </Button>
+                  ) : canRevealSelectedEventPass ? (
+                    <Button
+                      type="button"
+                      className="mt-3 h-10 w-full rounded-lg text-white"
+                      style={{ background: 'var(--cruush-gradient)' }}
+                      onClick={handleRevealEventPass}
+                      disabled={revealingEventPass}
+                    >
+                      <MapPin className="mr-2 h-4 w-4" />
+                      {revealingEventPass ? 'Checking distance...' : 'Reveal door pass'}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-3 h-10 w-full rounded-lg border border-white/10 bg-white/8 text-white hover:bg-white/12"
+                      onClick={() => requestUserLocation(true)}
+                      disabled={locationStatus === 'locating'}
+                    >
+                      <MapPin className="mr-2 h-4 w-4" />
+                      {locationStatus === 'locating' ? 'Updating location...' : 'Update my location'}
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -1711,6 +1841,45 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onClear={handleClearVisibility}
           onApply={handleApplyVisibility}
         />
+
+        <Dialog
+          open={ghostModeIntroOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              dismissGhostModeIntro();
+            }
+          }}
+        >
+          <DialogContent className="max-w-md rounded-lg border-white/10 bg-background text-white">
+            <DialogHeader>
+              <DialogTitle>Ghost Mode protects your map location</DialogTitle>
+              <DialogDescription>
+                Other people see a shifting area around you instead of your exact position. You can change the radius or turn on precise location for mutual cruushes from Ghost Mode settings.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-lg border-white/12 bg-white/[0.035] text-white hover:bg-white/[0.08]"
+                onClick={dismissGhostModeIntro}
+              >
+                Got it
+              </Button>
+              <Button
+                type="button"
+                className="rounded-lg text-white"
+                style={{ background: 'var(--cruush-gradient)' }}
+                onClick={() => {
+                  dismissGhostModeIntro();
+                  navigate('/privacy/ghost-mode');
+                }}
+              >
+                Ghost Mode settings
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

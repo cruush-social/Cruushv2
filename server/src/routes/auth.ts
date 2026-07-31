@@ -38,6 +38,7 @@ import { verifyClientSecurityCheck } from "../client-security-check.js";
 import { ensureDevelopmentAdminUser, isDevelopmentAdminLogin } from "../development-admin.js";
 import { deleteEncryptedMediaObject } from "../media-storage.js";
 import { verifyTurnstileToken } from "../turnstile.js";
+import { storeLocationEnvelope } from "../location-privacy.js";
 import {
   assertRequestNotSeverelyBanned,
   ensureDeviceCookie
@@ -524,6 +525,18 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       }
 
       throw error;
+    }
+
+    if (payload.betaAccessLocation) {
+      await storeLocationEnvelope(app, {
+        subjectUserId: createdUser.id,
+        lat: payload.betaAccessLocation.lat,
+        lng: payload.betaAccessLocation.lng,
+        accuracyM: payload.betaAccessLocation.accuracyMeters,
+        source: "GPS"
+      }).catch((error) => {
+        request.log.warn({ err: error, userId: createdUser.id }, "signup location storage unavailable");
+      });
     }
 
     const verification = await createVerificationToken(app, createdUser.id);

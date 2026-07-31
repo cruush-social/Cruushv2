@@ -180,7 +180,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       }}
     >
       {showTip ? (
-        <div className="fixed right-4 top-[calc(8.5rem+env(safe-area-inset-top))] z-50 max-w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md md:top-20">
+        <div className="fixed left-4 top-[calc(12rem+env(safe-area-inset-top))] z-50 max-w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md">
           <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"
@@ -194,7 +194,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       <DialogTrigger asChild>
         <button
           aria-label="Report alpha bug"
-          className="fixed right-4 top-[calc(4.75rem+env(safe-area-inset-top))] z-50 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary md:top-5"
+          className="fixed left-4 top-[calc(8rem+env(safe-area-inset-top))] z-50 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           type="button"
         >
           <Bug className="h-5 w-5" />
