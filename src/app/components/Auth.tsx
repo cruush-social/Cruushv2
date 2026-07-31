@@ -740,7 +740,7 @@ export default function Auth({ onAuth }: AuthProps) {
           {isSignUp && !captchaRequested ? (
             <a
               className="launch-login-auth-rave-button"
-              href="https://ra.co/pro/events/2483120"
+              href="https://ra.co/events/2483120"
               target="_blank"
               rel="noreferrer"
             >

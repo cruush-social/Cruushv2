@@ -235,7 +235,7 @@ describe('Auth', () => {
     fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
 
     const raveLink = screen.getByRole('link', { name: 'Launch rave tickets' });
-    expect(raveLink).toHaveAttribute('href', 'https://ra.co/pro/events/2483120');
+    expect(raveLink).toHaveAttribute('href', 'https://ra.co/events/2483120');
     expect(raveLink).toHaveClass('launch-login-auth-rave-button');
     expect(screen.queryByTestId('launch-login-auth-captcha')).not.toBeInTheDocument();
 
@@ -268,7 +268,7 @@ describe('Auth', () => {
     expect(screen.getByLabelText('Alpha password')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute(
       'href',
-      'https://ra.co/pro/events/2483120'
+      'https://ra.co/events/2483120'
     );
   });
 

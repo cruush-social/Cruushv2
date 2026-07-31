@@ -96,7 +96,7 @@ Generate fresh production values for:
 - Resend API key and verified `MAIL_FROM` for account email, trust/safety alerts, and support inbox notifications.
 - Reports inbox: support requests, alpha bug reports, and in-app moderation reports notify `reports@cruush.app` when Resend and `MAIL_FROM` are configured. Keep `SUPPORT_INBOX_EMAIL=reports@cruush.app` for deployment consistency.
 - Turnstile frontend site key and backend `TURNSTILE_SECRET_KEY` if signup captcha is enabled.
-- Temporary alpha gate, if enabled: `ALPHA_TEST_ENABLED=true`, `ALPHA_TEST_PASSWORD_HASH=<scrypt hash>`, and `ALPHA_TEST_ENDS_AT=2026-07-31T00:00:00-04:00`. Do not store the raw alpha password in chat, docs, commits, screenshots, or frontend variables.
+- Temporary alpha gate, if enabled: `ALPHA_TEST_ENABLED=true`, `ALPHA_TEST_PASSWORD_HASH=<scrypt hash>`, and `ALPHA_TEST_ENDS_AT=2026-08-01T05:00:00-04:00` for the July 31 alpha window. Do not store the raw alpha password in chat, docs, commits, screenshots, or frontend variables. The beta release should also disable alpha with `ALPHA_TEST_ENABLED=false`.
 - Launch beta geofence: set `BETA_ACCESS_GEOFENCE_ENABLED=true`, `BETA_ACCESS_CENTER_LATITUDE=40.70982`, `BETA_ACCESS_CENTER_LONGITUDE=-73.92256`, `BETA_ACCESS_RADIUS_MILES=15`, and `BETA_ACCESS_VENUE_NAME=70 Scott Ave`. Outside-radius newsletter/city requests store encrypted email/city values, not plaintext.
 
 Use deployment secrets first. Move to KMS/Vault later only if operational complexity is justified.
@@ -115,7 +115,7 @@ Run this after staging deploys from the reviewed branch:
 - DM/group photo messages upload, render, and stay unavailable to non-members.
 - Group creation works, creator is owner/admin, admin can add/promote members, and disappearing timer labels appear.
 - Reports can be submitted, including fetishization/chaser report reason.
-- During the current same-night alpha only, signup requires the alpha password, the floating alpha bug button submits reports with page context to `reports@cruush.app`, screenshots are allowed for alpha feedback, and every session/login/signup path stops working after `2026-07-28 11:59 PM America/New_York`. Beta launch feedback stays text-only with no screenshot prompt or upload path.
+- During the current same-night alpha only, signup requires the alpha password, the floating alpha bug button submits reports with page context to `reports@cruush.app`, screenshots are allowed for alpha feedback, and every session/login/signup path stops working after the configured alpha cutoff or when beta deploy sets `ALPHA_TEST_ENABLED=false`. Beta launch feedback stays text-only with no screenshot prompt or upload path.
 - Expired messages do not return from the messages API.
 - Backups run successfully and a restore drill has been completed.
 

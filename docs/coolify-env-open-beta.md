@@ -6,6 +6,8 @@ Use this when configuring Coolify for the cruush app frontend and API. Do not pa
 
 ## How To Use
 
+The temporary Coolify dashboard at `http://87.99.130.8:8000/` is an admin/control-plane URL. Do not give it to alpha testers as the app link. Alpha testers need the frontend app URL, and the API needs its own URL or a same-origin proxy.
+
 Create separate Coolify resources/projects for staging and production:
 
 - staging frontend
@@ -91,7 +93,7 @@ DEVELOPMENT_ADMIN_ENABLED=false
 DEVELOPMENT_ADMIN_PASSWORD=
 ALPHA_TEST_ENABLED=true
 ALPHA_TEST_PASSWORD_HASH=<scrypt-hash-generated-outside-chat-and-git>
-ALPHA_TEST_ENDS_AT=2026-07-31T00:00:00-04:00
+ALPHA_TEST_ENDS_AT=2026-08-01T05:00:00-04:00
 BETA_ACCESS_GEOFENCE_ENABLED=true
 BETA_ACCESS_CENTER_LATITUDE=40.70982
 BETA_ACCESS_CENTER_LONGITUDE=-73.92256
@@ -164,7 +166,7 @@ VITE_MAP_TILE_URL=https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png
 VITE_MAP_ATTRIBUTION=&copy; CARTO &copy; OpenStreetMap contributors
 ```
 
-If the frontend and API are deployed same-origin behind the same proxy, `VITE_API_BASE_URL` may be blank. If the API is on `api-staging.cruush.app`, keep it set to that API origin.
+If the frontend and API are deployed same-origin behind the same proxy, `VITE_API_BASE_URL` may be blank. If the API is on `api-staging.cruush.app`, keep it set to that API origin. For a temporary alpha host on the new Coolify server, replace `https://staging.cruush.app` and `https://api-staging.cruush.app` with the actual alpha frontend and API origins after the app resources are bound; do not use the Coolify dashboard URL as the app or API origin.
 
 ## Production API Variables
 
@@ -309,7 +311,7 @@ These values are safe to add directly if the domains/buckets are correct:
 - `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true` for the shared bank/open-beta Stream path; keep manual review false
 - `PROFILE_PHOTO_REKOGNITION_ENABLED=true`, a Rekognition-only IAM principal with `DetectFaces` and `DetectLabels`, and the documented human/animal/face/age thresholds
 - `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` only for the temporary alpha staging exception while Microsoft PhotoDNA access is pending; an active `ALPHA_TEST_ENABLED=true` staging gate now permits the same profile-photo-only exception, but leave both paths false for open beta or production
-- `ALPHA_TEST_ENABLED=true`, `ALPHA_TEST_PASSWORD_HASH=<scrypt hash>`, and `ALPHA_TEST_ENDS_AT=2026-07-31T00:00:00-04:00` only through the final alpha cutoff. After the timestamp, existing alpha sessions stop resolving and login/signup are blocked. The no-alpha deployment then sets `ALPHA_TEST_ENABLED=false` without exposing or deleting secrets in logs.
+- `ALPHA_TEST_ENABLED=true`, `ALPHA_TEST_PASSWORD_HASH=<scrypt hash>`, and `ALPHA_TEST_ENDS_AT=2026-08-01T05:00:00-04:00` only through the final July 31 alpha window. After the timestamp, existing alpha sessions stop resolving and login/signup are blocked. The beta deployment should also set `ALPHA_TEST_ENABLED=false` and clear `ALPHA_TEST_PASSWORD_HASH` without exposing secrets in logs.
 - `BETA_ACCESS_GEOFENCE_ENABLED=true` limits launch beta signup/signin to the configured 15-mile radius around `70 Scott Ave`. Outside-radius users see the newsletter/city-request path; those email/city entries are encrypted at rest with HMAC-only dedupe indexes.
 - Support requests, alpha bug reports, and in-app moderation reports notify `reports@cruush.app`. Beta launch feedback stays text-only; there is no screenshot prompt or screenshot upload path for beta.
 - Launch party envs should stay backend-only. The Chocolate Factory pin is active from `2026-07-31T00:00:00-04:00` until `2026-08-01T05:00:00-04:00`; the event chat expires at `2026-08-08T05:00:00-04:00`.
