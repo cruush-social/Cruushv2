@@ -45,6 +45,26 @@ const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusTog
 const Rewards = lazy(() => import('./components/Rewards'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
 const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
+const PublicInfoPage = lazy(() => import('./components/PublicInfoPage'));
+
+const PUBLIC_INFO_ROUTES = [
+  { path: '/about', page: 'about' },
+  { path: '/terms', page: 'terms' },
+  { path: '/privacy', page: 'privacy' },
+  { path: '/safety', page: 'safety' },
+  { path: '/security', page: 'security' },
+  { path: '/billing-policy', page: 'billing' },
+  { path: '/content-removal', page: 'content-removal' },
+  { path: '/human-trafficking-policy', page: 'human-trafficking' },
+  { path: '/takedown-policy', page: 'takedown' },
+  { path: '/2257', page: '2257' },
+] as const;
+
+function renderPublicInfoRoutes() {
+  return PUBLIC_INFO_ROUTES.map((route) => (
+    <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
+  ));
+}
 
 function redirectToMap() {
   window.history.replaceState({}, '', '/map');
@@ -206,11 +226,14 @@ export default function App({
   if (authStatus === 'signed_out') {
     return (
       <BrowserRouter key="public-router">
-        <Routes>
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="*" element={<Auth onAuth={handleAuth} />} />
-        </Routes>
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            {renderPublicInfoRoutes()}
+            <Route path="*" element={<Auth onAuth={handleAuth} />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     );
   }
@@ -222,6 +245,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {renderPublicInfoRoutes()}
             <Route
               path="*"
               element={(
@@ -246,6 +270,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {renderPublicInfoRoutes()}
             <Route
               path="*"
               element={(
@@ -270,6 +295,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {renderPublicInfoRoutes()}
             <Route
               path="*"
               element={(
@@ -301,6 +327,7 @@ export default function App({
               <Route path="/filters" element={<FiltersPanel />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              {renderPublicInfoRoutes()}
               <Route path="/groups/:groupId" element={<GroupDetail />} />
               <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
               <Route path="/events/:eventId" element={<EventDetail />} />

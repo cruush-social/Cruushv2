@@ -186,7 +186,7 @@ describe('Auth', () => {
     for (const link of AUTH_POLICY_LINKS) {
       expect(within(legalNotice).getByRole('link', { name: link.label })).toHaveAttribute(
         'href',
-        `https://www.cruush.app${link.path}`,
+        link.path,
       );
     }
     expect(screen.queryByLabelText('Contact support')).not.toBeInTheDocument();
