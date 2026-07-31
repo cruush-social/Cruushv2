@@ -1,11 +1,14 @@
 import {
   DetectFacesCommand,
   DetectLabelsCommand,
+  DetectModerationLabelsCommand,
   RekognitionClient,
   type DetectFacesCommandOutput,
   type DetectLabelsCommandOutput,
+  type DetectModerationLabelsCommandOutput,
   type FaceDetail,
-  type Label
+  type Label,
+  type ModerationLabel
 } from "@aws-sdk/client-rekognition";
 import sharp from "sharp";
 import type { AppConfig } from "./config.js";
@@ -23,7 +26,9 @@ type RekognitionSafetyConfig = Pick<
 const HUMAN_LABELS = new Set(["human", "people", "person"]);
 const ANIMAL_LABEL_PATTERN = /\b(?:animal|amphibian|bird|canine|cat|dog|feline|fish|horse|insect|livestock|mammal|pet|primate|reptile|rodent|wildlife)s?\b/i;
 const MINOR_LABEL_PATTERN = /\b(?:baby|babies|boy|boys|child|children|girl|girls|infant|infants|kid|kids|newborn|teen|teenager|toddler|youth)\b/i;
+const NUDITY_MODERATION_LABEL_PATTERN = /\b(?:explicit nudity|nudity|non-explicit nudity|partial nudity|graphic (?:male|female) nudity|illustrated explicit nudity|sexual activity|sexual situations|sex toy|sex toys)\b/i;
 const REKOGNITION_REQUEST_MIN_CONFIDENCE = 70;
+const REKOGNITION_MODERATION_MIN_CONFIDENCE = 50;
 
 function signalNames(label: Label) {
   return [
@@ -81,6 +86,32 @@ function safeFaceSummary(faces: FaceDetail[]) {
     age_low: face.AgeRange?.Low ?? null,
     age_high: face.AgeRange?.High ?? null
   }));
+}
+
+function moderationSignalNames(label: ModerationLabel) {
+  return [label.ParentName, label.Name].filter((name): name is string =>
+    typeof name === "string" && name.trim().length > 0
+  );
+}
+
+function profilePhotoNudityLabels(labels: ModerationLabel[]): ProviderLabel[] {
+  return labels.flatMap((label) => {
+    const signals = moderationSignalNames(label);
+
+    if (!signals.some((signal) => NUDITY_MODERATION_LABEL_PATTERN.test(signal))) {
+      return [];
+    }
+
+    const joinedSignals = signals.join(" > ");
+    const isExplicit = /\b(?:explicit|sexual|sex toy|sex toys|graphic)\b/i.test(joinedSignals);
+
+    return [{
+      provider_label: `Amazon Rekognition moderation: ${joinedSignals}`,
+      normalized_label: isExplicit ? "adult_explicit" : "adult_nudity",
+      confidence: Math.max(Math.min((label.Confidence ?? 0) / 100, 0.99), 0.9),
+      severity: "high"
+    }];
+  });
 }
 
 function childFaceLabels(
@@ -158,10 +189,12 @@ export function classifyImageChildFaces(
 export function classifyProfilePhotoSafety(
   labelsOutput: Pick<DetectLabelsCommandOutput, "Labels" | "$metadata">,
   facesOutput: Pick<DetectFacesCommandOutput, "FaceDetails" | "$metadata">,
+  moderationOutput: Pick<DetectModerationLabelsCommandOutput, "ModerationLabels" | "$metadata"> | null,
   config: RekognitionSafetyConfig
 ): ProviderModerationResult {
   const labels = labelsOutput.Labels ?? [];
   const faces = facesOutput.FaceDetails ?? [];
+  const moderationLabels = profilePhotoNudityLabels(moderationOutput?.ModerationLabels ?? []);
   const humanConfidence = strongestLabelNameConfidence(labels, (name) => HUMAN_LABELS.has(name.toLowerCase()));
   const animalConfidence = strongestConfidence(labels, (name) => ANIMAL_LABEL_PATTERN.test(name));
   const minorLabelConfidence = strongestLabelNameConfidence(labels, (name) => MINOR_LABEL_PATTERN.test(name));
@@ -174,7 +207,7 @@ export function classifyProfilePhotoSafety(
   const hasHuman = humanConfidence >= requiredHumanConfidence || consideredFaces.length > 0;
   const hasAnimal = animalConfidence >= rejectedAnimalConfidence;
   const childGate = childFaceLabels(faces, config, minorLabelConfidence);
-  const normalizedLabels: ProviderLabel[] = [...childGate.labels];
+  const normalizedLabels: ProviderLabel[] = [...childGate.labels, ...moderationLabels];
 
   if (hasHuman) {
     normalizedLabels.push({
@@ -196,13 +229,13 @@ export function classifyProfilePhotoSafety(
     });
   }
 
-  const recommendedAction = childGate.outcome === "minor" || hasAnimal || !hasHuman
+  const recommendedAction = childGate.outcome === "minor" || hasAnimal || !hasHuman || moderationLabels.length > 0
     ? "remove"
     : "keep";
 
   return {
     provider: "aws_rekognition",
-    provider_request_id: [labelsOutput.$metadata?.requestId, facesOutput.$metadata?.requestId]
+    provider_request_id: [labelsOutput.$metadata?.requestId, facesOutput.$metadata?.requestId, moderationOutput?.$metadata?.requestId]
       .filter(Boolean)
       .join(":") || `rekognition-${Date.now().toString(36)}`,
     labels: normalizedLabels,
@@ -213,6 +246,7 @@ export function classifyProfilePhotoSafety(
       human_confidence: humanConfidence,
       animal_confidence: animalConfidence,
       minor_label_confidence: minorLabelConfidence,
+      moderation_label_count: moderationOutput?.ModerationLabels?.length ?? 0,
       face_count: faces.length,
       considered_faces: safeFaceSummary(consideredFaces),
       required_human_confidence: requiredHumanConfidence,
@@ -223,6 +257,8 @@ export function classifyProfilePhotoSafety(
         ? "minor_face_detected"
         : childGate.outcome === "ambiguous"
           ? "minor_age_ambiguous"
+          : moderationLabels.length > 0
+            ? "nudity_detected"
           : hasAnimal
             ? "animal_detected"
             : hasHuman ? "human_detected" : "human_not_detected"
@@ -323,7 +359,7 @@ export async function detectProfilePhotoHuman(
       region: config.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1"
     });
     const compatibleImageBytes = await rekognitionJpeg(imageBytes);
-    const [labelsOutput, facesOutput] = await Promise.all([
+    const [labelsOutput, facesOutput, moderationOutput] = await Promise.all([
       rekognition.send(new DetectLabelsCommand({
         Image: { Bytes: compatibleImageBytes },
         Features: ["GENERAL_LABELS"],
@@ -333,9 +369,13 @@ export async function detectProfilePhotoHuman(
       rekognition.send(new DetectFacesCommand({
         Image: { Bytes: compatibleImageBytes },
         Attributes: ["ALL"]
-      }), { abortSignal: controller.signal }) as Promise<DetectFacesCommandOutput>
+      }), { abortSignal: controller.signal }) as Promise<DetectFacesCommandOutput>,
+      rekognition.send(new DetectModerationLabelsCommand({
+        Image: { Bytes: compatibleImageBytes },
+        MinConfidence: REKOGNITION_MODERATION_MIN_CONFIDENCE
+      }), { abortSignal: controller.signal }) as Promise<DetectModerationLabelsCommandOutput>
     ]);
-    const result = classifyProfilePhotoSafety(labelsOutput, facesOutput, config);
+    const result = classifyProfilePhotoSafety(labelsOutput, facesOutput, moderationOutput, config);
 
     return { ...result, latency_ms: Date.now() - startedAt };
   } catch (error) {

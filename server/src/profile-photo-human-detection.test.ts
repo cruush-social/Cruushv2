@@ -1,6 +1,7 @@
 import {
   DetectFacesCommand,
-  type DetectLabelsCommand
+  DetectLabelsCommand,
+  DetectModerationLabelsCommand
 } from "@aws-sdk/client-rekognition";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
@@ -39,7 +40,7 @@ describe("image child-face and profile-photo human detection", () => {
     }, {
       FaceDetails: [{ Confidence: 99, AgeRange: { Low: 18, High: 27 } }],
       $metadata: { requestId: "rekognition-faces-adult" }
-    }, config)).toMatchObject({
+    }, null, config)).toMatchObject({
       status: "complete",
       recommended_action: "keep",
       labels: expect.arrayContaining([expect.objectContaining({ normalized_label: "human_present" })]),
@@ -54,7 +55,7 @@ describe("image child-face and profile-photo human detection", () => {
     }, {
       FaceDetails: [],
       $metadata: { requestId: "rekognition-faces-faceless" }
-    }, config)).toMatchObject({
+    }, null, config)).toMatchObject({
       recommended_action: "keep",
       labels: [expect.objectContaining({ normalized_label: "human_present" })],
       raw_result: { outcome: "human_detected" }
@@ -104,10 +105,33 @@ describe("image child-face and profile-photo human detection", () => {
     }, {
       FaceDetails: [],
       $metadata: { requestId: "rekognition-no-faces" }
-    }, config)).toMatchObject({
+    }, null, config)).toMatchObject({
       recommended_action: "remove",
       labels: [{ normalized_label: "profile_photo_not_adult_human" }],
       raw_result: { outcome: "human_not_detected" }
+    });
+  });
+
+  it("rejects profile photos with Rekognition nudity moderation labels", () => {
+    expect(classifyProfilePhotoSafety({
+      Labels: [{ Name: "Person", Confidence: 99 }],
+      $metadata: { requestId: "rekognition-labels-adult" }
+    }, {
+      FaceDetails: [{ Confidence: 99, AgeRange: { Low: 25, High: 35 } }],
+      $metadata: { requestId: "rekognition-faces-adult" }
+    }, {
+      ModerationLabels: [{
+        Name: "Sexual Activity",
+        ParentName: "Explicit Nudity",
+        Confidence: 96
+      }],
+      $metadata: { requestId: "rekognition-moderation-explicit" }
+    }, config)).toMatchObject({
+      recommended_action: "remove",
+      labels: expect.arrayContaining([
+        expect.objectContaining({ normalized_label: "adult_explicit", confidence: 0.96 })
+      ]),
+      raw_result: { outcome: "nudity_detected" }
     });
   });
 
@@ -122,7 +146,7 @@ describe("image child-face and profile-photo human detection", () => {
     }, {
       FaceDetails: [{ Confidence: 99, AgeRange: { Low: 25, High: 35 } }],
       $metadata: { requestId: "rekognition-adult-face" }
-    }, config)).toMatchObject({
+    }, null, config)).toMatchObject({
       recommended_action: "remove",
       labels: expect.arrayContaining([
         expect.objectContaining({ normalized_label: "human_present" }),
@@ -161,7 +185,7 @@ describe("image child-face and profile-photo human detection", () => {
     }).webp().toBuffer();
     const receivedFormats: string[] = [];
     const client = {
-      async send(command: DetectLabelsCommand | DetectFacesCommand) {
+      async send(command: DetectLabelsCommand | DetectFacesCommand | DetectModerationLabelsCommand) {
         const bytes = command.input.Image?.Bytes;
         receivedFormats.push(bytes ? (await sharp(Buffer.from(bytes)).metadata()).format ?? "" : "");
 
@@ -169,6 +193,13 @@ describe("image child-face and profile-photo human detection", () => {
           return {
             FaceDetails: [{ Confidence: 99, AgeRange: { Low: 25, High: 35 } }],
             $metadata: { requestId: "rekognition-webp-faces" }
+          };
+        }
+
+        if (command instanceof DetectModerationLabelsCommand) {
+          return {
+            ModerationLabels: [],
+            $metadata: { requestId: "rekognition-webp-moderation" }
           };
         }
 
@@ -188,7 +219,7 @@ describe("image child-face and profile-photo human detection", () => {
       PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS: 5000
     }, webp, client as never);
 
-    expect(receivedFormats).toEqual(["jpeg", "jpeg"]);
+    expect(receivedFormats).toEqual(["jpeg", "jpeg", "jpeg"]);
     expect(result).toMatchObject({
       status: "complete",
       recommended_action: "keep"
