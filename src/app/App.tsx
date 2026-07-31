@@ -4,6 +4,7 @@ import Auth from './components/Auth';
 import VerifyEmail from './components/VerifyEmail';
 import ResetPassword from './components/ResetPassword';
 import AppErrorBoundary from './components/AppErrorBoundary';
+import GoogleAnalyticsPageTracker from './components/GoogleAnalyticsPageTracker';
 import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
@@ -200,6 +201,7 @@ export default function App({
   if (tokenLinkType === 'verify-email') {
     return (
       <BrowserRouter key="root-verification-router">
+        <GoogleAnalyticsPageTracker />
         <Routes>
           <Route path="*" element={<VerifyEmail />} />
         </Routes>
@@ -213,6 +215,7 @@ export default function App({
   if (tokenLinkType === 'reset-password') {
     return (
       <BrowserRouter key="root-reset-router">
+        <GoogleAnalyticsPageTracker />
         <Routes>
           <Route path="*" element={<ResetPassword />} />
         </Routes>
@@ -226,6 +229,7 @@ export default function App({
   if (authStatus === 'signed_out') {
     return (
       <BrowserRouter key="public-router">
+        <GoogleAnalyticsPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -241,6 +245,7 @@ export default function App({
   if (!session?.user.emailVerifiedAt) {
     return (
       <BrowserRouter key="verification-router">
+        <GoogleAnalyticsPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -266,6 +271,7 @@ export default function App({
   if (needsOnboarding) {
     return (
       <BrowserRouter key="onboarding-router">
+        <GoogleAnalyticsPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -291,6 +297,7 @@ export default function App({
   if (session?.needsCodeOfConduct) {
     return (
       <BrowserRouter key="code-of-conduct-router">
+        <GoogleAnalyticsPageTracker />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -314,6 +321,7 @@ export default function App({
 
   return (
     <BrowserRouter key="app-router">
+      <GoogleAnalyticsPageTracker />
       <AppErrorBoundary>
         <div className="min-h-screen bg-background text-foreground">
           <Suspense fallback={<RouteLoading />}>
