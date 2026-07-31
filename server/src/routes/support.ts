@@ -37,6 +37,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
 
     const metadata = {
       userAgent: getUserAgent(request.headers["user-agent"]),
+      screenshotAttached: Boolean(payload.screenshot),
       aiSupport: {
         status: "pending",
         provider: null
@@ -85,6 +86,12 @@ export async function registerSupportRoutes(app: FastifyInstance) {
           message: payload.message,
           pageUrl: payload.pageUrl,
           requesterUserId,
+          screenshot: payload.screenshot
+            ? {
+                filename: payload.screenshot.filename,
+                content: payload.screenshot.contentBase64
+              }
+            : null,
           source: payload.source,
           subject: payload.subject
         }

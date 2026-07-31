@@ -31,7 +31,7 @@ import {
   type MapMarker,
   type MapMarkerBadge,
 } from '../lib/mapMarkers';
-import { getProfileGradientStops } from '../lib/profileGradient';
+import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 
 export { createMapMarkerBadge };
 
@@ -419,9 +419,6 @@ export function getMapStyle() {
   );
 }
 
-const HEART_PATH =
-  'M32 56C30.55 54.67 8 39.75 8 23.75C8 14.95 13.95 8 22 8C27.05 8 30.2 10.78 32 14.05C33.8 10.78 36.95 8 42 8C50.05 8 56 14.95 56 23.75C56 39.75 33.45 54.67 32 56Z';
-
 const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
   bottom: ArrowDown,
   side: MoveHorizontal,
@@ -533,9 +530,10 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const clipId = `marker-photo-clip-${marker.id}`;
   const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
   const isNpcGhostDemo = marker.npcGhostDemo === true;
-  const borderColor = isNpcGhostDemo ? '#0BA8FF' : isMutualCruush ? '#6f00ff' : isCurrentUser ? '#0BA8FF' : '#FF0072';
-  const theme = isNpcGhostDemo ? 'npc-ghost-demo' : isMutualCruush ? 'mutual' : isCurrentUser ? 'current' : 'nearby';
-  const [gradientFrom, gradientMiddle, gradientTo] = getProfileGradientStops(marker.id);
+  const theme = isMutualCruush ? 'mutual' : isCurrentUser || isNpcGhostDemo ? 'current' : 'nearby';
+  const markerTheme = HEART_PIN_THEMES[theme];
+  const borderColor = markerTheme.border;
+  const [gradientFrom, gradientMiddle, gradientTo] = markerTheme.stops;
 
   return (
     <svg
@@ -543,7 +541,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       className="h-20 w-20"
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
-      data-marker-theme={theme}
+      data-marker-theme={isNpcGhostDemo ? 'npc-ghost-demo' : theme}
       height="80"
       viewBox="0 0 64 64"
       width="80"
@@ -551,12 +549,12 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     >
       <defs>
         <linearGradient id={gradientId} x1="10" x2="55" y1="9" y2="56" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={isCurrentUser ? '#00B8FF' : gradientFrom} />
-          <stop offset="52%" stopColor={isCurrentUser ? '#0A7DF4' : gradientMiddle} />
-          <stop offset="100%" stopColor={isCurrentUser ? '#3236D4' : gradientTo} />
+          <stop offset="0%" stopColor={gradientFrom} />
+          <stop offset="52%" stopColor={gradientMiddle} />
+          <stop offset="100%" stopColor={gradientTo} />
         </linearGradient>
         <clipPath id={clipId}>
-          <path d={HEART_PATH} />
+          <path d={HEART_PIN_PATH} />
         </clipPath>
       </defs>
       {hasPhoto ? (
@@ -569,11 +567,11 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             preserveAspectRatio="xMidYMid slice"
             width="64"
           />
-          <path d={HEART_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
+          <path d={HEART_PIN_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
         </>
       ) : isCurrentUser && !isMutualCruush ? (
         <>
-          <path d={HEART_PATH} fill="#050505" stroke="#0BA8FF" strokeWidth="3.2" />
+          <path d={HEART_PIN_PATH} fill="#050505" stroke="#0BA8FF" strokeWidth="3.2" />
           <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
             <div className="flex h-9 w-9 items-center justify-center">
               <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
@@ -581,7 +579,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           </foreignObject>
         </>
       ) : (
-        <path d={HEART_PATH} fill={`url(#${gradientId})`} stroke={isMutualCruush || isNpcGhostDemo ? borderColor : undefined} strokeWidth={isMutualCruush || isNpcGhostDemo ? '3.2' : undefined} />
+        <path d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
       )}
     </svg>
   );

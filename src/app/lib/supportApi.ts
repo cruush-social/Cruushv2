@@ -10,6 +10,11 @@ export type CreateSupportRequestPayload = {
   contactEmail?: string;
   source: SupportRequestSource;
   pageUrl?: string;
+  screenshot?: {
+    filename: string;
+    contentType: 'image/jpeg' | 'image/png' | 'image/webp';
+    contentBase64: string;
+  };
 };
 
 export type SupportRequestRecord = {

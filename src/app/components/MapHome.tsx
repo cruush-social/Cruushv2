@@ -282,6 +282,7 @@ type MapHomeProps = {
 type MapRouteState = {
   openOwnProfilePanel?: boolean;
   centerEventSlug?: string;
+  focusUserId?: string;
 } | null;
 
 type LuckySlotState =
@@ -346,8 +347,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
     startX: 0,
   });
   const isMutualMapMode = searchParams.get('mode') === 'mutuals';
-  const focusUserId = searchParams.get('focusUserId');
   const routeState = location.state as MapRouteState;
+  const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
   const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
   const hasCruushPlus = billingStatus?.cruushPlus !== false;
 
@@ -760,7 +761,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   };
 
-  const displayedUsers = filteredUsers;
+  const displayedUsers = useMemo(() => {
+    if (!focusUserId) {
+      return filteredUsers;
+    }
+
+    const focusedUser = users.find((user) => user.id === focusUserId);
+
+    if (!focusedUser || filteredUsers.some((user) => user.id === focusUserId)) {
+      return filteredUsers;
+    }
+
+    return [focusedUser, ...filteredUsers];
+  }, [filteredUsers, focusUserId, users]);
   const savedProfileMapLocation = useMemo(
     () => profileLocationToApproximateCoordinates(currentProfile),
     [currentProfile],
@@ -1071,8 +1084,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
     ];
   }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, privacySettings, userApproximateLocation]);
 
-  const focusedMutualMapLocation = useMemo(() => {
-    if (!isMutualMapMode || !focusUserId) {
+  const focusedMapLocation = useMemo(() => {
+    if (!focusUserId) {
       return null;
     }
 
@@ -1087,7 +1100,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       approximateLongitude: focusedUser.lng,
       privacyRadiusMeters: focusedUser.privacyRadiusMeters ?? 1,
     };
-  }, [displayedUsers, focusUserId, isMutualMapMode]);
+  }, [displayedUsers, focusUserId]);
 
   const handleMarkerSelect = (marker: MapMarker) => {
     if (marker.kind === 'event' && marker.event) {
@@ -1307,7 +1320,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             }}
             markers={mapMarkers}
             fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
-            focusCoordinates={focusedMutualMapLocation ?? currentUserMapLocation}
+            focusCoordinates={focusedMapLocation ?? (focusUserId ? undefined : currentUserMapLocation)}
             denseVenue={denseVenue}
             radiusCircle={privacySettings.ghostModeEnabled && currentUserMapLocation
               ? {

@@ -7,6 +7,7 @@ import { PROFILE_HERO_ASPECT_STYLE, PROFILE_HERO_MEDIA_STYLE, PROFILE_HERO_VIEWP
 import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import type { ProfilePhotoMetadata } from '../lib/profileApi';
+import type { HeartPinTheme } from '../lib/heartPin';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import ReportAction from './ReportAction';
 
@@ -17,6 +18,7 @@ interface ProfilePhotoGalleryProps {
   photos: string[];
   photoMetadata?: ProfilePhotoMetadata[];
   reportTargetUserId?: string;
+  theme?: HeartPinTheme;
   userId?: string | null;
 }
 
@@ -27,6 +29,7 @@ export default function ProfilePhotoGallery({
   photoMetadata = [],
   photos,
   reportTargetUserId,
+  theme = 'nearby',
   userId = null,
 }: ProfilePhotoGalleryProps) {
   const visiblePhotos = useMemo(() => photos.slice(0, 4), [photos]);
@@ -107,7 +110,7 @@ export default function ProfilePhotoGallery({
               type="button"
               aria-label={`Show profile photo ${index + 1}`}
               onClick={() => setActiveIndex(index)}
-              className="flex items-center justify-center rounded-full border border-white/25 bg-black/45 p-1 shadow-[0_10px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+              className="flex items-center justify-center overflow-visible border-0 bg-transparent p-0 drop-shadow-[0_10px_24px_rgba(0,0,0,0.42)] transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               style={{
                 height: 'clamp(2.75rem, 9dvh, 4rem)',
                 width: 'clamp(2.75rem, 9dvh, 4rem)',
@@ -118,6 +121,7 @@ export default function ProfilePhotoGallery({
                 masked={dlModeActive && explicitPhotoUrls.has(photo)}
                 photo={photo}
                 className="h-full w-full"
+                theme={theme}
                 userId={userId ?? photo}
               />
             </button>

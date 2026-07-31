@@ -19,12 +19,93 @@ type AlphaBugButtonProps = {
 
 const ALPHA_BUG_TIP_STORAGE_KEY = 'cruush:alpha-bug-tip-seen';
 
+type ScreenshotAttachment = {
+  filename: string;
+  contentType: 'image/jpeg';
+  contentBase64: string;
+};
+
 function getCurrentPageUrl() {
   if (typeof window === 'undefined') {
     return '/';
   }
 
   return `${window.location.pathname}${window.location.search}` || '/';
+}
+
+function waitForVideoMetadata(video: HTMLVideoElement) {
+  return new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error('Screenshot timed out.')), 5000);
+
+    video.onloadedmetadata = () => {
+      window.clearTimeout(timeout);
+      resolve();
+    };
+    video.onerror = () => {
+      window.clearTimeout(timeout);
+      reject(new Error('Screenshot failed.'));
+    };
+  });
+}
+
+async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined> {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return undefined;
+  }
+
+  const mediaDevices = navigator.mediaDevices as (MediaDevices & {
+    getDisplayMedia?: (constraints?: MediaStreamConstraints) => Promise<MediaStream>;
+  }) | undefined;
+
+  if (typeof mediaDevices?.getDisplayMedia !== 'function') {
+    return undefined;
+  }
+
+  let stream: MediaStream | null = null;
+
+  try {
+    stream = await mediaDevices.getDisplayMedia({
+      audio: false,
+      video: true,
+    });
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.srcObject = stream;
+    await waitForVideoMetadata(video);
+    await video.play();
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+
+    const sourceWidth = video.videoWidth || 1280;
+    const sourceHeight = video.videoHeight || 720;
+    const scale = Math.min(1, 1280 / sourceWidth);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      return undefined;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+    const contentBase64 = dataUrl.split(',')[1] ?? '';
+
+    if (!contentBase64) {
+      return undefined;
+    }
+
+    return {
+      filename: `alpha-bug-${Date.now()}.jpg`,
+      contentType: 'image/jpeg',
+      contentBase64,
+    };
+  } catch {
+    return undefined;
+  } finally {
+    stream?.getTracks().forEach((track) => track.stop());
+  }
 }
 
 export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps) {
@@ -67,12 +148,14 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
     setError('');
 
     try {
+      const screenshot = await captureBugScreenshot();
       await createSupportRequest({
         category: 'bug',
         subject: `Alpha bug: ${pageUrl}`,
         message: message.trim(),
         source: 'unknown',
         pageUrl,
+        ...(screenshot ? { screenshot } : {}),
       });
       setStatus('success');
       setMessage('');
@@ -121,7 +204,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>
           <DialogDescription>
-            Screenshots are allowed for alpha feedback. This report includes the current page.
+            This report includes the current page and attaches a screenshot when your browser allows it.
           </DialogDescription>
         </DialogHeader>
 

@@ -24,13 +24,23 @@ export const supportRequestSourceSchema = z.enum([
   "unknown"
 ]);
 
+const supportScreenshotSchema = z.object({
+  filename: singleLineTextSchema({ min: 1, max: 120 }),
+  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  contentBase64: z.string()
+    .min(1)
+    .max(5_000_000)
+    .regex(/^[A-Za-z0-9+/]+={0,2}$/)
+}).strict();
+
 export const createSupportRequestPayloadSchema = z.object({
   category: supportRequestCategorySchema,
   subject: singleLineTextSchema({ min: 3, max: 140 }),
   message: multilineTextSchema({ min: 10, max: 4000 }),
   contactEmail: optionalEmailSchema,
   source: supportRequestSourceSchema.optional().default("unknown"),
-  pageUrl: singleLineTextSchema({ max: 1000 }).optional().default("")
+  pageUrl: singleLineTextSchema({ max: 1000 }).optional().default(""),
+  screenshot: supportScreenshotSchema.optional()
 }).strict();
 
 export type CreateSupportRequestPayload = z.infer<typeof createSupportRequestPayloadSchema>;

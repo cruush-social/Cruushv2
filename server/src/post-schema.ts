@@ -3,6 +3,7 @@ import { multilineTextSchema } from "./input-schema.js";
 import { normalizeCrowdOption } from "./profile-sensitive.js";
 
 export const postExpirySchema = z.enum(["1h", "6h", "24h"]);
+export const feedLocationPinVisibilitySchema = z.enum(["off", "mutuals", "same_crowd", "public"]);
 
 const crowdTargetsSchema = z.array(z.string()).optional().default([])
   .transform((values, ctx) => {
@@ -33,4 +34,9 @@ export const createPostPayloadSchema = z.object({
   crowdTargets: crowdTargetsSchema
 }).strict();
 
+export const updateFeedSettingsPayloadSchema = z.object({
+  locationPinVisibility: feedLocationPinVisibilitySchema
+}).strict();
+
 export type CreatePostPayload = z.infer<typeof createPostPayloadSchema>;
+export type FeedLocationPinVisibility = z.infer<typeof feedLocationPinVisibilitySchema>;

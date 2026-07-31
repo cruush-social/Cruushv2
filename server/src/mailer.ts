@@ -42,6 +42,7 @@ export type SupportRequestEmailInput = {
   message: string;
   pageUrl: string;
   requesterUserId: string | null;
+  screenshot?: EmailAttachment | null;
   source: string;
   subject: string;
 };
@@ -479,6 +480,7 @@ export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEma
     ["Requester user ID", request.requesterUserId ?? "signed out"],
     ["Reply email", request.contactEmail ?? "none provided"],
     ["Page", request.pageUrl || "unknown"],
+    ["Screenshot", request.screenshot ? request.screenshot.filename : "none"],
     ["Created at", request.createdAt]
   ];
   const htmlRows = fields
@@ -501,6 +503,7 @@ export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEma
     subject: `[support] ${request.category}: ${request.subject}`,
     html: `<p>New cruush support request.</p><table>${htmlRows}</table><h2>${escapeHtml(request.subject)}</h2><p>${escapedMessage}</p>`,
     text,
+    attachments: request.screenshot ? [request.screenshot] : undefined,
     failureMessage: "support inbox email delivery failed"
   });
 }

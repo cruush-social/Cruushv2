@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useId } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
-import { getProfileGradientStops } from '../lib/profileGradient';
+import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
 
 interface HeartPhotoProps {
   borderColor?: string;
@@ -10,27 +10,9 @@ interface HeartPhotoProps {
   label: string;
   masked?: boolean;
   photo?: string | null;
-  theme?: 'current' | 'mutual' | 'nearby';
+  theme?: HeartPinTheme;
   userId?: string | null;
 }
-
-const HEART_PATH =
-  'M32 56C30.55 54.67 8 39.75 8 23.75C8 14.95 13.95 8 22 8C27.05 8 30.2 10.78 32 14.05C33.8 10.78 36.95 8 42 8C50.05 8 56 14.95 56 23.75C56 39.75 33.45 54.67 32 56Z';
-
-const HEART_THEME = {
-  current: {
-    border: '#0BA8FF',
-    stops: ['#00B8FF', '#0A7DF4', '#3236D4'],
-  },
-  mutual: {
-    border: '#6f00ff',
-    stops: ['#A64DFF', '#6f00ff', '#3B00A8'],
-  },
-  nearby: {
-    border: '#FF0072',
-    stops: ['#FF0072', '#DA045D', '#B40849'],
-  },
-} as const;
 
 export default function HeartPhoto({
   borderColor,
@@ -40,14 +22,13 @@ export default function HeartPhoto({
   masked = false,
   photo = null,
   theme = 'nearby',
-  userId = null,
 }: HeartPhotoProps) {
   const id = useId();
   const patternId = `heart-photo-${id}`;
   const gradientId = `heart-gradient-${id}`;
-  const resolvedTheme = HEART_THEME[theme];
+  const resolvedTheme = HEART_PIN_THEMES[theme];
   const showPhoto = Boolean(photo && !masked);
-  const gradientStops = (!showPhoto && userId) ? getProfileGradientStops(userId) : resolvedTheme.stops;
+  const gradientStops = resolvedTheme.stops;
   const resolvedBorderColor = borderColor ?? resolvedTheme.border;
   const resolvedPhoto = showPhoto && photo ? resolveMediaUrl(photo) : null;
 
@@ -75,7 +56,7 @@ export default function HeartPhoto({
           </linearGradient>
         </defs>
         <path
-          d={HEART_PATH}
+          d={HEART_PIN_PATH}
           fill={resolvedPhoto ? `url(#${patternId})` : `url(#${gradientId})`}
           stroke={resolvedBorderColor}
           strokeWidth="3.2"

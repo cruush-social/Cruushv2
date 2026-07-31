@@ -229,6 +229,7 @@ export default function ProfileView() {
   const isAlreadyMutual = cruushBecameMutual || profileView?.relationship?.mutual_cruush === true;
   const hasSentCruush = cruushed || profileView?.relationship?.outgoing_cruush === true;
   const cruushDisabled = sendingCruush || hasSentCruush || isAlreadyMutual;
+  const heartTheme = isOwnProfile ? 'current' : isAlreadyMutual ? 'mutual' : 'nearby';
 
   const handleCruush = async () => {
     if (!userId || !profileView) {
@@ -363,6 +364,7 @@ export default function ProfileView() {
           photoMetadata={profileView.photoMetadata}
           photos={profileView.photos}
           reportTargetUserId={isOwnProfile ? undefined : userId}
+          theme={heartTheme}
           userId={profileView.id}
         />
       </div>

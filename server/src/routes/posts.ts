@@ -4,10 +4,11 @@ import { requireCruushPlus } from "../billing.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
 import { ApiError } from "../errors.js";
 import { approvedContentReviewCte, moderateTextOrReject } from "../moderation-service.js";
-import { createPostPayloadSchema } from "../post-schema.js";
+import { createPostPayloadSchema, updateFeedSettingsPayloadSchema, type FeedLocationPinVisibility } from "../post-schema.js";
 import { createCrowdTokens } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
+import { getRelationshipPermissions } from "../match-relationships.js";
 
 type PostRow = {
   id: string;
@@ -25,10 +26,17 @@ type PostRow = {
   photos: string[] | null;
   badges?: string[] | null;
   crowd_targets?: string[] | null;
+  feed_location_pin_visibility?: FeedLocationPinVisibility | null;
+  has_live_location?: boolean | null;
+  has_shared_crowd?: boolean | null;
   party_status?: {
     eventSlug?: string;
     label?: string;
   } | string | null;
+};
+
+type FeedSettingsRow = {
+  feed_location_pin_visibility: FeedLocationPinVisibility | null;
 };
 
 function normalizePartyStatus(value: PostRow["party_status"]) {
@@ -55,9 +63,34 @@ function normalizePartyStatus(value: PostRow["party_status"]) {
   };
 }
 
-function mapPostRow(app: FastifyInstance, row: PostRow) {
+async function canViewLocationPin(app: FastifyInstance, viewerUserId: string, row: PostRow) {
+  const visibility = row.feed_location_pin_visibility ?? "mutuals";
+
+  if (visibility === "off" || row.has_live_location !== true) {
+    return false;
+  }
+
+  if (viewerUserId === row.user_id || visibility === "public") {
+    return true;
+  }
+
+  if (visibility === "same_crowd") {
+    return row.has_shared_crowd === true;
+  }
+
+  try {
+    const relationship = await getRelationshipPermissions(app, viewerUserId, row.user_id);
+    return relationship.isMutualCruush === true;
+  } catch (error) {
+    app.log.warn({ err: error, viewerUserId, authorUserId: row.user_id }, "feed post location pin relationship check failed");
+    return false;
+  }
+}
+
+async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: string) {
   const partyStatus = normalizePartyStatus(row.party_status);
   const crowdTargets = row.crowd_targets ?? [];
+  const locationPinVisible = await canViewLocationPin(app, viewerUserId, row);
 
   return {
     id: row.id,
@@ -72,6 +105,12 @@ function mapPostRow(app: FastifyInstance, row: PostRow) {
     createdAt: new Date(row.created_at).toISOString(),
     distance: "Nearby",
     ...(crowdTargets.length > 0 ? { crowdTargets } : {}),
+    ...(locationPinVisible ? {
+      locationPin: {
+        userId: row.user_id,
+        visibility: row.feed_location_pin_visibility ?? "mutuals"
+      }
+    } : {}),
     ...(partyStatus ? { partyStatus } : {}),
     user: {
       id: row.user_id,
@@ -97,6 +136,22 @@ const POST_COLUMNS = `
   pr.display_name,
   pr.pronouns,
   pr.photos,
+  coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as feed_location_pin_visibility,
+  exists (
+    select 1
+    from encrypted_location_envelopes location_envelopes
+    where location_envelopes.subject_user_id = p.user_id
+      and location_envelopes.expires_at_ms > (extract(epoch from now()) * 1000)::bigint
+  ) as has_live_location,
+  exists (
+    select 1
+    from profile_sensitive_tokens viewer_crowd_token
+    join profile_sensitive_tokens author_crowd_token
+      on author_crowd_token.token_hash = viewer_crowd_token.token_hash
+     and author_crowd_token.token_key_version = viewer_crowd_token.token_key_version
+    where viewer_crowd_token.user_id = $1
+      and author_crowd_token.user_id = p.user_id
+  ) as has_shared_crowd,
   coalesce((
     select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
     from user_badges
@@ -136,6 +191,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
       `select ${POST_COLUMNS}
        from posts p
        left join profiles pr on pr.id = p.user_id
+       left join user_privacy_settings pin_settings on pin_settings.user_id = p.user_id
        where p.expires_at > now()
          and not exists (
            select 1
@@ -165,7 +221,47 @@ export async function registerPostRoutes(app: FastifyInstance) {
     );
 
     return reply.send({
-      data: result.rows.map((row) => mapPostRow(app, row))
+      data: await Promise.all(result.rows.map((row) => mapPostRow(app, row, userId)))
+    });
+  });
+
+  app.get("/api/feed/settings", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const row = (await app.db.query<FeedSettingsRow>(
+      `select feed_location_pin_visibility
+       from user_privacy_settings
+       where user_id = $1
+       limit 1`,
+      [userId]
+    )).rows[0];
+
+    return reply.send({
+      data: {
+        locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals"
+      }
+    });
+  });
+
+  app.put("/api/feed/settings", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const payload = updateFeedSettingsPayloadSchema.parse(request.body);
+    const row = (await app.db.query<FeedSettingsRow>(
+      `insert into user_privacy_settings (
+         user_id,
+         feed_location_pin_visibility
+       )
+       values ($1, $2)
+       on conflict (user_id) do update
+       set feed_location_pin_visibility = excluded.feed_location_pin_visibility,
+           updated_at = now()
+       returning feed_location_pin_visibility`,
+      [userId, payload.locationPinVisibility]
+    )).rows[0];
+
+    return reply.send({
+      data: {
+        locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals"
+      }
     });
   });
 
@@ -302,13 +398,22 @@ export async function registerPostRoutes(app: FastifyInstance) {
          pr.display_name,
          pr.pronouns,
          pr.photos,
+         coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as feed_location_pin_visibility,
+         exists (
+           select 1
+           from encrypted_location_envelopes location_envelopes
+           where location_envelopes.subject_user_id = i.user_id
+             and location_envelopes.expires_at_ms > (extract(epoch from now()) * 1000)::bigint
+         ) as has_live_location,
+         true as has_shared_crowd,
          coalesce((
            select array_agg(distinct target.crowd order by target.crowd)
            from feed_post_crowd_targets target
            where target.post_id = i.id
          ), '{}'::text[]) as crowd_targets
        from inserted i
-       left join profiles pr on pr.id = i.user_id`,
+       left join profiles pr on pr.id = i.user_id
+       left join user_privacy_settings pin_settings on pin_settings.user_id = i.user_id`,
       [
         userId,
         payload.expiresIn,
@@ -340,7 +445,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
     });
 
     return reply.code(201).send({
-      data: mapPostRow(app, row)
+      data: await mapPostRow(app, row, userId)
     });
   });
 
