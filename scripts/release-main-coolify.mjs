@@ -323,7 +323,7 @@ async function validateAndPatchApps(targets, dryRun) {
     console.log(`Validated ${target.label} domain ${target.expectedHost}.`);
 
     if (dryRun) {
-      console.log(`[dry-run] Would set ${target.label} git_branch=main, alpha env cutoff values, 15-mile beta access geofence, and reports inbox.`);
+      console.log(`[dry-run] Would set ${target.label} git_branch=main, alpha env cutoff values, 15-mile beta access geofence, reports inbox, and launch party pin.`);
       continue;
     }
 
@@ -335,7 +335,7 @@ async function validateAndPatchApps(targets, dryRun) {
       method: 'PATCH',
       body: JSON.stringify(releaseRuntimeEnvData()),
     });
-    console.log(`Updated ${target.label} branch, alpha envs, beta access geofence, and reports inbox.`);
+    console.log(`Updated ${target.label} branch, alpha envs, beta access geofence, reports inbox, and launch party pin.`);
   }
 }
 
