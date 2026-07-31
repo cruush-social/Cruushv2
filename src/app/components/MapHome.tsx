@@ -29,7 +29,7 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type EventPassReveal, type LaunchEvent } from '../lib/eventsApi';
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
-import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, setDlModeEnabled } from '../lib/dlMode';
 import { syncMyLocation } from '../lib/locationApi';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
@@ -1003,6 +1003,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
     showLuckySlot({ mode: 'profile', targetUser: luckyUser });
   };
 
+  const handleToggleDlMode = () => {
+    setDlModeEnabled(!dlModeActive);
+  };
+
   const handleCenterMyLocation = () => {
     if (currentUserMapLocation) {
       setLocationError(null);
@@ -1110,7 +1114,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   };
 
-  const handleJoinEventChat = async () => {
+  const handleJoinEventChat = async ({ openChat = true }: { openChat?: boolean } = {}) => {
     if (!selectedEvent) {
       return;
     }
@@ -1125,9 +1129,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
             ...event,
             joined: true,
             conversationId: joinedChat.conversationId,
+            attendeeCount: event.joined ? event.attendeeCount : event.attendeeCount + 1,
           }
         : event));
-      navigate(`/chat/group/${joinedChat.conversationId}`);
+      if (openChat) {
+        navigate(`/chat/group/${joinedChat.conversationId}`);
+      } else {
+        setEventActionStatus('You joined. The party chat is in Messages and notifications are off by default.');
+      }
     } catch (joinError) {
       setEventActionError(joinError instanceof Error ? joinError.message : 'Unable to join the party group chat right now.');
     } finally {
@@ -1382,9 +1391,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/privacy/dl-mode')}
-              aria-label="DL Mode Settings"
-              title="DL Mode Settings"
+              onClick={handleToggleDlMode}
+              aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
+              title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               className="rounded-full text-white/90 hover:bg-white/10"
             >
               <Eye className="h-5 w-5" style={dlModeEyeStyle} strokeWidth={2.35} />
@@ -1554,6 +1563,40 @@ export default function MapHome(_props: MapHomeProps = {}) {
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
 
+            <div className="mt-4 grid grid-cols-1 gap-2">
+              {selectedEvent.joined ? (
+                <div className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">
+                  You're joining. The party chat is available in Messages and muted by default.
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  className="h-10 rounded-lg text-white"
+                  style={{ background: 'var(--cruush-gradient)' }}
+                  onClick={() => handleJoinEventChat({ openChat: false })}
+                  disabled={joiningEventChat}
+                >
+                  {joiningEventChat ? 'Joining...' : 'Join launch party'}
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-10 rounded-lg border border-white/10 bg-white/8 text-white hover:bg-white/12"
+                onClick={() => {
+                  if (selectedEvent.conversationId) {
+                    navigate(`/chat/group/${selectedEvent.conversationId}`);
+                    return;
+                  }
+                  void handleJoinEventChat({ openChat: true });
+                }}
+                disabled={joiningEventChat}
+              >
+                <MessageCircle className="mr-2 h-4 w-4" />
+                {selectedEvent.joined ? 'Open party chat' : 'Ask for chat invite'}
+              </Button>
+            </div>
+
             <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.045] p-3">
               {visibleEventPassIconName ? (
                 <div>
@@ -1582,7 +1625,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       type="button"
                       className="h-10 rounded-lg text-white"
                       style={{ background: 'var(--cruush-gradient)' }}
-                      onClick={handleJoinEventChat}
+                      onClick={() => handleJoinEventChat({ openChat: true })}
                       disabled={joiningEventChat}
                     >
                       <MessageCircle className="mr-2 h-4 w-4" />
@@ -1872,13 +1915,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <DialogHeader>
               <DialogTitle>Map controls</DialogTitle>
               <DialogDescription>
-                Seeking changes who appears on your map. Visibility changes who can see you. Crowd Mode makes you visible only to the active crowds you choose.
+                Seeking and Visibility live on the right side of the map. The bug report button stays top center so it is not hidden under menus.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-white/72">
               <p><span className="text-white">Seeking:</span> filter nearby people by what you want to find.</p>
               <p><span className="text-white">Visibility:</span> hide yourself from selected audiences.</p>
               <p><span className="text-white">Crowds:</span> use Dyke, Gay, and T4T modes when you only want those active crowds to see you.</p>
+              <p><span className="text-white">DL Mode:</span> tap the eye in the top menu to mask or reveal NSFW images.</p>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
               <Button

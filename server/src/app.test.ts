@@ -1244,6 +1244,64 @@ describe("server", () => {
     }
   });
 
+  it("allows alpha signup without a password inside the beta access radius", async () => {
+    const alphaGeofenceSignupApp = buildServer({
+      ...app.config,
+      ALPHA_TEST_ENABLED: true,
+      ALPHA_TEST_PASSWORD_HASH: "",
+      ALPHA_TEST_ENDS_AT: "2099-08-07T03:59:00-04:00",
+      BETA_ACCESS_GEOFENCE_ENABLED: true,
+      BETA_ACCESS_CENTER_LATITUDE: 40.70982,
+      BETA_ACCESS_CENTER_LONGITUDE: -73.92256,
+      BETA_ACCESS_RADIUS_MILES: 15,
+      BETA_ACCESS_VENUE_NAME: "70 Scott Ave"
+    }, {
+      db: {
+        query,
+        end
+      },
+      rateLimiter: createMemoryRateLimiter()
+    });
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          display_name: null,
+          email_verified_at: null,
+          created_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          expires_at: "2026-04-30T12:00:00.000Z"
+        }]
+      });
+
+    try {
+      const response = await alphaGeofenceSignupApp.inject({
+        method: "POST",
+        url: "/api/auth/signup",
+        payload: {
+          email: "river@example.com",
+          password: "password-123",
+          betaAccessLocation: {
+            lat: 40.7099,
+            lng: -73.9226
+          }
+        }
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
+    } finally {
+      await alphaGeofenceSignupApp.close();
+    }
+  });
+
   it("uses the allowed frontend origin for verification links when the API has its own APP_URL", async () => {
     query
       .mockResolvedValueOnce({

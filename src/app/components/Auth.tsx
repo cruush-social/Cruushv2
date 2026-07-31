@@ -86,7 +86,7 @@ export default function Auth({ onAuth }: AuthProps) {
   const isSignUp = mode === 'signup';
   const isForgotPassword = mode === 'forgot';
   const turnstileSiteKey = getTurnstileSiteKey();
-  const alphaPasswordRequired = Boolean(alphaTest?.enabled);
+  const alphaPasswordRequired = Boolean(alphaTest?.enabled && !betaAccess?.enabled);
   const betaAccessRequired = Boolean(betaAccess?.enabled);
   const shouldShowCaptcha = Boolean(!isForgotPassword && turnstileSiteKey && captchaRequested);
   const handleCaptchaTokenChange = useCallback((token: string) => {

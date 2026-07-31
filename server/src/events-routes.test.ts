@@ -72,19 +72,20 @@ describe("event routes", () => {
 
   it("returns the active Chocolate Factory launch event with map metadata", async () => {
     query
-      .mockResolvedValueOnce({ rows: [{ user_id: userId }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [eventRow] });
 
     const response = await app.inject({
       method: "GET",
       url: "/api/events/active",
-      cookies: {
-        cruush_session: "test-session-token"
+      headers: {
+        "x-user-id": userId
       }
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[1]?.[0]).toContain("from launch_events event");
+    expect(query.mock.calls[2]?.[0]).toContain("from launch_events event");
     expect(response.json()).toEqual({
       data: [{
         id: eventId,
@@ -113,14 +114,15 @@ describe("event routes", () => {
 
   it("keeps the door pass hidden outside one mile and reveals a stable icon inside one mile", async () => {
     query
-      .mockResolvedValueOnce({ rows: [{ user_id: userId }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [eventRow] });
 
     const outside = await app.inject({
       method: "POST",
       url: "/api/events/the-chocolate-factory-launch/reveal-pass",
-      cookies: {
-        cruush_session: "test-session-token"
+      headers: {
+        "x-user-id": userId
       },
       payload: {
         latitude: 40.758,
@@ -138,7 +140,8 @@ describe("event routes", () => {
 
     query.mockReset();
     query
-      .mockResolvedValueOnce({ rows: [{ user_id: userId }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [eventRow] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ icon_name: "map" }] });
@@ -146,8 +149,8 @@ describe("event routes", () => {
     const inside = await app.inject({
       method: "POST",
       url: "/api/events/the-chocolate-factory-launch/reveal-pass",
-      cookies: {
-        cruush_session: "test-session-token"
+      headers: {
+        "x-user-id": userId
       },
       payload: {
         latitude: 40.7099,
@@ -156,7 +159,7 @@ describe("event routes", () => {
     });
 
     expect(inside.statusCode).toBe(200);
-    expect(query.mock.calls[3]?.[0]).toContain("insert into event_pass_icons");
+    expect(query.mock.calls[4]?.[0]).toContain("insert into event_pass_icons");
     expect(inside.json()).toMatchObject({
       data: {
         iconName: "map",
@@ -168,16 +171,16 @@ describe("event routes", () => {
 
   it("joins the launch party chat as a member without making the attendee an admin", async () => {
     query
-      .mockResolvedValueOnce({ rows: [{ user_id: userId }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [eventRow] })
-      .mockResolvedValueOnce({ rows: [{ conversation_id: conversationId }] })
-      .mockResolvedValueOnce({ rows: [eventRow] });
+      .mockResolvedValueOnce({ rows: [{ conversation_id: conversationId, current_user_role: "member" }] });
 
     const response = await app.inject({
       method: "POST",
       url: "/api/events/the-chocolate-factory-launch/join-chat",
-      cookies: {
-        cruush_session: "test-session-token"
+      headers: {
+        "x-user-id": userId
       }
     });
 
@@ -185,7 +188,10 @@ describe("event routes", () => {
     const joinedSql = query.mock.calls.map(([sql]) => String(sql)).join("\n");
     expect(joinedSql).toContain("insert into event_memberships");
     expect(joinedSql).toContain("insert into conversation_members");
+    expect(joinedSql).toContain("count(*)::int as member_count");
+    expect(joinedSql).toContain("true, now()");
     expect(joinedSql).toContain("'member'");
+    expect(joinedSql).toContain("lower(app_user.email) = lower($2)");
     expect(joinedSql).not.toContain("'owner' as attendee_role");
     expect(response.json()).toMatchObject({
       data: {

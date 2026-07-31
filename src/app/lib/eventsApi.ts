@@ -35,7 +35,7 @@ export type EventChatJoin = {
   eventSlug: string;
   conversationId: string;
   joined: true;
-  currentUserRole: 'member';
+  currentUserRole: 'owner' | 'admin' | 'member';
 };
 
 export async function getActiveEvents() {

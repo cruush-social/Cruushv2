@@ -54,6 +54,10 @@ type EventRow = {
 };
 
 type LaunchEvent = ReturnType<typeof mapEventRow>;
+type EventChatJoinRow = {
+  conversation_id: string;
+  current_user_role: "owner" | "admin" | "member";
+};
 
 const eventParamsSchema = z.object({
   slug: z.string().trim().min(1)
@@ -243,6 +247,19 @@ async function ensureConfiguredLaunchEvent(app: FastifyInstance) {
       app.config.LAUNCH_PARTY_ENDS_AT,
       app.config.LAUNCH_PARTY_CHAT_EXPIRES_AT,
       app.config.LAUNCH_PARTY_RA_URL
+    ]
+  );
+
+  await app.db.query(
+    `insert into event_staff (event_id, user_id, role)
+     select $1, app_user.id, 'owner'
+     from app_users app_user
+     where lower(app_user.email) = lower($2)
+     on conflict (event_id, user_id) do update
+     set role = 'owner'`,
+    [
+      LAUNCH_PARTY_EVENT_ID,
+      app.config.LAUNCH_PARTY_CHAT_ADMIN_EMAIL
     ]
   );
 }
@@ -446,10 +463,19 @@ export async function registerEventRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const { slug } = eventParamsSchema.parse(request.params);
     const event = await loadEvent(app, userId, slug);
-    const result = await app.db.query<{ conversation_id: string }>(
+    const result = await app.db.query<EventChatJoinRow>(
       `with upsert_membership as (
          insert into event_memberships (event_id, user_id, joined_at, last_seen_at)
-         values ($1, $2, now(), now())
+         select $1, $2, now(), now()
+         from (
+           select
+             count(*)::int as member_count,
+             coalesce(bool_or(member.user_id = $2), false) as already_joined
+           from event_memberships member
+           where member.event_id = $1
+         ) chat_capacity
+         where chat_capacity.already_joined
+            or chat_capacity.member_count < $5
          on conflict (event_id, user_id) do update
          set last_seen_at = now()
          returning event_id
@@ -468,7 +494,7 @@ export async function registerEventRoutes(app: FastifyInstance) {
        ), inserted_conversation as (
          insert into conversations (kind, title, created_by, disappearing_timer)
          select 'group', $3, selected_staff_owner.user_id, '7d'
-         from (select 1) seed
+         from upsert_membership
          left join selected_staff_owner on true
          where not exists (select 1 from existing_chat)
          returning id
@@ -481,38 +507,40 @@ export async function registerEventRoutes(app: FastifyInstance) {
          insert into event_chats (event_id, conversation_id, expires_at)
          select $1, resolved_chat.conversation_id, $4
          from resolved_chat
+         join upsert_membership on true
          on conflict (event_id) do update
          set conversation_id = excluded.conversation_id,
              expires_at = excluded.expires_at
          returning conversation_id
        ), insert_staff_members as (
-         insert into conversation_members (conversation_id, user_id, role, last_read_at)
+         insert into conversation_members (conversation_id, user_id, role, muted, last_read_at)
          select
            upsert_event_chat.conversation_id,
            staff.user_id,
            case staff.role when 'owner' then 'owner' else 'admin' end,
+           true,
            null
          from upsert_event_chat
          join event_staff staff on staff.event_id = $1
          on conflict (conversation_id, user_id) do update
          set role = excluded.role
        ), insert_attendee_member as (
-         insert into conversation_members (conversation_id, user_id, role, last_read_at)
-         select upsert_event_chat.conversation_id, $2, 'member', now()
+         insert into conversation_members (conversation_id, user_id, role, muted, last_read_at)
+         select upsert_event_chat.conversation_id, $2, 'member', true, now()
          from upsert_event_chat
          on conflict (conversation_id, user_id) do update
          set last_read_at = coalesce(conversation_members.last_read_at, now())
-         returning conversation_id
+         returning conversation_id, role
        )
-       select conversation_id::text
+       select conversation_id::text, role as current_user_role
        from insert_attendee_member
        limit 1`,
-      [event.id, userId, `${event.venueName} party chat`, event.chatExpiresAt]
+      [event.id, userId, `${event.venueName} party chat`, event.chatExpiresAt, app.config.LAUNCH_PARTY_CHAT_MAX_MEMBERS]
     );
-    const conversationId = result.rows[0]?.conversation_id ?? event.conversationId;
+    const conversationId = result.rows[0]?.conversation_id;
 
     if (!conversationId) {
-      throw new ApiError(500, "INTERNAL_ERROR", "Failed to join event chat.");
+      throw new ApiError(409, "FEATURE_RESTRICTED", "The party group chat is full.");
     }
 
     return reply.send({
@@ -520,7 +548,7 @@ export async function registerEventRoutes(app: FastifyInstance) {
         eventSlug: event.slug,
         conversationId,
         joined: true,
-        currentUserRole: "member"
+        currentUserRole: result.rows[0]?.current_user_role ?? "member"
       }
     });
   });

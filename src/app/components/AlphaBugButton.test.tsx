@@ -32,10 +32,11 @@ describe('AlphaBugButton', () => {
     render(<AlphaBugButton enabled />);
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
-    expect(reportButton).toHaveClass('left-4', 'top-[calc(8rem+env(safe-area-inset-top))]');
+    expect(reportButton).toHaveClass('left-1/2', 'top-[calc(0.75rem+env(safe-area-inset-top))]', '-translate-x-1/2');
     expect(reportButton).not.toHaveClass('right-4');
 
     fireEvent.click(reportButton);
+    expect(screen.getByText('/map?layer=nearby')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('What broke?'), {
       target: { value: 'Map pins disappeared after I changed filters.' },
     });

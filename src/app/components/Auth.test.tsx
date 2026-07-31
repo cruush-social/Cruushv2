@@ -315,7 +315,7 @@ describe('Auth', () => {
     fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
 
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Alpha password')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
     expect(screen.getByText('Beta access opens within 15 miles of 70 Scott Ave.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute('href', 'https://ra.co/events/2483120');
@@ -331,7 +331,7 @@ describe('Auth', () => {
     fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
 
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Alpha password')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
     expect(screen.getByText('Beta access opens within 15 miles of 70 Scott Ave.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Launch rave tickets' })).toHaveAttribute('href', 'https://ra.co/events/2483120');

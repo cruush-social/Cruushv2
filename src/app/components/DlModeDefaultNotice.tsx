@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import { Eye } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -12,21 +12,19 @@ import {
 } from './ui/dialog';
 import {
   markDlModeDefaultNoticeSeen,
-  setDlModeEnabled,
   shouldShowDlModeDefaultNotice,
 } from '../lib/dlMode';
 
 export default function DlModeDefaultNotice() {
-  const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (shouldShowDlModeDefaultNotice()) {
-      setDlModeEnabled(true);
+    if (location.pathname.startsWith('/map') && shouldShowDlModeDefaultNotice()) {
       markDlModeDefaultNoticeSeen();
       setOpen(true);
     }
-  }, []);
+  }, [location.pathname]);
 
   const closeNotice = () => {
     setOpen(false);
@@ -46,23 +44,18 @@ export default function DlModeDefaultNotice() {
           <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.045]">
             <Eye className="h-5 w-5 text-primary" strokeWidth={2.35} />
           </div>
-          <DialogTitle>DL Mode is on</DialogTitle>
+          <DialogTitle>DL Mode</DialogTitle>
           <DialogDescription>
-            NSFW images are hidden behind gradients. Turning DL Mode off shows NSFW images in profile photos, messages, and saved image previews.
+            DL Mode starts on by default. Tap the eye in the top map menu to turn it on or off; when it is on, NSFW images stay behind gradients.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={closeNotice}>
-            Keep on
-          </Button>
           <Button
-            onClick={() => {
-              closeNotice();
-              navigate('/privacy/dl-mode');
-            }}
+            className="w-full"
+            onClick={closeNotice}
             style={{ background: 'var(--cruush-gradient)' }}
           >
-            DL Mode settings
+            Got it
           </Button>
         </DialogFooter>
       </DialogContent>

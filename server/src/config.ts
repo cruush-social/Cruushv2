@@ -146,6 +146,8 @@ const configSchema = z.object({
   LAUNCH_PARTY_ENDS_AT: z.string().trim().optional().default("2026-08-01T05:00:00-04:00"),
   LAUNCH_PARTY_CHAT_EXPIRES_AT: z.string().trim().optional().default("2026-08-07T03:59:00-04:00"),
   LAUNCH_PARTY_RA_URL: z.string().url().optional().default("https://ra.co/events/2483120"),
+  LAUNCH_PARTY_CHAT_ADMIN_EMAIL: z.string().trim().email().optional().default("julienlenazny@gmail.com"),
+  LAUNCH_PARTY_CHAT_MAX_MEMBERS: z.coerce.number().int().min(2).max(500).optional().default(500),
   BETA_ACCESS_GEOFENCE_ENABLED: booleanEnvSchema.optional().default(false),
   BETA_ACCESS_CENTER_LATITUDE: z.coerce.number().min(-90).max(90).optional().default(40.70982),
   BETA_ACCESS_CENTER_LONGITUDE: z.coerce.number().min(-180).max(180).optional().default(-73.92256),
@@ -183,15 +185,17 @@ const configSchema = z.object({
   WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional().default(""),
   WEB_PUSH_SUBJECT: z.string().trim().min(1).optional().default("mailto:hello@cruush.app")
 }).superRefine((config, ctx) => {
-  if (config.ALPHA_TEST_ENABLED) {
+  if (config.ALPHA_TEST_ENABLED && !config.BETA_ACCESS_GEOFENCE_ENABLED) {
     if (!config.ALPHA_TEST_PASSWORD_HASH.startsWith("scrypt$")) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "ALPHA_TEST_PASSWORD_HASH must be a scrypt password hash when ALPHA_TEST_ENABLED=true.",
+        message: "ALPHA_TEST_PASSWORD_HASH must be a scrypt password hash when ALPHA_TEST_ENABLED=true without BETA_ACCESS_GEOFENCE_ENABLED.",
         path: ["ALPHA_TEST_PASSWORD_HASH"]
       });
     }
+  }
 
+  if (config.ALPHA_TEST_ENABLED) {
     if (!config.ALPHA_TEST_ENDS_AT) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -705,7 +709,9 @@ type LaunchPartyConfigKey =
   | "LAUNCH_PARTY_STARTS_AT"
   | "LAUNCH_PARTY_ENDS_AT"
   | "LAUNCH_PARTY_CHAT_EXPIRES_AT"
-  | "LAUNCH_PARTY_RA_URL";
+  | "LAUNCH_PARTY_RA_URL"
+  | "LAUNCH_PARTY_CHAT_ADMIN_EMAIL"
+  | "LAUNCH_PARTY_CHAT_MAX_MEMBERS";
 type BetaAccessConfigKey =
   | "BETA_ACCESS_GEOFENCE_ENABLED"
   | "BETA_ACCESS_CENTER_LATITUDE"

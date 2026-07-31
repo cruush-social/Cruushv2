@@ -527,7 +527,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
   });
 
-  it('renders 25 percent larger Cruush icons on the map controls and opens DL Mode settings from the top slot', async () => {
+  it('renders 25 percent larger Cruush icons on the map controls and toggles DL Mode from the top slot', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
@@ -549,7 +549,7 @@ describe('MapHome', () => {
 
     const luckyIcon = screen.getByRole('button', { name: 'Cruise Carousel' }).querySelector('img');
     const ghostModeButton = screen.getByRole('button', { name: 'Ghost Mode Settings' });
-    const dlModeButton = screen.getByRole('button', { name: 'DL Mode Settings' });
+    const dlModeButton = screen.getByRole('button', { name: 'Turn DL Mode off' });
     const ghostModeIcon = ghostModeButton.querySelector('img');
     const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
     const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
@@ -577,7 +577,9 @@ describe('MapHome', () => {
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
     fireEvent.click(dlModeButton);
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/dl-mode');
+    expect(window.localStorage.getItem('cruush:dl-mode-enabled')).toBe('false');
+    expect(screen.queryByTestId('location-probe')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Turn DL Mode on' })).toBeInTheDocument();
   });
 
   it('shows one combined active crowd notice on the map', async () => {
@@ -783,7 +785,8 @@ describe('MapHome', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Map controls' })).toBeInTheDocument();
-    expect(screen.getByText(/Seeking changes who appears on your map/i)).toBeInTheDocument();
+    expect(screen.getByText(/Seeking and Visibility live on the right side of the map/i)).toBeInTheDocument();
+    expect(screen.getByText(/bug report button stays top center/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
 
