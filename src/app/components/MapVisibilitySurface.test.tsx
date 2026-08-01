@@ -56,4 +56,18 @@ describe('MapVisibilitySurface', () => {
     expect(screen.getByTestId('hidden-body-types')).toHaveTextContent('athletic');
     expect(screen.queryByText('You can use up to 3 hidden filters. Remove one before adding another.')).not.toBeInTheDocument();
   });
+
+  it('keeps dropdown options inside the visibility sheet so mobile taps register', () => {
+    render(<VisibilityHarness hasCruushPlus />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+
+    const option = screen.getByRole('option', { name: 'man' });
+
+    expect(option.closest('[data-slot="sheet-content"]')).not.toBeNull();
+
+    fireEvent.click(option);
+
+    expect(screen.getByRole('button', { name: 'Gender Identities' })).toHaveTextContent('1 selected');
+  });
 });

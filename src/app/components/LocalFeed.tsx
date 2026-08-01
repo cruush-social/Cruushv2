@@ -351,8 +351,14 @@ export default function LocalFeed() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] pb-[calc(9rem+env(safe-area-inset-bottom))] text-foreground">
-      <header className="sticky top-0 bg-black/88 backdrop-blur-sm border-b border-white/10 p-4 flex items-center gap-4 z-10">
+    <div
+      className="min-h-screen max-w-full overflow-x-clip bg-[#050505] pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-foreground"
+      data-testid="local-feed-screen"
+    >
+      <header
+        className="sticky top-0 z-40 flex items-center gap-4 border-b border-white/10 bg-black/92 px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] shadow-[0_18px_48px_rgba(0,0,0,0.36)] backdrop-blur-xl"
+        data-testid="local-feed-header"
+      >
         <div>
           <h2 className="text-xl">Local Feed</h2>
         </div>
@@ -577,16 +583,16 @@ export default function LocalFeed() {
                   fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
                 />
 
-                <div className="flex-1 space-y-2">
+                <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="flex flex-wrap items-center gap-2">
-                        <span>{post.user.name}</span>
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate">{post.user.name}</span>
                         <CruushBadge badges={post.user.badges} compact />
                         {post.user.attendingLaunchParty ? (
                           <button
                             type="button"
-                            className="inline-flex h-6 w-6 items-center justify-center border-0 bg-transparent p-0 transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
+                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center border-0 bg-transparent p-0 transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
                             aria-label="Center map on launch party"
                             title="Center map on launch party"
                             onClick={() => navigate('/map', {
@@ -598,22 +604,10 @@ export default function LocalFeed() {
                             <img alt="" aria-hidden="true" className="h-5 w-5 drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]" src={partyHatIcon} />
                           </button>
                         ) : null}
-                        <span className="text-sm text-white/58">{post.user.pronouns}</span>
-                        {post.partyStatus ? (
-                          <button
-                            type="button"
-                            className="inline-flex items-center border-0 bg-transparent p-0 text-xs text-[#03ecfc] underline-offset-4 transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
-                            aria-label="Center map on The Chocolate Factory"
-                            onClick={() => navigate('/map', {
-                              state: {
-                                centerEventSlug: post.partyStatus?.eventSlug,
-                              },
-                            })}
-                          >
-                            {post.partyStatus.label}
-                          </button>
-                        ) : null}
-                      </p>
+                      </div>
+                      {post.user.pronouns ? (
+                        <p className="text-sm text-white/58">{post.user.pronouns}</p>
+                      ) : null}
                       <div className="flex items-center gap-3 text-xs text-white/52">
                         {feedSettings.showDistanceLabels !== false ? (
                           <span className="flex items-center gap-1">

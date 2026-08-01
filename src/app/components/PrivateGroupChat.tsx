@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ChangeEvent } from 'react';
+import type { CSSProperties, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, MoreHorizontal, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
@@ -51,6 +52,8 @@ const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: '7d', label: '7 days' },
   { value: '30d', label: '30 days' },
 ];
+
+const KEYBOARD_INSET_THRESHOLD_PX = 120;
 
 function formatMessageTime(isoTimestamp: string) {
   return new Date(isoTimestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -130,10 +133,37 @@ export default function PrivateGroupChat() {
   const [favoriteSendingId, setFavoriteSendingId] = useState<string | null>(null);
   const [favoriteRemovingId, setFavoriteRemovingId] = useState<string | null>(null);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
+  useEffect(() => {
+    const visualViewport = window.visualViewport;
+
+    if (!visualViewport) {
+      return;
+    }
+
+    const updateKeyboardInset = () => {
+      const nextInset = Math.max(
+        0,
+        Math.round(window.innerHeight - visualViewport.height - visualViewport.offsetTop),
+      );
+
+      setKeyboardInset(nextInset >= KEYBOARD_INSET_THRESHOLD_PX ? nextInset : 0);
+    };
+
+    updateKeyboardInset();
+    visualViewport.addEventListener('resize', updateKeyboardInset);
+    visualViewport.addEventListener('scroll', updateKeyboardInset);
+
+    return () => {
+      visualViewport.removeEventListener('resize', updateKeyboardInset);
+      visualViewport.removeEventListener('scroll', updateKeyboardInset);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -611,10 +641,15 @@ export default function PrivateGroupChat() {
   };
   const groupMemberIds = new Set(groupMembers.map((member) => member.id));
   const availableAddOptions = mutualOptions.filter((item) => !groupMemberIds.has(item.user.id));
+  const composerBarStyle = {
+    '--chat-composer-bottom': keyboardInset > 0
+      ? `calc(0.75rem + env(safe-area-inset-bottom) + ${keyboardInset}px)`
+      : 'calc(6.25rem + env(safe-area-inset-bottom))',
+  } as CSSProperties;
 
   return (
-    <div data-testid="private-group-chat-screen" className="relative min-h-screen max-w-full overflow-x-hidden bg-background pb-20">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/88 px-3 py-4 backdrop-blur-md sm:px-4">
+    <div data-testid="private-group-chat-screen" className="relative min-h-screen max-w-full overflow-x-clip bg-background pb-20">
+      <header data-testid="chat-thread-header" className="sticky top-0 z-40 border-b border-border bg-background/88 px-3 py-4 backdrop-blur-md sm:px-4">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 sm:gap-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back to messages">
@@ -757,6 +792,7 @@ export default function PrivateGroupChat() {
             <Button
               type="button"
               variant="outline"
+              aria-label="Clear chat for everyone"
               className="w-full justify-center border-destructive/30 text-destructive hover:bg-destructive/10"
               disabled={settingsSaving}
               onClick={() => void handleClearForEveryone()}
@@ -1077,7 +1113,12 @@ export default function PrivateGroupChat() {
         </div>
 
         {conversation ? (
-          <div data-testid="chat-composer-bar" className="fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pb-3 pt-3 backdrop-blur-md sm:px-4">
+          <div
+            data-testid="chat-composer-bar"
+            className="fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pb-3 pt-3 backdrop-blur-md sm:px-4"
+            data-keyboard-open={keyboardInset > 0 ? 'true' : undefined}
+            style={composerBarStyle}
+          >
             <div className="mx-auto w-full max-w-2xl space-y-3">
               {composerDisabled ? (
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-muted-foreground">
@@ -1232,15 +1273,21 @@ export default function PrivateGroupChat() {
                       className="sr-only"
                       onChange={(event) => void handlePhotoSelected(event)}
                     />
-                    <label className="flex items-center gap-1 rounded-full border border-border px-2 py-1 text-xs text-muted-foreground">
-                      <input
-                        type="checkbox"
+                    <label
+                      className={[
+                        'inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-background/55 px-2.5 text-xs text-muted-foreground transition-colors',
+                        photoViewOnce ? 'border-primary/40 bg-primary/10 text-primary' : '',
+                        composerDisabled || photoUploading ? 'opacity-60' : '',
+                      ].join(' ')}
+                    >
+                      <Checkbox
                         aria-label="Send photo view once"
                         checked={photoViewOnce}
                         disabled={composerDisabled || photoUploading}
-                        onChange={(event) => setPhotoViewOnce(event.target.checked)}
+                        className="size-4 rounded-full"
+                        onCheckedChange={(checked) => setPhotoViewOnce(checked === true)}
                       />
-                      once
+                      <span>once</span>
                     </label>
                     <Button
                       variant="ghost"

@@ -22,7 +22,7 @@ const {
   getMyProfile,
   getMyVisibilitySets,
   getProfileById,
-  saveMyProfile,
+  saveMyVisibilityRules,
   saveMyVisibilitySet,
   updateMyVisibilitySet,
 } = vi.hoisted(() => ({
@@ -31,7 +31,7 @@ const {
   getMyProfile: vi.fn(),
   getMyVisibilitySets: vi.fn(),
   getProfileById: vi.fn(),
-  saveMyProfile: vi.fn(),
+  saveMyVisibilityRules: vi.fn(),
   saveMyVisibilitySet: vi.fn(),
   updateMyVisibilitySet: vi.fn(),
 }));
@@ -115,7 +115,7 @@ vi.mock('../lib/profileApi', async () => {
     getMyProfile,
     getMyVisibilitySets,
     getProfileById,
-    saveMyProfile,
+    saveMyVisibilityRules,
     saveMyVisibilitySet,
     updateMyVisibilitySet,
   };
@@ -294,7 +294,7 @@ describe('MapHome', () => {
     getMyProfile.mockReset();
     getMyVisibilitySets.mockReset();
     getProfileById.mockReset();
-    saveMyProfile.mockReset();
+    saveMyVisibilityRules.mockReset();
     saveMyVisibilitySet.mockReset();
     updateMyVisibilitySet.mockReset();
     deleteMyVisibilitySet.mockReset();
@@ -344,10 +344,14 @@ describe('MapHome', () => {
       updated_at: '2026-04-29T12:00:00.000Z',
     });
     getMyVisibilitySets.mockResolvedValue([]);
-    saveMyProfile.mockImplementation(async (payload) => ({
-      ...payload,
+    saveMyVisibilityRules.mockImplementation(async (visibilityRules) => ({
+      ...((await import('../lib/profileApi')).emptyProfilePayload),
       id: 'me',
+      display_name: 'Me',
+      photos: ['https://example.com/me.jpg'],
+      year_of_birth: 1994,
       updated_at: '2026-04-29T12:00:00.000Z',
+      visibility_rules: visibilityRules,
     }));
     saveMyVisibilitySet.mockImplementation(async (payload) => ({
       id: 'set-new',
@@ -555,8 +559,8 @@ describe('MapHome', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-[5.25rem]');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-[6.25rem]');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-10');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-12');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
 
@@ -717,7 +721,7 @@ describe('MapHome', () => {
     expect(screen.queryByText('Internal server error')).not.toBeInTheDocument();
   });
 
-  it('renders 25 percent larger Cruush icons on the map controls and toggles DL Mode from the top slot', async () => {
+  it('renders compact map top chrome and toggles DL Mode from the top slot', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
@@ -751,12 +755,12 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-home-shell')).toHaveClass('relative');
     expect(screen.getByTestId('map-home-shell')).not.toHaveClass('fixed', 'inset-0');
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
-    expect(topActions).toHaveClass('pointer-events-auto', 'mt-0');
+    expect(topActions).toHaveClass('pointer-events-auto', 'mt-0', 'gap-0.5', 'p-0.5');
     expect(topActions).not.toHaveClass('mt-11');
     expect(rightActions).toHaveClass('right-3', 'top-16', 'sm:right-4');
-    expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-base', 'sm:text-lg');
+    expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(luckyIcon).toHaveClass('h-[1.5625rem]', 'w-[1.5625rem]');
+    expect(luckyIcon).toHaveClass('h-5', 'w-5');
     expect(ghostModeIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
@@ -1028,6 +1032,31 @@ describe('MapHome', () => {
     expect(screen.queryByText('Upgrade for saved sets')).not.toBeInTheDocument();
     expect(screen.queryByText(/Free accounts/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Distance')).toBeInTheDocument();
+  });
+
+  it('applies map visibility through the visibility-only profile API', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('button', { name: /^visibility$/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^visibility$/i }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Distance' }));
+    fireEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    await waitFor(() => expect(saveMyVisibilityRules).toHaveBeenCalledWith(expect.objectContaining({
+      active_crowd_modes: [],
+      distance: 100,
+      age_range: null,
+    })));
+    expect(screen.queryByText('Request validation failed')).not.toBeInTheDocument();
   });
 
   it('floats recently active to the right side on desktop without a profile preview', async () => {

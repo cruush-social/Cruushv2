@@ -223,6 +223,13 @@ export async function saveMyProfile(profile: ProfilePayload) {
   });
 }
 
+export async function saveMyVisibilityRules(visibilityRules: ProfileVisibilityRules) {
+  return requestApi<ProfileRecord>('/api/profiles/me/visibility-rules', {
+    method: 'PUT',
+    body: JSON.stringify({ visibility_rules: visibilityRules }),
+  });
+}
+
 export function getMyVisibilitySets() {
   return requestApi<ProfileVisibilitySet[]>('/api/profiles/me/visibility-sets');
 }

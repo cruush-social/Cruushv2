@@ -71,6 +71,9 @@ const visibilitySetPayloadSchema = z.object({
   name: z.string().trim().min(1).max(48),
   visibility_rules: profileVisibilityRulesSchema
 }).strict();
+const visibilityRulesPayloadSchema = z.object({
+  visibility_rules: profileVisibilityRulesSchema
+}).strict();
 const FREE_VISIBILITY_EXCLUSION_LIMIT = 3;
 const VISIBILITY_EXCLUSION_LIMIT_MESSAGE = "Free accounts can use up to 3 visibility filters. Upgrade to cruush+ for more.";
 
@@ -1377,6 +1380,19 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         preciseToMutualCrowds,
         preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" : "none"
       }))
+    });
+  });
+
+  app.put("/api/profiles/me/visibility-rules", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const payload = visibilityRulesPayloadSchema.parse(request.body);
+
+    if (countVisibilityExclusionFilters(payload.visibility_rules) > FREE_VISIBILITY_EXCLUSION_LIMIT) {
+      await requireCruushPlus(app, userId, VISIBILITY_EXCLUSION_LIMIT_MESSAGE);
+    }
+
+    return reply.send({
+      data: await applyProfileVisibilityRules(app, userId, payload.visibility_rules)
     });
   });
 

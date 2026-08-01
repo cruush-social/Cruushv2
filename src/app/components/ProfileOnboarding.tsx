@@ -18,6 +18,12 @@ interface ProfileOnboardingProps {
 
 type OnboardingStep = 'name' | 'age' | 'pronouns' | 'identities' | 'crowds' | 'lookingFor' | 'vibes' | 'bio' | 'oath' | 'twoFactor';
 
+type DateOfBirthParts = {
+  month: string;
+  day: string;
+  year: string;
+};
+
 const PROFILE_STEPS: OnboardingStep[] = [
   'name',
   'age',
@@ -81,6 +87,66 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
     detail: 'Optional, but affiliate-link signups count only after the referred account enables 2FA.',
   },
 };
+
+const DATE_OF_BIRTH_MONTHS = [
+  { value: '01', label: 'January' },
+  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'June' },
+  { value: '07', label: 'July' },
+  { value: '08', label: 'August' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+];
+
+const DATE_OF_BIRTH_DAYS = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, '0'));
+const CURRENT_YEAR = new Date().getFullYear();
+const DATE_OF_BIRTH_YEARS = Array.from({ length: 121 }, (_, index) => String(CURRENT_YEAR - index));
+
+function buildDateOfBirth(parts: DateOfBirthParts) {
+  if (!parts.month || !parts.day || !parts.year) {
+    return '';
+  }
+
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function validateDateOfBirth(dateOfBirth: string) {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth);
+
+  if (!parts) {
+    return 'Please enter your complete date of birth.';
+  }
+
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const day = Number(parts[3]);
+  const birthDate = new Date(year, month - 1, day);
+  const today = new Date();
+  const isValidDate = birthDate.getFullYear() === year &&
+    birthDate.getMonth() === month - 1 &&
+    birthDate.getDate() === day;
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const birthdayHasPassed = today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+  age -= birthdayHasPassed ? 0 : 1;
+
+  if (!isValidDate || age < 0 || age > 120) {
+    return 'Please enter a valid date of birth.';
+  }
+
+  if (age < 18) {
+    return 'You must be at least 18 to use this app.';
+  }
+
+  return null;
+}
+
+const dateOfBirthSelectClassName = 'h-9 w-full min-w-0 rounded-md border border-input bg-input-background px-3 py-1 text-base text-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm';
 
 function limitToThree(values: string[]) {
   const seen = new Set<string>();
@@ -217,6 +283,11 @@ export default function ProfileOnboarding({
     custom_mpox_vaccine: '',
     sexuality: [],
   });
+  const [dateOfBirthParts, setDateOfBirthParts] = useState<DateOfBirthParts>({
+    month: '',
+    day: '',
+    year: '',
+  });
   const [ageError, setAgeError] = useState<string | null>(null);
   const [oathAccepted, setOathAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -231,6 +302,18 @@ export default function ProfileOnboarding({
 
   const setProfileField = <K extends keyof OnboardingProfileState>(field: K, value: OnboardingProfileState[K]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateDateOfBirthPart = (part: keyof DateOfBirthParts, value: string) => {
+    const nextParts = {
+      ...dateOfBirthParts,
+      [part]: value,
+    };
+    const dateOfBirth = buildDateOfBirth(nextParts);
+
+    setDateOfBirthParts(nextParts);
+    setProfileField('dateOfBirth', dateOfBirth);
+    setAgeError(dateOfBirth ? validateDateOfBirth(dateOfBirth) : null);
   };
 
   const canProceed = (): boolean => {
@@ -451,46 +534,50 @@ export default function ProfileOnboarding({
             case 'age':
               return (
                 <div>
-                  <label htmlFor="date-of-birth" className="text-sm mb-2 block">Date of Birth</label>
-                  <Input
-                    id="date-of-birth"
-                    type="date"
-                    value={profile.dateOfBirth}
-                    onChange={e => {
-                      const dateOfBirth = e.target.value;
-                      setProfileField('dateOfBirth', dateOfBirth);
-                      const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth);
-
-                      if (!dateOfBirth) {
-                        setAgeError(null);
-                        return;
-                      }
-
-                      if (!parts) {
-                        setAgeError('Please enter your complete date of birth.');
-                        return;
-                      }
-
-                      const birthDate = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
-                      const today = new Date();
-                      const isValidDate = birthDate.getFullYear() === Number(parts[1]) &&
-                        birthDate.getMonth() === Number(parts[2]) - 1 &&
-                        birthDate.getDate() === Number(parts[3]);
-                      let age = today.getFullYear() - birthDate.getFullYear();
-                      const birthdayHasPassed = today.getMonth() > birthDate.getMonth() ||
-                        (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
-                      age -= birthdayHasPassed ? 0 : 1;
-
-                      if (!isValidDate || age < 0 || age > 120) {
-                        setAgeError('Please enter a valid date of birth.');
-                      } else if (age < 18) {
-                        setAgeError('You must be at least 18 to use this app.');
-                      } else {
-                        setAgeError(null);
-                      }
-                    }}
+                  <span id="date-of-birth-label" className="text-sm mb-2 block">Date of Birth</span>
+                  <div
+                    role="group"
+                    aria-labelledby="date-of-birth-label"
                     aria-describedby={ageError ? 'date-of-birth-error' : undefined}
-                  />
+                    className="grid grid-cols-[1.35fr_0.75fr_1fr] gap-2"
+                  >
+                    <select
+                      aria-label="Birth month"
+                      className={dateOfBirthSelectClassName}
+                      value={dateOfBirthParts.month}
+                      onChange={(event) => updateDateOfBirthPart('month', event.target.value)}
+                      aria-invalid={ageError ? true : undefined}
+                    >
+                      <option value="">Month</option>
+                      {DATE_OF_BIRTH_MONTHS.map((month) => (
+                        <option key={month.value} value={month.value}>{month.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Birth day"
+                      className={dateOfBirthSelectClassName}
+                      value={dateOfBirthParts.day}
+                      onChange={(event) => updateDateOfBirthPart('day', event.target.value)}
+                      aria-invalid={ageError ? true : undefined}
+                    >
+                      <option value="">Day</option>
+                      {DATE_OF_BIRTH_DAYS.map((day) => (
+                        <option key={day} value={day}>{Number(day)}</option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Birth year"
+                      className={dateOfBirthSelectClassName}
+                      value={dateOfBirthParts.year}
+                      onChange={(event) => updateDateOfBirthPart('year', event.target.value)}
+                      aria-invalid={ageError ? true : undefined}
+                    >
+                      <option value="">Year</option>
+                      {DATE_OF_BIRTH_YEARS.map((year) => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
                   <p className="mt-2 text-xs text-white/50">Your full date is used only to confirm you are an adult.</p>
                   {ageError && <p id="date-of-birth-error" className="text-red-500 text-xs mt-1">{ageError}</p>}
                 </div>

@@ -137,6 +137,28 @@ describe('LocalFeed', () => {
     });
   });
 
+  it('keeps the feed top visible below mobile webview chrome', async () => {
+    getFeedPosts.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Local Feed' })).toBeInTheDocument();
+    expect(screen.getByTestId('local-feed-screen')).toHaveClass(
+      'overflow-x-clip',
+      'pt-[env(safe-area-inset-top)]',
+    );
+    expect(screen.getByTestId('local-feed-header')).toHaveClass(
+      'sticky',
+      'top-0',
+      'z-40',
+      'pt-[calc(1rem+env(safe-area-inset-top))]',
+    );
+  });
+
   it('keeps the feed settings menu scrollable and tappable on mobile', async () => {
     getFeedPosts.mockResolvedValue([]);
 
@@ -426,7 +448,7 @@ describe('LocalFeed', () => {
     }));
   });
 
-  it('shows a Chocolate Factory badge for party members and routes it to the venue map center', async () => {
+  it('shows the party hat beside party member names without a venue tag', async () => {
     getFeedPosts.mockResolvedValue([{
       id: 'post-party',
       content: 'see you inside',
@@ -457,12 +479,13 @@ describe('LocalFeed', () => {
     );
 
     const launchPartyButton = await screen.findByRole('button', { name: 'Center map on launch party' });
-    const chocolateFactoryButton = await screen.findByRole('button', { name: 'Center map on The Chocolate Factory' });
+    const nameRow = screen.getByText('River').closest('div');
 
-    expect(launchPartyButton).not.toHaveClass('rounded-full', 'border', 'bg-black/50');
-    expect(chocolateFactoryButton).not.toHaveClass('rounded-full', 'border', 'bg-[#03ecfc]/10');
+    expect(nameRow).toContainElement(launchPartyButton);
+    expect(screen.queryByText('at The Chocolate Factory')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Center map on The Chocolate Factory' })).not.toBeInTheDocument();
 
-    fireEvent.click(chocolateFactoryButton);
+    fireEvent.click(launchPartyButton);
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });

@@ -41,6 +41,18 @@ async function chooseMultiSelect(label: string, value: string) {
   fireEvent.click(screen.getByRole('button', { name: label }));
 }
 
+function enterDateOfBirth(dateOfBirth: { month?: string; day?: string; year?: string } = {}) {
+  const {
+    month = '06',
+    day = '15',
+    year = '1998',
+  } = dateOfBirth;
+
+  fireEvent.change(screen.getByLabelText('Birth month'), { target: { value: month } });
+  fireEvent.change(screen.getByLabelText('Birth day'), { target: { value: day } });
+  fireEvent.change(screen.getByLabelText('Birth year'), { target: { value: year } });
+}
+
 function renderConductOnboarding(onComplete = vi.fn()) {
   const OnboardingWithConduct = ProfileOnboarding as ComponentType<{
     onComplete: () => void;
@@ -63,7 +75,7 @@ async function fillProfileRites() {
   fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-  fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '1998-06-15' } });
+  enterDateOfBirth();
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
   await chooseMultiSelect('Pronouns', 'they/them');
@@ -140,7 +152,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('prove you may enter')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '1998-06-15' } });
+    enterDateOfBirth();
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     expect(screen.getByText('choose your invocation')).toBeInTheDocument();
@@ -180,7 +192,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '1998-06-15' } });
+    enterDateOfBirth();
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     await chooseMultiSelect('Pronouns', 'they/them');
@@ -222,7 +234,7 @@ describe('ProfileOnboarding', () => {
 
     fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'River' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
-    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '1998-06-15' } });
+    enterDateOfBirth();
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     await chooseMultiSelect('Pronouns', 'they/them');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
@@ -323,10 +335,13 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     const nextButton = screen.getByRole('button', { name: /next/i });
-    expect(screen.getByLabelText('Date of Birth')).toHaveAttribute('type', 'date');
+    expect(screen.getByRole('group', { name: 'Date of Birth' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Birth month')).toHaveValue('');
+    expect(screen.getByLabelText('Birth day')).toHaveValue('');
+    expect(screen.getByLabelText('Birth year')).toHaveValue('');
     expect(nextButton).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText('Date of Birth'), { target: { value: '2012-06-15' } });
+    enterDateOfBirth({ year: '2012' });
 
     expect(screen.getByText('You must be at least 18 to use this app.')).toBeInTheDocument();
     expect(nextButton).toBeDisabled();

@@ -37,8 +37,7 @@ import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
   emptyProfilePayload,
   getMyProfile,
-  saveMyProfile,
-  type ProfilePayload,
+  saveMyVisibilityRules,
   type ProfileRecord,
   type ProfileVisibilityRules,
 } from '../lib/profileApi';
@@ -165,23 +164,6 @@ function visibilityStateToRules(state: VisibilityControlState): ProfileVisibilit
     body_types: uniqueValues(state.bodyTypes),
     sexuality: uniqueValues(state.sexuality),
     substance_boundaries: uniqueValues(state.substanceBoundaries),
-  };
-}
-
-function profileRecordToPayload(profile: ProfileRecord): ProfilePayload {
-  const {
-    id: _id,
-    updated_at: _updatedAt,
-    location: _location,
-    viewer_relationship: _viewerRelationship,
-    ...payload
-  } = profile;
-
-  return {
-    ...emptyProfilePayload,
-    ...payload,
-    crowds: normalizeCrowdValues(payload.crowds ?? emptyProfilePayload.crowds),
-    visibility_rules: normalizeVisibilityRules(payload.visibility_rules),
   };
 }
 
@@ -926,10 +908,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setSavingVisibility(true);
     setVisibilityError(null);
     try {
-      const savedProfile = await saveMyProfile({
-        ...profileRecordToPayload(currentProfile),
-        visibility_rules: visibilityRules,
-      });
+      const savedProfile = await saveMyVisibilityRules(visibilityRules);
       setCurrentProfile(savedProfile);
       setVisibility(visibilityRulesToState(savedProfile.visibility_rules));
       setIsVisibilityOpen(false);
@@ -1443,26 +1422,26 @@ export default function MapHome(_props: MapHomeProps = {}) {
       </svg>
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 z-40 px-3 pb-12 pt-3"
+        className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
         data-testid="map-top-chrome"
       >
-        <div className="flex items-start justify-between">
-          <div className="flex flex-col items-start lg:flex-row lg:items-start">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
             <h1 className="sr-only">cruush</h1>
             <img
               alt=""
               aria-hidden="true"
-              className="h-[5.25rem] w-auto object-contain sm:h-[6.25rem]"
+              className="h-10 w-auto shrink-0 object-contain sm:h-12"
               draggable={false}
               src={cruushLogo}
             />
-            <div className="mt-1 inline-flex rounded-full border border-white/10 bg-background/35 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72 backdrop-blur-md lg:ml-2 lg:mt-0">
+            <div className="inline-flex max-w-[7rem] shrink-0 items-center rounded-full border border-white/10 bg-background/35 px-2 py-0.5 text-[9px] uppercase leading-none tracking-[0.12em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-[0.14em]">
               {isMutualMapMode ? 'Mutual cruushes' : 'NYC beta'}
             </div>
           </div>
 
           <div
-            className="pointer-events-auto mt-0 flex items-center gap-2 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md"
+            className="pointer-events-auto mt-0 flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-background/25 p-0.5 backdrop-blur-md sm:gap-1 sm:p-1"
             data-testid="map-top-actions"
           >
             <Button
@@ -1470,7 +1449,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={() => navigate('/rewards')}
               aria-label="cruush+ rewards"
               title="cruush+ rewards"
-              className="cruush-logo-font h-10 rounded-full px-2.5 text-base font-normal leading-none tracking-normal normal-case text-white sm:h-11 sm:px-3 sm:text-lg"
+              className="cruush-logo-font h-8 rounded-full px-2 text-sm font-normal leading-none tracking-normal normal-case text-white sm:h-9 sm:px-2.5 sm:text-base"
               style={{ background: 'var(--cruush-gradient)' }}
             >
               <CruushPlusWord />
@@ -1481,9 +1460,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={handleFeelingLucky}
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
-              className="rounded-full text-white/90 hover:bg-white/10"
+              className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
             >
-              <CruushIconImage src={luckyIconWhite} />
+              <CruushIconImage src={luckyIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
             </Button>
             <Button
               variant="ghost"
@@ -1491,7 +1470,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={() => navigate('/privacy/ghost-mode')}
               aria-label="Ghost Mode Settings"
               title="Ghost Mode Settings"
-              className="rounded-full text-white/90 hover:bg-white/10"
+              className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
             >
               <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} className="h-4 w-4" />
             </Button>
@@ -1501,9 +1480,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={handleToggleDlMode}
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="rounded-full text-white/90 hover:bg-white/10"
+              className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
             >
-              <Eye className="h-5 w-5" style={dlModeEyeStyle} strokeWidth={2.35} />
+              <Eye className="h-4 w-4 sm:h-5 sm:w-5" style={dlModeEyeStyle} strokeWidth={2.35} />
             </Button>
             <Button
               variant="ghost"
@@ -1511,9 +1490,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={() => navigate('/notifications')}
               aria-label="Notifications"
               title="Notifications"
-              className="relative rounded-full text-white/90 hover:bg-white/10"
+              className="relative size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
             >
-              <CruushIconImage src={notificationsIconWhite} />
+              <CruushIconImage src={notificationsIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
               {notificationUnreadCount > 0 ? (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
                   {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
@@ -1526,9 +1505,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 onClick={() => navigate('/settings')}
                 aria-label="Settings"
                 title="Settings"
-                className="rounded-full text-white/90 hover:bg-white/10"
+                className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
               >
-                <CruushIconImage src={settingsIconWhite} />
+                <CruushIconImage src={settingsIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
               </Button>
             </div>
           </div>

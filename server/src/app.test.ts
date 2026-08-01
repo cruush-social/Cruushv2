@@ -10515,6 +10515,148 @@ describe("server", () => {
     });
   });
 
+  it("updates manual visibility rules without resubmitting the full profile payload", async () => {
+    const visibilityRules: ProfileVisibilityRules = {
+      ...emptyProfile.visibility_rules,
+      distance: 25,
+      identities: ["nonbinary"],
+      looking_for: ["hookup"]
+    };
+    const encryptedProfileVisibility = encryptProfileVisibility(app.config, visibilityRules);
+    const profileRow = {
+      id: userId,
+      display_name: "Cruusher",
+      photos: [],
+      bio: "",
+      pronouns: [],
+      custom_pronouns: "",
+      year_of_birth: 1994,
+      ethnicity: [],
+      identities: [],
+      presentation: [],
+      sexuality: [],
+      body_type: [],
+      height: "",
+      weight: "",
+      position: [],
+      role: [],
+      availability: [],
+      hosting_travel: [],
+      kinks: [],
+      kinks_visibility: "public",
+      trans_status_visibility: "mutual_cruushes",
+      hiv_status: [],
+      hiv_status_visibility: "mutual_cruushes",
+      vibes: [],
+      scenes: [],
+      archetypes: [],
+      hobbies: [],
+      custom_hobby: "",
+      looking_for: [],
+      custom_hiv_status: "",
+      condoms: [],
+      custom_condoms: "",
+      prep: [],
+      custom_prep: "",
+      doxypep: [],
+      custom_doxypep: "",
+      covid_vaccine: [],
+      custom_covid_vaccine: "",
+      mpox_vaccine: [],
+      custom_mpox_vaccine: "",
+      substance_boundaries: [],
+      profile_sensitive_ciphertext: null,
+      profile_sensitive_nonce: null,
+      profile_sensitive_auth_tag: null,
+      profile_sensitive_key_version: null,
+      profile_sensitive_token_key_version: null,
+      ...encryptedProfileVisibility,
+      trans_crowds_changed_at: null,
+      updated_at: "2026-07-31T12:05:00.000Z"
+    };
+
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (
+        (text.includes("from profiles") && text.includes("where id = $1")) ||
+        text.includes("update profiles")
+      ) {
+        return {
+          rows: [profileRow]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/visibility-rules",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        visibility_rules: visibilityRules
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("from user_entitlements"))).toBe(false);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into profiles"))).toBe(false);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("update profiles"))).toBe(true);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        visibility_rules: visibilityRules
+      })
+    });
+  });
+
+  it("requires cruush+ when manual visibility rules exceed three exclusion filters", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        email: "not-owner@example.com"
+      }]
+    }).mockResolvedValueOnce({
+      rows: [{
+        email: "not-owner@example.com"
+      }]
+    }).mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: false,
+        cruush_plus_expires_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/visibility-rules",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        visibility_rules: {
+          ...emptyProfile.visibility_rules,
+          distance: 25,
+          identities: ["nonbinary"],
+          looking_for: ["hookup"],
+          kinks: ["leather"]
+        }
+      }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("from user_entitlements"))).toBe(true);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("update profiles"))).toBe(false);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CRUUSH_PLUS_REQUIRED",
+        message: "Free accounts can use up to 3 visibility filters. Upgrade to cruush+ for more.",
+        details: null
+      }
+    });
+  });
+
   it("requires cruush+ when free users save more than three visibility exclusion filters", async () => {
     query.mockResolvedValueOnce({
       rows: [{

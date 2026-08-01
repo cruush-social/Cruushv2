@@ -80,6 +80,70 @@ function LocationProbe() {
   return <div data-testid="location-probe">{location.pathname}</div>;
 }
 
+function mockVisualViewport({
+  height,
+  innerHeight,
+  offsetTop = 0,
+}: {
+  height: number;
+  innerHeight: number;
+  offsetTop?: number;
+}) {
+  const originalVisualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+  const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+  const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+  const viewport = {
+    height,
+    offsetTop,
+    width: 390,
+    scale: 1,
+    pageLeft: 0,
+    pageTop: 0,
+    addEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+      const typeListeners = listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
+      typeListeners.add(listener);
+      listeners.set(type, typeListeners);
+    }),
+    removeEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+      listeners.get(type)?.delete(listener);
+    }),
+  };
+
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    value: innerHeight,
+  });
+  Object.defineProperty(window, 'visualViewport', {
+    configurable: true,
+    value: viewport,
+  });
+
+  return {
+    viewport,
+    dispatch(type: string) {
+      const event = new Event(type);
+      listeners.get(type)?.forEach((listener) => {
+        if (typeof listener === 'function') {
+          listener(event);
+        } else {
+          listener.handleEvent(event);
+        }
+      });
+    },
+    restore() {
+      if (originalVisualViewport) {
+        Object.defineProperty(window, 'visualViewport', originalVisualViewport);
+      } else {
+        delete (window as { visualViewport?: unknown }).visualViewport;
+      }
+
+      if (originalInnerHeight) {
+        Object.defineProperty(window, 'innerHeight', originalInnerHeight);
+      }
+    },
+  };
+}
+
 describe('PrivateGroupChat', () => {
   beforeEach(() => {
     clearConversationForEveryone.mockReset();
@@ -550,13 +614,20 @@ describe('PrivateGroupChat', () => {
     const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' });
     expect(screen.getByLabelText('Choose message photo')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
     expect(screen.getByRole('button', { name: 'Attach photo' })).toBeInTheDocument();
+    const viewOnceControl = screen.getByRole('checkbox', { name: 'Send photo view once' });
+    expect(viewOnceControl).toHaveClass('rounded-full');
+    expect(viewOnceControl).toHaveAttribute('data-state', 'unchecked');
+
+    fireEvent.click(viewOnceControl);
+
+    expect(viewOnceControl).toHaveAttribute('data-state', 'checked');
 
     fireEvent.change(screen.getByLabelText('Choose message photo'), {
       target: { files: [file] },
     });
 
     await waitFor(() => {
-      expect(createMessagePhoto).toHaveBeenCalledWith(conversationId, file, 'meet here', { viewOnce: false });
+      expect(createMessagePhoto).toHaveBeenCalledWith(conversationId, file, 'meet here', { viewOnce: true });
     });
     expect(await screen.findByAltText('Message photo')).toHaveAttribute('src', '/api/media/message-photos/photo.png');
     expect(screen.getByText('meet here')).toBeInTheDocument();
@@ -602,6 +673,7 @@ describe('PrivateGroupChat', () => {
 
   it('lets group admins change timers and clear history from conversation settings', async () => {
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     getConversationMessages.mockResolvedValue({
       conversation: {
         id: conversationId,
@@ -690,6 +762,8 @@ describe('PrivateGroupChat', () => {
       expect(clearConversationForEveryone).toHaveBeenCalledWith(conversationId);
     });
     expect(screen.queryByText('old plan')).not.toBeInTheDocument();
+
+    confirmSpy.mockRestore();
   });
 
   it('lets users delete a DM chat for everyone from conversation settings', async () => {
@@ -836,16 +910,72 @@ describe('PrivateGroupChat', () => {
 
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
 
-    expect(screen.getByTestId('private-group-chat-screen')).toHaveClass('max-w-full', 'overflow-x-hidden');
+    expect(screen.getByTestId('private-group-chat-screen')).toHaveClass('max-w-full', 'overflow-x-clip');
+    expect(screen.getByTestId('chat-thread-header')).toHaveClass('sticky', 'top-0', 'z-40');
 
     const composerBar = screen.getByTestId('chat-composer-bar');
     expect(composerBar).toHaveClass(
-      'bottom-[calc(6.25rem+env(safe-area-inset-bottom))]',
+      'bottom-[var(--chat-composer-bottom)]',
       'max-w-[100vw]',
       'overflow-x-hidden',
     );
+    expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(6.25rem + env(safe-area-inset-bottom))');
     expect(screen.getByPlaceholderText('Say what you want...')).toHaveClass('min-w-0', 'flex-1');
     expect(screen.getByRole('button', { name: 'Send message' })).toHaveClass('size-9', 'rounded-full');
+  });
+
+  it('moves the mobile composer above Android in-app browser keyboards', async () => {
+    const visualViewport = mockVisualViewport({
+      height: 520,
+      innerHeight: 900,
+    });
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        mutual: true,
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+          <Routes>
+            <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+      const composerBar = screen.getByTestId('chat-composer-bar');
+
+      await waitFor(() => expect(composerBar).toHaveAttribute('data-keyboard-open', 'true'));
+      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(0.75rem + env(safe-area-inset-bottom) + 380px)');
+
+      visualViewport.viewport.height = 900;
+      visualViewport.dispatch('resize');
+
+      await waitFor(() => expect(composerBar).not.toHaveAttribute('data-keyboard-open'));
+      expect(composerBar.style.getPropertyValue('--chat-composer-bottom')).toBe('calc(6.25rem + env(safe-area-inset-bottom))');
+    } finally {
+      visualViewport.restore();
+    }
   });
 
   it('opens a view-once photo only after the user taps it', async () => {
