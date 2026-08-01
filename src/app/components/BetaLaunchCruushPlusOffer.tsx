@@ -11,6 +11,7 @@ import {
 } from './ui/dialog';
 import CruushPlusWord from './CruushPlusWord';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
+import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { claimBetaLaunchCruushPlus } from '../lib/rewardsApi';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
@@ -25,10 +26,15 @@ function offerStorageKey(userId: string) {
   return `${BETA_LAUNCH_OFFER_STORAGE_KEY}:${userId}`;
 }
 
+function dialogKey(userId: string) {
+  return `beta-launch-plus-offer:${userId}`;
+}
+
 export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPlusOfferProps) {
   const [open, setOpen] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [error, setError] = useState('');
+  const activeDialogKey = dialogKey(userId);
 
   const markSeen = () => {
     const key = offerStorageKey(userId);
@@ -43,6 +49,28 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
 
     let isMounted = true;
     const key = offerStorageKey(userId);
+    let removeDialogWaiter: (() => void) | null = null;
+
+    const clearDialogWaiter = () => {
+      removeDialogWaiter?.();
+      removeDialogWaiter = null;
+    };
+
+    const openWhenAvailable = () => {
+      clearDialogWaiter();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (acquireOneTimeDialog(activeDialogKey)) {
+        markSeen();
+        setOpen(true);
+        return;
+      }
+
+      removeDialogWaiter = onOneTimeDialogReleased(openWhenAvailable);
+    };
 
     if (hasPersistentNoticeFlag(key)) {
       void dismissUserNotice(key).catch(() => {});
@@ -62,8 +90,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
           return;
         }
 
-        markSeen();
-        setOpen(true);
+        openWhenAvailable();
       })
       .catch(() => {
         if (isMounted) {
@@ -73,8 +100,23 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
 
     return () => {
       isMounted = false;
+      clearDialogWaiter();
+      releaseOneTimeDialog(activeDialogKey);
     };
-  }, [userId]);
+  }, [activeDialogKey, userId]);
+
+  const close = () => {
+    setOpen(false);
+    releaseOneTimeDialog(activeDialogKey);
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+
+    if (!nextOpen) {
+      releaseOneTimeDialog(activeDialogKey);
+    }
+  };
 
   const handleClaim = async () => {
     setClaiming(true);
@@ -83,7 +125,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
     try {
       const claim = await claimBetaLaunchCruushPlus();
       window.dispatchEvent(new CustomEvent(CRUUSH_PLUS_CHANGED_EVENT, { detail: claim }));
-      setOpen(false);
+      close();
     } catch (claimError) {
       setError(claimError instanceof Error ? claimError.message : 'Unable to activate cruush+.');
     } finally {
@@ -92,7 +134,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm rounded-lg border-white/10 bg-background">
         <DialogHeader>
           <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-primary/25 bg-primary/10">

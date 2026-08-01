@@ -171,6 +171,12 @@ vi.mock('./components/BetaLaunchCruushPlusOffer', () => ({
   default: () => <div data-testid="mock-beta-launch-plus-offer" />
 }));
 
+vi.mock('./components/AffiliateSharePrompt', () => ({
+  default: ({ userId }: { userId: string }) => (
+    <div data-testid="mock-affiliate-share-prompt">Affiliate prompt for {userId}</div>
+  )
+}));
+
 vi.mock('./components/FeelingLucky', () => ({
   default: () => <div>Mock Lucky</div>
 }));
@@ -270,6 +276,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Mock Map')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Bottom Navigation' })).toBeInTheDocument();
+    expect(screen.getByTestId('mock-affiliate-share-prompt')).toHaveTextContent('user-1');
   });
 
   it('does not show the alpha bug button for signed-in users outside active alpha testing', async () => {
@@ -617,6 +624,28 @@ describe('App', () => {
 
     expect(await screen.findByText('Mock Rewards')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/rewards');
+  });
+
+  it('mounts the affiliate share prompt after onboarding reaches the map', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: null,
+      needsOnboarding: true,
+      ...acceptedConductSession,
+    });
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Complete onboarding to map' }));
+
+    expect(await screen.findByText('Mock Map')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-affiliate-share-prompt')).toHaveTextContent('user-1');
   });
 
   it('shows the code of conduct gate for onboarded verified users who have not accepted it', async () => {

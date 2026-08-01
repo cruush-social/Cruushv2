@@ -37,12 +37,17 @@ describe("migration runner", () => {
 
   it("seeds existing account notice dismissals for one-time launch popups", async () => {
     const noticeSql = await readFile(path.join(serverRoot, "sql", "055_user_notice_dismissals.sql"), "utf8");
+    const affiliateNoticeSql = await readFile(path.join(serverRoot, "sql", "057_post_onboarding_affiliate_share_notice.sql"), "utf8");
 
     expect(noticeSql).toContain("create table if not exists user_notice_dismissals");
     expect(noticeSql).toContain("cruush:map-controls-intro-seen");
     expect(noticeSql).toContain("cruush:alpha-bug-tip-seen");
     expect(noticeSql).toContain("cruush:dl-mode-default-notice-seen");
     expect(noticeSql).toContain("cruush:beta-launch-plus-offer-seen:");
+    expect(affiliateNoticeSql).toContain("cruush:post-onboarding-affiliate-share-seen:");
+    expect(affiliateNoticeSql).toContain("join profiles");
+    expect(affiliateNoticeSql).toContain("nullif(btrim(profiles.display_name), '') is not null");
+    expect(affiliateNoticeSql).toContain("profiles.year_of_birth is not null");
   });
 
   it("adds the launch party and crowd feed schema after rewards and 2FA", async () => {

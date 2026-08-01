@@ -62,7 +62,8 @@ const migrationFiles = [
   "053_feed_distance_label_setting.sql",
   "054_notification_sound_preference.sql",
   "055_user_notice_dismissals.sql",
-  "056_daily_login_bonus_rewards.sql"
+  "056_daily_login_bonus_rewards.sql",
+  "057_post_onboarding_affiliate_share_notice.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;
