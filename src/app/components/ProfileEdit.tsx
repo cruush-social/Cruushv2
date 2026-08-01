@@ -59,6 +59,7 @@ const MAX_PROFILE_HOBBIES = 5;
 const MAX_PROFILE_KINKS = 5;
 const MAX_GENDER_IDENTITIES = MAX_PROFILE_GROUP_SELECTIONS;
 const PROFILE_PHOTO_LOAD_ERROR = 'This image could not be loaded. Try a JPG, PNG, or WebP file.';
+const PROFILE_PHOTO_SAVE_PATH_PATTERN = /^\/api\/media\/(?:profile-photos\/[0-9a-f-]{36}-[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\.(?:jpg|png|webp)|assets\/[0-9a-f-]{36}\/display)$/i;
 
 const VISIBILITY_OPTION_LABELS = PROFILE_VISIBILITY_OPTIONS.map((option) => option.label);
 const FIXED_PRIVATE_PROFILE_VISIBILITY: ProfileVisibility = 'mutual_cruushes';
@@ -128,6 +129,40 @@ function limitToFiveKinks(values: string[] = []) {
 
 function limitGenderIdentities(values: string[]) {
   return limitToThree(values);
+}
+
+function normalizeProfilePhotoForSave(photo: string) {
+  const trimmedPhoto = photo.trim();
+
+  if (!trimmedPhoto) {
+    return null;
+  }
+
+  let pathname = trimmedPhoto;
+
+  if (!trimmedPhoto.startsWith('/')) {
+    const absoluteUrlPathMatch = /^https?:\/\/[^/?#]+(?<pathname>\/[^?#]*)/i.exec(trimmedPhoto);
+
+    if (!absoluteUrlPathMatch?.groups?.pathname) {
+      return null;
+    }
+
+    pathname = absoluteUrlPathMatch.groups.pathname;
+  }
+
+  const canonicalPathname = pathname.startsWith('/media/profile-photos/')
+    ? `/api${pathname}`
+    : pathname;
+
+  return PROFILE_PHOTO_SAVE_PATH_PATTERN.test(canonicalPathname) ? canonicalPathname : null;
+}
+
+function sanitizeProfilePhotos(photos: string[] = []) {
+  return latestUniqueValues(
+    photos
+      .map((photo) => normalizeProfilePhotoForSave(photo))
+      .filter((photo): photo is string => Boolean(photo)),
+  ).slice(0, MAX_PROFILE_PHOTOS);
 }
 
 function canvasToJpegFile(canvas: HTMLCanvasElement) {
@@ -443,7 +478,7 @@ function sanitizeVisibilityRules(profile: ProfilePayload): ProfileVisibilityRule
 function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
   return {
     display_name: getSaveDisplayName(profile),
-    photos: profile.photos ?? [],
+    photos: sanitizeProfilePhotos(profile.photos ?? []),
     bio: (profile.bio ?? '').trim(),
     signal: (profile.signal ?? '').trim(),
     pronouns: limitToThree(profile.pronouns ?? []),
@@ -739,7 +774,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
   const normalizedProfile: ProfilePayload = {
     ...profile,
-    photos: (profile.photos || []).slice(0, MAX_PROFILE_PHOTOS),
+    photos: sanitizeProfilePhotos(profile.photos || []),
     signal: profile.signal ?? '',
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),

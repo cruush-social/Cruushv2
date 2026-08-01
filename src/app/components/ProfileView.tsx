@@ -390,7 +390,7 @@ export default function ProfileView() {
                 {profileView.attendingLaunchParty ? (
                   <button
                     type="button"
-                    className="ml-3 inline-flex h-8 w-8 translate-y-1 items-center justify-center rounded-full border border-[#03ecfc]/25 bg-black/45 transition hover:bg-[#03ecfc]/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
+                    className="ml-3 inline-flex h-8 w-8 translate-y-1 items-center justify-center border-0 bg-transparent p-0 transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
                     aria-label="Center map on launch party"
                     title="Center map on launch party"
                     onClick={() => navigate('/map', {
@@ -399,7 +399,7 @@ export default function ProfileView() {
                       },
                     })}
                   >
-                    <img alt="" aria-hidden="true" className="h-5 w-5" src={partyHatIcon} />
+                    <img alt="" aria-hidden="true" className="h-5 w-5 drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]" src={partyHatIcon} />
                   </button>
                 ) : null}
               </h1>

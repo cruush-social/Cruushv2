@@ -25,6 +25,9 @@ vi.mock('../lib/profileApi', async () => {
   };
 });
 
+const existingProfilePhoto = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';
+const uploadedProfilePhoto = '/api/media/assets/d271f6da-c51d-4d73-a322-d9c56f45d4fa/display';
+
 describe('ProfileEdit', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -108,7 +111,7 @@ describe('ProfileEdit', () => {
     });
     saveMyProfile.mockResolvedValue(profile);
     uploadProfilePhoto.mockResolvedValue({
-      url: '/media/profile-photos/d271f6da-c51d-4d73-a322-d9c56f45d4fa-7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2.png',
+      url: uploadedProfilePhoto,
     });
   });
 
@@ -170,14 +173,14 @@ describe('ProfileEdit', () => {
 
   it('crops, uploads, promotes, removes, and saves profile photos', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
-    const uploadedPhoto = '/media/profile-photos/d271f6da-c51d-4d73-a322-d9c56f45d4fa-7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2.png';
+    const uploadedPhoto = uploadedProfilePhoto;
 
     getMyProfile.mockResolvedValueOnce({
       ...emptyProfilePayload,
       id: 'user-1',
       display_name: 'Jordan',
       year_of_birth: 1998,
-      photos: ['https://example.com/old.jpg'],
+      photos: [existingProfilePhoto],
       updated_at: '2026-04-29T12:00:00.000Z',
     });
     uploadProfilePhoto.mockResolvedValueOnce({
@@ -227,8 +230,44 @@ describe('ProfileEdit', () => {
     })));
   });
 
+  it('omits stale loaded photo URLs while saving profile edits', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+    const canonicalAssetPhoto = '/api/media/assets/22222222-2222-4222-8222-222222222222/display';
+    const legacyProfilePhoto = '/api/media/profile-photos/11111111-1111-4111-8111-111111111111-22222222-2222-4222-8222-222222222222.png';
+
+    getMyProfile.mockResolvedValueOnce({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: 'Jordan',
+      year_of_birth: 1998,
+      photos: [
+        `https://cruush.app${canonicalAssetPhoto}`,
+        'https://example.com/old.jpg',
+        'data:image/svg+xml,%3Csvg%3E%3C/svg%3E',
+        legacyProfilePhoto.replace('/api', ''),
+      ],
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      photos: [
+        canonicalAssetPhoto,
+        legacyProfilePhoto,
+      ],
+    })));
+  });
+
   it('keeps an uploaded profile photo visible when switching edit tabs', async () => {
-    const uploadedPhoto = '/media/profile-photos/d271f6da-c51d-4d73-a322-d9c56f45d4fa-7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2.png';
+    const uploadedPhoto = uploadedProfilePhoto;
     uploadProfilePhoto.mockResolvedValueOnce({
       url: uploadedPhoto,
     });
@@ -377,10 +416,10 @@ describe('ProfileEdit', () => {
       display_name: 'Jordan',
       year_of_birth: 1998,
       photos: [
-        'https://example.com/one.jpg',
-        'https://example.com/two.jpg',
-        'https://example.com/three.jpg',
-        'https://example.com/four.jpg',
+        '/api/media/assets/11111111-1111-4111-8111-111111111111/display',
+        '/api/media/assets/22222222-2222-4222-8222-222222222222/display',
+        '/api/media/assets/33333333-3333-4333-8333-333333333333/display',
+        '/api/media/assets/44444444-4444-4444-8444-444444444444/display',
       ],
       updated_at: '2026-04-29T12:00:00.000Z',
     });

@@ -198,6 +198,26 @@ describe('ProfileView', () => {
     expect(await screen.findByText('Looking for late-night art kids near the venue.')).toBeInTheDocument();
   });
 
+  it('shows the launch party hat without a circle treatment', async () => {
+    getProfileById.mockResolvedValue(createProfileFixture({
+      attendingLaunchParty: true,
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/profile/user-1']}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileView />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const launchPartyButton = await screen.findByRole('button', { name: 'Center map on launch party' });
+
+    expect(launchPartyButton).toHaveClass('border-0', 'bg-transparent', 'p-0');
+    expect(launchPartyButton.className).not.toContain('rounded-full');
+    expect(launchPartyButton.className).not.toContain('bg-black');
+  });
+
   it('shows HIV, COVID, and MPOX health fields while leaving unfilled values blank', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       hiv_status: ['Negative'],
