@@ -834,17 +834,17 @@ describe('MapView', () => {
     expect(layerById.has('building-outline')).toBe(false);
     expect(layerById.get('minor-road-labels')?.layout['symbol-placement']).toBe('line');
     expect(layerById.get('minor-road-labels')?.layout['symbol-spacing']).toBe(120);
-    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
+    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Noto Sans Regular']);
     expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#7f7f7f');
     expect(layerById.has('poi-dots')).toBe(false);
     expect(layerById.has('poi-labels')).toBe(false);
     expect(layerById.get('secondary-road-labels')?.paint['text-color']).toBe('#a0a0a0');
     expect(layerById.get('primary-road-labels')?.paint['text-color']).toBe('#d0d0d0');
     expect(layerById.get('prominent-road-labels')?.paint['text-color']).toBe('#ffffff');
-    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
-    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
-    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
-    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
+    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Noto Sans Regular']);
+    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Noto Sans Bold', 'Noto Sans Regular']);
+    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Noto Sans Bold', 'Noto Sans Regular']);
+    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Noto Sans Bold', 'Noto Sans Regular']);
     expect(layerById.get('secondary-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('primary-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('prominent-road-labels')?.layout['text-transform']).toBeUndefined();
@@ -853,7 +853,7 @@ describe('MapView', () => {
   });
 
   it('creates valid MapLibre style JSON for the default vector map', () => {
-    expect(validateStyleMin(createCruushVectorStyle())).toEqual([]);
+    expect(validateStyleMin(getMapStyle() as any)).toEqual([]);
   });
 
   it('keeps the explicit style URL override as highest priority', () => {
@@ -873,6 +873,7 @@ describe('MapView', () => {
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
     });
+    expect(style.glyphs).toBe('https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf');
     expect(style.sources.osmRasterTiles).toBeUndefined();
     expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
   });

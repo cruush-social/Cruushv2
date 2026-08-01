@@ -75,12 +75,13 @@ const DEFAULT_TILE_URLS = [
 ];
 const DEFAULT_ATTRIBUTION = '&copy; CARTO &copy; OpenStreetMap contributors';
 const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
+const DEFAULT_VECTOR_GLYPHS_URL = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
 const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
 const MAP_READY_FALLBACK_TIMEOUT_MS = 4500;
 const MAP_RENDER_READY_TIMEOUT_MS = 1200;
-const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
-const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
-const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
+const MAP_LABEL_FONT_FAMILY = 'Noto Sans';
+const MAP_LABEL_FONT_REGULAR = ['Noto Sans Regular'];
+const MAP_LABEL_FONT_BOLD = ['Noto Sans Bold', 'Noto Sans Regular'];
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 
 type MapLibreModule = typeof import('maplibre-gl');
@@ -427,7 +428,7 @@ export function getMapStyle() {
 
   return createCruushVectorStyle(
     configuredVectorTileJsonUrl || DEFAULT_VECTOR_TILEJSON_URL,
-    configuredGlyphsUrl || undefined,
+    configuredGlyphsUrl || DEFAULT_VECTOR_GLYPHS_URL,
   );
 }
 
