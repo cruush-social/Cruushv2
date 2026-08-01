@@ -18,7 +18,7 @@ afterEach(async () => {
   tempDirs.length = 0;
 });
 
-async function setup(streamImageBridgeEnabled = true) {
+async function setup(streamImageBridgeEnabled = true, overrides: Partial<AppConfig> = {}) {
   const mediaDir = await mkdtemp(path.join(tmpdir(), "cruush-media-asset-"));
   tempDirs.push(mediaDir);
   const config = {
@@ -32,7 +32,8 @@ async function setup(streamImageBridgeEnabled = true) {
     STREAM_MODERATION_ENABLED: false,
     MODERATION_PROVIDER: "mock",
     PHOTODNA_ENABLED: false,
-    CSAM_REPORTING_ENABLED: false
+    CSAM_REPORTING_ENABLED: false,
+    ...overrides
   } as AppConfig;
   const query = vi.fn(async (sql: string, _params?: unknown[]) => {
     if (sql.includes("select id, media_object_id, object_key") && sql.includes("expires_at <= now()")) {
@@ -126,5 +127,31 @@ describe("privacy-hardened media assets", () => {
       String(sql).includes("delete from media_objects") &&
       params?.[0] === asset.id
     ))).toBe(true);
+  });
+
+  it("applies the active alpha PhotoDNA bypass to message-photo assets", async () => {
+    const { app, request } = await setup(false, {
+      NODE_ENV: "production",
+      PHOTODNA_ENABLED: true,
+      ALPHA_TEST_ENABLED: true,
+      ALPHA_TEST_ENDS_AT: "2099-07-28T23:59:00-04:00"
+    } as Partial<AppConfig>);
+    const processed = await processUploadedImage(await imageWithMetadata(), "image/jpeg");
+    const asset = await createPendingMediaAsset(app, request, {
+      ownerUserId,
+      surface: "message_photo",
+      processed
+    });
+
+    await expect(moderatePendingMediaAsset(app, request, asset, {
+      filename: "neutral-message-photo.jpg",
+      moderationSurface: "direct_message"
+    })).resolves.toMatchObject({
+      moderation: {
+        provider: "mock",
+        photoDnaStatus: "not_configured",
+        decision: expect.objectContaining({ decision: "allow" })
+      }
+    });
   });
 });

@@ -612,7 +612,10 @@ describe('PrivateGroupChat', () => {
     });
 
     const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' });
-    expect(screen.getByLabelText('Choose message photo')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
+    expect(screen.getByLabelText('Choose message photo')).toHaveAttribute(
+      'accept',
+      'image/jpeg,image/png,image/webp,image/heic,image/heif',
+    );
     expect(screen.getByRole('button', { name: 'Attach photo' })).toBeInTheDocument();
     const viewOnceControl = screen.getByRole('checkbox', { name: 'Send photo view once' });
     expect(viewOnceControl).toHaveClass('rounded-full');

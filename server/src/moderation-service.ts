@@ -21,7 +21,7 @@ import {
   mergeProfilePhotoSafetyResults
 } from "./profile-photo-human-detection.js";
 import {
-  activeAlphaProfilePhotoUploadBypass
+  activeAlphaPhotoUploadBypass
 } from "./photo-upload-availability.js";
 import { applyPolicyDecision } from "./trust-engine.js";
 import {
@@ -297,16 +297,29 @@ function canUseProfilePhotoRekognitionFallback(app: FastifyInstance, surface: Mo
     app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
     (
       app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
-      activeAlphaProfilePhotoUploadBypass(app.config)
+      activeAlphaPhotoUploadBypass(app.config)
     );
 }
 
-function canUseAlphaProfilePhotoUploadBypass(app: FastifyInstance, surface: ModerationSurface) {
-  return surface === "profile_photo" &&
-    activeAlphaProfilePhotoUploadBypass(app.config);
+function isMessagePhotoSurface(surface: ModerationSurface) {
+  return surface === "direct_message" || surface === "group_message";
 }
 
-function profilePhotoRekognitionFallbackResult(
+function canUseMessagePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
+  return isMessagePhotoSurface(surface) &&
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
+    (
+      app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
+      activeAlphaPhotoUploadBypass(app.config)
+    );
+}
+
+function canUseAlphaPhotoUploadBypass(app: FastifyInstance, surface: ModerationSurface) {
+  return (surface === "profile_photo" || isMessagePhotoSurface(surface)) &&
+    activeAlphaPhotoUploadBypass(app.config);
+}
+
+function photoRekognitionFallbackResult(
   primaryResult: ProviderModerationResult,
   safetyResult: ProviderModerationResult
 ): ProviderModerationResult {
@@ -326,8 +339,8 @@ function profilePhotoRekognitionFallbackResult(
   };
 }
 
-function profilePhotoAlphaUploadBypassResult(providerResult: ProviderModerationResult): ProviderModerationResult {
-  if (providerResult.raw_result?.alpha_profile_photo_upload_bypass === true) {
+function alphaPhotoUploadBypassResult(providerResult: ProviderModerationResult): ProviderModerationResult {
+  if (providerResult.raw_result?.alpha_photo_upload_bypass === true) {
     return providerResult;
   }
 
@@ -336,7 +349,7 @@ function profilePhotoAlphaUploadBypassResult(providerResult: ProviderModerationR
   return {
     ...resultWithoutError,
     provider: `${providerResult.provider}+alpha_upload_bypass`,
-    provider_request_id: `${providerResult.provider_request_id}:alpha-profile-photo-upload`,
+    provider_request_id: `${providerResult.provider_request_id}:alpha-photo-upload`,
     labels: [],
     status: "completed",
     recommended_action: "keep",
@@ -344,7 +357,7 @@ function profilePhotoAlphaUploadBypassResult(providerResult: ProviderModerationR
       provider_result: providerResult.raw_result ?? {},
       provider_status: providerResult.status ?? null,
       provider_error: providerResult.error ?? null,
-      alpha_profile_photo_upload_bypass: true
+      alpha_photo_upload_bypass: true
     }
   };
 }
@@ -606,31 +619,32 @@ export async function moderateImageOrReject(
   options: { allowProfilePhotoManualReview?: boolean } = {}
 ) {
   const provider = createModerationProvider(app.config);
-  const useAlphaProfilePhotoUploadBypass = canUseAlphaProfilePhotoUploadBypass(app, input.surface);
+  const useAlphaPhotoUploadBypass = canUseAlphaPhotoUploadBypass(app, input.surface);
   const useProfilePhotoRekognitionFallback = canUseProfilePhotoRekognitionFallback(app, input.surface);
+  const useMessagePhotoRekognitionFallback = canUseMessagePhotoRekognitionFallback(app, input.surface);
+  const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback || useMessagePhotoRekognitionFallback;
   const startedAt = Date.now();
   let providerResult: ProviderModerationResult;
 
   try {
     providerResult = await provider.moderateImage(input);
   } catch (error) {
-    if (!useAlphaProfilePhotoUploadBypass) {
+    if (!useAlphaPhotoUploadBypass) {
       throw error;
     }
 
     providerResult = providerErrorResult(provider.name, startedAt, error);
   }
 
-  if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true || useProfilePhotoRekognitionFallback) {
+  if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true || usePhotoRekognitionFallback) {
     const safetyResult = input.surface === "profile_photo"
       ? await detectProfilePhotoHuman(app.config, input.bytes)
       : await detectImageChildFaces(app.config, input.bytes);
 
-    providerResult = input.surface === "profile_photo" &&
-      useProfilePhotoRekognitionFallback &&
+    providerResult = usePhotoRekognitionFallback &&
       (providerResultUnavailable(providerResult) || providerResult.provider === "mock") &&
       providerResultComplete(safetyResult)
-      ? profilePhotoRekognitionFallbackResult(providerResult, safetyResult)
+      ? photoRekognitionFallbackResult(providerResult, safetyResult)
       : mergeProfilePhotoSafetyResults(providerResult, safetyResult);
   }
 
@@ -641,8 +655,8 @@ export async function moderateImageOrReject(
   });
   let resolvedProviderResult = providerResult;
 
-  if (useAlphaProfilePhotoUploadBypass && isProviderUnavailableDecision(decision)) {
-    resolvedProviderResult = profilePhotoAlphaUploadBypassResult(providerResult);
+  if (useAlphaPhotoUploadBypass && isProviderUnavailableDecision(decision)) {
+    resolvedProviderResult = alphaPhotoUploadBypassResult(providerResult);
     decision = mapProviderResultToPolicy({
       surface: input.surface,
       contentType: "image",
@@ -651,12 +665,12 @@ export async function moderateImageOrReject(
   }
 
   if (input.surface === "profile_photo") {
-    const skipAdultHumanGateForAlphaUpload = useAlphaProfilePhotoUploadBypass &&
+    const skipAdultHumanGateForAlphaUpload = useAlphaPhotoUploadBypass &&
       decision.decision === "allow" &&
       !hasHumanProof(resolvedProviderResult);
 
     if (skipAdultHumanGateForAlphaUpload) {
-      resolvedProviderResult = profilePhotoAlphaUploadBypassResult(resolvedProviderResult);
+      resolvedProviderResult = alphaPhotoUploadBypassResult(resolvedProviderResult);
     } else {
       const gate = resolveProfilePhotoAdultHumanGate(resolvedProviderResult, decision, {
         allowManualReview: options.allowProfilePhotoManualReview === true

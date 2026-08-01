@@ -137,7 +137,7 @@ GHOST_DERIVATION_KEY_VERSION=v1
 DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION=v1
 ```
 
-For alpha without PhotoDNA, leave message-photo uploads closed. Profile-photo uploads also stay closed unless Stream image bridge, profile-photo Stream automod, Rekognition, and the explicit alpha exception are intentionally enabled and verified.
+For alpha without PhotoDNA, profile- and message-photo uploads now share the same active alpha launch exception. Keep both closed unless active alpha is intentionally enabled and the Stream image bridge, profile-photo Stream automod, and Rekognition status are explicitly verified.
 
 ## Alpha Frontend Env
 

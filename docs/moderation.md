@@ -60,7 +60,7 @@ When `STREAM_IMAGE_BRIDGE_ENABLED=true`, the server requires a `STREAM_PSEUDONYM
 
 When `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true`, the Stream image bridge must also be enabled and `BANK_PROFILE_PHOTO_MANUAL_REVIEW_ENABLED` must be `false`. A complete Stream `keep` is necessary but is no longer sufficient. Rekognition runs face-age detection on profile and message photos. Profile photos additionally require a high-confidence `Person` signal and no animal signal. A face whose estimated range ends below 18 is rejected and triggers the permanent account/session/device/IP enforcement path. A range that overlaps 18 is accepted so an 18+ user is not blocked by an imprecise range. A profile photo with a high-confidence `Person` label and no detected face remains eligible, allowing permitted faceless adult photos.
 
-Deployed profile- and message-photo uploads remain unavailable unless Stream automod, the signed image bridge, Rekognition age-safety detection, and PhotoDNA are all enabled. For alpha staging only, an active `ALPHA_TEST_ENABLED=true` gate or `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` may temporarily allow profile-photo uploads without PhotoDNA when Stream automod, the signed image bridge, and Rekognition are all enabled; message-photo uploads still require PhotoDNA. Rekognition returns an estimated age range, not verified age. It does not verify identity, ownership, consent, or exactly one person. The product rule `photos must be of you only.` therefore still includes user attestation and reporting.
+Deployed profile- and message-photo uploads remain unavailable unless Stream automod, the signed image bridge, and Rekognition age-safety detection are enabled, or an active alpha test temporarily opens uploads before PhotoDNA is ready. For alpha staging only, an active `ALPHA_TEST_ENABLED=true` gate applies the same no-PhotoDNA launch exception to profile- and message-photo uploads. Rekognition returns an estimated age range, not verified age. It does not verify identity, ownership, consent, or exactly one person. The product rule `photos must be of you only.` therefore still includes user attestation and reporting.
 
 Before committing profile-photo upload changes, run the live API smoke with an actual user photo: `PROFILE_PHOTO_SMOKE_IMAGE=/path/to/photo.jpg PROFILE_PHOTO_SMOKE_COOKIE='cruush_session=...' npm run test:profile-photo-apis`. The smoke targets `https://api-staging.cruush.app` by default, preflights `/api/meta`, posts to `/api/profile-photos`, and fetches the returned `/api/media/assets/.../display` image. Do not treat mock/local upload tests as proof that Stream or Rekognition ran.
 
@@ -225,7 +225,7 @@ Run cleanup every five minutes from a private scheduler attached to the API envi
 */5 * * * * cd /app/server && pnpm cleanup:moderation-media-grants
 ```
 
-The command deletes legacy expired grants and abandoned pending media, including canonical and variant ciphertext, purges moderator content-access events after 180 days, and recalculates a batch of trust profiles with decaying negative trust events. Shared automod deletes rejected files during the request; the scheduler covers process crashes and other abandoned uploads after five minutes. Approved photos leave quarantine and remain attached through the normal lifecycle. Message-photo uploads use the same signed display-variant bridge and remain unavailable unless every deployed safety gate is enabled.
+The command deletes legacy expired grants and abandoned pending media, including canonical and variant ciphertext, purges moderator content-access events after 180 days, and recalculates a batch of trust profiles with decaying negative trust events. Shared automod deletes rejected files during the request; the scheduler covers process crashes and other abandoned uploads after five minutes. Approved photos leave quarantine and remain attached through the normal lifecycle. Message-photo uploads use the same signed display-variant bridge and the same temporary alpha launch exception as profile-photo uploads.
 
 Run `pnpm --dir server trust:recalculate` for a one-time trust recovery pass after deploying trust policy changes.
 
@@ -294,8 +294,8 @@ Manual checks:
 
 ## Remaining Bank-Readiness Gaps
 
-- Deployed profile- and message-photo uploads remain unavailable until Microsoft PhotoDNA endpoint/path/response verification passes and PhotoDNA is enabled.
-- DM and group image attachments are outside the profile-photo bridge and remain disabled for bank review.
+- Bank-facing open-beta readiness still requires Microsoft PhotoDNA endpoint/path/response verification before describing the deployed profile- and message-photo path as fully ready.
+- DM and group image attachments use the same photo-safety pipeline; verify the message upload path separately from the profile-photo smoke.
 - Stream does not yet replace the app database as the chat/feed/media substrate; this slice keeps the current Postgres routes and adds moderation gates.
 - Rekognition verifies a visible person signal, but age, identity, ownership, and exactly-one-person guarantees remain out of scope.
 - Private photos are represented in moderation surfaces but no separate private-photo product flow exists yet.

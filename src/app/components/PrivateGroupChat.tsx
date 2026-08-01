@@ -43,6 +43,7 @@ import {
 import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
@@ -300,7 +301,8 @@ export default function PrivateGroupChat() {
 
     try {
       const label = file.name.replace(/\.[^.]+$/, '').slice(0, 80);
-      const favorite = await uploadFavoriteMessageImage(file, label);
+      const uploadFile = await prepareMessagePhotoForUpload(file);
+      const favorite = await uploadFavoriteMessageImage(uploadFile, label);
       setFavoriteImages((prev) => [favorite, ...prev.filter((item) => item.id !== favorite.id)]);
       setFavoriteGalleryOpen(true);
       setError(null);
@@ -610,7 +612,8 @@ export default function PrivateGroupChat() {
     setPhotoUploading(true);
 
     try {
-      const createdMessage = await createMessagePhoto(chatId, file, caption, { viewOnce: photoViewOnce });
+      const uploadFile = await prepareMessagePhotoForUpload(file);
+      const createdMessage = await createMessagePhoto(chatId, uploadFile, caption, { viewOnce: photoViewOnce });
       setMessages((prev) => [...prev, normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)]);
       setMessage('');
       setPhotoViewOnce(false);
@@ -1153,7 +1156,7 @@ export default function PrivateGroupChat() {
                         <input
                           ref={favoriteFileInputRef}
                           type="file"
-                          accept="image/jpeg,image/png,image/webp"
+                          accept={MESSAGE_PHOTO_UPLOAD_ACCEPT}
                           aria-label="Choose favorite image"
                           className="sr-only"
                           onChange={(event) => void handleFavoriteImageSelected(event)}
@@ -1268,7 +1271,7 @@ export default function PrivateGroupChat() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept={MESSAGE_PHOTO_UPLOAD_ACCEPT}
                       aria-label="Choose message photo"
                       className="sr-only"
                       onChange={(event) => void handlePhotoSelected(event)}

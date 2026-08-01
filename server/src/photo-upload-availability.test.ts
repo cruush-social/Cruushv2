@@ -69,14 +69,14 @@ describe("deployed photo upload availability", () => {
     });
   });
 
-  it("allows profile-photo uploads during the active alpha test even before PhotoDNA is ready", () => {
+  it("allows profile and message photo uploads during the active alpha test even before PhotoDNA is ready", () => {
     expect(photoUploadAvailability({
       ...baseConfig,
       ALPHA_TEST_ENABLED: true,
       ALPHA_TEST_ENDS_AT: "2099-07-28T23:59:00-04:00"
     })).toEqual({
       profilePhotos: true,
-      messagePhotos: false
+      messagePhotos: true
     });
 
     expect(photoUploadAvailability({

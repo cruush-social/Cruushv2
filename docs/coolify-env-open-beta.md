@@ -138,7 +138,7 @@ GHOST_DERIVATION_KEY_VERSION=v1
 DISPLAY_TOKEN_ENCRYPTION_KEY_VERSION=v1
 ```
 
-Do not open deployed profile-photo uploads until the Microsoft API Management operation path and real allowed/blocked responses are verified. Deployed uploads stay unavailable unless `PHOTODNA_ENABLED`, Stream automod, the signed image bridge, and Rekognition human detection are all enabled. For alpha staging only, an active `ALPHA_TEST_ENABLED=true` gate or `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` temporarily permits profile-photo uploads without PhotoDNA after Stream automod, the signed image bridge, and Rekognition are enabled; message-photo uploads remain unavailable without PhotoDNA.
+Do not open deployed profile- or message-photo uploads for open beta until the Microsoft API Management operation path and real allowed/blocked responses are verified. Deployed open-beta uploads stay unavailable unless `PHOTODNA_ENABLED`, Stream automod, the signed image bridge, and Rekognition human detection are all enabled. For alpha staging only, an active `ALPHA_TEST_ENABLED=true` gate temporarily permits profile- and message-photo uploads without PhotoDNA while the remaining launch safety providers are being verified.
 
 Stream fetches signed inspection URLs from `MEDIA_PUBLIC_BASE_URL`. Confirm Coolify ingress, proxy, CDN/WAF, and APM logs do not retain signed query strings on that API route. Add a private five-minute scheduled task from the repository root:
 
@@ -312,7 +312,7 @@ These values are safe to add directly if the domains/buckets are correct:
 - `STREAM_IMAGE_BRIDGE_ENABLED=true` only after the dedicated no-cache moderation-media hostname is routed and its upstream logs are verified not to retain raw paths
 - `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true` for the shared bank/open-beta Stream path; keep manual review false
 - `PROFILE_PHOTO_REKOGNITION_ENABLED=true`, a Rekognition-only IAM principal with `DetectFaces` and `DetectLabels`, and the documented human/animal/face/age thresholds
-- `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` only for the temporary alpha staging exception while Microsoft PhotoDNA access is pending; an active `ALPHA_TEST_ENABLED=true` staging gate now permits the same profile-photo-only exception, but leave both paths false for open beta or production
+- `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` only for legacy alpha staging notes; the active `ALPHA_TEST_ENABLED=true` staging gate now permits the same temporary profile- and message-photo exception, but leave both paths false for open beta or production
 - `ALPHA_TEST_ENABLED=true`, `ALPHA_TEST_PASSWORD_HASH=<scrypt hash>`, and `ALPHA_TEST_ENDS_AT=<planned-beta-launch-timestamp-with-timezone>` keep alpha active until the beta launch cutover. The beta deployment sets `ALPHA_TEST_ENABLED=false`, clears `ALPHA_TEST_PASSWORD_HASH`, and clears `ALPHA_TEST_ENDS_AT` without exposing secrets in logs.
 - `BETA_ACCESS_GEOFENCE_ENABLED=true` limits launch beta signup/signin to the configured 15-mile radius around `70 Scott Ave`. Outside-radius users see the newsletter/city-request path; those email/city entries are encrypted at rest with HMAC-only dedupe indexes.
 - Support requests, alpha bug reports, and in-app moderation reports notify `reports@cruush.app`. Beta launch feedback stays text-only; there is no screenshot prompt or screenshot upload path for beta.
