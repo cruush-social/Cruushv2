@@ -351,6 +351,56 @@ describe('MapView', () => {
     expect(mapInstances[0].setZoom).not.toHaveBeenCalledWith(14);
   });
 
+  it('does not reapply focused zoom when marker rendering changes after user zooms', async () => {
+    const markers = [
+      {
+        id: 'me',
+        displayName: 'You',
+        approximateLatitude: 40.7128,
+        approximateLongitude: -74.006,
+        isCurrentUser: true,
+      },
+      {
+        id: 'user-1',
+        displayName: 'Jordan',
+        approximateLatitude: 40.7138,
+        approximateLongitude: -74.004,
+        lastActiveLabel: '2m ago',
+      },
+    ];
+    const { rerender } = render(
+      <MapView
+        onPinClick={vi.fn()}
+        focusCoordinates={{ approximateLatitude: 40.7128, approximateLongitude: -74.006 }}
+        markers={markers}
+      />
+    );
+
+    await waitFor(() => expect(mapInstances[0].setZoom).toHaveBeenCalledWith(14));
+    expect(mapInstances[0].setCenter).toHaveBeenCalledTimes(1);
+    expect(mapInstances[0].setZoom).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <MapView
+        onPinClick={vi.fn()}
+        focusCoordinates={{ approximateLatitude: 40.7128, approximateLongitude: -74.006 }}
+        markers={markers.map((marker) => marker.id === 'user-1'
+          ? {
+              ...marker,
+              approximateLatitude: 40.716,
+              approximateLongitude: -74.001,
+            }
+          : marker)}
+      />
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mapInstances[0].setCenter).toHaveBeenCalledTimes(1);
+    expect(mapInstances[0].setZoom).toHaveBeenCalledTimes(1);
+  });
+
   it('renders NPC Ghost demo markers and blue demo radius circles', async () => {
     render(
       <MapView
@@ -740,7 +790,7 @@ describe('MapView', () => {
     expect(screen.queryByTestId('marker-badge-user-empty')).not.toBeInTheDocument();
   });
 
-  it('renders the launch party marker as a dancing party-hat button', async () => {
+  it('renders the launch party marker without party-hat artwork', async () => {
     const onPinClick = vi.fn();
 
     render(
@@ -766,10 +816,12 @@ describe('MapView', () => {
     );
 
     const marker = await screen.findByRole('button', { name: 'Open The Chocolate Factory launch party on map' });
-    const partyHat = screen.getByTestId('launch-party-marker-event-the-chocolate-factory-launch');
+    const eventMarker = screen.getByTestId('launch-party-marker-event-the-chocolate-factory-launch');
     expect(marker).toHaveAttribute('data-map-marker-kind', 'event');
-    expect(partyHat).toHaveClass('animate-cruush-party-dance');
-    expect(partyHat).not.toHaveClass('rounded-full', 'border', 'bg-black/82');
+    expect(eventMarker).toHaveTextContent('500');
+    expect(eventMarker).toHaveClass('rounded-full', 'border', 'bg-black/82');
+    expect(eventMarker).not.toHaveClass('animate-cruush-party-dance');
+    expect(eventMarker.querySelector('img')).toBeNull();
     fireEvent.click(marker);
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ kind: 'event' }));
   });
@@ -834,17 +886,17 @@ describe('MapView', () => {
     expect(layerById.has('building-outline')).toBe(false);
     expect(layerById.get('minor-road-labels')?.layout['symbol-placement']).toBe('line');
     expect(layerById.get('minor-road-labels')?.layout['symbol-spacing']).toBe(120);
-    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Noto Sans Regular']);
+    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
     expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#7f7f7f');
     expect(layerById.has('poi-dots')).toBe(false);
     expect(layerById.has('poi-labels')).toBe(false);
     expect(layerById.get('secondary-road-labels')?.paint['text-color']).toBe('#a0a0a0');
     expect(layerById.get('primary-road-labels')?.paint['text-color']).toBe('#d0d0d0');
     expect(layerById.get('prominent-road-labels')?.paint['text-color']).toBe('#ffffff');
-    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Noto Sans Regular']);
-    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Noto Sans Bold', 'Noto Sans Regular']);
-    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Noto Sans Bold', 'Noto Sans Regular']);
-    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Noto Sans Bold', 'Noto Sans Regular']);
+    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
+    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
+    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
+    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
     expect(layerById.get('secondary-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('primary-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('prominent-road-labels')?.layout['text-transform']).toBeUndefined();
@@ -873,7 +925,7 @@ describe('MapView', () => {
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
     });
-    expect(style.glyphs).toBe('https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf');
+    expect(style.glyphs).toBeUndefined();
     expect(style.sources.osmRasterTiles).toBeUndefined();
     expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
   });

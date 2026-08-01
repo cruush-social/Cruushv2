@@ -25,7 +25,6 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { CruushIcon } from './CruushIconImage';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { getProfileGradientStops } from '../lib/profileGradient';
-import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 import { applyDenseVenueMarkers, type DenseVenueConfig } from '../lib/denseVenueMarkers';
 import {
   createMapMarkerBadge,
@@ -75,13 +74,12 @@ const DEFAULT_TILE_URLS = [
 ];
 const DEFAULT_ATTRIBUTION = '&copy; CARTO &copy; OpenStreetMap contributors';
 const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
-const DEFAULT_VECTOR_GLYPHS_URL = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
 const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
 const MAP_READY_FALLBACK_TIMEOUT_MS = 4500;
 const MAP_RENDER_READY_TIMEOUT_MS = 1200;
-const MAP_LABEL_FONT_FAMILY = 'Noto Sans';
-const MAP_LABEL_FONT_REGULAR = ['Noto Sans Regular'];
-const MAP_LABEL_FONT_BOLD = ['Noto Sans Bold', 'Noto Sans Regular'];
+const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
+const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
+const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 
 type MapLibreModule = typeof import('maplibre-gl');
@@ -428,7 +426,7 @@ export function getMapStyle() {
 
   return createCruushVectorStyle(
     configuredVectorTileJsonUrl || DEFAULT_VECTOR_TILEJSON_URL,
-    configuredGlyphsUrl || DEFAULT_VECTOR_GLYPHS_URL,
+    configuredGlyphsUrl || undefined,
   );
 }
 
@@ -629,12 +627,14 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 }
 
 function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
+  const attendeeCount = marker.event?.attendeeCount ?? 0;
+
   return (
     <span
-      className="animate-cruush-party-dance flex h-16 w-16 items-center justify-center overflow-visible"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
       data-testid={`launch-party-marker-${marker.id}`}
     >
-      <img alt="" aria-hidden="true" className="h-full w-full object-contain drop-shadow-[0_8px_22px_rgba(0,0,0,0.55)]" draggable={false} src={partyHatIcon} />
+      {attendeeCount > 999 ? '999+' : attendeeCount}
     </span>
   );
 }
@@ -814,6 +814,7 @@ function MapView({
   const mapLibreRef = useRef<MapLibreExport | null>(null);
   const autoFitFocusKeyRef = useRef<string | null>(null);
   const hasAppliedAutoFitRef = useRef(false);
+  const directFocusRef = useRef<{ map: MapLibreMap; key: string } | null>(null);
   const onPinClickRef = useRef(onPinClick);
   const onMapClickRef = useRef(onMapClick);
   const onMapReadyRef = useRef(onMapReady);
@@ -1057,6 +1058,7 @@ function MapView({
     const map = mapInstance ?? mapRef.current;
 
     if (!map || focusLatitude == null || focusLongitude == null) {
+      directFocusRef.current = null;
       return;
     }
 
@@ -1064,6 +1066,7 @@ function MapView({
     const focusKey = `${focusLatitude.toFixed(6)}:${focusLongitude.toFixed(6)}`;
 
     if (fitToMarkers) {
+      directFocusRef.current = null;
       if (autoFitFocusKeyRef.current !== focusKey) {
         autoFitFocusKeyRef.current = focusKey;
         hasAppliedAutoFitRef.current = false;
@@ -1073,6 +1076,9 @@ function MapView({
     } else {
       autoFitFocusKeyRef.current = null;
       hasAppliedAutoFitRef.current = false;
+      if (directFocusRef.current?.map === map && directFocusRef.current.key === focusKey) {
+        return;
+      }
     }
 
     if (fitToMarkers && visibleMarkers.length > 1 && typeof map.fitBounds === 'function') {
@@ -1111,6 +1117,7 @@ function MapView({
 
     map.setCenter([focusLongitude, focusLatitude]);
     map.setZoom(FOCUSED_ZOOM);
+    directFocusRef.current = { map, key: focusKey };
   }, [fitToMarkers, focusLatitude, focusLongitude, mapInstance, viewportMarkerSignature]);
 
   useEffect(() => {

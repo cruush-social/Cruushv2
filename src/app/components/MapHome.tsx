@@ -360,6 +360,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const isMobile = useIsMobile();
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
+  const [browserFocusCoordinates, setBrowserFocusCoordinates] = useState<{
+    approximateLatitude: number;
+    approximateLongitude: number;
+  } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'ready' | 'error'>('idle');
   const [locationError, setLocationError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -717,8 +721,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }, [filters, isMutualMapMode, userApproximateLocation]);
 
   const applyBrowserPositionToMap = (position: GeolocationPosition, centerAfterUpdate = false) => {
-    // Exact browser coordinates stay local here. Only approximate coordinates
-    // should ever be displayed on the map or shared with other users.
+    // Exact browser coordinates stay local here. They are only used as the
+    // camera target when recentering yourself; shared map data stays approximate.
     const approximateLocation = approximateDisplayCoordinates({
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
@@ -737,9 +741,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setLocationStatus('ready');
     syncApproximateMapLocation(approximateLocation);
     if (centerAfterUpdate) {
+      const exactCameraCoordinates = {
+        approximateLatitude: browserCoordinates.latitude,
+        approximateLongitude: browserCoordinates.longitude,
+      };
+
+      setBrowserFocusCoordinates(exactCameraCoordinates);
       mapInstance?.setCenter([
-        approximateLocation.approximateLongitude,
-        approximateLocation.approximateLatitude,
+        browserCoordinates.longitude,
+        browserCoordinates.latitude,
       ]);
       mapInstance?.setZoom(14);
     }
@@ -766,7 +776,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
         setLocationStatus('error');
         setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
       },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60_000 },
+      {
+        enableHighAccuracy: centerAfterUpdate,
+        timeout: centerAfterUpdate ? 15000 : 10000,
+        maximumAge: centerAfterUpdate ? 0 : 60_000,
+      },
     );
   };
 
@@ -1068,16 +1082,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   };
 
   const handleCenterMyLocation = () => {
-    if (currentUserMapLocation) {
-      setLocationError(null);
-      mapInstance?.setCenter([
-        currentUserMapLocation.approximateLongitude,
-        currentUserMapLocation.approximateLatitude,
-      ]);
-      mapInstance?.setZoom(14);
-      return;
-    }
-
     requestUserLocation(true);
   };
 
@@ -1531,7 +1535,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
             }}
             markers={mapMarkers}
             fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
-            focusCoordinates={focusedMapLocation ?? (focusUserId ? undefined : currentUserMapLocation)}
+            focusCoordinates={
+              focusedMapLocation ??
+              browserFocusCoordinates ??
+              (focusUserId ? undefined : currentUserMapLocation)
+            }
             denseVenue={denseVenue}
             radiusCircle={privacySettings.ghostModeEnabled && currentUserMapLocation
               ? {

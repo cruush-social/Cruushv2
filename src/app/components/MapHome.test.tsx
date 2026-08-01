@@ -641,8 +641,8 @@ describe('MapHome', () => {
     revealEventPass.mockResolvedValue({
       eventSlug: 'the-chocolate-factory-launch',
       iconName: 'notifications',
-      validFrom: '2026-08-01T02:00:00.000Z',
-      validUntil: '2026-08-01T03:00:00.000Z',
+      validFrom: new Date(Date.now()).toISOString(),
+      validUntil: new Date(Date.now() + 60_000).toISOString(),
       hourIndex: 22,
       withinRadius: true,
       emailAvailable: true,
@@ -1343,7 +1343,7 @@ describe('MapHome', () => {
     });
   });
 
-  it('centers the current approximate location from the compact pin button', async () => {
+  it('centers the fresh browser location from the compact pin button', async () => {
     useIsMobile.mockReturnValue(false);
     window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
     getMyProfile.mockResolvedValue({
@@ -1372,9 +1372,20 @@ describe('MapHome', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /center your location/i }));
 
-    expect(mapControls.setCenter).toHaveBeenCalledWith([-74.005, 40.713]);
+    expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.any(Function),
+      expect.objectContaining({
+        enableHighAccuracy: true,
+        maximumAge: 0,
+      })
+    );
+    expect(mapControls.setCenter).toHaveBeenCalledWith([-73.901, 40.701]);
     expect(mapControls.setZoom).toHaveBeenCalledWith(14);
-    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.701');
+      expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-73.901');
+    });
   });
 
   it('shows the signed-in user marker from their saved profile location', async () => {
