@@ -41,6 +41,14 @@ function profileCrowdRow(id: string, crowds: SensitiveProfileData["crowds"]) {
   };
 }
 
+function mockOwnerAccessQuery(query: ReturnType<typeof vi.fn>) {
+  query.mockResolvedValueOnce({
+    rows: [{
+      email: "tester@example.com"
+    }]
+  });
+}
+
 function mockRecipientQuery(query: ReturnType<typeof vi.fn>) {
   query.mockResolvedValueOnce({
     rows: [{
@@ -99,7 +107,19 @@ describe("cruush match settings", () => {
     });
   });
 
+  it("ignores stale read-only timestamps from loaded settings payloads", () => {
+    expect(cruushMatchSettingsPayloadSchema.parse({
+      nsfwMessageVisibility: "public",
+      nsfwSendVisibility: "mutual_cruushes",
+      updatedAt: "2026-07-31T05:57:00.000Z"
+    })).toEqual({
+      nsfwMessageVisibility: "public",
+      nsfwSendVisibility: "mutual_cruushes"
+    });
+  });
+
   it("allows NSFW message photos when the sender requires mutual crowds and all recipients share one", async () => {
+    mockOwnerAccessQuery(query);
     mockRecipientQuery(query);
     mockSettingsQuery(query, "mutual_crowds", "public");
     mockCrowdsQuery(query, ["Dyke"], ["Dyke", "T4T"]);
@@ -111,6 +131,7 @@ describe("cruush match settings", () => {
   });
 
   it("blocks NSFW message photos when the sender requires mutual crowds and a recipient shares none", async () => {
+    mockOwnerAccessQuery(query);
     mockRecipientQuery(query);
     mockSettingsQuery(query, "mutual_crowds", "public");
     mockCrowdsQuery(query, ["Dyke"], ["Gay"]);
@@ -126,6 +147,7 @@ describe("cruush match settings", () => {
   });
 
   it("blocks NSFW message photos when a recipient only accepts them from mutual crowds", async () => {
+    mockOwnerAccessQuery(query);
     mockRecipientQuery(query);
     mockSettingsQuery(query, "public", "mutual_crowds");
     mockCrowdsQuery(query, ["T4T"], ["Gay"]);

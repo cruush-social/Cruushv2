@@ -304,53 +304,6 @@
   border-radius: 0.45rem;
 }
 
-.launch-login-auth-rave-button {
-  position: relative;
-  z-index: 13;
-  display: inline-flex;
-  width: 100%;
-  min-height: 3rem;
-  align-items: center;
-  justify-content: center;
-  margin-top: 0.9rem !important;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 0.45rem;
-  background: rgba(255, 255, 255, 0.09);
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.94rem;
-  font-weight: 700;
-  line-height: 1.1;
-  text-align: center;
-  text-decoration: none;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.42);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 0.95rem 2rem rgba(0, 0, 0, 0.34);
-  transition:
-    background-color 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    transform 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.launch-login-auth-rave-button:hover,
-.launch-login-auth-rave-button:focus-visible {
-  border-color: rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    0 1.05rem 2.15rem rgba(0, 0, 0, 0.4),
-    0 0 1.3rem rgba(255, 0, 114, 0.26);
-}
-
-.launch-login-auth-rave-button:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
-  outline-offset: 3px;
-}
-
 .launch-login-auth-submit::before,
 .launch-login-auth-submit::after {
   position: absolute;
@@ -833,13 +786,6 @@
       inset 0 0 1.35rem rgba(246, 252, 255, 0.16),
       inset 0 1px 0 rgba(255, 255, 255, 0.22);
     filter: saturate(1.05) brightness(1.02) contrast(0.96);
-  }
-
-  .launch-login-auth-rave-button {
-    min-height: 2.18rem;
-    margin-top: 0.72rem !important;
-    border-radius: 0.32rem;
-    font-size: 0.82rem;
   }
 
   .launch-login-auth-submit::before {

@@ -1320,6 +1320,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
 
     if (marker.kind === 'cluster' && marker.cluster) {
+      if (marker.cluster.kind === 'people') {
+        return;
+      }
+
       const clusteredEvent = activeEvents.find((event) => event.slug === marker.cluster?.id) ?? launchPartyEvent;
       if (clusteredEvent) {
         openEventPanel(clusteredEvent.slug);
@@ -1430,17 +1434,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
         data-testid="map-top-chrome"
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+          <div className="flex min-w-0 shrink-0 flex-col items-center gap-1">
             <h1 className="sr-only">cruush</h1>
             <img
               alt=""
               aria-hidden="true"
-              className="h-10 w-auto shrink-0 object-contain sm:h-12"
+              className="h-14 w-auto shrink-0 object-contain sm:h-16"
               draggable={false}
               src={cruushLogo}
             />
-            <div className="inline-flex max-w-[7rem] shrink-0 items-center rounded-full border border-white/10 bg-background/35 px-2 py-0.5 text-[9px] uppercase leading-none tracking-[0.12em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-[0.14em]">
-              {isMutualMapMode ? 'Mutual cruushes' : 'NYC beta'}
+            <div className="inline-flex max-w-[5.75rem] shrink-0 items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]">
+              {isMutualMapMode ? 'mutual cruushes' : 'nyc open beta'}
             </div>
           </div>
 
@@ -1784,7 +1788,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-16 z-30 flex flex-col items-end gap-2 sm:right-4"
+          className="pointer-events-auto absolute right-3 top-12 z-30 flex flex-col items-end gap-2 sm:right-4"
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (

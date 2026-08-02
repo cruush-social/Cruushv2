@@ -3897,11 +3897,17 @@ describe("server", () => {
         rows: [{
           id: "msg-1",
           user_id: dmPartnerId,
+          sender_name: "Alex",
+          sender_pronouns: ["they/them"],
+          sender_photo: "https://example.com/alex.jpg",
           content: "you around now?",
           created_at: "2026-04-29T12:05:00.000Z"
         }, {
           id: "msg-2",
           user_id: userId,
+          sender_name: "Jordan",
+          sender_pronouns: ["he/him"],
+          sender_photo: "https://example.com/jordan.jpg",
           content: "yeah nearby",
           created_at: "2026-04-29T12:06:00.000Z"
         }]
@@ -3918,6 +3924,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("join conversations c");
     expect(query.mock.calls.some(([sql]) => String(sql).includes("from messages m"))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("sender_profile.photos[1] as sender_photo"))).toBe(true);
     expect(response.json()).toEqual({
       data: {
         conversation: {
@@ -3944,15 +3951,90 @@ describe("server", () => {
           id: "msg-1",
           userId: dmPartnerId,
           content: "you around now?",
-          timestamp: "2026-04-29T12:05:00.000Z"
+          timestamp: "2026-04-29T12:05:00.000Z",
+          user: {
+            id: dmPartnerId,
+            name: "Alex",
+            pronouns: "they/them",
+            photo: "https://example.com/alex.jpg"
+          }
         }, {
           id: "msg-2",
           userId: userId,
           content: "yeah nearby",
-          timestamp: "2026-04-29T12:06:00.000Z"
+          timestamp: "2026-04-29T12:06:00.000Z",
+          user: {
+            id: userId,
+            name: "Jordan",
+            pronouns: "he/him",
+            photo: "https://example.com/jordan.jpg"
+          }
         }]
       }
     });
+  });
+
+  it("returns sender profile metadata for group messages", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: conversationId,
+          kind: "group",
+          title: "Beta crew",
+          tags: [],
+          updated_at: "2026-04-29T12:00:00.000Z",
+          last_message: "",
+          last_message_ciphertext: null,
+          last_message_nonce: null,
+          last_message_auth_tag: null,
+          last_message_key_version: null,
+          unread_count: 0,
+          pinned: false,
+          muted: false,
+          other_user_id: null,
+          other_user_name: null,
+          other_user_pronouns: null,
+          other_user_photo: null,
+          member_count: 3,
+          current_user_role: "member",
+          disappearing_timer: "24h",
+          closed_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "msg-1",
+          user_id: dmPartnerId,
+          sender_name: "cas",
+          sender_pronouns: ["he/him"],
+          sender_photo: "https://example.com/cas.jpg",
+          content: "pull up",
+          created_at: "2026-04-29T12:05:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/messages/${conversationId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("sender_profile.photos[1] as sender_photo"))).toBe(true);
+    expect(response.json().data.messages).toEqual([{
+      id: "msg-1",
+      userId: dmPartnerId,
+      content: "pull up",
+      timestamp: "2026-04-29T12:05:00.000Z",
+      user: {
+        id: dmPartnerId,
+        name: "cas",
+        pronouns: "he/him",
+        photo: "https://example.com/cas.jpg"
+      }
+    }]);
   });
 
   it("falls back to plaintext message content when encrypted message metadata is unreadable", async () => {
@@ -4575,6 +4657,99 @@ describe("server", () => {
           mimeType: "image/png",
           viewOnce: true
         }]
+      }
+    });
+  });
+
+  it("allows the owner account to upload favorite message images even when account restrictions would otherwise block it", async () => {
+    const ownerSessionToken = "owner-favorite-image-session";
+    const ownerMediaId = "64a5f8da-f6c1-4684-b94e-1b34bc29c1ef";
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      const text = String(sql);
+
+      if (text.includes("from app_sessions s")) {
+        return {
+          rows: [{
+            user_id: userId,
+            email: "julienlenazny@gmail.com",
+            account_status: "under_review"
+          }]
+        };
+      }
+
+      if (text.includes("select email") && text.includes("from app_users")) {
+        return { rows: [{ email: "not-the-owner@example.com" }] };
+      }
+
+      if (text.includes("with inserted_media as")) {
+        return { rows: [{ id: ownerMediaId }] };
+      }
+
+      if (text.includes("with eligible_owner as")) {
+        const ownerFullAccess = params[13];
+        const ownerEmailFallback = params[14];
+
+        return {
+          rows: ownerFullAccess === true || ownerEmailFallback === "julienlenazny@gmail.com"
+            ? [{
+              id: "favorite-owner-image",
+              media_object_id: ownerMediaId,
+              label: "go-to",
+              url: `/api/media/assets/${ownerMediaId}/display`,
+              thumbnail_url: `/api/media/assets/${ownerMediaId}/thumbnail`,
+              media_type: "image",
+              mime_type: "image/webp",
+              explicit: false,
+              created_at: "2026-04-29T12:10:00.000Z",
+              updated_at: "2026-04-29T12:10:00.000Z"
+            }]
+            : []
+        };
+      }
+
+      return { rows: [] };
+    });
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-favorite.png",
+      contentType: "image/png",
+      content: await validPng(),
+      fields: [
+        { name: "label", value: "go-to" }
+      ]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages/favorite-images",
+      headers: {
+        cookie: createSessionCookie(ownerSessionToken, {
+          secure: false,
+          maxAgeSeconds: 60
+        }),
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const favoriteInsert = query.mock.calls.find(([sql]) => String(sql).includes("with eligible_owner as"));
+
+    expect(response.statusCode, response.body).toBe(201);
+    expect(favoriteInsert?.[0]).toContain("$14::boolean");
+    expect(favoriteInsert?.[0]).toContain("lower(coalesce(u.email, '')) = $15");
+    expect(favoriteInsert?.[1]?.[13]).toBe(false);
+    expect(favoriteInsert?.[1]?.[14]).toBe("julienlenazny@gmail.com");
+    expect(response.json()).toEqual({
+      data: {
+        id: "favorite-owner-image",
+        mediaObjectId: ownerMediaId,
+        label: "go-to",
+        url: `/api/media/assets/${ownerMediaId}/display`,
+        thumbnailUrl: `/api/media/assets/${ownerMediaId}/thumbnail`,
+        mediaType: "image",
+        mimeType: "image/webp",
+        explicit: false,
+        createdAt: "2026-04-29T12:10:00.000Z",
+        updatedAt: "2026-04-29T12:10:00.000Z"
       }
     });
   });

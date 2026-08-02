@@ -9,8 +9,12 @@ export const nsfwMessageVisibilitySchema = z.enum(["public", "mutual_cruushes", 
 
 export const cruushMatchSettingsPayloadSchema = z.object({
   nsfwMessageVisibility: nsfwMessageVisibilitySchema,
-  nsfwSendVisibility: nsfwMessageVisibilitySchema
-}).strict();
+  nsfwSendVisibility: nsfwMessageVisibilitySchema,
+  updatedAt: z.string().nullable().optional()
+}).strict().transform(({ nsfwMessageVisibility, nsfwSendVisibility }) => ({
+  nsfwMessageVisibility,
+  nsfwSendVisibility
+}));
 
 export type NsfwMessageVisibility = z.infer<typeof nsfwMessageVisibilitySchema>;
 

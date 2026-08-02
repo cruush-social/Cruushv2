@@ -148,14 +148,33 @@ describe('LocalFeed', () => {
 
     expect(await screen.findByRole('heading', { name: 'Local Feed' })).toBeInTheDocument();
     expect(screen.getByTestId('local-feed-screen')).toHaveClass(
+      'flex',
+      'h-[100dvh]',
+      'flex-col',
       'overflow-x-clip',
+      'overflow-y-hidden',
       'pt-[env(safe-area-inset-top)]',
     );
     expect(screen.getByTestId('local-feed-header')).toHaveClass(
       'sticky',
       'top-0',
       'z-40',
+      'shrink-0',
       'pt-[calc(1rem+env(safe-area-inset-top))]',
+    );
+    expect(screen.getByTestId('local-feed-content')).toHaveClass(
+      'min-h-0',
+      'flex-1',
+      'flex-col',
+      'overflow-hidden',
+    );
+    expect(screen.getByTestId('local-feed-composer')).toHaveClass('shrink-0');
+    expect(screen.getByTestId('local-feed-posts-scroll')).toHaveClass(
+      'min-h-0',
+      'flex-1',
+      'overflow-y-auto',
+      'overscroll-contain',
+      'pb-[calc(9rem+env(safe-area-inset-bottom))]',
     );
   });
 
@@ -300,6 +319,8 @@ describe('LocalFeed', () => {
 
     const preview = await screen.findByRole('img', { name: 'River preview' });
     expect(preview.parentElement).toHaveClass('w-20');
+    expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('min-w-0', 'flex-1', 'truncate');
+    expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex-wrap');
   });
 
   it('blocks another feed author and removes all of their posts locally', async () => {

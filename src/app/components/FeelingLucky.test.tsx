@@ -122,7 +122,7 @@ describe('FeelingLucky', () => {
       photo: null,
     }]);
 
-    renderLucky();
+    const { container } = renderLucky();
 
     await waitFor(() => expect(getNearbyUsers).toHaveBeenCalledWith(
       { lat: 40.7128, lng: -74.006 },
@@ -131,6 +131,12 @@ describe('FeelingLucky', () => {
     ));
     expect(await screen.findByText(/Jordan/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Browse again' })).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass('pb-[calc(7rem+env(safe-area-inset-bottom))]');
+    expect(screen.getByTestId('lucky-profile-result')).toHaveClass('space-y-3');
+    expect(screen.getByTestId('profile-card')).not.toHaveClass('overflow-y-auto');
+    expect(screen.getByTestId('profile-card-media')).toHaveStyle({
+      height: 'clamp(12.5rem, 34dvh, 18rem)',
+    });
   });
 
   it('treats billing failures as locked and does not reveal profile data', async () => {

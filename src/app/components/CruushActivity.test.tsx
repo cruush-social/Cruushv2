@@ -39,6 +39,10 @@ function selectTab(name: RegExp) {
   fireEvent.keyDown(tab, { key: 'Enter', code: 'Enter' });
 }
 
+function expectHeartPreviewSize(label: string) {
+  expect(screen.getByRole('img', { name: label }).parentElement).toHaveClass('w-16');
+}
+
 const activityFixture = {
   entitlement: {
     cruushPlus: false,
@@ -171,6 +175,8 @@ describe('CruushActivity', () => {
     expect(screen.getByRole('tab', { name: 'views' })).toHaveTextContent(/^views$/);
     expect(screen.getByText('Someone new')).toBeInTheDocument();
     expect(screen.getByText('Upgrade to view')).toBeInTheDocument();
+    expectHeartPreviewSize('luna preview');
+    expectHeartPreviewSize('Locked incoming cruush');
 
     fireEvent.click(screen.getByRole('button', { name: 'cruush luna back' }));
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-luna', expect.objectContaining({
@@ -180,11 +186,15 @@ describe('CruushActivity', () => {
     selectTab(/sent/i);
     expect(await screen.findByText('jay')).toBeInTheDocument();
     expect(screen.getByText('pending')).toBeInTheDocument();
+    expectHeartPreviewSize('jay preview');
 
     selectTab(/mutual/i);
-    expect(await screen.findByText('your mutual cruushes')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('river')).toBeInTheDocument());
+    expect(screen.queryByText('your mutual cruushes')).not.toBeInTheDocument();
+    expect(screen.queryByText('People you are mutually into.')).not.toBeInTheDocument();
     expect(screen.getByText('river')).toBeInTheDocument();
     expect(screen.getByText('0.4 mi away')).toBeInTheDocument();
+    expectHeartPreviewSize('river preview');
 
     fireEvent.click(screen.getByRole('button', { name: 'Message river' }));
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river');
@@ -235,6 +245,8 @@ describe('CruushActivity', () => {
     expect(screen.getByText(/Viewed your profile/)).toBeInTheDocument();
     expect(screen.getByText('Someone new')).toBeInTheDocument();
     expect(screen.getByText('Upgrade to view')).toBeInTheDocument();
+    expectHeartPreviewSize('indigo preview');
+    expectHeartPreviewSize('Locked profile view');
   });
 
   it('refreshes activity when cruush state changes elsewhere', async () => {

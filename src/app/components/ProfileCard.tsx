@@ -9,7 +9,7 @@ import { sendCruush } from '../lib/cruushApi';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
-import { PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
+import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
 import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
 
@@ -18,9 +18,10 @@ interface ProfileCardProps {
   onClose: () => void;
   onViewProfile: () => void;
   placement?: 'overlay' | 'inline';
+  density?: 'regular' | 'compact';
 }
 
-export default function ProfileCard({ user, onClose, onViewProfile, placement = 'overlay' }: ProfileCardProps) {
+export default function ProfileCard({ user, onClose, onViewProfile, placement = 'overlay', density = 'regular' }: ProfileCardProps) {
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
@@ -32,6 +33,17 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   const canMessage = user.relationship?.canMessage !== false;
   const cruushDisabled = sendingCruush || hasSentCruush || isAlreadyMutual;
   const maskPhoto = Boolean(dlModeActive && user.photo && user.photoExplicit === true);
+  const compact = placement === 'inline' && density === 'compact';
+  const mediaStyle = compact ? PROFILE_CARD_COMPACT_MEDIA_STYLE : PROFILE_CARD_MEDIA_ASPECT_STYLE;
+  const lookingForItems = Array.isArray(user.lookingFor)
+    ? user.lookingFor.filter((item: string) => item.trim().length > 0)
+    : [];
+  const contentClassName = compact ? 'p-3 space-y-3' : 'p-4 space-y-4';
+  const titleClassName = compact ? 'text-xl' : 'text-2xl';
+  const actionButtonClassName = compact ? 'h-10 min-w-0 flex-1' : 'flex-1';
+  const mediaCaptionClassName = compact
+    ? 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3'
+    : 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4';
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
@@ -76,23 +88,24 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   };
 
   const cardClassName = placement === 'inline'
-    ? 'bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto'
+    ? `bg-card rounded-2xl border border-border overflow-hidden shadow-2xl max-w-sm w-full mx-auto ${compact ? '' : 'overflow-y-auto'}`
     : 'bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30';
 
   return (
-    <div className={cardClassName} style={{ maxHeight: placement === 'inline' ? undefined : '80vh' }}>
+    <div data-testid="profile-card" className={cardClassName} style={{ maxHeight: placement === 'inline' ? undefined : '80vh' }}>
       <div
+        data-testid="profile-card-media"
         className="relative w-full"
-        style={{ ...PROFILE_CARD_MEDIA_ASPECT_STYLE, background: 'var(--cruush-gradient)' }}
+        style={{ ...mediaStyle, background: 'var(--cruush-gradient)' }}
       >
         {user.photo && !maskPhoto ? (
-          <img src={resolveMediaUrl(user.photo)} alt={user.name} className="w-full h-full object-cover" style={PROFILE_CARD_MEDIA_ASPECT_STYLE} />
+          <img src={resolveMediaUrl(user.photo)} alt={user.name} className="w-full h-full object-cover" style={mediaStyle} />
         ) : maskPhoto ? (
           <div
             aria-label={user.name}
             className="flex h-full w-full items-center justify-center"
             role="img"
-            style={{ ...PROFILE_CARD_MEDIA_ASPECT_STYLE, background: getProfileGradientCss(user.id) }}
+            style={{ ...mediaStyle, background: getProfileGradientCss(user.id) }}
           >
             <Eye className="h-12 w-12 text-white/80" strokeWidth={2.35} />
           </div>
@@ -109,8 +122,8 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
           <X className="w-5 h-5 text-white" />
         </button>
 
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-          <h3 className="text-2xl">
+        <div className={mediaCaptionClassName}>
+          <h3 className={titleClassName}>
             {user.name}, {user.age}
           </h3>
           <CruushBadge badges={user.badges} compact />
@@ -118,24 +131,26 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className={contentClassName}>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CruushIcon name="map" className="h-4 w-4 opacity-70" />
           <span>{user.distance} away</span>
         </div>
 
-        <div className="space-y-2">
-          <p className="text-sm">Looking for</p>
-          <div className="flex flex-wrap gap-2">
-            {user.lookingFor?.map((item: string) => (
-              <Badge key={item} variant="secondary">
-                {item}
-              </Badge>
-            ))}
+        {!compact && lookingForItems.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-sm">Looking for</p>
+            <div className="flex flex-wrap gap-2">
+              {lookingForItems.map((item: string) => (
+                <Badge key={item} variant="secondary">
+                  {item}
+                </Badge>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        {user.vibes && user.vibes.length > 0 && (
+        {!compact && user.vibes && user.vibes.length > 0 && (
           <div className="space-y-2">
             <p className="text-sm">Vibes</p>
             <div className="flex flex-wrap gap-2">
@@ -155,7 +170,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
         <div className="flex gap-2 pt-2">
           <Button
             variant="outline"
-            className="flex-1"
+            className={actionButtonClassName}
             onClick={handleCruush}
             disabled={cruushDisabled}
             aria-label={isAlreadyMutual ? 'Already mutual' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
@@ -169,7 +184,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
           </Button>
           <Button
             variant="outline"
-            className="flex-1"
+            className={actionButtonClassName}
             disabled={openingMessage || !canMessage}
             onClick={() => {
               void handleMessage();
@@ -184,7 +199,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
           </Button>
         </div>
 
-        <Button onClick={onViewProfile} className="w-full" variant="secondary">
+        <Button onClick={onViewProfile} className={compact ? 'h-10 w-full' : 'w-full'} variant="secondary">
           View Full Profile
         </Button>
       </div>

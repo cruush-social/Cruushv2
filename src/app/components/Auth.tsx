@@ -22,7 +22,6 @@ interface AuthProps {
   onAuth: (session: AuthSessionPayload) => void;
 }
 
-const LAUNCH_RAVE_TICKETS_URL = 'https://ra.co/events/2483120';
 const FALLBACK_ALPHA_TEST = {
   enabled: true,
   active: true,
@@ -448,15 +447,6 @@ export default function Auth({ onAuth }: AuthProps) {
             </div>
           </div>
         </div>
-
-        <a
-          className="launch-login-auth-rave-button"
-          href={LAUNCH_RAVE_TICKETS_URL}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Launch rave tickets
-        </a>
 
         {/* Auth form */}
         {isSignUp && betaAccessRequired && betaAccessStatus === 'outside' ? (

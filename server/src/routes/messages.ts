@@ -23,7 +23,7 @@ import {
   updateGroupConversationPayloadSchema
 } from "../message-schema.js";
 import { approvedContentReviewCte, moderateMessageTextOrAllowByKeyword } from "../moderation-service.js";
-import { userHasOwnerFullAccess } from "../owner-access.js";
+import { OWNER_FULL_ACCESS_EMAIL, userHasOwnerFullAccess } from "../owner-access.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 
 const conversationParamsSchema = z.object({
@@ -87,6 +87,9 @@ type GroupAccessRow = {
 type MessageRow = {
   id: string;
   user_id: string;
+  sender_name?: string | null;
+  sender_pronouns?: string[] | null;
+  sender_photo?: string | null;
   content: string;
   content_ciphertext?: string | null;
   content_nonce?: string | null;
@@ -248,6 +251,9 @@ async function filterReadableConversationRows(app: FastifyInstance, userId: stri
 
 function mapMessageRow(app: FastifyInstance, row: MessageRow) {
   const attachments = normalizeMessageAttachments(row.attachments);
+  const hasSender = row.sender_name !== undefined ||
+    row.sender_pronouns !== undefined ||
+    row.sender_photo !== undefined;
 
   return {
     id: row.id,
@@ -260,6 +266,14 @@ function mapMessageRow(app: FastifyInstance, row: MessageRow) {
     }, row.content),
     timestamp: new Date(row.created_at).toISOString(),
     ...(row.expires_at ? { expiresAt: new Date(row.expires_at).toISOString() } : {}),
+    ...(hasSender ? {
+      user: {
+        id: row.user_id,
+        name: row.sender_name?.trim() || "cruush user",
+        pronouns: row.sender_pronouns?.join(", ") ?? "",
+        photo: row.sender_photo ?? null
+      }
+    } : {}),
     ...(attachments.length > 0 ? { attachments } : {})
   };
 }
@@ -1126,6 +1140,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            where u.id = $1
              and (
                $14::boolean
+               or lower(coalesce(u.email, '')) = $15
                or (
                  u.account_status = 'active'
                  and coalesce(trust.is_suspended, false) = false
@@ -1222,7 +1237,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
           mediaAsset.moderation.photoDnaProviderRequestId,
           isAdultExplicit,
           payload.label.trim(),
-          ownerFullAccess
+          ownerFullAccess,
+          OWNER_FULL_ACCESS_EMAIL
         ]
       );
       const favorite = result.rows[0];
@@ -1545,9 +1561,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          m.content_key_version,
          m.created_at,
          m.expires_at,
+         coalesce(sender_profile.display_name, sender_user.display_name, sender_user.email) as sender_name,
+         sender_profile.pronouns as sender_pronouns,
+         sender_profile.photos[1] as sender_photo,
          coalesce(message_attachments.attachments, '[]'::jsonb) as attachments
        from messages m
        join conversations c on c.id = m.conversation_id
+       join app_users sender_user on sender_user.id = m.user_id
+       left join profiles sender_profile on sender_profile.id = m.user_id
        left join lateral (
          select jsonb_agg(jsonb_build_object(
            'id', media.id::text,

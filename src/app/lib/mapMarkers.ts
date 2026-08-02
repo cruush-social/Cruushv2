@@ -37,6 +37,8 @@ export type MapMarker = {
     id: string;
     count: number;
     label: string;
+    kind?: 'venue' | 'people';
+    memberIds?: string[];
   };
 };
 

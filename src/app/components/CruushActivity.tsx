@@ -20,6 +20,8 @@ import { openConversationOrInbox } from '../lib/openConversation';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 
+const activityHeartClassName = 'w-16 shrink-0';
+
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
   const then = new Date(isoTimestamp).getTime();
@@ -48,15 +50,15 @@ function ActivityBadge({ children }: { children: string }) {
 
 function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
   return (
-    <div className="relative w-20 shrink-0">
+    <div className={`relative ${activityHeartClassName}`}>
       <HeartPhoto
-        className="w-20 blur-[2px]"
+        className="w-16 blur-[2px]"
         label={label}
         theme="mutual"
-        fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-20" />}
+        fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-20" />}
       />
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/58 text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/58 text-white">
           <Lock className="h-4 w-4" />
         </span>
       </div>
@@ -71,12 +73,12 @@ function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem
 
   return (
     <HeartPhoto
-      className="w-20 shrink-0"
+      className={activityHeartClassName}
       label={`${item.user.name} preview`}
       photo={item.user.photo}
       userId={item.user.id}
       theme={'mutual' in item && item.mutual ? 'mutual' : 'nearby'}
-      fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-25" />}
+      fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-25" />}
     />
   );
 }
@@ -192,7 +194,7 @@ function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; on
       onClick={() => onOpenProfile(item.user!.id)}
     >
       <HeartPhoto
-        className="w-16 shrink-0"
+        className={activityHeartClassName}
         label={`${item.user.name} preview`}
         photo={item.user.photo}
         userId={item.user.id}
@@ -227,14 +229,14 @@ function MutualRow({
 }) {
   return (
     <div className="flex items-center gap-4 border-b border-white/8 py-3 last:border-b-0">
-      <button type="button" className="shrink-0" onClick={() => onOpenProfile(item.user.id)}>
+      <button type="button" className={activityHeartClassName} onClick={() => onOpenProfile(item.user.id)}>
         <HeartPhoto
-          className="w-20"
+          className={activityHeartClassName}
           label={`${item.user.name} preview`}
           photo={item.user.photo}
           userId={item.user.id}
           theme="mutual"
-          fallback={<CruushIcon name="cruush" className="h-7 w-7 opacity-30" />}
+          fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-30" />}
         />
       </button>
       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpenProfile(item.user.id)}>
@@ -517,14 +519,7 @@ export default function CruushActivity() {
                     </ActivitySurface>
                   </TabsContent>
 
-                  <TabsContent value="mutual" className="mt-0 space-y-4">
-                    <div>
-                      <div>
-                        <h2 className="text-lg text-white">your mutual cruushes</h2>
-                        <p className="text-sm text-white/58">People you are mutually into.</p>
-                      </div>
-                    </div>
-
+                  <TabsContent value="mutual" className="mt-0">
                     <ActivitySurface empty={activity.mutual.length === 0} emptyText="No mutual cruushes yet.">
                       {activity.mutual.map((item) => (
                         <MutualRow key={item.id} item={item} onOpenMap={openMutualOnMap} onMessage={openMessage} onOpenProfile={openProfile} />

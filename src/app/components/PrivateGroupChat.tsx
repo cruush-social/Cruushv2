@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties, ChangeEvent } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import type { CSSProperties, ChangeEvent, KeyboardEvent, RefObject } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, MoreHorizontal, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -35,6 +35,7 @@ import {
   type FavoriteMessageImage,
   type GroupMemberRecord,
   type MessageAttachment,
+  type MessageSender,
   type RemoteChatMessage,
   updateGroupConversation,
   uploadFavoriteMessageImage,
@@ -78,11 +79,20 @@ function getConversationInitials(name: string) {
 function normalizeRemoteMessage(message: RemoteChatMessage, activeUserId: string | null): ChatMessageRecord {
   return {
     id: String(message.id),
+    userId: String(message.userId),
     author: message.userId === activeUserId ? 'self' : 'other',
     content: String(message.content ?? ''),
     timestamp: String(message.timestamp ?? new Date().toISOString()),
     expiresAt: message.expiresAt ? String(message.expiresAt) : undefined,
     attachments: Array.isArray(message.attachments) ? message.attachments : undefined,
+    user: message.user
+      ? {
+          id: String(message.user.id),
+          name: String(message.user.name ?? 'cruush user'),
+          pronouns: String(message.user.pronouns ?? ''),
+          photo: message.user.photo ?? null,
+        }
+      : undefined,
   };
 }
 
@@ -105,9 +115,53 @@ function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }
   );
 }
 
+function openFileInputFromKeyboard(
+  event: KeyboardEvent,
+  inputRef: RefObject<HTMLInputElement | null>,
+  disabled: boolean,
+) {
+  if (disabled || (event.key !== 'Enter' && event.key !== ' ')) {
+    return;
+  }
+
+  event.preventDefault();
+  inputRef.current?.click();
+}
+
+function getMessageSender(
+  message: ChatMessageRecord,
+  conversation: ConversationThread,
+  groupMembers: GroupMemberRecord[],
+): MessageSender | null {
+  if (conversation.kind === 'dm') {
+    return conversation.user;
+  }
+
+  if (message.user) {
+    return message.user;
+  }
+
+  const groupMember = groupMembers.find((member) => member.id === message.userId);
+
+  if (groupMember) {
+    return {
+      id: groupMember.id,
+      name: groupMember.name,
+      pronouns: groupMember.pronouns,
+      photo: groupMember.photo,
+    };
+  }
+
+  return message.userId
+    ? { id: message.userId, name: 'cruush user', pronouns: '', photo: null }
+    : null;
+}
+
 export default function PrivateGroupChat() {
   const { chatId } = useParams();
   const navigate = useNavigate();
+  const messagePhotoInputId = useId();
+  const favoriteImageInputId = useId();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessageRecord[]>([]);
   const [conversation, setConversation] = useState<ConversationThread | null>(null);
@@ -572,6 +626,7 @@ export default function PrivateGroupChat() {
     const optimisticId = `local-${Date.now()}`;
     const optimisticMessage: ChatMessageRecord = {
       id: optimisticId,
+      userId: currentUserId ?? undefined,
       author: 'self',
       content: trimmedMessage,
       timestamp: new Date().toISOString(),
@@ -631,19 +686,29 @@ export default function PrivateGroupChat() {
     }
   };
 
-  const openDmProfile = () => {
-    if (!conversation || conversation.kind !== 'dm') {
+  const openUserProfile = (userId?: string) => {
+    if (!conversation || !userId) {
       return;
     }
 
-    navigate(`/profile/${conversation.user.id}`, {
+    navigate(`/profile/${userId}`, {
       state: {
         distance: conversation.distance,
       },
     });
   };
+
+  const openDmProfile = () => {
+    if (!conversation || conversation.kind !== 'dm') {
+      return;
+    }
+
+    openUserProfile(conversation.user.id);
+  };
   const groupMemberIds = new Set(groupMembers.map((member) => member.id));
   const availableAddOptions = mutualOptions.filter((item) => !groupMemberIds.has(item.user.id));
+  const messagePhotoControlDisabled = photoUploading || composerDisabled;
+  const favoriteUploadControlDisabled = favoriteUploading || composerDisabled;
   const composerBarStyle = {
     '--chat-composer-bottom': keyboardInset > 0
       ? `calc(0.75rem + env(safe-area-inset-bottom) + ${keyboardInset}px)`
@@ -971,6 +1036,9 @@ export default function PrivateGroupChat() {
           {!loading && messages.map((msg) => {
             const isOwn = msg.author === 'self';
             const isSystem = msg.author === 'system';
+            const messageSender = !isOwn && conversation
+              ? getMessageSender(msg, conversation, groupMembers)
+              : null;
 
             if (isSystem) {
               return (
@@ -987,14 +1055,21 @@ export default function PrivateGroupChat() {
                 key={msg.id}
                 className={`flex items-end gap-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
               >
-                {!isOwn && conversation ? (
-                  <HeartPhoto
-                    className="w-9 shrink-0"
-                    label={`${conversation.user.name} avatar`}
-                    photo={conversation.user.photo}
-                    userId={conversation.user.id}
-                    fallback={<div className="text-[10px] text-white/75">{getConversationInitials(conversation.user.name)}</div>}
-                  />
+                {messageSender ? (
+                  <button
+                    type="button"
+                    className="w-9 shrink-0 rounded-full p-0 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    aria-label={`Open ${messageSender.name} profile`}
+                    onClick={() => openUserProfile(messageSender.id)}
+                  >
+                    <HeartPhoto
+                      className="w-9"
+                      label={`${messageSender.name} avatar`}
+                      photo={messageSender.photo}
+                      userId={messageSender.id}
+                      fallback={<div className="text-[10px] text-white/75">{getConversationInitials(messageSender.name)}</div>}
+                    />
+                  </button>
                 ) : null}
 
                 <div className={`max-w-[78%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
@@ -1053,10 +1128,10 @@ export default function PrivateGroupChat() {
                     return (
                       <div
                         key={attachment.id}
-                      className={`overflow-hidden rounded-[22px] border ${
-                        isOwn ? 'border-primary/30 bg-primary/10' : 'border-border bg-card'
-                      }`}
-                    >
+                        className={`overflow-hidden rounded-[22px] border ${
+                          isOwn ? 'border-primary/30 bg-primary/10' : 'border-border bg-card'
+                        }`}
+                      >
                         {dlModeActive && attachment.explicit ? (
                           <ExplicitMessagePhotoShield attachmentKey={attachmentKey} />
                         ) : (
@@ -1154,22 +1229,31 @@ export default function PrivateGroupChat() {
                       </div>
                       <div className="flex items-center gap-1.5">
                         <input
+                          id={favoriteImageInputId}
                           ref={favoriteFileInputRef}
                           type="file"
                           accept={MESSAGE_PHOTO_UPLOAD_ACCEPT}
                           aria-label="Choose favorite image"
                           className="sr-only"
+                          disabled={favoriteUploadControlDisabled}
                           onChange={(event) => void handleFavoriteImageSelected(event)}
                         />
                         <Button
-                          type="button"
+                          asChild
                           variant="outline"
                           size="sm"
-                          disabled={favoriteUploading || composerDisabled}
-                          onClick={() => favoriteFileInputRef.current?.click()}
+                          className={favoriteUploadControlDisabled ? 'pointer-events-none opacity-50' : undefined}
                         >
-                          <ImagePlus className="size-4" />
-                          Upload
+                          <label
+                            htmlFor={favoriteImageInputId}
+                            role="button"
+                            aria-disabled={favoriteUploadControlDisabled}
+                            tabIndex={favoriteUploadControlDisabled ? -1 : 0}
+                            onKeyDown={(event) => openFileInputFromKeyboard(event, favoriteFileInputRef, favoriteUploadControlDisabled)}
+                          >
+                            <ImagePlus className="size-4" />
+                            Upload
+                          </label>
                         </Button>
                         <Button
                           type="button"
@@ -1269,11 +1353,13 @@ export default function PrivateGroupChat() {
                   />
                   <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                     <input
+                      id={messagePhotoInputId}
                       ref={fileInputRef}
                       type="file"
                       accept={MESSAGE_PHOTO_UPLOAD_ACCEPT}
                       aria-label="Choose message photo"
                       className="sr-only"
+                      disabled={messagePhotoControlDisabled}
                       onChange={(event) => void handlePhotoSelected(event)}
                     />
                     <label
@@ -1303,14 +1389,22 @@ export default function PrivateGroupChat() {
                       <Star className="size-4" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
                     </Button>
                     <Button
+                      asChild
                       variant="ghost"
                       size="icon"
-                      title="Attach photo"
-                      aria-label="Attach photo"
-                      disabled={photoUploading || composerDisabled}
-                      onClick={() => fileInputRef.current?.click()}
+                      className={messagePhotoControlDisabled ? 'pointer-events-none opacity-50' : undefined}
                     >
-                      <ImageIcon className="size-4" />
+                      <label
+                        htmlFor={messagePhotoInputId}
+                        title="Attach photo"
+                        role="button"
+                        aria-label="Attach photo"
+                        aria-disabled={messagePhotoControlDisabled}
+                        tabIndex={messagePhotoControlDisabled ? -1 : 0}
+                        onKeyDown={(event) => openFileInputFromKeyboard(event, fileInputRef, messagePhotoControlDisabled)}
+                      >
+                        <ImageIcon className="size-4" />
+                      </label>
                     </Button>
                     <Button
                       onClick={() => void handleSend()}

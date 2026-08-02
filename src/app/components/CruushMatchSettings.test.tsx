@@ -80,7 +80,6 @@ describe('CruushMatchSettings', () => {
     await waitFor(() => expect(saveCruushMatchSettings).toHaveBeenCalledWith({
       nsfwMessageVisibility: 'mutual_crowds',
       nsfwSendVisibility: 'mutual_cruushes',
-      updatedAt: null,
     }));
   });
 });

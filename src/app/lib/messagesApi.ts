@@ -29,11 +29,20 @@ export type ConversationThread = {
 
 export type ChatMessageRecord = {
   id: string;
+  userId?: string;
   author: 'self' | 'other' | 'system';
   content: string;
   timestamp: string;
   expiresAt?: string;
   attachments?: MessageAttachment[];
+  user?: MessageSender;
+};
+
+export type MessageSender = {
+  id: string;
+  name: string;
+  pronouns: string;
+  photo: string | null;
 };
 
 export type RemoteChatMessage = {
@@ -43,6 +52,7 @@ export type RemoteChatMessage = {
   timestamp: string;
   expiresAt?: string;
   attachments?: MessageAttachment[];
+  user?: MessageSender;
 };
 
 export type MessageAttachment = {

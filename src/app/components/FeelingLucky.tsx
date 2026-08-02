@@ -119,7 +119,7 @@ export default function FeelingLucky() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] pb-24 text-foreground">
+    <div className="min-h-[100dvh] bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] text-foreground">
       <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-white/10 bg-black/88 p-4 backdrop-blur-sm">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
@@ -130,7 +130,7 @@ export default function FeelingLucky() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-3 pt-5 sm:px-6">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 pt-4 sm:px-6 sm:pt-5">
         {status === 'checking' ? (
           <div className="rounded-2xl border border-white/10 bg-black/72 p-5 text-center text-sm text-white/68">
             Loading cruise carousel...
@@ -157,8 +157,9 @@ export default function FeelingLucky() {
         ) : null}
 
         {status === 'profile' && targetUser ? (
-          <div className="space-y-4">
+          <div data-testid="lucky-profile-result" className="space-y-3">
             <ProfileCard
+              density="compact"
               placement="inline"
               user={targetUser}
               onClose={() => navigate(-1)}
@@ -167,7 +168,7 @@ export default function FeelingLucky() {
             <Button
               onClick={handleBrowseAgain}
               variant="outline"
-              className="mx-auto flex h-11 w-full max-w-sm rounded-xl border-white/18 text-white"
+              className="mx-auto flex h-10 w-full max-w-sm rounded-xl border-white/18 text-white"
             >
               <RefreshCw className="w-4 h-4" />
               Browse again

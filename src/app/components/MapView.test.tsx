@@ -59,7 +59,9 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     element: HTMLElement;
     coordinates: [number, number] | null = null;
     map: MockMapInstance | null = null;
-    remove = vi.fn();
+    remove = vi.fn(() => {
+      this.element.remove();
+    });
 
     constructor(options: { element: HTMLElement }) {
       this.element = options.element;
@@ -824,6 +826,97 @@ describe('MapView', () => {
     expect(eventMarker.querySelector('img')).toBeNull();
     fireEvent.click(marker);
     expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ kind: 'event' }));
+  });
+
+  it('clusters overlapping people pins into a zoomable count marker', async () => {
+    const onPinClick = vi.fn();
+
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          {
+            id: 'me',
+            displayName: 'You',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+            isCurrentUser: true,
+          },
+          {
+            id: 'user-a',
+            displayName: 'A',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+          },
+          {
+            id: 'user-b',
+            displayName: 'B',
+            approximateLatitude: 40.713,
+            approximateLongitude: -73.9902,
+          },
+          {
+            id: 'user-c',
+            displayName: 'C',
+            approximateLatitude: 40.742,
+            approximateLongitude: -73.96,
+          },
+        ]}
+      />
+    );
+
+    const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
+    expect(screen.getByTestId('people-cluster-marker-people-0')).toHaveTextContent('2');
+    expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Your approximate area')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(cluster);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onPinClick).not.toHaveBeenCalled();
+    expect(mapInstances[0].setZoom).toHaveBeenCalledWith(15.5);
+    const center = mapInstances[0].setCenter.mock.calls.at(-1)?.[0] as [number, number];
+    expect(center[0]).toBeCloseTo(-73.9901, 4);
+    expect(center[1]).toBeCloseTo(40.7129, 4);
+    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Zoom into 2 nearby people on map' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('keeps a focused person pin visible instead of hiding it in a nearby cluster', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        focusCoordinates={{
+          approximateLatitude: 40.7128,
+          approximateLongitude: -73.99,
+        }}
+        markers={[
+          {
+            id: 'user-focused',
+            displayName: 'Focused',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+          },
+          {
+            id: 'user-nearby',
+            displayName: 'Nearby',
+            approximateLatitude: 40.713,
+            approximateLongitude: -73.9902,
+          },
+        ]}
+      />
+    );
+
+    expect(await screen.findByRole('button', { name: 'Open Focused on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Nearby on map' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Zoom into .* nearby people on map/ })).not.toBeInTheDocument();
   });
 
   it('clusters crowded venue users into a count circle when zoomed out', async () => {

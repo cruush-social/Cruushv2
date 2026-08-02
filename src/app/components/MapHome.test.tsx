@@ -559,8 +559,10 @@ describe('MapHome', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-10');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-12');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-14');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-16');
+    expect(screen.getByText('nyc open beta')).toHaveClass('lowercase');
+    expect(screen.getByText('nyc open beta').parentElement).toHaveClass('flex-col', 'items-center');
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
 
@@ -757,7 +759,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
     expect(topActions).toHaveClass('pointer-events-auto', 'mt-0', 'gap-0.5', 'p-0.5');
     expect(topActions).not.toHaveClass('mt-11');
-    expect(rightActions).toHaveClass('right-3', 'top-16', 'sm:right-4');
+    expect(rightActions).toHaveClass('right-3', 'top-12', 'sm:right-4');
     expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-5', 'w-5');
@@ -1141,8 +1143,8 @@ describe('MapHome', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
 
-    expect(screen.getByText('NYC beta').parentElement).toHaveClass('lg:flex-row', 'lg:items-start');
-    expect(screen.getByText('NYC beta')).toHaveClass('lg:ml-2', 'lg:mt-0');
+    expect(screen.getByText('nyc open beta').parentElement).toHaveClass('flex-col', 'items-center');
+    expect(screen.getByText('nyc open beta')).toHaveClass('lowercase');
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveClass('z-50');

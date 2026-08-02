@@ -8,6 +8,8 @@ export type CruushMatchSettings = {
   updatedAt: string | null;
 };
 
+export type CruushMatchSettingsUpdate = Pick<CruushMatchSettings, 'nsfwMessageVisibility' | 'nsfwSendVisibility'>;
+
 export const DEFAULT_CRUUSH_MATCH_SETTINGS: CruushMatchSettings = {
   nsfwMessageVisibility: 'mutual_cruushes',
   nsfwSendVisibility: 'mutual_cruushes',
@@ -18,9 +20,16 @@ export function getCruushMatchSettings() {
   return requestApi<CruushMatchSettings>('/api/cruush/settings');
 }
 
-export function saveCruushMatchSettings(settings: Pick<CruushMatchSettings, 'nsfwMessageVisibility' | 'nsfwSendVisibility'>) {
+function toCruushMatchSettingsUpdate(settings: CruushMatchSettingsUpdate): CruushMatchSettingsUpdate {
+  return {
+    nsfwMessageVisibility: settings.nsfwMessageVisibility,
+    nsfwSendVisibility: settings.nsfwSendVisibility,
+  };
+}
+
+export function saveCruushMatchSettings(settings: CruushMatchSettingsUpdate) {
   return requestApi<CruushMatchSettings>('/api/cruush/settings', {
     method: 'PUT',
-    body: JSON.stringify(settings),
+    body: JSON.stringify(toCruushMatchSettingsUpdate(settings)),
   });
 }

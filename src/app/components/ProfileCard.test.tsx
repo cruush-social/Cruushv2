@@ -77,4 +77,36 @@ describe('ProfileCard', () => {
     expect(container.firstElementChild).not.toHaveClass('fixed');
     expect(screen.getByText('Jordan, 26')).toBeInTheDocument();
   });
+
+  it('uses compact inline media sizing without extra detail sections', () => {
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          density="compact"
+          placement="inline"
+          user={{
+            id: 'user-1',
+            name: 'Jordan',
+            age: 26,
+            pronouns: 'they/them',
+            distance: '0.2 mi',
+            lookingFor: ['Fun'],
+            vibes: ['Goth'],
+            photo: null,
+          }}
+          onClose={vi.fn()}
+          onViewProfile={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('profile-card')).not.toHaveClass('overflow-y-auto');
+    expect(screen.getByTestId('profile-card-media')).toHaveStyle({
+      aspectRatio: '4 / 3',
+      height: 'clamp(12.5rem, 34dvh, 18rem)',
+    });
+    expect(screen.queryByText('Looking for')).not.toBeInTheDocument();
+    expect(screen.queryByText('Vibes')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'View Full Profile' })).toHaveClass('h-10');
+  });
 });

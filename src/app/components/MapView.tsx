@@ -81,6 +81,9 @@ const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
+const PERSON_CLUSTER_MAX_ZOOM = 15.25;
+const PERSON_CLUSTER_RADIUS_PX = 84;
+const PERSON_CLUSTER_ZOOM_STEP = 1.5;
 
 type MapLibreModule = typeof import('maplibre-gl');
 type MapLibreExport = MapLibreModule['default'];
@@ -453,8 +456,122 @@ function isMapMarker(value: MapMarker) {
   return Number.isFinite(value.approximateLatitude) && Number.isFinite(value.approximateLongitude);
 }
 
+function isPersonCluster(marker: MapMarker) {
+  return marker.kind === 'cluster' && marker.cluster?.kind === 'people';
+}
+
 function getDisplayName(marker: MapMarker) {
   return marker.displayName.trim() || 'person';
+}
+
+function getClusterLabel(count: number) {
+  return `${count} nearby ${count === 1 ? 'person' : 'people'}`;
+}
+
+function hashString(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = Math.imul(31, hash) + value.charCodeAt(index);
+  }
+
+  return (hash >>> 0).toString(36);
+}
+
+function mercatorPixelPoint(marker: MapMarker, zoom: number) {
+  const worldSize = 512 * 2 ** zoom;
+  const latRadians = marker.approximateLatitude * Math.PI / 180;
+  const sinLatitude = Math.min(0.9999, Math.max(-0.9999, Math.sin(latRadians)));
+
+  return {
+    x: (marker.approximateLongitude + 180) / 360 * worldSize,
+    y: (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * worldSize,
+  };
+}
+
+function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
+  if ((marker.kind ?? 'person') !== 'person' || marker.isCurrentUser === true) {
+    return false;
+  }
+
+  if (!focusCoordinates) {
+    return true;
+  }
+
+  return (
+    Math.abs(marker.approximateLatitude - focusCoordinates.approximateLatitude) > 0.000001 ||
+    Math.abs(marker.approximateLongitude - focusCoordinates.approximateLongitude) > 0.000001
+  );
+}
+
+function buildPeopleCluster(group: MapMarker[], index: number): MapMarker {
+  const sortedIds = group.map((marker) => marker.id).sort();
+  const count = group.length;
+  const label = getClusterLabel(count);
+  const clusterHash = hashString(sortedIds.join('|'));
+  const averageLatitude = group.reduce((sum, marker) => sum + marker.approximateLatitude, 0) / count;
+  const averageLongitude = group.reduce((sum, marker) => sum + marker.approximateLongitude, 0) / count;
+
+  return {
+    id: `people-cluster-${index}-${clusterHash}`,
+    kind: 'cluster',
+    displayName: label,
+    approximateLatitude: averageLatitude,
+    approximateLongitude: averageLongitude,
+    cluster: {
+      id: `people-${index}`,
+      count,
+      label,
+      kind: 'people',
+      memberIds: sortedIds,
+    },
+  };
+}
+
+function applyPersonMarkerClusters(
+  markers: MapMarker[],
+  zoom: number,
+  focusCoordinates: MapViewProps['focusCoordinates'],
+) {
+  if (zoom >= PERSON_CLUSTER_MAX_ZOOM) {
+    return markers;
+  }
+
+  const clusteredIds = new Set<string>();
+  const clusterableMarkers = markers.filter((marker) => canClusterMarker(marker, focusCoordinates));
+  const clusters: MapMarker[] = [];
+
+  clusterableMarkers.forEach((seed) => {
+    if (clusteredIds.has(seed.id)) {
+      return;
+    }
+
+    const seedPoint = mercatorPixelPoint(seed, zoom);
+    const group = clusterableMarkers.filter((candidate) => {
+      if (clusteredIds.has(candidate.id)) {
+        return false;
+      }
+
+      const candidatePoint = mercatorPixelPoint(candidate, zoom);
+      return Math.hypot(candidatePoint.x - seedPoint.x, candidatePoint.y - seedPoint.y) <= PERSON_CLUSTER_RADIUS_PX;
+    });
+
+    if (group.length < 2) {
+      return;
+    }
+
+    group.forEach((marker) => clusteredIds.add(marker.id));
+    clusters.push(buildPeopleCluster(group, clusters.length));
+  });
+
+  if (clusters.length === 0) {
+    return markers;
+  }
+
+  return [
+    ...markers.filter((marker) => !clusteredIds.has(marker.id)),
+    ...clusters,
+  ];
 }
 
 function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 30) {
@@ -626,6 +743,19 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
   );
 }
 
+function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
+  const count = marker.cluster?.count ?? 0;
+
+  return (
+    <span
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-primary/40 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_34px_rgba(255,0,114,0.44)] backdrop-blur-md"
+      data-testid={`people-cluster-marker-${marker.cluster?.id ?? marker.id}`}
+    >
+      {count > 999 ? '999+' : count}
+    </span>
+  );
+}
+
 function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
   const attendeeCount = marker.event?.attendeeCount ?? 0;
 
@@ -645,7 +775,7 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   const postPreview = marker.kind === 'person' ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
 
   if (marker.kind === 'cluster') {
-    return <VenueClusterMarker marker={marker} />;
+    return isPersonCluster(marker) ? <PeopleClusterMarker marker={marker} /> : <VenueClusterMarker marker={marker} />;
   }
 
   if (marker.kind === 'event') {
@@ -720,7 +850,9 @@ function createMarkerElement(
     button.setAttribute('aria-label', marker.kind === 'event'
       ? `Open ${marker.event?.venueName ?? name} launch party on map`
       : marker.kind === 'cluster'
-      ? `Open ${marker.cluster?.label ?? name} on map`
+      ? isPersonCluster(marker)
+        ? `Zoom into ${marker.cluster?.label ?? name} on map`
+        : `Open ${marker.cluster?.label ?? name} on map`
       : `Open ${name} on map`);
     const recordMarkerInteraction = (event: Event) => {
       event.stopPropagation();
@@ -824,13 +956,16 @@ function MapView({
   const [mapError, setMapError] = useState<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
   const mapStyle = useMemo(() => getMapStyle(), []);
-  const renderedMarkerResult = useMemo(
+  const denseMarkerResult = useMemo(
     () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
     [currentZoom, denseVenue, markers],
   );
-  const renderedMarkers = renderedMarkerResult.markers;
   const focusLatitude = focusCoordinates?.approximateLatitude ?? null;
   const focusLongitude = focusCoordinates?.approximateLongitude ?? null;
+  const renderedMarkers = useMemo(
+    () => applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates),
+    [currentZoom, denseMarkerResult.markers, focusCoordinates],
+  );
   const viewportMarkerSignature = useMemo(() => renderedMarkers
     .filter(isMapMarker)
     .map((marker) => [
@@ -1273,7 +1408,20 @@ function MapView({
       markersRef.current = visibleMarkers.map((marker) => {
         const { element, root } = createMarkerElement(
           marker,
-          (selectedMarker) => onPinClickRef.current(selectedMarker),
+          (selectedMarker) => {
+            if (isPersonCluster(selectedMarker)) {
+              const nextZoom = Math.min(
+                PERSON_CLUSTER_MAX_ZOOM + 0.75,
+                Math.max(currentZoom + PERSON_CLUSTER_ZOOM_STEP, PERSON_CLUSTER_MAX_ZOOM + 0.25),
+              );
+              map.setCenter([selectedMarker.approximateLongitude, selectedMarker.approximateLatitude]);
+              map.setZoom(nextZoom);
+              setCurrentZoom(nextZoom);
+              return;
+            }
+
+            onPinClickRef.current(selectedMarker);
+          },
           () => {
             lastMarkerInteractionAtRef.current = Date.now();
           },
@@ -1291,7 +1439,7 @@ function MapView({
     return () => {
       cancelled = true;
     };
-  }, [renderedMarkers, mapInstance]);
+  }, [currentZoom, renderedMarkers, mapInstance]);
 
   return (
     <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">

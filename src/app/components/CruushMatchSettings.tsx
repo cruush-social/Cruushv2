@@ -115,7 +115,10 @@ export default function CruushMatchSettings() {
     setError(null);
 
     try {
-      setMatchSettings(await saveCruushMatchSettings(nextSettings));
+      setMatchSettings(await saveCruushMatchSettings({
+        nsfwMessageVisibility: nextSettings.nsfwMessageVisibility,
+        nsfwSendVisibility: nextSettings.nsfwSendVisibility,
+      }));
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Failed to save match settings.');
     } finally {

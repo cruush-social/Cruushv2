@@ -612,11 +612,14 @@ describe('PrivateGroupChat', () => {
     });
 
     const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' });
-    expect(screen.getByLabelText('Choose message photo')).toHaveAttribute(
+    const photoInput = screen.getByLabelText('Choose message photo');
+    const attachPhotoControl = screen.getByRole('button', { name: 'Attach photo' });
+    expect(photoInput).toHaveAttribute(
       'accept',
       'image/jpeg,image/png,image/webp,image/heic,image/heif',
     );
-    expect(screen.getByRole('button', { name: 'Attach photo' })).toBeInTheDocument();
+    expect(photoInput).toHaveAttribute('id');
+    expect(attachPhotoControl).toHaveAttribute('for', photoInput.getAttribute('id'));
     const viewOnceControl = screen.getByRole('checkbox', { name: 'Send photo view once' });
     expect(viewOnceControl).toHaveClass('rounded-full');
     expect(viewOnceControl).toHaveAttribute('data-state', 'unchecked');
@@ -672,6 +675,56 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByLabelText('Choose message media')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Message video')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Attach photo or video' })).not.toBeInTheDocument();
+  });
+
+  it('opens a group message sender profile from their avatar', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: 'pull up',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'member',
+        disappearingTimer: '24h',
+      },
+      messages: [{
+        id: 'msg-1',
+        userId: 'user-2',
+        user: {
+          id: 'user-2',
+          name: 'cas',
+          pronouns: 'he/him',
+          photo: 'https://example.com/cas.jpg',
+        },
+        content: 'pull up',
+        timestamp: '2026-04-29T12:05:00.000Z',
+      }],
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<><PrivateGroupChat /><LocationProbe /></>} />
+          <Route path="/profile/:userId" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open cas profile' }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2');
   });
 
   it('lets group admins change timers and clear history from conversation settings', async () => {
@@ -1074,5 +1127,7 @@ describe('PrivateGroupChat', () => {
     expect(await screen.findByText('This group is closed.')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Group closed')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
+    expect(screen.getByLabelText('Choose message photo')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Attach photo' })).toHaveAttribute('aria-disabled', 'true');
   });
 });

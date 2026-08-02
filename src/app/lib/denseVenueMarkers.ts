@@ -89,6 +89,7 @@ export function applyDenseVenueMarkers(markers: MapMarker[], venue: DenseVenueCo
             id: venue.id,
             count: venuePeople.length,
             label: `${venuePeople.length} people at The Chocolate Factory`,
+            kind: 'venue',
           },
         } satisfies MapMarker,
       ],

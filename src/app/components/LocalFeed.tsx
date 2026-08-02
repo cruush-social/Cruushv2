@@ -352,11 +352,11 @@ export default function LocalFeed() {
 
   return (
     <div
-      className="min-h-screen max-w-full overflow-x-clip bg-[#050505] pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] text-foreground"
+      className="flex h-[100dvh] max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] pt-[env(safe-area-inset-top)] text-foreground"
       data-testid="local-feed-screen"
     >
       <header
-        className="sticky top-0 z-40 flex items-center gap-4 border-b border-white/10 bg-black/92 px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] shadow-[0_18px_48px_rgba(0,0,0,0.36)] backdrop-blur-xl"
+        className="sticky top-0 z-40 flex shrink-0 items-center gap-4 border-b border-white/10 bg-black/92 px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] shadow-[0_18px_48px_rgba(0,0,0,0.36)] backdrop-blur-xl"
         data-testid="local-feed-header"
       >
         <div>
@@ -468,8 +468,8 @@ export default function LocalFeed() {
         </Dialog>
       </header>
 
-      <div className="max-w-2xl mx-auto px-3 pt-4">
-        <div className="rounded-2xl border border-white/10 bg-black/82 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur">
+      <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-3 pt-4" data-testid="local-feed-content">
+        <div className="shrink-0 rounded-2xl border border-white/10 bg-black/82 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur" data-testid="local-feed-composer">
           {error ? (
             <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
@@ -563,138 +563,143 @@ export default function LocalFeed() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="mt-4 rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
-            <p className="text-white/58">Loading nearby posts...</p>
-          </div>
-        ) : null}
-
-        {!loading ? (
-          <div className="mt-4 space-y-3">
-          {posts.map((post) => (
-            <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
-              <div className="flex gap-3">
-                <HeartPhoto
-                  className="w-20 flex-shrink-0"
-                  label={`${post.user.name} preview`}
-                  photo={post.user?.photo}
-                  theme={currentUserId && post.user.id === currentUserId ? 'current' : 'nearby'}
-                  userId={post.user.id}
-                  fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
-                />
-
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="truncate">{post.user.name}</span>
-                        <CruushBadge badges={post.user.badges} compact />
-                        {post.user.attendingLaunchParty ? (
-                          <button
-                            type="button"
-                            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center border-0 bg-transparent p-0 transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
-                            aria-label="Center map on launch party"
-                            title="Center map on launch party"
-                            onClick={() => navigate('/map', {
-                              state: {
-                                centerEventSlug: LAUNCH_PARTY_EVENT_SLUG,
-                              },
-                            })}
-                          >
-                            <img alt="" aria-hidden="true" className="h-5 w-5 drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]" src={partyHatIcon} />
-                          </button>
-                        ) : null}
-                      </div>
-                      {post.user.pronouns ? (
-                        <p className="text-sm text-white/58">{post.user.pronouns}</p>
-                      ) : null}
-                      <div className="flex items-center gap-3 text-xs text-white/52">
-                        {feedSettings.showDistanceLabels !== false ? (
-                          <span className="flex items-center gap-1">
-                            <CruushIcon name="map" className="h-3 w-3 opacity-70" />
-                            {post.distance}
-                          </span>
-                        ) : null}
-                        <span>{formatRelativeTime(post.createdAt)}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1 text-xs text-white/52">
-                        <Clock className="w-3 h-3" />
-                        <span>{post.expiresIn}</span>
-                      </div>
-                      {currentUserId && post.user.id === currentUserId ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          aria-label={`Delete feed post: ${post.content.slice(0, 48)}`}
-                          title="Delete post"
-                          disabled={deletingPostId === post.id}
-                          onClick={() => void handleDeletePost(post.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      {currentUserId && post.user.id !== currentUserId ? (
-                        <>
-                          <ReportAction
-                            targetType="post"
-                            targetId={post.id}
-                            targetLabel={`post by ${post.user.name}`}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          />
-                          <BlockUserAction
-                            userId={post.user.id}
-                            displayName={post.user.name}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onBlocked={handleBlockedUser}
-                          />
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <p className="text-sm">{post.content}</p>
-                </div>
-                {post.locationPin ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 shrink-0 self-center rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10"
-                    aria-label={`Center map on ${post.user.name}`}
-                    title={`Center map on ${post.user.name}`}
-                    onClick={() => navigate('/map', {
-                      state: {
-                        focusUserId: post.locationPin?.userId,
-                      },
-                    })}
-                  >
-                    <MapPin className="h-5 w-5" />
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          ))}
-          {hasMorePosts || loadingMore ? (
-            <div
-              ref={loadMoreRef}
-              className="min-h-12 rounded-2xl border border-white/0 p-3 text-center text-sm text-white/45"
-              aria-live="polite"
-            >
-              {loadingMore ? 'Loading more posts...' : ''}
+        <div
+          className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(9rem+env(safe-area-inset-bottom))] pr-1"
+          data-testid="local-feed-posts-scroll"
+        >
+          {loading ? (
+            <div className="rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
+              <p className="text-white/58">Loading nearby posts...</p>
             </div>
           ) : null}
-          </div>
-        ) : null}
 
-        {!loading && posts.length === 0 && (
-          <div className="mt-4 rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
-            <p className="text-white/68">No posts nearby yet.</p>
-            <p className="text-sm text-white/50 mt-2">Be the first to share something!</p>
-          </div>
-        )}
+          {!loading ? (
+            <div className="space-y-3">
+              {posts.map((post) => (
+                <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
+                  <div className="flex gap-3">
+                    <HeartPhoto
+                      className="w-20 flex-shrink-0"
+                      label={`${post.user.name} preview`}
+                      photo={post.user?.photo}
+                      theme={currentUserId && post.user.id === currentUserId ? 'current' : 'nearby'}
+                      userId={post.user.id}
+                      fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
+                    />
+
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="min-w-0 flex-1 truncate" data-testid={`feed-post-author-${post.id}`}>
+                            {post.user.name}
+                          </span>
+                          <CruushBadge badges={post.user.badges} compact />
+                          {post.user.attendingLaunchParty ? (
+                            <button
+                              type="button"
+                              className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center border-0 bg-transparent p-0 transition hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03ecfc]/65"
+                              aria-label="Center map on launch party"
+                              title="Center map on launch party"
+                              onClick={() => navigate('/map', {
+                                state: {
+                                  centerEventSlug: LAUNCH_PARTY_EVENT_SLUG,
+                                },
+                              })}
+                            >
+                              <img alt="" aria-hidden="true" className="h-5 w-5 drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]" src={partyHatIcon} />
+                            </button>
+                          ) : null}
+                        </div>
+                        {post.user.pronouns ? (
+                          <p className="text-sm text-white/58">{post.user.pronouns}</p>
+                        ) : null}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/52" data-testid={`feed-post-meta-${post.id}`}>
+                          {feedSettings.showDistanceLabels !== false ? (
+                            <span className="flex items-center gap-1">
+                              <CruushIcon name="map" className="h-3 w-3 opacity-70" />
+                              {post.distance}
+                            </span>
+                          ) : null}
+                          <span>{formatRelativeTime(post.createdAt)}</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {post.expiresIn}
+                          </span>
+                          <div className="ml-auto flex items-center gap-2">
+                            {currentUserId && post.user.id === currentUserId ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                aria-label={`Delete feed post: ${post.content.slice(0, 48)}`}
+                                title="Delete post"
+                                disabled={deletingPostId === post.id}
+                                onClick={() => void handleDeletePost(post.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            {currentUserId && post.user.id !== currentUserId ? (
+                              <>
+                                <ReportAction
+                                  targetType="post"
+                                  targetId={post.id}
+                                  targetLabel={`post by ${post.user.name}`}
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                />
+                                <BlockUserAction
+                                  userId={post.user.id}
+                                  displayName={post.user.name}
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onBlocked={handleBlockedUser}
+                                />
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="text-sm">{post.content}</p>
+                    </div>
+                    {post.locationPin ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 shrink-0 self-center rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10"
+                        aria-label={`Center map on ${post.user.name}`}
+                        title={`Center map on ${post.user.name}`}
+                        onClick={() => navigate('/map', {
+                          state: {
+                            focusUserId: post.locationPin?.userId,
+                          },
+                        })}
+                      >
+                        <MapPin className="h-5 w-5" />
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+              {hasMorePosts || loadingMore ? (
+                <div
+                  ref={loadMoreRef}
+                  className="min-h-12 rounded-2xl border border-white/0 p-3 text-center text-sm text-white/45"
+                  aria-live="polite"
+                >
+                  {loadingMore ? 'Loading more posts...' : ''}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!loading && posts.length === 0 && (
+            <div className="rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
+              <p className="text-white/68">No posts nearby yet.</p>
+              <p className="text-sm text-white/50 mt-2">Be the first to share something!</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
