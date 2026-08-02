@@ -194,9 +194,9 @@ describe('MapView', () => {
     expect(screen.queryByLabelText('bottom')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
     expect(screen.getByLabelText('top')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]/80');
+    expect(screen.getByTestId('marker-badge-me')).toHaveClass('cruush-glass-soft', 'border-[#0BA8FF]/80');
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
-    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('border-[#FF0072]/80');
+    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('cruush-glass-soft', 'border-[#FF0072]/80');
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('-right-0.5', 'top-5', 'z-20');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', '#0BA8FF');
@@ -211,7 +211,7 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-current-fallback-me').querySelector('div')).not.toHaveClass('rounded-full', 'bg-black/70');
     expect(screen.getByTestId('marker-current-fallback-me').querySelector('svg')).toHaveClass('h-7', 'w-7', 'text-white');
     expect(screen.queryByTestId('marker-current-fallback-user-1')).not.toBeInTheDocument();
-    expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-20', 'w-20');
+    expect(screen.getByTestId('marker-heart-me')).toHaveClass('cruush-heart-glass-svg', 'h-20', 'w-20');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(markerInstances[0].element.className).not.toContain('drop-shadow');
     expect(markerInstances[1].element.className).not.toContain('drop-shadow');
@@ -568,14 +568,14 @@ describe('MapView', () => {
       id: 'cruush-user-heatmap-layer',
       type: 'heatmap',
       paint: expect.objectContaining({
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.05, 14, 1.85, 16, 2.45],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 26, 14, 52, 16, 78],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.38, 13, 0.68, 16.75, 0.54],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.35, 14, 2.55, 16, 3.35],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 38, 14, 74, 16, 108],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.56, 13, 0.82, 16.75, 0.68],
         'heatmap-color': expect.arrayContaining([
-          'rgba(17, 129, 255, 0.44)',
-          'rgba(111, 0, 255, 0.72)',
-          'rgba(255, 0, 114, 0.94)',
-          '#FF0072',
+          'rgba(17, 129, 255, 0.58)',
+          'rgba(111, 0, 255, 0.82)',
+          'rgba(255, 0, 114, 0.98)',
+          '#FFE24A',
         ]),
       }),
     }));
@@ -637,6 +637,7 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-marker-theme', 'nearby');
     expect(screen.queryByLabelText('versatile')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-badge-me')).toHaveClass('cruush-glass-soft');
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
   });
@@ -691,12 +692,13 @@ describe('MapView', () => {
 
     expect(await screen.findByTestId('marker-photo-fill-user-mutual')).toHaveAttribute('href', 'https://example.com/river.jpg');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveAttribute('data-marker-theme', 'mutual');
+    expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('cruush-heart-glass-svg', 'h-20', 'w-20');
     expect(screen.getByTestId('marker-heart-user-mutual').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#6f00ff');
-    expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('h-20', 'w-20');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
-    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('border-[#6f00ff]/80');
+    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('cruush-glass-soft', 'border-[#6f00ff]/80');
     expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('-right-0.5', 'top-5', 'z-20');
     expect(screen.getByLabelText('mutual cruush')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass('cruush-glass-soft');
     expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass('-left-0.5', 'top-5', 'z-20');
     expect(screen.getByTestId('marker-relationship-user-mutual').querySelector('img')?.getAttribute('src')).toContain('safety-white');
   });
@@ -1252,9 +1254,9 @@ describe('MapView', () => {
 
     await waitFor(() => expect(MockMap.calls).toHaveLength(1));
     expect(MockMap.calls[0]).toEqual(expect.objectContaining({
+      zoom: 14.4,
       pitch: 45,
       bearing: -17.6,
-      zoom: 14.4,
       canvasContextAttributes: { antialias: true },
     }));
   });

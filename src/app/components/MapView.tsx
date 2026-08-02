@@ -14,7 +14,6 @@ import {
   ArrowUp,
   Bed,
   CircleDot,
-  MessageCircle,
   MinusCircle,
   Mountain,
   MoveHorizontal,
@@ -503,20 +502,6 @@ export function getMapStyle(enable3dBuildings = isEnabledEnvFlag(import.meta.env
   );
 }
 
-const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
-  bottom: ArrowDown,
-  side: MoveHorizontal,
-  'pillow princess': Bed,
-  'stone top': Mountain,
-  top: ArrowUp,
-  'vers bottom': ArrowDown,
-  'vers top': ArrowUp,
-  versatile: Repeat2,
-  none: MinusCircle,
-  oral: MessageCircle,
-  gooner: CircleDot,
-};
-
 type RenderedMapMarker = {
   marker: MapLibreMarker;
   root: Root;
@@ -794,6 +779,19 @@ function shouldReduceMotion() {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
+
+const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
+  bottom: ArrowDown,
+  side: MoveHorizontal,
+  'pillow princess': Bed,
+  'stone top': Mountain,
+  top: ArrowUp,
+  'vers bottom': ArrowDown,
+  'vers top': ArrowUp,
+  versatile: Repeat2,
+  none: MinusCircle,
+  unknown: CircleDot,
+};
 
 function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
   if (!badge?.iconName) {
@@ -1666,23 +1664,25 @@ function MapView({
       maxzoom: 16.75,
       paint: {
         'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1],
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.05, 14, 1.85, 16, 2.45],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 26, 14, 52, 16, 78],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.38, 13, 0.68, 16.75, 0.54],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.35, 14, 2.55, 16, 3.35],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 38, 14, 74, 16, 108],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.56, 13, 0.82, 16.75, 0.68],
         'heatmap-color': [
           'interpolate',
           ['linear'],
           ['heatmap-density'],
           0,
           'rgba(255, 0, 114, 0)',
-          0.14,
-          'rgba(17, 129, 255, 0.44)',
-          0.34,
-          'rgba(111, 0, 255, 0.72)',
-          0.62,
-          'rgba(255, 0, 114, 0.94)',
+          0.08,
+          'rgba(17, 129, 255, 0.58)',
+          0.26,
+          'rgba(111, 0, 255, 0.82)',
+          0.52,
+          'rgba(255, 0, 114, 0.98)',
+          0.78,
+          'rgba(255, 177, 31, 0.92)',
           1,
-          '#FF0072',
+          '#FFE24A',
         ],
       },
     };
@@ -1754,6 +1754,7 @@ function MapView({
         );
         const mapMarker = new maplibregl.Marker({
           element,
+          anchor: 'bottom',
           ...(marker.spiderfy ? {
             offset: marker.spiderfy.offset,
             subpixelPositioning: true,
