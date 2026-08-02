@@ -103,16 +103,16 @@ export default function BottomNav() {
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
               onClick={() => handleNavClick(item.path)}
-              className={`group relative z-10 flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full ${
+              className={`group relative z-10 flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-full ${
                 active
-                  ? 'text-primary'
+                  ? 'cruush-bottom-nav-current-page text-white'
                   : 'text-white/52 hover:bg-white/[0.08] hover:text-white/78'
               }`}
             >
               <img
                 alt=""
                 aria-hidden="true"
-                className={`h-[3.6rem] w-[3.6rem] object-contain ${active ? '' : 'transition-transform duration-200 ease-[cubic-bezier(0.5,0,0,1)] group-hover:scale-[1.08]'}`.trim()}
+                className={`relative z-10 h-[3.6rem] w-[3.6rem] object-contain ${active ? '' : 'transition-transform duration-200 ease-[cubic-bezier(0.5,0,0,1)] group-hover:scale-[1.08]'}`.trim()}
                 draggable={false}
                 src={active ? item.activeIcon : item.icon}
               />

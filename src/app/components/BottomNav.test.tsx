@@ -106,7 +106,7 @@ describe('BottomNav', () => {
     const indicatorSurface = indicator.firstElementChild;
 
     expect(pill.getAttribute('style')).toContain('--bottom-nav-active-offset: calc(25% - 1.125rem)');
-    expect(activeButton).toHaveClass('rounded-full', 'text-primary');
+    expect(activeButton).toHaveClass('rounded-full', 'cruush-bottom-nav-current-page', 'text-white', 'overflow-hidden');
     expect(activeButton).not.toHaveClass('cruush-glass-soft', 'bg-white/[0.10]');
     expect(activeButton.className).not.toContain('transition-colors');
     expect(activeButton.className).not.toContain('shadow-[0_0');
@@ -183,6 +183,8 @@ describe('BottomNav', () => {
 
     expect(activeFeedIcon?.getAttribute('src')).toContain('feed-colored');
     expect(inactiveMapIcon?.getAttribute('src')).toContain('map-white');
+    expect(screen.getByRole('button', { name: /feed/i })).toHaveClass('cruush-bottom-nav-current-page');
+    expect(screen.getByRole('button', { name: /map/i })).not.toHaveClass('cruush-bottom-nav-current-page');
   });
 
   it('opens the desktop profile side panel from the profile icon on the map', () => {
