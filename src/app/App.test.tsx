@@ -187,6 +187,10 @@ vi.mock('./components/BottomNav', () => ({
   default: () => <nav aria-label="Bottom Navigation">Mock Bottom Nav</nav>
 }));
 
+vi.mock('./components/ForegroundNotifications', () => ({
+  default: () => <div data-testid="foreground-notifications" />
+}));
+
 vi.mock('./components/DebugCruushPlusToggle', () => ({
   default: () => <div data-testid="debug-cruush-plus-toggle" />
 }));

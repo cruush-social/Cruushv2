@@ -42,6 +42,7 @@ const RequestsDashboard = lazy(() => import('./components/RequestsDashboard'));
 const CodeOfConductGate = lazy(() => import('./components/CodeOfConductGate'));
 const EmailVerificationGate = lazy(() => import('./components/EmailVerificationGate'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
+const ForegroundNotifications = lazy(() => import('./components/ForegroundNotifications'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
@@ -370,6 +371,7 @@ export default function App({
             <DlModeDefaultNotice />
             <BetaLaunchCruushPlusOffer userId={session.user.id} />
             <BottomNav />
+            <ForegroundNotifications />
             <DebugCruushPlusToggle />
             {alphaBugControl}
           </Suspense>
