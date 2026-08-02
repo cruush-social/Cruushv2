@@ -633,6 +633,22 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setSelectedUser((currentUser) => currentUser?.id === blockedUserId ? null : currentUser);
   };
 
+  const handleMutualCruushRevoked = (revokedUserId: string) => {
+    setUsers((currentUsers) => currentUsers
+      .filter((user) => !(isMutualMapMode && user.id === revokedUserId))
+      .map((user) => user.id === revokedUserId
+        ? {
+            ...user,
+            relationship: {
+              ...user.relationship,
+              mutualCruush: false,
+              canMessage: false,
+            },
+          }
+        : user));
+    setSelectedUser((currentUser) => currentUser?.id === revokedUserId ? null : currentUser);
+  };
+
   useEffect(() => {
     if (isMobile && selectedUser) {
       setSelectedUser(null);
@@ -1651,6 +1667,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             fixed={selectedUser.isCurrentUser === true}
             isOwnProfile={selectedUser.isCurrentUser === true}
             onBlockedUser={handleBlockedUser}
+            onMutualCruushRevoked={handleMutualCruushRevoked}
             onProfileSaved={(savedProfile) => {
               const nextProfile = {
                 ...emptyProfilePayload,

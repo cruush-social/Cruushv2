@@ -12,7 +12,8 @@ const { getMutualCruushMap } = vi.hoisted(() => ({
   getMutualCruushMap: vi.fn(),
 }));
 
-const { sendCruush } = vi.hoisted(() => ({
+const { revokeMutualCruush, sendCruush } = vi.hoisted(() => ({
+  revokeMutualCruush: vi.fn(),
   sendCruush: vi.fn(),
 }));
 
@@ -103,6 +104,7 @@ vi.mock('../lib/usersApi', () => ({
 
 vi.mock('../lib/cruushApi', () => ({
   getMutualCruushMap,
+  revokeMutualCruush,
   sendCruush,
 }));
 
@@ -308,6 +310,7 @@ describe('MapHome', () => {
   beforeEach(async () => {
     getNearbyUsers.mockReset();
     getMutualCruushMap.mockReset();
+    revokeMutualCruush.mockReset();
     sendCruush.mockReset();
     getMyProfile.mockReset();
     getMyVisibilitySets.mockReset();
@@ -476,6 +479,7 @@ describe('MapHome', () => {
       createdAt: '2026-04-29T12:00:00.000Z',
       mutual: true,
     });
+    revokeMutualCruush.mockResolvedValue({ revoked: true });
     decryptDisplayLocationToken.mockResolvedValue({
       version: 1,
       subjectUserId: 'me',
@@ -1757,7 +1761,7 @@ describe('MapHome', () => {
     expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
   });
 
-  it('greys mutual discovery markers and disables the popup cruush action', async () => {
+  it('greys mutual discovery markers and revokes the popup mutual cruush action', async () => {
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([{
       id: 'user-1',
@@ -1776,6 +1780,7 @@ describe('MapHome', () => {
       photo: null,
       relationship: {
         mutualCruush: true,
+        outgoingCruush: true,
         canMessage: true,
       },
     }]);
@@ -1792,11 +1797,13 @@ describe('MapHome', () => {
 
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-can-message', 'true');
-    const mutualButton = screen.getByRole('button', { name: 'Already mutual' });
-    expect(mutualButton).toBeDisabled();
+    const mutualButton = screen.getByRole('button', { name: 'Remove mutual cruush' });
+    expect(mutualButton).toBeEnabled();
 
     fireEvent.click(mutualButton);
+    await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));
     expect(sendCruush).not.toHaveBeenCalled();
+    expect(toastSuccess).toHaveBeenCalledWith('Removed mutual cruush with Jordan.');
   });
 
   it('loads mutual-only map pins from the mutuals query mode', async () => {
