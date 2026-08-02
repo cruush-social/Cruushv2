@@ -67,6 +67,38 @@ function waitForVideoMetadata(video: HTMLVideoElement) {
   });
 }
 
+function requestDisplayMedia(mediaDevices: MediaDevices & {
+  getDisplayMedia?: (constraints?: MediaStreamConstraints) => Promise<MediaStream>;
+}) {
+  return new Promise<MediaStream | undefined>((resolve) => {
+    let settled = false;
+    const timeout = window.setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve(undefined);
+      }
+    }, 4000);
+
+    mediaDevices.getDisplayMedia?.({ audio: false, video: true })
+      .then((stream) => {
+        if (!settled) {
+          settled = true;
+          window.clearTimeout(timeout);
+          resolve(stream);
+        } else {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+      })
+      .catch(() => {
+        if (!settled) {
+          settled = true;
+          window.clearTimeout(timeout);
+          resolve(undefined);
+        }
+      });
+  });
+}
+
 async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined> {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return undefined;
@@ -87,10 +119,12 @@ async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined>
   let stream: MediaStream | null = null;
 
   try {
-    stream = await mediaDevices.getDisplayMedia({
-      audio: false,
-      video: true,
-    });
+    stream = (await requestDisplayMedia(mediaDevices)) ?? null;
+
+    if (!stream) {
+      return undefined;
+    }
+
     const video = document.createElement('video');
     video.muted = true;
     video.playsInline = true;
