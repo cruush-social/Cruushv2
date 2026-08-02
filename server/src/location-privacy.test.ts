@@ -232,10 +232,10 @@ describe("location privacy", () => {
         config,
         40.711,
         -74.002,
-        new Date("2026-06-10T11:30:00.000Z").getTime()
+        new Date("2026-06-07T11:30:00.000Z").getTime()
       );
 
-      expect(tokens.length).toBeGreaterThan(600);
+      expect(tokens.length).toBeGreaterThan(350);
       expect(futureTokens.some((token) => tokens.includes(token))).toBe(true);
     } finally {
       vi.useRealTimers();

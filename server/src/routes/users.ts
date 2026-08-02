@@ -495,11 +495,11 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
       createCoarseIndexTokens(app.config, centerLat, centerLng)
     ];
     const activeLocationWindow = "(extract(epoch from now()) * 1000)::bigint";
-    const discoveryLocationWindow = "(extract(epoch from now() - interval '7 days') * 1000)::bigint";
+    const discoveryLocationWindow = "(extract(epoch from now() - interval '4 days') * 1000)::bigint";
     const where = [
       "profiles.id <> $1",
       `(
-        profiles.location_updated_at >= now() - interval '7 days'
+        profiles.location_updated_at >= now() - interval '4 days'
         or location_envelopes.expires_at_ms > ${activeLocationWindow}
         or location_envelopes.collected_at_ms >= ${discoveryLocationWindow}
       )`,
@@ -676,7 +676,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lat,
          fuzzy_lng
        from profiles
-       where last_active >= now() - interval '7 days'
+       where last_active >= now() - interval '4 days'
        order by last_active desc nulls last
        limit $1`,
       [filters.limit]
