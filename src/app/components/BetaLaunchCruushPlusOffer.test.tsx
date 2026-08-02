@@ -63,5 +63,14 @@ describe('BetaLaunchCruushPlusOffer', () => {
     await waitFor(() => {
       expect(rewardsApi.claimBetaLaunchCruushPlus).toHaveBeenCalledTimes(1);
     });
+
+    expect(await screen.findByRole('heading', { name: /cruush\+ activated/i })).toBeInTheDocument();
+    expect(screen.getByText('Your beta launch week is active. Press Done to close this card.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: /cruush\+ activated/i })).not.toBeInTheDocument();
+    });
   });
 });

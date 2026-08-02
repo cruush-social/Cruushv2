@@ -54,6 +54,7 @@ function BetaLaunchCruushPlusCard() {
 export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPlusOfferProps) {
   const [open, setOpen] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [activated, setActivated] = useState(false);
   const [error, setError] = useState('');
   const activeDialogKey = dialogKey(userId);
 
@@ -135,6 +136,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
     setOpen(nextOpen);
 
     if (!nextOpen) {
+      setActivated(false);
       releaseOneTimeDialog(activeDialogKey);
     }
   };
@@ -146,7 +148,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
     try {
       const claim = await claimBetaLaunchCruushPlus();
       window.dispatchEvent(new CustomEvent(CRUUSH_PLUS_CHANGED_EVENT, { detail: claim }));
-      close();
+      setActivated(true);
     } catch (claimError) {
       setError(claimError instanceof Error ? claimError.message : 'Unable to activate cruush+.');
     } finally {
@@ -160,10 +162,26 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
         <DialogHeader className="items-center text-center sm:text-center">
           <BetaLaunchCruushPlusCard />
           <DialogTitle className="beta-launch-plus-dialog__title">
-            7-day <CruushPlusWord /> trial
+            {activated ? (
+              <>
+                <CruushPlusWord /> activated
+              </>
+            ) : (
+              <>
+                7-day <CruushPlusWord /> trial
+              </>
+            )}
           </DialogTitle>
           <DialogDescription className="beta-launch-plus-dialog__description">
-            Claim one free week of <CruushPlusWord /> for the beta launch, active until August 7 at 12:00 AM.
+            {activated ? (
+              <>
+                Your beta launch week is active. Press Done to close this card.
+              </>
+            ) : (
+              <>
+                Claim one free week of <CruushPlusWord /> for the beta launch, active until August 7 at 12:00 AM.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
         {error ? (
@@ -174,10 +192,10 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
         <DialogFooter className="beta-launch-plus-dialog__footer gap-2 sm:gap-2">
           <Button
             disabled={claiming}
-            onClick={handleClaim}
+            onClick={activated ? close : handleClaim}
             style={{ background: 'var(--cruush-gradient)' }}
           >
-            {claiming ? 'Activating...' : 'OK, activate cruush+'}
+            {activated ? 'Done' : claiming ? 'Activating...' : 'OK, activate cruush+'}
           </Button>
         </DialogFooter>
       </DialogContent>
