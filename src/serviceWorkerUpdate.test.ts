@@ -7,7 +7,7 @@ const nginxConfig = readFileSync('nginx.conf', 'utf8');
 
 describe('service worker update delivery', () => {
   it('bypasses stale mobile app shells when the login surface changes', () => {
-    expect(serviceWorkerSource).toContain("const CACHE_NAME = 'cruush-app-shell-v6';");
+    expect(serviceWorkerSource).toContain("const CACHE_NAME = 'cruush-app-shell-v7';");
     expect(serviceWorkerSource).toContain("fetch(OFFLINE_APP_SHELL_URL, { cache: 'reload' })");
     expect(serviceWorkerSource).toContain("fetch(request, { cache: 'reload' })");
     expect(serviceWorkerSource).toContain("event.data?.type === 'SKIP_WAITING'");
