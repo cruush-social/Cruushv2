@@ -498,7 +498,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     const where = [
       "profiles.id <> $1",
       `(
-        profiles.location_updated_at >= now() - interval '1 day'
+        profiles.location_updated_at >= now() - interval '7 days'
         or location_envelopes.expires_at_ms > ${activeLocationWindow}
       )`,
       `not exists (
@@ -673,7 +673,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lat,
          fuzzy_lng
        from profiles
-       where last_active >= now() - interval '1 day'
+       where last_active >= now() - interval '7 days'
        order by last_active desc nulls last
        limit $1`,
       [filters.limit]

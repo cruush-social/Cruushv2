@@ -7227,7 +7227,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
     expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
-    expect(query.mock.calls[1]?.[0]).toContain("profiles.location_updated_at >= now() - interval '1 day'");
+    expect(query.mock.calls[1]?.[0]).toContain("profiles.location_updated_at >= now() - interval '7 days'");
     expect(query.mock.calls[1]?.[0]).not.toContain("discovery_match");
     expect(query.mock.calls[1]?.[0]).toContain("limit $3");
     expect(query.mock.calls[1]?.[1]?.[0]).toBe(userId);
@@ -8076,7 +8076,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(5);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
-    expect(query.mock.calls[2]?.[0]).toContain("where last_active >= now() - interval '1 day'");
+    expect(query.mock.calls[2]?.[0]).toContain("where last_active >= now() - interval '7 days'");
 
     expect(response.json()).toEqual({
       data: expect.objectContaining({
