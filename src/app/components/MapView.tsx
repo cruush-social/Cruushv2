@@ -6,6 +6,7 @@ import type {
   LngLatLike,
   Map as MapLibreMap,
   Marker as MapLibreMarker,
+  PointLike,
   StyleSpecification,
 } from 'maplibre-gl';
 import {
@@ -13,6 +14,7 @@ import {
   ArrowUp,
   Bed,
   CircleDot,
+  Flame,
   MessageCircle,
   MinusCircle,
   Mountain,
@@ -84,6 +86,13 @@ const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
 const PERSON_CLUSTER_ZOOM_STEP = 1.5;
+const SAME_LOCATION_CLUSTER_PRECISION = 6;
+const SPIDERFY_RADIUS_PX = 86;
+const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
+const SPIDERFY_SECOND_RING_AFTER = 10;
+const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
+const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
+const MAP_DETAIL_LAYER_TYPES = new Set(['line', 'symbol']);
 
 type MapLibreModule = typeof import('maplibre-gl');
 type MapLibreExport = MapLibreModule['default'];
@@ -452,12 +461,32 @@ type RenderedMapMarker = {
   root: Root;
 };
 
+type SpiderfiedCluster = {
+  center: {
+    approximateLatitude: number;
+    approximateLongitude: number;
+  };
+  memberIds: string[];
+};
+
+type DisplayMapMarker = MapMarker & {
+  spiderfy?: {
+    offset: PointLike;
+    index: number;
+    count: number;
+  };
+};
+
 function isMapMarker(value: MapMarker) {
   return Number.isFinite(value.approximateLatitude) && Number.isFinite(value.approximateLongitude);
 }
 
 function isPersonCluster(marker: MapMarker) {
   return marker.kind === 'cluster' && marker.cluster?.kind === 'people';
+}
+
+function isSpiderfyCluster(marker: MapMarker) {
+  return isPersonCluster(marker) && marker.cluster?.action === 'spiderfy';
 }
 
 function getDisplayName(marker: MapMarker) {
@@ -489,6 +518,20 @@ function mercatorPixelPoint(marker: MapMarker, zoom: number) {
   };
 }
 
+function coordinateKey(marker: Pick<MapMarker, 'approximateLatitude' | 'approximateLongitude'>) {
+  return `${marker.approximateLatitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}:${marker.approximateLongitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}`;
+}
+
+function groupMarkersByCoordinate(markers: MapMarker[]) {
+  return markers.reduce((groups, marker) => {
+    const key = coordinateKey(marker);
+    const group = groups.get(key) ?? [];
+    group.push(marker);
+    groups.set(key, group);
+    return groups;
+  }, new Map<string, MapMarker[]>());
+}
+
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
   if ((marker.kind ?? 'person') !== 'person' || marker.isCurrentUser === true) {
     return false;
@@ -504,7 +547,7 @@ function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['foc
   );
 }
 
-function buildPeopleCluster(group: MapMarker[], index: number): MapMarker {
+function buildPeopleCluster(group: MapMarker[], index: number, action: 'zoom' | 'spiderfy' = 'zoom'): MapMarker {
   const sortedIds = group.map((marker) => marker.id).sort();
   const count = group.length;
   const label = getClusterLabel(count);
@@ -524,22 +567,85 @@ function buildPeopleCluster(group: MapMarker[], index: number): MapMarker {
       label,
       kind: 'people',
       memberIds: sortedIds,
+      action,
     },
   };
+}
+
+function getSpiderfyOffsets(count: number) {
+  return Array.from({ length: count }, (_, index): PointLike => {
+    const isSecondRing = count > SPIDERFY_SECOND_RING_AFTER && index >= SPIDERFY_SECOND_RING_AFTER;
+    const ringIndex = isSecondRing ? index - SPIDERFY_SECOND_RING_AFTER : index;
+    const ringCount = isSecondRing ? count - SPIDERFY_SECOND_RING_AFTER : Math.min(count, SPIDERFY_SECOND_RING_AFTER);
+    const radius = isSecondRing ? SPIDERFY_SECOND_RING_RADIUS_PX : SPIDERFY_RADIUS_PX;
+    const angle = -Math.PI / 2 + (ringIndex / Math.max(1, ringCount)) * Math.PI * 2;
+
+    return [
+      Number((Math.cos(angle) * radius).toFixed(2)),
+      Number((Math.sin(angle) * radius).toFixed(2)),
+    ];
+  });
+}
+
+function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: SpiderfiedCluster | null) {
+  if (!spiderfiedCluster || spiderfiedCluster.memberIds.length < 2) {
+    return new Map<string, DisplayMapMarker>();
+  }
+
+  const markersById = new Map(markers.map((marker) => [marker.id, marker]));
+  const members = spiderfiedCluster.memberIds
+    .map((memberId) => markersById.get(memberId))
+    .filter((marker): marker is MapMarker => Boolean(marker));
+
+  if (members.length < 2 || new Set(members.map(coordinateKey)).size !== 1) {
+    return new Map<string, DisplayMapMarker>();
+  }
+
+  const offsets = getSpiderfyOffsets(members.length);
+
+  return new Map(members.map((marker, index) => [
+    marker.id,
+    {
+      ...marker,
+      spiderfy: {
+        offset: offsets[index],
+        index,
+        count: members.length,
+      },
+    },
+  ]));
 }
 
 function applyPersonMarkerClusters(
   markers: MapMarker[],
   zoom: number,
   focusCoordinates: MapViewProps['focusCoordinates'],
-) {
-  if (zoom >= PERSON_CLUSTER_MAX_ZOOM) {
-    return markers;
-  }
+  spiderfiedCluster: SpiderfiedCluster | null,
+): DisplayMapMarker[] {
+  const spiderfiedMarkersById = getSpiderfiedMarkerMap(markers, spiderfiedCluster);
+  const spiderfiedIds = new Set(spiderfiedMarkersById.keys());
 
   const clusteredIds = new Set<string>();
-  const clusterableMarkers = markers.filter((marker) => canClusterMarker(marker, focusCoordinates));
+  const clusterableMarkers = markers
+    .filter((marker) => canClusterMarker(marker, focusCoordinates))
+    .filter((marker) => !spiderfiedIds.has(marker.id));
   const clusters: MapMarker[] = [];
+  const sameLocationGroups = Array.from(groupMarkersByCoordinate(clusterableMarkers).values())
+    .filter((group) => group.length >= 2);
+
+  sameLocationGroups.forEach((group) => {
+    group.forEach((marker) => clusteredIds.add(marker.id));
+    clusters.push(buildPeopleCluster(group, clusters.length, 'spiderfy'));
+  });
+
+  if (zoom >= PERSON_CLUSTER_MAX_ZOOM) {
+    return [
+      ...markers
+        .filter((marker) => !clusteredIds.has(marker.id))
+        .map((marker) => spiderfiedMarkersById.get(marker.id) ?? marker),
+      ...clusters,
+    ];
+  }
 
   clusterableMarkers.forEach((seed) => {
     if (clusteredIds.has(seed.id)) {
@@ -564,14 +670,47 @@ function applyPersonMarkerClusters(
     clusters.push(buildPeopleCluster(group, clusters.length));
   });
 
-  if (clusters.length === 0) {
-    return markers;
-  }
-
   return [
-    ...markers.filter((marker) => !clusteredIds.has(marker.id)),
+    ...markers
+      .filter((marker) => !clusteredIds.has(marker.id))
+      .map((marker) => spiderfiedMarkersById.get(marker.id) ?? marker),
     ...clusters,
   ];
+}
+
+function isHeatmapMarker(marker: MapMarker) {
+  return (
+    (marker.kind ?? 'person') === 'person' &&
+    marker.isCurrentUser !== true &&
+    marker.npcGhostDemo !== true &&
+    isMapMarker(marker)
+  );
+}
+
+function createUserHeatmapFeatureCollection(markers: MapMarker[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: markers
+      .filter(isHeatmapMarker)
+      .map((marker) => ({
+        type: 'Feature' as const,
+        properties: {
+          weight: 1,
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [marker.approximateLongitude, marker.approximateLatitude],
+        },
+      })),
+  };
+}
+
+function getHeatmapBeforeLayerId(map: MapLibreMap) {
+  if (typeof map.getStyle !== 'function') {
+    return undefined;
+  }
+
+  return map.getStyle().layers?.find((layer) => MAP_DETAIL_LAYER_TYPES.has(layer.type))?.id;
 }
 
 function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 30) {
@@ -821,7 +960,7 @@ function isMapClickFromMarker(event: unknown) {
 }
 
 function createMarkerElement(
-  marker: MapMarker,
+  marker: DisplayMapMarker,
   onPinClick: (marker: MapMarker) => void,
   onMarkerInteraction: () => void,
 ) {
@@ -842,6 +981,13 @@ function createMarkerElement(
   element.dataset.mapMarkerPin = 'true';
   element.dataset.mapMarkerKind = marker.kind ?? 'person';
 
+  if (marker.spiderfy) {
+    element.dataset.spiderfied = 'true';
+    element.dataset.spiderfyIndex = String(marker.spiderfy.index);
+    element.dataset.spiderfyCount = String(marker.spiderfy.count);
+    element.style.zIndex = String(30 + marker.spiderfy.index);
+  }
+
   if (!isInteractive) {
     element.setAttribute('aria-label', 'Your approximate area');
   } else {
@@ -850,7 +996,9 @@ function createMarkerElement(
     button.setAttribute('aria-label', marker.kind === 'event'
       ? `Open ${marker.event?.venueName ?? name} launch party on map`
       : marker.kind === 'cluster'
-      ? isPersonCluster(marker)
+      ? isSpiderfyCluster(marker)
+        ? `Open ${marker.cluster?.label ?? name} sharing this map spot`
+        : isPersonCluster(marker)
         ? `Zoom into ${marker.cluster?.label ?? name} on map`
         : `Open ${marker.cluster?.label ?? name} on map`
       : `Open ${name} on map`);
@@ -955,6 +1103,8 @@ function MapView({
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
+  const [spiderfiedCluster, setSpiderfiedCluster] = useState<SpiderfiedCluster | null>(null);
+  const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(true);
   const mapStyle = useMemo(() => getMapStyle(), []);
   const denseMarkerResult = useMemo(
     () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
@@ -963,9 +1113,13 @@ function MapView({
   const focusLatitude = focusCoordinates?.approximateLatitude ?? null;
   const focusLongitude = focusCoordinates?.approximateLongitude ?? null;
   const renderedMarkers = useMemo(
-    () => applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates),
-    [currentZoom, denseMarkerResult.markers, focusCoordinates],
+    () => applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates, spiderfiedCluster),
+    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster],
   );
+  const heatmapData = useMemo(() => createUserHeatmapFeatureCollection(markers), [markers]);
+  const heatmapFeatureSignature = useMemo(() => heatmapData.features
+    .map((feature) => feature.geometry.coordinates.map((coordinate) => coordinate.toFixed(6)).join(':'))
+    .join('|'), [heatmapData]);
   const viewportMarkerSignature = useMemo(() => renderedMarkers
     .filter(isMapMarker)
     .map((marker) => [
@@ -1126,9 +1280,11 @@ function MapView({
             return;
           }
 
+          setSpiderfiedCluster(null);
           onMapClickRef.current?.();
         });
         map.on('zoomend', () => {
+          setSpiderfiedCluster(null);
           if (typeof map.getZoom === 'function') {
             setCurrentZoom(map.getZoom());
           }
@@ -1388,6 +1544,80 @@ function MapView({
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
+
+    if (!map || mapLoadStatus !== 'ready') {
+      return;
+    }
+
+    const getLayer = typeof map.getLayer === 'function' ? map.getLayer.bind(map) : () => undefined;
+    const getSource = typeof map.getSource === 'function' ? map.getSource.bind(map) : () => undefined;
+    const removeLayer = typeof map.removeLayer === 'function' ? map.removeLayer.bind(map) : null;
+    const removeSource = typeof map.removeSource === 'function' ? map.removeSource.bind(map) : null;
+
+    if (!isHeatmapEnabled || heatmapData.features.length === 0) {
+      if (getLayer(USER_HEATMAP_LAYER_ID) && removeLayer) {
+        removeLayer(USER_HEATMAP_LAYER_ID);
+      }
+      if (getSource(USER_HEATMAP_SOURCE_ID) && removeSource) {
+        removeSource(USER_HEATMAP_SOURCE_ID);
+      }
+      return;
+    }
+
+    const existingSource = getSource(USER_HEATMAP_SOURCE_ID) as GeoJSONSource | undefined;
+
+    if (existingSource) {
+      existingSource.setData(heatmapData);
+      return;
+    }
+
+    if (typeof map.addSource !== 'function' || typeof map.addLayer !== 'function') {
+      return;
+    }
+
+    map.addSource(USER_HEATMAP_SOURCE_ID, {
+      type: 'geojson',
+      data: heatmapData,
+    });
+
+    const heatmapLayer = {
+      id: USER_HEATMAP_LAYER_ID,
+      type: 'heatmap' as const,
+      source: USER_HEATMAP_SOURCE_ID,
+      maxzoom: 16.75,
+      paint: {
+        'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 0.72, 14, 1.24, 16, 1.55],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 18, 14, 34, 16, 52],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.36, 16.75, 0.18],
+        'heatmap-color': [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0,
+          'rgba(255, 0, 114, 0)',
+          0.18,
+          'rgba(17, 129, 255, 0.22)',
+          0.42,
+          'rgba(111, 0, 255, 0.48)',
+          0.7,
+          'rgba(255, 0, 114, 0.72)',
+          1,
+          '#FF0072',
+        ],
+      },
+    };
+    const beforeId = getHeatmapBeforeLayerId(map);
+
+    if (beforeId) {
+      map.addLayer(heatmapLayer, beforeId);
+    } else {
+      map.addLayer(heatmapLayer);
+    }
+  }, [heatmapFeatureSignature, isHeatmapEnabled, mapInstance, mapLoadStatus]);
+
+  useEffect(() => {
+    const map = mapInstance ?? mapRef.current;
     const maplibregl = mapLibreRef.current;
 
     if (!map || !maplibregl) {
@@ -1409,24 +1639,47 @@ function MapView({
         const { element, root } = createMarkerElement(
           marker,
           (selectedMarker) => {
+            if (isSpiderfyCluster(selectedMarker)) {
+              const memberIds = selectedMarker.cluster?.memberIds ?? [];
+
+              if (memberIds.length >= 2) {
+                setSpiderfiedCluster({
+                  center: {
+                    approximateLatitude: selectedMarker.approximateLatitude,
+                    approximateLongitude: selectedMarker.approximateLongitude,
+                  },
+                  memberIds,
+                });
+              }
+              return;
+            }
+
             if (isPersonCluster(selectedMarker)) {
               const nextZoom = Math.min(
                 PERSON_CLUSTER_MAX_ZOOM + 0.75,
                 Math.max(currentZoom + PERSON_CLUSTER_ZOOM_STEP, PERSON_CLUSTER_MAX_ZOOM + 0.25),
               );
+              setSpiderfiedCluster(null);
               map.setCenter([selectedMarker.approximateLongitude, selectedMarker.approximateLatitude]);
               map.setZoom(nextZoom);
               setCurrentZoom(nextZoom);
               return;
             }
 
+            setSpiderfiedCluster(null);
             onPinClickRef.current(selectedMarker);
           },
           () => {
             lastMarkerInteractionAtRef.current = Date.now();
           },
         );
-        const mapMarker = new maplibregl.Marker({ element })
+        const mapMarker = new maplibregl.Marker({
+          element,
+          ...(marker.spiderfy ? {
+            offset: marker.spiderfy.offset,
+            subpixelPositioning: true,
+          } : {}),
+        })
           .setLngLat([marker.approximateLongitude, marker.approximateLatitude])
           .addTo(map);
         return {
@@ -1457,6 +1710,23 @@ function MapView({
         <div className="absolute left-4 right-4 top-4 z-10 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive backdrop-blur-md">
           {mapError}
         </div>
+      ) : null}
+      {heatmapData.features.length > 0 ? (
+        <button
+          type="button"
+          aria-label={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
+          aria-pressed={isHeatmapEnabled}
+          className={[
+            'absolute bottom-[calc(7rem+env(safe-area-inset-bottom))] left-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65',
+            isHeatmapEnabled ? 'border-white/15' : 'border-white/10 bg-background/55',
+          ].join(' ')}
+          data-testid="map-heatmap-toggle"
+          onClick={() => setIsHeatmapEnabled((value) => !value)}
+          style={isHeatmapEnabled ? { background: 'var(--cruush-gradient)' } : undefined}
+          title={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
+        >
+          <Flame aria-hidden="true" className="h-4 w-4" strokeWidth={2.35} />
+        </button>
       ) : null}
     </div>
   );

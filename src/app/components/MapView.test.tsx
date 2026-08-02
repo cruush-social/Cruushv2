@@ -19,6 +19,14 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     fitBounds = vi.fn();
     sources = new Map<string, any>();
     layers = new Map<string, any>();
+    getStyle = vi.fn(() => ({
+      layers: [
+        { id: 'background', type: 'background' },
+        { id: 'landuse-blocks', type: 'fill' },
+        { id: 'minor-roads', type: 'line' },
+        { id: 'place-labels', type: 'symbol' },
+      ],
+    }));
     addSource = vi.fn((id: string, source: any) => {
       const storedSource = { ...source };
       storedSource.setData = vi.fn((data: any) => {
@@ -57,14 +65,16 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
 
   class MockMarkerInstance {
     element: HTMLElement;
+    options: { element: HTMLElement; offset?: unknown; subpixelPositioning?: boolean };
     coordinates: [number, number] | null = null;
     map: MockMapInstance | null = null;
     remove = vi.fn(() => {
       this.element.remove();
     });
 
-    constructor(options: { element: HTMLElement }) {
+    constructor(options: { element: HTMLElement; offset?: unknown; subpixelPositioning?: boolean }) {
       this.element = options.element;
+      this.options = options;
       markerInstances.push(this);
     }
 
@@ -496,6 +506,76 @@ describe('MapView', () => {
     }));
   });
 
+  it('draws a toggleable app-color user heatmap below streets and labels', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'me',
+            displayName: 'You',
+            approximateLatitude: 40.714,
+            approximateLongitude: -74.004,
+            isCurrentUser: true,
+          },
+          {
+            id: 'user-heat-a',
+            displayName: 'Heat A',
+            approximateLatitude: 40.718,
+            approximateLongitude: -74.002,
+          },
+          {
+            id: 'npc-ghost',
+            displayName: 'NPC Ghost',
+            approximateLatitude: 40.719,
+            approximateLongitude: -74.003,
+            npcGhostDemo: true,
+          },
+        ]}
+      />
+    );
+
+    const toggle = await screen.findByRole('button', { name: 'Hide heat map' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+    act(() => {
+      mapInstances[0].trigger('load');
+    });
+
+    await waitFor(() => {
+      expect(mapInstances[0].addSource).toHaveBeenCalledWith(
+        'cruush-user-heatmap',
+        expect.objectContaining({ type: 'geojson' })
+      );
+    });
+    const heatmapSource = mapInstances[0].sources.get('cruush-user-heatmap');
+    expect(heatmapSource.data.features).toHaveLength(1);
+    expect(heatmapSource.data.features[0].geometry.coordinates).toEqual([-74.002, 40.718]);
+
+    const heatmapLayerCall = mapInstances[0].addLayer.mock.calls.find(([layer]) => layer.id === 'cruush-user-heatmap-layer');
+    expect(heatmapLayerCall?.[1]).toBe('minor-roads');
+    expect(heatmapLayerCall?.[0]).toEqual(expect.objectContaining({
+      id: 'cruush-user-heatmap-layer',
+      type: 'heatmap',
+      paint: expect.objectContaining({
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.36, 16.75, 0.18],
+        'heatmap-color': expect.arrayContaining([
+          'rgba(17, 129, 255, 0.22)',
+          'rgba(111, 0, 255, 0.48)',
+          '#FF0072',
+        ]),
+      }),
+    }));
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(mapInstances[0].removeLayer).toHaveBeenCalledWith('cruush-user-heatmap-layer');
+      expect(mapInstances[0].removeSource).toHaveBeenCalledWith('cruush-user-heatmap');
+    });
+    expect(screen.getByRole('button', { name: 'Show heat map' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('renders photo markers with current and nearby styling', async () => {
     render(
       <MapView
@@ -887,6 +967,60 @@ describe('MapView', () => {
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'Zoom into 2 nearby people on map' })).not.toBeInTheDocument();
     });
+  });
+
+  it('spiderfies people sharing the same coordinates instead of zooming again', async () => {
+    const onPinClick = vi.fn();
+
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          {
+            id: 'user-a',
+            displayName: 'A',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+          },
+          {
+            id: 'user-b',
+            displayName: 'B',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+          },
+          {
+            id: 'user-c',
+            displayName: 'C',
+            approximateLatitude: 40.742,
+            approximateLongitude: -73.96,
+          },
+        ]}
+      />
+    );
+
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    expect(screen.getByTestId('people-cluster-marker-people-0')).toHaveTextContent('2');
+    expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(cluster);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const firstSpiderfiedMarker = await screen.findByRole('button', { name: 'Open A on map' });
+    const secondSpiderfiedMarker = screen.getByRole('button', { name: 'Open B on map' });
+    expect(firstSpiderfiedMarker).toHaveAttribute('data-spiderfied', 'true');
+    expect(firstSpiderfiedMarker).toHaveAttribute('data-spiderfy-count', '2');
+    expect(secondSpiderfiedMarker).toHaveAttribute('data-spiderfied', 'true');
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+    expect(onPinClick).not.toHaveBeenCalled();
+    expect(markerInstances.some((marker) => marker.options.subpixelPositioning === true)).toBe(true);
+
+    fireEvent.click(firstSpiderfiedMarker);
+    expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-a' }));
   });
 
   it('keeps a focused person pin visible instead of hiding it in a nearby cluster', async () => {
