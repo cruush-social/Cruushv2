@@ -197,7 +197,7 @@ export default function App({
   }
 
   const tokenLinkType = getTokenLinkType();
-  const alphaBugControl = session?.alphaTest?.active ? <AlphaBugButton enabled /> : null;
+  const bugReportControl = session ? <AlphaBugButton enabled /> : null;
 
   if (tokenLinkType === 'verify-email') {
     return (
@@ -207,7 +207,7 @@ export default function App({
           <Route path="*" element={<VerifyEmail />} />
         </Routes>
         <Suspense fallback={null}>
-          {alphaBugControl}
+          {bugReportControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -221,7 +221,7 @@ export default function App({
           <Route path="*" element={<ResetPassword />} />
         </Routes>
         <Suspense fallback={null}>
-          {alphaBugControl}
+          {bugReportControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -263,7 +263,7 @@ export default function App({
               )}
             />
           </Routes>
-          {alphaBugControl}
+          {bugReportControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -289,7 +289,7 @@ export default function App({
               )}
             />
           </Routes>
-          {alphaBugControl}
+          {bugReportControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -314,7 +314,7 @@ export default function App({
               )}
             />
           </Routes>
-          {alphaBugControl}
+          {bugReportControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -373,7 +373,7 @@ export default function App({
             <BottomNav />
             <ForegroundNotifications />
             <DebugCruushPlusToggle />
-            {alphaBugControl}
+            {bugReportControl}
           </Suspense>
           <Toaster closeButton position="top-center" richColors />
         </div>

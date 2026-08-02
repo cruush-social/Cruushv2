@@ -45,16 +45,16 @@ describe('AlphaBugButton', () => {
     window.history.replaceState({}, '', '/map?layer=nearby');
   });
 
-  it('stays hidden when alpha reporting is not enabled', () => {
+  it('stays hidden when reporting is not enabled', () => {
     renderAlphaBugButton(false);
 
-    expect(screen.queryByRole('button', { name: 'Report alpha bug' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Report bug' })).not.toBeInTheDocument();
   });
 
   it('submits a fast bug report with page context', async () => {
     renderAlphaBugButton();
 
-    const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
+    const reportButton = screen.getByRole('button', { name: 'Report bug' });
     expect(reportButton).toHaveClass('right-4', 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]');
     expect(reportButton).toHaveClass('z-[45]');
     expect(reportButton).not.toHaveClass('left-[calc(50%-5.5rem)]', 'top-[calc(5.85rem+env(safe-area-inset-top))]');
@@ -68,7 +68,7 @@ describe('AlphaBugButton', () => {
 
     await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith({
       category: 'bug',
-      subject: 'Alpha bug: /map?layer=nearby',
+      subject: 'Bug report: /map?layer=nearby',
       message: 'Map pins disappeared after I changed filters.',
       source: 'unknown',
       pageUrl: '/map?layer=nearby',
@@ -81,7 +81,7 @@ describe('AlphaBugButton', () => {
     window.history.replaceState({}, '', '/chat/group/group-1');
     renderAlphaBugButton(true, '/chat/group/group-1');
 
-    expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
+    expect(screen.getByRole('button', { name: 'Report bug' })).toHaveClass(
       'right-4',
       'bottom-[calc(19rem+env(safe-area-inset-bottom))]',
       'z-[45]',
