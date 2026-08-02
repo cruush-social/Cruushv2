@@ -642,7 +642,7 @@ describe('MapHome', () => {
     const recentPanel = screen.getByTestId('recently-active-panel');
     const recentToggle = screen.getByRole('button', { name: 'Show recently active bar' });
 
-    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(9.5rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(12rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
     expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();

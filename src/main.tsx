@@ -7,7 +7,8 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      const APP_SHELL_REFRESH_ID = "v9";
+      const APP_SHELL_REFRESH_ID = "v10";
+      const SERVICE_WORKER_SCRIPT_URL = `/sw.js?release=${APP_SHELL_REFRESH_ID}`;
       let hasController = Boolean(navigator.serviceWorker.controller);
       let reloadStarted = false;
 
@@ -39,7 +40,7 @@
         window.location.reload();
       });
 
-      void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })
+      void navigator.serviceWorker.register(SERVICE_WORKER_SCRIPT_URL, { updateViaCache: "none" })
         .then((registration) => {
           requestWorkerRefresh(registration);
 
