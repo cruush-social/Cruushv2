@@ -58,6 +58,7 @@ export default function HeartPhoto({
           </linearGradient>
         </defs>
         <path
+          className="cruush-heart-glass-base"
           d={HEART_PIN_PATH}
           fill={`url(#${gradientId})`}
           stroke={resolvedBorderColor}
@@ -72,6 +73,7 @@ export default function HeartPhoto({
             width="64"
           />
         ) : null}
+        <path className="cruush-heart-glass-theme-border" d={HEART_PIN_PATH} stroke={resolvedBorderColor} />
         <path className="cruush-heart-glass-rim" d={HEART_PIN_PATH} />
         <path className="cruush-heart-glass-edge cruush-heart-glass-edge-magenta" d={HEART_PIN_PATH} />
         <path className="cruush-heart-glass-edge cruush-heart-glass-edge-cyan" d={HEART_PIN_PATH} />

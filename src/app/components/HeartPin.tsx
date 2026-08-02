@@ -39,6 +39,7 @@ export default function HeartPin({ user }: HeartPinProps) {
           </linearGradient>
         </defs>
         <path
+          className="cruush-heart-glass-base"
           d={HEART_PIN_PATH}
           fill={`url(#${fillId})`}
           stroke={theme.border}
@@ -53,6 +54,7 @@ export default function HeartPin({ user }: HeartPinProps) {
             preserveAspectRatio="xMidYMid slice"
           />
         ) : null}
+        <path className="cruush-heart-glass-theme-border" d={HEART_PIN_PATH} stroke={theme.border} />
         <path className="cruush-heart-glass-rim" d={HEART_PIN_PATH} />
         <path className="cruush-heart-glass-edge cruush-heart-glass-edge-magenta" d={HEART_PIN_PATH} />
         <path className="cruush-heart-glass-edge cruush-heart-glass-edge-cyan" d={HEART_PIN_PATH} />

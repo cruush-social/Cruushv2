@@ -199,6 +199,8 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('border-[#FF0072]/80');
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('-right-0.5', 'top-5', 'z-20');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
     expect(Array.from(screen.getByTestId('marker-heart-me').querySelectorAll('stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
       '#00B8FF',
       '#0A7DF4',
@@ -625,6 +627,7 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
     expect(screen.getByTestId('marker-heart-me').querySelector('clipPath path')).toHaveAttribute('d', HEART_PIN_PHOTO_PATH);
     expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-rim')).toBeInTheDocument();
     expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
@@ -662,6 +665,7 @@ describe('MapView', () => {
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
   });
 
   it('renders mutual markers with the stable grey heart state', async () => {
@@ -687,6 +691,7 @@ describe('MapView', () => {
 
     expect(await screen.findByTestId('marker-photo-fill-user-mutual')).toHaveAttribute('href', 'https://example.com/river.jpg');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveAttribute('data-marker-theme', 'mutual');
+    expect(screen.getByTestId('marker-heart-user-mutual').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#6f00ff');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('h-20', 'w-20');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('border-[#6f00ff]/80');
@@ -1173,7 +1178,7 @@ describe('MapView', () => {
       type: 'fill-extrusion',
       source: 'openmaptiles',
       'source-layer': 'building',
-      minzoom: 15,
+      minzoom: 13,
       filter: ['!=', ['get', 'hide_3d'], true],
     }));
     expect(buildingLayer.paint['fill-extrusion-color']).toEqual([
@@ -1193,16 +1198,19 @@ describe('MapView', () => {
       'interpolate',
       ['linear'],
       ['zoom'],
-      15,
+      13,
       0,
-      16,
+      14.4,
       ['get', 'render_height'],
     ]);
     expect(buildingLayer.paint['fill-extrusion-base']).toEqual([
-      'case',
-      ['>=', ['get', 'zoom'], 16],
-      ['get', 'render_min_height'],
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      13,
       0,
+      14.4,
+      ['get', 'render_min_height'],
     ]);
     expect(buildingLayer.paint['fill-extrusion-opacity']).toBe(0.78);
     expect(style.layers.findIndex((layer: any) => layer.id === 'building-extrusions-dark'))
@@ -1246,6 +1254,7 @@ describe('MapView', () => {
     expect(MockMap.calls[0]).toEqual(expect.objectContaining({
       pitch: 45,
       bearing: -17.6,
+      zoom: 14.4,
       canvasContextAttributes: { antialias: true },
     }));
   });

@@ -13,6 +13,8 @@ describe('HeartPin', () => {
     expect(heart?.querySelector('clipPath path')).toHaveAttribute('d', HEART_PIN_PHOTO_PATH);
     expect(photo).toHaveAttribute('href', 'https://example.com/photo.jpg');
     expect(photo?.getAttribute('clip-path')).toContain('heart-pin-photo-clip-');
+    expect(heart?.querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', '#FF0072');
+    expect(heart?.querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#FF0072');
     expect(heart?.querySelector('.cruush-heart-glass-rim')).toBeInTheDocument();
   });
 });

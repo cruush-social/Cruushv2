@@ -64,7 +64,9 @@ interface MapViewProps {
 
 const DEFAULT_CENTER: LngLatLike = [-74.006, 40.7128];
 const DEFAULT_ZOOM = 12;
+const DEFAULT_3D_BUILDINGS_ZOOM = 14.4;
 const FOCUSED_ZOOM = 14;
+const FOCUSED_3D_BUILDINGS_ZOOM = 15.25;
 const MIN_DISCOVERY_ZOOM = 10.5;
 const NYC_METRO_MAX_BOUNDS: [[number, number], [number, number]] = [
   [-74.65, 40.35],
@@ -103,7 +105,7 @@ const MAP_3D_BUILDING_LAYER: StyleSpecification['layers'][number] = {
   type: 'fill-extrusion',
   source: 'openmaptiles',
   'source-layer': 'building',
-  minzoom: 15,
+  minzoom: 13,
   filter: ['!=', ['get', 'hide_3d'], true],
   paint: {
     'fill-extrusion-color': [
@@ -123,16 +125,19 @@ const MAP_3D_BUILDING_LAYER: StyleSpecification['layers'][number] = {
       'interpolate',
       ['linear'],
       ['zoom'],
-      15,
+      13,
       0,
-      16,
+      14.4,
       ['get', 'render_height'],
     ],
     'fill-extrusion-base': [
-      'case',
-      ['>=', ['get', 'zoom'], 16],
-      ['get', 'render_min_height'],
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      13,
       0,
+      14.4,
+      ['get', 'render_min_height'],
     ],
     'fill-extrusion-opacity': 0.78,
     'fill-extrusion-vertical-gradient': true,
@@ -897,7 +902,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           <path d={HEART_PIN_PHOTO_PATH} />
         </clipPath>
       </defs>
-      <path d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
+      <path className="cruush-heart-glass-base" d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
       {hasPhoto ? (
         <image
           clipPath={`url(#${clipId})`}
@@ -914,6 +919,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           </div>
         </foreignObject>
       ) : null}
+      <path className="cruush-heart-glass-theme-border" d={HEART_PIN_PATH} stroke={borderColor} />
       <path className="cruush-heart-glass-rim" d={HEART_PIN_PATH} />
       <path className="cruush-heart-glass-edge cruush-heart-glass-edge-magenta" d={HEART_PIN_PATH} />
       <path className="cruush-heart-glass-edge cruush-heart-glass-edge-cyan" d={HEART_PIN_PATH} />
@@ -1259,7 +1265,7 @@ function MapView({
           container: containerRef.current,
           style,
           center: DEFAULT_CENTER,
-          zoom: DEFAULT_ZOOM,
+          zoom: enable3dBuildings ? DEFAULT_3D_BUILDINGS_ZOOM : DEFAULT_ZOOM,
           pitch: enable3dBuildings ? MAP_3D_BUILDINGS_PITCH : 0,
           bearing: enable3dBuildings ? MAP_3D_BUILDINGS_BEARING : 0,
           ...(enable3dBuildings ? { canvasContextAttributes: { antialias: true } } : {}),
@@ -1309,6 +1315,9 @@ function MapView({
           didLoad = true;
           clearReadyFallbackTimeout();
           clearRenderReadyTimeout();
+          if (typeof map.getZoom === 'function') {
+            setCurrentZoom(map.getZoom());
+          }
           setMapLoadStatus('ready');
           setMapError(null);
         };
@@ -1468,7 +1477,7 @@ function MapView({
             bottom: 170,
             left: 120,
           },
-          maxZoom: FOCUSED_ZOOM,
+          maxZoom: enable3dBuildings ? FOCUSED_3D_BUILDINGS_ZOOM : FOCUSED_ZOOM,
           duration: 500,
         }
       );
@@ -1477,9 +1486,9 @@ function MapView({
     }
 
     map.setCenter([focusLongitude, focusLatitude]);
-    map.setZoom(FOCUSED_ZOOM);
+    map.setZoom(enable3dBuildings ? FOCUSED_3D_BUILDINGS_ZOOM : FOCUSED_ZOOM);
     directFocusRef.current = { map, key: focusKey };
-  }, [fitToMarkers, focusLatitude, focusLongitude, mapInstance, viewportMarkerSignature]);
+  }, [enable3dBuildings, fitToMarkers, focusLatitude, focusLongitude, mapInstance, viewportMarkerSignature]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
