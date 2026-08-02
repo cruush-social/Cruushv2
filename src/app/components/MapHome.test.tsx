@@ -862,6 +862,72 @@ describe('MapHome', () => {
     expect(screen.getByRole('button', { name: 'Turn DL Mode on' })).toBeInTheDocument();
   });
 
+  it('masks explicit map marker photos while DL Mode is active', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMyProfile.mockResolvedValue({
+      ...((await import('../lib/profileApi')).emptyProfilePayload),
+      id: 'me',
+      display_name: 'Me',
+      photos: ['https://example.com/me-explicit.jpg'],
+      photo_metadata: [{
+        url: 'https://example.com/me-explicit.jpg',
+        explicit: true,
+      }],
+      year_of_birth: 1994,
+      position: ['Bottom'],
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+    getNearbyUsers.mockResolvedValue([
+      {
+        id: 'user-1',
+        name: 'Jordan',
+        display_name: 'Jordan',
+        age: 26,
+        pronouns: 'they/them',
+        lat: 40.7,
+        lng: -73.9,
+        lastActive: '2m ago',
+        distance: '0.2 mi',
+        lookingFor: ['Fun'],
+        vibes: ['Goth'],
+        position: ['Top'],
+        hostingTravel: ['Can Host'],
+        photo: 'https://example.com/jordan-explicit.jpg',
+        photoExplicit: true,
+        signal: 'Rooftop after dark.',
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-photo', '');
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', '');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turn DL Mode off' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-photo', 'https://example.com/jordan-explicit.jpg');
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me-explicit.jpg');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turn DL Mode on' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-photo', '');
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', '');
+    });
+  });
+
   it('shows one combined active crowd notice on the map', async () => {
     useIsMobile.mockReturnValue(false);
     getMyProfile.mockResolvedValue({
