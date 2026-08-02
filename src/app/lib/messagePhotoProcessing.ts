@@ -7,11 +7,48 @@ const PREVIEWABLE_MESSAGE_PHOTO_TYPES = new Set([
   'image/heic',
   'image/heif',
 ]);
+const MESSAGE_PHOTO_TYPE_ALIASES = new Map([
+  ['image/jpg', 'image/jpeg'],
+  ['image/pjpeg', 'image/jpeg'],
+]);
+const MESSAGE_PHOTO_EXTENSION_TYPES = new Map([
+  ['jpg', 'image/jpeg'],
+  ['jpeg', 'image/jpeg'],
+  ['png', 'image/png'],
+  ['webp', 'image/webp'],
+  ['heic', 'image/heic'],
+  ['heif', 'image/heif'],
+]);
 const JPEG_QUALITY_STEPS = [0.88, 0.78, 0.68];
 const MAX_DIMENSION_STEPS = [1600, 1280, 960];
 
+function typeFromFileName(name: string) {
+  const extensionMatch = /\.([^.]+)$/.exec(name.trim().toLowerCase());
+
+  return extensionMatch ? MESSAGE_PHOTO_EXTENSION_TYPES.get(extensionMatch[1]) ?? '' : '';
+}
+
 function normalizeFileType(file: File) {
-  return file.type.trim().toLowerCase();
+  const declaredType = file.type.trim().toLowerCase();
+
+  if (MESSAGE_PHOTO_TYPE_ALIASES.has(declaredType)) {
+    return MESSAGE_PHOTO_TYPE_ALIASES.get(declaredType) ?? '';
+  }
+
+  return declaredType || typeFromFileName(file.name);
+}
+
+function normalizeOriginalUploadFile(file: File, normalizedType: string) {
+  const declaredType = file.type.trim().toLowerCase();
+
+  if (declaredType === normalizedType) {
+    return file;
+  }
+
+  return new File([file], file.name, {
+    type: normalizedType,
+    lastModified: file.lastModified,
+  });
 }
 
 function shouldSendOriginalMessagePhoto(file: File) {
@@ -24,33 +61,61 @@ function normalizedJpegName(name: string) {
   return `${stem.slice(0, 80)}.jpg`;
 }
 
-function loadImageFromFile(file: File) {
+function readImageDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onerror = () => reject(new Error('This photo format could not be opened. Try JPEG, PNG, or WebP.'));
+    reader.onload = () => {
+      if (typeof reader.result === 'string' && reader.result.startsWith('data:image/')) {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error('This photo format could not be opened. Try JPEG, PNG, or WebP.'));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageFromSource(sourceUrl: string, cleanup?: () => void) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
-    const fileType = normalizeFileType(file);
-
-    if (fileType && !PREVIEWABLE_MESSAGE_PHOTO_TYPES.has(fileType)) {
-      reject(new Error('Choose a JPEG, PNG, WebP, HEIC, or HEIF photo.'));
-      return;
-    }
-
-    if (typeof Image === 'undefined' || typeof URL.createObjectURL !== 'function') {
-      reject(new Error('This photo format is not supported on this device.'));
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
     const image = new Image();
 
     image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
+      cleanup?.();
       resolve(image);
     };
     image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
+      cleanup?.();
       reject(new Error('This photo format could not be opened. Try JPEG, PNG, or WebP.'));
     };
-    image.src = objectUrl;
+    image.src = sourceUrl;
   });
+}
+
+async function loadImageFromFile(file: File) {
+  const fileType = normalizeFileType(file);
+
+  if (fileType && !PREVIEWABLE_MESSAGE_PHOTO_TYPES.has(fileType)) {
+    throw new Error('Choose a JPEG, PNG, WebP, HEIC, or HEIF photo.');
+  }
+
+  if (typeof Image === 'undefined') {
+    throw new Error('This photo format is not supported on this device.');
+  }
+
+  if (typeof FileReader !== 'undefined') {
+    return loadImageFromSource(await readImageDataUrl(file));
+  }
+
+  if (typeof URL.createObjectURL !== 'function') {
+    throw new Error('This photo format is not supported on this device.');
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  return loadImageFromSource(objectUrl, () => URL.revokeObjectURL(objectUrl));
 }
 
 function canvasToJpegBlob(canvas: HTMLCanvasElement, quality: number) {
@@ -94,7 +159,7 @@ async function createJpegCandidate(image: HTMLImageElement, maxDimension: number
 
 export async function prepareMessagePhotoForUpload(file: File) {
   if (shouldSendOriginalMessagePhoto(file)) {
-    return file;
+    return normalizeOriginalUploadFile(file, normalizeFileType(file));
   }
 
   const image = await loadImageFromFile(file);

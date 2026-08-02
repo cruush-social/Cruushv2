@@ -166,6 +166,7 @@ export default function PrivateGroupChat() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [composerError, setComposerError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoViewOnce, setPhotoViewOnce] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -224,6 +225,7 @@ export default function PrivateGroupChat() {
     const loadChatState = async () => {
       setLoading(true);
       setError(null);
+      setComposerError(null);
 
       try {
         const resolvedUserId = await getCurrentUserId();
@@ -260,6 +262,7 @@ export default function PrivateGroupChat() {
         setConversation(null);
         setMessages([]);
         setError(error instanceof Error ? error.message : 'Failed to load live chat.');
+        setComposerError(null);
       } finally {
         if (active) {
           setLoading(false);
@@ -350,6 +353,7 @@ export default function PrivateGroupChat() {
     }
 
     setError(null);
+    setComposerError(null);
     setFavoriteUploading(true);
 
     try {
@@ -359,9 +363,12 @@ export default function PrivateGroupChat() {
       setFavoriteImages((prev) => [favorite, ...prev.filter((item) => item.id !== favorite.id)]);
       setFavoriteGalleryOpen(true);
       setError(null);
+      setComposerError(null);
     } catch (error) {
       console.error('Error uploading favorite image:', error);
-      setError(error instanceof Error ? error.message : 'Failed to upload favorite image.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload favorite image.';
+      setError(errorMessage);
+      setComposerError(errorMessage);
     } finally {
       setFavoriteUploading(false);
     }
@@ -633,6 +640,7 @@ export default function PrivateGroupChat() {
 
     setMessages((prev) => [...prev, optimisticMessage]);
     setMessage('');
+    setComposerError(null);
 
     try {
       const createdMessage = await createMessage(chatId, trimmedMessage);
@@ -664,6 +672,7 @@ export default function PrivateGroupChat() {
 
     const caption = message.trim();
     setError(null);
+    setComposerError(null);
     setPhotoUploading(true);
 
     try {
@@ -673,13 +682,17 @@ export default function PrivateGroupChat() {
       setMessage('');
       setPhotoViewOnce(false);
       setError(null);
+      setComposerError(null);
     } catch (error) {
       console.error('Error sending message photo:', error);
       if (error instanceof ApiClientError && error.code === 'MUTUAL_CRUUSH_REQUIRED') {
         setMutualRequiredConversationId(chatId);
         setError('You need a mutual cruush before messaging. Open their profile to send a cruush first.');
+        setComposerError(null);
       } else {
-        setError(error instanceof Error ? error.message : 'Failed to send photo.');
+        const errorMessage = error instanceof Error ? error.message : 'Failed to send photo.';
+        setError(errorMessage);
+        setComposerError(errorMessage);
       }
     } finally {
       setPhotoUploading(false);
@@ -1198,6 +1211,12 @@ export default function PrivateGroupChat() {
             style={composerBarStyle}
           >
             <div className="mx-auto w-full max-w-2xl space-y-3">
+              {composerError ? (
+                <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {composerError}
+                </div>
+              ) : null}
+
               {composerDisabled ? (
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-muted-foreground">
                   {dmMessagingBlocked ? 'Send a cruush first. Messages open after it is mutual.' : 'This group is closed.'}

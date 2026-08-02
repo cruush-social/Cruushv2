@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PrivateGroupChat from './PrivateGroupChat';
@@ -728,6 +728,51 @@ describe('PrivateGroupChat', () => {
       expect(uploadFavoriteMessageImage).toHaveBeenCalledWith(file, 'favorite');
     });
     expect(await screen.findByAltText('favorite')).toHaveAttribute('src', '/api/media/assets/media-favorite-1/thumbnail');
+  });
+
+  it('shows photo upload failures next to the composer controls', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+    createMessagePhoto.mockRejectedValueOnce(new Error('This photo format could not be opened. Try JPEG, PNG, or WebP.'));
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    const file = new File(['image-bytes'], 'photo.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Choose message photo'), {
+      target: { files: [file] },
+    });
+
+    const composerError = await within(screen.getByTestId('chat-composer-bar')).findByRole('alert');
+    expect(composerError).toHaveTextContent('This photo format could not be opened. Try JPEG, PNG, or WebP.');
   });
 
   it('does not offer video upload from the message composer', async () => {

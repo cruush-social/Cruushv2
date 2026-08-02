@@ -23,6 +23,19 @@ describe('message photo preprocessing', () => {
   });
 
   it('converts oversized or phone-native photos to a JPEG upload candidate', async () => {
+    const readAsDataURL = vi.fn(function readAsDataURL(this: FileReader) {
+      Object.defineProperty(this, 'result', {
+        configurable: true,
+        value: 'data:image/heic;base64,cGhvbmU=',
+      });
+      queueMicrotask(() => this.onload?.(new ProgressEvent('load')));
+    });
+    vi.stubGlobal('FileReader', class {
+      onload: ((event: ProgressEvent<FileReader>) => void) | null = null;
+      onerror: ((event: ProgressEvent<FileReader>) => void) | null = null;
+      result: string | ArrayBuffer | null = null;
+      readAsDataURL = readAsDataURL;
+    });
     vi.stubGlobal('URL', {
       createObjectURL: vi.fn().mockReturnValue('blob:phone-photo'),
       revokeObjectURL: vi.fn(),
@@ -58,7 +71,17 @@ describe('message photo preprocessing', () => {
     expect(prepared).not.toBe(file);
     expect(prepared.type).toBe('image/jpeg');
     expect(prepared.name).toBe('camera.jpg');
-    expect(URL.createObjectURL).toHaveBeenCalledWith(file);
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:phone-photo');
+    expect(readAsDataURL).toHaveBeenCalledWith(file);
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('normalizes phone JPEG MIME aliases before upload', async () => {
+    const file = new File(['image-bytes'], 'photo.JPG', { type: 'image/jpg' });
+    const prepared = await prepareMessagePhotoForUpload(file);
+
+    expect(prepared).not.toBe(file);
+    expect(prepared.name).toBe('photo.JPG');
+    expect(prepared.type).toBe('image/jpeg');
   });
 });
