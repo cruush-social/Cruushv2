@@ -211,6 +211,10 @@ function profileRecordToOwnDiscoveryUser(profile: ProfileRecord, location: Appro
   };
 }
 
+function getDlModeSafeMarkerPhoto(photo: string | null | undefined, explicit: boolean | undefined, dlModeActive: boolean) {
+  return dlModeActive && explicit === true ? null : photo ?? null;
+}
+
 function getAvailableCrowdModes(profile: ProfileRecord | null) {
   const profileCrowds = new Set(normalizeCrowdValues(profile?.crowds ?? []));
 
@@ -1239,7 +1243,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         approximateLatitude: user.lat,
         approximateLongitude: user.lng,
         lastActiveLabel: user.lastActive,
-        photo: user.photo,
+        photo: getDlModeSafeMarkerPhoto(user.photo, user.photoExplicit, dlModeActive),
         badge: createMapMarkerBadge(user.position, user.hostingTravel),
         animationHint: user.animationHint,
         displayMode: user.displayMode,
@@ -1284,7 +1288,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
         approximateLatitude: currentUserMapLocation.approximateLatitude,
         approximateLongitude: currentUserMapLocation.approximateLongitude,
         lastActiveLabel: 'Now',
-        photo: currentProfile?.photos[0] ?? null,
+        photo: getDlModeSafeMarkerPhoto(
+          currentProfile?.photos[0],
+          currentProfile?.photo_metadata?.[0]?.explicit,
+          dlModeActive,
+        ),
         isCurrentUser: true,
         badge: createMapMarkerBadge(currentProfile?.position ?? []),
         displayMode: privacySettings.ghostModeEnabled ? 'GHOST' : 'PRECISE',
@@ -1293,7 +1301,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       ...nearbyMarkers,
       ...eventMarkers,
     ];
-  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, privacySettings, userApproximateLocation]);
+  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, dlModeActive, privacySettings, userApproximateLocation]);
 
   const focusedMapLocation = useMemo(() => {
     if (!focusUserId) {
