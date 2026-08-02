@@ -1,6 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import BetaLaunchCruushPlusOffer from './BetaLaunchCruushPlusOffer';
+
+const offerCss = readFileSync('src/app/components/BetaLaunchCruushPlusOffer.css', 'utf8');
 
 const rewardsApi = vi.hoisted(() => ({
   claimBetaLaunchCruushPlus: vi.fn(),
@@ -55,6 +58,11 @@ describe('BetaLaunchCruushPlusOffer', () => {
     expect(trialCard).toHaveClass('beta-launch-plus-card');
     expect(screen.getByTestId('beta-launch-cruush-plus-card-label')).toHaveTextContent('cruush+');
     expect(activateButton.querySelector('.cruush-logo-font')).toHaveTextContent('cruush+');
+  });
+
+  it('uses the map label font for the rest of the offer text', () => {
+    expect(offerCss).toContain("font-family: 'Cormorant Garamond', serif;");
+    expect(offerCss).toContain('.beta-launch-plus-dialog__footer button');
   });
 
   it('keeps the existing claim action wired to the rewards API', async () => {
