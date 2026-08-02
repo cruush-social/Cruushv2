@@ -310,15 +310,15 @@ export default function DirectMessages() {
           </div>
 
           <div className="grid grid-cols-3 gap-2">
-            <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
+            <div className="cruush-glass-soft min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
               <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/46">Unread</p>
               <p className="truncate text-sm tabular-nums text-white">{unreadCount}</p>
             </div>
-            <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
+            <div className="cruush-glass-soft min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
               <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/46">Active</p>
               <p className="truncate text-sm tabular-nums text-white">{activeNowCount}</p>
             </div>
-            <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
+            <div className="cruush-glass-soft min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
               <p className="truncate text-[10px] uppercase tracking-[0.12em] text-white/46">Threads</p>
               <p className="truncate text-sm tabular-nums text-white">{conversations.length}</p>
             </div>
@@ -330,12 +330,12 @@ export default function DirectMessages() {
               placeholder="Search people, threads, vibes"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="h-11 rounded-lg border-white/10 bg-background/25 pl-10 text-white placeholder:text-white/46"
+              className="cruush-glass-input h-11 rounded-lg border-white/10 bg-background/25 pl-10 text-white placeholder:text-white/46"
             />
           </div>
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'unread' | 'groups')}>
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+            <TabsList className="cruush-glass-bar grid h-auto w-full grid-cols-3 rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl">
               <TabsTrigger value="all" className="h-10 rounded-md text-sm text-white/72">All</TabsTrigger>
               <TabsTrigger value="unread" className="h-10 rounded-md text-sm text-white/72">Unread</TabsTrigger>
               <TabsTrigger value="groups" className="h-10 rounded-md text-sm text-white/72">Groups</TabsTrigger>
@@ -408,12 +408,12 @@ export default function DirectMessages() {
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Mutual cruushes</p>
               {groupLoading ? (
-                <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
+                <div className="cruush-glass-soft rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
                   Loading mutuals...
                 </div>
               ) : null}
               {!groupLoading && mutualOptions.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
+                <div className="cruush-glass-soft rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
                   No mutual cruushes available.
                 </div>
               ) : null}
@@ -421,7 +421,7 @@ export default function DirectMessages() {
                 {mutualOptions.map((item) => (
                   <label
                     key={item.user.id}
-                    className="flex items-center gap-3 rounded-2xl border border-border bg-card/70 p-3"
+                    className="cruush-glass-soft flex items-center gap-3 rounded-2xl border border-border bg-card/70 p-3"
                   >
                     <input
                       type="checkbox"
@@ -468,7 +468,7 @@ export default function DirectMessages() {
                 <button
                   key={conversation.id}
                   onClick={() => navigate(`/chat/${conversation.id}`)}
-                  className="min-w-[150px] rounded-lg border border-white/10 bg-black/72 p-3 text-left transition-colors hover:bg-white/[0.06]"
+                  className="cruush-glass-panel min-w-[150px] rounded-lg border border-white/10 bg-black/72 p-3 text-left transition-colors hover:bg-white/[0.06]"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <HeartPhoto
@@ -496,7 +496,7 @@ export default function DirectMessages() {
         <div className="space-y-3">
           {loading ? (
             Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="animate-pulse rounded-3xl border border-border bg-card/70 p-4">
+              <div key={index} className="cruush-glass-soft animate-pulse rounded-3xl border border-border bg-card/70 p-4">
                 <div className="flex gap-4">
                   <div className="size-16 rounded-full bg-accent/60" />
                   <div className="flex-1 space-y-3">
@@ -518,7 +518,7 @@ export default function DirectMessages() {
             return (
               <article
                 key={conversation.id}
-                className="relative rounded-lg border border-white/10 bg-black/72 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-colors hover:bg-white/[0.06]"
+                className="cruush-glass-panel relative rounded-lg border border-white/10 bg-black/72 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-colors hover:bg-white/[0.06]"
               >
                 <button
                   type="button"
@@ -639,7 +639,7 @@ export default function DirectMessages() {
           ) : null}
 
           {!loading && !error && filteredConversations.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-white/10 bg-card/60 p-12 text-center">
+            <div className="cruush-glass-panel rounded-lg border border-dashed border-white/10 bg-card/60 p-12 text-center">
               <CruushIcon name="messages" className="mx-auto mb-4 size-14 opacity-55" />
               {conversations.length === 0 ? (
                 <>
@@ -687,7 +687,7 @@ function ComposeChoiceOverlay({
         <div className="space-y-3">
           <button
             type="button"
-            className="w-full rounded-2xl border border-border bg-card/80 p-4 text-left transition-colors hover:bg-accent/60"
+            className="cruush-glass-panel w-full rounded-2xl border border-border bg-card/80 p-4 text-left transition-colors hover:bg-accent/60"
             onClick={onStartDirect}
           >
             <span className="block">Start chat with mutual</span>
@@ -695,7 +695,7 @@ function ComposeChoiceOverlay({
           </button>
           <button
             type="button"
-            className="w-full rounded-2xl border border-border bg-card/80 p-4 text-left transition-colors hover:bg-accent/60"
+            className="cruush-glass-panel w-full rounded-2xl border border-border bg-card/80 p-4 text-left transition-colors hover:bg-accent/60"
             onClick={onStartGroup}
           >
             <span className="block">Create group message</span>
@@ -740,13 +740,13 @@ function MutualDirectOverlay({
         ) : null}
 
         {loading ? (
-          <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
+          <div className="cruush-glass-soft rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
             Loading mutuals...
           </div>
         ) : null}
 
         {!loading && mutuals.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
+          <div className="cruush-glass-soft rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
             No mutual cruushes available.
           </div>
         ) : null}
@@ -756,7 +756,7 @@ function MutualDirectOverlay({
             <button
               key={item.user.id}
               type="button"
-              className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card/70 p-3 text-left transition-colors hover:bg-accent/60"
+                className="cruush-glass-soft flex w-full items-center gap-3 rounded-2xl border border-border bg-card/70 p-3 text-left transition-colors hover:bg-accent/60"
               onClick={() => onMessage(item.user.id)}
             >
               <HeartPhoto

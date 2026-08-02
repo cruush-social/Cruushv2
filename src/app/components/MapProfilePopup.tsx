@@ -122,7 +122,7 @@ export default function MapProfilePopup({
   const canMessage = profileView?.relationship ? profileView.relationship.can_message : user.relationship?.canMessage;
   const cruushDisabled = isDemo || sendingCruush || hasSentCruush || isAlreadyMutual;
 
-  const popupClassName = `${fixed ? 'fixed' : 'absolute'} bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-6 top-[8.75rem] z-50 hidden w-[23rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl lg:block`;
+  const popupClassName = `cruush-glass-panel ${fixed ? 'fixed' : 'absolute'} bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-6 top-[8.75rem] z-50 hidden w-[23rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl lg:block`;
 
   const handleCruush = async () => {
     if (isDemo || isOwnProfile || sendingCruush || hasSentCruush || isAlreadyMutual) {
@@ -194,7 +194,7 @@ export default function MapProfilePopup({
             userId={profileView?.id ?? user.id}
           />
           <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
-            <div className="rounded-full border border-white/10 bg-black/45 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/80 backdrop-blur-sm">
+            <div className="cruush-glass-soft rounded-full border border-white/10 bg-black/45 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/80 backdrop-blur-sm">
               {isOwnProfile ? 'Your profile' : 'Nearby now'}
             </div>
             <div className="flex items-center gap-2">
@@ -202,7 +202,7 @@ export default function MapProfilePopup({
                 <button
                   type="button"
                   onClick={() => setOwnProfileMode('edit')}
-                  className="h-9 rounded-full border border-white/10 bg-black/45 px-3 text-[11px] uppercase tracking-[0.14em] text-white/82 backdrop-blur-sm transition hover:text-white"
+                  className="cruush-glass-soft h-9 rounded-full border border-white/10 bg-black/45 px-3 text-[11px] uppercase tracking-[0.14em] text-white/82 backdrop-blur-sm transition hover:text-white"
                 >
                   Edit profile
                 </button>
@@ -214,12 +214,12 @@ export default function MapProfilePopup({
                     targetId={user.id}
                     targetLabel={displayName}
                     label={`Report ${displayName}`}
-                    className="h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
+                    className="cruush-glass-soft h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
                   />
                   <BlockUserAction
                     userId={user.id}
                     displayName={displayName}
-                    className="h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
+                    className="cruush-glass-soft h-9 w-9 rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:bg-black/55 hover:text-white"
                     onBlocked={(blockedUserId) => {
                       onBlockedUser?.(blockedUserId);
                       onClose();
@@ -230,7 +230,7 @@ export default function MapProfilePopup({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:text-white"
+                className="cruush-glass-soft flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/80 backdrop-blur-sm transition hover:text-white"
                 aria-label="Close profile preview"
               >
                 <X className="h-4 w-4" />
@@ -251,7 +251,7 @@ export default function MapProfilePopup({
                 <p className="mt-1 text-sm text-white/80">{displayPronouns}</p>
               </div>
               {displayLastActive ? (
-                <div className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
+                <div className="cruush-glass-soft rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/80 backdrop-blur-sm">
                   {displayLastActive}
                 </div>
               ) : null}
@@ -273,14 +273,14 @@ export default function MapProfilePopup({
               profileView={profileView}
             />
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
+            <div className="cruush-glass-soft rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
               {profileLoading ? 'Loading profile details...' : profileError ?? 'Profile details are unavailable.'}
             </div>
           )}
         </div>
 
         {!isOwnProfile ? (
-          <div className="sticky bottom-0 border-t border-white/10 bg-black/85 px-5 py-4 backdrop-blur-xl">
+          <div className="cruush-glass-bar sticky bottom-0 border-t border-white/10 bg-black/85 px-5 py-4 backdrop-blur-xl">
           <div className="grid grid-cols-[auto_1fr] gap-3">
             <Button
               onClick={handleCruush}

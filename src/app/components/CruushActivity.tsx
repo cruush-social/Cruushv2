@@ -454,7 +454,7 @@ export default function CruushActivity() {
 
             <TabsList
               data-testid="cruush-tab-grid"
-              className="grid h-auto w-full grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+              className="cruush-glass-bar grid h-auto w-full grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
             >
               <ActivityTabButton value="incoming" label="incoming" />
               <ActivityTabButton value="sent" label="sent" />
@@ -578,7 +578,7 @@ function ActivitySurface({
   }
 
   return (
-    <div className="w-full rounded-lg border border-white/10 bg-black/72 px-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+    <div className="cruush-glass-panel w-full rounded-lg border border-white/10 bg-black/72 px-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
       {children}
     </div>
   );
@@ -609,7 +609,7 @@ function ComposeChoiceOverlay({
         <div className="space-y-3">
           <button
             type="button"
-            className="w-full rounded-lg border border-white/10 bg-card/80 p-4 text-left transition hover:bg-white/8"
+            className="cruush-glass-panel w-full rounded-lg border border-white/10 bg-card/80 p-4 text-left transition hover:bg-white/8"
             onClick={onStartDirect}
           >
             <span className="block text-base text-white">Start chat with mutual</span>
@@ -617,7 +617,7 @@ function ComposeChoiceOverlay({
           </button>
           <button
             type="button"
-            className="w-full rounded-lg border border-white/10 bg-card/80 p-4 text-left transition hover:bg-white/8"
+            className="cruush-glass-panel w-full rounded-lg border border-white/10 bg-card/80 p-4 text-left transition hover:bg-white/8"
             onClick={onStartGroup}
           >
             <span className="block text-base text-white">Create group message</span>
@@ -652,7 +652,7 @@ function MutualDirectOverlay({
         </div>
 
         {mutuals.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-white/12 bg-card/60 p-5 text-sm text-white/58">
+          <div className="cruush-glass-panel rounded-lg border border-dashed border-white/12 bg-card/60 p-5 text-sm text-white/58">
             No mutual cruushes available.
           </div>
         ) : (
@@ -661,7 +661,7 @@ function MutualDirectOverlay({
               <button
                 key={item.user.id}
                 type="button"
-                className="flex w-full items-center gap-3 rounded-lg border border-white/10 bg-card/70 p-3 text-left transition hover:bg-white/8"
+                className="cruush-glass-panel flex w-full items-center gap-3 rounded-lg border border-white/10 bg-card/70 p-3 text-left transition hover:bg-white/8"
                 onClick={() => onMessage(item.user.id)}
               >
                 <HeartPhoto

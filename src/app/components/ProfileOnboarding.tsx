@@ -584,7 +584,7 @@ export default function ProfileOnboarding({
         <h1 className="cruush-logo-text text-5xl font-bold mb-2">cruush</h1>
         <p className="text-center text-white/58 mt-2">the rites</p>
       </header>
-      <div className="w-full max-w-md rounded-lg border border-white/12 bg-black/82 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur space-y-8">
+      <div className="cruush-glass-panel w-full max-w-md rounded-lg border border-white/12 bg-black/82 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur space-y-8">
         {saveError ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {saveError}
@@ -792,7 +792,7 @@ export default function ProfileOnboarding({
                       ))}
                     </ul>
                   </div>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-black/55 p-4 text-sm leading-6 text-white/80">
+                  <label className="cruush-glass-soft flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-black/55 p-4 text-sm leading-6 text-white/80">
                     <input
                       type="checkbox"
                       checked={oathAccepted}
@@ -852,7 +852,7 @@ export default function ProfileOnboarding({
                       <div className="rounded-lg border border-white/10 bg-white p-3">
                         <img src={twoFactorSetup.qrCodeDataUrl} alt="2FA QR code" className="mx-auto h-44 w-44" />
                       </div>
-                      <div className="rounded-md border border-white/10 bg-black/45 p-3 font-mono text-xs break-all text-white/72">
+                      <div className="cruush-glass-soft rounded-md border border-white/10 bg-black/45 p-3 font-mono text-xs break-all text-white/72">
                         {twoFactorSetup.secret}
                       </div>
                       <label className="space-y-2 block">

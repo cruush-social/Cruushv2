@@ -304,7 +304,7 @@ export default function MultiSelect({
         <>
           <div
             ref={portalMenuRef}
-            className="overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg"
+            className="cruush-glass-menu overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg"
             style={{ ...portalStyle, zIndex: MENU_PORTAL_Z_INDEX + 1 }}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
@@ -341,7 +341,7 @@ export default function MultiSelect({
           aria-haspopup="listbox"
           aria-expanded={isOpen}
           onClick={toggleMenu}
-          className="w-full h-10 px-3 text-left rounded-md bg-input-background border border-input hover:border-primary transition-colors"
+          className="cruush-glass-input w-full h-10 px-3 text-left rounded-md bg-input-background border border-input hover:border-primary transition-colors"
         >
           {selected.length > 0 ? `${selected.length} selected` : placeholder}
         </button>
@@ -355,7 +355,7 @@ export default function MultiSelect({
               onClick={() => setIsOpen(false)}
             />
             <div
-              className={`absolute left-0 right-0 z-20 overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg ${
+              className={`cruush-glass-menu absolute left-0 right-0 z-20 overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg ${
                 resolvedMenuPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
               }`}
               style={localMenuStyle ?? undefined}

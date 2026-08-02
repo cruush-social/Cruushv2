@@ -469,7 +469,7 @@ export default function LocalFeed() {
       </header>
 
       <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-3 pt-4" data-testid="local-feed-content">
-        <div className="shrink-0 rounded-2xl border border-white/10 bg-black/82 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur" data-testid="local-feed-composer">
+        <div className="cruush-glass-panel shrink-0 rounded-2xl border border-white/10 bg-black/82 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur" data-testid="local-feed-composer">
           {error ? (
             <div className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
@@ -568,7 +568,7 @@ export default function LocalFeed() {
           data-testid="local-feed-posts-scroll"
         >
           {loading ? (
-            <div className="rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
+            <div className="cruush-glass-panel rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
               <p className="text-white/58">Loading nearby posts...</p>
             </div>
           ) : null}
@@ -576,7 +576,7 @@ export default function LocalFeed() {
           {!loading ? (
             <div className="space-y-3">
               {posts.map((post) => (
-                <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
+                <div key={post.id} className="cruush-glass-panel rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
                   <div className="flex gap-3">
                     <HeartPhoto
                       className="w-20 flex-shrink-0"
@@ -666,7 +666,7 @@ export default function LocalFeed() {
                         type="button"
                         variant="outline"
                         size="icon"
-                        className="h-10 w-10 shrink-0 self-center rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10"
+                        className="cruush-glass-pill h-10 w-10 shrink-0 self-center rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10"
                         aria-label={`Center map on ${post.user.name}`}
                         title={`Center map on ${post.user.name}`}
                         onClick={() => navigate('/map', {
@@ -694,7 +694,7 @@ export default function LocalFeed() {
           ) : null}
 
           {!loading && posts.length === 0 && (
-            <div className="rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
+            <div className="cruush-glass-panel rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
               <p className="text-white/68">No posts nearby yet.</p>
               <p className="text-sm text-white/50 mt-2">Be the first to share something!</p>
             </div>

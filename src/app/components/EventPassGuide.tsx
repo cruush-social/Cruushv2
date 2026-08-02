@@ -97,7 +97,7 @@ export default function EventPassGuide() {
                 {guide.guide.map((window) => (
                   <div key={`${window.hourIndex}:${window.validFrom}`} className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-black/35">
+                      <span className="cruush-glass-soft flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-black/35">
                         <CruushIcon name={window.iconName} variant="colored" className="h-7 w-7" />
                       </span>
                       <div>

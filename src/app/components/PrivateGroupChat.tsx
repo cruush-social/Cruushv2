@@ -104,7 +104,7 @@ function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }
   return (
     <div
       aria-label="Explicit message photo hidden by DL Mode"
-      className="flex aspect-[4/5] max-h-80 w-full max-w-xs min-w-[12rem] flex-col items-center justify-center gap-2 rounded-[22px] border border-white/10 p-4 text-center text-white shadow-[0_18px_45px_rgba(0,0,0,0.28)]"
+      className="cruush-glass-panel flex aspect-[4/5] max-h-80 w-full max-w-xs min-w-[12rem] flex-col items-center justify-center gap-2 rounded-[22px] border border-white/10 p-4 text-center text-white shadow-[0_18px_45px_rgba(0,0,0,0.28)]"
       data-testid={`explicit-message-gradient-${attachmentKey}`}
       role="img"
       style={{ background: getProfileGradientCss(attachmentKey) }}
@@ -1206,7 +1206,7 @@ export default function PrivateGroupChat() {
         {conversation ? (
           <div
             data-testid="chat-composer-bar"
-            className="fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pb-3 pt-3 backdrop-blur-md sm:px-4"
+            className="cruush-glass-bar fixed bottom-[var(--chat-composer-bottom)] left-0 right-0 max-w-[100vw] overflow-x-hidden border-t border-border bg-background/90 px-3 pb-3 pt-3 backdrop-blur-md sm:px-4"
             data-keyboard-open={keyboardInset > 0 ? 'true' : undefined}
             style={composerBarStyle}
           >

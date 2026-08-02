@@ -117,7 +117,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
 
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center"
+          className="cruush-glass-soft absolute top-4 right-4 w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center"
         >
           <X className="w-5 h-5 text-white" />
         </button>

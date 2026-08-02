@@ -621,7 +621,7 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     <span
       aria-label={isCurrentUser ? 'Your profile' : badge?.label}
       className={[
-        'absolute right-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'cruush-glass-soft absolute right-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
         borderClass,
       ].join(' ')}
       data-testid={`marker-badge-${marker.id}`}
@@ -656,7 +656,7 @@ function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
   return (
     <span
       aria-label={precisionLabel}
-      className="absolute left-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border border-[#6f00ff]/80 bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
+      className="cruush-glass-soft absolute left-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border border-[#6f00ff]/80 bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
       data-testid={`marker-relationship-${marker.id}`}
       role="img"
       title={title}
@@ -735,7 +735,7 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className="cruush-glass-pill flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -748,7 +748,7 @@ function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-primary/40 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_34px_rgba(255,0,114,0.44)] backdrop-blur-md"
+      className="cruush-glass-pill flex h-16 min-w-16 items-center justify-center rounded-full border border-primary/40 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_34px_rgba(255,0,114,0.44)] backdrop-blur-md"
       data-testid={`people-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -761,7 +761,7 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className="cruush-glass-pill flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
       data-testid={`launch-party-marker-${marker.id}`}
     >
       {attendeeCount > 999 ? '999+' : attendeeCount}
@@ -799,12 +799,12 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
       {signalPreview || postPreview ? (
         <span className="absolute left-1/2 top-0 z-20 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
           {signalPreview ? (
-            <span className="rounded-full border border-white/12 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+            <span className="cruush-glass-pill rounded-full border border-white/12 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
               {signalPreview}
             </span>
           ) : null}
           {postPreview ? (
-            <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+            <span className="cruush-glass-pill rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
               {postPreview}
             </span>
           ) : null}
@@ -1449,12 +1449,12 @@ function MapView({
         data-testid="maplibre-map"
       />
       {mapLoadStatus === 'loading' ? (
-        <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
+        <div className="cruush-glass-soft pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
           Loading NYC map...
         </div>
       ) : null}
       {mapError ? (
-        <div className="absolute left-4 right-4 top-4 z-10 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive backdrop-blur-md">
+        <div className="cruush-glass-soft absolute left-4 right-4 top-4 z-10 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive backdrop-blur-md">
           {mapError}
         </div>
       ) : null}

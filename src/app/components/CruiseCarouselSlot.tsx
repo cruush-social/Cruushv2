@@ -199,7 +199,7 @@ export default function CruiseCarouselSlot({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white/80 backdrop-blur-sm transition hover:text-white"
+            className="cruush-glass-soft flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/35 text-white/80 backdrop-blur-sm transition hover:text-white"
             aria-label="Close cruise carousel"
           >
             <X className="h-4 w-4" />
@@ -208,7 +208,7 @@ export default function CruiseCarouselSlot({
       </div>
 
       <div className={`${variant === 'page' ? 'px-3 sm:px-6' : 'px-4'} flex-1`}>
-        <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
+        <div className="cruush-glass-soft relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
           <div className="pointer-events-none absolute inset-y-4 left-0 z-10 w-14 bg-gradient-to-r from-black/75 to-transparent" />
           <div className="pointer-events-none absolute inset-y-4 right-0 z-10 w-14 bg-gradient-to-l from-black/75 to-transparent" />
           <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-[7rem] w-[7rem] -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" />
@@ -258,7 +258,7 @@ export default function CruiseCarouselSlot({
     return (
       <aside
         aria-label="cruise carousel"
-        className="absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-6 top-[8.75rem] z-50 hidden w-[23rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl lg:block"
+        className="cruush-glass-panel absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-6 top-[8.75rem] z-50 hidden w-[23rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl lg:block"
       >
         {content}
       </aside>
@@ -268,7 +268,7 @@ export default function CruiseCarouselSlot({
   return (
     <section
       aria-label="cruise carousel"
-      className="mx-auto w-full max-w-2xl rounded-[28px] border border-white/10 bg-black/78 shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl"
+      className="cruush-glass-panel mx-auto w-full max-w-2xl rounded-[28px] border border-white/10 bg-black/78 shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl"
     >
       {content}
     </section>

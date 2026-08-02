@@ -328,7 +328,7 @@ function ProfilePhotoCropper({
       className="fixed inset-0 z-[120] flex items-center justify-center bg-black/78 p-4 backdrop-blur-md"
       role="dialog"
     >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/12 bg-background text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.52)]">
+      <div className="cruush-glass-panel w-full max-w-md overflow-hidden rounded-2xl border border-white/12 bg-background text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.52)]">
         <div
           className="relative mx-auto aspect-[4/5] w-full max-w-sm touch-none overflow-hidden bg-black"
           onPointerCancel={handlePointerEnd}

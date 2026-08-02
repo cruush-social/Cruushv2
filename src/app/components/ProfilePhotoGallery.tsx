@@ -88,7 +88,7 @@ export default function ProfilePhotoGallery({
       )}
 
       {activePhoto && reportTargetUserId ? (
-        <div className="absolute bottom-3 left-3 rounded-full bg-black/55 backdrop-blur-sm">
+        <div className="cruush-glass-soft absolute bottom-3 left-3 rounded-full bg-black/55 backdrop-blur-sm">
           <ReportAction
             targetType="profile_photo"
             targetId={activePhoto}

@@ -51,7 +51,7 @@ export default function BottomNav() {
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
+        className="cruush-glass-bar pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
       >
         {navItems.map((item) => {
           const active = isActive(item.path);
@@ -63,7 +63,7 @@ export default function BottomNav() {
               onClick={() => handleNavClick(item.path)}
               className={`flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full transition-colors ${
                 active
-                  ? 'bg-white/[0.10] text-primary hover:bg-white/[0.12]'
+                  ? 'cruush-glass-soft bg-white/[0.10] text-primary hover:bg-white/[0.12]'
                   : 'text-white/52 hover:bg-white/[0.08] hover:text-white/78'
               }`}
             >

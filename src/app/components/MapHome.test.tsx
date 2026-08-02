@@ -1668,7 +1668,7 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
     expect(recentToggle).toHaveAccessibleName('Show recently active bar');
     expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentToggle).toHaveStyle({ background: 'rgba(0, 0, 0, 0.82)' });
+    expect(recentToggle).toHaveClass('cruush-glass-pill');
     expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(recentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();

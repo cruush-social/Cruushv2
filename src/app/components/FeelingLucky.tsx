@@ -132,7 +132,7 @@ export default function FeelingLucky() {
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 pt-4 sm:px-6 sm:pt-5">
         {status === 'checking' ? (
-          <div className="rounded-2xl border border-white/10 bg-black/72 p-5 text-center text-sm text-white/68">
+          <div className="cruush-glass-panel rounded-2xl border border-white/10 bg-black/72 p-5 text-center text-sm text-white/68">
             Loading cruise carousel...
           </div>
         ) : null}
