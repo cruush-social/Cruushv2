@@ -450,18 +450,37 @@
   --cruush-liquid-shadow: 0 0 0 0.6px rgba(255, 255, 255, 0.68) inset, 0 1.5px 2px rgba(255, 255, 255, 0.38) inset, 0 -22px 34px rgba(0, 0, 0, 0.24) inset, 0 16px 46px rgba(0, 0, 0, 0.38), 0 2px 14px rgba(255, 255, 255, 0.16);
   --cruush-glass-shadow: var(--cruush-liquid-shadow), 0 0 0 1px rgba(0, 0, 0, 0.28);
   --cruush-glass-shadow-soft: 0 0 0 0.55px rgba(255, 255, 255, 0.56) inset, 0 1px 2px rgba(255, 255, 255, 0.3) inset, 0 -16px 26px rgba(0, 0, 0, 0.2) inset, 0 10px 30px rgba(0, 0, 0, 0.32), 0 1px 9px rgba(255, 255, 255, 0.1);
-  --cruush-glass-backdrop: blur(34px) saturate(2.05) brightness(1.2) contrast(0.96);
-  --cruush-glass-backdrop-soft: blur(26px) saturate(1.9) brightness(1.16) contrast(0.98);
+  --cruush-glass-backdrop: blur(20px) saturate(1.55) brightness(1.05) contrast(1.02);
+  --cruush-glass-backdrop-soft: blur(16px) saturate(1.42) brightness(1.04) contrast(1.02);
+  --cruush-glass-dock-backdrop: blur(18px) saturate(1.42) brightness(1.04) contrast(1.04);
+  --cruush-glass-current-backdrop: blur(14px) saturate(1.36) brightness(1.04) contrast(1.05);
   --cruush-glass-edge-reflection: radial-gradient(circle at 18% 6%, rgba(255, 255, 255, 0.64), transparent 28%), linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.18) 16%, transparent 44%), linear-gradient(118deg, rgba(255, 255, 255, 0.3) 0%, transparent 26% 72%, rgba(255, 255, 255, 0.18) 100%);
   --cruush-glass-material-noise: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0));
   --cruush-glass-specular: linear-gradient(104deg, transparent 0 33%, rgba(255, 255, 255, 0.14) 42%, rgba(255, 255, 255, 0.62) 48%, rgba(255, 255, 255, 0.16) 54%, transparent 66% 100%);
-  --cruush-glass-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.13) 34%, rgba(255, 255, 255, 0.07) 58%, rgba(6, 8, 14, 0.42) 100%);
-  --cruush-glass-surface-soft: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.1) 36%, rgba(255, 255, 255, 0.052) 62%, rgba(7, 9, 15, 0.36) 100%);
-  --cruush-glass-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.11) 34%, rgba(13, 17, 24, 0.42) 100%);
-  --cruush-glass-bar-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.12) 38%, rgba(9, 12, 18, 0.38) 100%);
-  --cruush-glass-control-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.105) 36%, rgba(7, 9, 15, 0.38) 100%);
-  --cruush-glass-control-hover-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.15) 36%, rgba(9, 12, 18, 0.44) 100%);
-  --cruush-glass-menu-toggle-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.14) 38%, rgba(6, 9, 14, 0.44) 100%);
+  --cruush-glass-surface: linear-gradient(180deg, rgba(126, 132, 144, 0.22) 0%, rgba(67, 73, 84, 0.22) 40%, rgba(7, 9, 14, 0.42) 100%);
+  --cruush-glass-surface-soft: linear-gradient(180deg, rgba(128, 134, 146, 0.18) 0%, rgba(62, 68, 80, 0.18) 42%, rgba(7, 9, 15, 0.34) 100%);
+  --cruush-glass-panel-bg: linear-gradient(180deg, rgba(116, 122, 134, 0.24) 0%, rgba(52, 58, 69, 0.24) 42%, rgba(8, 10, 16, 0.44) 100%);
+  --cruush-glass-bar-bg: linear-gradient(180deg, rgba(132, 138, 150, 0.3) 0%, rgba(58, 64, 76, 0.26) 42%, rgba(8, 10, 16, 0.48) 100%);
+  --cruush-glass-control-bg: linear-gradient(180deg, rgba(136, 142, 154, 0.22) 0%, rgba(58, 64, 76, 0.2) 42%, rgba(8, 10, 16, 0.4) 100%);
+  --cruush-glass-control-hover-bg: linear-gradient(180deg, rgba(158, 164, 176, 0.28) 0%, rgba(72, 78, 90, 0.26) 42%, rgba(10, 12, 18, 0.46) 100%);
+  --cruush-glass-menu-toggle-bg: radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.22), transparent 28%), linear-gradient(180deg, rgba(142, 148, 160, 0.34) 0%, rgba(66, 72, 84, 0.27) 42%, rgba(7, 9, 14, 0.54) 100%);
+}
+
+@supports ((backdrop-filter: url("#cruush-liquid-glass-panel")) or (-webkit-backdrop-filter: url("#cruush-liquid-glass-panel"))) {
+  :root {
+    --cruush-glass-backdrop: url("#cruush-liquid-glass-panel") blur(13px) saturate(1.34) brightness(1.04) contrast(1.05);
+    --cruush-glass-backdrop-soft: url("#cruush-liquid-glass-pill") blur(11px) saturate(1.28) brightness(1.04) contrast(1.05);
+    --cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") blur(10px) saturate(1.32) brightness(1.03) contrast(1.06);
+    --cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") blur(8px) saturate(1.24) brightness(1.04) contrast(1.06);
+  }
+}
+
+.cruush-liquid-glass-filters {
+  position: fixed;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .cruush-glass,
@@ -562,18 +581,25 @@
   min-height: 5rem;
 }
 
+.cruush-liquid-glass-dock {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: var(--cruush-glass-menu-toggle-bg);
+  box-shadow:
+    0 0 0 0.6px rgba(255, 255, 255, 0.52) inset,
+    0 1px 1.5px rgba(255, 255, 255, 0.36) inset,
+    0 -22px 34px rgba(0, 0, 0, 0.28) inset,
+    0 18px 46px rgba(0, 0, 0, 0.48),
+    0 1px 14px rgba(255, 255, 255, 0.12);
+  backdrop-filter: var(--cruush-glass-dock-backdrop);
+  -webkit-backdrop-filter: var(--cruush-glass-dock-backdrop);
+}
+
 .cruush-bottom-nav-current-page {
   color: rgba(255, 255, 255, 0.96);
-  background:
-    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.34), transparent 34%),
-    linear-gradient(180deg, rgba(118, 124, 138, 0.52) 0%, rgba(80, 86, 99, 0.48) 45%, rgba(42, 47, 58, 0.58) 100%);
-  box-shadow:
-    0 0 0 0.6px rgba(255, 255, 255, 0.36) inset,
-    0 1px 1.5px rgba(255, 255, 255, 0.28) inset,
-    0 -14px 26px rgba(0, 0, 0, 0.24) inset,
-    0 8px 22px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(28px) saturate(1.45) brightness(1.1) contrast(0.96);
-  -webkit-backdrop-filter: blur(28px) saturate(1.45) brightness(1.1) contrast(0.96);
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .cruush-bottom-nav-current-page::before,
@@ -586,17 +612,15 @@
 }
 
 .cruush-bottom-nav-current-page::before {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.38), transparent 24% 70%, rgba(255, 255, 255, 0.08)),
-    linear-gradient(118deg, rgba(255, 255, 255, 0.22), transparent 34% 70%, rgba(255, 255, 255, 0.12));
+  background: none;
   mix-blend-mode: screen;
-  opacity: 0.58;
+  opacity: 0;
 }
 
 .cruush-bottom-nav-current-page::after {
   inset: 0.12rem;
-  background: radial-gradient(circle at 40% 18%, rgba(255, 255, 255, 0.2), transparent 26%);
-  opacity: 0.78;
+  background: none;
+  opacity: 0;
 }
 
 .cruush-bottom-nav-indicator {
@@ -617,14 +641,14 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 9999px;
-  background: radial-gradient(circle at 28% 14%, rgba(255, 255, 255, 0.28), transparent 30%), linear-gradient(180deg, rgba(124, 130, 143, 0.38) 0%, rgba(70, 76, 90, 0.42) 44%, rgba(26, 31, 41, 0.48) 100%);
-  box-shadow: 0 0 0 0.55px rgba(255, 255, 255, 0.46) inset, 0 1px 1.5px rgba(255, 255, 255, 0.28) inset, 0 -16px 28px rgba(0, 0, 0, 0.24) inset, 0 8px 24px rgba(0, 0, 0, 0.3), 0 1px 10px rgba(255, 255, 255, 0.1);
+  background: radial-gradient(circle at 30% 10%, rgba(255, 255, 255, 0.26), transparent 34%), linear-gradient(180deg, rgba(150, 156, 168, 0.3) 0%, rgba(82, 88, 100, 0.24) 43%, rgba(18, 22, 30, 0.42) 100%);
+  box-shadow: 0 0 0 0.55px rgba(255, 255, 255, 0.58) inset, 0 1.5px 2px rgba(255, 255, 255, 0.34) inset, 0 -18px 28px rgba(0, 0, 0, 0.3) inset, 0 8px 22px rgba(0, 0, 0, 0.36), 0 1px 9px rgba(255, 255, 255, 0.12);
   transform-origin: var(--bottom-nav-indicator-origin);
   animation: cruush-bottom-nav-toggle-settle 520ms cubic-bezier(0.32, 0.72, 0, 1);
-  backdrop-filter: blur(34px) saturate(2.05) brightness(1.18) contrast(0.96);
-  -webkit-backdrop-filter: blur(34px) saturate(2.05) brightness(1.18) contrast(0.96);
+  backdrop-filter: var(--cruush-glass-current-backdrop);
+  -webkit-backdrop-filter: var(--cruush-glass-current-backdrop);
 }
 
 .cruush-bottom-nav-indicator-surface::before,
@@ -637,15 +661,15 @@
 }
 
 .cruush-bottom-nav-indicator-surface::before {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), transparent 20% 72%, rgba(255, 255, 255, 0.1)), linear-gradient(120deg, rgba(255, 255, 255, 0.34), transparent 32% 70%, rgba(255, 255, 255, 0.18));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent 19% 74%, rgba(255, 255, 255, 0.08)), linear-gradient(120deg, rgba(255, 255, 255, 0.26), transparent 32% 72%, rgba(255, 255, 255, 0.14));
   mix-blend-mode: screen;
-  opacity: 0.72;
+  opacity: 0.58;
 }
 
 .cruush-bottom-nav-indicator-surface::after {
   inset: 0.18rem;
-  background: radial-gradient(circle at 38% 20%, rgba(255, 255, 255, 0.28), transparent 24%), linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.14));
-  opacity: 0.9;
+  background: radial-gradient(circle at 38% 18%, rgba(255, 255, 255, 0.22), transparent 25%), linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.18));
+  opacity: 0.76;
 }
 
 .cruush-bottom-nav-indicator-surface[data-distance="2"],

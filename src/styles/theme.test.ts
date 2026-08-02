@@ -38,14 +38,21 @@ describe('global text selection policy', () => {
   });
 
   it('uses stronger liquid-glass tokens for Apple-style menu surfaces', () => {
-    expect(themeCss).toContain('--cruush-glass-backdrop: blur(34px) saturate(2.05) brightness(1.2) contrast(0.96);');
+    expect(themeCss).toContain('--cruush-glass-backdrop: blur(20px) saturate(1.55) brightness(1.05) contrast(1.02);');
+    expect(themeCss).toContain('--cruush-glass-dock-backdrop: blur(18px) saturate(1.42) brightness(1.04) contrast(1.04);');
+    expect(themeCss).toContain('--cruush-glass-current-backdrop: blur(14px) saturate(1.36) brightness(1.04) contrast(1.05);');
+    expect(themeCss).toContain('@supports ((backdrop-filter: url("#cruush-liquid-glass-panel")) or (-webkit-backdrop-filter: url("#cruush-liquid-glass-panel"))) {');
+    expect(themeCss).toContain('--cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") blur(10px) saturate(1.32) brightness(1.03) contrast(1.06);');
+    expect(themeCss).toContain('--cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") blur(8px) saturate(1.24) brightness(1.04) contrast(1.06);');
     expect(themeCss).toContain('--cruush-glass-material-noise: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0));');
     expect(themeCss).toContain('--cruush-glass-menu-toggle-bg:');
     expect(themeCss).toContain('.cruush-glass-menu-toggle {');
+    expect(themeCss).toContain('.cruush-liquid-glass-filters {');
+    expect(themeCss).toContain('.cruush-liquid-glass-dock {');
     expect(themeCss).toContain('.cruush-bottom-nav-current-page {');
-    expect(themeCss).toContain('linear-gradient(180deg, rgba(118, 124, 138, 0.52) 0%, rgba(80, 86, 99, 0.48) 45%, rgba(42, 47, 58, 0.58) 100%);');
+    expect(themeCss).toContain('background: transparent;');
     expect(themeCss).toContain('.cruush-bottom-nav-indicator-surface::before,');
-    expect(themeCss).toContain('backdrop-filter: blur(34px) saturate(2.05) brightness(1.18) contrast(0.96);');
+    expect(themeCss).toContain('backdrop-filter: var(--cruush-glass-current-backdrop);');
   });
 
   it('keeps the cruush plus shimmer and recently active rail hooks available', () => {
