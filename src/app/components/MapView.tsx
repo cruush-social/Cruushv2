@@ -82,6 +82,8 @@ const MAP_RENDER_READY_TIMEOUT_MS = 1200;
 const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
+const MAP_3D_BUILDINGS_PITCH = 45;
+const MAP_3D_BUILDINGS_BEARING = -17.6;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
@@ -93,6 +95,57 @@ const SPIDERFY_SECOND_RING_AFTER = 10;
 const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
 const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
 const MAP_DETAIL_LAYER_TYPES = new Set(['line', 'symbol']);
+
+const MAP_3D_BUILDING_LAYER: StyleSpecification['layers'][number] = {
+  id: 'building-extrusions-dark',
+  type: 'fill-extrusion',
+  source: 'openmaptiles',
+  'source-layer': 'building',
+  minzoom: 15,
+  filter: ['!=', ['get', 'hide_3d'], true],
+  paint: {
+    'fill-extrusion-color': [
+      'interpolate',
+      ['linear'],
+      ['to-number', ['get', 'render_height'], 18],
+      0,
+      '#151515',
+      90,
+      '#222024',
+      200,
+      '#2a2330',
+      420,
+      '#1d3238',
+    ],
+    'fill-extrusion-height': [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      15,
+      0,
+      16,
+      ['to-number', ['get', 'render_height'], 18],
+    ],
+    'fill-extrusion-base': [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      15,
+      0,
+      16,
+      ['to-number', ['get', 'render_min_height'], 0],
+    ],
+    'fill-extrusion-opacity': 0.78,
+    'fill-extrusion-vertical-gradient': true,
+  },
+};
+
+const MAP_3D_BUILDING_LIGHT: StyleSpecification['light'] = {
+  anchor: 'viewport',
+  color: '#f2edf8',
+  intensity: 0.28,
+  position: [1.15, 210, 32],
+};
 
 type MapLibreModule = typeof import('maplibre-gl');
 type MapLibreExport = MapLibreModule['default'];
@@ -181,10 +234,12 @@ async function loadMapLabelFonts() {
 export function createCruushVectorStyle(
   tileJsonUrl = DEFAULT_VECTOR_TILEJSON_URL,
   glyphsUrl?: string,
+  enable3dBuildings = false,
 ): StyleSpecification {
   return {
     version: 8,
     ...(glyphsUrl ? { glyphs: glyphsUrl } : {}),
+    ...(enable3dBuildings ? { light: MAP_3D_BUILDING_LIGHT } : {}),
     sources: {
       openmaptiles: {
         type: 'vector',
@@ -225,6 +280,7 @@ export function createCruushVectorStyle(
           'fill-outline-color': '#1e1e1e',
         },
       },
+      ...(enable3dBuildings ? [MAP_3D_BUILDING_LAYER] : []),
       {
         id: 'minor-roads',
         type: 'line',
@@ -439,7 +495,12 @@ export function getMapStyle() {
   return createCruushVectorStyle(
     configuredVectorTileJsonUrl || DEFAULT_VECTOR_TILEJSON_URL,
     configuredGlyphsUrl || undefined,
+    isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS),
   );
+}
+
+function shouldPitchMapFor3dBuildings() {
+  return isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS);
 }
 
 const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
@@ -1106,6 +1167,7 @@ function MapView({
   const [spiderfiedCluster, setSpiderfiedCluster] = useState<SpiderfiedCluster | null>(null);
   const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(true);
   const mapStyle = useMemo(() => getMapStyle(), []);
+  const pitchFor3dBuildings = useMemo(() => shouldPitchMapFor3dBuildings(), []);
   const denseMarkerResult = useMemo(
     () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
     [currentZoom, denseVenue, markers],
@@ -1193,6 +1255,9 @@ function MapView({
           style,
           center: DEFAULT_CENTER,
           zoom: DEFAULT_ZOOM,
+          pitch: pitchFor3dBuildings ? MAP_3D_BUILDINGS_PITCH : 0,
+          bearing: pitchFor3dBuildings ? MAP_3D_BUILDINGS_BEARING : 0,
+          ...(pitchFor3dBuildings ? { canvasContextAttributes: { antialias: true } } : {}),
           minZoom: MIN_DISCOVERY_ZOOM,
           maxBounds: NYC_METRO_MAX_BOUNDS,
           renderWorldCopies: false,
@@ -1343,7 +1408,7 @@ function MapView({
       mapRef.current = null;
       setMapInstance(null);
     };
-  }, [mapStyle]);
+  }, [mapStyle, pitchFor3dBuildings]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

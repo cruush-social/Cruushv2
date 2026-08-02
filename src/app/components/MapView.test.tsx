@@ -1111,6 +1111,7 @@ describe('MapView', () => {
     expect(layerById.get('major-roads')?.paint['line-color']).toBe('#242424');
     expect(layerById.has('building-fill')).toBe(false);
     expect(layerById.has('building-outline')).toBe(false);
+    expect(layerById.has('building-extrusions-dark')).toBe(false);
     expect(layerById.get('minor-road-labels')?.layout['symbol-placement']).toBe('line');
     expect(layerById.get('minor-road-labels')?.layout['symbol-spacing']).toBe(120);
     expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
@@ -1131,8 +1132,83 @@ describe('MapView', () => {
     expect(layerById.get('place-labels')?.layout['text-letter-spacing']).toBe(0.035);
   });
 
+  it('can add dark 3D building extrusions for map testing', () => {
+    const style = createCruushVectorStyle('https://tiles.openfreemap.org/planet', undefined, true) as any;
+    const layerById = new Map<string, any>(
+      style.layers.map((layer: any) => [layer.id, layer] as [string, any])
+    );
+    const buildingLayer = layerById.get('building-extrusions-dark');
+
+    expect(validateStyleMin(style)).toEqual([]);
+    expect(style.light).toEqual({
+      anchor: 'viewport',
+      color: '#f2edf8',
+      intensity: 0.28,
+      position: [1.15, 210, 32],
+    });
+    expect(buildingLayer).toEqual(expect.objectContaining({
+      type: 'fill-extrusion',
+      source: 'openmaptiles',
+      'source-layer': 'building',
+      minzoom: 15,
+      filter: ['!=', ['get', 'hide_3d'], true],
+    }));
+    expect(buildingLayer.paint['fill-extrusion-color']).toEqual([
+      'interpolate',
+      ['linear'],
+      ['to-number', ['get', 'render_height'], 18],
+      0,
+      '#151515',
+      90,
+      '#222024',
+      200,
+      '#2a2330',
+      420,
+      '#1d3238',
+    ]);
+    expect(buildingLayer.paint['fill-extrusion-height']).toEqual([
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      15,
+      0,
+      16,
+      ['to-number', ['get', 'render_height'], 18],
+    ]);
+    expect(buildingLayer.paint['fill-extrusion-opacity']).toBe(0.78);
+    expect(style.layers.findIndex((layer: any) => layer.id === 'building-extrusions-dark'))
+      .toBeLessThan(style.layers.findIndex((layer: any) => layer.id === 'minor-roads'));
+  });
+
   it('creates valid MapLibre style JSON for the default vector map', () => {
     expect(validateStyleMin(getMapStyle() as any)).toEqual([]);
+  });
+
+  it('enables dark 3D buildings from the map test env flag', () => {
+    vi.stubEnv('VITE_MAP_ENABLE_3D_BUILDINGS', 'true');
+
+    const style = getMapStyle() as any;
+
+    expect(style.layers.some((layer: any) => layer.id === 'building-extrusions-dark')).toBe(true);
+    expect(validateStyleMin(style)).toEqual([]);
+  });
+
+  it('pitches the map only when 3D buildings are enabled', async () => {
+    vi.stubEnv('VITE_MAP_ENABLE_3D_BUILDINGS', 'true');
+
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
+    expect(MockMap.calls[0]).toEqual(expect.objectContaining({
+      pitch: 45,
+      bearing: -17.6,
+      canvasContextAttributes: { antialias: true },
+    }));
   });
 
   it('keeps the explicit style URL override as highest priority', () => {
