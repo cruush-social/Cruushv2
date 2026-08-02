@@ -1156,15 +1156,15 @@ describe('MapView', () => {
     expect(buildingLayer.paint['fill-extrusion-color']).toEqual([
       'interpolate',
       ['linear'],
-      ['to-number', ['get', 'render_height'], 18],
+      ['get', 'render_height'],
       0,
       '#151515',
-      90,
-      '#222024',
-      200,
-      '#2a2330',
+      120,
+      '#FF0072',
+      260,
+      '#6F00FF',
       420,
-      '#1d3238',
+      '#1181FF',
     ]);
     expect(buildingLayer.paint['fill-extrusion-height']).toEqual([
       'interpolate',
@@ -1173,7 +1173,13 @@ describe('MapView', () => {
       15,
       0,
       16,
-      ['to-number', ['get', 'render_height'], 18],
+      ['get', 'render_height'],
+    ]);
+    expect(buildingLayer.paint['fill-extrusion-base']).toEqual([
+      'case',
+      ['>=', ['get', 'zoom'], 16],
+      ['get', 'render_min_height'],
+      0,
     ]);
     expect(buildingLayer.paint['fill-extrusion-opacity']).toBe(0.78);
     expect(style.layers.findIndex((layer: any) => layer.id === 'building-extrusions-dark'))
