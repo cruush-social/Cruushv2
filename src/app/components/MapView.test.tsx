@@ -197,7 +197,8 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-badge-me')).toHaveClass('cruush-glass-soft', 'border-[#0BA8FF]/80');
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('cruush-glass-soft', 'border-[#FF0072]/80');
-    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('-right-0.5', 'top-5', 'z-20');
+    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('right-1.5', 'top-8');
+    expect(screen.getByTestId('marker-badge-user-1')).not.toHaveClass('-right-0.5', 'z-20');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', '#0BA8FF');
     expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
@@ -696,10 +697,9 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-mutual').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#6f00ff');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('cruush-glass-soft', 'border-[#6f00ff]/80');
-    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('-right-0.5', 'top-5', 'z-20');
+    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('right-1.5', 'top-8');
     expect(screen.getByLabelText('mutual cruush')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass('cruush-glass-soft');
-    expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass('-left-0.5', 'top-5', 'z-20');
+    expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass('cruush-glass-soft', 'left-1.5', 'top-8');
     expect(screen.getByTestId('marker-relationship-user-mutual').querySelector('img')?.getAttribute('src')).toContain('safety-white');
   });
 
