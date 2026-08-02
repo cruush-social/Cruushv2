@@ -164,11 +164,11 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
           <DialogTitle className="beta-launch-plus-dialog__title">
             {activated ? (
               <>
-                <CruushPlusWord /> activated
+                <CruushPlusWord className="beta-launch-plus-dialog__inline-word" /> activated
               </>
             ) : (
               <>
-                7-day <CruushPlusWord /> trial
+                7-day <CruushPlusWord className="beta-launch-plus-dialog__inline-word" /> trial
               </>
             )}
           </DialogTitle>
@@ -179,7 +179,8 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
               </>
             ) : (
               <>
-                Claim one free week of <CruushPlusWord /> for the beta launch, active until August 7 at 12:00 AM.
+                Claim one free week of <CruushPlusWord className="beta-launch-plus-dialog__inline-word" /> for the beta
+                launch, active until August 7 at 12:00 AM.
               </>
             )}
           </DialogDescription>
@@ -201,7 +202,8 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
               'Activating...'
             ) : (
               <>
-                OK, activate <CruushPlusWord className="beta-launch-plus-dialog__button-word" />
+                OK, activate{' '}
+                <CruushPlusWord className="beta-launch-plus-dialog__inline-word beta-launch-plus-dialog__button-word" />
               </>
             )}
           </Button>

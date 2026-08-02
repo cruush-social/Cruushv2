@@ -50,19 +50,25 @@ describe('BetaLaunchCruushPlusOffer', () => {
   it('opens the login cruush+ trial as a moire access card', async () => {
     render(<BetaLaunchCruushPlusOffer userId="user-123" />);
 
-    expect(await screen.findByRole('heading', { name: /7-day cruush\+ trial/i })).toBeInTheDocument();
-    expect(screen.getByText(/Claim one free week of/i)).toHaveTextContent('cruush+');
+    const trialHeading = await screen.findByRole('heading', { name: /7-day cruush\+ trial/i });
+    const trialDescription = screen.getByText(/Claim one free week of/i);
+    expect(trialHeading).toBeInTheDocument();
+    expect(trialDescription).toHaveTextContent('cruush+');
 
     const trialCard = screen.getByTestId('beta-launch-cruush-plus-card');
     const activateButton = screen.getByRole('button', { name: 'OK, activate cruush+' });
     expect(trialCard).toHaveClass('beta-launch-plus-card');
     expect(screen.getByTestId('beta-launch-cruush-plus-card-label')).toHaveTextContent('cruush+');
-    expect(activateButton.querySelector('.cruush-logo-font')).toHaveTextContent('cruush+');
+    expect(trialHeading.querySelector('.beta-launch-plus-dialog__inline-word')).toHaveTextContent('cruush+');
+    expect(trialDescription.querySelector('.beta-launch-plus-dialog__inline-word')).toHaveTextContent('cruush+');
+    expect(activateButton.querySelector('.beta-launch-plus-dialog__inline-word')).toHaveTextContent('cruush+');
+    expect(activateButton.querySelector('.beta-launch-plus-dialog__button-word')).toHaveTextContent('cruush+');
   });
 
   it('uses the map label font for the rest of the offer text', () => {
     expect(offerCss).toContain("font-family: 'Cormorant Garamond', serif;");
     expect(offerCss).toContain('.beta-launch-plus-dialog__footer button');
+    expect(offerCss).toContain('.beta-launch-plus-dialog__inline-word');
   });
 
   it('keeps the existing claim action wired to the rewards API', async () => {

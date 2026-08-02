@@ -58,10 +58,20 @@
   box-shadow: 0 0.85rem 2rem rgba(255, 0, 114, 0.22);
 }
 
+.beta-launch-plus-dialog__inline-word {
+  font-size: 0.82em;
+  line-height: 0.85;
+  vertical-align: -0.08em;
+}
+
+.beta-launch-plus-dialog__description .beta-launch-plus-dialog__inline-word {
+  font-size: 0.78em;
+  vertical-align: -0.06em;
+}
+
 .beta-launch-plus-dialog__button-word {
-  font-size: 1.12em;
-  line-height: 0.9;
-  vertical-align: -0.02em;
+  font-size: 0.9em;
+  vertical-align: -0.06em;
 }
 
 .beta-launch-plus-card-scene {
