@@ -4,6 +4,8 @@ import HeartPhoto from './HeartPhoto';
 import { HEART_PIN_PHOTO_PATH } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
 
+const GLASS_HEART_BORDER = 'rgba(255, 255, 255, 0.72)';
+
 describe('HeartPhoto', () => {
   it('renders without glow by default', () => {
     render(<HeartPhoto label="Default preview" />);
@@ -28,8 +30,8 @@ describe('HeartPhoto', () => {
       .map((stop) => stop.getAttribute('stop-color'));
 
     expect(stops).toEqual(['#00B8FF', '#0A7DF4', '#3236D4']);
-    expect(heart.querySelector('path')).toHaveAttribute('stroke', '#0BA8FF');
-    expect(heart.querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(heart.querySelector('path')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
+    expect(heart.querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
   });
 
   it('keeps current-user no-photo hearts blue even with a user id', () => {
@@ -62,8 +64,8 @@ describe('HeartPhoto', () => {
     expect(heart.querySelector('clipPath path')).toHaveAttribute('d', HEART_PIN_PHOTO_PATH);
     expect(photo).toHaveAttribute('href', 'https://example.com/photo.jpg');
     expect(photo?.getAttribute('clip-path')).toContain('heart-photo-clip-');
-    expect(heart.querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', '#FF0072');
-    expect(heart.querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#FF0072');
+    expect(heart.querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
+    expect(heart.querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
     expect(heart.querySelector('.cruush-heart-glass-rim')).toBeInTheDocument();
   });
 });

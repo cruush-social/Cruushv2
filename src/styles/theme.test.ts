@@ -20,4 +20,22 @@ describe('global text selection policy', () => {
     expect(themeCss).toContain('max-width: 100%;');
     expect(themeCss).toContain('overflow-x: hidden;');
   });
+
+  it('allows glass heart bases to keep their gradient fill', () => {
+    const heartBaseRule = themeCss.match(/\.cruush-heart-glass-base\s*\{(?<body>[\s\S]*?)\}/)?.groups?.body ?? '';
+    const heartLineRule = themeCss.match(/\.cruush-heart-glass-theme-border,[\s\S]*?\.cruush-heart-glass-specular\s*\{(?<body>[\s\S]*?)\}/)?.groups?.body ?? '';
+
+    expect(heartBaseRule).not.toContain('fill: none;');
+    expect(heartLineRule).toContain('fill: none;');
+  });
+
+  it('keeps heart glass edge strokes neutral instead of neon', () => {
+    const heartEdgeRules = themeCss.match(
+      /\.cruush-heart-glass-edge-magenta\s*\{(?<magenta>[\s\S]*?)\}\s*\.cruush-heart-glass-edge-cyan\s*\{(?<cyan>[\s\S]*?)\}/,
+    )?.groups;
+
+    expect(heartEdgeRules?.magenta).toContain('stroke: rgba(255, 255, 255, 0.58);');
+    expect(heartEdgeRules?.cyan).toContain('stroke: rgba(232, 252, 255, 0.62);');
+    expect(`${heartEdgeRules?.magenta ?? ''}${heartEdgeRules?.cyan ?? ''}`).not.toMatch(/255,\s*(0|196),\s*(114|230)|193,\s*246,\s*255/i);
+  });
 });

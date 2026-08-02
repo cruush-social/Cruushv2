@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, { createCruushVectorStyle, createMapMarkerBadge, getMapStyle } from './MapView';
 import { HEART_PIN_PHOTO_PATH } from '../lib/heartPin';
 
+const GLASS_HEART_BORDER = 'rgba(255, 255, 255, 0.72)';
+
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
   const markerInstances: MockMarkerInstance[] = [];
@@ -200,8 +202,8 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('right-1.5', 'top-8');
     expect(screen.getByTestId('marker-badge-user-1')).not.toHaveClass('-right-0.5', 'z-20');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
-    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', '#0BA8FF');
-    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
     expect(Array.from(screen.getByTestId('marker-heart-me').querySelectorAll('stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
       '#00B8FF',
       '#0A7DF4',
@@ -292,8 +294,9 @@ describe('MapView', () => {
       expect.objectContaining({
         maxZoom: 14,
         padding: expect.objectContaining({
-          bottom: 170,
-          top: 140,
+          bottom: 290,
+          right: 220,
+          top: 165,
         }),
       })
     );
@@ -564,19 +567,19 @@ describe('MapView', () => {
     expect(heatmapSource.data.features[0].geometry.coordinates).toEqual([-74.002, 40.718]);
 
     const heatmapLayerCall = mapInstances[0].addLayer.mock.calls.find(([layer]) => layer.id === 'cruush-user-heatmap-layer');
-    expect(heatmapLayerCall?.[1]).toBe('minor-roads');
+    expect(heatmapLayerCall?.[1]).toBe('place-labels');
     expect(heatmapLayerCall?.[0]).toEqual(expect.objectContaining({
       id: 'cruush-user-heatmap-layer',
       type: 'heatmap',
       paint: expect.objectContaining({
         'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.35, 14, 2.55, 16, 3.35],
         'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 38, 14, 74, 16, 108],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.56, 13, 0.82, 16.75, 0.68],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.62, 13, 0.86, 16.75, 0.74],
         'heatmap-color': expect.arrayContaining([
-          'rgba(17, 129, 255, 0.58)',
-          'rgba(111, 0, 255, 0.82)',
-          'rgba(255, 0, 114, 0.98)',
-          '#FFE24A',
+          'rgba(255, 0, 114, 0.44)',
+          'rgba(111, 0, 255, 0.7)',
+          'rgba(56, 38, 255, 0.82)',
+          'rgba(17, 129, 255, 0.94)',
         ]),
       }),
     }));
@@ -627,8 +630,8 @@ describe('MapView', () => {
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
-    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
-    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
     expect(screen.getByTestId('marker-heart-me').querySelector('clipPath path')).toHaveAttribute('d', HEART_PIN_PHOTO_PATH);
     expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-rim')).toBeInTheDocument();
     expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
@@ -666,8 +669,8 @@ describe('MapView', () => {
 
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
-    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
-    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
   });
 
   it('renders mutual markers with the stable grey heart state', async () => {
@@ -694,7 +697,7 @@ describe('MapView', () => {
     expect(await screen.findByTestId('marker-photo-fill-user-mutual')).toHaveAttribute('href', 'https://example.com/river.jpg');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveAttribute('data-marker-theme', 'mutual');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('cruush-heart-glass-svg', 'h-20', 'w-20');
-    expect(screen.getByTestId('marker-heart-user-mutual').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#6f00ff');
+    expect(screen.getByTestId('marker-heart-user-mutual').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('cruush-glass-soft', 'border-[#6f00ff]/80');
     expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('right-1.5', 'top-8');

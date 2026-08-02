@@ -772,13 +772,13 @@
   justify-content: center;
   overflow: visible;
   isolation: isolate;
-  filter: drop-shadow(0 0.5rem 1.15rem rgba(0, 0, 0, 0.32));
+  filter: drop-shadow(0 0.42rem 0.9rem rgba(0, 0, 0, 0.3));
 }
 
 .cruush-map-logo-shell::before,
 .cruush-map-logo-shell::after {
   position: absolute;
-  inset: -0.28rem;
+  inset: -0.16rem;
   z-index: -1;
   content: '';
   pointer-events: none;
@@ -788,22 +788,22 @@
 
 .cruush-map-logo-shell::before {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.14) 20%, rgba(255, 255, 255, 0.065) 42%, rgba(206, 245, 255, 0.16) 74%, rgba(255, 255, 255, 0.18) 100%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(2, 3, 7, 0.22));
-  transform: scale(1.075);
-  opacity: 0.56;
+    linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.115) 22%, rgba(255, 255, 255, 0.05) 46%, rgba(216, 247, 255, 0.11) 76%, rgba(255, 255, 255, 0.14) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(2, 3, 7, 0.18));
+  transform: scale(1.045);
+  opacity: 0.42;
   box-shadow: var(--cruush-liquid-shadow);
   backdrop-filter: blur(8px) saturate(1.42) brightness(1.08);
   -webkit-backdrop-filter: blur(8px) saturate(1.42) brightness(1.08);
 }
 
 .cruush-map-logo-shell::after {
-  inset: -0.16rem;
+  inset: -0.08rem;
   background:
-    linear-gradient(100deg, transparent 0 34%, rgba(255, 255, 255, 0.72) 43%, rgba(255, 255, 255, 0.15) 51%, transparent 62% 100%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.11), transparent 36% 64%, rgba(213, 247, 255, 0.15));
-  transform: scale(1.035);
-  opacity: 0.5;
+    linear-gradient(100deg, transparent 0 35%, rgba(255, 255, 255, 0.62) 44%, rgba(255, 255, 255, 0.13) 52%, transparent 63% 100%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.09), transparent 38% 66%, rgba(224, 250, 255, 0.1));
+  transform: scale(1.02);
+  opacity: 0.34;
   mix-blend-mode: screen;
   filter: blur(0.2px);
 }
@@ -814,7 +814,6 @@
   filter: none;
 }
 
-.cruush-heart-glass-base,
 .cruush-heart-glass-theme-border,
 .cruush-heart-glass-rim,
 .cruush-heart-glass-edge,
@@ -831,22 +830,29 @@
 }
 
 .cruush-heart-glass-base {
+  pointer-events: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  vector-effect: non-scaling-stroke;
+  shape-rendering: geometricPrecision;
   paint-order: stroke fill;
   filter: none;
 }
 
 .cruush-heart-glass-theme-border {
   fill: none;
-  stroke-width: 3;
-  opacity: 0.76;
+  stroke-width: 2.35;
+  opacity: 0.62;
   paint-order: stroke;
   filter: none;
 }
 
 .cruush-heart-glass-rim {
-  stroke: rgba(255, 255, 255, 0.78);
-  stroke-width: 4.7;
-  opacity: 0.34;
+  stroke: rgba(255, 255, 255, 0.82);
+  stroke-width: 4;
+  opacity: 0.26;
   mix-blend-mode: screen;
   filter: none;
 }
@@ -857,21 +863,21 @@
 }
 
 .cruush-heart-glass-edge-magenta {
-  stroke: rgba(255, 196, 230, 0.68);
-  stroke-width: 1.75;
+  stroke: rgba(255, 255, 255, 0.58);
+  stroke-width: 1.2;
   stroke-dasharray: none;
   stroke-dashoffset: 0;
-  opacity: 0.12;
-  transform: translate(-0.38px, -0.18px);
+  opacity: 0.055;
+  transform: translate(-0.22px, -0.12px);
 }
 
 .cruush-heart-glass-edge-cyan {
-  stroke: rgba(193, 246, 255, 0.72);
-  stroke-width: 1.7;
+  stroke: rgba(232, 252, 255, 0.62);
+  stroke-width: 1.2;
   stroke-dasharray: none;
   stroke-dashoffset: 0;
-  opacity: 0.13;
-  transform: translate(0.38px, 0.22px);
+  opacity: 0.06;
+  transform: translate(0.22px, 0.12px);
 }
 
 .cruush-heart-glass-lip {

@@ -3,17 +3,19 @@ export const HEART_PIN_PATH =
 
 export const HEART_PIN_PHOTO_PATH = HEART_PIN_PATH;
 
+const GLASS_HEART_BORDER = 'rgba(255, 255, 255, 0.72)';
+
 export const HEART_PIN_THEMES = {
   current: {
-    border: '#0BA8FF',
+    border: GLASS_HEART_BORDER,
     stops: ['#00B8FF', '#0A7DF4', '#3236D4'],
   },
   mutual: {
-    border: '#6f00ff',
+    border: GLASS_HEART_BORDER,
     stops: ['#A64DFF', '#6f00ff', '#3B00A8'],
   },
   nearby: {
-    border: '#FF0072',
+    border: GLASS_HEART_BORDER,
     stops: ['#FF0072', '#DA045D', '#B40849'],
   },
 } as const;

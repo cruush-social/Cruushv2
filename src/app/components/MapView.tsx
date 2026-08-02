@@ -97,7 +97,7 @@ const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
 const SPIDERFY_SECOND_RING_AFTER = 10;
 const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
 const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
-const MAP_DETAIL_LAYER_TYPES = new Set(['line', 'symbol']);
+const MAP_LABEL_LAYER_TYPES = new Set(['symbol']);
 
 const MAP_3D_BUILDING_LAYER: StyleSpecification['layers'][number] = {
   id: 'building-extrusions-dark',
@@ -756,7 +756,7 @@ function getHeatmapBeforeLayerId(map: MapLibreMap) {
     return undefined;
   }
 
-  return map.getStyle().layers?.find((layer) => MAP_DETAIL_LAYER_TYPES.has(layer.type))?.id;
+  return map.getStyle().layers?.find((layer) => MAP_LABEL_LAYER_TYPES.has(layer.type))?.id;
 }
 
 function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 30) {
@@ -1470,9 +1470,9 @@ function MapView({
         ],
         {
           padding: {
-            top: 140,
-            right: 120,
-            bottom: 170,
+            top: 165,
+            right: 220,
+            bottom: 290,
             left: 120,
           },
           maxZoom: enable3dBuildings ? FOCUSED_3D_BUILDINGS_ZOOM : FOCUSED_ZOOM,
@@ -1666,23 +1666,23 @@ function MapView({
         'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1],
         'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.35, 14, 2.55, 16, 3.35],
         'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 38, 14, 74, 16, 108],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.56, 13, 0.82, 16.75, 0.68],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.62, 13, 0.86, 16.75, 0.74],
         'heatmap-color': [
           'interpolate',
           ['linear'],
           ['heatmap-density'],
           0,
           'rgba(255, 0, 114, 0)',
-          0.08,
-          'rgba(17, 129, 255, 0.58)',
-          0.26,
-          'rgba(111, 0, 255, 0.82)',
-          0.52,
-          'rgba(255, 0, 114, 0.98)',
-          0.78,
-          'rgba(255, 177, 31, 0.92)',
+          0.14,
+          'rgba(255, 0, 114, 0.44)',
+          0.36,
+          'rgba(111, 0, 255, 0.7)',
+          0.58,
+          'rgba(56, 38, 255, 0.82)',
+          0.8,
+          'rgba(0, 75, 255, 0.88)',
           1,
-          '#FFE24A',
+          'rgba(17, 129, 255, 0.94)',
         ],
       },
     };
