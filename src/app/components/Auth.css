@@ -31,13 +31,13 @@
   content: '';
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 28%, rgba(246, 252, 255, 0.12), transparent 12rem),
-    radial-gradient(ellipse at 28% 58%, rgba(246, 252, 255, 0.075), transparent 9rem),
-    radial-gradient(ellipse at 74% 52%, rgba(246, 252, 255, 0.07), transparent 10rem),
-    repeating-linear-gradient(96deg, transparent 0 2.7rem, rgba(255, 255, 255, 0.035) 2.78rem 2.86rem, transparent 3rem 6rem),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 20% 72%, rgba(255, 255, 255, 0.035));
-  opacity: 0.28;
-  filter: saturate(0.72) contrast(0.86);
+    radial-gradient(ellipse at 50% 28%, rgba(246, 252, 255, 0.09), transparent 13rem),
+    radial-gradient(ellipse at 28% 58%, rgba(255, 0, 114, 0.055), transparent 10rem),
+    radial-gradient(ellipse at 74% 52%, rgba(17, 129, 255, 0.055), transparent 11rem),
+    repeating-linear-gradient(96deg, transparent 0 3.4rem, rgba(255, 255, 255, 0.014) 3.48rem 3.55rem, transparent 3.7rem 7.2rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 20% 72%, rgba(255, 255, 255, 0.025));
+  opacity: 0.2;
+  filter: saturate(0.68) contrast(0.82);
   mix-blend-mode: screen;
 }
 
@@ -433,6 +433,7 @@
   width: min(20rem, calc(100vw - 3rem));
   width: min(20rem, calc(100dvw - 3rem));
   max-width: 100%;
+  overflow-x: clip;
   margin-inline: auto;
   margin-bottom: clamp(0.08rem, 0.8dvh, 0.45rem);
   text-align: center;
@@ -446,6 +447,7 @@
   color: rgba(255, 255, 255, 0.62);
   font-size: 0.86rem;
   line-height: 1.16;
+  overflow-wrap: anywhere;
   text-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.72);
 }
 
@@ -479,6 +481,7 @@
 
 .launch-login-auth-footer [aria-label="Legal and safety links"] a {
   color: rgba(255, 255, 255, 0.84);
+  overflow-wrap: anywhere;
   text-underline-offset: 0.18em;
 }
 

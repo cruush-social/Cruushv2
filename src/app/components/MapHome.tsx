@@ -1,9 +1,9 @@
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
-import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
+import type { CSSProperties, MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { Building2, ExternalLink, Eye, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Building2, ExternalLink, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -50,6 +50,8 @@ import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from '../lib/mapMarkers';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
+import dlModeIconColored from '../assets/ui-icons/dl-mode-colored.png';
+import dlModeIconWhite from '../assets/ui-icons/dl-mode-white.png';
 import ghostIconColored from '../assets/ui-icons/ghost-colored.svg';
 import ghostIconWhite from '../assets/ui-icons/ghost-white.svg';
 import crowdIconColored from '../assets/ui-icons/crowds-colored.svg';
@@ -59,6 +61,9 @@ import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
 import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 
 const DISCOVERY_MAP_LIMIT = 50;
+const logoGlassMaskStyle = {
+  '--cruush-map-logo-mask': `url("${cruushLogo}")`,
+} as CSSProperties;
 const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
 const CROWD_NOTICE_LABELS: Record<string, string> = {
   Dyke: 'Dyke',
@@ -451,8 +456,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return nextValue;
     });
   };
-
-  const dlModeEyeStyle = dlModeActive ? { stroke: 'url(#cruush-dl-eye-gradient)' } : undefined;
 
   const syncApproximateMapLocation = (approximateLocation: ApproximateCoordinates) => {
     void syncMyLocation({
@@ -1458,32 +1461,32 @@ export default function MapHome(_props: MapHomeProps = {}) {
       className={`cruush-map-shell ${isMobile ? 'fixed inset-0' : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
     >
-      <svg aria-hidden="true" className="absolute h-0 w-0">
-        <defs>
-          <linearGradient id="cruush-dl-eye-gradient" x1="0" x2="24" y1="0" y2="24" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#FF0072" />
-            <stop offset="46%" stopColor="#6F00FF" />
-            <stop offset="72%" stopColor="#004BFF" />
-            <stop offset="100%" stopColor="#1181FF" />
-          </linearGradient>
-        </defs>
-      </svg>
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
         data-testid="map-top-chrome"
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 shrink-0 flex-col items-center gap-1">
+          <div className="flex min-w-0 shrink-0 flex-col items-center gap-1.5 sm:gap-2">
             <h1 className="sr-only">cruush</h1>
-            <img
-              alt=""
-              aria-hidden="true"
-              className="h-14 w-auto shrink-0 object-contain sm:h-16"
-              draggable={false}
-              src={cruushLogo}
-            />
-            <div className="cruush-glass-soft inline-flex max-w-[5.75rem] shrink-0 items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]">
+            <span
+              className="cruush-map-logo-shell h-[4.35rem] w-[4.2rem] shrink-0 sm:h-[5rem] sm:w-[4.82rem]"
+              data-testid="map-brand-glass"
+              style={logoGlassMaskStyle}
+            >
+              <img
+                alt=""
+                aria-hidden="true"
+                className="cruush-map-logo-glass h-full w-full shrink-0 object-contain"
+                data-testid="map-brand-logo"
+                draggable={false}
+                src={cruushLogo}
+              />
+            </span>
+            <div
+              className="cruush-glass-soft inline-flex max-w-[7.5rem] shrink-0 items-center rounded-full border border-white/12 bg-background/45 px-2 py-1 text-[9px] lowercase leading-none tracking-[0.09em] text-white/78 backdrop-blur-md sm:max-w-none sm:px-2.5 sm:text-[10px] sm:tracking-[0.1em]"
+              data-testid="map-beta-tag"
+            >
               {isMutualMapMode ? 'mutual cruushes' : 'nyc open beta'}
             </div>
           </div>
@@ -1517,8 +1520,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
               size="icon"
               onClick={() => navigate('/privacy/ghost-mode')}
               aria-label="Ghost Mode Settings"
+              aria-pressed={privacySettings.ghostModeEnabled}
               title="Ghost Mode Settings"
-              className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
+              className={[
+                'size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9',
+                privacySettings.ghostModeEnabled ? 'bg-white/10 ring-1 ring-white/15' : '',
+              ].join(' ')}
             >
               <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} className="h-4 w-4" />
             </Button>
@@ -1530,7 +1537,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
             >
-              <Eye className="h-4 w-4 sm:h-5 sm:w-5" style={dlModeEyeStyle} strokeWidth={2.35} />
+              <CruushIconImage src={dlModeActive ? dlModeIconColored : dlModeIconWhite} className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
             <Button
               variant="ghost"
@@ -1829,7 +1836,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-12 z-30 flex flex-col items-end gap-2 sm:right-4"
+          className="pointer-events-auto absolute right-3 top-[4.5rem] z-30 flex flex-col items-end gap-2 sm:right-4 sm:top-[4.75rem]"
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (
@@ -1845,13 +1852,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
               <CruushIconImage src={crowdIconColored} className="h-4 w-4" />
               {activeCrowdNotice}
             </button>
-          ) : null}
-
-          {privacySettings.ghostModeEnabled ? (
-            <div className="cruush-glass-pill inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
-              <CruushIconImage src={ghostIconColored} className="h-4 w-4" />
-              Ghost Mode Active
-            </div>
           ) : null}
 
           <Button
@@ -1935,7 +1935,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           <div
             className={`pointer-events-none absolute ${
               isMobile
-                ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
+                ? 'bottom-[calc(7.25rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
                 : shouldAlignRecentlyActiveWithPreview
                 ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-[calc(23rem+1.5rem)] right-4 z-30 pl-2 pr-0'
                 : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-4 z-30 pl-4 pr-0'
@@ -2074,7 +2074,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               <p><span className="text-white">Seeking:</span> filter nearby people by what you want to find.</p>
               <p><span className="text-white">Visibility:</span> hide yourself from selected audiences.</p>
               <p><span className="text-white">Crowds:</span> use Dyke, Gay, and T4T modes when you only want those active crowds to see you.</p>
-              <p><span className="text-white">DL Mode:</span> tap the eye in the top menu to mask or reveal NSFW images.</p>
+              <p><span className="text-white">DL Mode:</span> tap the mask in the top menu to mask or reveal NSFW images.</p>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
               <Button

@@ -56,7 +56,7 @@ describe('AlphaBugButton', () => {
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
     expect(reportButton).toHaveClass('right-4', 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]');
-    expect(reportButton).toHaveClass('z-30');
+    expect(reportButton).toHaveClass('z-[45]');
     expect(reportButton).not.toHaveClass('left-[calc(50%-5.5rem)]', 'top-[calc(5.85rem+env(safe-area-inset-top))]');
 
     fireEvent.click(reportButton);
@@ -84,7 +84,7 @@ describe('AlphaBugButton', () => {
     expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
       'right-4',
       'bottom-[calc(19rem+env(safe-area-inset-bottom))]',
-      'z-30',
+      'z-[45]',
     );
   });
 });

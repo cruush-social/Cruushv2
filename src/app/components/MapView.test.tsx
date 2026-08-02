@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, { createCruushVectorStyle, createMapMarkerBadge, getMapStyle } from './MapView';
+import { HEART_PIN_PHOTO_PATH } from '../lib/heartPin';
 
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
@@ -19,6 +20,14 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     fitBounds = vi.fn();
     sources = new Map<string, any>();
     layers = new Map<string, any>();
+    getStyle = vi.fn(() => ({
+      layers: [
+        { id: 'background', type: 'background' },
+        { id: 'landuse-blocks', type: 'fill' },
+        { id: 'minor-roads', type: 'line' },
+        { id: 'place-labels', type: 'symbol' },
+      ],
+    }));
     addSource = vi.fn((id: string, source: any) => {
       const storedSource = { ...source };
       storedSource.setData = vi.fn((data: any) => {
@@ -57,14 +66,16 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
 
   class MockMarkerInstance {
     element: HTMLElement;
+    options: { element: HTMLElement; offset?: unknown; subpixelPositioning?: boolean };
     coordinates: [number, number] | null = null;
     map: MockMapInstance | null = null;
     remove = vi.fn(() => {
       this.element.remove();
     });
 
-    constructor(options: { element: HTMLElement }) {
+    constructor(options: { element: HTMLElement; offset?: unknown; subpixelPositioning?: boolean }) {
       this.element = options.element;
+      this.options = options;
       markerInstances.push(this);
     }
 
@@ -183,9 +194,9 @@ describe('MapView', () => {
     expect(screen.queryByLabelText('bottom')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
     expect(screen.getByLabelText('top')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]/80');
+    expect(screen.getByTestId('marker-badge-me')).toHaveClass('cruush-glass-soft', 'border-[#0BA8FF]/80');
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
-    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('border-[#FF0072]/80');
+    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('cruush-glass-soft', 'border-[#FF0072]/80');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(Array.from(screen.getByTestId('marker-heart-me').querySelectorAll('stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
       '#00B8FF',
@@ -197,7 +208,7 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-current-fallback-me').querySelector('div')).not.toHaveClass('rounded-full', 'bg-black/70');
     expect(screen.getByTestId('marker-current-fallback-me').querySelector('svg')).toHaveClass('h-7', 'w-7', 'text-white');
     expect(screen.queryByTestId('marker-current-fallback-user-1')).not.toBeInTheDocument();
-    expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-20', 'w-20');
+    expect(screen.getByTestId('marker-heart-me')).toHaveClass('cruush-heart-glass-svg', 'h-20', 'w-20');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(markerInstances[0].element.className).not.toContain('drop-shadow');
     expect(markerInstances[1].element.className).not.toContain('drop-shadow');
@@ -496,6 +507,73 @@ describe('MapView', () => {
     }));
   });
 
+  it('draws app-color user heatmap below streets and labels without visible map chrome', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'me',
+            displayName: 'You',
+            approximateLatitude: 40.714,
+            approximateLongitude: -74.004,
+            isCurrentUser: true,
+          },
+          {
+            id: 'user-heat-a',
+            displayName: 'Heat A',
+            approximateLatitude: 40.718,
+            approximateLongitude: -74.002,
+          },
+          {
+            id: 'npc-ghost',
+            displayName: 'NPC Ghost',
+            approximateLatitude: 40.719,
+            approximateLongitude: -74.003,
+            npcGhostDemo: true,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /heat map/i })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(mapInstances[0]).toBeDefined();
+    });
+
+    act(() => {
+      mapInstances[0].trigger('load');
+    });
+
+    await waitFor(() => {
+      expect(mapInstances[0].addSource).toHaveBeenCalledWith(
+        'cruush-user-heatmap',
+        expect.objectContaining({ type: 'geojson' })
+      );
+    });
+    const heatmapSource = mapInstances[0].sources.get('cruush-user-heatmap');
+    expect(heatmapSource.data.features).toHaveLength(1);
+    expect(heatmapSource.data.features[0].geometry.coordinates).toEqual([-74.002, 40.718]);
+
+    const heatmapLayerCall = mapInstances[0].addLayer.mock.calls.find(([layer]) => layer.id === 'cruush-user-heatmap-layer');
+    expect(heatmapLayerCall?.[1]).toBe('minor-roads');
+    expect(heatmapLayerCall?.[0]).toEqual(expect.objectContaining({
+      id: 'cruush-user-heatmap-layer',
+      type: 'heatmap',
+      paint: expect.objectContaining({
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 0.9, 14, 1.65, 16, 2.15],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 26, 14, 52, 16, 74],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.36, 16.75, 0.3],
+        'heatmap-color': expect.arrayContaining([
+          'rgba(17, 129, 255, 0.36)',
+          'rgba(111, 0, 255, 0.55)',
+          'rgba(255, 0, 114, 0.68)',
+          'rgba(255, 226, 74, 0.7)',
+        ]),
+      }),
+    }));
+  });
+
   it('renders photo markers with current and nearby styling', async () => {
     render(
       <MapView
@@ -527,12 +605,17 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('clipPath path')).toHaveAttribute('d', HEART_PIN_PHOTO_PATH);
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-rim')).toBeInTheDocument();
     expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-photo-fill-user-photo')).toHaveAttribute('href', 'https://example.com/kai.jpg');
+    expect(screen.getByTestId('marker-photo-fill-user-photo').getAttribute('clip-path')).toContain('marker-photo-clip-user-photo');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-marker-theme', 'nearby');
     expect(screen.queryByLabelText('versatile')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-badge-me')).toHaveClass('cruush-glass-soft');
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
   });
@@ -586,10 +669,12 @@ describe('MapView', () => {
 
     expect(await screen.findByTestId('marker-photo-fill-user-mutual')).toHaveAttribute('href', 'https://example.com/river.jpg');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveAttribute('data-marker-theme', 'mutual');
-    expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('h-20', 'w-20');
+    expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('cruush-heart-glass-svg', 'h-20', 'w-20');
+    expect(screen.getByTestId('marker-heart-user-mutual').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#6f00ff');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
-    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('border-[#6f00ff]/80');
+    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('cruush-glass-soft', 'border-[#6f00ff]/80');
     expect(screen.getByLabelText('mutual cruush')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass('cruush-glass-soft');
     expect(screen.getByTestId('marker-relationship-user-mutual').querySelector('img')?.getAttribute('src')).toContain('safety-white');
   });
 
@@ -889,6 +974,60 @@ describe('MapView', () => {
     });
   });
 
+  it('spiderfies people sharing the same coordinates instead of zooming again', async () => {
+    const onPinClick = vi.fn();
+
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          {
+            id: 'user-a',
+            displayName: 'A',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+          },
+          {
+            id: 'user-b',
+            displayName: 'B',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+          },
+          {
+            id: 'user-c',
+            displayName: 'C',
+            approximateLatitude: 40.742,
+            approximateLongitude: -73.96,
+          },
+        ]}
+      />
+    );
+
+    const cluster = await screen.findByRole('button', { name: 'Open 2 nearby people sharing this map spot' });
+    expect(screen.getByTestId('people-cluster-marker-people-0')).toHaveTextContent('2');
+    expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(cluster);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const firstSpiderfiedMarker = await screen.findByRole('button', { name: 'Open A on map' });
+    const secondSpiderfiedMarker = screen.getByRole('button', { name: 'Open B on map' });
+    expect(firstSpiderfiedMarker).toHaveAttribute('data-spiderfied', 'true');
+    expect(firstSpiderfiedMarker).toHaveAttribute('data-spiderfy-count', '2');
+    expect(secondSpiderfiedMarker).toHaveAttribute('data-spiderfied', 'true');
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+    expect(onPinClick).not.toHaveBeenCalled();
+    expect(markerInstances.some((marker) => marker.options.subpixelPositioning === true)).toBe(true);
+
+    fireEvent.click(firstSpiderfiedMarker);
+    expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-a' }));
+  });
+
   it('keeps a focused person pin visible instead of hiding it in a nearby cluster', async () => {
     render(
       <MapView
@@ -1016,7 +1155,7 @@ describe('MapView', () => {
       type: 'fill-extrusion',
       source: 'openmaptiles',
       'source-layer': 'building',
-      minzoom: 15,
+      minzoom: 13,
       filter: ['!=', ['get', 'hide_3d'], true],
     }));
     expect(buildingLayer.paint['fill-extrusion-color']).toEqual([
@@ -1036,14 +1175,14 @@ describe('MapView', () => {
       'interpolate',
       ['linear'],
       ['zoom'],
-      15,
+      13,
       0,
-      16,
+      14.4,
       ['get', 'render_height'],
     ]);
     expect(buildingLayer.paint['fill-extrusion-base']).toEqual([
       'case',
-      ['>=', ['get', 'zoom'], 16],
+      ['>=', ['get', 'zoom'], 14.4],
       ['get', 'render_min_height'],
       0,
     ]);
@@ -1087,6 +1226,7 @@ describe('MapView', () => {
 
     await waitFor(() => expect(MockMap.calls).toHaveLength(1));
     expect(MockMap.calls[0]).toEqual(expect.objectContaining({
+      zoom: 14.4,
       pitch: 45,
       bearing: -17.6,
       canvasContextAttributes: { antialias: true },

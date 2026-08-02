@@ -6,6 +6,7 @@ import type {
   LngLatLike,
   Map as MapLibreMap,
   Marker as MapLibreMarker,
+  PointLike,
   StyleSpecification,
 } from 'maplibre-gl';
 import {
@@ -13,7 +14,6 @@ import {
   ArrowUp,
   Bed,
   CircleDot,
-  MessageCircle,
   MinusCircle,
   Mountain,
   MoveHorizontal,
@@ -31,7 +31,7 @@ import {
   type MapMarker,
   type MapMarkerBadge,
 } from '../lib/mapMarkers';
-import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
+import { HEART_PIN_PATH, HEART_PIN_PHOTO_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 
 export { createMapMarkerBadge };
 
@@ -61,7 +61,9 @@ interface MapViewProps {
 
 const DEFAULT_CENTER: LngLatLike = [-74.006, 40.7128];
 const DEFAULT_ZOOM = 12;
+const DEFAULT_3D_BUILDINGS_ZOOM = 14.4;
 const FOCUSED_ZOOM = 14;
+const FOCUSED_3D_BUILDINGS_ZOOM = 15.25;
 const MIN_DISCOVERY_ZOOM = 10.5;
 const NYC_METRO_MAX_BOUNDS: [[number, number], [number, number]] = [
   [-74.65, 40.35],
@@ -87,13 +89,20 @@ const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
 const PERSON_CLUSTER_ZOOM_STEP = 1.5;
+const SAME_LOCATION_CLUSTER_PRECISION = 6;
+const SPIDERFY_RADIUS_PX = 86;
+const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
+const SPIDERFY_SECOND_RING_AFTER = 10;
+const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
+const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
+const MAP_DETAIL_LAYER_TYPES = new Set(['line', 'symbol']);
 
 const MAP_3D_BUILDING_LAYER: StyleSpecification['layers'][number] = {
   id: 'building-extrusions-dark',
   type: 'fill-extrusion',
   source: 'openmaptiles',
   'source-layer': 'building',
-  minzoom: 15,
+  minzoom: 13,
   filter: ['!=', ['get', 'hide_3d'], true],
   paint: {
     'fill-extrusion-color': [
@@ -113,14 +122,14 @@ const MAP_3D_BUILDING_LAYER: StyleSpecification['layers'][number] = {
       'interpolate',
       ['linear'],
       ['zoom'],
-      15,
+      13,
       0,
-      16,
+      14.4,
       ['get', 'render_height'],
     ],
     'fill-extrusion-base': [
       'case',
-      ['>=', ['get', 'zoom'], 16],
+      ['>=', ['get', 'zoom'], 14.4],
       ['get', 'render_min_height'],
       0,
     ],
@@ -488,23 +497,25 @@ export function getMapStyle(enable3dBuildings = isEnabledEnvFlag(import.meta.env
   );
 }
 
-const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
-  bottom: ArrowDown,
-  side: MoveHorizontal,
-  'pillow princess': Bed,
-  'stone top': Mountain,
-  top: ArrowUp,
-  'vers bottom': ArrowDown,
-  'vers top': ArrowUp,
-  versatile: Repeat2,
-  none: MinusCircle,
-  oral: MessageCircle,
-  gooner: CircleDot,
-};
-
 type RenderedMapMarker = {
   marker: MapLibreMarker;
   root: Root;
+};
+
+type SpiderfiedCluster = {
+  center: {
+    approximateLatitude: number;
+    approximateLongitude: number;
+  };
+  memberIds: string[];
+};
+
+type DisplayMapMarker = MapMarker & {
+  spiderfy?: {
+    offset: PointLike;
+    index: number;
+    count: number;
+  };
 };
 
 function isMapMarker(value: MapMarker) {
@@ -513,6 +524,10 @@ function isMapMarker(value: MapMarker) {
 
 function isPersonCluster(marker: MapMarker) {
   return marker.kind === 'cluster' && marker.cluster?.kind === 'people';
+}
+
+function isSpiderfyCluster(marker: MapMarker) {
+  return isPersonCluster(marker) && marker.cluster?.action === 'spiderfy';
 }
 
 function getDisplayName(marker: MapMarker) {
@@ -544,6 +559,20 @@ function mercatorPixelPoint(marker: MapMarker, zoom: number) {
   };
 }
 
+function coordinateKey(marker: Pick<MapMarker, 'approximateLatitude' | 'approximateLongitude'>) {
+  return `${marker.approximateLatitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}:${marker.approximateLongitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}`;
+}
+
+function groupMarkersByCoordinate(markers: MapMarker[]) {
+  return markers.reduce((groups, marker) => {
+    const key = coordinateKey(marker);
+    const group = groups.get(key) ?? [];
+    group.push(marker);
+    groups.set(key, group);
+    return groups;
+  }, new Map<string, MapMarker[]>());
+}
+
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
   if ((marker.kind ?? 'person') !== 'person' || marker.isCurrentUser === true) {
     return false;
@@ -559,7 +588,7 @@ function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['foc
   );
 }
 
-function buildPeopleCluster(group: MapMarker[], index: number): MapMarker {
+function buildPeopleCluster(group: MapMarker[], index: number, action: 'zoom' | 'spiderfy' = 'zoom'): MapMarker {
   const sortedIds = group.map((marker) => marker.id).sort();
   const count = group.length;
   const label = getClusterLabel(count);
@@ -579,22 +608,85 @@ function buildPeopleCluster(group: MapMarker[], index: number): MapMarker {
       label,
       kind: 'people',
       memberIds: sortedIds,
+      action,
     },
   };
+}
+
+function getSpiderfyOffsets(count: number) {
+  return Array.from({ length: count }, (_, index): PointLike => {
+    const isSecondRing = count > SPIDERFY_SECOND_RING_AFTER && index >= SPIDERFY_SECOND_RING_AFTER;
+    const ringIndex = isSecondRing ? index - SPIDERFY_SECOND_RING_AFTER : index;
+    const ringCount = isSecondRing ? count - SPIDERFY_SECOND_RING_AFTER : Math.min(count, SPIDERFY_SECOND_RING_AFTER);
+    const radius = isSecondRing ? SPIDERFY_SECOND_RING_RADIUS_PX : SPIDERFY_RADIUS_PX;
+    const angle = -Math.PI / 2 + (ringIndex / Math.max(1, ringCount)) * Math.PI * 2;
+
+    return [
+      Number((Math.cos(angle) * radius).toFixed(2)),
+      Number((Math.sin(angle) * radius).toFixed(2)),
+    ];
+  });
+}
+
+function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: SpiderfiedCluster | null) {
+  if (!spiderfiedCluster || spiderfiedCluster.memberIds.length < 2) {
+    return new Map<string, DisplayMapMarker>();
+  }
+
+  const markersById = new Map(markers.map((marker) => [marker.id, marker]));
+  const members = spiderfiedCluster.memberIds
+    .map((memberId) => markersById.get(memberId))
+    .filter((marker): marker is MapMarker => Boolean(marker));
+
+  if (members.length < 2 || new Set(members.map(coordinateKey)).size !== 1) {
+    return new Map<string, DisplayMapMarker>();
+  }
+
+  const offsets = getSpiderfyOffsets(members.length);
+
+  return new Map(members.map((marker, index) => [
+    marker.id,
+    {
+      ...marker,
+      spiderfy: {
+        offset: offsets[index],
+        index,
+        count: members.length,
+      },
+    },
+  ]));
 }
 
 function applyPersonMarkerClusters(
   markers: MapMarker[],
   zoom: number,
   focusCoordinates: MapViewProps['focusCoordinates'],
-) {
-  if (zoom >= PERSON_CLUSTER_MAX_ZOOM) {
-    return markers;
-  }
+  spiderfiedCluster: SpiderfiedCluster | null,
+): DisplayMapMarker[] {
+  const spiderfiedMarkersById = getSpiderfiedMarkerMap(markers, spiderfiedCluster);
+  const spiderfiedIds = new Set(spiderfiedMarkersById.keys());
 
   const clusteredIds = new Set<string>();
-  const clusterableMarkers = markers.filter((marker) => canClusterMarker(marker, focusCoordinates));
+  const clusterableMarkers = markers
+    .filter((marker) => canClusterMarker(marker, focusCoordinates))
+    .filter((marker) => !spiderfiedIds.has(marker.id));
   const clusters: MapMarker[] = [];
+  const sameLocationGroups = Array.from(groupMarkersByCoordinate(clusterableMarkers).values())
+    .filter((group) => group.length >= 2);
+
+  sameLocationGroups.forEach((group) => {
+    group.forEach((marker) => clusteredIds.add(marker.id));
+    clusters.push(buildPeopleCluster(group, clusters.length, 'spiderfy'));
+  });
+
+  if (zoom >= PERSON_CLUSTER_MAX_ZOOM) {
+    return [
+      ...markers
+        .filter((marker) => !clusteredIds.has(marker.id))
+        .map((marker) => spiderfiedMarkersById.get(marker.id) ?? marker),
+      ...clusters,
+    ];
+  }
 
   clusterableMarkers.forEach((seed) => {
     if (clusteredIds.has(seed.id)) {
@@ -619,14 +711,47 @@ function applyPersonMarkerClusters(
     clusters.push(buildPeopleCluster(group, clusters.length));
   });
 
-  if (clusters.length === 0) {
-    return markers;
-  }
-
   return [
-    ...markers.filter((marker) => !clusteredIds.has(marker.id)),
+    ...markers
+      .filter((marker) => !clusteredIds.has(marker.id))
+      .map((marker) => spiderfiedMarkersById.get(marker.id) ?? marker),
     ...clusters,
   ];
+}
+
+function isHeatmapMarker(marker: MapMarker) {
+  return (
+    (marker.kind ?? 'person') === 'person' &&
+    marker.isCurrentUser !== true &&
+    marker.npcGhostDemo !== true &&
+    isMapMarker(marker)
+  );
+}
+
+function createUserHeatmapFeatureCollection(markers: MapMarker[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: markers
+      .filter(isHeatmapMarker)
+      .map((marker) => ({
+        type: 'Feature' as const,
+        properties: {
+          weight: 1,
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [marker.approximateLongitude, marker.approximateLatitude],
+        },
+      })),
+  };
+}
+
+function getHeatmapBeforeLayerId(map: MapLibreMap) {
+  if (typeof map.getStyle !== 'function') {
+    return undefined;
+  }
+
+  return map.getStyle().layers?.find((layer) => MAP_DETAIL_LAYER_TYPES.has(layer.type))?.id;
 }
 
 function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 30) {
@@ -649,6 +774,19 @@ function shouldReduceMotion() {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
+
+const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
+  bottom: ArrowDown,
+  side: MoveHorizontal,
+  'pillow princess': Bed,
+  'stone top': Mountain,
+  top: ArrowUp,
+  'vers bottom': ArrowDown,
+  'vers top': ArrowUp,
+  versatile: Repeat2,
+  none: MinusCircle,
+  unknown: CircleDot,
+};
 
 function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
   if (!badge?.iconName) {
@@ -738,7 +876,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   return (
     <svg
       aria-hidden="true"
-      className="h-20 w-20"
+      className="cruush-heart-glass-svg h-20 w-20"
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isNpcGhostDemo ? 'npc-ghost-demo' : theme}
@@ -754,33 +892,32 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           <stop offset="100%" stopColor={gradientTo} />
         </linearGradient>
         <clipPath id={clipId}>
-          <path d={HEART_PIN_PATH} />
+          <path d={HEART_PIN_PHOTO_PATH} />
         </clipPath>
       </defs>
+      <path className="cruush-heart-glass-base" d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
       {hasPhoto ? (
-        <>
-          <image
-            clipPath={`url(#${clipId})`}
-            data-testid={`marker-photo-fill-${marker.id}`}
-            height="64"
-            href={resolvedPhoto}
-            preserveAspectRatio="xMidYMid slice"
-            width="64"
-          />
-          <path d={HEART_PIN_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
-        </>
+        <image
+          clipPath={`url(#${clipId})`}
+          data-testid={`marker-photo-fill-${marker.id}`}
+          height="64"
+          href={resolvedPhoto}
+          preserveAspectRatio="xMidYMid slice"
+          width="64"
+        />
       ) : isCurrentUser && !isMutualCruush ? (
-        <>
-          <path d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
-          <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
-            <div className="flex h-9 w-9 items-center justify-center">
-              <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
-            </div>
-          </foreignObject>
-        </>
-      ) : (
-        <path d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
-      )}
+        <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
+          <div className="flex h-9 w-9 items-center justify-center">
+            <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
+          </div>
+        </foreignObject>
+      ) : null}
+      <path className="cruush-heart-glass-theme-border" d={HEART_PIN_PATH} stroke={borderColor} />
+      <path className="cruush-heart-glass-rim" d={HEART_PIN_PATH} />
+      <path className="cruush-heart-glass-edge cruush-heart-glass-edge-magenta" d={HEART_PIN_PATH} />
+      <path className="cruush-heart-glass-edge cruush-heart-glass-edge-cyan" d={HEART_PIN_PATH} />
+      <path className="cruush-heart-glass-lip" d={HEART_PIN_PATH} />
+      <path className="cruush-heart-glass-specular" d={HEART_PIN_PATH} />
     </svg>
   );
 }
@@ -876,7 +1013,7 @@ function isMapClickFromMarker(event: unknown) {
 }
 
 function createMarkerElement(
-  marker: MapMarker,
+  marker: DisplayMapMarker,
   onPinClick: (marker: MapMarker) => void,
   onMarkerInteraction: () => void,
 ) {
@@ -897,6 +1034,13 @@ function createMarkerElement(
   element.dataset.mapMarkerPin = 'true';
   element.dataset.mapMarkerKind = marker.kind ?? 'person';
 
+  if (marker.spiderfy) {
+    element.dataset.spiderfied = 'true';
+    element.dataset.spiderfyIndex = String(marker.spiderfy.index);
+    element.dataset.spiderfyCount = String(marker.spiderfy.count);
+    element.style.zIndex = String(30 + marker.spiderfy.index);
+  }
+
   if (!isInteractive) {
     element.setAttribute('aria-label', 'Your approximate area');
   } else {
@@ -905,7 +1049,9 @@ function createMarkerElement(
     button.setAttribute('aria-label', marker.kind === 'event'
       ? `Open ${marker.event?.venueName ?? name} launch party on map`
       : marker.kind === 'cluster'
-      ? isPersonCluster(marker)
+      ? isSpiderfyCluster(marker)
+        ? `Open ${marker.cluster?.label ?? name} sharing this map spot`
+        : isPersonCluster(marker)
         ? `Zoom into ${marker.cluster?.label ?? name} on map`
         : `Open ${marker.cluster?.label ?? name} on map`
       : `Open ${name} on map`);
@@ -1011,6 +1157,7 @@ function MapView({
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
+  const [spiderfiedCluster, setSpiderfiedCluster] = useState<SpiderfiedCluster | null>(null);
   const mapStyle = useMemo(() => getMapStyle(enable3dBuildings), [enable3dBuildings]);
   const denseMarkerResult = useMemo(
     () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
@@ -1019,9 +1166,13 @@ function MapView({
   const focusLatitude = focusCoordinates?.approximateLatitude ?? null;
   const focusLongitude = focusCoordinates?.approximateLongitude ?? null;
   const renderedMarkers = useMemo(
-    () => applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates),
-    [currentZoom, denseMarkerResult.markers, focusCoordinates],
+    () => applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates, spiderfiedCluster),
+    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster],
   );
+  const heatmapData = useMemo(() => createUserHeatmapFeatureCollection(markers), [markers]);
+  const heatmapFeatureSignature = useMemo(() => heatmapData.features
+    .map((feature) => feature.geometry.coordinates.map((coordinate) => coordinate.toFixed(6)).join(':'))
+    .join('|'), [heatmapData]);
   const viewportMarkerSignature = useMemo(() => renderedMarkers
     .filter(isMapMarker)
     .map((marker) => [
@@ -1096,7 +1247,7 @@ function MapView({
           container: containerRef.current,
           style,
           center: DEFAULT_CENTER,
-          zoom: DEFAULT_ZOOM,
+          zoom: enable3dBuildings ? DEFAULT_3D_BUILDINGS_ZOOM : DEFAULT_ZOOM,
           pitch: enable3dBuildings ? MAP_3D_BUILDINGS_PITCH : 0,
           bearing: enable3dBuildings ? MAP_3D_BUILDINGS_BEARING : 0,
           ...(enable3dBuildings ? { canvasContextAttributes: { antialias: true } } : {}),
@@ -1146,6 +1297,9 @@ function MapView({
           didLoad = true;
           clearReadyFallbackTimeout();
           clearRenderReadyTimeout();
+          if (typeof map.getZoom === 'function') {
+            setCurrentZoom(map.getZoom());
+          }
           setMapLoadStatus('ready');
           setMapError(null);
         };
@@ -1187,9 +1341,11 @@ function MapView({
             return;
           }
 
+          setSpiderfiedCluster(null);
           onMapClickRef.current?.();
         });
         map.on('zoomend', () => {
+          setSpiderfiedCluster(null);
           if (typeof map.getZoom === 'function') {
             setCurrentZoom(map.getZoom());
           }
@@ -1303,7 +1459,7 @@ function MapView({
             bottom: 170,
             left: 120,
           },
-          maxZoom: FOCUSED_ZOOM,
+          maxZoom: enable3dBuildings ? FOCUSED_3D_BUILDINGS_ZOOM : FOCUSED_ZOOM,
           duration: 500,
         }
       );
@@ -1312,9 +1468,9 @@ function MapView({
     }
 
     map.setCenter([focusLongitude, focusLatitude]);
-    map.setZoom(FOCUSED_ZOOM);
+    map.setZoom(enable3dBuildings ? FOCUSED_3D_BUILDINGS_ZOOM : FOCUSED_ZOOM);
     directFocusRef.current = { map, key: focusKey };
-  }, [fitToMarkers, focusLatitude, focusLongitude, mapInstance, viewportMarkerSignature]);
+  }, [enable3dBuildings, fitToMarkers, focusLatitude, focusLongitude, mapInstance, viewportMarkerSignature]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
@@ -1449,6 +1605,82 @@ function MapView({
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
+
+    if (!map || mapLoadStatus !== 'ready') {
+      return;
+    }
+
+    const getLayer = typeof map.getLayer === 'function' ? map.getLayer.bind(map) : () => undefined;
+    const getSource = typeof map.getSource === 'function' ? map.getSource.bind(map) : () => undefined;
+    const removeLayer = typeof map.removeLayer === 'function' ? map.removeLayer.bind(map) : null;
+    const removeSource = typeof map.removeSource === 'function' ? map.removeSource.bind(map) : null;
+
+    if (heatmapData.features.length === 0) {
+      if (getLayer(USER_HEATMAP_LAYER_ID) && removeLayer) {
+        removeLayer(USER_HEATMAP_LAYER_ID);
+      }
+      if (getSource(USER_HEATMAP_SOURCE_ID) && removeSource) {
+        removeSource(USER_HEATMAP_SOURCE_ID);
+      }
+      return;
+    }
+
+    const existingSource = getSource(USER_HEATMAP_SOURCE_ID) as GeoJSONSource | undefined;
+
+    if (existingSource) {
+      existingSource.setData(heatmapData);
+      return;
+    }
+
+    if (typeof map.addSource !== 'function' || typeof map.addLayer !== 'function') {
+      return;
+    }
+
+    map.addSource(USER_HEATMAP_SOURCE_ID, {
+      type: 'geojson',
+      data: heatmapData,
+    });
+
+    const heatmapLayer = {
+      id: USER_HEATMAP_LAYER_ID,
+      type: 'heatmap' as const,
+      source: USER_HEATMAP_SOURCE_ID,
+      maxzoom: 16.75,
+      paint: {
+        'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 0.9, 14, 1.65, 16, 2.15],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 26, 14, 52, 16, 74],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.36, 16.75, 0.3],
+        'heatmap-color': [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0,
+          'rgba(255, 0, 114, 0)',
+          0.08,
+          'rgba(17, 129, 255, 0.36)',
+          0.26,
+          'rgba(111, 0, 255, 0.55)',
+          0.52,
+          'rgba(255, 0, 114, 0.68)',
+          0.78,
+          'rgba(255, 177, 31, 0.62)',
+          1,
+          'rgba(255, 226, 74, 0.7)',
+        ],
+      },
+    };
+    const beforeId = getHeatmapBeforeLayerId(map);
+
+    if (beforeId) {
+      map.addLayer(heatmapLayer, beforeId);
+    } else {
+      map.addLayer(heatmapLayer);
+    }
+  }, [heatmapFeatureSignature, mapInstance, mapLoadStatus]);
+
+  useEffect(() => {
+    const map = mapInstance ?? mapRef.current;
     const maplibregl = mapLibreRef.current;
 
     if (!map || !maplibregl) {
@@ -1470,24 +1702,48 @@ function MapView({
         const { element, root } = createMarkerElement(
           marker,
           (selectedMarker) => {
+            if (isSpiderfyCluster(selectedMarker)) {
+              const memberIds = selectedMarker.cluster?.memberIds ?? [];
+
+              if (memberIds.length >= 2) {
+                setSpiderfiedCluster({
+                  center: {
+                    approximateLatitude: selectedMarker.approximateLatitude,
+                    approximateLongitude: selectedMarker.approximateLongitude,
+                  },
+                  memberIds,
+                });
+              }
+              return;
+            }
+
             if (isPersonCluster(selectedMarker)) {
               const nextZoom = Math.min(
                 PERSON_CLUSTER_MAX_ZOOM + 0.75,
                 Math.max(currentZoom + PERSON_CLUSTER_ZOOM_STEP, PERSON_CLUSTER_MAX_ZOOM + 0.25),
               );
+              setSpiderfiedCluster(null);
               map.setCenter([selectedMarker.approximateLongitude, selectedMarker.approximateLatitude]);
               map.setZoom(nextZoom);
               setCurrentZoom(nextZoom);
               return;
             }
 
+            setSpiderfiedCluster(null);
             onPinClickRef.current(selectedMarker);
           },
           () => {
             lastMarkerInteractionAtRef.current = Date.now();
           },
         );
-        const mapMarker = new maplibregl.Marker({ element })
+        const mapMarker = new maplibregl.Marker({
+          element,
+          anchor: 'bottom',
+          ...(marker.spiderfy ? {
+            offset: marker.spiderfy.offset,
+            subpixelPositioning: true,
+          } : {}),
+        })
           .setLngLat([marker.approximateLongitude, marker.approximateLatitude])
           .addTo(map);
         return {

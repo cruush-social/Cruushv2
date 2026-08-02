@@ -20,4 +20,20 @@ describe('global text selection policy', () => {
     expect(themeCss).toContain('max-width: 100%;');
     expect(themeCss).toContain('overflow-x: hidden;');
   });
+
+  it('locks page scrolling only while the map shell is mounted', () => {
+    expect(themeCss).toContain('@supports selector(body:has(.cruush-map-shell)) {');
+    expect(themeCss).toContain('body:has(.cruush-map-shell),');
+    expect(themeCss).toContain('#root:has(.cruush-map-shell) {');
+    expect(themeCss).toContain('height: 100dvh;');
+    expect(themeCss).toContain('overflow: hidden;');
+    expect(themeCss).toContain('overscroll-behavior: none;');
+  });
+
+  it('keeps map overlays in color instead of desaturating the whole canvas', () => {
+    expect(themeCss).toContain('.cruush-map .maplibregl-canvas {');
+    expect(themeCss).toContain('filter: brightness(0.86) contrast(1.2) saturate(1);');
+    expect(themeCss).not.toContain('filter: grayscale(1)');
+    expect(themeCss).not.toContain('saturate(0.08)');
+  });
 });

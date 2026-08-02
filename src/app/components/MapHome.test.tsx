@@ -562,8 +562,13 @@ describe('MapHome', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-14');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-16');
+    expect(screen.getByTestId('map-brand-glass')).toHaveClass('cruush-map-logo-shell', 'h-[4.35rem]', 'sm:h-[5rem]');
+    expect(screen.getByTestId('map-brand-glass')).not.toHaveClass('rounded-[1.35rem]');
+    expect(screen.getByTestId('map-brand-glass').getAttribute('style')).toContain('--cruush-map-logo-mask');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-full');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('w-full');
+    expect(screen.getByTestId('map-brand-logo')).toHaveClass('cruush-map-logo-glass');
+    expect(screen.getByTestId('map-beta-tag')).toHaveClass('text-[9px]', 'sm:text-[10px]');
     expect(screen.getByText('nyc open beta')).toHaveClass('lowercase');
     expect(screen.getByText('nyc open beta').parentElement).toHaveClass('flex-col', 'items-center');
 
@@ -588,7 +593,7 @@ describe('MapHome', () => {
     const recentPanel = screen.getByTestId('recently-active-panel');
     const recentToggle = screen.getByRole('button', { name: 'Show recently active bar' });
 
-    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(7.25rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
     expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
@@ -599,6 +604,8 @@ describe('MapHome', () => {
     expect(recentPanel).toHaveClass('w-full', 'max-w-full', 'p-2');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
     expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
+    expect(screen.getByTestId('recently-active-tile-user-1').firstElementChild).toHaveClass('overflow-hidden', 'border', 'bg-white/[0.06]');
+    expect(within(screen.getByTestId('recently-active-tile-user-1')).queryByRole('img', { name: /heart preview/i })).not.toBeInTheDocument();
   });
 
   it('does not show a saved launch pass icon outside the one-mile live radius or duplicate the chat invite', async () => {
@@ -763,12 +770,13 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
     expect(topActions).toHaveClass('pointer-events-auto', 'mt-0', 'gap-0.5', 'p-0.5');
     expect(topActions).not.toHaveClass('mt-11');
-    expect(rightActions).toHaveClass('right-3', 'top-12', 'sm:right-4');
+    expect(rightActions).toHaveClass('right-3', 'top-[4.5rem]', 'sm:right-4', 'sm:top-[4.75rem]');
     expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-5', 'w-5');
     expect(ghostModeIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
+    expect(ghostModeButton).toHaveAttribute('aria-pressed', 'false');
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
     expect(map3dButton).toHaveAttribute('aria-pressed', 'false');
@@ -1554,8 +1562,11 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lat', '40.7128');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lng', '-74.006');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
-    expect(decodeURIComponent(screen.getByRole('button', { name: 'Ghost Mode Settings' }).querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
-    expect(decodeURIComponent(screen.getByText('Ghost Mode Active').querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
+    const ghostModeButton = screen.getByRole('button', { name: 'Ghost Mode Settings' });
+    expect(ghostModeButton).toHaveAttribute('aria-pressed', 'true');
+    expect(ghostModeButton).toHaveClass('bg-white/10', 'ring-1', 'ring-white/15');
+    expect(decodeURIComponent(ghostModeButton.querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
+    expect(screen.queryByText('Ghost Mode Active')).not.toBeInTheDocument();
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
@@ -1674,6 +1685,10 @@ describe('MapHome', () => {
     expect(screen.queryByText('0.2 mi')).not.toBeInTheDocument();
     expect(recentTile).toHaveClass('w-20');
     expect(recentMedia?.className).toContain('aspect-[4/5]');
+    expect(recentMedia?.className).toContain('overflow-hidden');
+    expect(recentMedia?.className).toContain('border');
+    expect(recentMedia?.querySelector('.cruush-heart-glass-svg')).toBeNull();
+    expect(within(recentTile).queryByRole('img', { name: /heart preview/i })).not.toBeInTheDocument();
     expect(within(recentTray).queryByText(/./)).not.toBeInTheDocument();
 
     fireEvent.click(recentToggle);

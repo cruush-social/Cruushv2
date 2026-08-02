@@ -39,6 +39,7 @@ export type MapMarker = {
     label: string;
     kind?: 'venue' | 'people';
     memberIds?: string[];
+    action?: 'zoom' | 'spiderfy';
   };
 };
 
