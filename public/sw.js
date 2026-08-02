@@ -1,25 +1,14 @@
-const CACHE_NAME = 'cruush-app-shell-v8';
+const CACHE_NAME = 'cruush-app-shell-v9';
+const LEGACY_CACHE_PREFIX = 'cruush-app-shell-';
 const REFRESH_QUERY_PARAM = 'cruush_app_shell';
-const REFRESH_QUERY_VALUE = 'v8';
-const OFFLINE_APP_SHELL_URL = '/';
-const APP_SHELL_URLS = [
-  '/manifest.webmanifest',
-  '/icons/favicon-16.png',
-  '/icons/favicon-32.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/apple-touch-icon.png'
-];
+const REFRESH_QUERY_VALUE = 'v9';
 
-async function refreshOfflineAppShell() {
-  const cache = await caches.open(CACHE_NAME);
-  const response = await fetch(OFFLINE_APP_SHELL_URL, { cache: 'no-store' });
+async function deleteAppShellCaches() {
+  const keys = await caches.keys();
 
-  if (response.ok) {
-    await cache.put(OFFLINE_APP_SHELL_URL, response.clone());
-  }
-
-  await cache.addAll(APP_SHELL_URLS);
+  await Promise.all(keys
+    .filter((key) => key.startsWith(LEGACY_CACHE_PREFIX))
+    .map((key) => caches.delete(key)));
 }
 
 function withRefreshMarker(clientUrl) {
@@ -58,17 +47,14 @@ async function reloadControlledClients() {
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    refreshOfflineAppShell()
+    deleteAppShellCaches()
       .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys
-        .filter((key) => key !== CACHE_NAME)
-        .map((key) => caches.delete(key))))
+    deleteAppShellCaches()
       .then(() => self.clients.claim())
       .then(() => reloadControlledClients())
   );
@@ -81,7 +67,7 @@ self.addEventListener('message', (event) => {
 
   if (event.data?.type === 'CLIENT_REFRESH_REQUESTED') {
     event.waitUntil(
-      refreshOfflineAppShell()
+      deleteAppShellCaches()
         .then(() => reloadControlledClients())
         .catch(() => undefined)
     );
@@ -148,26 +134,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request, { cache: 'no-store' })
-        .then((response) => {
-          if (response.ok) {
-            const responseClone = response.clone();
-            event.waitUntil(
-              caches.open(CACHE_NAME)
-                .then((cache) => cache.put(OFFLINE_APP_SHELL_URL, responseClone))
-                .catch(() => undefined)
-            );
-          }
-
-          return response;
-        })
-        .catch(() => caches.match(OFFLINE_APP_SHELL_URL))
-    );
+    event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
-  );
+  event.respondWith(fetch(request, { cache: 'no-store' }));
 });

@@ -7,7 +7,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      const APP_SHELL_REFRESH_ID = "v8";
+      const APP_SHELL_REFRESH_ID = "v9";
       let hasController = Boolean(navigator.serviceWorker.controller);
       let reloadStarted = false;
 
