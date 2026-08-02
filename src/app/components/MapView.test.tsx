@@ -1193,6 +1193,16 @@ describe('MapView', () => {
     expect(validateStyleMin(style)).toEqual([]);
   });
 
+  it('lets the runtime 3D setting override the map test env flag', () => {
+    vi.stubEnv('VITE_MAP_ENABLE_3D_BUILDINGS', 'true');
+
+    const disabledStyle = getMapStyle(false) as any;
+    const enabledStyle = getMapStyle(true) as any;
+
+    expect(disabledStyle.layers.some((layer: any) => layer.id === 'building-extrusions-dark')).toBe(false);
+    expect(enabledStyle.layers.some((layer: any) => layer.id === 'building-extrusions-dark')).toBe(true);
+  });
+
   it('pitches the map only when 3D buildings are enabled', async () => {
     vi.stubEnv('VITE_MAP_ENABLE_3D_BUILDINGS', 'true');
 

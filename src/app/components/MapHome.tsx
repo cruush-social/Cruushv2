@@ -3,7 +3,7 @@
 import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ExternalLink, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Building2, ExternalLink, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -320,6 +320,37 @@ const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
 const MAP_CONTROLS_INTRO_STORAGE_KEY = 'cruush:map-controls-intro-seen';
+const MAP_3D_MODE_STORAGE_KEY = 'cruush:map-3d-mode-enabled';
+
+function isEnabledEnvFlag(value: string | undefined) {
+  return ['1', 'true', 'yes', 'on'].includes(value?.trim().toLowerCase() ?? '');
+}
+
+function getInitial3dMapMode() {
+  try {
+    const storedValue = window.localStorage.getItem(MAP_3D_MODE_STORAGE_KEY);
+
+    if (storedValue === 'true') {
+      return true;
+    }
+
+    if (storedValue === 'false') {
+      return false;
+    }
+  } catch {
+    return isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS);
+  }
+
+  return isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS);
+}
+
+function persist3dMapMode(enabled: boolean) {
+  try {
+    window.localStorage.setItem(MAP_3D_MODE_STORAGE_KEY, String(enabled));
+  } catch {
+    // Preference persistence is best effort; the control should still work.
+  }
+}
 
 function toRadians(degrees: number) {
   return degrees * Math.PI / 180;
@@ -394,6 +425,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [emailingEventPass, setEmailingEventPass] = useState(false);
   const [joiningEventChat, setJoiningEventChat] = useState(false);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const [is3dMapModeEnabled, setIs3dMapModeEnabled] = useState(getInitial3dMapMode);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [mapControlsIntroOpen, setMapControlsIntroOpen] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
@@ -413,6 +445,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
   const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
   const hasCruushPlus = billingStatus?.cruushPlus !== false;
+
+  const handleToggle3dMapMode = () => {
+    setIs3dMapModeEnabled((currentValue) => {
+      const nextValue = !currentValue;
+      persist3dMapMode(nextValue);
+      return nextValue;
+    });
+  };
 
   const syncApproximateMapLocation = (approximateLocation: ApproximateCoordinates) => {
     void syncMyLocation({
@@ -1528,6 +1568,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               setSelectedEventSlug(null);
             }}
             markers={mapMarkers}
+            enable3dBuildings={is3dMapModeEnabled}
             fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
             focusCoordinates={
               focusedMapLocation ??
@@ -1834,6 +1875,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
           </Button>
 
           <div className="flex flex-col gap-2">
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={handleToggle3dMapMode}
+              aria-label={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
+              aria-pressed={is3dMapModeEnabled}
+              title={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
+              className={`cruush-glass-pill rounded-full border text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md hover:bg-white/10 ${
+                is3dMapModeEnabled ? 'border-white/15' : 'border-white/10 bg-background/55'
+              }`}
+              style={is3dMapModeEnabled ? { background: 'var(--cruush-gradient)' } : undefined}
+            >
+              <Building2 className="h-4 w-4" />
+            </Button>
             <Button
               size="icon"
               variant="secondary"

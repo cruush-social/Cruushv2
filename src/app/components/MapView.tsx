@@ -50,6 +50,7 @@ interface MapViewProps {
   onMapClick?: () => void;
   onMapReady?: (map: MapLibreMap) => void;
   markers: MapMarker[];
+  enable3dBuildings?: boolean;
   fitToMarkers?: boolean;
   focusCoordinates?: {
     approximateLatitude: number;
@@ -478,7 +479,7 @@ export function createCruushVectorStyle(
   };
 }
 
-export function getMapStyle() {
+export function getMapStyle(enable3dBuildings = isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS)) {
   const configuredStyleUrl = import.meta.env.VITE_MAP_STYLE_URL?.trim();
 
   if (configuredStyleUrl) {
@@ -495,12 +496,8 @@ export function getMapStyle() {
   return createCruushVectorStyle(
     configuredVectorTileJsonUrl || DEFAULT_VECTOR_TILEJSON_URL,
     configuredGlyphsUrl || undefined,
-    isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS),
+    enable3dBuildings,
   );
-}
-
-function shouldPitchMapFor3dBuildings() {
-  return isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS);
 }
 
 const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
@@ -1141,6 +1138,7 @@ function MapView({
   onMapClick,
   onMapReady,
   markers,
+  enable3dBuildings = isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS),
   fitToMarkers = false,
   focusCoordinates,
   radiusCircle,
@@ -1166,8 +1164,7 @@ function MapView({
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
   const [spiderfiedCluster, setSpiderfiedCluster] = useState<SpiderfiedCluster | null>(null);
   const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(true);
-  const mapStyle = useMemo(() => getMapStyle(), []);
-  const pitchFor3dBuildings = useMemo(() => shouldPitchMapFor3dBuildings(), []);
+  const mapStyle = useMemo(() => getMapStyle(enable3dBuildings), [enable3dBuildings]);
   const denseMarkerResult = useMemo(
     () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
     [currentZoom, denseVenue, markers],
@@ -1228,6 +1225,8 @@ function MapView({
     let isMounted = true;
     let attemptedRasterFallback = false;
     const shouldFallbackToRaster = canFallbackToDefaultRasterStyle(mapStyle);
+    setMapLoadStatus('loading');
+    setMapError(null);
 
     const initializeMap = async () => {
       const [mapLibreModule] = await Promise.all([
@@ -1255,9 +1254,9 @@ function MapView({
           style,
           center: DEFAULT_CENTER,
           zoom: DEFAULT_ZOOM,
-          pitch: pitchFor3dBuildings ? MAP_3D_BUILDINGS_PITCH : 0,
-          bearing: pitchFor3dBuildings ? MAP_3D_BUILDINGS_BEARING : 0,
-          ...(pitchFor3dBuildings ? { canvasContextAttributes: { antialias: true } } : {}),
+          pitch: enable3dBuildings ? MAP_3D_BUILDINGS_PITCH : 0,
+          bearing: enable3dBuildings ? MAP_3D_BUILDINGS_BEARING : 0,
+          ...(enable3dBuildings ? { canvasContextAttributes: { antialias: true } } : {}),
           minZoom: MIN_DISCOVERY_ZOOM,
           maxBounds: NYC_METRO_MAX_BOUNDS,
           renderWorldCopies: false,
@@ -1408,7 +1407,7 @@ function MapView({
       mapRef.current = null;
       setMapInstance(null);
     };
-  }, [mapStyle, pitchFor3dBuildings]);
+  }, [enable3dBuildings, mapStyle]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

@@ -181,6 +181,7 @@ vi.mock('./MapView', async () => {
     },
     default: ({
       markers,
+      enable3dBuildings,
       fitToMarkers,
       focusCoordinates,
       radiusCircle,
@@ -190,6 +191,7 @@ vi.mock('./MapView', async () => {
       onMapReady,
     }: {
       markers: any[];
+      enable3dBuildings?: boolean;
       fitToMarkers?: boolean;
       focusCoordinates?: { approximateLatitude: number; approximateLongitude: number } | null;
       radiusCircle?: {
@@ -215,6 +217,7 @@ vi.mock('./MapView', async () => {
             data-lat={focusCoordinates ? String(focusCoordinates.approximateLatitude) : ''}
             data-lng={focusCoordinates ? String(focusCoordinates.approximateLongitude) : ''}
             data-fit-to-markers={String(Boolean(fitToMarkers))}
+            data-3d-buildings={String(Boolean(enable3dBuildings))}
             data-radius-circle={radiusCircle ? String(radiusCircle.radiusMeters) : ''}
             data-radius-lat={radiusCircle ? String(radiusCircle.center.approximateLatitude) : ''}
             data-radius-lng={radiusCircle ? String(radiusCircle.center.approximateLongitude) : ''}
@@ -748,6 +751,7 @@ describe('MapHome', () => {
     const dlModeButton = screen.getByRole('button', { name: 'Turn DL Mode off' });
     const ghostModeIcon = ghostModeButton.querySelector('img');
     const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
+    const map3dButton = screen.getByRole('button', { name: 'Turn 3D map on' });
     const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
 
     const topActions = screen.getByTestId('map-top-actions');
@@ -767,11 +771,19 @@ describe('MapHome', () => {
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
+    expect(map3dButton).toHaveAttribute('aria-pressed', 'false');
+    expect(map3dButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(screen.queryByText('DL Mode Active')).not.toBeInTheDocument();
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-3d-buildings', 'false');
+
+    fireEvent.click(map3dButton);
+    expect(window.localStorage.getItem('cruush:map-3d-mode-enabled')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Turn 3D map off' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-3d-buildings', 'true');
 
     fireEvent.click(dlModeButton);
     expect(window.localStorage.getItem('cruush:dl-mode-enabled')).toBe('false');
