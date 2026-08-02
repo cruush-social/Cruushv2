@@ -89,3 +89,8 @@ coverage/
 
 # Ignore docs
 .docs/design-master.md
+
+# Claude Code (local/machine-specific state)
+.claude/settings.local.json
+.claude/worktrees/
+._.claude
