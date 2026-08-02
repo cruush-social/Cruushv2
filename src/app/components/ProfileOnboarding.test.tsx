@@ -9,10 +9,13 @@ const { acceptCodeOfConduct, persistCurrentUser, saveMyProfile } = vi.hoisted(()
   saveMyProfile: vi.fn(),
 }));
 
-const { completeTwoFactorSetup, startTwoFactorSetup } = vi.hoisted(() => ({
+const { completeTwoFactorSetup, getRewardSummary, startTwoFactorSetup } = vi.hoisted(() => ({
   completeTwoFactorSetup: vi.fn(),
+  getRewardSummary: vi.fn(),
   startTwoFactorSetup: vi.fn(),
 }));
+
+const toastSuccess = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/authApi', () => ({
   acceptCodeOfConduct,
@@ -32,8 +35,50 @@ vi.mock('../lib/sessionUser', () => ({
 
 vi.mock('../lib/rewardsApi', () => ({
   completeTwoFactorSetup,
+  getRewardSummary,
   startTwoFactorSetup,
 }));
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: toastSuccess,
+  },
+}));
+
+const rewardSummary = {
+  streak: {
+    current: 0,
+    longest: 0,
+    todayQualified: false,
+    nextRecurringInDays: 7,
+    nextLongBonusInDays: 30,
+    nextLoginBonusAtDays: 8,
+  },
+  promotionalAccess: {
+    active: false,
+    activeUntil: null,
+    bankedDays: 0,
+    effectiveCruushPlus: false,
+  },
+  referrals: {
+    pending: 0,
+    qualified: 0,
+    underReview: 0,
+    code: 'abcdefghijklmnop',
+    link: 'https://cruush.test/?ref=abcdefghijklmnop',
+  },
+  recentGrants: [],
+  timezone: 'America/New_York',
+  rules: {
+    recurringStreakDays: 7,
+    recurringStreakRewardDays: 1,
+    longStreakDays: 30,
+    longStreakBonusDays: 7,
+    referralRewardDays: 7,
+    referralMinAccountAgeDays: 7,
+    maxBankedPromotionalDays: 90,
+  },
+};
 
 async function chooseMultiSelect(label: string, value: string) {
   fireEvent.click(screen.getByRole('button', { name: label }));
@@ -97,18 +142,32 @@ async function fillProfileRites() {
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 }
 
+async function skipTwoFactorAndEnter() {
+  fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
+  expect(await screen.findByText('summon your circle')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
+}
+
 describe('ProfileOnboarding', () => {
   beforeEach(() => {
     acceptCodeOfConduct.mockReset();
     completeTwoFactorSetup.mockReset();
+    getRewardSummary.mockReset();
     persistCurrentUser.mockReset();
     saveMyProfile.mockReset();
     startTwoFactorSetup.mockReset();
+    toastSuccess.mockReset();
+    delete (navigator as Navigator & { share?: unknown }).share;
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
     saveMyProfile.mockResolvedValue({
       id: 'user-1',
       display_name: 'River',
       year_of_birth: 1998,
     });
+    getRewardSummary.mockResolvedValue(rewardSummary);
     acceptCodeOfConduct.mockResolvedValue({
       needsCodeOfConduct: false,
       codeOfConductVersion: '2026-07-07',
@@ -220,7 +279,7 @@ describe('ProfileOnboarding', () => {
 
     fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
-    fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
+    await skipTwoFactorAndEnter();
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       identities: ['trans woman', 'nonbinary', 'woman'],
@@ -260,7 +319,7 @@ describe('ProfileOnboarding', () => {
       name: /i have read and agree to the cruush code of conduct/i,
     }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
-    fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
+    await skipTwoFactorAndEnter();
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
     expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({
@@ -297,6 +356,43 @@ describe('ProfileOnboarding', () => {
     expect(saveMyProfile.mock.invocationCallOrder[0]).toBeLessThan(acceptCodeOfConduct.mock.invocationCallOrder[0]);
   });
 
+  it('lets users share their affiliate link to contacts during onboarding', async () => {
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    });
+    const onComplete = vi.fn();
+    render(<ProfileOnboarding onComplete={onComplete} />);
+
+    await fillProfileRites();
+    fireEvent.click(screen.getByRole('button', { name: /skip 2fa for now/i }));
+
+    expect(await screen.findByText('summon your circle')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Affiliate link')).toHaveValue(rewardSummary.referrals.link);
+
+    fireEvent.click(screen.getByRole('button', { name: /share to contacts/i }));
+
+    await waitFor(() => {
+      expect(navigator.share).toHaveBeenCalledWith({
+        title: 'Join me on cruush',
+        text: 'Join me on cruush.',
+        url: rewardSummary.referrals.link,
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /copy link/i }));
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(rewardSummary.referrals.link);
+    });
+    expect(toastSuccess).toHaveBeenCalledWith('Affiliate link copied.');
+
+    fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
+    expect(onComplete).toHaveBeenCalledWith(undefined, 'map');
+  });
+
   it('lets users enable 2FA directly during onboarding before entering the map', async () => {
     const onComplete = vi.fn();
     render(<ProfileOnboarding onComplete={onComplete} />);
@@ -322,6 +418,8 @@ describe('ProfileOnboarding', () => {
     expect(await screen.findByText('2FA is active.')).toBeInTheDocument();
     expect(screen.getByText('alpha-111')).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    expect(await screen.findByText('summon your circle')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));

@@ -44,7 +44,6 @@ const EmailVerificationGate = lazy(() => import('./components/EmailVerificationG
 const BottomNav = lazy(() => import('./components/BottomNav'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
-const AffiliateSharePrompt = lazy(() => import('./components/AffiliateSharePrompt'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
 const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
 const PublicInfoPage = lazy(() => import('./components/PublicInfoPage'));
@@ -370,7 +369,6 @@ export default function App({
             <MobileInstallPrompt />
             <DlModeDefaultNotice />
             <BetaLaunchCruushPlusOffer userId={session.user.id} />
-            <AffiliateSharePrompt userId={session.user.id} />
             <BottomNav />
             <DebugCruushPlusToggle />
             {alphaBugControl}

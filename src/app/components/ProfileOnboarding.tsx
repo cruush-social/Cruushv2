@@ -1,13 +1,21 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { CROWDS, IDENTITIES, LOOKING_FOR, PRONOUNS, VIBE_GROUPS } from '../lib/profileOptions';
-import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { acceptCodeOfConduct, type AuthSessionPayload } from '../lib/authApi';
 import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
 import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload } from '../lib/profileApi';
-import { completeTwoFactorSetup, startTwoFactorSetup, type TwoFactorSetup } from '../lib/rewardsApi';
+import {
+  completeTwoFactorSetup,
+  getRewardSummary,
+  startTwoFactorSetup,
+  type RewardSummary,
+  type TwoFactorSetup,
+} from '../lib/rewardsApi';
 import { persistCurrentUser } from '../lib/sessionUser';
+import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
 
 interface ProfileOnboardingProps {
@@ -16,7 +24,18 @@ interface ProfileOnboardingProps {
   codeOfConductVersion?: string;
 }
 
-type OnboardingStep = 'name' | 'age' | 'pronouns' | 'identities' | 'crowds' | 'lookingFor' | 'vibes' | 'bio' | 'oath' | 'twoFactor';
+type OnboardingStep =
+  | 'name'
+  | 'age'
+  | 'pronouns'
+  | 'identities'
+  | 'crowds'
+  | 'lookingFor'
+  | 'vibes'
+  | 'bio'
+  | 'oath'
+  | 'twoFactor'
+  | 'affiliateShare';
 
 type DateOfBirthParts = {
   month: string;
@@ -85,6 +104,11 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
     rite: 'protect your key',
     title: 'Set up 2FA?',
     detail: 'Optional, but affiliate-link signups count only after the referred account enables 2FA.',
+  },
+  affiliateShare: {
+    rite: 'summon your circle',
+    title: 'Share your affiliate link.',
+    detail: 'Send it to trusted contacts before you enter the map.',
   },
 };
 
@@ -236,7 +260,9 @@ export default function ProfileOnboarding({
   codeOfConductVersion = '',
 }: ProfileOnboardingProps) {
   // Minimal onboarding steps, but state includes all schema fields for upsert
-  const steps = needsCodeOfConduct ? [...PROFILE_STEPS, 'oath', 'twoFactor'] : [...PROFILE_STEPS, 'twoFactor'];
+  const steps: OnboardingStep[] = needsCodeOfConduct
+    ? [...PROFILE_STEPS, 'oath', 'twoFactor', 'affiliateShare']
+    : [...PROFILE_STEPS, 'twoFactor', 'affiliateShare'];
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<OnboardingProfileState>({
     name: '',
@@ -299,10 +325,35 @@ export default function ProfileOnboarding({
   const [twoFactorSaving, setTwoFactorSaving] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
+  const [rewardSummary, setRewardSummary] = useState<RewardSummary | null>(null);
+  const [rewardSummaryLoading, setRewardSummaryLoading] = useState(false);
+  const [rewardSummaryError, setRewardSummaryError] = useState<string | null>(null);
+  const currentStep = steps[step];
+  const affiliateLink = rewardSummary?.referrals.link ?? '';
+  const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
   const setProfileField = <K extends keyof OnboardingProfileState>(field: K, value: OnboardingProfileState[K]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
+
+  const loadRewardSummary = async () => {
+    setRewardSummaryLoading(true);
+    setRewardSummaryError(null);
+
+    try {
+      setRewardSummary(await getRewardSummary());
+    } catch (error) {
+      setRewardSummaryError(error instanceof Error ? error.message : 'Unable to load your affiliate link.');
+    } finally {
+      setRewardSummaryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentStep === 'affiliateShare' && !rewardSummary && !rewardSummaryLoading && !rewardSummaryError) {
+      void loadRewardSummary();
+    }
+  }, [currentStep]);
 
   const updateDateOfBirthPart = (part: keyof DateOfBirthParts, value: string) => {
     const nextParts = {
@@ -340,8 +391,48 @@ export default function ProfileOnboarding({
         return oathAccepted;
       case 'twoFactor':
         return true;
+      case 'affiliateShare':
+        return true;
       default:
         return true;
+    }
+  };
+
+  const retryRewardSummary = () => {
+    setRewardSummary(null);
+    void loadRewardSummary();
+  };
+
+  const copyAffiliateLink = async () => {
+    if (!affiliateLink) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(affiliateLink);
+      toast.success('Affiliate link copied.');
+    } catch {
+      setRewardSummaryError('Unable to copy your affiliate link.');
+    }
+  };
+
+  const shareAffiliateLink = async () => {
+    if (!affiliateLink || !canUseNativeShare) {
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: 'Join me on cruush',
+        text: 'Join me on cruush.',
+        url: affiliateLink,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+
+      setRewardSummaryError('Unable to open sharing right now.');
     }
   };
 
@@ -509,15 +600,15 @@ export default function ProfileOnboarding({
         </div>
         <div className="space-y-2 text-center">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-            {STEP_COPY[steps[step]].rite}
+            {STEP_COPY[currentStep].rite}
           </p>
-          <h2 className="text-xl font-semibold text-foreground">{STEP_COPY[steps[step]].title}</h2>
-          <p className="text-sm text-white/62">{STEP_COPY[steps[step]].detail}</p>
+          <h2 className="text-xl font-semibold text-foreground">{STEP_COPY[currentStep].title}</h2>
+          <p className="text-sm text-white/62">{STEP_COPY[currentStep].detail}</p>
           <p className="text-xs text-white/42">Rite {step + 1} of {steps.length}</p>
         </div>
         {/* Step content */}
         {(() => {
-          const field = steps[step];
+          const field = currentStep;
           switch (field) {
             case 'name':
               return (
@@ -780,6 +871,59 @@ export default function ProfileOnboarding({
                   ) : null}
                 </div>
               );
+            case 'affiliateShare':
+              return (
+                <div className="space-y-4">
+                  {rewardSummaryError ? (
+                    <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                      <p>{rewardSummaryError}</p>
+                      <Button className="mt-3" variant="outline" size="sm" onClick={retryRewardSummary}>
+                        Try again
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  <div className="flex items-start gap-3 rounded-md border border-primary/25 bg-primary/10 p-4">
+                    <Gift className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                    <p className="text-sm leading-6 text-white/72">
+                      You get {rewardSummary?.rules.referralRewardDays ?? 7} <CruushPlusWord /> days after a trusted
+                      invite secures their account with 2FA, completes their profile, and reaches{' '}
+                      {rewardSummary?.rules.referralMinAccountAgeDays ?? 7} days old.
+                    </p>
+                  </div>
+
+                  {rewardSummaryLoading ? (
+                    <div className="rounded-md border border-white/10 bg-white/[0.04] p-4 text-sm text-white/58">
+                      Loading your affiliate link...
+                    </div>
+                  ) : null}
+
+                  {!rewardSummaryLoading && affiliateLink ? (
+                    <div className="space-y-3">
+                      <label className="text-sm mb-2 block text-white/82">Affiliate link</label>
+                      <Input aria-label="Affiliate link" value={affiliateLink} readOnly />
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {canUseNativeShare ? (
+                          <Button onClick={() => void shareAffiliateLink()} style={{ background: 'var(--cruush-gradient)' }}>
+                            <Share2 className="h-4 w-4" />
+                            Share to contacts
+                          </Button>
+                        ) : null}
+                        <Button variant={canUseNativeShare ? 'outline' : 'default'} onClick={() => void copyAffiliateLink()}>
+                          <Clipboard className="h-4 w-4" />
+                          Copy link
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {!rewardSummaryLoading && rewardSummary && !affiliateLink ? (
+                    <div className="rounded-md border border-white/10 bg-white/[0.04] p-4 text-sm text-white/58">
+                      Your affiliate link is not ready yet. You can find it in Rewards later.
+                    </div>
+                  ) : null}
+                </div>
+              );
             default:
               return null;
           }
@@ -788,22 +932,31 @@ export default function ProfileOnboarding({
           <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
             Back
           </Button>
-          {step < steps.length - 1 ? (
+          {currentStep === 'twoFactor' && !isFinalStep ? (
+            <div className="flex flex-wrap justify-end gap-2">
+              {!twoFactorEnabled ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setStep((s) => s + 1)}
+                  disabled={!canProceed() || twoFactorSaving}
+                >
+                  Skip 2FA for now <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+              ) : (
+                <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed() || twoFactorSaving}>
+                  Continue <ShieldCheck className="ml-2 w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          ) : step < steps.length - 1 ? (
             <Button onClick={() => setStep((s) => s + 1)} disabled={!canProceed()}>
               Next rite <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           ) : (
             <div className="flex flex-wrap justify-end gap-2">
-              {!twoFactorEnabled ? (
-                <Button variant="outline" onClick={() => void handleComplete('map')} disabled={!canProceed() || saving || twoFactorSaving}>
-                  Skip 2FA for now <Check className="ml-2 w-4 h-4" />
-                </Button>
-              ) : null}
-              {twoFactorEnabled ? (
-                <Button onClick={() => void handleComplete('map')} disabled={!canProceed() || saving}>
-                  Enter cruush <ShieldCheck className="ml-2 w-4 h-4" />
-                </Button>
-              ) : null}
+              <Button onClick={() => void handleComplete('map')} disabled={!canProceed() || saving || twoFactorSaving}>
+                Enter cruush <Check className="ml-2 w-4 h-4" />
+              </Button>
             </div>
           )}
         </div>
