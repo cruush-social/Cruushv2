@@ -151,8 +151,14 @@ function CodePenButterflyField() {
       const butterflies: CodePenButterfly[] = [];
       let activeTexture: import('three').Texture | null = null;
 
+      const isSmallScreen = typeof window.matchMedia === 'function'
+        && window.matchMedia(MOBILE_VIDEO_QUERY).matches;
+      const butterflyCount = isSmallScreen
+        ? Math.ceil(CODEPEN_BUTTERFLY_COUNT / 2)
+        : CODEPEN_BUTTERFLY_COUNT;
+
       renderer.setClearColor(0x000000, 0);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmallScreen ? 1 : 2));
       camera.position.set(250, 500, 1000);
       camera.lookAt(new THREE.Vector3());
 
@@ -288,11 +294,12 @@ function CodePenButterflyField() {
         texture.minFilter = THREE.NearestFilter;
         texture.needsUpdate = true;
 
-        for (let index = 0; index < CODEPEN_BUTTERFLY_COUNT; index += 1) {
+        for (let index = 0; index < butterflyCount; index += 1) {
           const butterfly = new CodePenButterfly(index, texture);
-          const x = (((index + 1) % 3) - 1) * index * 50;
+          const lane = index % 2 === 0 ? -1 : 1;
+          const x = lane * (170 + index * 32);
           const y = ((index % 5) - 2) * 20;
-          const z = (1800 / CODEPEN_BUTTERFLY_COUNT) * index;
+          const z = (1800 / butterflyCount) * index;
 
           butterfly.obj.position.set(x, y, z);
           butterflies.push(butterfly);

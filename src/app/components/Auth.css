@@ -136,8 +136,6 @@
     0 0.55rem 1.25rem rgba(0, 0, 0, 0.55),
     0 0 1.1rem rgba(255, 0, 114, 0.13),
     0 0 1.2rem rgba(17, 129, 255, 0.12);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
   text-shadow: 0 0.35rem 0.85rem rgba(0, 0, 0, 0.88);
   white-space: nowrap;
 }
@@ -194,8 +192,7 @@
   line-height: 1.25rem;
   caret-color: #ff0072;
   box-shadow: var(--cruush-glass-shadow-soft);
-  backdrop-filter: var(--cruush-glass-field-backdrop);
-  -webkit-backdrop-filter: var(--cruush-glass-field-backdrop);
+  background-color: rgba(9, 11, 17, 0.46);
 }
 
 .launch-login-auth-password-field {
@@ -286,8 +283,6 @@
     0 0 1.8rem rgba(255, 0, 114, 0.4),
     0 0 2.4rem rgba(17, 129, 255, 0.36),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  backdrop-filter: saturate(180%) blur(18px);
-  -webkit-backdrop-filter: saturate(180%) blur(18px);
   filter: saturate(1.32) brightness(1.16) contrast(1.04);
 }
 
@@ -325,8 +320,6 @@
     radial-gradient(ellipse at 76% 78%, rgba(42, 78, 255, 0.2), transparent 4rem),
     radial-gradient(ellipse at 18% 70%, rgba(255, 0, 114, 0.18), transparent 3.6rem),
     repeating-linear-gradient(96deg, transparent 0 0.72rem, rgba(255, 255, 255, 0.055) 0.78rem 0.84rem);
-  backdrop-filter: blur(1.1px) saturate(1.18) brightness(1.08);
-  -webkit-backdrop-filter: blur(1.1px) saturate(1.18) brightness(1.08);
   opacity: 0.44;
   transition: opacity 220ms ease;
 }
@@ -755,8 +748,6 @@
       inset 0 0 1.2rem rgba(236, 248, 255, 0.045),
       0 0 0 1px rgba(0, 0, 0, 0.78),
       0 0.58rem 1.2rem rgba(0, 0, 0, 0.52);
-    backdrop-filter: blur(8px) saturate(0.82) contrast(0.85) brightness(0.76);
-    -webkit-backdrop-filter: blur(8px) saturate(0.82) contrast(0.85) brightness(0.76);
   }
 
   .launch-login-auth-password-field .launch-login-auth-input {

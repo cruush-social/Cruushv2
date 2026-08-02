@@ -51,7 +51,7 @@ describe('global text selection policy', () => {
     expect(themeCss).toContain('--cruush-glass-dock-bg: radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.34)');
     expect(themeCss).toContain('--cruush-glass-current-bg: radial-gradient(circle at 34% 8%, rgba(255, 255, 255, 0.42)');
     expect(themeCss).toContain('--cruush-glass-menu-toggle-bg:');
-    expect(themeCss).toContain('--cruush-liquid-shadow: 0 0 0 0.65px rgba(255, 255, 255, 0.55) inset');
+    expect(themeCss).toContain('--cruush-liquid-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22) inset');
     expect(themeCss).toContain('.cruush-glass-menu-toggle {');
     expect(themeCss).toContain('.cruush-liquid-glass-filters {');
     expect(themeCss).toContain('.cruush-liquid-glass-dock {');

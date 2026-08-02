@@ -444,14 +444,14 @@
 }
 
 :root {
-  --cruush-glass-border: rgba(255, 255, 255, 0.45);
-  --cruush-glass-border-soft: rgba(255, 255, 255, 0.22);
+  --cruush-glass-border: rgba(255, 255, 255, 0.55);
+  --cruush-glass-border-soft: rgba(255, 255, 255, 0.34);
   --cruush-glass-highlight: rgba(255, 255, 255, 0.72);
-  --cruush-liquid-shadow: 0 0 0 0.65px rgba(255, 255, 255, 0.55) inset, 0 1.5px 1px rgba(255, 255, 255, 0.38) inset, 0 -18px 34px rgba(0, 0, 0, 0.2) inset, 0 18px 42px rgba(0, 0, 0, 0.32), 0 4px 16px rgba(255, 255, 255, 0.06);
+  --cruush-liquid-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22) inset, 0 1.5px 2px rgba(255, 255, 255, 0.72) inset, 0 -1px 1.5px rgba(255, 255, 255, 0.28) inset, 1.5px 0 2px -1px rgba(255, 255, 255, 0.34) inset, -1.5px 0 2px -1px rgba(255, 255, 255, 0.34) inset, 0 -10px 20px rgba(0, 0, 0, 0.1) inset, 0 14px 34px rgba(0, 0, 0, 0.34);
   --cruush-glass-shadow: var(--cruush-liquid-shadow), 0 0 0 1px rgba(0, 0, 0, 0.18);
-  --cruush-glass-shadow-soft: 0 0 0 0.55px rgba(255, 255, 255, 0.34) inset, 0 1px 1px rgba(255, 255, 255, 0.22) inset, 0 -12px 22px rgba(0, 0, 0, 0.16) inset, 0 12px 28px rgba(0, 0, 0, 0.26), 0 3px 12px rgba(255, 255, 255, 0.045);
-  --cruush-glass-dock-shadow: 0 0 0 0.7px rgba(255, 255, 255, 0.4) inset, 0 1px 1.5px rgba(255, 255, 255, 0.28) inset, 0 -24px 42px rgba(0, 0, 0, 0.24) inset, 0 20px 52px rgba(0, 0, 0, 0.36), 0 8px 24px rgba(255, 255, 255, 0.055);
-  --cruush-glass-current-shadow: 0 0 0 0.6px rgba(255, 255, 255, 0.5) inset, 0 1px 1px rgba(255, 255, 255, 0.34) inset, 0 -10px 20px rgba(0, 0, 0, 0.16) inset, 0 8px 18px rgba(0, 0, 0, 0.22);
+  --cruush-glass-shadow-soft: 0 0 0 1px rgba(255, 255, 255, 0.18) inset, 0 1.5px 2px rgba(255, 255, 255, 0.6) inset, 0 -1px 1.5px rgba(255, 255, 255, 0.22) inset, 1.5px 0 2px -1px rgba(255, 255, 255, 0.28) inset, -1.5px 0 2px -1px rgba(255, 255, 255, 0.28) inset, 0 10px 26px rgba(0, 0, 0, 0.28);
+  --cruush-glass-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.24) inset, 0 2px 2.5px rgba(255, 255, 255, 0.7) inset, 0 -1px 2px rgba(255, 255, 255, 0.26) inset, 2px 0 2.5px -1px rgba(255, 255, 255, 0.32) inset, -2px 0 2.5px -1px rgba(255, 255, 255, 0.32) inset, 0 -12px 26px rgba(0, 0, 0, 0.1) inset, 0 18px 48px rgba(0, 0, 0, 0.4);
+  --cruush-glass-current-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3) inset, 0 1.5px 2px rgba(255, 255, 255, 0.75) inset, 0 -1px 1.5px rgba(255, 255, 255, 0.3) inset, 0 8px 20px rgba(0, 0, 0, 0.26);
   --cruush-glass-backdrop: blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);
   --cruush-glass-backdrop-soft: blur(17px) saturate(1.36) brightness(1.05) contrast(1.01);
   --cruush-glass-dock-backdrop: blur(20px) saturate(1.44) brightness(1.06) contrast(1.02);
@@ -460,14 +460,14 @@
   --cruush-glass-edge-reflection: radial-gradient(circle at 18% 2%, rgba(255, 255, 255, 0.46), transparent 30%), linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.11) 17%, transparent 45%), linear-gradient(118deg, rgba(255, 255, 255, 0.18) 0%, transparent 30% 70%, rgba(255, 255, 255, 0.11) 100%);
   --cruush-glass-material-noise: linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0));
   --cruush-glass-specular: linear-gradient(104deg, transparent 0 35%, rgba(255, 255, 255, 0.1) 43%, rgba(255, 255, 255, 0.42) 49%, rgba(255, 255, 255, 0.1) 55%, transparent 68% 100%);
-  --cruush-glass-surface: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.32), transparent 36%), linear-gradient(180deg, rgba(255, 255, 255, 0.17) 0%, rgba(255, 255, 255, 0.07) 44%, rgba(255, 255, 255, 0.1) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.08), rgba(6, 8, 13, 0.17));
-  --cruush-glass-surface-soft: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.24), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.125) 0%, rgba(255, 255, 255, 0.048) 46%, rgba(255, 255, 255, 0.075) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.07), rgba(6, 8, 13, 0.13));
-  --cruush-glass-panel-bg: radial-gradient(circle at 18% -8%, rgba(255, 255, 255, 0.26), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.052) 46%, rgba(255, 255, 255, 0.085) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.13), rgba(6, 8, 13, 0.24));
-  --cruush-glass-bar-bg: radial-gradient(circle at 18% -10%, rgba(255, 255, 255, 0.28), transparent 36%), linear-gradient(180deg, rgba(255, 255, 255, 0.155) 0%, rgba(255, 255, 255, 0.06) 45%, rgba(255, 255, 255, 0.09) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.06), rgba(6, 8, 13, 0.19));
-  --cruush-glass-control-bg: radial-gradient(circle at 24% 0%, rgba(255, 255, 255, 0.26), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 48%, rgba(255, 255, 255, 0.08) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.08), rgba(6, 8, 13, 0.15));
-  --cruush-glass-control-hover-bg: radial-gradient(circle at 24% 0%, rgba(255, 255, 255, 0.34), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.19) 0%, rgba(255, 255, 255, 0.075) 48%, rgba(255, 255, 255, 0.115) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.07), rgba(6, 8, 13, 0.15));
-  --cruush-glass-menu-toggle-bg: radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.28), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.056) 46%, rgba(255, 255, 255, 0.09) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.06), rgba(6, 8, 13, 0.21));
-  --cruush-glass-dock-bg: radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.34), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.068) 43%, rgba(255, 255, 255, 0.105) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.11), rgba(6, 8, 13, 0.22));
+  --cruush-glass-surface: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.32), transparent 36%), linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.035) 44%, rgba(255, 255, 255, 0.055) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.08), rgba(6, 8, 13, 0.17));
+  --cruush-glass-surface-soft: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.24), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.028) 46%, rgba(255, 255, 255, 0.045) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.07), rgba(6, 8, 13, 0.13));
+  --cruush-glass-panel-bg: radial-gradient(circle at 18% -8%, rgba(255, 255, 255, 0.26), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 46%, rgba(255, 255, 255, 0.05) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.13), rgba(6, 8, 13, 0.24));
+  --cruush-glass-bar-bg: radial-gradient(circle at 18% -10%, rgba(255, 255, 255, 0.28), transparent 36%), linear-gradient(180deg, rgba(255, 255, 255, 0.095) 0%, rgba(255, 255, 255, 0.035) 45%, rgba(255, 255, 255, 0.05) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.06), rgba(6, 8, 13, 0.19));
+  --cruush-glass-control-bg: radial-gradient(circle at 24% 0%, rgba(255, 255, 255, 0.26), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 48%, rgba(255, 255, 255, 0.045) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.08), rgba(6, 8, 13, 0.15));
+  --cruush-glass-control-hover-bg: radial-gradient(circle at 24% 0%, rgba(255, 255, 255, 0.34), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.045) 48%, rgba(255, 255, 255, 0.07) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.07), rgba(6, 8, 13, 0.15));
+  --cruush-glass-menu-toggle-bg: radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.28), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.033) 46%, rgba(255, 255, 255, 0.05) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.06), rgba(6, 8, 13, 0.21));
+  --cruush-glass-dock-bg: radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.34), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.04) 43%, rgba(255, 255, 255, 0.06) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.11), rgba(6, 8, 13, 0.22));
   --cruush-glass-current-bg: radial-gradient(circle at 34% 8%, rgba(255, 255, 255, 0.42), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.19), rgba(255, 255, 255, 0.07) 52%, rgba(255, 255, 255, 0.11)), linear-gradient(180deg, rgba(6, 8, 13, 0.06), rgba(6, 8, 13, 0.13));
 }
 
