@@ -182,6 +182,8 @@ vi.mock('./MapView', async () => {
     default: ({
       markers,
       enable3dBuildings,
+      heatmapEnabled,
+      onHeatmapAvailabilityChange,
       fitToMarkers,
       focusCoordinates,
       radiusCircle,
@@ -192,6 +194,8 @@ vi.mock('./MapView', async () => {
     }: {
       markers: any[];
       enable3dBuildings?: boolean;
+      heatmapEnabled?: boolean;
+      onHeatmapAvailabilityChange?: (available: boolean) => void;
       fitToMarkers?: boolean;
       focusCoordinates?: { approximateLatitude: number; approximateLongitude: number } | null;
       radiusCircle?: {
@@ -210,6 +214,16 @@ vi.mock('./MapView', async () => {
         onMapReady?.(mapControls);
       }, [onMapReady]);
 
+      React.useEffect(() => {
+        onHeatmapAvailabilityChange?.(markers.some((marker) => (
+          (marker.kind ?? 'person') === 'person' &&
+          marker.isCurrentUser !== true &&
+          marker.npcGhostDemo !== true &&
+          typeof marker.approximateLatitude === 'number' &&
+          typeof marker.approximateLongitude === 'number'
+        )));
+      }, [markers, onHeatmapAvailabilityChange]);
+
       return (
         <div>
           <div
@@ -218,6 +232,7 @@ vi.mock('./MapView', async () => {
             data-lng={focusCoordinates ? String(focusCoordinates.approximateLongitude) : ''}
             data-fit-to-markers={String(Boolean(fitToMarkers))}
             data-3d-buildings={String(Boolean(enable3dBuildings))}
+            data-heatmap-enabled={String(heatmapEnabled !== false)}
             data-radius-circle={radiusCircle ? String(radiusCircle.radiusMeters) : ''}
             data-radius-lat={radiusCircle ? String(radiusCircle.center.approximateLatitude) : ''}
             data-radius-lng={radiusCircle ? String(radiusCircle.center.approximateLongitude) : ''}
@@ -781,18 +796,30 @@ describe('MapHome', () => {
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
     expect(map3dButton).toHaveAttribute('aria-pressed', 'false');
     expect(map3dButton).toHaveClass('cruush-glass-control');
+    expect(map3dButton).not.toHaveClass('cruush-glass-active');
     expect(map3dButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
+    const heatmapButton = await screen.findByRole('button', { name: 'Hide heat map' });
+    expect(heatmapButton).toHaveAttribute('aria-pressed', 'true');
+    expect(heatmapButton).toHaveClass('cruush-glass-control', 'cruush-glass-active');
+    expect(heatmapButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(locationButton).toHaveClass('rounded-full', 'cruush-glass-control');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(screen.queryByText('DL Mode Active')).not.toBeInTheDocument();
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-3d-buildings', 'false');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-heatmap-enabled', 'true');
 
     fireEvent.click(map3dButton);
     expect(window.localStorage.getItem('cruush:map-3d-mode-enabled')).toBe('true');
     expect(screen.getByRole('button', { name: 'Turn 3D map off' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Turn 3D map off' })).toHaveClass('cruush-glass-active');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-3d-buildings', 'true');
+
+    fireEvent.click(heatmapButton);
+    expect(screen.getByRole('button', { name: 'Show heat map' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Show heat map' })).not.toHaveClass('cruush-glass-active');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-heatmap-enabled', 'false');
 
     fireEvent.click(dlModeButton);
     expect(window.localStorage.getItem('cruush:dl-mode-enabled')).toBe('false');

@@ -3,7 +3,7 @@
 import type { CSSProperties, MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { Building2, ExternalLink, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Building2, ExternalLink, Filter, Flame, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -429,6 +429,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [joiningEventChat, setJoiningEventChat] = useState(false);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const [is3dMapModeEnabled, setIs3dMapModeEnabled] = useState(getInitial3dMapMode);
+  const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(true);
+  const [isHeatmapAvailable, setIsHeatmapAvailable] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [mapControlsIntroOpen, setMapControlsIntroOpen] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
@@ -1586,6 +1588,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
             }}
             markers={mapMarkers}
             enable3dBuildings={is3dMapModeEnabled}
+            heatmapEnabled={isHeatmapEnabled}
+            onHeatmapAvailabilityChange={setIsHeatmapAvailable}
             fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
             focusCoordinates={
               focusedMapLocation ??
@@ -1893,12 +1897,26 @@ export default function MapHome(_props: MapHomeProps = {}) {
               aria-pressed={is3dMapModeEnabled}
               title={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
               className={`cruush-glass-control rounded-full border text-white ${
-                is3dMapModeEnabled ? 'border-white/15' : 'border-white/10'
+                is3dMapModeEnabled ? 'cruush-glass-active border-white/15' : 'border-white/10'
               }`}
-              style={is3dMapModeEnabled ? { background: 'var(--cruush-gradient)' } : undefined}
             >
               <Building2 className="h-4 w-4" />
             </Button>
+            {isHeatmapAvailable ? (
+              <Button
+                size="icon"
+                variant="secondary"
+                onClick={() => setIsHeatmapEnabled((enabled) => !enabled)}
+                aria-label={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
+                aria-pressed={isHeatmapEnabled}
+                title={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
+                className={`cruush-glass-control rounded-full border text-white ${
+                  isHeatmapEnabled ? 'cruush-glass-active border-white/15' : 'border-white/10'
+                }`}
+              >
+                <Flame aria-hidden="true" className="h-4 w-4" strokeWidth={2.35} />
+              </Button>
+            ) : null}
             <Button
               size="icon"
               variant="secondary"

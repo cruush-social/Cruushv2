@@ -50,6 +50,8 @@ interface MapViewProps {
   onMapReady?: (map: MapLibreMap) => void;
   markers: MapMarker[];
   enable3dBuildings?: boolean;
+  heatmapEnabled?: boolean;
+  onHeatmapAvailabilityChange?: (available: boolean) => void;
   fitToMarkers?: boolean;
   focusCoordinates?: {
     approximateLatitude: number;
@@ -1133,6 +1135,8 @@ function MapView({
   onMapReady,
   markers,
   enable3dBuildings = isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS),
+  heatmapEnabled = true,
+  onHeatmapAvailabilityChange,
   fitToMarkers = false,
   focusCoordinates,
   radiusCircle,
@@ -1151,6 +1155,7 @@ function MapView({
   const onPinClickRef = useRef(onPinClick);
   const onMapClickRef = useRef(onMapClick);
   const onMapReadyRef = useRef(onMapReady);
+  const onHeatmapAvailabilityChangeRef = useRef(onHeatmapAvailabilityChange);
   const lastMarkerInteractionAtRef = useRef(0);
   const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -1201,6 +1206,14 @@ function MapView({
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
   }, [onMapReady]);
+
+  useEffect(() => {
+    onHeatmapAvailabilityChangeRef.current = onHeatmapAvailabilityChange;
+  }, [onHeatmapAvailabilityChange]);
+
+  useEffect(() => {
+    onHeatmapAvailabilityChangeRef.current?.(heatmapData.features.length > 0);
+  }, [heatmapData.features.length]);
 
   useEffect(() => {
     viewportMarkersRef.current = renderedMarkers.filter(isMapMarker);
@@ -1611,7 +1624,7 @@ function MapView({
     const removeLayer = typeof map.removeLayer === 'function' ? map.removeLayer.bind(map) : null;
     const removeSource = typeof map.removeSource === 'function' ? map.removeSource.bind(map) : null;
 
-    if (heatmapData.features.length === 0) {
+    if (!heatmapEnabled || heatmapData.features.length === 0) {
       if (getLayer(USER_HEATMAP_LAYER_ID) && removeLayer) {
         removeLayer(USER_HEATMAP_LAYER_ID);
       }
@@ -1671,7 +1684,7 @@ function MapView({
     } else {
       map.addLayer(heatmapLayer);
     }
-  }, [heatmapFeatureSignature, mapInstance, mapLoadStatus]);
+  }, [heatmapEnabled, heatmapFeatureSignature, mapInstance, mapLoadStatus]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

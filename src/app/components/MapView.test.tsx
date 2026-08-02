@@ -508,32 +508,35 @@ describe('MapView', () => {
     }));
   });
 
-  it('draws app-color user heatmap below streets and labels without visible map chrome', async () => {
-    render(
+  it('draws app-color user heatmap below streets and labels when enabled by parent controls', async () => {
+    const onHeatmapAvailabilityChange = vi.fn();
+    const markers = [
+      {
+        id: 'me',
+        displayName: 'You',
+        approximateLatitude: 40.714,
+        approximateLongitude: -74.004,
+        isCurrentUser: true,
+      },
+      {
+        id: 'user-heat-a',
+        displayName: 'Heat A',
+        approximateLatitude: 40.718,
+        approximateLongitude: -74.002,
+      },
+      {
+        id: 'npc-ghost',
+        displayName: 'NPC Ghost',
+        approximateLatitude: 40.719,
+        approximateLongitude: -74.003,
+        npcGhostDemo: true,
+      },
+    ];
+    const { rerender } = render(
       <MapView
         onPinClick={vi.fn()}
-        markers={[
-          {
-            id: 'me',
-            displayName: 'You',
-            approximateLatitude: 40.714,
-            approximateLongitude: -74.004,
-            isCurrentUser: true,
-          },
-          {
-            id: 'user-heat-a',
-            displayName: 'Heat A',
-            approximateLatitude: 40.718,
-            approximateLongitude: -74.002,
-          },
-          {
-            id: 'npc-ghost',
-            displayName: 'NPC Ghost',
-            approximateLatitude: 40.719,
-            approximateLongitude: -74.003,
-            npcGhostDemo: true,
-          },
-        ]}
+        markers={markers}
+        onHeatmapAvailabilityChange={onHeatmapAvailabilityChange}
       />
     );
 
@@ -541,6 +544,7 @@ describe('MapView', () => {
     await waitFor(() => {
       expect(mapInstances[0]).toBeDefined();
     });
+    expect(onHeatmapAvailabilityChange).toHaveBeenLastCalledWith(true);
 
     act(() => {
       mapInstances[0].trigger('load');
@@ -573,6 +577,21 @@ describe('MapView', () => {
         ]),
       }),
     }));
+
+    rerender(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={markers}
+        heatmapEnabled={false}
+        onHeatmapAvailabilityChange={onHeatmapAvailabilityChange}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mapInstances[0].removeLayer).toHaveBeenCalledWith('cruush-user-heatmap-layer');
+      expect(mapInstances[0].removeSource).toHaveBeenCalledWith('cruush-user-heatmap');
+    });
+    expect(screen.queryByRole('button', { name: /heat map/i })).not.toBeInTheDocument();
   });
 
   it('renders photo markers with current and nearby styling', async () => {

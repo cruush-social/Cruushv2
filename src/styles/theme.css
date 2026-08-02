@@ -387,6 +387,18 @@
   background: var(--cruush-glass-control-bg);
 }
 
+.cruush-glass-active {
+  border-color: rgba(255, 255, 255, 0.26);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.08) 18%, transparent 48%),
+    radial-gradient(135% 165% at 6% 0%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.055) 34%, transparent 58%),
+    var(--cruush-gradient);
+  box-shadow:
+    var(--cruush-glass-shadow),
+    0 0 1.25rem rgba(255, 0, 114, 0.18),
+    0 0 1.35rem rgba(17, 129, 255, 0.15);
+}
+
 .cruush-glass-soft {
   border-color: var(--cruush-glass-border-soft);
   background: var(--cruush-glass-surface-soft);
