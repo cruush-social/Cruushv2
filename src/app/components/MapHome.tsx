@@ -1492,7 +1492,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           </div>
 
           <div
-            className="cruush-glass-bar pointer-events-auto mt-0 flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-background/25 p-0.5 backdrop-blur-md sm:gap-1 sm:p-1"
+            className="cruush-glass-bar cruush-glass-menu-toggle pointer-events-auto mt-0 flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-background/25 p-0.5 backdrop-blur-md sm:gap-1 sm:p-1"
             data-testid="map-top-actions"
           >
             <Button
@@ -1500,7 +1500,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={() => navigate('/rewards')}
               aria-label="cruush+ rewards"
               title="cruush+ rewards"
-              className="cruush-logo-font h-8 rounded-full px-2 text-sm font-normal leading-none tracking-normal normal-case text-white sm:h-9 sm:px-2.5 sm:text-base"
+              className="cruush-plus-shimmer-button cruush-logo-font h-8 rounded-full px-2 text-sm font-normal leading-none tracking-normal normal-case text-white sm:h-9 sm:px-2.5 sm:text-base"
               style={{ background: 'var(--cruush-gradient)' }}
             >
               <CruushPlusWord />
@@ -1892,10 +1892,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
               aria-label={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
               aria-pressed={is3dMapModeEnabled}
               title={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
-              className={`cruush-glass-control rounded-full border text-white ${
-                is3dMapModeEnabled ? 'border-white/15' : 'border-white/10'
+              data-state={is3dMapModeEnabled ? 'active' : 'inactive'}
+              className={`cruush-map-3d-toggle cruush-glass-control rounded-full border text-white ${
+                is3dMapModeEnabled ? 'border-white/30' : 'border-white/10'
               }`}
-              style={is3dMapModeEnabled ? { background: 'var(--cruush-gradient)' } : undefined}
             >
               <Building2 className="h-4 w-4" />
             </Button>
@@ -1945,21 +1945,21 @@ export default function MapHome(_props: MapHomeProps = {}) {
               className={`mx-auto ${
                 isRecentlyActiveOpen
                   ? isMobile
-                    ? 'cruush-glass-panel w-full max-w-full rounded-2xl border border-white/10 bg-background/50 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
-                    : 'cruush-glass-panel w-fit max-w-[29.5rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                    ? 'cruush-recently-active-panel cruush-glass-menu-toggle flex w-full max-w-[22.75rem] items-center gap-2 rounded-full border border-white/16 px-2 py-1.5 shadow-[0_18px_48px_rgba(0,0,0,0.42)] backdrop-blur-xl'
+                    : 'cruush-recently-active-panel cruush-glass-menu-toggle flex w-fit max-w-[30rem] items-center gap-2 rounded-full border border-white/16 px-2 py-1.5 shadow-[0_18px_48px_rgba(0,0,0,0.42)] backdrop-blur-xl'
                   : 'max-w-max p-0'
               } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''} pointer-events-auto`}
               data-testid="recently-active-panel"
             >
-              <div className={`flex ${isMobile ? 'justify-center' : 'justify-end'} ${isRecentlyActiveOpen ? 'mb-2' : 'mb-0'}`}>
+              <div className={`flex ${isMobile ? 'justify-center' : 'justify-end'} ${isRecentlyActiveOpen ? 'shrink-0' : ''}`}>
                 <button
                   type="button"
                   aria-controls="recently-active-tray"
                   aria-expanded={isRecentlyActiveOpen}
                   aria-label={isRecentlyActiveOpen ? 'Hide recently active bar' : 'Show recently active bar'}
-                  className="cruush-glass-pill h-8 rounded-full border border-white/10 px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                  className="cruush-recently-active-toggle cruush-glass-pill h-9 shrink-0 rounded-full border border-white/14 px-3 text-[10px] uppercase tracking-[0.14em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition hover:border-white/24 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                  data-state={isRecentlyActiveOpen ? 'open' : 'closed'}
                   onClick={() => setIsRecentlyActiveOpen((open) => !open)}
-                  style={isRecentlyActiveOpen ? { background: 'var(--cruush-gradient)' } : undefined}
                 >
                   Recently Active
                 </button>
@@ -1968,7 +1968,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <div
                   id="recently-active-tray"
                   aria-label="Recently active profiles"
-                  className={`${isMobile ? 'gap-2' : 'gap-3'} flex cursor-grab overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
+                  className={`${isMobile ? 'gap-1.5' : 'gap-2'} flex min-w-0 flex-1 cursor-grab overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                   data-testid="recently-active-tray"
                   onClickCapture={handleRecentlyActiveClickCapture}
                   onPointerCancel={handleRecentlyActivePointerEnd}
@@ -1978,7 +1978,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   onWheel={handleRecentlyActiveWheel}
                   tabIndex={0}
                 >
-                {[...displayedUsers]
+                  {[...displayedUsers]
                   .sort((a, b) => {
                     const firstUserMinutes = getLastActiveMinutes(a.lastActive);
                     const secondUserMinutes = getLastActiveMinutes(b.lastActive);
@@ -1990,10 +1990,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       key={user.id}
                       aria-label={`Open ${user.name} profile`}
                       onClick={() => handleUserSelect(user)}
-                      className={`${isMobile ? 'w-16' : 'w-20'} group block flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
+                      className={`${isMobile ? 'w-12' : 'w-14'} group block flex-shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                       data-testid={`recently-active-tile-${user.id}`}
                     >
-                      <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">
+                      <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-full border border-white/16 bg-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_8px_18px_rgba(0,0,0,0.24)] transition-transform group-hover:scale-[1.04]">
                         {user.photo && !(dlModeActive && user.photoExplicit === true) ? (
                           <img
                             alt=""

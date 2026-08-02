@@ -202,7 +202,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       const screenshot = await captureBugScreenshot();
       await createSupportRequest({
         category: 'bug',
-        subject: `Alpha bug: ${pageUrl}`,
+        subject: `Bug report: ${pageUrl}`,
         message: message.trim(),
         source: 'unknown',
         pageUrl,
@@ -232,7 +232,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
     >
       {showTip ? (
         <div className={`cruush-glass-panel fixed z-[45] w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
-          <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
+          <p className="leading-snug">Tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"
             onClick={dismissTip}
@@ -244,7 +244,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       ) : null}
       <DialogTrigger asChild>
         <button
-          aria-label="Report alpha bug"
+          aria-label="Report bug"
           className={`cruush-glass-pill fixed z-[45] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${getBugButtonPlacement(location.pathname)}`}
           type="button"
         >
@@ -253,7 +253,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       </DialogTrigger>
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
-          <DialogTitle>Report alpha bug</DialogTitle>
+          <DialogTitle>Report bug</DialogTitle>
           <DialogDescription>
             This report includes the current page and attaches a screenshot when your browser allows it.
           </DialogDescription>

@@ -71,7 +71,7 @@ describe('BottomNav', () => {
     const pill = nav.querySelector('[data-testid="bottom-nav-pill"]');
 
     expect(pill).toHaveClass('rounded-full', 'border', 'bg-background/68', 'backdrop-blur-md');
-    expect(pill).toHaveClass('cruush-bottom-nav-pill');
+    expect(pill).toHaveClass('cruush-bottom-nav-pill', 'cruush-glass-menu-toggle');
     expect(pill).toHaveClass('pointer-events-auto');
     expect(pill).toHaveClass('px-1.5', 'pb-1.5', 'pt-2');
     expect(pill).toHaveClass('mx-auto');

@@ -36,4 +36,21 @@ describe('global text selection policy', () => {
     expect(themeCss).not.toContain('filter: grayscale(1)');
     expect(themeCss).not.toContain('saturate(0.08)');
   });
+
+  it('uses stronger liquid-glass tokens for Apple-style menu surfaces', () => {
+    expect(themeCss).toContain('--cruush-glass-backdrop: blur(24px) saturate(1.85) brightness(1.12) contrast(1.02);');
+    expect(themeCss).toContain('--cruush-glass-menu-toggle-bg:');
+    expect(themeCss).toContain('.cruush-glass-menu-toggle {');
+    expect(themeCss).toContain('.cruush-bottom-nav-indicator-surface::before,');
+    expect(themeCss).toContain('backdrop-filter: blur(26px) saturate(1.9) brightness(1.1);');
+  });
+
+  it('keeps the cruush plus shimmer and recently active rail hooks available', () => {
+    expect(themeCss).toContain('.cruush-plus-shimmer-button::before');
+    expect(themeCss).toContain('animation: cruush-plus-shimmer 3.4s ease-in-out infinite;');
+    expect(themeCss).toContain('.cruush-recently-active-panel {');
+    expect(themeCss).toContain('.cruush-recently-active-toggle[data-state="open"] {');
+    expect(themeCss).toContain('.cruush-map-3d-toggle[data-state="active"] {');
+    expect(themeCss).toContain('button.cruush-map-3d-toggle[data-state="active"]:hover:not(:disabled)');
+  });
 });

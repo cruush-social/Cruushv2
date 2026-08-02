@@ -12,15 +12,45 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     static calls: unknown[] = [];
     container: HTMLElement;
     handlers = new Map<string, Array<(event?: unknown) => void>>();
+    style?: unknown;
+    zoom = 12;
+    pitch = 0;
+    bearing = 0;
     zoomIn = vi.fn();
     zoomOut = vi.fn();
     setCenter = vi.fn();
-    setZoom = vi.fn();
-    getZoom = vi.fn(() => 12);
+    setZoom = vi.fn((zoom: number) => {
+      this.zoom = zoom;
+    });
+    getZoom = vi.fn(() => this.zoom);
+    setPitch = vi.fn((pitch: number) => {
+      this.pitch = pitch;
+    });
+    setBearing = vi.fn((bearing: number) => {
+      this.bearing = bearing;
+    });
+    easeTo = vi.fn((options: { zoom?: number; pitch?: number; bearing?: number }) => {
+      if (typeof options.zoom === 'number') {
+        this.zoom = options.zoom;
+      }
+      if (typeof options.pitch === 'number') {
+        this.pitch = options.pitch;
+      }
+      if (typeof options.bearing === 'number') {
+        this.bearing = options.bearing;
+      }
+    });
+    setStyle = vi.fn((style: unknown) => {
+      this.style = style;
+    });
+    setLight = vi.fn();
     fitBounds = vi.fn();
     sources = new Map<string, any>();
     layers = new Map<string, any>();
     getStyle = vi.fn(() => ({
+      sources: {
+        openmaptiles: { type: 'vector' },
+      },
       layers: [
         { id: 'background', type: 'background' },
         { id: 'landuse-blocks', type: 'fill' },
@@ -48,8 +78,18 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     });
     remove = vi.fn();
 
-    constructor(options: { container: HTMLElement }) {
+    constructor(options: {
+      container: HTMLElement;
+      style?: unknown;
+      zoom?: number;
+      pitch?: number;
+      bearing?: number;
+    }) {
       this.container = options.container;
+      this.style = options.style;
+      this.zoom = options.zoom ?? this.zoom;
+      this.pitch = options.pitch ?? this.pitch;
+      this.bearing = options.bearing ?? this.bearing;
       MockMapInstance.calls.push(options);
       mapInstances.push(this);
     }
@@ -204,12 +244,18 @@ describe('MapView', () => {
       '#3236D4',
     ]);
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
-    expect(screen.getByTestId('marker-current-fallback-me')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-current-fallback-me').querySelector('div')).not.toHaveClass('rounded-full', 'bg-black/70');
-    expect(screen.getByTestId('marker-current-fallback-me').querySelector('svg')).toHaveClass('h-7', 'w-7', 'text-white');
+    expect(Array.from(screen.getByTestId('marker-heart-user-1').querySelectorAll('stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
+      '#FF0072',
+      '#DA045D',
+      '#B40849',
+    ]);
+    expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-current-user', 'true');
+    expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-current-fallback-user-1')).not.toBeInTheDocument();
-    expect(screen.getByTestId('marker-heart-me')).toHaveClass('cruush-heart-glass-svg', 'h-20', 'w-20');
-    expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
+    expect(screen.getByTestId('marker-heart-me')).toHaveClass('cruush-heart-glass-svg', 'h-24', 'w-24');
+    expect(screen.getByTestId('marker-heart-user-1')).toHaveClass('cruush-heart-glass-svg', 'h-20', 'w-20');
+    expect(markerInstances[0].element).toHaveClass('h-[104px]', 'w-[121px]');
+    expect(markerInstances[1].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(markerInstances[0].element.className).not.toContain('drop-shadow');
     expect(markerInstances[1].element.className).not.toContain('drop-shadow');
     expect(screen.getByTestId('marker-heart-me').querySelector('filter')).toBeNull();
@@ -603,7 +649,9 @@ describe('MapView', () => {
 
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
+    expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-current-user', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
+    expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-24', 'w-24');
     expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
     expect(screen.getByTestId('marker-heart-me').querySelector('clipPath path')).toHaveAttribute('d', HEART_PIN_PHOTO_PATH);
     expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
@@ -906,7 +954,8 @@ describe('MapView', () => {
     const eventMarker = screen.getByTestId('launch-party-marker-event-the-chocolate-factory-launch');
     expect(marker).toHaveAttribute('data-map-marker-kind', 'event');
     expect(eventMarker).toHaveTextContent('500');
-    expect(eventMarker).toHaveClass('rounded-full', 'border', 'bg-black/82');
+    expect(eventMarker).toHaveClass('h-16', 'w-16', 'min-w-0', 'rounded-full', 'border', 'bg-black/82', 'px-0', 'overflow-hidden');
+    expect(eventMarker).not.toHaveClass('min-w-16', 'px-4');
     expect(eventMarker).not.toHaveClass('animate-cruush-party-dance');
     expect(eventMarker.querySelector('img')).toBeNull();
     fireEvent.click(marker);
@@ -950,7 +999,10 @@ describe('MapView', () => {
     );
 
     const cluster = await screen.findByRole('button', { name: 'Zoom into 2 nearby people on map' });
-    expect(screen.getByTestId('people-cluster-marker-people-0')).toHaveTextContent('2');
+    const clusterMarker = screen.getByTestId('people-cluster-marker-people-0');
+    expect(clusterMarker).toHaveTextContent('2');
+    expect(clusterMarker).toHaveClass('h-16', 'w-16', 'min-w-0', 'rounded-full', 'px-0', 'overflow-hidden');
+    expect(clusterMarker).not.toHaveClass('min-w-16', 'px-4');
     expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open B on map' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
@@ -1097,7 +1149,10 @@ describe('MapView', () => {
     );
 
     expect(await screen.findByRole('button', { name: 'Open 3 people at The Chocolate Factory on map' })).toBeInTheDocument();
-    expect(screen.getByTestId('venue-cluster-marker-launch-party')).toHaveTextContent('3');
+    const venueClusterMarker = screen.getByTestId('venue-cluster-marker-launch-party');
+    expect(venueClusterMarker).toHaveTextContent('3');
+    expect(venueClusterMarker).toHaveClass('h-16', 'w-16', 'min-w-0', 'rounded-full', 'px-0', 'overflow-hidden');
+    expect(venueClusterMarker).not.toHaveClass('min-w-16', 'px-4');
     expect(screen.queryByRole('button', { name: 'Open A on map' })).not.toBeInTheDocument();
   });
 
@@ -1137,7 +1192,7 @@ describe('MapView', () => {
     expect(layerById.get('place-labels')?.layout['text-letter-spacing']).toBe(0.035);
   });
 
-  it('can add dark 3D building extrusions for map testing', () => {
+  it('can add gradient 3D building extrusions for map testing', () => {
     const style = createCruushVectorStyle('https://tiles.openfreemap.org/planet', undefined, true) as any;
     const layerById = new Map<string, any>(
       style.layers.map((layer: any) => [layer.id, layer] as [string, any])
@@ -1148,45 +1203,76 @@ describe('MapView', () => {
     expect(style.light).toEqual({
       anchor: 'viewport',
       color: '#f2edf8',
-      intensity: 0.28,
-      position: [1.15, 210, 32],
+      intensity: 0.36,
+      position: [1.2, 210, 35],
     });
     expect(buildingLayer).toEqual(expect.objectContaining({
       type: 'fill-extrusion',
       source: 'openmaptiles',
       'source-layer': 'building',
-      minzoom: 13,
+      minzoom: 12.6,
       filter: ['!=', ['get', 'hide_3d'], true],
     }));
     expect(buildingLayer.paint['fill-extrusion-color']).toEqual([
       'interpolate',
       ['linear'],
-      ['get', 'render_height'],
+      [
+        'to-number',
+        ['coalesce', ['get', 'render_height'], ['get', 'height']],
+        34,
+      ],
       0,
-      '#151515',
-      120,
       '#FF0072',
-      260,
+      24,
+      '#FF4DB0',
+      58,
+      '#A64DFF',
+      104,
       '#6F00FF',
-      420,
+      170,
+      '#3826FF',
+      260,
       '#1181FF',
+      420,
+      '#00D5FF',
     ]);
     expect(buildingLayer.paint['fill-extrusion-height']).toEqual([
       'interpolate',
       ['linear'],
       ['zoom'],
-      13,
+      12.8,
       0,
-      14.4,
-      ['get', 'render_height'],
+      13.4,
+      [
+        '*',
+        [
+          'to-number',
+          ['coalesce', ['get', 'render_height'], ['get', 'height']],
+          34,
+        ],
+        0.45,
+      ],
+      14.2,
+      [
+        'to-number',
+        ['coalesce', ['get', 'render_height'], ['get', 'height']],
+        34,
+      ],
     ]);
     expect(buildingLayer.paint['fill-extrusion-base']).toEqual([
-      'case',
-      ['>=', ['get', 'zoom'], 14.4],
-      ['get', 'render_min_height'],
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      12.8,
       0,
+      13.4,
+      [
+        'to-number',
+        ['coalesce', ['get', 'render_min_height'], ['get', 'min_height']],
+        0,
+      ],
     ]);
-    expect(buildingLayer.paint['fill-extrusion-opacity']).toBe(0.78);
+    expect(buildingLayer.paint['fill-extrusion-opacity']).toBe(0.88);
     expect(style.layers.findIndex((layer: any) => layer.id === 'building-extrusions-dark'))
       .toBeLessThan(style.layers.findIndex((layer: any) => layer.id === 'minor-roads'));
   });
@@ -1212,6 +1298,71 @@ describe('MapView', () => {
 
     expect(disabledStyle.layers.some((layer: any) => layer.id === 'building-extrusions-dark')).toBe(false);
     expect(enabledStyle.layers.some((layer: any) => layer.id === 'building-extrusions-dark')).toBe(true);
+  });
+
+  it('updates the live map style and camera when runtime 3D mode changes', async () => {
+    const onPinClick = vi.fn();
+    const { rerender } = render(
+      <MapView
+        enable3dBuildings={false}
+        onPinClick={onPinClick}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
+    const map = mapInstances[0];
+    expect(MockMap.calls[0]).toEqual(expect.objectContaining({
+      zoom: 12,
+      pitch: 0,
+      bearing: 0,
+    }));
+
+    rerender(
+      <MapView
+        enable3dBuildings
+        onPinClick={onPinClick}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(map.addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'building-extrusions-dark' }),
+      'minor-roads'
+    ));
+    expect(MockMap.calls).toHaveLength(1);
+    expect(map.setStyle).not.toHaveBeenCalled();
+    expect(map.setLight).toHaveBeenCalledWith({
+      anchor: 'viewport',
+      color: '#f2edf8',
+      intensity: 0.36,
+      position: [1.2, 210, 35],
+    });
+    expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({
+      zoom: 14.4,
+      pitch: 45,
+      bearing: -17.6,
+      duration: 450,
+      essential: true,
+    }));
+
+    rerender(
+      <MapView
+        enable3dBuildings={false}
+        onPinClick={onPinClick}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(map.removeLayer).toHaveBeenCalledWith('building-extrusions-dark'));
+    expect(map.setStyle).not.toHaveBeenCalled();
+    expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({
+      zoom: 14.4,
+      pitch: 0,
+      bearing: 0,
+      duration: 450,
+      essential: true,
+    }));
   });
 
   it('pitches the map only when 3D buildings are enabled', async () => {

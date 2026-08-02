@@ -596,15 +596,18 @@ describe('MapHome', () => {
     expect(recentPanel.parentElement).toHaveClass('bottom-[calc(7.25rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
     expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(recentToggle).toHaveAttribute('data-state', 'closed');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
 
     fireEvent.click(recentToggle);
 
     expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
-    expect(recentPanel).toHaveClass('w-full', 'max-w-full', 'p-2');
-    expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
-    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
-    expect(screen.getByTestId('recently-active-tile-user-1').firstElementChild).toHaveClass('overflow-hidden', 'border', 'bg-white/[0.06]');
+    expect(recentToggle).toHaveAttribute('data-state', 'open');
+    expect(recentPanel).toHaveClass('cruush-recently-active-panel', 'cruush-glass-menu-toggle', 'w-full', 'max-w-[22.75rem]');
+    expect(recentPanel).toHaveClass('rounded-full', 'px-2', 'py-1.5');
+    expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-1.5', 'min-w-0', 'flex-1');
+    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-12', 'rounded-full');
+    expect(screen.getByTestId('recently-active-tile-user-1').firstElementChild).toHaveClass('aspect-square', 'overflow-hidden', 'rounded-full', 'border', 'bg-white/[0.08]');
     expect(within(screen.getByTestId('recently-active-tile-user-1')).queryByRole('img', { name: /heart preview/i })).not.toBeInTheDocument();
   });
 
@@ -768,10 +771,10 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-home-shell')).toHaveClass('relative');
     expect(screen.getByTestId('map-home-shell')).not.toHaveClass('fixed', 'inset-0');
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
-    expect(topActions).toHaveClass('pointer-events-auto', 'mt-0', 'gap-0.5', 'p-0.5');
+    expect(topActions).toHaveClass('cruush-glass-menu-toggle', 'pointer-events-auto', 'mt-0', 'gap-0.5', 'p-0.5');
     expect(topActions).not.toHaveClass('mt-11');
     expect(rightActions).toHaveClass('right-3', 'top-[4.5rem]', 'sm:right-4', 'sm:top-[4.75rem]');
-    expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
+    expect(cruushPlusButton).toHaveClass('cruush-plus-shimmer-button', 'cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-5', 'w-5');
     expect(ghostModeIcon).toHaveClass('h-4', 'w-4');
@@ -780,7 +783,8 @@ describe('MapHome', () => {
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
     expect(map3dButton).toHaveAttribute('aria-pressed', 'false');
-    expect(map3dButton).toHaveClass('cruush-glass-control');
+    expect(map3dButton).toHaveAttribute('data-state', 'inactive');
+    expect(map3dButton).toHaveClass('cruush-map-3d-toggle', 'cruush-glass-control');
     expect(map3dButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(locationButton).toHaveClass('rounded-full', 'cruush-glass-control');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
@@ -791,7 +795,11 @@ describe('MapHome', () => {
 
     fireEvent.click(map3dButton);
     expect(window.localStorage.getItem('cruush:map-3d-mode-enabled')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Turn 3D map off' })).toHaveAttribute('aria-pressed', 'true');
+    const activeMap3dButton = screen.getByRole('button', { name: 'Turn 3D map off' });
+    expect(activeMap3dButton).toHaveAttribute('aria-pressed', 'true');
+    expect(activeMap3dButton).toHaveAttribute('data-state', 'active');
+    expect(activeMap3dButton).toHaveClass('cruush-map-3d-toggle', 'border-white/30');
+    expect(activeMap3dButton).not.toHaveAttribute('style');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-3d-buildings', 'true');
 
     fireEvent.click(dlModeButton);
@@ -1097,7 +1105,8 @@ describe('MapHome', () => {
 
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-0', 'right-4', 'pl-4', 'pr-0');
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('pointer-events-none');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[30rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('cruush-recently-active-panel', 'cruush-glass-menu-toggle', 'rounded-full');
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('pointer-events-auto');
   });
 
@@ -1174,7 +1183,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-subtle')).not.toBeInTheDocument();
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(23rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[30rem]', 'lg:ml-auto', 'lg:mr-0');
     expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
@@ -1649,10 +1658,13 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
     expect(recentToggle).toHaveTextContent('Recently Active');
     expect(recentToggle.parentElement).toHaveClass('justify-end');
-    expect(recentToggle).toHaveStyle({ background: 'var(--cruush-gradient)' });
+    expect(recentToggle.parentElement).toHaveClass('shrink-0');
+    expect(recentToggle).toHaveAttribute('data-state', 'open');
+    expect(recentToggle).toHaveClass('cruush-recently-active-toggle');
+    expect(recentToggle).not.toHaveAttribute('style');
     expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0');
-    expect(recentPanel).toHaveClass('max-w-[29.5rem]', 'p-3');
-    expect(screen.getByTestId('recently-active-tray')).toHaveClass('cursor-grab', 'overflow-x-auto', 'overscroll-x-contain', 'scroll-smooth');
+    expect(recentPanel).toHaveClass('cruush-recently-active-panel', 'cruush-glass-menu-toggle', 'max-w-[30rem]', 'px-2', 'py-1.5');
+    expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2', 'min-w-0', 'flex-1', 'cursor-grab', 'overflow-x-auto', 'overscroll-x-contain', 'scroll-smooth');
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('tabindex', '0');
     fireEvent.click(recentTile);
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
@@ -1683,9 +1695,10 @@ describe('MapHome', () => {
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
     expect(screen.queryByText('Jordan')).not.toBeInTheDocument();
     expect(screen.queryByText('0.2 mi')).not.toBeInTheDocument();
-    expect(recentTile).toHaveClass('w-20');
-    expect(recentMedia?.className).toContain('aspect-[4/5]');
+    expect(recentTile).toHaveClass('w-14', 'rounded-full');
+    expect(recentMedia?.className).toContain('aspect-square');
     expect(recentMedia?.className).toContain('overflow-hidden');
+    expect(recentMedia?.className).toContain('rounded-full');
     expect(recentMedia?.className).toContain('border');
     expect(recentMedia?.querySelector('.cruush-heart-glass-svg')).toBeNull();
     expect(within(recentTile).queryByRole('img', { name: /heart preview/i })).not.toBeInTheDocument();
@@ -1694,9 +1707,10 @@ describe('MapHome', () => {
     fireEvent.click(recentToggle);
 
     expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(recentToggle).toHaveAttribute('data-state', 'closed');
     expect(recentToggle).toHaveAccessibleName('Show recently active bar');
     expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentToggle).toHaveClass('cruush-glass-pill');
+    expect(recentToggle).toHaveClass('cruush-recently-active-toggle', 'cruush-glass-pill');
     expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(recentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
@@ -1704,9 +1718,10 @@ describe('MapHome', () => {
     fireEvent.click(recentToggle);
 
     expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(recentToggle).toHaveAttribute('data-state', 'open');
     expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
     expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentPanel).toHaveClass('max-w-[29.5rem]', 'p-3');
+    expect(recentPanel).toHaveClass('max-w-[30rem]', 'px-2', 'py-1.5');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 

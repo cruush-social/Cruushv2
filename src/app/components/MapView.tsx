@@ -24,7 +24,6 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CruushIcon } from './CruushIconImage';
 import { resolveMediaUrl } from '../lib/apiClient';
-import { getProfileGradientStops } from '../lib/profileGradient';
 import { applyDenseVenueMarkers, type DenseVenueConfig } from '../lib/denseVenueMarkers';
 import {
   createMapMarkerBadge,
@@ -85,6 +84,7 @@ const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 const MAP_3D_BUILDINGS_PITCH = 45;
 const MAP_3D_BUILDINGS_BEARING = -17.6;
+const MAP_3D_BUILDING_LAYER_ID = 'building-extrusions-dark';
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
@@ -96,53 +96,76 @@ const SPIDERFY_SECOND_RING_AFTER = 10;
 const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
 const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
 const MAP_DETAIL_LAYER_TYPES = new Set(['line', 'symbol']);
+const MAP_3D_BUILDING_HEIGHT_EXPRESSION = [
+  'to-number',
+  ['coalesce', ['get', 'render_height'], ['get', 'height']],
+  34,
+] as const;
+const MAP_3D_BUILDING_BASE_EXPRESSION = [
+  'to-number',
+  ['coalesce', ['get', 'render_min_height'], ['get', 'min_height']],
+  0,
+] as const;
 
-const MAP_3D_BUILDING_LAYER: StyleSpecification['layers'][number] = {
-  id: 'building-extrusions-dark',
-  type: 'fill-extrusion',
-  source: 'openmaptiles',
-  'source-layer': 'building',
-  minzoom: 13,
-  filter: ['!=', ['get', 'hide_3d'], true],
-  paint: {
-    'fill-extrusion-color': [
-      'interpolate',
-      ['linear'],
-      ['get', 'render_height'],
-      0,
-      '#151515',
-      120,
-      '#FF0072',
-      260,
-      '#6F00FF',
-      420,
-      '#1181FF',
-    ],
-    'fill-extrusion-height': [
-      'interpolate',
-      ['linear'],
-      ['zoom'],
-      13,
-      0,
-      14.4,
-      ['get', 'render_height'],
-    ],
-    'fill-extrusion-base': [
-      'case',
-      ['>=', ['get', 'zoom'], 14.4],
-      ['get', 'render_min_height'],
-      0,
-    ],
-    'fill-extrusion-opacity': 0.78,
-    'fill-extrusion-vertical-gradient': true,
-  },
-};
+function create3dBuildingLayer(): StyleSpecification['layers'][number] {
+  return {
+    id: MAP_3D_BUILDING_LAYER_ID,
+    type: 'fill-extrusion',
+    source: 'openmaptiles',
+    'source-layer': 'building',
+    minzoom: 12.6,
+    filter: ['!=', ['get', 'hide_3d'], true],
+    paint: {
+      'fill-extrusion-color': [
+        'interpolate',
+        ['linear'],
+        MAP_3D_BUILDING_HEIGHT_EXPRESSION,
+        0,
+        '#FF0072',
+        24,
+        '#FF4DB0',
+        58,
+        '#A64DFF',
+        104,
+        '#6F00FF',
+        170,
+        '#3826FF',
+        260,
+        '#1181FF',
+        420,
+        '#00D5FF',
+      ],
+      'fill-extrusion-height': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        12.8,
+        0,
+        13.4,
+        ['*', MAP_3D_BUILDING_HEIGHT_EXPRESSION, 0.45],
+        14.2,
+        MAP_3D_BUILDING_HEIGHT_EXPRESSION,
+      ],
+      'fill-extrusion-base': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        12.8,
+        0,
+        13.4,
+        MAP_3D_BUILDING_BASE_EXPRESSION,
+      ],
+      'fill-extrusion-opacity': 0.88,
+      'fill-extrusion-vertical-gradient': true,
+    },
+  };
+}
 
 const MAP_3D_BUILDING_LIGHT: StyleSpecification['light'] = {
   anchor: 'viewport',
   color: '#f2edf8',
-  intensity: 0.28,
-  position: [1.15, 210, 32],
+  intensity: 0.36,
+  position: [1.2, 210, 35],
 };
 
 type MapLibreModule = typeof import('maplibre-gl');
@@ -278,7 +301,7 @@ export function createCruushVectorStyle(
           'fill-outline-color': '#1e1e1e',
         },
       },
-      ...(enable3dBuildings ? [MAP_3D_BUILDING_LAYER] : []),
+      ...(enable3dBuildings ? [create3dBuildingLayer()] : []),
       {
         id: 'minor-roads',
         type: 'line',
@@ -754,6 +777,51 @@ function getHeatmapBeforeLayerId(map: MapLibreMap) {
   return map.getStyle().layers?.find((layer) => MAP_DETAIL_LAYER_TYPES.has(layer.type))?.id;
 }
 
+function get3dBuildingBeforeLayerId(map: MapLibreMap) {
+  if (typeof map.getStyle !== 'function') {
+    return undefined;
+  }
+
+  const layers = map.getStyle().layers ?? [];
+
+  return (
+    layers.find((layer) => layer.id === 'minor-roads')?.id ??
+    layers.find((layer) => MAP_DETAIL_LAYER_TYPES.has(layer.type))?.id
+  );
+}
+
+function canSync3dBuildingsInPlace(map: MapLibreMap, style: ReturnType<typeof getMapStyle>) {
+  if (typeof style === 'string' || typeof map.getStyle !== 'function') {
+    return false;
+  }
+
+  return Boolean(style.sources?.openmaptiles && map.getStyle().sources?.openmaptiles);
+}
+
+function sync3dBuildingsInPlace(map: MapLibreMap, enabled: boolean, style: ReturnType<typeof getMapStyle>) {
+  if (
+    !canSync3dBuildingsInPlace(map, style) ||
+    typeof map.getLayer !== 'function' ||
+    typeof map.addLayer !== 'function' ||
+    typeof map.removeLayer !== 'function'
+  ) {
+    return false;
+  }
+
+  if (map.getLayer(MAP_3D_BUILDING_LAYER_ID)) {
+    map.removeLayer(MAP_3D_BUILDING_LAYER_ID);
+  }
+
+  if (enabled) {
+    map.addLayer(create3dBuildingLayer(), get3dBuildingBeforeLayerId(map));
+    if (typeof (map as { setLight?: (light: StyleSpecification['light']) => void }).setLight === 'function') {
+      (map as { setLight: (light: StyleSpecification['light']) => void }).setLight(MAP_3D_BUILDING_LIGHT);
+    }
+  }
+
+  return true;
+}
+
 function truncateMarkerPreview(value: string | null | undefined, maxCharacters = 30) {
   const normalizedValue = (value ?? '').trim().replace(/\s+/g, ' ');
 
@@ -814,7 +882,8 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     <span
       aria-label={isCurrentUser ? 'Your profile' : badge?.label}
       className={[
-        'cruush-glass-soft absolute right-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'cruush-glass-soft absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        isCurrentUser ? 'right-2 top-10' : 'right-1.5 top-8',
         borderClass,
       ].join(' ')}
       data-testid={`marker-badge-${marker.id}`}
@@ -869,16 +938,16 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const theme = isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
   const markerTheme = HEART_PIN_THEMES[theme];
   const borderColor = markerTheme.border;
-  const [gradientFrom, gradientMiddle, gradientTo] = hasPhoto || isCurrentUser || isNpcGhostDemo
-    ? markerTheme.stops
-    : getProfileGradientStops(marker.userId ?? marker.id);
+  const [gradientFrom, gradientMiddle, gradientTo] = markerTheme.stops;
+  const markerSizeClass = isCurrentUser ? 'h-24 w-24' : 'h-20 w-20';
 
   return (
     <svg
       aria-hidden="true"
-      className="cruush-heart-glass-svg h-20 w-20"
+      className={`cruush-heart-glass-svg ${markerSizeClass}`}
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
+      data-current-user={isCurrentUser ? 'true' : 'false'}
       data-marker-theme={isNpcGhostDemo ? 'npc-ghost-demo' : theme}
       height="80"
       viewBox="0 0 64 64"
@@ -905,12 +974,6 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           preserveAspectRatio="xMidYMid slice"
           width="64"
         />
-      ) : isCurrentUser && !isMutualCruush ? (
-        <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
-          <div className="flex h-9 w-9 items-center justify-center">
-            <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
-          </div>
-        </foreignObject>
       ) : null}
       <path className="cruush-heart-glass-theme-border" d={HEART_PIN_PATH} stroke={borderColor} />
       <path className="cruush-heart-glass-rim" d={HEART_PIN_PATH} />
@@ -922,15 +985,21 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   );
 }
 
+const MAP_COUNT_MARKER_CLASS = 'cruush-glass-pill flex h-16 w-16 min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-full px-0 text-center text-[1.15rem] font-semibold leading-none text-white tabular-nums backdrop-blur-md';
+
+function formatMapCountMarkerLabel(count: number) {
+  return count > 999 ? '999+' : count;
+}
+
 function VenueClusterMarker({ marker }: { marker: MapMarker }) {
   const count = marker.cluster?.count ?? 0;
 
   return (
     <span
-      className="cruush-glass-pill flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className={`${MAP_COUNT_MARKER_CLASS} border border-white/20 bg-black/82 shadow-[0_0_28px_rgba(255,0,114,0.34)]`}
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
-      {count > 999 ? '999+' : count}
+      {formatMapCountMarkerLabel(count)}
     </span>
   );
 }
@@ -940,10 +1009,10 @@ function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="cruush-glass-pill flex h-16 min-w-16 items-center justify-center rounded-full border border-primary/40 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_34px_rgba(255,0,114,0.44)] backdrop-blur-md"
+      className={`${MAP_COUNT_MARKER_CLASS} border border-primary/40 bg-black/86 shadow-[0_0_34px_rgba(255,0,114,0.44)]`}
       data-testid={`people-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
-      {count > 999 ? '999+' : count}
+      {formatMapCountMarkerLabel(count)}
     </span>
   );
 }
@@ -953,10 +1022,10 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="cruush-glass-pill flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className={`${MAP_COUNT_MARKER_CLASS} border border-white/20 bg-black/82 shadow-[0_0_28px_rgba(255,0,114,0.34)]`}
       data-testid={`launch-party-marker-${marker.id}`}
     >
-      {attendeeCount > 999 ? '999+' : attendeeCount}
+      {formatMapCountMarkerLabel(attendeeCount)}
     </span>
   );
 }
@@ -965,6 +1034,8 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser === true;
   const signalPreview = marker.kind === 'person' ? truncateMarkerPreview(marker.signal) : '';
   const postPreview = marker.kind === 'person' ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
+  const markerFrameClass = isCurrentUser ? 'h-[104px] w-[121px]' : 'h-[88px] w-[103px]';
+  const markerInnerFrameClass = isCurrentUser ? 'h-24 w-[121px]' : 'h-20 w-[103px]';
 
   if (marker.kind === 'cluster') {
     return isPersonCluster(marker) ? <PeopleClusterMarker marker={marker} /> : <VenueClusterMarker marker={marker} />;
@@ -975,8 +1046,8 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   }
 
   return (
-    <span className="group pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
-      <span className="relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-150 group-focus-within:scale-150">
+    <span className={`group pointer-events-none relative flex ${markerFrameClass} items-start justify-center overflow-visible`}>
+      <span className={`relative flex ${markerInnerFrameClass} origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-150 group-focus-within:scale-150`}>
         {marker.npcGhostDemo ? (
           <span
             aria-hidden="true"
@@ -1022,9 +1093,10 @@ function createMarkerElement(
   const element = document.createElement(isInteractive ? 'button' : 'div');
   const name = getDisplayName(marker);
   const animationHint = marker.animationHint ?? 'NONE';
+  const markerFrameClass = isCurrentUser ? 'h-[104px] w-[121px]' : 'h-[88px] w-[103px]';
 
   element.className = [
-    'group relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0 transition-opacity duration-700',
+    `group relative flex ${markerFrameClass} items-start justify-center overflow-visible border-0 bg-transparent p-0 transition-opacity duration-700`,
     animationHint === 'FADE_LAST_MINUTE' ? 'opacity-45' : '',
     animationHint === 'SIGNAL_LOSS' ? 'opacity-15 animate-pulse' : '',
     animationHint === 'REAPPEAR' ? 'opacity-100' : '',
@@ -1159,6 +1231,10 @@ function MapView({
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
   const [spiderfiedCluster, setSpiderfiedCluster] = useState<SpiderfiedCluster | null>(null);
   const mapStyle = useMemo(() => getMapStyle(enable3dBuildings), [enable3dBuildings]);
+  const initial3dMapModeRef = useRef(enable3dBuildings);
+  const applied3dMapModeRef = useRef(enable3dBuildings);
+  const initialMapStyleRef = useRef(mapStyle);
+  const appliedMapStyleRef = useRef(mapStyle);
   const denseMarkerResult = useMemo(
     () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
     [currentZoom, denseVenue, markers],
@@ -1218,7 +1294,9 @@ function MapView({
 
     let isMounted = true;
     let attemptedRasterFallback = false;
-    const shouldFallbackToRaster = canFallbackToDefaultRasterStyle(mapStyle);
+    const initialMapStyle = initialMapStyleRef.current;
+    const initial3dMapMode = initial3dMapModeRef.current;
+    const shouldFallbackToRaster = canFallbackToDefaultRasterStyle(initialMapStyle);
     setMapLoadStatus('loading');
     setMapError(null);
 
@@ -1247,10 +1325,10 @@ function MapView({
           container: containerRef.current,
           style,
           center: DEFAULT_CENTER,
-          zoom: enable3dBuildings ? DEFAULT_3D_BUILDINGS_ZOOM : DEFAULT_ZOOM,
-          pitch: enable3dBuildings ? MAP_3D_BUILDINGS_PITCH : 0,
-          bearing: enable3dBuildings ? MAP_3D_BUILDINGS_BEARING : 0,
-          ...(enable3dBuildings ? { canvasContextAttributes: { antialias: true } } : {}),
+          zoom: initial3dMapMode ? DEFAULT_3D_BUILDINGS_ZOOM : DEFAULT_ZOOM,
+          pitch: initial3dMapMode ? MAP_3D_BUILDINGS_PITCH : 0,
+          bearing: initial3dMapMode ? MAP_3D_BUILDINGS_BEARING : 0,
+          ...(initial3dMapMode ? { canvasContextAttributes: { antialias: true } } : {}),
           minZoom: MIN_DISCOVERY_ZOOM,
           maxBounds: NYC_METRO_MAX_BOUNDS,
           renderWorldCopies: false,
@@ -1376,7 +1454,7 @@ function MapView({
       };
 
       try {
-        startMap(mapStyle);
+        startMap(initialMapStyle);
       } catch (error) {
         if (shouldFallbackToRaster && !attemptedRasterFallback) {
           attemptedRasterFallback = true;
@@ -1404,7 +1482,72 @@ function MapView({
       mapRef.current = null;
       setMapInstance(null);
     };
-  }, [enable3dBuildings, mapStyle]);
+  }, []);
+
+  useEffect(() => {
+    const map = mapInstance ?? mapRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    const styleChanged = appliedMapStyleRef.current !== mapStyle;
+    const modeChanged = applied3dMapModeRef.current !== enable3dBuildings;
+
+    if (!styleChanged && !modeChanged) {
+      return;
+    }
+
+    try {
+      const synced3dLayerInPlace = styleChanged
+        ? sync3dBuildingsInPlace(map, enable3dBuildings, mapStyle)
+        : true;
+
+      if (styleChanged && !synced3dLayerInPlace && typeof map.setStyle === 'function') {
+        setMapLoadStatus('loading');
+        setMapError(null);
+        map.setStyle(mapStyle);
+      }
+
+      appliedMapStyleRef.current = mapStyle;
+      applied3dMapModeRef.current = enable3dBuildings;
+
+      const currentMapZoom = typeof map.getZoom === 'function' ? map.getZoom() : currentZoom;
+      const nextZoom = enable3dBuildings
+        ? Math.max(currentMapZoom, DEFAULT_3D_BUILDINGS_ZOOM)
+        : currentMapZoom;
+      const nextPitch = enable3dBuildings ? MAP_3D_BUILDINGS_PITCH : 0;
+      const nextBearing = enable3dBuildings ? MAP_3D_BUILDINGS_BEARING : 0;
+
+      if (typeof map.easeTo === 'function') {
+        map.easeTo({
+          zoom: nextZoom,
+          pitch: nextPitch,
+          bearing: nextBearing,
+          duration: 450,
+          essential: true,
+        });
+      } else {
+        if (typeof map.setPitch === 'function') {
+          map.setPitch(nextPitch);
+        }
+        if (typeof map.setBearing === 'function') {
+          map.setBearing(nextBearing);
+        }
+        if (nextZoom !== currentMapZoom && typeof map.setZoom === 'function') {
+          map.setZoom(nextZoom);
+        }
+      }
+
+      if (nextZoom !== currentMapZoom) {
+        setCurrentZoom(nextZoom);
+      }
+    } catch (error) {
+      console.error('Error updating 3D map mode:', error);
+      setMapLoadStatus('error');
+      setMapError(MAP_ERROR_MESSAGE);
+    }
+  }, [currentZoom, enable3dBuildings, mapInstance, mapStyle]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

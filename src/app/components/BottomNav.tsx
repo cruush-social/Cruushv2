@@ -82,7 +82,7 @@ export default function BottomNav() {
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="cruush-bottom-nav-pill cruush-glass-bar pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between overflow-hidden rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
+        className="cruush-bottom-nav-pill cruush-glass-bar cruush-glass-menu-toggle pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between overflow-hidden rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
         style={bottomNavStyle}
       >
         {hasActiveItem ? (
