@@ -9,20 +9,28 @@ const {
   createMessage,
   createMessagePhoto,
   deleteConversationForEveryone,
+  getFavoriteMessageImages,
   getConversationMessages,
   getCurrentUserId,
   getGroupMembers,
+  removeFavoriteMessageImage,
+  sendFavoriteMessageImage,
   setConversationDisappearingTimer,
+  uploadFavoriteMessageImage,
   viewMessageAttachment,
 } = vi.hoisted(() => ({
   clearConversationForEveryone: vi.fn(),
   createMessage: vi.fn(),
   createMessagePhoto: vi.fn(),
   deleteConversationForEveryone: vi.fn(),
+  getFavoriteMessageImages: vi.fn(),
   getConversationMessages: vi.fn(),
   getCurrentUserId: vi.fn(),
   getGroupMembers: vi.fn(),
+  removeFavoriteMessageImage: vi.fn(),
+  sendFavoriteMessageImage: vi.fn(),
   setConversationDisappearingTimer: vi.fn(),
+  uploadFavoriteMessageImage: vi.fn(),
   viewMessageAttachment: vi.fn(),
 }));
 
@@ -59,9 +67,13 @@ vi.mock('../lib/messagesApi', async () => {
     createMessage,
     createMessagePhoto,
     deleteConversationForEveryone,
+    getFavoriteMessageImages,
     getConversationMessages,
     getGroupMembers,
+    removeFavoriteMessageImage,
+    sendFavoriteMessageImage,
     setConversationDisappearingTimer,
+    uploadFavoriteMessageImage,
     viewMessageAttachment,
   };
 });
@@ -150,10 +162,14 @@ describe('PrivateGroupChat', () => {
     createMessage.mockReset();
     createMessagePhoto.mockReset();
     deleteConversationForEveryone.mockReset();
+    getFavoriteMessageImages.mockReset();
     getConversationMessages.mockReset();
     getCurrentUserId.mockReset();
     getGroupMembers.mockReset();
+    removeFavoriteMessageImage.mockReset();
+    sendFavoriteMessageImage.mockReset();
     setConversationDisappearingTimer.mockReset();
+    uploadFavoriteMessageImage.mockReset();
     viewMessageAttachment.mockReset();
     blockUser.mockReset();
     createReport.mockReset();
@@ -161,6 +177,7 @@ describe('PrivateGroupChat', () => {
     toastError.mockReset();
     getCurrentUserId.mockResolvedValue('user-1');
     getGroupMembers.mockResolvedValue([]);
+    getFavoriteMessageImages.mockResolvedValue({ images: [] });
     blockUser.mockResolvedValue({
       userId: 'user-2',
       blocked: true,
@@ -619,7 +636,10 @@ describe('PrivateGroupChat', () => {
       'image/jpeg,image/png,image/webp,image/heic,image/heif',
     );
     expect(photoInput).toHaveAttribute('id');
-    expect(attachPhotoControl).toHaveAttribute('for', photoInput.getAttribute('id'));
+    const inputClickSpy = vi.spyOn(photoInput as HTMLInputElement, 'click').mockImplementation(() => undefined);
+    fireEvent.click(attachPhotoControl);
+    expect(inputClickSpy).toHaveBeenCalledTimes(1);
+    inputClickSpy.mockRestore();
     const viewOnceControl = screen.getByRole('checkbox', { name: 'Send photo view once' });
     expect(viewOnceControl).toHaveClass('rounded-full');
     expect(viewOnceControl).toHaveAttribute('data-state', 'unchecked');
@@ -637,6 +657,77 @@ describe('PrivateGroupChat', () => {
     });
     expect(await screen.findByAltText('Message photo')).toHaveAttribute('src', '/api/media/message-photos/photo.png');
     expect(screen.getByText('meet here')).toBeInTheDocument();
+  });
+
+  it('opens and uploads favorite images from the visible gallery control', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+    uploadFavoriteMessageImage.mockResolvedValue({
+      id: 'favorite-1',
+      mediaObjectId: 'media-favorite-1',
+      label: 'favorite',
+      url: '/api/media/message-photos/favorite.webp',
+      thumbnailUrl: '/api/media/assets/media-favorite-1/thumbnail',
+      mediaType: 'image',
+      mimeType: 'image/webp',
+      explicit: false,
+      createdAt: '2026-04-29T12:00:00.000Z',
+      updatedAt: '2026-04-29T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    const favoriteGalleryButtons = screen.getAllByRole('button', { name: 'Favorite images' });
+    fireEvent.click(favoriteGalleryButtons[favoriteGalleryButtons.length - 1]);
+
+    await waitFor(() => expect(getFavoriteMessageImages).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('No favorite images yet.')).toBeInTheDocument();
+
+    const favoriteInput = screen.getByLabelText('Choose favorite image') as HTMLInputElement;
+    const favoriteUploadButton = screen.getByRole('button', { name: 'Upload' });
+    const inputClickSpy = vi.spyOn(favoriteInput, 'click').mockImplementation(() => undefined);
+    fireEvent.click(favoriteUploadButton);
+    expect(inputClickSpy).toHaveBeenCalledTimes(1);
+    inputClickSpy.mockRestore();
+
+    const file = new File(['image-bytes'], 'favorite.png', { type: 'image/png' });
+    fireEvent.change(favoriteInput, {
+      target: { files: [file] },
+    });
+
+    await waitFor(() => {
+      expect(uploadFavoriteMessageImage).toHaveBeenCalledWith(file, 'favorite');
+    });
+    expect(await screen.findByAltText('favorite')).toHaveAttribute('src', '/api/media/assets/media-favorite-1/thumbnail');
   });
 
   it('does not offer video upload from the message composer', async () => {
@@ -1128,6 +1219,6 @@ describe('PrivateGroupChat', () => {
     expect(screen.getByPlaceholderText('Group closed')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
     expect(screen.getByLabelText('Choose message photo')).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Attach photo' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Attach photo' })).toBeDisabled();
   });
 });

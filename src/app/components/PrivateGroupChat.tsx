@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import type { CSSProperties, ChangeEvent, KeyboardEvent, RefObject } from 'react';
+import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, MoreHorizontal, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -115,16 +115,14 @@ function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }
   );
 }
 
-function openFileInputFromKeyboard(
-  event: KeyboardEvent,
+function openFileInput(
   inputRef: RefObject<HTMLInputElement | null>,
   disabled: boolean,
 ) {
-  if (disabled || (event.key !== 'Enter' && event.key !== ' ')) {
+  if (disabled) {
     return;
   }
 
-  event.preventDefault();
   inputRef.current?.click();
 }
 
@@ -351,6 +349,7 @@ export default function PrivateGroupChat() {
       return;
     }
 
+    setError(null);
     setFavoriteUploading(true);
 
     try {
@@ -664,6 +663,7 @@ export default function PrivateGroupChat() {
     }
 
     const caption = message.trim();
+    setError(null);
     setPhotoUploading(true);
 
     try {
@@ -1239,21 +1239,14 @@ export default function PrivateGroupChat() {
                           onChange={(event) => void handleFavoriteImageSelected(event)}
                         />
                         <Button
-                          asChild
+                          type="button"
                           variant="outline"
                           size="sm"
-                          className={favoriteUploadControlDisabled ? 'pointer-events-none opacity-50' : undefined}
+                          disabled={favoriteUploadControlDisabled}
+                          onClick={() => openFileInput(favoriteFileInputRef, favoriteUploadControlDisabled)}
                         >
-                          <label
-                            htmlFor={favoriteImageInputId}
-                            role="button"
-                            aria-disabled={favoriteUploadControlDisabled}
-                            tabIndex={favoriteUploadControlDisabled ? -1 : 0}
-                            onKeyDown={(event) => openFileInputFromKeyboard(event, favoriteFileInputRef, favoriteUploadControlDisabled)}
-                          >
-                            <ImagePlus className="size-4" />
-                            Upload
-                          </label>
+                          <ImagePlus className="size-4" />
+                          {favoriteUploading ? 'Uploading' : 'Upload'}
                         </Button>
                         <Button
                           type="button"
@@ -1389,22 +1382,15 @@ export default function PrivateGroupChat() {
                       <Star className="size-4" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
                     </Button>
                     <Button
-                      asChild
+                      type="button"
                       variant="ghost"
                       size="icon"
-                      className={messagePhotoControlDisabled ? 'pointer-events-none opacity-50' : undefined}
+                      title={photoUploading ? 'Sending photo' : 'Attach photo'}
+                      aria-label={photoUploading ? 'Sending photo' : 'Attach photo'}
+                      disabled={messagePhotoControlDisabled}
+                      onClick={() => openFileInput(fileInputRef, messagePhotoControlDisabled)}
                     >
-                      <label
-                        htmlFor={messagePhotoInputId}
-                        title="Attach photo"
-                        role="button"
-                        aria-label="Attach photo"
-                        aria-disabled={messagePhotoControlDisabled}
-                        tabIndex={messagePhotoControlDisabled ? -1 : 0}
-                        onKeyDown={(event) => openFileInputFromKeyboard(event, fileInputRef, messagePhotoControlDisabled)}
-                      >
-                        <ImageIcon className="size-4" />
-                      </label>
+                      <ImageIcon className="size-4" />
                     </Button>
                     <Button
                       onClick={() => void handleSend()}
