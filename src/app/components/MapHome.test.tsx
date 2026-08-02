@@ -184,6 +184,7 @@ vi.mock('./MapView', async () => {
       enable3dBuildings,
       fitToMarkers,
       focusCoordinates,
+      mobileSignalPreview,
       radiusCircle,
       demoRadiusCircles = [],
       onPinClick,
@@ -194,6 +195,7 @@ vi.mock('./MapView', async () => {
       enable3dBuildings?: boolean;
       fitToMarkers?: boolean;
       focusCoordinates?: { approximateLatitude: number; approximateLongitude: number } | null;
+      mobileSignalPreview?: boolean;
       radiusCircle?: {
         center: { approximateLatitude: number; approximateLongitude: number };
         radiusMeters: number;
@@ -206,6 +208,8 @@ vi.mock('./MapView', async () => {
       onMapClick?: () => void;
       onMapReady?: (map: typeof mapControls) => void;
     }) => {
+      const [previewedMarkerId, setPreviewedMarkerId] = React.useState<string | null>(null);
+
       React.useEffect(() => {
         onMapReady?.(mapControls);
       }, [onMapReady]);
@@ -218,6 +222,7 @@ vi.mock('./MapView', async () => {
             data-lng={focusCoordinates ? String(focusCoordinates.approximateLongitude) : ''}
             data-fit-to-markers={String(Boolean(fitToMarkers))}
             data-3d-buildings={String(Boolean(enable3dBuildings))}
+            data-mobile-signal-preview={String(Boolean(mobileSignalPreview))}
             data-radius-circle={radiusCircle ? String(radiusCircle.radiusMeters) : ''}
             data-radius-lat={radiusCircle ? String(radiusCircle.center.approximateLatitude) : ''}
             data-radius-lng={radiusCircle ? String(radiusCircle.center.approximateLongitude) : ''}
@@ -243,9 +248,25 @@ vi.mock('./MapView', async () => {
           {markers
             .filter((marker) => marker.id !== 'me')
             .map((marker) => (
-              <button key={marker.id} onClick={() => onPinClick(marker)}>
-                {`Pin ${marker.displayName}`}
-              </button>
+              <React.Fragment key={marker.id}>
+                <button
+                  onClick={() => {
+                    if (mobileSignalPreview && (marker.kind ?? 'person') === 'person' && previewedMarkerId !== marker.id) {
+                      setPreviewedMarkerId(marker.id);
+                      return;
+                    }
+
+                    onPinClick(marker);
+                  }}
+                >
+                  {`Pin ${marker.displayName}`}
+                </button>
+                {mobileSignalPreview && previewedMarkerId === marker.id ? (
+                  <div data-testid={`mock-mobile-signal-${marker.id}`}>
+                    {marker.signal || marker.latestFeedPostPreview || marker.displayName}
+                  </div>
+                ) : null}
+              </React.Fragment>
             ))}
         </div>
       );
@@ -442,6 +463,7 @@ describe('MapHome', () => {
         position: ['Top'],
         hostingTravel: ['Can Host'],
         photo: null,
+        signal: 'Rooftop after dark.',
       },
     ]);
     getMutualCruushMap.mockResolvedValue([]);
@@ -549,7 +571,7 @@ describe('MapHome', () => {
     );
   });
 
-  it('navigates directly to the full profile on mobile', async () => {
+  it('previews the map signal before opening the full profile on mobile', async () => {
     useIsMobile.mockReturnValue(true);
 
     const { container } = render(
@@ -572,7 +594,15 @@ describe('MapHome', () => {
     expect(screen.getByText('nyc open beta')).toHaveClass('lowercase');
     expect(screen.getByText('nyc open beta').parentElement).toHaveClass('flex-col', 'items-center');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
+    const jordanMarker = await screen.findByRole('button', { name: 'Pin Jordan' });
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-mobile-signal-preview', 'true');
+
+    fireEvent.click(jordanMarker);
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+    expect(screen.getByTestId('mock-mobile-signal-user-1')).toHaveTextContent('Rooftop after dark.');
+
+    fireEvent.click(jordanMarker);
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
   });

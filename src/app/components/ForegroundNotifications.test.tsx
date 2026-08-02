@@ -78,6 +78,82 @@ function LocationProbe() {
   return <div data-testid="location-probe">{location.pathname}</div>;
 }
 
+function installMockAudioContext(initialState: AudioContextState = 'suspended') {
+  const oscillators: Array<{
+    connect: ReturnType<typeof vi.fn>;
+    frequency: {
+      exponentialRampToValueAtTime: ReturnType<typeof vi.fn>;
+      setValueAtTime: ReturnType<typeof vi.fn>;
+    };
+    start: ReturnType<typeof vi.fn>;
+    stop: ReturnType<typeof vi.fn>;
+    type: OscillatorType;
+  }> = [];
+  const gains: Array<{
+    connect: ReturnType<typeof vi.fn>;
+    gain: {
+      exponentialRampToValueAtTime: ReturnType<typeof vi.fn>;
+      setValueAtTime: ReturnType<typeof vi.fn>;
+    };
+  }> = [];
+  const context: {
+    createGain: ReturnType<typeof vi.fn>;
+    createOscillator: ReturnType<typeof vi.fn>;
+    currentTime: number;
+    destination: Record<string, never>;
+    resume: ReturnType<typeof vi.fn>;
+    state: AudioContextState;
+  } = {
+    createGain: vi.fn(() => {
+      const gain = {
+        connect: vi.fn(),
+        gain: {
+          exponentialRampToValueAtTime: vi.fn(),
+          setValueAtTime: vi.fn(),
+        },
+      };
+      gains.push(gain);
+      return gain;
+    }),
+    createOscillator: vi.fn(() => {
+      const oscillator = {
+        connect: vi.fn(),
+        frequency: {
+          exponentialRampToValueAtTime: vi.fn(),
+          setValueAtTime: vi.fn(),
+        },
+        start: vi.fn(),
+        stop: vi.fn(),
+        type: 'sine' as OscillatorType,
+      };
+      oscillators.push(oscillator);
+      return oscillator;
+    }),
+    currentTime: 12,
+    destination: {},
+    resume: vi.fn(async () => {
+      context.state = 'running';
+    }),
+    state: initialState,
+  };
+  const AudioContextConstructor = vi.fn(function MockAudioContext() {
+    return context;
+  });
+
+  Object.defineProperty(window, 'AudioContext', {
+    configurable: true,
+    value: AudioContextConstructor,
+    writable: true,
+  });
+
+  return {
+    AudioContextConstructor,
+    context,
+    gains,
+    oscillators,
+  };
+}
+
 async function advanceToNextPoll() {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(IN_APP_NOTIFICATION_POLL_INTERVAL_MS);
@@ -91,8 +167,23 @@ async function flushAsyncWork() {
 }
 
 describe('ForegroundNotifications', () => {
+  let originalAudioContext: typeof window.AudioContext | undefined;
+  let originalWebkitAudioContext: typeof AudioContext | undefined;
+
   beforeEach(() => {
     vi.useFakeTimers();
+    originalAudioContext = window.AudioContext;
+    originalWebkitAudioContext = (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    Object.defineProperty(window, 'AudioContext', {
+      configurable: true,
+      value: undefined,
+      writable: true,
+    });
+    Object.defineProperty(window, 'webkitAudioContext', {
+      configurable: true,
+      value: undefined,
+      writable: true,
+    });
     emitNotificationsChanged.mockReset();
     getNotificationPreferences.mockReset();
     getNotificationSummary.mockReset();
@@ -109,6 +200,16 @@ describe('ForegroundNotifications', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    Object.defineProperty(window, 'AudioContext', {
+      configurable: true,
+      value: originalAudioContext,
+      writable: true,
+    });
+    Object.defineProperty(window, 'webkitAudioContext', {
+      configurable: true,
+      value: originalWebkitAudioContext,
+      writable: true,
+    });
   });
 
   it('uses the first poll as a baseline and pops only new unread notifications', async () => {
@@ -243,6 +344,60 @@ describe('ForegroundNotifications', () => {
     expect(getNotifications).toHaveBeenCalledTimes(2);
 
     expect(toastCustom).not.toHaveBeenCalled();
+  });
+
+  it('plays an audible heartbeat after resuming foreground notification audio', async () => {
+    const audio = installMockAudioContext();
+    const oldNotification = notification({
+      id: 'old-notification',
+      createdAt: '2026-08-02T12:00:00.000Z',
+    });
+    const newNotification = notification({
+      id: 'new-notification',
+      createdAt: '2026-08-02T12:01:00.000Z',
+    });
+    getNotifications
+      .mockResolvedValueOnce({ notifications: [oldNotification], nextCursor: null })
+      .mockResolvedValueOnce({ notifications: [newNotification], nextCursor: null });
+
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <ForegroundNotifications />
+      </MemoryRouter>,
+    );
+
+    await flushAsyncWork();
+    await advanceToNextPoll();
+    await flushAsyncWork();
+
+    expect(audio.AudioContextConstructor).toHaveBeenCalledTimes(1);
+    expect(audio.context.resume).toHaveBeenCalled();
+    expect(audio.oscillators).toHaveLength(4);
+    expect(audio.gains).toHaveLength(4);
+    expect(audio.oscillators.every((oscillator) => oscillator.start.mock.calls.length === 1)).toBe(true);
+    expect(audio.oscillators.every((oscillator) => oscillator.stop.mock.calls.length === 1)).toBe(true);
+
+    const peakGains = audio.gains.flatMap((gain) => (
+      gain.gain.exponentialRampToValueAtTime.mock.calls.map(([value]) => Number(value))
+    ));
+    expect(Math.max(...peakGains)).toBeGreaterThanOrEqual(0.16);
+    expect(peakGains.some((value) => value >= 0.055 && value < 0.07)).toBe(true);
+  });
+
+  it('unlocks heartbeat audio on mobile touch and click gestures', async () => {
+    const audio = installMockAudioContext();
+
+    render(
+      <MemoryRouter initialEntries={['/messages']}>
+        <ForegroundNotifications />
+      </MemoryRouter>,
+    );
+
+    fireEvent.touchStart(window);
+    await flushAsyncWork();
+
+    expect(audio.AudioContextConstructor).toHaveBeenCalledTimes(1);
+    expect(audio.context.resume).toHaveBeenCalled();
   });
 
   it('keeps route and preference helpers narrow', () => {
