@@ -1063,7 +1063,7 @@ function MapMarkerPin({
   const markerFrameClass = isCurrentUser ? 'h-[104px] w-[121px]' : 'h-[88px] w-[103px]';
   const markerInnerFrameClass = isCurrentUser ? 'h-24 w-[121px]' : 'h-20 w-[103px]';
   const markerScaleClass = mobileSignalActive
-    ? 'scale-125'
+    ? 'scale-110'
     : 'group-hover:scale-150 group-focus-within:scale-150';
 
   if (marker.kind === 'cluster') {
@@ -1090,7 +1090,7 @@ function MapMarkerPin({
       </span>
       {showMobileSignal ? (
         <span
-          className="cruush-glass-pill pointer-events-none absolute left-[calc(50%+2rem)] top-[2.15rem] z-30 flex max-w-[13rem] -translate-y-1/2 items-center gap-1.5 rounded-full border border-[#79b7ff]/50 bg-[#247cff]/92 px-3 py-1.5 text-left text-[0.82rem] font-semibold leading-none text-white shadow-[0_10px_26px_rgba(0,79,255,0.42)] backdrop-blur-md"
+          className="cruush-glass-pill pointer-events-none absolute left-1/2 top-0 z-30 flex w-max max-w-[min(12rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-[calc(100%+0.25rem)] items-center gap-1.5 rounded-full border border-white/28 bg-white/[0.13] px-3 py-1.5 text-left text-[0.82rem] font-semibold leading-none text-white shadow-[0_10px_28px_rgba(0,0,0,0.36)] backdrop-blur-md"
           data-testid={`marker-mobile-signal-${marker.id}`}
         >
           <span className="h-2 w-2 shrink-0 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.85)]" />

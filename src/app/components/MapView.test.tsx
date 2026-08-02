@@ -293,7 +293,18 @@ describe('MapView', () => {
       center: [-74.01, 40.72],
       zoom: 15.6,
     }));
-    expect(await screen.findByTestId('marker-mobile-signal-user-signal')).toHaveTextContent('30m, 5\'8", 160lb, 6", average build');
+    const mobileSignal = await screen.findByTestId('marker-mobile-signal-user-signal');
+    expect(mobileSignal).toHaveTextContent('30m, 5\'8", 160lb, 6", average build');
+    expect(mobileSignal).toHaveClass(
+      'left-1/2',
+      'top-0',
+      '-translate-x-1/2',
+      '-translate-y-[calc(100%+0.25rem)]',
+      'max-w-[min(12rem,calc(100vw-2rem))]',
+    );
+    expect(mobileSignal).not.toHaveClass('left-[calc(50%+2rem)]', 'top-[2.15rem]');
+    expect(screen.getByTestId('marker-heart-user-signal').parentElement).toHaveClass('scale-110');
+    expect(screen.getByTestId('marker-heart-user-signal').parentElement).not.toHaveClass('scale-125');
     expect(document.querySelectorAll('[data-mobile-signal-active="true"]')).toHaveLength(1);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));

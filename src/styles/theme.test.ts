@@ -38,11 +38,12 @@ describe('global text selection policy', () => {
   });
 
   it('uses stronger liquid-glass tokens for Apple-style menu surfaces', () => {
-    expect(themeCss).toContain('--cruush-glass-backdrop: blur(24px) saturate(1.85) brightness(1.12) contrast(1.02);');
+    expect(themeCss).toContain('--cruush-glass-backdrop: blur(34px) saturate(2.05) brightness(1.2) contrast(0.96);');
+    expect(themeCss).toContain('--cruush-glass-material-noise: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0));');
     expect(themeCss).toContain('--cruush-glass-menu-toggle-bg:');
     expect(themeCss).toContain('.cruush-glass-menu-toggle {');
     expect(themeCss).toContain('.cruush-bottom-nav-indicator-surface::before,');
-    expect(themeCss).toContain('backdrop-filter: blur(26px) saturate(1.9) brightness(1.1);');
+    expect(themeCss).toContain('backdrop-filter: blur(34px) saturate(2.05) brightness(1.18) contrast(0.96);');
   });
 
   it('keeps the cruush plus shimmer and recently active rail hooks available', () => {
