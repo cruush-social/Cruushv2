@@ -195,7 +195,15 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
             onClick={activated ? close : handleClaim}
             style={{ background: 'var(--cruush-gradient)' }}
           >
-            {activated ? 'Done' : claiming ? 'Activating...' : 'OK, activate cruush+'}
+            {activated ? (
+              'Done'
+            ) : claiming ? (
+              'Activating...'
+            ) : (
+              <>
+                OK, activate <CruushPlusWord className="beta-launch-plus-dialog__button-word" />
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

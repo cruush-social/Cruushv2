@@ -50,6 +50,12 @@
   box-shadow: 0 0.85rem 2rem rgba(255, 0, 114, 0.22);
 }
 
+.beta-launch-plus-dialog__button-word {
+  font-size: 1.12em;
+  line-height: 0.9;
+  vertical-align: -0.02em;
+}
+
 .beta-launch-plus-card-scene {
   display: grid;
   width: min(17rem, 100%);

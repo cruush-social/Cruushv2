@@ -51,8 +51,10 @@ describe('BetaLaunchCruushPlusOffer', () => {
     expect(screen.getByText(/Claim one free week of/i)).toHaveTextContent('cruush+');
 
     const trialCard = screen.getByTestId('beta-launch-cruush-plus-card');
+    const activateButton = screen.getByRole('button', { name: 'OK, activate cruush+' });
     expect(trialCard).toHaveClass('beta-launch-plus-card');
     expect(screen.getByTestId('beta-launch-cruush-plus-card-label')).toHaveTextContent('cruush+');
+    expect(activateButton.querySelector('.cruush-logo-font')).toHaveTextContent('cruush+');
   });
 
   it('keeps the existing claim action wired to the rewards API', async () => {
