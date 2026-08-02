@@ -14,11 +14,44 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     static calls: unknown[] = [];
     container: HTMLElement;
     handlers = new Map<string, Array<(event?: unknown) => void>>();
+    style?: unknown;
+    center: [number, number] | null = null;
+    zoom = 12;
+    pitch = 0;
+    bearing = 0;
     zoomIn = vi.fn();
     zoomOut = vi.fn();
-    setCenter = vi.fn();
-    setZoom = vi.fn();
-    getZoom = vi.fn(() => 12);
+    setCenter = vi.fn((center: [number, number]) => {
+      this.center = center;
+    });
+    setZoom = vi.fn((zoom: number) => {
+      this.zoom = zoom;
+    });
+    getZoom = vi.fn(() => this.zoom);
+    setPitch = vi.fn((pitch: number) => {
+      this.pitch = pitch;
+    });
+    setBearing = vi.fn((bearing: number) => {
+      this.bearing = bearing;
+    });
+    easeTo = vi.fn((options: { center?: [number, number]; zoom?: number; pitch?: number; bearing?: number }) => {
+      if (options.center) {
+        this.center = options.center;
+      }
+      if (typeof options.zoom === 'number') {
+        this.zoom = options.zoom;
+      }
+      if (typeof options.pitch === 'number') {
+        this.pitch = options.pitch;
+      }
+      if (typeof options.bearing === 'number') {
+        this.bearing = options.bearing;
+      }
+    });
+    setStyle = vi.fn((style: unknown) => {
+      this.style = style;
+    });
+    setLight = vi.fn();
     fitBounds = vi.fn();
     sources = new Map<string, any>();
     layers = new Map<string, any>();
@@ -196,11 +229,9 @@ describe('MapView', () => {
     expect(screen.queryByLabelText('bottom')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
     expect(screen.getByLabelText('top')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-badge-me')).toHaveClass('cruush-glass-soft', 'border-[#0BA8FF]/80');
+    expect(screen.getByTestId('marker-badge-me')).toHaveClass('cruush-glass-soft', 'right-2', 'top-1/2', '-translate-y-1/2', 'border-[#0BA8FF]/80');
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
-    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('cruush-glass-soft', 'border-[#FF0072]/80');
-    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('right-1.5', 'top-8');
-    expect(screen.getByTestId('marker-badge-user-1')).not.toHaveClass('-right-0.5', 'z-20');
+    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('cruush-glass-soft', 'right-1.5', 'top-1/2', '-translate-y-1/2', 'border-[#FF0072]/80');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
     expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
@@ -220,6 +251,49 @@ describe('MapView', () => {
     expect(markerInstances[1].element.className).not.toContain('drop-shadow');
     expect(screen.getByTestId('marker-heart-me').querySelector('filter')).toBeNull();
     expect(screen.getByTestId('marker-heart-user-1').querySelector('filter')).toBeNull();
+  });
+
+  it('zooms to a mobile marker and shows its signal before opening the profile', async () => {
+    const onPinClick = vi.fn();
+
+    render(
+      <MapView
+        mobileSignalPreview
+        onPinClick={onPinClick}
+        markers={[
+          {
+            id: 'me',
+            displayName: 'You',
+            approximateLatitude: 40.73,
+            approximateLongitude: -73.99,
+            isCurrentUser: true,
+          },
+          {
+            id: 'user-signal',
+            displayName: 'Jordan',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            signal: '30m, 5\'8", 160lb, 6", average build',
+          },
+        ]}
+      />
+    );
+
+    expect(await screen.findByTestId('marker-mobile-signal-me')).toHaveTextContent('You');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Preview Jordan signal on map' }));
+
+    expect(onPinClick).not.toHaveBeenCalled();
+    expect(mapInstances[0].easeTo).toHaveBeenCalledWith(expect.objectContaining({
+      center: [-74.01, 40.72],
+      zoom: 15.6,
+    }));
+    expect(await screen.findByTestId('marker-mobile-signal-user-signal')).toHaveTextContent('30m, 5\'8", 160lb, 6", average build');
+    expect(document.querySelectorAll('[data-mobile-signal-active="true"]')).toHaveLength(1);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
+
+    expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-signal' }));
   });
 
   it('does not recreate the map when the onMapReady callback identity changes', async () => {
@@ -699,10 +773,9 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('cruush-heart-glass-svg', 'h-20', 'w-20');
     expect(screen.getByTestId('marker-heart-user-mutual').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
-    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('cruush-glass-soft', 'border-[#6f00ff]/80');
-    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('right-1.5', 'top-8');
+    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('cruush-glass-soft', 'right-1.5', 'top-1/2', '-translate-y-1/2', 'border-[#6f00ff]/80');
     expect(screen.getByLabelText('mutual cruush')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass('cruush-glass-soft', 'left-1.5', 'top-8');
+    expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass('cruush-glass-soft', 'left-1.5', 'top-1/2', '-translate-y-1/2');
     expect(screen.getByTestId('marker-relationship-user-mutual').querySelector('img')?.getAttribute('src')).toContain('safety-white');
   });
 

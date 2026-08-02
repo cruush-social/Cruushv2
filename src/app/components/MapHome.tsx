@@ -1603,6 +1603,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               setSelectedEventSlug(null);
             }}
             markers={mapMarkers}
+            mobileSignalPreview={isMobile}
             enable3dBuildings={is3dMapModeEnabled}
             heatmapEnabled={isHeatmapEnabled}
             onHeatmapAvailabilityChange={setIsHeatmapAvailable}

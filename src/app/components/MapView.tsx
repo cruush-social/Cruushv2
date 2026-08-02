@@ -48,6 +48,7 @@ interface MapViewProps {
   onMapClick?: () => void;
   onMapReady?: (map: MapLibreMap) => void;
   markers: MapMarker[];
+  mobileSignalPreview?: boolean;
   enable3dBuildings?: boolean;
   heatmapEnabled?: boolean;
   onHeatmapAvailabilityChange?: (available: boolean) => void;
@@ -95,6 +96,7 @@ const SAME_LOCATION_CLUSTER_PRECISION = 6;
 const SPIDERFY_RADIUS_PX = 86;
 const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
 const SPIDERFY_SECOND_RING_AFTER = 10;
+const MOBILE_SIGNAL_PREVIEW_ZOOM = 15.6;
 const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
 const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
 const MAP_LABEL_LAYER_TYPES = new Set(['symbol']);
@@ -801,6 +803,14 @@ function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
   return POSITION_BADGE_ICONS[badge.iconName] ?? null;
 }
 
+function getHeartSideBadgeClass(side: 'left' | 'right', isCurrentUser: boolean) {
+  const edgeClass = side === 'left'
+    ? isCurrentUser ? 'left-2' : 'left-1.5'
+    : isCurrentUser ? 'right-2' : 'right-1.5';
+
+  return `${edgeClass} top-1/2 -translate-y-1/2`;
+}
+
 function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
   const badge = marker.badge;
   const Icon = getBadgeIcon(badge);
@@ -819,7 +829,8 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     <span
       aria-label={isCurrentUser ? 'Your profile' : badge?.label}
       className={[
-        'cruush-glass-soft absolute right-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'cruush-glass-soft absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        getHeartSideBadgeClass('right', isCurrentUser),
         borderClass,
       ].join(' ')}
       data-testid={`marker-badge-${marker.id}`}
@@ -835,7 +846,7 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   );
 }
 
-function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
+function MarkerRelationshipBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
   if (marker.relationship?.kind !== 'mutual_cruush') {
     return null;
   }
@@ -854,7 +865,10 @@ function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
   return (
     <span
       aria-label={precisionLabel}
-      className="cruush-glass-soft absolute left-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border border-[#6f00ff]/80 bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
+      className={[
+        'cruush-glass-soft absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border border-[#6f00ff]/80 bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        getHeartSideBadgeClass('left', isCurrentUser),
+      ].join(' ')}
       data-testid={`marker-relationship-${marker.id}`}
       role="img"
       title={title}
@@ -966,10 +980,26 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
   );
 }
 
-function MapMarkerPin({ marker }: { marker: MapMarker }) {
+function MapMarkerPin({
+  marker,
+  mobileSignalActive = false,
+  mobileSignalPreview = false,
+}: {
+  marker: MapMarker;
+  mobileSignalActive?: boolean;
+  mobileSignalPreview?: boolean;
+}) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser === true;
-  const signalPreview = marker.kind === 'person' ? truncateMarkerPreview(marker.signal) : '';
-  const postPreview = marker.kind === 'person' ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
+  const isPersonMarker = (marker.kind ?? 'person') === 'person';
+  const signalPreview = isPersonMarker ? truncateMarkerPreview(marker.signal, mobileSignalPreview ? 42 : 30) : '';
+  const postPreview = isPersonMarker ? truncateMarkerPreview(marker.latestFeedPostPreview, mobileSignalPreview ? 42 : 30) : '';
+  const mobileSignalLabel = isCurrentUser ? 'You' : signalPreview || postPreview;
+  const showMobileSignal = mobileSignalPreview && Boolean(mobileSignalLabel) && (mobileSignalActive || isCurrentUser);
+  const markerFrameClass = isCurrentUser ? 'h-[104px] w-[121px]' : 'h-[88px] w-[103px]';
+  const markerInnerFrameClass = isCurrentUser ? 'h-24 w-[121px]' : 'h-20 w-[103px]';
+  const markerScaleClass = mobileSignalActive
+    ? 'scale-125'
+    : 'group-hover:scale-150 group-focus-within:scale-150';
 
   if (marker.kind === 'cluster') {
     return isPersonCluster(marker) ? <PeopleClusterMarker marker={marker} /> : <VenueClusterMarker marker={marker} />;
@@ -980,8 +1010,8 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   }
 
   return (
-    <span className="group pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
-      <span className="relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-150 group-focus-within:scale-150">
+    <span className={`group pointer-events-none relative flex ${markerFrameClass} items-start justify-center overflow-visible`}>
+      <span className={`relative flex ${markerInnerFrameClass} origin-bottom items-center justify-center transition-transform duration-150 ${markerScaleClass}`}>
         {marker.npcGhostDemo ? (
           <span
             aria-hidden="true"
@@ -991,9 +1021,18 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
         ) : null}
         <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
         <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
-        <MarkerRelationshipBadge marker={marker} />
+        <MarkerRelationshipBadge marker={marker} isCurrentUser={isCurrentUser} />
       </span>
-      {signalPreview || postPreview ? (
+      {showMobileSignal ? (
+        <span
+          className="cruush-glass-pill pointer-events-none absolute left-[calc(50%+2rem)] top-[2.15rem] z-30 flex max-w-[13rem] -translate-y-1/2 items-center gap-1.5 rounded-full border border-[#79b7ff]/50 bg-[#247cff]/92 px-3 py-1.5 text-left text-[0.82rem] font-semibold leading-none text-white shadow-[0_10px_26px_rgba(0,79,255,0.42)] backdrop-blur-md"
+          data-testid={`marker-mobile-signal-${marker.id}`}
+        >
+          <span className="h-2 w-2 shrink-0 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.85)]" />
+          <span className="min-w-0 truncate">{mobileSignalLabel}</span>
+        </span>
+      ) : null}
+      {!showMobileSignal && (signalPreview || postPreview) ? (
         <span className="absolute left-1/2 top-0 z-20 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
           {signalPreview ? (
             <span className="cruush-glass-pill rounded-full border border-white/12 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
@@ -1021,9 +1060,19 @@ function createMarkerElement(
   marker: DisplayMapMarker,
   onPinClick: (marker: MapMarker) => void,
   onMarkerInteraction: () => void,
+  {
+    mobileSignalActive = false,
+    mobileSignalPreview = false,
+    onMobileSignalPreview,
+  }: {
+    mobileSignalActive?: boolean;
+    mobileSignalPreview?: boolean;
+    onMobileSignalPreview?: (marker: MapMarker) => void;
+  } = {},
 ) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
   const isInteractive = !isCurrentUser || marker.kind === 'event' || marker.kind === 'cluster';
+  const isMobileSignalPreviewMarker = mobileSignalPreview && (marker.kind ?? 'person') === 'person' && !isCurrentUser;
   const element = document.createElement(isInteractive ? 'button' : 'div');
   const name = getDisplayName(marker);
   const animationHint = marker.animationHint ?? 'NONE';
@@ -1046,6 +1095,11 @@ function createMarkerElement(
     element.style.zIndex = String(30 + marker.spiderfy.index);
   }
 
+  if (mobileSignalActive) {
+    element.dataset.mobileSignalActive = 'true';
+    element.style.zIndex = '60';
+  }
+
   if (!isInteractive) {
     element.setAttribute('aria-label', 'Your approximate area');
   } else {
@@ -1059,6 +1113,10 @@ function createMarkerElement(
         : isPersonCluster(marker)
         ? `Zoom into ${marker.cluster?.label ?? name} on map`
         : `Open ${marker.cluster?.label ?? name} on map`
+      : isMobileSignalPreviewMarker && !mobileSignalActive
+      ? `Preview ${name} signal on map`
+      : isMobileSignalPreviewMarker
+      ? `Open ${name} profile`
       : `Open ${name} on map`);
     const recordMarkerInteraction = (event: Event) => {
       event.stopPropagation();
@@ -1073,6 +1131,11 @@ function createMarkerElement(
       event.stopPropagation();
       event.stopImmediatePropagation();
       onMarkerInteraction();
+      if (isMobileSignalPreviewMarker && !mobileSignalActive) {
+        onMobileSignalPreview?.(marker);
+        return;
+      }
+
       if (marker.kind === 'event' && !shouldReduceMotion()) {
         void playEventMarkerConfetti().catch(() => {
           // Confetti is decorative; marker selection must keep working.
@@ -1084,7 +1147,13 @@ function createMarkerElement(
 
   const root = createRoot(element);
   flushSync(() => {
-    root.render(<MapMarkerPin marker={marker} />);
+    root.render(
+      <MapMarkerPin
+        marker={marker}
+        mobileSignalActive={mobileSignalActive}
+        mobileSignalPreview={mobileSignalPreview}
+      />
+    );
   });
 
   return { element, root };
@@ -1138,6 +1207,7 @@ function MapView({
   onMapClick,
   onMapReady,
   markers,
+  mobileSignalPreview = false,
   enable3dBuildings = isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS),
   heatmapEnabled = true,
   onHeatmapAvailabilityChange,
@@ -1166,6 +1236,7 @@ function MapView({
   const [mapError, setMapError] = useState<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
   const [spiderfiedCluster, setSpiderfiedCluster] = useState<SpiderfiedCluster | null>(null);
+  const [mobileSignalMarkerId, setMobileSignalMarkerId] = useState<string | null>(null);
   const mapStyle = useMemo(() => getMapStyle(enable3dBuildings), [enable3dBuildings]);
   const denseMarkerResult = useMemo(
     () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
@@ -1177,6 +1248,15 @@ function MapView({
     () => applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates, spiderfiedCluster),
     [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster],
   );
+  useEffect(() => {
+    if (!mobileSignalMarkerId) {
+      return;
+    }
+
+    if (!mobileSignalPreview || !renderedMarkers.some((marker) => marker.id === mobileSignalMarkerId)) {
+      setMobileSignalMarkerId(null);
+    }
+  }, [mobileSignalMarkerId, mobileSignalPreview, renderedMarkers]);
   const heatmapData = useMemo(() => createUserHeatmapFeatureCollection(markers), [markers]);
   const heatmapFeatureSignature = useMemo(() => heatmapData.features
     .map((feature) => feature.geometry.coordinates.map((coordinate) => coordinate.toFixed(6)).join(':'))
@@ -1358,6 +1438,7 @@ function MapView({
           }
 
           setSpiderfiedCluster(null);
+          setMobileSignalMarkerId(null);
           onMapClickRef.current?.();
         });
         map.on('zoomend', () => {
@@ -1708,6 +1789,31 @@ function MapView({
 
     const visibleMarkers = renderedMarkers.filter(isMapMarker);
     let cancelled = false;
+    const previewMobileSignal = (selectedMarker: MapMarker) => {
+      const nextZoom = Math.max(
+        typeof map.getZoom === 'function' ? map.getZoom() : currentZoom,
+        MOBILE_SIGNAL_PREVIEW_ZOOM,
+      );
+      const center: [number, number] = [
+        selectedMarker.approximateLongitude,
+        selectedMarker.approximateLatitude,
+      ];
+
+      setSpiderfiedCluster(null);
+      setMobileSignalMarkerId(selectedMarker.id);
+      if (typeof map.easeTo === 'function') {
+        map.easeTo({
+          center,
+          zoom: nextZoom,
+          duration: shouldReduceMotion() ? 0 : 420,
+          essential: true,
+        });
+      } else {
+        map.setCenter(center);
+        map.setZoom(nextZoom);
+      }
+      setCurrentZoom(nextZoom);
+    };
 
     queueMicrotask(() => {
       if (cancelled) {
@@ -1751,6 +1857,11 @@ function MapView({
           () => {
             lastMarkerInteractionAtRef.current = Date.now();
           },
+          {
+            mobileSignalActive: mobileSignalMarkerId === marker.id,
+            mobileSignalPreview,
+            onMobileSignalPreview: previewMobileSignal,
+          },
         );
         const mapMarker = new maplibregl.Marker({
           element,
@@ -1772,7 +1883,7 @@ function MapView({
     return () => {
       cancelled = true;
     };
-  }, [currentZoom, renderedMarkers, mapInstance]);
+  }, [currentZoom, mobileSignalMarkerId, mobileSignalPreview, renderedMarkers, mapInstance]);
 
   return (
     <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">
