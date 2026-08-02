@@ -42,6 +42,8 @@ describe('AlphaBugButton', () => {
     });
     dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
+    window.localStorage.clear();
+    document.cookie = 'cruush_alpha-bug-tip-seen=; Max-Age=0; Path=/';
     window.history.replaceState({}, '', '/map?layer=nearby');
   });
 
@@ -55,8 +57,8 @@ describe('AlphaBugButton', () => {
     renderAlphaBugButton();
 
     const reportButton = screen.getByRole('button', { name: 'Report bug' });
-    expect(reportButton).toHaveClass('right-4', 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]');
-    expect(reportButton).toHaveClass('z-[45]');
+    expect(reportButton).toHaveClass('right-4', 'bottom-[calc(8.75rem+env(safe-area-inset-bottom))]');
+    expect(reportButton).toHaveClass('z-[55]');
     expect(reportButton).not.toHaveClass('left-[calc(50%-5.5rem)]', 'top-[calc(5.85rem+env(safe-area-inset-top))]');
 
     fireEvent.click(reportButton);
@@ -84,7 +86,20 @@ describe('AlphaBugButton', () => {
     expect(screen.getByRole('button', { name: 'Report bug' })).toHaveClass(
       'right-4',
       'bottom-[calc(19rem+env(safe-area-inset-bottom))]',
-      'z-[45]',
+      'z-[55]',
+    );
+  });
+
+  it('shows the bug tip without alpha wording above the mobile nav', async () => {
+    getUserNoticeDismissal.mockResolvedValue({ dismissed: false, dismissedAt: null });
+
+    renderAlphaBugButton();
+
+    expect(await screen.findByText('Tap the bug icon to report anything broken.')).toHaveClass('leading-snug');
+    expect(screen.queryByText(/Alpha test/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Tap the bug icon to report anything broken.').closest('div')).toHaveClass(
+      'bottom-[calc(12rem+env(safe-area-inset-bottom))]',
+      'z-[55]',
     );
   });
 });

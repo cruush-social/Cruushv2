@@ -1,7 +1,7 @@
-const CACHE_NAME = 'cruush-app-shell-v14';
+const CACHE_NAME = 'cruush-app-shell-v15';
 const LEGACY_CACHE_PREFIX = 'cruush-app-shell-';
 const REFRESH_QUERY_PARAM = 'cruush_app_shell';
-const REFRESH_QUERY_VALUE = 'v14';
+const REFRESH_QUERY_VALUE = 'v15';
 
 async function deleteAppShellCaches() {
   const keys = await caches.keys();

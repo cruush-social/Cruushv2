@@ -41,7 +41,7 @@ function getBugButtonPlacement(pathname: string) {
     return 'right-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(0.75rem+env(safe-area-inset-top))]';
   }
 
-  return 'right-4 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(0.75rem+env(safe-area-inset-top))]';
+  return 'right-4 bottom-[calc(8.75rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(0.75rem+env(safe-area-inset-top))]';
 }
 
 function getBugTipPlacement(pathname: string) {
@@ -49,7 +49,7 @@ function getBugTipPlacement(pathname: string) {
     return 'right-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(4.5rem+env(safe-area-inset-top))]';
   }
 
-  return 'right-4 bottom-[calc(10rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(4.5rem+env(safe-area-inset-top))]';
+  return 'right-4 bottom-[calc(12rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(4.5rem+env(safe-area-inset-top))]';
 }
 
 function waitForVideoMetadata(video: HTMLVideoElement) {
@@ -69,6 +69,10 @@ function waitForVideoMetadata(video: HTMLVideoElement) {
 
 async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined> {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return undefined;
+  }
+
+  if (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) {
     return undefined;
   }
 
@@ -231,8 +235,8 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       }}
     >
       {showTip ? (
-        <div className={`cruush-glass-panel fixed z-[45] w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
-          <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
+        <div className={`cruush-glass-panel fixed z-[55] w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
+          <p className="leading-snug">Tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"
             onClick={dismissTip}
@@ -245,7 +249,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       <DialogTrigger asChild>
         <button
           aria-label="Report bug"
-          className={`cruush-glass-pill fixed z-[45] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${getBugButtonPlacement(location.pathname)}`}
+          className={`cruush-glass-pill fixed z-[55] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${getBugButtonPlacement(location.pathname)}`}
           type="button"
         >
           <MessageCircleWarning className="h-5 w-5" />
