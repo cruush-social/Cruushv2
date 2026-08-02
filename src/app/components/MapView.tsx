@@ -277,7 +277,7 @@ export function createCruushVectorStyle(
         id: 'background',
         type: 'background',
         paint: {
-          'background-color': '#080808',
+          'background-color': '#050506',
         },
       },
       {
@@ -286,8 +286,8 @@ export function createCruushVectorStyle(
         source: 'openmaptiles',
         'source-layer': 'landcover',
         paint: {
-          'fill-color': '#0f0f0f',
-          'fill-opacity': 0.78,
+          'fill-color': '#1c1c22',
+          'fill-opacity': 0.92,
         },
       },
       {
@@ -300,10 +300,10 @@ export function createCruushVectorStyle(
             'match',
             ['get', 'class'],
             ['residential', 'commercial', 'industrial'],
-            '#111111',
-            '#0f0f0f',
+            '#212128',
+            '#1c1c22',
           ],
-          'fill-outline-color': '#1e1e1e',
+          'fill-outline-color': '#2e2e38',
         },
       },
       ...(enable3dBuildings ? [create3dBuildingLayer()] : []),
@@ -320,8 +320,8 @@ export function createCruushVectorStyle(
           false,
         ],
         paint: {
-          'line-color': '#1c1c1c',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.45, 16, 2.2],
+          'line-color': '#38383f',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.6, 16, 2.2],
           'line-opacity': 0.95,
         },
       },
@@ -338,8 +338,8 @@ export function createCruushVectorStyle(
           false,
         ],
         paint: {
-          'line-color': '#242424',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.2, 16, 5.5],
+          'line-color': '#4c4c56',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.6, 16, 5.5],
           'line-opacity': 0.98,
         },
       },
@@ -356,7 +356,7 @@ export function createCruushVectorStyle(
           false,
         ],
         paint: {
-          'line-color': ['match', ['get', 'class'], 'trunk', '#363636', '#2e2e2e'],
+          'line-color': ['match', ['get', 'class'], 'trunk', '#5c5c68', '#4a4a54'],
           'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.45, 16, 1.4],
           'line-dasharray': [1.2, 2.4],
           'line-opacity': 0.75,
@@ -399,8 +399,8 @@ export function createCruushVectorStyle(
           'text-padding': 1,
         },
         paint: {
-          'text-color': '#7f7f7f',
-          'text-halo-color': '#080808',
+          'text-color': '#9c9ca4',
+          'text-halo-color': '#050506',
           'text-halo-width': 1,
         },
       },
@@ -426,8 +426,8 @@ export function createCruushVectorStyle(
           'text-padding': 2,
         },
         paint: {
-          'text-color': '#a0a0a0',
-          'text-halo-color': '#080808',
+          'text-color': '#b4b4bc',
+          'text-halo-color': '#050506',
           'text-halo-width': 1.2,
         },
       },
@@ -447,8 +447,8 @@ export function createCruushVectorStyle(
           'text-padding': 2,
         },
         paint: {
-          'text-color': '#d0d0d0',
-          'text-halo-color': '#080808',
+          'text-color': '#dcdce2',
+          'text-halo-color': '#050506',
           'text-halo-width': 1.4,
         },
       },
@@ -469,7 +469,7 @@ export function createCruushVectorStyle(
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#080808',
+          'text-halo-color': '#050506',
           'text-halo-width': 1.5,
         },
       },
@@ -495,8 +495,8 @@ export function createCruushVectorStyle(
           'text-padding': 4,
         },
         paint: {
-          'text-color': '#c0c0c0',
-          'text-halo-color': '#080808',
+          'text-color': '#eaeaef',
+          'text-halo-color': '#050506',
           'text-halo-width': 1.6,
         },
       },

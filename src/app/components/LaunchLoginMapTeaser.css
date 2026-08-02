@@ -63,7 +63,6 @@
   object-position: center;
   opacity: 0;
   filter: saturate(1.08) contrast(1.05);
-  transform: translateZ(0);
   transition: opacity 220ms ease;
 }
 
@@ -73,13 +72,13 @@
 
 @media (min-width: 641px) {
   .launch-login-map-teaser__video {
-    transform: translateY(-14%) translateZ(0);
+    transform: translateY(-14%);
   }
 }
 
 @media (max-height: 560px) {
   .launch-login-map-teaser__video {
-    transform: translateY(-26%) translateZ(0);
+    transform: translateY(-26%);
   }
 }
 
