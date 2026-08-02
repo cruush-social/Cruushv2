@@ -57,21 +57,21 @@
   object-fit: cover;
   object-position: center;
   opacity: 0;
-  filter: saturate(1.46) contrast(1.16) brightness(0.56);
+  filter: saturate(1.46) contrast(1.16) brightness(0.92);
   transform: translateZ(0);
   transition: opacity 220ms ease;
 }
 
 .launch-login-map-teaser--video-ready .launch-login-map-teaser__video {
-  opacity: 0.76;
+  opacity: 0.95;
 }
 
 .launch-login-map-teaser--mobile-recording .launch-login-map-teaser__video {
-  filter: saturate(1.12) contrast(1.06) brightness(0.72);
+  filter: saturate(1.12) contrast(1.06) brightness(0.88);
 }
 
 .launch-login-map-teaser--video-ready.launch-login-map-teaser--mobile-recording .launch-login-map-teaser__video {
-  opacity: 0.68;
+  opacity: 0.92;
 }
 
 .launch-login-map-teaser__ambient-fallback {
@@ -86,10 +86,7 @@
 
 .launch-login-map-teaser__video-logo-scrub {
   z-index: 3;
-  background:
-    radial-gradient(ellipse 31rem 17rem at 50% 35%, rgba(0, 0, 0, 0.98) 0 12rem, rgba(0, 0, 0, 0.9) 16rem, rgba(0, 0, 0, 0.54) 23rem, rgba(0, 0, 0, 0.16) 30rem, transparent 36rem),
-    radial-gradient(ellipse 24rem 12rem at 50% 50%, rgba(0, 0, 0, 0.72), transparent 18rem),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 34% 64%, rgba(0, 0, 0, 0.42));
+  background: transparent;
 }
 
 .launch-login-map-teaser__mobile-pulse {

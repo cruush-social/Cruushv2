@@ -3,7 +3,7 @@
 import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ExternalLink, Eye, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ExternalLink, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -50,6 +50,8 @@ import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from '../lib/mapMarkers';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
+import dlModeIconColored from '../assets/ui-icons/dl-mode-colored.png';
+import dlModeIconWhite from '../assets/ui-icons/dl-mode-white.png';
 import ghostIconColored from '../assets/ui-icons/ghost-colored.svg';
 import ghostIconWhite from '../assets/ui-icons/ghost-white.svg';
 import crowdIconColored from '../assets/ui-icons/crowds-colored.svg';
@@ -411,8 +413,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
   const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
   const hasCruushPlus = billingStatus?.cruushPlus !== false;
-
-  const dlModeEyeStyle = dlModeActive ? { stroke: 'url(#cruush-dl-eye-gradient)' } : undefined;
 
   const syncApproximateMapLocation = (approximateLocation: ApproximateCoordinates) => {
     void syncMyLocation({
@@ -1418,16 +1418,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
       className={`cruush-map-shell ${isMobile ? 'fixed inset-0' : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
     >
-      <svg aria-hidden="true" className="absolute h-0 w-0">
-        <defs>
-          <linearGradient id="cruush-dl-eye-gradient" x1="0" x2="24" y1="0" y2="24" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#FF0072" />
-            <stop offset="46%" stopColor="#6F00FF" />
-            <stop offset="72%" stopColor="#004BFF" />
-            <stop offset="100%" stopColor="#1181FF" />
-          </linearGradient>
-        </defs>
-      </svg>
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
@@ -1490,7 +1480,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
             >
-              <Eye className="h-4 w-4 sm:h-5 sm:w-5" style={dlModeEyeStyle} strokeWidth={2.35} />
+              <CruushIconImage src={dlModeActive ? dlModeIconColored : dlModeIconWhite} className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
             <Button
               variant="ghost"
@@ -2021,7 +2011,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               <p><span className="text-white">Seeking:</span> filter nearby people by what you want to find.</p>
               <p><span className="text-white">Visibility:</span> hide yourself from selected audiences.</p>
               <p><span className="text-white">Crowds:</span> use Dyke, Gay, and T4T modes when you only want those active crowds to see you.</p>
-              <p><span className="text-white">DL Mode:</span> tap the eye in the top menu to mask or reveal NSFW images.</p>
+              <p><span className="text-white">DL Mode:</span> tap the mask in the top menu to mask or reveal NSFW images.</p>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
               <Button

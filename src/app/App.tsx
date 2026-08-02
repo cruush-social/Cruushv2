@@ -10,6 +10,8 @@ import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
 import type { AuthSessionPayload } from './lib/authApi';
 
+import LiquidGlassFilters from './components/LiquidGlassFilters';
+
 const MapHome = lazy(() => import('./components/MapHome'));
 const LocalFeed = lazy(() => import('./components/LocalFeed'));
 const ProfileView = lazy(() => import('./components/ProfileView'));
@@ -230,6 +232,7 @@ export default function App({
     return (
       <BrowserRouter key="public-router">
         <GoogleAnalyticsPageTracker />
+        <LiquidGlassFilters />
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -322,6 +325,7 @@ export default function App({
   return (
     <BrowserRouter key="app-router">
       <GoogleAnalyticsPageTracker />
+      <LiquidGlassFilters />
       <AppErrorBoundary>
         <div className="min-h-screen bg-background text-foreground">
           <Suspense fallback={<RouteLoading />}>

@@ -803,8 +803,10 @@ export default function Auth({ onAuth }: AuthProps) {
                   avatarUrl: '',
                   bio: 'Local Dev User',
                   verified: true,
+                  emailVerifiedAt: new Date().toISOString(),
                   createdAt: new Date().toISOString(),
                 },
+                needsOnboarding: false,
                 token: 'dev-mock-token',
               };
               persistSessionUser(mockSession);

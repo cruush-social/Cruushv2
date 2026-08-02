@@ -108,6 +108,23 @@ function requireEnv(name) {
   return value;
 }
 
+// The frontend builds the repo-root Dockerfile (nginx, port 80); the API builds
+// server/Dockerfile (Fastify, port 3001). A frontend base_directory on the API
+// resource silently ships the nginx image as the API, which answers 502.
+const FRONTEND_BUILD = {
+  baseDirectory: '/',
+  portsExposes: '80',
+  healthCheckPath: '/',
+  minHealthCheckBudgetSeconds: 30,
+};
+const API_BUILD = {
+  baseDirectory: '/server',
+  portsExposes: '3001',
+  healthCheckPath: '/health',
+  // The API runs migrations before it listens, so the probe budget must outlast them.
+  minHealthCheckBudgetSeconds: 600,
+};
+
 function appTargets(target) {
   const staging = [
     {
@@ -115,12 +132,15 @@ function appTargets(target) {
       uuid: requireEnv('COOLIFY_STAGING_FRONTEND_UUID'),
       expectedHost: 'staging.cruush.app',
       smokeUrl: 'https://staging.cruush.app/',
+      expectsHtml: true,
+      build: FRONTEND_BUILD,
     },
     {
       label: 'staging api',
       uuid: requireEnv('COOLIFY_STAGING_API_UUID'),
       expectedHost: 'api-staging.cruush.app',
       smokeUrl: 'https://api-staging.cruush.app/health',
+      build: API_BUILD,
     },
   ];
   const production = [
@@ -129,12 +149,15 @@ function appTargets(target) {
       uuid: requireEnv('COOLIFY_PRODUCTION_FRONTEND_UUID'),
       expectedHost: 'cruush.app',
       smokeUrl: 'https://www.cruush.app/',
+      expectsHtml: true,
+      build: FRONTEND_BUILD,
     },
     {
       label: 'production api',
       uuid: requireEnv('COOLIFY_PRODUCTION_API_UUID'),
       expectedHost: 'api.cruush.app',
       smokeUrl: 'https://api.cruush.app/health',
+      build: API_BUILD,
     },
   ];
 
@@ -157,6 +180,33 @@ function assertExpectedDomain(app, target) {
   const domainString = appDomainString(app);
   if (!domainString.includes(target.expectedHost)) {
     throw new Error(`${target.label} domain mismatch. Expected ${target.expectedHost}; got ${domainString || '(empty)'}.`);
+  }
+}
+
+function assertBuildConfig(app, target) {
+  const expected = target.build;
+  const problems = [];
+
+  if (app.base_directory !== expected.baseDirectory) {
+    problems.push(`base_directory is ${JSON.stringify(app.base_directory)}, expected ${JSON.stringify(expected.baseDirectory)}`);
+  }
+  if (String(app.ports_exposes) !== expected.portsExposes) {
+    problems.push(`ports_exposes is ${JSON.stringify(app.ports_exposes)}, expected ${JSON.stringify(expected.portsExposes)}`);
+  }
+  if (!app.health_check_enabled) {
+    problems.push('health_check_enabled is false, so Coolify cannot retire the previous container and orphans accumulate');
+  }
+  if (app.health_check_path !== expected.healthCheckPath) {
+    problems.push(`health_check_path is ${JSON.stringify(app.health_check_path)}, expected ${JSON.stringify(expected.healthCheckPath)}`);
+  }
+
+  const budget = Number(app.health_check_retries ?? 0) * Number(app.health_check_interval ?? 0);
+  if (budget < expected.minHealthCheckBudgetSeconds) {
+    problems.push(`health check budget is ${budget}s (retries x interval), needs at least ${expected.minHealthCheckBudgetSeconds}s or the deploy rolls back a healthy container`);
+  }
+
+  if (problems.length > 0) {
+    throw new Error(`${target.label} Coolify build config drifted:\n  - ${problems.join('\n  - ')}`);
   }
 }
 
@@ -334,7 +384,8 @@ async function validateAndPatchApps(targets, dryRun) {
   for (const target of targets) {
     const app = await coolifyRequest(`/applications/${encodeURIComponent(target.uuid)}`);
     assertExpectedDomain(app, target);
-    console.log(`Validated ${target.label} domain ${target.expectedHost}.`);
+    assertBuildConfig(app, target);
+    console.log(`Validated ${target.label} domain ${target.expectedHost} and build config.`);
 
     if (dryRun) {
       console.log(`[dry-run] Would set ${target.label} git_branch=main, alpha env cutoff values, 15-mile beta access geofence, reports inbox, and launch party pin.`);
@@ -365,18 +416,47 @@ async function deployTargets(targets, dryRun) {
   }
 }
 
+// One request cannot see a split brain: when two containers answer for the same
+// domain, half the responses are still fine. Sample repeatedly and require that
+// every response is healthy and that the HTML always names the same build.
+const SMOKE_REQUEST_COUNT = 8;
+
 async function smokeTargets(targets, dryRun) {
   for (const target of targets) {
     if (dryRun) {
-      console.log(`[dry-run] Would smoke ${target.smokeUrl}.`);
+      console.log(`[dry-run] Would smoke ${target.smokeUrl} ${SMOKE_REQUEST_COUNT} times.`);
       continue;
     }
 
-    const response = await fetch(target.smokeUrl, { redirect: 'manual' });
-    if (response.status >= 500) {
-      throw new Error(`${target.label} smoke failed at ${target.smokeUrl}: ${response.status}`);
+    const statuses = [];
+    const builds = new Set();
+
+    for (let attempt = 0; attempt < SMOKE_REQUEST_COUNT; attempt += 1) {
+      const separator = target.smokeUrl.includes('?') ? '&' : '?';
+      const response = await fetch(`${target.smokeUrl}${separator}smoke=${attempt}`, {
+        redirect: 'manual',
+        cache: 'no-store',
+      });
+      statuses.push(response.status);
+
+      if (target.expectsHtml) {
+        const match = (await response.text()).match(/assets\/index-[A-Za-z0-9_-]+\.js/);
+        if (match) {
+          builds.add(match[0]);
+        }
+      }
     }
-    console.log(`Smoke passed for ${target.label}: ${target.smokeUrl} -> ${response.status}`);
+
+    if (statuses.some((status) => status >= 500)) {
+      throw new Error(`${target.label} smoke failed at ${target.smokeUrl}: ${statuses.join(' ')}`);
+    }
+
+    if (target.expectsHtml && builds.size > 1) {
+      throw new Error(`${target.label} served ${builds.size} different builds, so more than one container answers for ${target.expectedHost}: ${[...builds].join(', ')}`);
+    }
+
+    const build = target.expectsHtml ? ` build=${[...builds][0] ?? '(none found)'}` : '';
+    console.log(`Smoke passed for ${target.label}: ${target.smokeUrl} -> ${statuses.join(' ')}${build}`);
   }
 }
 
