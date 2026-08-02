@@ -1,6 +1,6 @@
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
-import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
+import type { CSSProperties, MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Building2, ExternalLink, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
@@ -60,7 +60,10 @@ import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
 import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
 import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 
-const DISCOVERY_MAP_LIMIT = 500;
+const DISCOVERY_MAP_LIMIT = 50;
+const logoGlassMaskStyle = {
+  '--cruush-map-logo-mask': `url("${cruushLogo}")`,
+} as CSSProperties;
 const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
 const CROWD_NOTICE_LABELS: Record<string, string> = {
   Dyke: 'Dyke',
@@ -1464,22 +1467,32 @@ export default function MapHome(_props: MapHomeProps = {}) {
         data-testid="map-top-chrome"
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 shrink-0 flex-col items-center gap-1">
+          <div className="flex min-w-0 shrink-0 flex-col items-center gap-1.5 sm:gap-2">
             <h1 className="sr-only">cruush</h1>
-            <img
-              alt=""
-              aria-hidden="true"
-              className="h-14 w-auto shrink-0 object-contain sm:h-16"
-              draggable={false}
-              src={cruushLogo}
-            />
-            <div className="inline-flex max-w-[5.75rem] shrink-0 items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]">
+            <span
+              className="cruush-map-logo-shell h-[4.35rem] w-[4.2rem] shrink-0 sm:h-[5rem] sm:w-[4.82rem]"
+              data-testid="map-brand-glass"
+              style={logoGlassMaskStyle}
+            >
+              <img
+                alt=""
+                aria-hidden="true"
+                className="cruush-map-logo-glass h-full w-full shrink-0 object-contain"
+                data-testid="map-brand-logo"
+                draggable={false}
+                src={cruushLogo}
+              />
+            </span>
+            <div
+              className="cruush-glass-soft inline-flex max-w-[7.5rem] shrink-0 items-center rounded-full border border-white/12 bg-background/45 px-2 py-1 text-[9px] lowercase leading-none tracking-[0.09em] text-white/78 backdrop-blur-md sm:max-w-none sm:px-2.5 sm:text-[10px] sm:tracking-[0.1em]"
+              data-testid="map-beta-tag"
+            >
               {isMutualMapMode ? 'mutual cruushes' : 'nyc open beta'}
             </div>
           </div>
 
           <div
-            className="pointer-events-auto mt-0 flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-background/25 p-0.5 backdrop-blur-md sm:gap-1 sm:p-1"
+            className="cruush-glass-bar pointer-events-auto mt-0 flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-background/25 p-0.5 backdrop-blur-md sm:gap-1 sm:p-1"
             data-testid="map-top-actions"
           >
             <Button
@@ -1507,8 +1520,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
               size="icon"
               onClick={() => navigate('/privacy/ghost-mode')}
               aria-label="Ghost Mode Settings"
+              aria-pressed={privacySettings.ghostModeEnabled}
               title="Ghost Mode Settings"
-              className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
+              className={[
+                'size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9',
+                privacySettings.ghostModeEnabled ? 'bg-white/10 ring-1 ring-white/15' : '',
+              ].join(' ')}
             >
               <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} className="h-4 w-4" />
             </Button>
@@ -1555,7 +1572,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         <Suspense
           fallback={(
             <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">
-              <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
+              <div className="cruush-glass-soft pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
                 Loading NYC map...
               </div>
             </div>
@@ -1594,13 +1611,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         {locationError ? (
-          <div className="absolute left-4 right-20 top-40 z-20 rounded-md border border-white/10 bg-background/82 p-3 text-sm text-white/72 backdrop-blur-md">
+          <div className="cruush-glass-soft absolute left-4 right-20 top-40 z-20 rounded-md border border-white/10 bg-background/82 p-3 text-sm text-white/72 backdrop-blur-md">
             {locationError}
           </div>
         ) : null}
 
         {loading ? (
-          <div className="absolute inset-x-4 top-28 z-20 rounded-md bg-card/90 p-3 text-sm text-muted-foreground backdrop-blur-sm">
+          <div className="cruush-glass-soft absolute inset-x-4 top-28 z-20 rounded-md bg-card/90 p-3 text-sm text-muted-foreground backdrop-blur-sm">
             Loading nearby people...
           </div>
         ) : null}
@@ -1647,7 +1664,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
         {selectedEvent ? (
           <div
-            className={`pointer-events-auto absolute z-[45] rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
+            className={`cruush-glass-panel pointer-events-auto absolute z-[45] rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
               isMobile
                 ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3'
                 : 'left-4 top-[8.75rem] w-[22rem]'
@@ -1819,13 +1836,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-12 z-30 flex flex-col items-end gap-2 sm:right-4"
+          className="pointer-events-auto absolute right-3 top-[4.5rem] z-30 flex flex-col items-end gap-2 sm:right-4 sm:top-[4.75rem]"
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (
             <button
               type="button"
-              className="inline-flex h-8 items-center gap-2 rounded-full border border-white/15 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+              className="cruush-glass-pill inline-flex h-8 items-center gap-2 rounded-full border border-white/15 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
               style={{ background: 'var(--cruush-gradient)' }}
               onClick={() => {
                 setVisibilityError(null);
@@ -1837,18 +1854,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </button>
           ) : null}
 
-          {privacySettings.ghostModeEnabled ? (
-            <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
-              <CruushIconImage src={ghostIconColored} className="h-4 w-4" />
-              Ghost Mode Active
-            </div>
-          ) : null}
-
           <Button
             className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] shadow-[0_12px_35px_rgba(0,0,0,0.25)] ${
               hasActiveFilters
                 ? 'border-white/15 text-white'
-                : 'border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
+                : 'cruush-glass-pill border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
             }`}
             style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
             onClick={() => setIsFiltersOpen(true)}
@@ -1866,7 +1876,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] has-[>img]:px-3 ${
               hasActiveVisibility
                 ? 'border-white/15'
-                : 'border-white/10 bg-background/68 backdrop-blur-md hover:bg-white/10'
+                : 'cruush-glass-pill border-white/10 bg-background/68 backdrop-blur-md hover:bg-white/10'
             }`}
             style={hasActiveVisibility ? { background: 'var(--cruush-gradient)' } : undefined}
           >
@@ -1935,8 +1945,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
               className={`mx-auto ${
                 isRecentlyActiveOpen
                   ? isMobile
-                    ? 'w-full max-w-full rounded-2xl border border-white/10 bg-background/50 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
-                    : 'w-fit max-w-[29.5rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                    ? 'cruush-glass-panel w-full max-w-full rounded-2xl border border-white/10 bg-background/50 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                    : 'cruush-glass-panel w-fit max-w-[29.5rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
                   : 'max-w-max p-0'
               } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''} pointer-events-auto`}
               data-testid="recently-active-panel"
@@ -1947,11 +1957,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   aria-controls="recently-active-tray"
                   aria-expanded={isRecentlyActiveOpen}
                   aria-label={isRecentlyActiveOpen ? 'Hide recently active bar' : 'Show recently active bar'}
-                  className="h-8 rounded-full border border-white/10 px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                  className="cruush-glass-pill h-8 rounded-full border border-white/10 px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
                   onClick={() => setIsRecentlyActiveOpen((open) => !open)}
-                  style={{
-                    background: isRecentlyActiveOpen ? 'var(--cruush-gradient)' : 'rgba(0,0,0,0.82)',
-                  }}
+                  style={isRecentlyActiveOpen ? { background: 'var(--cruush-gradient)' } : undefined}
                 >
                   Recently Active
                 </button>

@@ -14,7 +14,6 @@ import {
   ArrowUp,
   Bed,
   CircleDot,
-  Flame,
   MessageCircle,
   MinusCircle,
   Mountain,
@@ -33,7 +32,7 @@ import {
   type MapMarker,
   type MapMarkerBadge,
 } from '../lib/mapMarkers';
-import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
+import { HEART_PIN_PATH, HEART_PIN_PHOTO_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 
 export { createMapMarkerBadge };
 
@@ -815,7 +814,7 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     <span
       aria-label={isCurrentUser ? 'Your profile' : badge?.label}
       className={[
-        'absolute right-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'cruush-glass-soft absolute -right-0.5 top-5 z-20 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
         borderClass,
       ].join(' ')}
       data-testid={`marker-badge-${marker.id}`}
@@ -850,7 +849,7 @@ function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
   return (
     <span
       aria-label={precisionLabel}
-      className="absolute left-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border border-[#6f00ff]/80 bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
+      className="cruush-glass-soft absolute -left-0.5 top-5 z-20 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border border-[#6f00ff]/80 bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
       data-testid={`marker-relationship-${marker.id}`}
       role="img"
       title={title}
@@ -877,7 +876,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   return (
     <svg
       aria-hidden="true"
-      className="h-20 w-20"
+      className="cruush-heart-glass-svg h-20 w-20"
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isNpcGhostDemo ? 'npc-ghost-demo' : theme}
@@ -893,33 +892,31 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           <stop offset="100%" stopColor={gradientTo} />
         </linearGradient>
         <clipPath id={clipId}>
-          <path d={HEART_PIN_PATH} />
+          <path d={HEART_PIN_PHOTO_PATH} />
         </clipPath>
       </defs>
+      <path d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
       {hasPhoto ? (
-        <>
-          <image
-            clipPath={`url(#${clipId})`}
-            data-testid={`marker-photo-fill-${marker.id}`}
-            height="64"
-            href={resolvedPhoto}
-            preserveAspectRatio="xMidYMid slice"
-            width="64"
-          />
-          <path d={HEART_PIN_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
-        </>
+        <image
+          clipPath={`url(#${clipId})`}
+          data-testid={`marker-photo-fill-${marker.id}`}
+          height="64"
+          href={resolvedPhoto}
+          preserveAspectRatio="xMidYMid slice"
+          width="64"
+        />
       ) : isCurrentUser && !isMutualCruush ? (
-        <>
-          <path d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
-          <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
-            <div className="flex h-9 w-9 items-center justify-center">
-              <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
-            </div>
-          </foreignObject>
-        </>
-      ) : (
-        <path d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
-      )}
+        <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
+          <div className="flex h-9 w-9 items-center justify-center">
+            <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
+          </div>
+        </foreignObject>
+      ) : null}
+      <path className="cruush-heart-glass-rim" d={HEART_PIN_PATH} />
+      <path className="cruush-heart-glass-edge cruush-heart-glass-edge-magenta" d={HEART_PIN_PATH} />
+      <path className="cruush-heart-glass-edge cruush-heart-glass-edge-cyan" d={HEART_PIN_PATH} />
+      <path className="cruush-heart-glass-lip" d={HEART_PIN_PATH} />
+      <path className="cruush-heart-glass-specular" d={HEART_PIN_PATH} />
     </svg>
   );
 }
@@ -929,7 +926,7 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className="cruush-glass-pill flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -942,7 +939,7 @@ function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-primary/40 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_34px_rgba(255,0,114,0.44)] backdrop-blur-md"
+      className="cruush-glass-pill flex h-16 min-w-16 items-center justify-center rounded-full border border-primary/40 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_34px_rgba(255,0,114,0.44)] backdrop-blur-md"
       data-testid={`people-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -955,7 +952,7 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className="cruush-glass-pill flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
       data-testid={`launch-party-marker-${marker.id}`}
     >
       {attendeeCount > 999 ? '999+' : attendeeCount}
@@ -993,12 +990,12 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
       {signalPreview || postPreview ? (
         <span className="absolute left-1/2 top-0 z-20 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
           {signalPreview ? (
-            <span className="rounded-full border border-white/12 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+            <span className="cruush-glass-pill rounded-full border border-white/12 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
               {signalPreview}
             </span>
           ) : null}
           {postPreview ? (
-            <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+            <span className="cruush-glass-pill rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
               {postPreview}
             </span>
           ) : null}
@@ -1160,7 +1157,6 @@ function MapView({
   const [mapError, setMapError] = useState<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
   const [spiderfiedCluster, setSpiderfiedCluster] = useState<SpiderfiedCluster | null>(null);
-  const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(true);
   const mapStyle = useMemo(() => getMapStyle(enable3dBuildings), [enable3dBuildings]);
   const denseMarkerResult = useMemo(
     () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
@@ -1615,7 +1611,7 @@ function MapView({
     const removeLayer = typeof map.removeLayer === 'function' ? map.removeLayer.bind(map) : null;
     const removeSource = typeof map.removeSource === 'function' ? map.removeSource.bind(map) : null;
 
-    if (!isHeatmapEnabled || heatmapData.features.length === 0) {
+    if (heatmapData.features.length === 0) {
       if (getLayer(USER_HEATMAP_LAYER_ID) && removeLayer) {
         removeLayer(USER_HEATMAP_LAYER_ID);
       }
@@ -1648,21 +1644,21 @@ function MapView({
       maxzoom: 16.75,
       paint: {
         'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1],
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 0.72, 14, 1.24, 16, 1.55],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 18, 14, 34, 16, 52],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.36, 16.75, 0.18],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.05, 14, 1.85, 16, 2.45],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 26, 14, 52, 16, 78],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.38, 13, 0.68, 16.75, 0.54],
         'heatmap-color': [
           'interpolate',
           ['linear'],
           ['heatmap-density'],
           0,
           'rgba(255, 0, 114, 0)',
-          0.18,
-          'rgba(17, 129, 255, 0.22)',
-          0.42,
-          'rgba(111, 0, 255, 0.48)',
-          0.7,
-          'rgba(255, 0, 114, 0.72)',
+          0.14,
+          'rgba(17, 129, 255, 0.44)',
+          0.34,
+          'rgba(111, 0, 255, 0.72)',
+          0.62,
+          'rgba(255, 0, 114, 0.94)',
           1,
           '#FF0072',
         ],
@@ -1675,7 +1671,7 @@ function MapView({
     } else {
       map.addLayer(heatmapLayer);
     }
-  }, [heatmapFeatureSignature, isHeatmapEnabled, mapInstance, mapLoadStatus]);
+  }, [heatmapFeatureSignature, mapInstance, mapLoadStatus]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;
@@ -1763,31 +1759,14 @@ function MapView({
         data-testid="maplibre-map"
       />
       {mapLoadStatus === 'loading' ? (
-        <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
+        <div className="cruush-glass-soft pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
           Loading NYC map...
         </div>
       ) : null}
       {mapError ? (
-        <div className="absolute left-4 right-4 top-4 z-10 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive backdrop-blur-md">
+        <div className="cruush-glass-soft absolute left-4 right-4 top-4 z-10 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive backdrop-blur-md">
           {mapError}
         </div>
-      ) : null}
-      {heatmapData.features.length > 0 ? (
-        <button
-          type="button"
-          aria-label={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
-          aria-pressed={isHeatmapEnabled}
-          className={[
-            'absolute bottom-[calc(7rem+env(safe-area-inset-bottom))] left-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65',
-            isHeatmapEnabled ? 'border-white/15' : 'border-white/10 bg-background/55',
-          ].join(' ')}
-          data-testid="map-heatmap-toggle"
-          onClick={() => setIsHeatmapEnabled((value) => !value)}
-          style={isHeatmapEnabled ? { background: 'var(--cruush-gradient)' } : undefined}
-          title={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
-        >
-          <Flame aria-hidden="true" className="h-4 w-4" strokeWidth={2.35} />
-        </button>
       ) : null}
     </div>
   );

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, { createCruushVectorStyle, createMapMarkerBadge, getMapStyle } from './MapView';
+import { HEART_PIN_PHOTO_PATH } from '../lib/heartPin';
 
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
@@ -196,6 +197,7 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]/80');
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('border-[#FF0072]/80');
+    expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('-right-0.5', 'top-5', 'z-20');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(Array.from(screen.getByTestId('marker-heart-me').querySelectorAll('stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
       '#00B8FF',
@@ -506,7 +508,7 @@ describe('MapView', () => {
     }));
   });
 
-  it('draws a toggleable app-color user heatmap below streets and labels', async () => {
+  it('draws app-color user heatmap below streets and labels without visible map chrome', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -535,8 +537,10 @@ describe('MapView', () => {
       />
     );
 
-    const toggle = await screen.findByRole('button', { name: 'Hide heat map' });
-    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: /heat map/i })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(mapInstances[0]).toBeDefined();
+    });
 
     act(() => {
       mapInstances[0].trigger('load');
@@ -558,22 +562,17 @@ describe('MapView', () => {
       id: 'cruush-user-heatmap-layer',
       type: 'heatmap',
       paint: expect.objectContaining({
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.36, 16.75, 0.18],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.05, 14, 1.85, 16, 2.45],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 26, 14, 52, 16, 78],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.38, 13, 0.68, 16.75, 0.54],
         'heatmap-color': expect.arrayContaining([
-          'rgba(17, 129, 255, 0.22)',
-          'rgba(111, 0, 255, 0.48)',
+          'rgba(17, 129, 255, 0.44)',
+          'rgba(111, 0, 255, 0.72)',
+          'rgba(255, 0, 114, 0.94)',
           '#FF0072',
         ]),
       }),
     }));
-
-    fireEvent.click(toggle);
-
-    await waitFor(() => {
-      expect(mapInstances[0].removeLayer).toHaveBeenCalledWith('cruush-user-heatmap-layer');
-      expect(mapInstances[0].removeSource).toHaveBeenCalledWith('cruush-user-heatmap');
-    });
-    expect(screen.getByRole('button', { name: 'Show heat map' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('renders photo markers with current and nearby styling', async () => {
@@ -607,8 +606,11 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('clipPath path')).toHaveAttribute('d', HEART_PIN_PHOTO_PATH);
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-rim')).toBeInTheDocument();
     expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-photo-fill-user-photo')).toHaveAttribute('href', 'https://example.com/kai.jpg');
+    expect(screen.getByTestId('marker-photo-fill-user-photo').getAttribute('clip-path')).toContain('marker-photo-clip-user-photo');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-marker-theme', 'nearby');
     expect(screen.queryByLabelText('versatile')).not.toBeInTheDocument();
@@ -669,7 +671,9 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('h-20', 'w-20');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('border-[#6f00ff]/80');
+    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('-right-0.5', 'top-5', 'z-20');
     expect(screen.getByLabelText('mutual cruush')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass('-left-0.5', 'top-5', 'z-20');
     expect(screen.getByTestId('marker-relationship-user-mutual').querySelector('img')?.getAttribute('src')).toContain('safety-white');
   });
 

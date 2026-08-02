@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import HeartPhoto from './HeartPhoto';
+import { HEART_PIN_PHOTO_PATH } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
 
 describe('HeartPhoto', () => {
@@ -49,5 +50,17 @@ describe('HeartPhoto', () => {
 
     expect(stops).toEqual(getProfileGradientStops('user-a'));
     expect(stops).not.toEqual(['#FF0072', '#DA045D', '#B40849']);
+  });
+
+  it('clips photos inside the glass heart border', () => {
+    render(<HeartPhoto label="Photo preview" photo="https://example.com/photo.jpg" />);
+
+    const heart = screen.getByRole('img', { name: 'Photo preview' });
+    const photo = heart.querySelector('image');
+
+    expect(heart.querySelector('clipPath path')).toHaveAttribute('d', HEART_PIN_PHOTO_PATH);
+    expect(photo).toHaveAttribute('href', 'https://example.com/photo.jpg');
+    expect(photo?.getAttribute('clip-path')).toContain('heart-photo-clip-');
+    expect(heart.querySelector('.cruush-heart-glass-rim')).toBeInTheDocument();
   });
 });
