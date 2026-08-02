@@ -772,8 +772,9 @@ describe('MapHome', () => {
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
     expect(map3dButton).toHaveAttribute('aria-pressed', 'false');
+    expect(map3dButton).toHaveClass('cruush-glass-control');
     expect(map3dButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
-    expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
+    expect(locationButton).toHaveClass('rounded-full', 'cruush-glass-control');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(screen.queryByText('DL Mode Active')).not.toBeInTheDocument();
 

@@ -1882,8 +1882,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
               aria-label={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
               aria-pressed={is3dMapModeEnabled}
               title={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
-              className={`cruush-glass-pill rounded-full border text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md hover:bg-white/10 ${
-                is3dMapModeEnabled ? 'border-white/15' : 'border-white/10 bg-background/55'
+              className={`cruush-glass-control rounded-full border text-white ${
+                is3dMapModeEnabled ? 'border-white/15' : 'border-white/10'
               }`}
               style={is3dMapModeEnabled ? { background: 'var(--cruush-gradient)' } : undefined}
             >
@@ -1896,7 +1896,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               disabled={locationStatus === 'locating' || !mapInstance}
               aria-label={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
               title={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
-              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              className="cruush-glass-control rounded-full border border-white/10 text-white"
             >
               <MapPin className="h-4 w-4" />
             </Button>
@@ -1905,7 +1905,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               variant="secondary"
               onClick={() => mapInstance?.zoomIn()}
               disabled={!mapInstance}
-              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              className="cruush-glass-control rounded-full border border-white/10 text-white"
             >
               <ZoomIn className="w-4 h-4" />
             </Button>
@@ -1914,7 +1914,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               variant="secondary"
               onClick={() => mapInstance?.zoomOut()}
               disabled={!mapInstance}
-              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              className="cruush-glass-control rounded-full border border-white/10 text-white"
             >
               <ZoomOut className="w-4 h-4" />
             </Button>
