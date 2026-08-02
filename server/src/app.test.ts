@@ -7232,7 +7232,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("limit $3");
     expect(query.mock.calls[1]?.[1]?.[0]).toBe(userId);
     expect(Array.isArray(query.mock.calls[1]?.[1]?.[1])).toBe(true);
-    expect(query.mock.calls[1]?.[1]?.[2]).toBe(50);
+    expect(query.mock.calls[1]?.[1]?.[2]).toBe(500);
 
     const body = response.json();
     expect(body.data.mapEpochMs).toEqual(expect.any(Number));
@@ -7808,7 +7808,7 @@ describe("server", () => {
   it("rejects discovery limits above the backend cap", async () => {
     const response = await app.inject({
       method: "GET",
-      url: "/api/users?limit=51",
+      url: "/api/users?limit=501",
       headers: {
         "x-user-id": userId
       }

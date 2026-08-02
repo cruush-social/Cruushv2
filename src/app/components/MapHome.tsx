@@ -58,7 +58,7 @@ import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
 import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
 import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 
-const DISCOVERY_MAP_LIMIT = 50;
+const DISCOVERY_MAP_LIMIT = 500;
 const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
 const CROWD_NOTICE_LABELS: Record<string, string> = {
   Dyke: 'Dyke',

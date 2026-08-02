@@ -1296,7 +1296,7 @@ describe('MapHome', () => {
       expect(getNearbyUsers).toHaveBeenLastCalledWith({
         lat: expect.any(Number),
         lng: expect.any(Number),
-      }, undefined, { limit: 50 });
+      }, undefined, { limit: 500 });
       expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
       expect(screen.getByTestId('marker-me')).toHaveAttribute('data-badge', 'bottom');
     });
@@ -1453,7 +1453,7 @@ describe('MapHome', () => {
       expect(getNearbyUsers).toHaveBeenLastCalledWith({
         lat: 40.713,
         lng: -74.005,
-      }, undefined, { limit: 50 });
+      }, undefined, { limit: 500 });
     });
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.713');
@@ -1532,7 +1532,7 @@ describe('MapHome', () => {
         lng: -74.006,
       },
       undefined,
-      { limit: 50 },
+      { limit: 500 },
     ]);
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-display-mode', 'GHOST');
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lat', '40.7128');
@@ -1594,7 +1594,7 @@ describe('MapHome', () => {
 
     const lastDiscoveryCall = getNearbyUsers.mock.calls[getNearbyUsers.mock.calls.length - 1];
     expect(screen.queryByRole('switch', { name: 'NPC Ghost Test' })).not.toBeInTheDocument();
-    expect(lastDiscoveryCall?.[2]).toEqual({ limit: 50 });
+    expect(lastDiscoveryCall?.[2]).toEqual({ limit: 500 });
     expect(screen.queryByText('Ghost Mode Active')).not.toBeInTheDocument();
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-demo-radius-circles', '0');

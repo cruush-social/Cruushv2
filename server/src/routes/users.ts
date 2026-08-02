@@ -158,7 +158,7 @@ const booleanQueryFlag = z.preprocess((value) => {
 const discoveryQuerySchema = z.object({
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
-  limit: z.coerce.number().int().min(1).max(50).default(50),
+  limit: z.coerce.number().int().min(1).max(500).default(500),
   npcGhostDemo: booleanQueryFlag,
   identities: queryArrayField,
   presentations: queryArrayField,
