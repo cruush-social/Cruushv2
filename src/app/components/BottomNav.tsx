@@ -45,7 +45,7 @@ export default function BottomNav() {
   const indicatorDirection = activeIndicatorIndex > previousActiveIndex ? 'forward' : activeIndicatorIndex < previousActiveIndex ? 'backward' : 'still';
   const indicatorDistance = Math.min(Math.abs(activeIndicatorIndex - previousActiveIndex), navItems.length - 1);
   const bottomNavStyle: BottomNavStyle = {
-    '--bottom-nav-active-offset': activeIndicatorIndex === 0 ? '0rem' : `calc(${activeIndicatorIndex * 25}% - ${activeIndicatorIndex * 1.125}rem)`,
+    '--bottom-nav-active-offset': activeIndicatorIndex === 0 ? '0rem' : `calc(${activeIndicatorIndex} * ((100% - 4.5rem) / 4))`,
     '--bottom-nav-indicator-origin': indicatorDirection === 'forward' ? 'left' : indicatorDirection === 'backward' ? 'right' : 'center',
   };
 
@@ -82,7 +82,7 @@ export default function BottomNav() {
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="cruush-bottom-nav-pill cruush-liquid-glass-dock cruush-glass-bar cruush-glass-menu-toggle pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between overflow-hidden rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
+        className="cruush-bottom-nav-pill cruush-liquid-glass-dock pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between overflow-hidden rounded-full border px-1.5 pb-1.5 pt-2"
         style={bottomNavStyle}
       >
         {hasActiveItem ? (

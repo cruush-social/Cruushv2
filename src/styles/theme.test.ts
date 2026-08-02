@@ -37,22 +37,37 @@ describe('global text selection policy', () => {
     expect(themeCss).not.toContain('saturate(0.08)');
   });
 
-  it('uses stronger liquid-glass tokens for Apple-style menu surfaces', () => {
-    expect(themeCss).toContain('--cruush-glass-backdrop: blur(20px) saturate(1.55) brightness(1.05) contrast(1.02);');
-    expect(themeCss).toContain('--cruush-glass-dock-backdrop: blur(18px) saturate(1.42) brightness(1.04) contrast(1.04);');
-    expect(themeCss).toContain('--cruush-glass-current-backdrop: blur(14px) saturate(1.36) brightness(1.04) contrast(1.05);');
+  it('keeps global glass stable while using Apple-style lensing on the bottom dock', () => {
+    expect(themeCss).toContain('--cruush-glass-backdrop: blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);');
+    expect(themeCss).toContain('--cruush-glass-dock-backdrop: blur(20px) saturate(1.44) brightness(1.06) contrast(1.02);');
+    expect(themeCss).toContain('--cruush-glass-current-backdrop: blur(12px) saturate(1.28) brightness(1.05) contrast(1.01);');
     expect(themeCss).toContain('@supports ((backdrop-filter: url("#cruush-liquid-glass-panel")) or (-webkit-backdrop-filter: url("#cruush-liquid-glass-panel"))) {');
-    expect(themeCss).toContain('--cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") blur(10px) saturate(1.32) brightness(1.03) contrast(1.06);');
-    expect(themeCss).toContain('--cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") blur(8px) saturate(1.24) brightness(1.04) contrast(1.06);');
-    expect(themeCss).toContain('--cruush-glass-material-noise: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0));');
+    expect(themeCss).toContain('--cruush-glass-backdrop: url("#cruush-liquid-glass-panel") blur(15px) saturate(1.42) brightness(1.06) contrast(1.02);');
+    expect(themeCss).toContain('--cruush-glass-backdrop-soft: url("#cruush-liquid-glass-pill") blur(12px) saturate(1.34) brightness(1.05) contrast(1.01);');
+    expect(themeCss).toContain('--cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") blur(13px) saturate(1.4) brightness(1.06) contrast(1.02);');
+    expect(themeCss).toContain('--cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") blur(9px) saturate(1.28) brightness(1.05) contrast(1.02);');
+    expect(themeCss).toContain('--cruush-glass-material-noise: linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0));');
+    expect(themeCss).toContain('--cruush-glass-surface: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.32)');
+    expect(themeCss).toContain('--cruush-glass-dock-bg: radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.34)');
+    expect(themeCss).toContain('--cruush-glass-current-bg: radial-gradient(circle at 34% 8%, rgba(255, 255, 255, 0.42)');
     expect(themeCss).toContain('--cruush-glass-menu-toggle-bg:');
+    expect(themeCss).toContain('--cruush-liquid-shadow: 0 0 0 0.65px rgba(255, 255, 255, 0.55) inset');
     expect(themeCss).toContain('.cruush-glass-menu-toggle {');
     expect(themeCss).toContain('.cruush-liquid-glass-filters {');
     expect(themeCss).toContain('.cruush-liquid-glass-dock {');
+    expect(themeCss).toContain('.cruush-liquid-glass-dock::before,');
+    expect(themeCss).toContain('.fixed.cruush-glass-pill,');
+    expect(themeCss).toContain('.absolute.cruush-glass-soft,');
+    expect(themeCss).toContain('background: var(--cruush-glass-dock-bg);');
+    expect(themeCss).toContain('box-shadow: var(--cruush-glass-dock-shadow);');
     expect(themeCss).toContain('.cruush-bottom-nav-current-page {');
     expect(themeCss).toContain('background: transparent;');
     expect(themeCss).toContain('.cruush-bottom-nav-indicator-surface::before,');
+    expect(themeCss).toContain('left: calc(0.375rem + var(--bottom-nav-active-offset));');
+    expect(themeCss).toContain('transition: left 520ms cubic-bezier(0.32, 0.72, 0, 1);');
+    expect(themeCss).toContain('background: var(--cruush-glass-current-bg);');
     expect(themeCss).toContain('backdrop-filter: var(--cruush-glass-current-backdrop);');
+    expect(themeCss).toContain('opacity: 0.52;');
   });
 
   it('keeps the cruush plus shimmer and recently active rail hooks available', () => {
@@ -63,5 +78,13 @@ describe('global text selection policy', () => {
     expect(themeCss).toContain('.cruush-map-3d-toggle[data-state="active"],');
     expect(themeCss).toContain('.cruush-map-heatmap-toggle[data-state="active"] {');
     expect(themeCss).toContain('button.cruush-map-3d-toggle[data-state="active"]:hover:not(:disabled)');
+  });
+
+  it('lets heart pin base paths render their gradient fills under the glass rim', () => {
+    const fillNoneRule = themeCss.match(/\\.cruush-heart-glass-theme-border,[\\s\\S]*?fill: none;[\\s\\S]*?}/)?.[0] ?? '';
+
+    expect(fillNoneRule).not.toContain('.cruush-heart-glass-base');
+    expect(themeCss).toContain('.cruush-heart-glass-base {');
+    expect(themeCss).toContain('paint-order: stroke fill;');
   });
 });

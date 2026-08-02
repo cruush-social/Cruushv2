@@ -31,6 +31,7 @@ import {
   type MapMarkerBadge,
 } from '../lib/mapMarkers';
 import { HEART_PIN_PATH, HEART_PIN_PHOTO_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
+import { getProfileGradientStops } from '../lib/profileGradient';
 
 export { createMapMarkerBadge };
 
@@ -871,7 +872,7 @@ function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
 function getHeartSideBadgeClass(side: 'left' | 'right', isCurrentUser: boolean) {
   const edgeClass = side === 'left'
     ? isCurrentUser ? 'left-2' : 'left-1.5'
-    : isCurrentUser ? 'right-2' : 'right-1.5';
+    : '-right-3';
 
   return `${edgeClass} top-1/2 -translate-y-1/2`;
 }
@@ -952,14 +953,14 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const isNpcGhostDemo = marker.npcGhostDemo === true;
   const theme = isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
   const markerTheme = HEART_PIN_THEMES[theme];
-  const borderColor = markerTheme.border;
-  const [gradientFrom, gradientMiddle, gradientTo] = markerTheme.stops;
-  const markerSizeClass = isCurrentUser ? 'h-24 w-24' : 'h-20 w-20';
+  const [gradientFrom, gradientMiddle, gradientTo] = hasPhoto || isCurrentUser || isNpcGhostDemo || isMutualCruush
+    ? markerTheme.stops
+    : getProfileGradientStops(marker.userId ?? marker.id);
 
   return (
     <svg
       aria-hidden="true"
-      className={`cruush-heart-glass-svg ${markerSizeClass}`}
+      className="cruush-heart-glass-svg h-20 w-20"
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-current-user={isCurrentUser ? 'true' : 'false'}
@@ -979,7 +980,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           <path d={HEART_PIN_PHOTO_PATH} />
         </clipPath>
       </defs>
-      <path className="cruush-heart-glass-base" d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
+      <path className="cruush-heart-glass-base" d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={`url(#${gradientId})`} strokeWidth="3.2" />
       {hasPhoto ? (
         <image
           clipPath={`url(#${clipId})`}
@@ -990,7 +991,8 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           width="64"
         />
       ) : null}
-      <path className="cruush-heart-glass-theme-border" d={HEART_PIN_PATH} stroke={borderColor} />
+      <path className="cruush-heart-glass-refraction" d={HEART_PIN_PATH} />
+      <path className="cruush-heart-glass-theme-border" d={HEART_PIN_PATH} stroke={`url(#${gradientId})`} />
       <path className="cruush-heart-glass-rim" d={HEART_PIN_PATH} />
       <path className="cruush-heart-glass-edge cruush-heart-glass-edge-magenta" d={HEART_PIN_PATH} />
       <path className="cruush-heart-glass-edge cruush-heart-glass-edge-cyan" d={HEART_PIN_PATH} />
@@ -1060,8 +1062,6 @@ function MapMarkerPin({
   const postPreview = isPersonMarker ? truncateMarkerPreview(marker.latestFeedPostPreview, mobileSignalPreview ? 42 : 30) : '';
   const mobileSignalLabel = isCurrentUser ? 'You' : signalPreview || postPreview;
   const showMobileSignal = mobileSignalPreview && Boolean(mobileSignalLabel) && (mobileSignalActive || isCurrentUser);
-  const markerFrameClass = isCurrentUser ? 'h-[104px] w-[121px]' : 'h-[88px] w-[103px]';
-  const markerInnerFrameClass = isCurrentUser ? 'h-24 w-[121px]' : 'h-20 w-[103px]';
   const markerScaleClass = mobileSignalActive
     ? 'scale-110'
     : 'group-hover:scale-150 group-focus-within:scale-150';
@@ -1075,8 +1075,8 @@ function MapMarkerPin({
   }
 
   return (
-    <span className={`group pointer-events-none relative flex ${markerFrameClass} items-start justify-center overflow-visible`}>
-      <span className={`relative flex ${markerInnerFrameClass} origin-bottom items-center justify-center transition-transform duration-150 ${markerScaleClass}`}>
+    <span className="group pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
+      <span className={`relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 ${markerScaleClass}`}>
         {marker.npcGhostDemo ? (
           <span
             aria-hidden="true"
@@ -1090,7 +1090,7 @@ function MapMarkerPin({
       </span>
       {showMobileSignal ? (
         <span
-          className="cruush-glass-pill pointer-events-none absolute left-1/2 top-0 z-30 flex w-max max-w-[min(12rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-[calc(100%+0.25rem)] items-center gap-1.5 rounded-full border border-white/28 bg-white/[0.13] px-3 py-1.5 text-left text-[0.82rem] font-semibold leading-none text-white shadow-[0_10px_28px_rgba(0,0,0,0.36)] backdrop-blur-md"
+          className="cruush-glass-pill pointer-events-none absolute left-1/2 top-0 z-30 flex w-max max-w-[min(12rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-[calc(100%+0.75rem)] items-center gap-1.5 rounded-full border border-white/28 bg-white/[0.13] px-3 py-1.5 text-left text-[0.82rem] font-semibold leading-none text-white shadow-[0_10px_28px_rgba(0,0,0,0.36)] backdrop-blur-md"
           data-testid={`marker-mobile-signal-${marker.id}`}
         >
           <span className="h-2 w-2 shrink-0 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.85)]" />
@@ -1141,10 +1141,9 @@ function createMarkerElement(
   const element = document.createElement(isInteractive ? 'button' : 'div');
   const name = getDisplayName(marker);
   const animationHint = marker.animationHint ?? 'NONE';
-  const markerFrameClass = isCurrentUser ? 'h-[104px] w-[121px]' : 'h-[88px] w-[103px]';
 
   element.className = [
-    `group relative flex ${markerFrameClass} items-start justify-center overflow-visible border-0 bg-transparent p-0 transition-opacity duration-700`,
+    'group relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0 transition-opacity duration-700',
     animationHint === 'FADE_LAST_MINUTE' ? 'opacity-45' : '',
     animationHint === 'SIGNAL_LOSS' ? 'opacity-15 animate-pulse' : '',
     animationHint === 'REAPPEAR' ? 'opacity-100' : '',
@@ -1881,26 +1880,28 @@ function MapView({
       source: USER_HEATMAP_SOURCE_ID,
       maxzoom: 16.75,
       paint: {
-        'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1],
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 0.9, 14, 1.65, 16, 2.15],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 26, 14, 52, 16, 74],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.36, 16.75, 0.3],
+        'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 1, 1.25],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.35, 14, 2.65, 16, 3.4],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 34, 14, 68, 16, 96],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.34, 13, 0.58, 16.75, 0.52],
         'heatmap-color': [
           'interpolate',
           ['linear'],
           ['heatmap-density'],
           0,
           'rgba(255, 0, 114, 0)',
-          0.08,
-          'rgba(17, 129, 255, 0.36)',
-          0.26,
-          'rgba(111, 0, 255, 0.55)',
-          0.52,
-          'rgba(255, 0, 114, 0.68)',
-          0.78,
-          'rgba(255, 177, 31, 0.62)',
+          0.06,
+          'rgba(17, 129, 255, 0.45)',
+          0.22,
+          'rgba(0, 75, 255, 0.68)',
+          0.42,
+          'rgba(56, 38, 255, 0.78)',
+          0.62,
+          'rgba(111, 0, 255, 0.88)',
+          0.82,
+          'rgba(255, 0, 114, 0.94)',
           1,
-          'rgba(255, 226, 74, 0.7)',
+          'rgba(255, 64, 163, 1)',
         ],
       },
     };
