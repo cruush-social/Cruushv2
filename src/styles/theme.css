@@ -257,16 +257,31 @@
   }
 
   .cruush-map .maplibregl-canvas {
-    filter: grayscale(1) brightness(0.86) contrast(1.28) saturate(0.08);
+    filter: brightness(0.86) contrast(1.2) saturate(1);
   }
 
   .cruush-map-shell {
+    width: 100%;
     height: 100vh;
     min-height: 100vh;
     max-height: 100vh;
+    height: 100svh;
+    min-height: 100svh;
+    max-height: 100svh;
     height: 100dvh;
     min-height: 100dvh;
     max-height: 100dvh;
+  }
+
+  @supports selector(body:has(.cruush-map-shell)) {
+    html:has(.cruush-map-shell),
+    body:has(.cruush-map-shell),
+    #root:has(.cruush-map-shell) {
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
   }
 
   .cruush-logo-text {
@@ -315,6 +330,39 @@
     animation: cruush-plus-shimmer 3.4s ease-in-out infinite;
   }
 
+  .cruush-plus-shimmer-button {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .cruush-plus-shimmer-button::before {
+    position: absolute;
+    inset: -1px;
+    z-index: 0;
+    content: '';
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      transparent 34%,
+      rgba(255, 255, 255, 0.26) 43%,
+      rgba(255, 255, 255, 0.82) 48%,
+      rgba(255, 255, 255, 0.24) 53%,
+      transparent 62%,
+      transparent 100%
+    );
+    background-position: 140% 0;
+    background-size: 240% 100%;
+    mix-blend-mode: screen;
+    animation: cruush-plus-shimmer 3.4s ease-in-out infinite;
+  }
+
+  .cruush-plus-shimmer-button > * {
+    position: relative;
+    z-index: 1;
+  }
+
   @keyframes cruush-plus-shimmer {
     0%,
     42%,
@@ -334,7 +382,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .cruush-plus-word::after {
+    .cruush-plus-word::after,
+    .cruush-plus-shimmer-button::before {
       animation: none;
       opacity: 0;
     }
@@ -395,23 +444,24 @@
 }
 
 :root {
-  --cruush-glass-border: rgba(255, 255, 255, 0.22);
-  --cruush-glass-border-soft: rgba(255, 255, 255, 0.14);
-  --cruush-glass-highlight: rgba(255, 255, 255, 0.38);
-  --cruush-liquid-shadow: 0 0 2px 1px rgba(255, 255, 255, 0.22) inset, 0 0 10px 4px rgba(255, 255, 255, 0.065) inset, 0 4px 16px rgba(17, 17, 26, 0.12), 0 8px 24px rgba(17, 17, 26, 0.1), 0 16px 56px rgba(17, 17, 26, 0.12), 0 4px 16px rgba(17, 17, 26, 0.08) inset, 0 8px 24px rgba(17, 17, 26, 0.07) inset, 0 16px 56px rgba(17, 17, 26, 0.06) inset;
-  --cruush-glass-shadow: var(--cruush-liquid-shadow), 0 0 0 1px rgba(0, 0, 0, 0.34);
-  --cruush-glass-shadow-soft: 0 0 1.5px 0.75px rgba(255, 255, 255, 0.18) inset, 0 0 8px 3px rgba(255, 255, 255, 0.052) inset, 0 0.75rem 1.95rem rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.28), 0 0.75rem 1.75rem rgba(17, 17, 26, 0.07) inset;
-  --cruush-glass-backdrop: blur(12px) saturate(1.5) brightness(1.08) contrast(1.03);
-  --cruush-glass-backdrop-soft: blur(8px) saturate(1.36) brightness(1.06) contrast(1.02);
-  --cruush-glass-edge-reflection: linear-gradient(112deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.12) 11%, transparent 29% 71%, rgba(216, 248, 255, 0.11) 86%, rgba(255, 255, 255, 0.2) 100%), linear-gradient(135deg, rgba(255, 255, 255, 0.055) 0%, transparent 38% 64%, rgba(193, 236, 255, 0.06) 100%);
-  --cruush-glass-material-noise: radial-gradient(circle at center, rgba(255, 255, 255, 0.022) 0 0.42px, rgba(0, 0, 0, 0.015) 0.64px, transparent 1px);
-  --cruush-glass-specular: linear-gradient(104deg, transparent 0 40%, rgba(255, 255, 255, 0.08) 43%, rgba(255, 255, 255, 0.3) 47%, rgba(255, 255, 255, 0.09) 51%, transparent 61% 100%);
-  --cruush-glass-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.072) 0%, rgba(255, 255, 255, 0.034) 28%, rgba(20, 22, 29, 0.18) 64%, rgba(0, 0, 0, 0.34) 100%);
-  --cruush-glass-surface-soft: linear-gradient(180deg, rgba(255, 255, 255, 0.058) 0%, rgba(255, 255, 255, 0.026) 30%, rgba(22, 24, 31, 0.15) 66%, rgba(0, 0, 0, 0.26) 100%);
-  --cruush-glass-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.032) 24%, rgba(18, 20, 28, 0.36) 67%, rgba(2, 3, 8, 0.54) 100%);
-  --cruush-glass-bar-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.068) 0%, rgba(255, 255, 255, 0.03) 26%, rgba(18, 21, 29, 0.3) 60%, rgba(3, 4, 9, 0.48) 100%);
-  --cruush-glass-control-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.035) 30%, rgba(26, 28, 36, 0.24) 62%, rgba(5, 6, 12, 0.4) 100%);
-  --cruush-glass-control-hover-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.105) 0%, rgba(255, 255, 255, 0.052) 30%, rgba(34, 37, 46, 0.28) 62%, rgba(7, 8, 14, 0.46) 100%);
+  --cruush-glass-border: rgba(255, 255, 255, 0.34);
+  --cruush-glass-border-soft: rgba(255, 255, 255, 0.22);
+  --cruush-glass-highlight: rgba(255, 255, 255, 0.58);
+  --cruush-liquid-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.52) inset, 0 1px 1px rgba(255, 255, 255, 0.34) inset, 0 -18px 36px rgba(0, 0, 0, 0.26) inset, 0 14px 42px rgba(0, 0, 0, 0.34), 0 2px 10px rgba(255, 255, 255, 0.12);
+  --cruush-glass-shadow: var(--cruush-liquid-shadow), 0 0 0 1px rgba(0, 0, 0, 0.36);
+  --cruush-glass-shadow-soft: 0 0 0 0.5px rgba(255, 255, 255, 0.46) inset, 0 1px 1px rgba(255, 255, 255, 0.24) inset, 0 -14px 28px rgba(0, 0, 0, 0.2) inset, 0 10px 30px rgba(0, 0, 0, 0.3), 0 1px 7px rgba(255, 255, 255, 0.08);
+  --cruush-glass-backdrop: blur(24px) saturate(1.85) brightness(1.12) contrast(1.02);
+  --cruush-glass-backdrop-soft: blur(18px) saturate(1.65) brightness(1.1) contrast(1.02);
+  --cruush-glass-edge-reflection: radial-gradient(circle at 20% 8%, rgba(255, 255, 255, 0.42), transparent 26%), linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.14) 12%, transparent 38%), linear-gradient(118deg, rgba(255, 255, 255, 0.24) 0%, transparent 24% 74%, rgba(255, 255, 255, 0.16) 100%);
+  --cruush-glass-material-noise: radial-gradient(circle at center, rgba(255, 255, 255, 0.018) 0 0.36px, rgba(0, 0, 0, 0.018) 0.62px, transparent 1px);
+  --cruush-glass-specular: linear-gradient(104deg, transparent 0 36%, rgba(255, 255, 255, 0.1) 42%, rgba(255, 255, 255, 0.42) 48%, rgba(255, 255, 255, 0.12) 53%, transparent 63% 100%);
+  --cruush-glass-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.17) 0%, rgba(255, 255, 255, 0.078) 28%, rgba(20, 22, 30, 0.38) 66%, rgba(5, 6, 11, 0.54) 100%);
+  --cruush-glass-surface-soft: linear-gradient(180deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.062) 30%, rgba(22, 24, 31, 0.32) 68%, rgba(6, 7, 12, 0.46) 100%);
+  --cruush-glass-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.072) 25%, rgba(18, 20, 28, 0.48) 68%, rgba(2, 3, 8, 0.62) 100%);
+  --cruush-glass-bar-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.075) 28%, rgba(18, 21, 29, 0.46) 65%, rgba(3, 4, 9, 0.62) 100%);
+  --cruush-glass-control-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.07) 32%, rgba(26, 28, 36, 0.36) 64%, rgba(5, 6, 12, 0.52) 100%);
+  --cruush-glass-control-hover-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.1) 32%, rgba(34, 37, 46, 0.4) 64%, rgba(7, 8, 14, 0.58) 100%);
+  --cruush-glass-menu-toggle-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.082) 30%, rgba(12, 15, 21, 0.52) 66%, rgba(3, 4, 8, 0.68) 100%);
 }
 
 .cruush-glass,
@@ -445,18 +495,6 @@
   background: var(--cruush-glass-control-bg);
 }
 
-.cruush-glass-active {
-  border-color: rgba(255, 255, 255, 0.26);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.08) 18%, transparent 48%),
-    radial-gradient(135% 165% at 6% 0%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.055) 34%, transparent 58%),
-    var(--cruush-gradient);
-  box-shadow:
-    var(--cruush-glass-shadow),
-    0 0 1.25rem rgba(255, 0, 114, 0.18),
-    0 0 1.35rem rgba(17, 129, 255, 0.15);
-}
-
 .cruush-glass-soft {
   border-color: var(--cruush-glass-border-soft);
   background: var(--cruush-glass-surface-soft);
@@ -469,35 +507,108 @@
   background: var(--cruush-glass-panel-bg);
 }
 
+.cruush-glass-menu-toggle {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: var(--cruush-glass-menu-toggle-bg);
+  box-shadow: var(--cruush-glass-shadow), 0 0 0 0.5px rgba(255, 255, 255, 0.22) inset;
+  backdrop-filter: var(--cruush-glass-backdrop);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop);
+}
+
+.cruush-map-3d-toggle,
+.cruush-map-heatmap-toggle {
+  overflow: hidden;
+}
+
+.cruush-map-3d-toggle[data-state="active"],
+.cruush-map-heatmap-toggle[data-state="active"] {
+  border-color: rgba(255, 255, 255, 0.36);
+  background: radial-gradient(circle at 28% 12%, rgba(255, 255, 255, 0.42), transparent 30%), var(--cruush-gradient);
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.52) inset, 0 1px 1px rgba(255, 255, 255, 0.32) inset, 0 -16px 26px rgba(0, 0, 0, 0.2) inset, 0 14px 32px rgba(0, 0, 0, 0.34), 0 0 22px rgba(255, 0, 114, 0.32), 0 0 30px rgba(17, 129, 255, 0.24);
+}
+
+.cruush-map-3d-toggle[data-state="active"]::before,
+.cruush-map-heatmap-toggle[data-state="active"]::before {
+  opacity: 0.38;
+}
+
+.cruush-map-3d-toggle[data-state="active"]::after,
+.cruush-map-heatmap-toggle[data-state="active"]::after {
+  opacity: 0.14;
+}
+
+.cruush-recently-active-panel {
+  min-width: 0;
+}
+
+.cruush-recently-active-toggle {
+  overflow: hidden;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.135), rgba(255, 255, 255, 0.052) 48%, rgba(8, 10, 15, 0.46));
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.42) inset, 0 -10px 20px rgba(0, 0, 0, 0.22) inset, 0 10px 24px rgba(0, 0, 0, 0.28);
+  backdrop-filter: var(--cruush-glass-backdrop-soft);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop-soft);
+}
+
+.cruush-recently-active-toggle[data-state="open"] {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: radial-gradient(circle at 24% 0%, rgba(255, 255, 255, 0.28), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.066) 45%, rgba(7, 9, 14, 0.56));
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.54) inset, 0 -12px 22px rgba(0, 0, 0, 0.28) inset, 0 12px 28px rgba(0, 0, 0, 0.34);
+}
+
 .cruush-bottom-nav-pill {
   --bottom-nav-active-offset: 0rem;
   --bottom-nav-indicator-origin: center;
+  min-height: 5rem;
 }
 
 .cruush-bottom-nav-indicator {
   position: absolute;
-  top: 0.5rem;
+  top: 0.55rem;
   left: 0.375rem;
   z-index: 0;
-  width: 3.75rem;
-  height: 3.75rem;
+  width: 3.9rem;
+  height: 3.9rem;
   pointer-events: none;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.38));
   transform: translate3d(var(--bottom-nav-active-offset), 0, 0);
-  transition: transform 420ms cubic-bezier(1, 0, 0.4, 1);
+  transition: transform 520ms cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
 }
 
 .cruush-bottom-nav-indicator-surface {
   position: absolute;
   inset: 0;
-  border: 1px solid var(--cruush-glass-border-soft);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.34);
   border-radius: 9999px;
-  background: var(--cruush-glass-surface-soft);
-  box-shadow: var(--cruush-glass-shadow-soft);
+  background: radial-gradient(circle at 28% 14%, rgba(255, 255, 255, 0.34), transparent 30%), linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.06) 34%, rgba(8, 10, 15, 0.42) 100%);
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.5) inset, 0 1px 1px rgba(255, 255, 255, 0.3) inset, 0 -18px 30px rgba(0, 0, 0, 0.3) inset, 0 8px 22px rgba(0, 0, 0, 0.32);
   transform-origin: var(--bottom-nav-indicator-origin);
-  animation: cruush-bottom-nav-toggle-settle 440ms ease;
-  backdrop-filter: var(--cruush-glass-backdrop-soft);
-  -webkit-backdrop-filter: var(--cruush-glass-backdrop-soft);
+  animation: cruush-bottom-nav-toggle-settle 520ms cubic-bezier(0.32, 0.72, 0, 1);
+  backdrop-filter: blur(26px) saturate(1.9) brightness(1.1);
+  -webkit-backdrop-filter: blur(26px) saturate(1.9) brightness(1.1);
+}
+
+.cruush-bottom-nav-indicator-surface::before,
+.cruush-bottom-nav-indicator-surface::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+}
+
+.cruush-bottom-nav-indicator-surface::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 18% 72%, rgba(255, 255, 255, 0.08)), linear-gradient(120deg, rgba(255, 255, 255, 0.28), transparent 32% 70%, rgba(255, 255, 255, 0.14));
+  mix-blend-mode: screen;
+  opacity: 0.62;
+}
+
+.cruush-bottom-nav-indicator-surface::after {
+  inset: 0.18rem;
+  background: radial-gradient(circle at 38% 20%, rgba(255, 255, 255, 0.22), transparent 24%), linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.18));
+  opacity: 0.88;
 }
 
 .cruush-bottom-nav-indicator-surface[data-distance="2"],
@@ -513,7 +624,7 @@
   }
 
   52% {
-    transform: scaleX(1.1);
+    transform: scaleX(1.08);
   }
 }
 
@@ -524,7 +635,7 @@
   }
 
   52% {
-    transform: scaleX(1.22);
+    transform: scaleX(1.2);
   }
 }
 
@@ -772,13 +883,13 @@
   justify-content: center;
   overflow: visible;
   isolation: isolate;
-  filter: drop-shadow(0 0.42rem 0.9rem rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 0.5rem 1.15rem rgba(0, 0, 0, 0.32));
 }
 
 .cruush-map-logo-shell::before,
 .cruush-map-logo-shell::after {
   position: absolute;
-  inset: -0.16rem;
+  inset: -0.28rem;
   z-index: -1;
   content: '';
   pointer-events: none;
@@ -788,22 +899,22 @@
 
 .cruush-map-logo-shell::before {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.115) 22%, rgba(255, 255, 255, 0.05) 46%, rgba(216, 247, 255, 0.11) 76%, rgba(255, 255, 255, 0.14) 100%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(2, 3, 7, 0.18));
-  transform: scale(1.045);
-  opacity: 0.42;
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.14) 20%, rgba(255, 255, 255, 0.065) 42%, rgba(206, 245, 255, 0.16) 74%, rgba(255, 255, 255, 0.18) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(2, 3, 7, 0.22));
+  transform: scale(1.075);
+  opacity: 0.56;
   box-shadow: var(--cruush-liquid-shadow);
   backdrop-filter: blur(8px) saturate(1.42) brightness(1.08);
   -webkit-backdrop-filter: blur(8px) saturate(1.42) brightness(1.08);
 }
 
 .cruush-map-logo-shell::after {
-  inset: -0.08rem;
+  inset: -0.16rem;
   background:
-    linear-gradient(100deg, transparent 0 35%, rgba(255, 255, 255, 0.62) 44%, rgba(255, 255, 255, 0.13) 52%, transparent 63% 100%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.09), transparent 38% 66%, rgba(224, 250, 255, 0.1));
-  transform: scale(1.02);
-  opacity: 0.34;
+    linear-gradient(100deg, transparent 0 34%, rgba(255, 255, 255, 0.72) 43%, rgba(255, 255, 255, 0.15) 51%, transparent 62% 100%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.11), transparent 36% 64%, rgba(213, 247, 255, 0.15));
+  transform: scale(1.035);
+  opacity: 0.5;
   mix-blend-mode: screen;
   filter: blur(0.2px);
 }
@@ -814,6 +925,7 @@
   filter: none;
 }
 
+.cruush-heart-glass-base,
 .cruush-heart-glass-theme-border,
 .cruush-heart-glass-rim,
 .cruush-heart-glass-edge,
@@ -830,29 +942,22 @@
 }
 
 .cruush-heart-glass-base {
-  pointer-events: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transform-box: fill-box;
-  transform-origin: center;
-  vector-effect: non-scaling-stroke;
-  shape-rendering: geometricPrecision;
   paint-order: stroke fill;
   filter: none;
 }
 
 .cruush-heart-glass-theme-border {
   fill: none;
-  stroke-width: 2.35;
-  opacity: 0.62;
+  stroke-width: 3;
+  opacity: 0.76;
   paint-order: stroke;
   filter: none;
 }
 
 .cruush-heart-glass-rim {
-  stroke: rgba(255, 255, 255, 0.82);
-  stroke-width: 4;
-  opacity: 0.26;
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-width: 4.7;
+  opacity: 0.34;
   mix-blend-mode: screen;
   filter: none;
 }
@@ -863,21 +968,21 @@
 }
 
 .cruush-heart-glass-edge-magenta {
-  stroke: rgba(255, 255, 255, 0.58);
-  stroke-width: 1.2;
+  stroke: rgba(255, 196, 230, 0.68);
+  stroke-width: 1.75;
   stroke-dasharray: none;
   stroke-dashoffset: 0;
-  opacity: 0.055;
-  transform: translate(-0.22px, -0.12px);
+  opacity: 0.12;
+  transform: translate(-0.38px, -0.18px);
 }
 
 .cruush-heart-glass-edge-cyan {
-  stroke: rgba(232, 252, 255, 0.62);
-  stroke-width: 1.2;
+  stroke: rgba(193, 246, 255, 0.72);
+  stroke-width: 1.7;
   stroke-dasharray: none;
   stroke-dashoffset: 0;
-  opacity: 0.06;
-  transform: translate(0.22px, 0.12px);
+  opacity: 0.13;
+  transform: translate(0.38px, 0.22px);
 }
 
 .cruush-heart-glass-lip {
@@ -962,6 +1067,12 @@ a.cruush-glass-soft:hover,
 .cruush-glass-input:hover:not(:disabled) {
   border-color: var(--cruush-glass-highlight);
   background: var(--cruush-glass-control-hover-bg);
+}
+
+button.cruush-map-3d-toggle[data-state="active"]:hover:not(:disabled),
+button.cruush-map-heatmap-toggle[data-state="active"]:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.52);
+  background: radial-gradient(circle at 28% 12%, rgba(255, 255, 255, 0.48), transparent 30%), var(--cruush-gradient);
 }
 
 :where(

@@ -1914,8 +1914,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               aria-label={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
               aria-pressed={is3dMapModeEnabled}
               title={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
-              className={`cruush-glass-control rounded-full border text-white ${
-                is3dMapModeEnabled ? 'cruush-glass-active border-white/15' : 'border-white/10'
+              data-state={is3dMapModeEnabled ? 'active' : 'inactive'}
+              className={`cruush-map-3d-toggle cruush-glass-control rounded-full border text-white ${
+                is3dMapModeEnabled ? 'border-white/30' : 'border-white/10'
               }`}
             >
               <Building2 className="h-4 w-4" />
@@ -1928,8 +1929,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 aria-label={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
                 aria-pressed={isHeatmapEnabled}
                 title={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
-                className={`cruush-glass-control rounded-full border text-white ${
-                  isHeatmapEnabled ? 'cruush-glass-active border-white/15' : 'border-white/10'
+                data-state={isHeatmapEnabled ? 'active' : 'inactive'}
+                className={`cruush-map-heatmap-toggle cruush-glass-control rounded-full border text-white ${
+                  isHeatmapEnabled ? 'border-white/30' : 'border-white/10'
                 }`}
               >
                 <Flame aria-hidden="true" className="h-4 w-4" strokeWidth={2.35} />

@@ -829,12 +829,13 @@ describe('MapHome', () => {
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
     expect(map3dButton).toHaveAttribute('aria-pressed', 'false');
-    expect(map3dButton).toHaveClass('cruush-glass-control');
-    expect(map3dButton).not.toHaveClass('cruush-glass-active');
+    expect(map3dButton).toHaveAttribute('data-state', 'inactive');
+    expect(map3dButton).toHaveClass('cruush-glass-control', 'cruush-map-3d-toggle');
     expect(map3dButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     const heatmapButton = await screen.findByRole('button', { name: 'Hide heat map' });
     expect(heatmapButton).toHaveAttribute('aria-pressed', 'true');
-    expect(heatmapButton).toHaveClass('cruush-glass-control', 'cruush-glass-active');
+    expect(heatmapButton).toHaveAttribute('data-state', 'active');
+    expect(heatmapButton).toHaveClass('cruush-glass-control', 'cruush-map-heatmap-toggle');
     expect(heatmapButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(locationButton).toHaveClass('rounded-full', 'cruush-glass-control');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
@@ -847,12 +848,12 @@ describe('MapHome', () => {
     fireEvent.click(map3dButton);
     expect(window.localStorage.getItem('cruush:map-3d-mode-enabled')).toBe('true');
     expect(screen.getByRole('button', { name: 'Turn 3D map off' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Turn 3D map off' })).toHaveClass('cruush-glass-active');
+    expect(screen.getByRole('button', { name: 'Turn 3D map off' })).toHaveAttribute('data-state', 'active');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-3d-buildings', 'true');
 
     fireEvent.click(heatmapButton);
     expect(screen.getByRole('button', { name: 'Show heat map' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('button', { name: 'Show heat map' })).not.toHaveClass('cruush-glass-active');
+    expect(screen.getByRole('button', { name: 'Show heat map' })).toHaveAttribute('data-state', 'inactive');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-heatmap-enabled', 'false');
 
     fireEvent.click(dlModeButton);

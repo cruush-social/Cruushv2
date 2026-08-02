@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest';
 import HeartPin from './HeartPin';
 import { HEART_PIN_PHOTO_PATH } from '../lib/heartPin';
 
-const GLASS_HEART_BORDER = 'rgba(255, 255, 255, 0.72)';
-
 describe('HeartPin', () => {
   it('clips profile photos inside the shared glass heart border', () => {
     const { container } = render(<HeartPin user={{ id: 'user-photo', photo: 'https://example.com/photo.jpg' }} />);
@@ -15,8 +13,7 @@ describe('HeartPin', () => {
     expect(heart?.querySelector('clipPath path')).toHaveAttribute('d', HEART_PIN_PHOTO_PATH);
     expect(photo).toHaveAttribute('href', 'https://example.com/photo.jpg');
     expect(photo?.getAttribute('clip-path')).toContain('heart-pin-photo-clip-');
-    expect(heart?.querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
-    expect(heart?.querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
+    expect(heart?.querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#FF0072');
     expect(heart?.querySelector('.cruush-heart-glass-rim')).toBeInTheDocument();
   });
 });

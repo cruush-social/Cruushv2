@@ -4,8 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, { createCruushVectorStyle, createMapMarkerBadge, getMapStyle } from './MapView';
 import { HEART_PIN_PHOTO_PATH } from '../lib/heartPin';
 
-const GLASS_HEART_BORDER = 'rgba(255, 255, 255, 0.72)';
-
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
   const markerInstances: MockMarkerInstance[] = [];
@@ -56,6 +54,9 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     sources = new Map<string, any>();
     layers = new Map<string, any>();
     getStyle = vi.fn(() => ({
+      sources: {
+        openmaptiles: { type: 'vector' },
+      },
       layers: [
         { id: 'background', type: 'background' },
         { id: 'landuse-blocks', type: 'fill' },
@@ -233,20 +234,24 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('cruush-glass-soft', 'right-1.5', 'top-1/2', '-translate-y-1/2', 'border-[#FF0072]/80');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
-    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
-    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-base')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
     expect(Array.from(screen.getByTestId('marker-heart-me').querySelectorAll('stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
       '#00B8FF',
       '#0A7DF4',
       '#3236D4',
     ]);
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
-    expect(screen.getByTestId('marker-current-fallback-me')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-current-fallback-me').querySelector('div')).not.toHaveClass('rounded-full', 'bg-black/70');
-    expect(screen.getByTestId('marker-current-fallback-me').querySelector('svg')).toHaveClass('h-7', 'w-7', 'text-white');
+    expect(Array.from(screen.getByTestId('marker-heart-user-1').querySelectorAll('stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
+      '#FF0072',
+      '#DA045D',
+      '#B40849',
+    ]);
+    expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-current-user', 'true');
+    expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-current-fallback-user-1')).not.toBeInTheDocument();
-    expect(screen.getByTestId('marker-heart-me')).toHaveClass('cruush-heart-glass-svg', 'h-20', 'w-20');
-    expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
+    expect(screen.getByTestId('marker-heart-me')).toHaveClass('cruush-heart-glass-svg', 'h-24', 'w-24');
+    expect(markerInstances[0].element).toHaveClass('h-[104px]', 'w-[121px]');
     expect(markerInstances[0].element.className).not.toContain('drop-shadow');
     expect(markerInstances[1].element.className).not.toContain('drop-shadow');
     expect(screen.getByTestId('marker-heart-me').querySelector('filter')).toBeNull();
@@ -368,9 +373,9 @@ describe('MapView', () => {
       expect.objectContaining({
         maxZoom: 14,
         padding: expect.objectContaining({
-          bottom: 290,
-          right: 220,
-          top: 165,
+          bottom: 170,
+          right: 120,
+          top: 140,
         }),
       })
     );
@@ -641,19 +646,19 @@ describe('MapView', () => {
     expect(heatmapSource.data.features[0].geometry.coordinates).toEqual([-74.002, 40.718]);
 
     const heatmapLayerCall = mapInstances[0].addLayer.mock.calls.find(([layer]) => layer.id === 'cruush-user-heatmap-layer');
-    expect(heatmapLayerCall?.[1]).toBe('place-labels');
+    expect(heatmapLayerCall?.[1]).toBe('minor-roads');
     expect(heatmapLayerCall?.[0]).toEqual(expect.objectContaining({
       id: 'cruush-user-heatmap-layer',
       type: 'heatmap',
       paint: expect.objectContaining({
-        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 1.35, 14, 2.55, 16, 3.35],
-        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 38, 14, 74, 16, 108],
-        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.62, 13, 0.86, 16.75, 0.74],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 0.9, 14, 1.65, 16, 2.15],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 26, 14, 52, 16, 74],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.36, 16.75, 0.3],
         'heatmap-color': expect.arrayContaining([
-          'rgba(255, 0, 114, 0.44)',
-          'rgba(111, 0, 255, 0.7)',
-          'rgba(56, 38, 255, 0.82)',
-          'rgba(17, 129, 255, 0.94)',
+          'rgba(17, 129, 255, 0.36)',
+          'rgba(111, 0, 255, 0.55)',
+          'rgba(255, 0, 114, 0.68)',
+          'rgba(255, 226, 74, 0.7)',
         ]),
       }),
     }));
@@ -703,9 +708,11 @@ describe('MapView', () => {
 
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
+    expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-current-user', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
-    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
-    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
+    expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-24', 'w-24');
+    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
     expect(screen.getByTestId('marker-heart-me').querySelector('clipPath path')).toHaveAttribute('d', HEART_PIN_PHOTO_PATH);
     expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-rim')).toBeInTheDocument();
     expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
@@ -743,11 +750,11 @@ describe('MapView', () => {
 
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
-    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
-    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
+    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#0BA8FF');
   });
 
-  it('renders mutual markers with the stable grey heart state', async () => {
+  it('renders mutual markers with the purple heart state', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -771,7 +778,7 @@ describe('MapView', () => {
     expect(await screen.findByTestId('marker-photo-fill-user-mutual')).toHaveAttribute('href', 'https://example.com/river.jpg');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveAttribute('data-marker-theme', 'mutual');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('cruush-heart-glass-svg', 'h-20', 'w-20');
-    expect(screen.getByTestId('marker-heart-user-mutual').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', GLASS_HEART_BORDER);
+    expect(screen.getByTestId('marker-heart-user-mutual').querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#6f00ff');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('cruush-glass-soft', 'right-1.5', 'top-1/2', '-translate-y-1/2', 'border-[#6f00ff]/80');
     expect(screen.getByLabelText('mutual cruush')).toBeInTheDocument();
@@ -1238,7 +1245,7 @@ describe('MapView', () => {
     expect(layerById.get('place-labels')?.layout['text-letter-spacing']).toBe(0.035);
   });
 
-  it('can add dark 3D building extrusions for map testing', () => {
+  it('can add gradient 3D building extrusions for map testing', () => {
     const style = createCruushVectorStyle('https://tiles.openfreemap.org/planet', undefined, true) as any;
     const layerById = new Map<string, any>(
       style.layers.map((layer: any) => [layer.id, layer] as [string, any])
@@ -1249,48 +1256,76 @@ describe('MapView', () => {
     expect(style.light).toEqual({
       anchor: 'viewport',
       color: '#f2edf8',
-      intensity: 0.28,
-      position: [1.15, 210, 32],
+      intensity: 0.36,
+      position: [1.2, 210, 35],
     });
     expect(buildingLayer).toEqual(expect.objectContaining({
       type: 'fill-extrusion',
       source: 'openmaptiles',
       'source-layer': 'building',
-      minzoom: 13,
+      minzoom: 12.6,
       filter: ['!=', ['get', 'hide_3d'], true],
     }));
     expect(buildingLayer.paint['fill-extrusion-color']).toEqual([
       'interpolate',
       ['linear'],
-      ['get', 'render_height'],
+      [
+        'to-number',
+        ['coalesce', ['get', 'render_height'], ['get', 'height']],
+        34,
+      ],
       0,
-      '#151515',
-      120,
       '#FF0072',
-      260,
+      24,
+      '#FF4DB0',
+      58,
+      '#A64DFF',
+      104,
       '#6F00FF',
-      420,
+      170,
+      '#3826FF',
+      260,
       '#1181FF',
+      420,
+      '#00D5FF',
     ]);
     expect(buildingLayer.paint['fill-extrusion-height']).toEqual([
       'interpolate',
       ['linear'],
       ['zoom'],
-      13,
+      12.8,
       0,
-      14.4,
-      ['get', 'render_height'],
+      13.4,
+      [
+        '*',
+        [
+          'to-number',
+          ['coalesce', ['get', 'render_height'], ['get', 'height']],
+          34,
+        ],
+        0.45,
+      ],
+      14.2,
+      [
+        'to-number',
+        ['coalesce', ['get', 'render_height'], ['get', 'height']],
+        34,
+      ],
     ]);
     expect(buildingLayer.paint['fill-extrusion-base']).toEqual([
       'interpolate',
       ['linear'],
       ['zoom'],
-      13,
+      12.8,
       0,
-      14.4,
-      ['get', 'render_min_height'],
+      13.4,
+      [
+        'to-number',
+        ['coalesce', ['get', 'render_min_height'], ['get', 'min_height']],
+        0,
+      ],
     ]);
-    expect(buildingLayer.paint['fill-extrusion-opacity']).toBe(0.78);
+    expect(buildingLayer.paint['fill-extrusion-opacity']).toBe(0.88);
     expect(style.layers.findIndex((layer: any) => layer.id === 'building-extrusions-dark'))
       .toBeLessThan(style.layers.findIndex((layer: any) => layer.id === 'minor-roads'));
   });
@@ -1316,6 +1351,71 @@ describe('MapView', () => {
 
     expect(disabledStyle.layers.some((layer: any) => layer.id === 'building-extrusions-dark')).toBe(false);
     expect(enabledStyle.layers.some((layer: any) => layer.id === 'building-extrusions-dark')).toBe(true);
+  });
+
+  it('updates 3D buildings in place when runtime 3D mode changes', async () => {
+    const onPinClick = vi.fn();
+    const { rerender } = render(
+      <MapView
+        enable3dBuildings={false}
+        onPinClick={onPinClick}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
+    const map = mapInstances[0];
+    expect(MockMap.calls[0]).toEqual(expect.objectContaining({
+      zoom: 12,
+      pitch: 0,
+      bearing: 0,
+    }));
+
+    rerender(
+      <MapView
+        enable3dBuildings
+        onPinClick={onPinClick}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(map.addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'building-extrusions-dark' }),
+      'minor-roads'
+    ));
+    expect(MockMap.calls).toHaveLength(1);
+    expect(map.setStyle).not.toHaveBeenCalled();
+    expect(map.setLight).toHaveBeenCalledWith({
+      anchor: 'viewport',
+      color: '#f2edf8',
+      intensity: 0.36,
+      position: [1.2, 210, 35],
+    });
+    expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({
+      zoom: 14.4,
+      pitch: 45,
+      bearing: -17.6,
+      duration: 450,
+      essential: true,
+    }));
+
+    rerender(
+      <MapView
+        enable3dBuildings={false}
+        onPinClick={onPinClick}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(map.removeLayer).toHaveBeenCalledWith('building-extrusions-dark'));
+    expect(map.setStyle).not.toHaveBeenCalled();
+    expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({
+      zoom: 14.4,
+      pitch: 0,
+      bearing: 0,
+      duration: 450,
+      essential: true,
+    }));
   });
 
   it('pitches the map only when 3D buildings are enabled', async () => {
