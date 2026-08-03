@@ -42,10 +42,10 @@ describe('global text selection policy', () => {
     expect(themeCss).toContain('--cruush-glass-dock-backdrop: blur(20px) saturate(1.44) brightness(1.06) contrast(1.02);');
     expect(themeCss).toContain('--cruush-glass-current-backdrop: blur(12px) saturate(1.28) brightness(1.05) contrast(1.01);');
     expect(themeCss).toContain('@supports ((backdrop-filter: url("#cruush-liquid-glass-panel")) or (-webkit-backdrop-filter: url("#cruush-liquid-glass-panel"))) {');
-    expect(themeCss).toContain('--cruush-glass-backdrop: url("#cruush-liquid-glass-panel") blur(15px) saturate(1.42) brightness(1.06) contrast(1.02);');
-    expect(themeCss).toContain('--cruush-glass-backdrop-soft: url("#cruush-liquid-glass-pill") blur(12px) saturate(1.34) brightness(1.05) contrast(1.01);');
-    expect(themeCss).toContain('--cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") blur(13px) saturate(1.4) brightness(1.06) contrast(1.02);');
-    expect(themeCss).toContain('--cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") blur(9px) saturate(1.28) brightness(1.05) contrast(1.02);');
+    expect(themeCss).toContain('--cruush-glass-backdrop: url("#cruush-liquid-glass-panel") blur(1px) saturate(1.5) brightness(1.06) contrast(1.02);');
+    expect(themeCss).toContain('--cruush-glass-backdrop-soft: url("#cruush-liquid-glass-pill") blur(1px) saturate(1.4) brightness(1.05) contrast(1.01);');
+    expect(themeCss).toContain('--cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") blur(1px) saturate(1.5) brightness(1.06) contrast(1.02);');
+    expect(themeCss).toContain('--cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") saturate(1.35) brightness(1.05) contrast(1.02);');
     expect(themeCss).toContain('--cruush-glass-material-noise: linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0));');
     expect(themeCss).toContain('--cruush-glass-surface: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.32)');
     expect(themeCss).toContain('--cruush-glass-dock-bg: radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.34)');

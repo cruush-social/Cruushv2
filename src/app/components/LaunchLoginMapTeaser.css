@@ -150,7 +150,9 @@
 }
 
 .launch-login-map-teaser__mobile-pulse {
-  z-index: 5;
+  /* Behind the logo: this is a screen-blend glow, and above the video it
+     lightened the logo itself and made it read as translucent. */
+  z-index: 3;
   overflow: hidden;
   opacity: 0;
   mix-blend-mode: screen;
