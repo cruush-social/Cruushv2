@@ -98,7 +98,7 @@
   width: 100%;
   max-width: 100%;
   margin: 0;
-  color: rgba(255, 255, 255, 0.9);
+  color: #ffffff;
   font-size: clamp(1.38rem, 3.25dvh, 2.18rem);
   font-weight: 700;
   line-height: 1.08;
@@ -106,35 +106,42 @@
   white-space: nowrap;
   text-wrap: balance;
   text-shadow:
-    0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
-    0 0 0.95rem rgba(255, 0, 114, 0.16),
-    0 0 1.1rem rgba(17, 129, 255, 0.14);
-  animation: launch-login-auth-tagline-strobe 3.2s ease-in-out infinite;
+    0 0.5rem 1.25rem rgba(0, 0, 0, 0.9),
+    0 0 1.1rem rgba(255, 0, 114, 0.4),
+    0 0 1.8rem rgba(0, 75, 255, 0.32),
+    0 0 2.4rem rgba(255, 255, 255, 0.18);
+  animation: launch-login-auth-tagline-glow 3.2s ease-in-out infinite;
 }
 
-@keyframes launch-login-auth-tagline-strobe {
+@keyframes launch-login-auth-tagline-glow {
   0%, 100% {
-    color: rgba(255, 255, 255, 0.9);
+    color: #ffffff;
     text-shadow:
-      0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
-      0 0 0.95rem rgba(255, 0, 114, 0.16),
-      0 0 1.1rem rgba(17, 129, 255, 0.14);
+      0 0.5rem 1.25rem rgba(0, 0, 0, 0.9),
+      0 0 1.1rem rgba(255, 0, 114, 0.4),
+      0 0 1.8rem rgba(0, 75, 255, 0.32),
+      0 0 2.4rem rgba(255, 255, 255, 0.18);
   }
-  6% {
-    color: #fff;
+  18% {
     text-shadow:
-      0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
-      0 0 1.2rem rgba(255, 255, 255, 0.85),
-      0 0 2.4rem rgba(255, 255, 255, 0.5),
-      0 0 0.95rem rgba(255, 0, 114, 0.16),
-      0 0 1.1rem rgba(17, 129, 255, 0.14);
+      0 0.6rem 1.4rem rgba(0, 0, 0, 0.9),
+      0 0 1.6rem rgba(255, 0, 114, 0.55),
+      0 0 2.6rem rgba(0, 75, 255, 0.45),
+      0 0 3.4rem rgba(255, 255, 255, 0.45);
   }
-  12%, 92% {
-    color: rgba(255, 255, 255, 0.9);
+  50% {
     text-shadow:
-      0 0.6rem 1.35rem rgba(0, 0, 0, 0.9),
-      0 0 0.95rem rgba(255, 0, 114, 0.16),
-      0 0 1.1rem rgba(17, 129, 255, 0.14);
+      0 0.7rem 1.5rem rgba(0, 0, 0, 0.9),
+      0 0 1.9rem rgba(255, 0, 114, 0.65),
+      0 0 3rem rgba(0, 75, 255, 0.55),
+      0 0 4rem rgba(255, 255, 255, 0.6);
+  }
+  82% {
+    text-shadow:
+      0 0.6rem 1.4rem rgba(0, 0, 0, 0.9),
+      0 0 1.6rem rgba(255, 0, 114, 0.55),
+      0 0 2.6rem rgba(0, 75, 255, 0.45),
+      0 0 3.4rem rgba(255, 255, 255, 0.45);
   }
 }
 
