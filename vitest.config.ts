@@ -21,6 +21,10 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       'server/**',
+      // Git worktrees created under .claude/ are full checkouts of this repo, so
+      // without this every test file is collected twice — once from src/ and
+      // once from a stale copy — which starves the worker pool.
+      '**/.claude/worktrees/**',
     ],
   }
 });
