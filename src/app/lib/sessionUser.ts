@@ -1,5 +1,6 @@
 import { ApiClientError } from './apiClient';
 import { getAuthSession, type AuthSessionPayload } from './authApi';
+import posthog from './posthog';
 
 type StoredCruushUser = {
   age?: number | null;
@@ -38,10 +39,16 @@ export function persistCurrentUser(user: StoredCruushUser) {
 }
 
 export function clearCurrentUser() {
+  const hadIdentifiedUser = Boolean(readStoredUser()?.id);
+
   localStorage.removeItem('cruush_auth');
   localStorage.removeItem('cruush_user');
   localStorage.removeItem(VERIFICATION_PREVIEW_URL_KEY);
   sessionStorage.clear();
+
+  if (hadIdentifiedUser) {
+    posthog.reset();
+  }
 }
 
 export function getStoredUserId() {
@@ -53,8 +60,19 @@ export function getStoredCurrentUser() {
 }
 
 export function persistSessionUser(session: AuthSessionPayload) {
+  const previousUserId = readStoredUser()?.id;
   const yearOfBirth = session.profile?.yearOfBirth ?? null;
   const displayName = session.profile?.displayName?.trim() || session.user.displayName;
+
+  if (previousUserId && previousUserId !== session.user.id) {
+    posthog.reset();
+  }
+
+  posthog.identify(session.user.id, {
+    email: session.user.email,
+    name: displayName,
+    moderator_role: session.user.moderatorRole ?? null,
+  });
 
   persistCurrentUser({
     id: session.user.id,

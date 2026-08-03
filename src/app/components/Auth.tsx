@@ -11,6 +11,7 @@ import {
 import { checkBetaAccess, requestBetaCity } from '../lib/betaAccessApi';
 import { getAppMeta, type AppMetaPayload } from '../lib/metaApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
+import posthog from '../lib/posthog';
 import { CruushIcon } from './CruushIconImage';
 import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
@@ -157,6 +158,7 @@ export default function Auth({ onAuth }: AuthProps) {
         const delivery = await requestPasswordReset(email);
         setLocalVerificationPreviewUrl(delivery.previewUrl);
         setNotice('If that email belongs to an account, a reset link is on the way.');
+        posthog.capture('password_reset_requested');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to request a password reset.');
       } finally {
@@ -221,6 +223,7 @@ export default function Auth({ onAuth }: AuthProps) {
         setVerificationPreviewUrl(delivery.previewUrl);
         setLocalVerificationPreviewUrl(delivery.previewUrl);
         setNotice('Check your email to verify your account, then sign in.');
+        posthog.capture('account_created');
         setModeSelectedByUser(true);
         setMode('signin');
         setPassword('');
@@ -240,6 +243,9 @@ export default function Auth({ onAuth }: AuthProps) {
           betaAccessLocation: betaAccessLocation ?? undefined,
         });
         persistSessionUser(session);
+        posthog.capture('user_signed_in', {
+          two_factor_required: twoFactorRequired,
+        });
         setIsLoading(false);
         onAuth(session);
       }

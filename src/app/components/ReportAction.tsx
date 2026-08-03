@@ -10,6 +10,7 @@ import {
 import { buttonVariants } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import posthog from '../lib/posthog';
 import {
   Dialog,
   DialogContent,
@@ -97,6 +98,10 @@ export default function ReportAction({
         details: details.trim() || undefined,
       });
       toast.success('Report submitted.');
+      posthog.capture('report_submitted', {
+        target_type: targetType,
+        reason,
+      });
       setOpen(false);
       setReason('');
       setDetails('');

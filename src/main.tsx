@@ -1,13 +1,17 @@
-import { createRoot } from "react-dom/client";
-import App from "./app/App.tsx";
-import LiquidGlassFilters from "./app/components/LiquidGlassFilters.tsx";
-import "./styles/index.css";
+import { PostHogErrorBoundary, PostHogProvider } from '@posthog/react';
+import { createRoot } from 'react-dom/client';
+import App from './app/App.tsx';
+import LiquidGlassFilters from './app/components/LiquidGlassFilters.tsx';
+import posthog from './app/lib/posthog';
+import './styles/index.css';
 
 createRoot(document.getElementById("root")!).render(
-  <>
-    <LiquidGlassFilters />
-    <App />
-  </>
+  <PostHogProvider client={posthog}>
+    <PostHogErrorBoundary>
+      <LiquidGlassFilters />
+      <App />
+    </PostHogErrorBoundary>
+  </PostHogProvider>
 );
 
 if ("serviceWorker" in navigator) {

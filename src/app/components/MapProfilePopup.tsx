@@ -18,6 +18,7 @@ import {
 } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { emptyProfilePayload, getMyProfile, getProfileById, type ProfileRecord } from '../lib/profileApi';
+import posthog from '../lib/posthog';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import sendIconWhite from '../assets/ui-icons/send-white.png';
@@ -148,6 +149,9 @@ export default function MapProfilePopup({
       });
       setCruushed(true);
       setCruushBecameMutual(data.mutual === true);
+      posthog.capture('cruush_sent', {
+        became_mutual: data.mutual === true,
+      });
       handleCruushSendSuccess(user.id, displayName, data);
     } catch (error) {
       console.error('Error sending cruush:', error);
@@ -167,6 +171,7 @@ export default function MapProfilePopup({
       await revokeMutualCruush(user.id);
       setCruushed(false);
       setCruushBecameMutual(false);
+      posthog.capture('mutual_cruush_removed');
       handleMutualCruushRevokeSuccess(user.id, displayName);
       onMutualCruushRevoked?.(user.id);
       onClose();
@@ -186,6 +191,9 @@ export default function MapProfilePopup({
     setOpeningMessage(true);
     try {
       await openConversationOrInbox(navigate, user.id);
+      posthog.capture('conversation_opened', {
+        source: 'profile_popup',
+      });
     } finally {
       setOpeningMessage(false);
     }

@@ -15,6 +15,7 @@ import {
   type TwoFactorSetup,
 } from '../lib/rewardsApi';
 import { persistCurrentUser } from '../lib/sessionUser';
+import posthog from '../lib/posthog';
 import CruushPlusWord from './CruushPlusWord';
 import MultiSelect from './MultiSelect';
 
@@ -449,6 +450,7 @@ export default function ProfileOnboarding({
 
     try {
       setTwoFactorSetup(await startTwoFactorSetup(twoFactorPassword));
+      posthog.capture('two_factor_setup_started');
       setTwoFactorPassword('');
       setTwoFactorToken('');
     } catch (error) {
@@ -475,6 +477,7 @@ export default function ProfileOnboarding({
       setTwoFactorSetup(null);
       setTwoFactorToken('');
       setTwoFactorEnabled(true);
+      posthog.capture('two_factor_setup_completed');
     } catch (error) {
       setTwoFactorError(error instanceof Error ? error.message : 'Unable to confirm 2FA.');
     } finally {
@@ -559,6 +562,11 @@ export default function ProfileOnboarding({
       const nextSession = needsCodeOfConduct
         ? await acceptCodeOfConduct(codeOfConductVersion)
         : undefined;
+      posthog.capture('profile_onboarding_completed', {
+        code_of_conduct_accepted: needsCodeOfConduct,
+        two_factor_enabled: twoFactorEnabled,
+        destination,
+      });
       onComplete(nextSession, destination);
     } catch (error) {
       console.error('Error saving profile:', error);

@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientError } from './apiClient';
 
-const { getAuthSession } = vi.hoisted(() => ({
+const { getAuthSession, identify, reset } = vi.hoisted(() => ({
   getAuthSession: vi.fn(),
+  identify: vi.fn(),
+  reset: vi.fn(),
 }));
 
 vi.mock('./authApi', () => ({
   getAuthSession,
+}));
+
+vi.mock('./posthog', () => ({
+  default: { identify, reset },
 }));
 
 import {
@@ -16,6 +22,7 @@ import {
   getStoredCurrentUser,
   getVerificationPreviewUrl,
   loadCurrentSession,
+  persistSessionUser,
   setVerificationPreviewUrl,
 } from './sessionUser';
 
@@ -24,6 +31,8 @@ describe('sessionUser', () => {
     localStorage.clear();
     sessionStorage.clear();
     getAuthSession.mockReset();
+    identify.mockReset();
+    reset.mockReset();
   });
 
   it('returns the persisted local user id when present', async () => {
@@ -65,6 +74,42 @@ describe('sessionUser', () => {
 
     await expect(loadCurrentSession()).resolves.toBeNull();
     expect(localStorage.getItem('cruush_user')).toBeNull();
+  });
+
+  it('identifies the stable backend user id with person properties', () => {
+    persistSessionUser({
+      user: {
+        id: 'user-auth-4',
+        email: 'person@example.com',
+        displayName: 'Person',
+        emailVerifiedAt: null,
+        createdAt: '2026-04-28T12:00:00.000Z',
+        moderatorRole: 'moderator',
+      },
+      profile: {
+        displayName: 'Profile Person',
+        yearOfBirth: 1992,
+      },
+      needsOnboarding: false,
+      needsCodeOfConduct: false,
+      codeOfConductVersion: '1',
+      acceptedCodeOfConductVersion: null,
+      codeOfConductAcceptedAt: null,
+    });
+
+    expect(identify).toHaveBeenCalledWith('user-auth-4', {
+      email: 'person@example.com',
+      name: 'Profile Person',
+      moderator_role: 'moderator',
+    });
+  });
+
+  it('resets identity when the current user is cleared', () => {
+    localStorage.setItem('cruush_user', JSON.stringify({ id: 'user-local-1' }));
+
+    clearCurrentUser();
+
+    expect(reset).toHaveBeenCalledOnce();
   });
 
   it('stores and clears the dev verification preview url', () => {
