@@ -817,6 +817,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
     expect(topActions).toHaveClass('pointer-events-auto', 'mt-0', 'gap-0.5', 'p-0.5');
     expect(topActions).not.toHaveClass('mt-11');
+    expect(topActions).toContainElement(screen.getByTestId('map-bug-button-slot'));
     expect(rightActions).toHaveClass('right-3', 'top-[4.5rem]', 'sm:right-4', 'sm:top-[4.75rem]');
     expect(cruushPlusButton).toHaveClass('cruush-plus-shimmer-button', 'cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();

@@ -1,7 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router';
 import { CheckCircle2, MessageCircleWarning } from 'lucide-react';
 import { createSupportRequest } from '../lib/supportApi';
+import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 import { Button } from './ui/button';
@@ -36,20 +38,34 @@ function getCurrentPageUrl() {
   return `${window.location.pathname}${window.location.search}` || '/';
 }
 
+// Every screen keeps a settings control in the top-right of its header, so the
+// floating trigger stays anchored above the bottom nav at every breakpoint.
 function getBugButtonPlacement(pathname: string) {
   if (pathname.startsWith('/chat/')) {
-    return 'right-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(0.75rem+env(safe-area-inset-top))]';
+    return 'right-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] sm:right-5';
   }
 
-  return 'right-4 bottom-[calc(8.75rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(0.75rem+env(safe-area-inset-top))]';
+  return 'right-4 bottom-[calc(8.75rem+env(safe-area-inset-bottom))] sm:right-5';
 }
 
 function getBugTipPlacement(pathname: string) {
   if (pathname.startsWith('/chat/')) {
-    return 'right-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(4.5rem+env(safe-area-inset-top))]';
+    return 'right-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] sm:right-5';
   }
 
-  return 'right-4 bottom-[calc(12rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(4.5rem+env(safe-area-inset-top))]';
+  return 'right-4 bottom-[calc(12rem+env(safe-area-inset-bottom))] sm:right-5';
+}
+
+// Docked triggers copy the look of whichever control cluster hosts them, so the
+// button reads as part of that screen's chrome instead of an overlay.
+function getDockedBugButtonClassName(slot: HTMLElement) {
+  const shared = 'inline-flex shrink-0 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+
+  if (slot.dataset.bugButtonVariant === 'rail') {
+    return `${shared} cruush-glass-control size-9 border border-white/10 text-white hover:bg-white/10`;
+  }
+
+  return `${shared} size-8 text-white/90 hover:bg-white/10 sm:size-9`;
 }
 
 function waitForVideoMetadata(video: HTMLVideoElement) {
@@ -173,6 +189,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
   const [error, setError] = useState('');
   const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
+  const dockSlot = useSyncExternalStore(subscribeToBugButtonSlot, getBugButtonSlot, () => null);
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -254,6 +271,21 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
     }
   };
 
+  const trigger = (
+    <DialogTrigger asChild>
+      <button
+        aria-label="Report bug"
+        className={dockSlot
+          ? getDockedBugButtonClassName(dockSlot)
+          : `cruush-glass-pill fixed z-[40] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary pointer-events-auto ${getBugButtonPlacement(location.pathname)}`}
+        title="Report bug"
+        type="button"
+      >
+        <MessageCircleWarning className={dockSlot ? 'h-4 w-4 sm:h-5 sm:w-5' : 'h-5 w-5'} />
+      </button>
+    </DialogTrigger>
+  );
+
   return (
     <Dialog
       open={open}
@@ -268,7 +300,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
         }
       }}
     >
-      {showTip ? (
+      {showTip && !dockSlot ? (
         <div className={`cruush-glass-panel fixed z-[40] w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
           <p className="leading-snug">Tap the bug icon to report anything broken.</p>
           <button
@@ -280,15 +312,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
           </button>
         </div>
       ) : null}
-      <DialogTrigger asChild>
-        <button
-          aria-label="Report bug"
-          className={`cruush-glass-pill fixed z-[40] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary pointer-events-auto ${getBugButtonPlacement(location.pathname)}`}
-          type="button"
-        >
-          <MessageCircleWarning className="h-5 w-5" />
-        </button>
-      </DialogTrigger>
+      {dockSlot ? createPortal(trigger, dockSlot) : trigger}
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
           <DialogTitle>Report bug</DialogTitle>

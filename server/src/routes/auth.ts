@@ -44,6 +44,7 @@ import {
   ensureDeviceCookie
 } from "../severe-access-bans.js";
 import { prepareSignupReferral } from "../referrals-service.js";
+import { grantSignupCruushPlusTrial } from "../rewards-service.js";
 import { encryptReferralSignupPrivacy } from "../referral-privacy.js";
 import { verifyLoginSecondFactor } from "../two-factor.js";
 import { isOwnerFullAccessEmail, ownerCanBypassAccountStatus } from "../owner-access.js";
@@ -539,6 +540,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
       throw error;
     }
+
+    await grantSignupCruushPlusTrial(app, createdUser.id).catch((error) => {
+      request.log.error({ err: error, userId: createdUser.id }, "signup cruush+ trial grant failed");
+    });
 
     if (payload.betaAccessLocation) {
       await storeLocationEnvelope(app, {

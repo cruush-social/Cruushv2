@@ -48,6 +48,7 @@ import {
 } from '../lib/locationPrivacy';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from '../lib/mapMarkers';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import dlModeIconColored from '../assets/ui-icons/dl-mode-colored.png';
@@ -1610,6 +1611,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
               >
                 <CruushIconImage src={settingsIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
               </Button>
+              {!isMobile ? (
+                <div
+                  className="contents"
+                  data-bug-button-variant="bar"
+                  data-testid="map-bug-button-slot"
+                  ref={registerBugButtonSlot}
+                />
+              ) : null}
             </div>
           </div>
         </div>
@@ -1994,6 +2003,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
             >
               <ZoomOut className="w-4 h-4" />
             </Button>
+            {isMobile ? (
+              <div
+                className="contents"
+                data-bug-button-variant="rail"
+                data-testid="map-bug-button-slot"
+                ref={registerBugButtonSlot}
+              />
+            ) : null}
           </div>
         </div>
 

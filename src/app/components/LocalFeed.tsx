@@ -34,6 +34,7 @@ import {
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -73,7 +74,7 @@ const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
   { value: '1h', label: '1h' },
 ];
 const FEED_PAGE_SIZE = 30;
-const DEFAULT_FEED_RADIUS_MILES = 5;
+const DEFAULT_FEED_RADIUS_MILES = 15;
 const LAUNCH_PARTY_EVENT_SLUG = 'the-chocolate-factory-launch';
 const DEFAULT_FEED_SETTINGS: FeedSettings = {
   locationPinVisibility: 'mutuals',
@@ -466,6 +467,12 @@ export default function LocalFeed() {
             </div>
           </DialogContent>
         </Dialog>
+        <div
+          className="contents"
+          data-bug-button-variant="bar"
+          data-testid="local-feed-bug-button-slot"
+          ref={registerBugButtonSlot}
+        />
       </header>
 
       <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-3 pt-4" data-testid="local-feed-content">

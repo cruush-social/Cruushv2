@@ -11,6 +11,7 @@ import {
 const DAY_SECONDS = 86_400;
 export const BETA_LAUNCH_CRUUSH_PLUS_ENDS_AT = "2026-08-07T00:00:00-04:00";
 const BETA_LAUNCH_GRANT_DAYS = 7;
+export const SIGNUP_TRIAL_DAYS = 7;
 
 type RewardSource = "activity_recurring" | "activity_long_bonus" | "referral" | "admin";
 
@@ -405,6 +406,25 @@ export async function claimBetaLaunchCruushPlus(
     label: "Beta launch cruush+",
     auditMetadata: {
       offer: "beta_launch_2026"
+    }
+  }));
+}
+
+export async function grantSignupCruushPlusTrial(
+  app: Pick<FastifyInstance, "db">,
+  userId: string,
+  from = new Date()
+) {
+  const activeUntil = new Date(from.getTime() + SIGNUP_TRIAL_DAYS * DAY_SECONDS * 1000);
+
+  return runTransaction(app.db, (db) => grantPromotionalAccessUntilInTransaction(db, {
+    userId,
+    activeUntil,
+    days: SIGNUP_TRIAL_DAYS,
+    idempotencyKey: `signup-trial:${userId}`,
+    label: "Welcome week cruush+",
+    auditMetadata: {
+      offer: "signup_trial"
     }
   }));
 }

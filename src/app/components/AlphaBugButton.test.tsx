@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AlphaBugButton from './AlphaBugButton';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 const { createSupportRequest } = vi.hoisted(() => ({
   createSupportRequest: vi.fn(),
@@ -47,6 +48,11 @@ describe('AlphaBugButton', () => {
     window.history.replaceState({}, '', '/map?layer=nearby');
   });
 
+  afterEach(() => {
+    document.querySelectorAll('[data-bug-slot]').forEach((element) => element.remove());
+    registerBugButtonSlot(null);
+  });
+
   it('stays hidden when reporting is not enabled', () => {
     renderAlphaBugButton(false);
 
@@ -88,6 +94,27 @@ describe('AlphaBugButton', () => {
       'bottom-[calc(19rem+env(safe-area-inset-bottom))]',
       'z-[40]',
     );
+  });
+
+  it('docks into a registered slot instead of floating over screen controls', async () => {
+    getUserNoticeDismissal.mockResolvedValue({ dismissed: false, dismissedAt: null });
+
+    const slot = document.createElement('div');
+    slot.dataset.bugSlot = 'true';
+    document.body.appendChild(slot);
+    registerBugButtonSlot(slot);
+
+    renderAlphaBugButton();
+
+    const reportButton = screen.getByRole('button', { name: 'Report bug' });
+    expect(slot).toContainElement(reportButton);
+    expect(reportButton).not.toHaveClass('fixed');
+    expect(reportButton).not.toHaveClass('bottom-[calc(8.75rem+env(safe-area-inset-bottom))]');
+    await waitFor(() => expect(getUserNoticeDismissal).toHaveBeenCalled());
+    expect(screen.queryByText('Tap the bug icon to report anything broken.')).not.toBeInTheDocument();
+
+    fireEvent.click(reportButton);
+    expect(screen.getByLabelText('What broke?')).toBeInTheDocument();
   });
 
   it('shows the bug tip without alpha wording above the mobile nav', async () => {
