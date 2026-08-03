@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "runId": "26c87704-7e8e-4812-bf72-a55ff8a9e40a",
+  "tasks": [
+    {
+      "id": "ec193ac6-9c48-4d7b-8d58-e933f5b60ac2",
+      "type": "install",
+      "label": "Add PostHog SDK",
+      "status": "pending",
+      "dependsOn": [],
+      "inputs": {},
+      "attempts": 0,
+      "maxAttempts": 2,
+      "enqueuedBy": "orchestrator",
+      "createdAt": "2026-08-03T19:16:46.089Z"
+    },
+    {
+      "id": "05aa8808-f853-4770-bab2-ea57091f640e",
+      "type": "init",
+      "label": "Configure PostHog",
+      "status": "pending",
+      "dependsOn": [],
+      "inputs": {},
+      "attempts": 0,
+      "maxAttempts": 2,
+      "enqueuedBy": "orchestrator",
+      "createdAt": "2026-08-03T19:16:46.091Z"
+    },
+    {
+      "id": "3417c386-af58-467f-96f7-e3f8d8aca719",
+      "type": "identify",
+      "label": "Add user identity",
+      "status": "pending",
+      "dependsOn": [
+        "ec193ac6-9c48-4d7b-8d58-e933f5b60ac2",
+        "05aa8808-f853-4770-bab2-ea57091f640e"
+      ],
+      "inputs": {},
+      "attempts": 0,
+      "maxAttempts": 2,
+      "enqueuedBy": "orchestrator",
+      "createdAt": "2026-08-03T19:16:48.259Z"
+    },
+    {
+      "id": "27c58f2d-7423-46e2-a3b9-b541dc0358b8",
+      "type": "error-tracking",
+      "label": "Capture app errors",
+      "status": "pending",
+      "dependsOn": [
+        "ec193ac6-9c48-4d7b-8d58-e933f5b60ac2",
+        "05aa8808-f853-4770-bab2-ea57091f640e"
+      ],
+      "inputs": {},
+      "attempts": 0,
+      "maxAttempts": 2,
+      "enqueuedBy": "orchestrator",
+      "createdAt": "2026-08-03T19:16:48.261Z"
+    },
+    {
+      "id": "b1dbf179-0923-4e27-a46e-e99d5ab1886b",
+      "type": "capture",
+      "label": "Instrument key events",
+      "status": "pending",
+      "dependsOn": [
+        "3417c386-af58-467f-96f7-e3f8d8aca719"
+      ],
+      "inputs": {},
+      "attempts": 0,
+      "maxAttempts": 2,
+      "enqueuedBy": "orchestrator",
+      "createdAt": "2026-08-03T19:16:49.915Z"
+    }
+  ]
+}
