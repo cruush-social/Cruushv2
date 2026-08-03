@@ -32,6 +32,7 @@ import {
 } from '../lib/mapMarkers';
 import { HEART_PIN_PATH, HEART_PIN_PHOTO_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
+import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
 
 export { createMapMarkerBadge };
 
@@ -957,6 +958,12 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     ? markerTheme.stops
     : getProfileGradientStops(marker.userId ?? marker.id);
 
+  // DL Mode: overlay a deterministic gradient on top of explicit (NSFW) photos
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
+  const showExplicitGradientOverlay = Boolean(marker.photoExplicit && dlModeActive && hasPhoto);
+
   return (
     <svg
       aria-hidden="true"
@@ -991,6 +998,18 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           width="64"
         />
       ) : null}
+
+      {/* When DL Mode is active and the photo is explicit, render a gradient overlay above the image */}
+      {showExplicitGradientOverlay ? (
+        <path
+          d={HEART_PIN_PATH}
+          fill={`url(#${gradientId})`}
+          className="marker-explicit-overlay"
+          data-testid={`marker-explicit-gradient-${marker.id}`}
+          style={{ opacity: 0.96 }}
+        />
+      ) : null}
+
       <path className="cruush-heart-glass-refraction" d={HEART_PIN_PATH} />
       <path className="cruush-heart-glass-theme-border" d={HEART_PIN_PATH} stroke={`url(#${gradientId})`} />
       <path className="cruush-heart-glass-rim" d={HEART_PIN_PATH} />
