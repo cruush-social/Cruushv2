@@ -10,8 +10,8 @@ type LaunchLoginMapTeaserProps = {
   onPlaybackStateChange?: (state: LaunchLoginMapTeaserPlaybackState) => void;
 };
 
-const DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-desktop.webm';
-const MOBILE_TEASER_VIDEO = '/teasers/launch-login-teaser-mobile.webm';
+const DESKTOP_TEASER_VIDEO = '/teasers/cruush-logo-login-alpha-desktop.webm';
+const MOBILE_TEASER_VIDEO = '/teasers/cruush-logo-login-alpha-mobile.webm';
 const CODEPEN_BUTTERFLY_TEXTURE = '/teasers/codepen-butterfly-tex.png';
 const MOBILE_VIDEO_QUERY = '(max-width: 640px)';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';

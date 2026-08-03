@@ -15,7 +15,7 @@ describe('LaunchLoginMapTeaser', () => {
     expect(teaser).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-teaser-video')).toHaveAttribute(
       'src',
-      '/teasers/launch-login-teaser-desktop.webm',
+      '/teasers/cruush-logo-login-alpha-desktop.webm',
     );
     expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-realistic-glitter')).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe('LaunchLoginMapTeaser', () => {
     expect(video).toHaveAttribute('preload', 'metadata');
     expect(video).toHaveAttribute(
       'src',
-      '/teasers/launch-login-teaser-mobile.webm',
+      '/teasers/cruush-logo-login-alpha-mobile.webm',
     );
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-frosted-glass')).not.toBeInTheDocument();
