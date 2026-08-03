@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import CruushPlusWord from './CruushPlusWord';
+import { ApiClientError } from '../lib/apiClient';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
@@ -86,7 +87,6 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
       }
 
       if (acquireOneTimeDialog(activeDialogKey)) {
-        markSeen();
         setOpen(true);
         return;
       }
@@ -148,8 +148,14 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
     try {
       const claim = await claimBetaLaunchCruushPlus();
       window.dispatchEvent(new CustomEvent(CRUUSH_PLUS_CHANGED_EVENT, { detail: claim }));
+      markSeen();
       setActivated(true);
     } catch (claimError) {
+      // The offer is gone for good, so stop re-opening this dialog on every load.
+      if (claimError instanceof ApiClientError && claimError.code === 'OFFER_ENDED') {
+        markSeen();
+      }
+
       setError(claimError instanceof Error ? claimError.message : 'Unable to activate cruush+.');
     } finally {
       setClaiming(false);
