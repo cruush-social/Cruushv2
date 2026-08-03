@@ -27,13 +27,13 @@ describe('LiquidGlassFilters', () => {
 
     expect(decodedDockMap).toContain('viewBox="0 0 368 80"');
     expect(decodedDockMap).toContain('rx="40"');
-    expect(decodedDockMap).toContain('fill="url(#red)"');
-    expect(decodedDockMap).toContain('fill="url(#blue)"');
-    expect(decodedDockMap).toContain('mix-blend-mode:difference');
-    expect(dockFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.dock}-redchannel`)).toHaveAttribute('scale', '-180');
-    expect(dockFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.dock}-greenchannel`)).toHaveAttribute('scale', '-170');
-    expect(dockFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.dock}-bluechannel`)).toHaveAttribute('scale', '-160');
-    expect(dockFilter?.querySelector('feGaussianBlur')).toHaveAttribute('stdDeviation', '0.2');
+    expect(decodedDockMap).toContain('fill="rgb(128,128,128)"');
+    expect(decodedDockMap).toContain('id="softLens"');
+    expect(decodedDockMap).toContain('stroke-opacity="0.3"');
+    expect(dockFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.dock}-redchannel`)).toHaveAttribute('scale', '-120');
+    expect(dockFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.dock}-greenchannel`)).toHaveAttribute('scale', '-110');
+    expect(dockFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.dock}-bluechannel`)).toHaveAttribute('scale', '-100');
+    expect(dockFilter?.querySelector('feGaussianBlur')).toHaveAttribute('stdDeviation', '0.12');
 
     const bubbleFilter = document.getElementById(LIQUID_GLASS_FILTER_IDS.bubble);
     const bubbleMap = bubbleFilter?.querySelector('feImage')?.getAttribute('href') ?? '';
@@ -41,9 +41,10 @@ describe('LiquidGlassFilters', () => {
 
     expect(decodedBubbleMap).toContain('viewBox="0 0 72 72"');
     expect(decodedBubbleMap).toContain('rx="36"');
-    expect(decodedBubbleMap).toContain('mix-blend-mode:difference');
-    expect(bubbleFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.bubble}-redchannel`)).toHaveAttribute('scale', '-150');
-    expect(bubbleFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.bubble}-greenchannel`)).toHaveAttribute('scale', '-140');
-    expect(bubbleFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.bubble}-bluechannel`)).toHaveAttribute('scale', '-130');
+    expect(decodedBubbleMap).toContain('fill="rgb(128,128,128)"');
+    expect(bubbleFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.bubble}-redchannel`)).toHaveAttribute('scale', '-95');
+    expect(bubbleFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.bubble}-greenchannel`)).toHaveAttribute('scale', '-85');
+    expect(bubbleFilter?.querySelector(`#${LIQUID_GLASS_FILTER_IDS.bubble}-bluechannel`)).toHaveAttribute('scale', '-81');
+    expect(bubbleFilter?.querySelector('feGaussianBlur')).toHaveAttribute('stdDeviation', '0.08');
   });
 });

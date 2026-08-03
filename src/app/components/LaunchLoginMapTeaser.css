@@ -83,11 +83,11 @@
 }
 
 .launch-login-map-teaser--mobile-recording .launch-login-map-teaser__video {
-  filter: saturate(1.04) contrast(1.1) brightness(0.95);
+  filter: saturate(1.04) contrast(1.1) brightness(0.82);
 }
 
 .launch-login-map-teaser--video-ready.launch-login-map-teaser--mobile-recording .launch-login-map-teaser__video {
-  opacity: 1;
+  opacity: 0.78;
 }
 
 .launch-login-map-teaser__ambient-fallback {
@@ -150,9 +150,7 @@
 }
 
 .launch-login-map-teaser__mobile-pulse {
-  /* Behind the logo: this is a screen-blend glow, and above the video it
-     lightened the logo itself and made it read as translucent. */
-  z-index: 3;
+  z-index: 5;
   overflow: hidden;
   opacity: 0;
   mix-blend-mode: screen;

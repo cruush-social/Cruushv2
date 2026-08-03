@@ -464,7 +464,7 @@ describe('LocalFeed', () => {
 
     await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
       content: 'hello crowd',
-      expiresIn: '24h',
+      expiresIn: '6h',
       crowdTargets: ['Dyke', 'Gay'],
     }));
   });

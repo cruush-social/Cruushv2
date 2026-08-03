@@ -393,24 +393,6 @@ function getJoinEventChatErrorMessage(error: unknown) {
   return 'Unable to join the party chat right now. Try again in a moment.';
 }
 
-const KEEP_BROWSING_SUFFIX = 'You can keep browsing the NYC beta map.';
-
-function getGeolocationErrorMessage(error: GeolocationPositionError | undefined) {
-  // Only code 1 means the user actually declined. Codes 2 and 3 fire even with
-  // permission granted (no GPS/Wi-Fi fix, VPN, or a slow lookup), so reporting
-  // them as a denied permission sends people to settings that are already correct.
-  switch (error?.code) {
-    case 1:
-      return `Location permission was not granted. ${KEEP_BROWSING_SUFFIX}`;
-    case 2:
-      return `We couldn't pin down your location. Check that location services are on for your browser, then try again. ${KEEP_BROWSING_SUFFIX}`;
-    case 3:
-      return `Finding your location took too long. Try again in a moment. ${KEEP_BROWSING_SUFFIX}`;
-    default:
-      return `We couldn't get your location right now. ${KEEP_BROWSING_SUFFIX}`;
-  }
-}
-
 export default function MapHome(_props: MapHomeProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -855,9 +837,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
       (position) => {
         applyBrowserPositionToMap(position, centerAfterUpdate);
       },
-      (positionError) => {
+      () => {
         setLocationStatus('error');
-        setLocationError(getGeolocationErrorMessage(positionError));
+        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
       },
       {
         enableHighAccuracy: centerAfterUpdate,
@@ -884,7 +866,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       },
       (positionError) => {
         setLocationStatus('error');
-        setLocationError(getGeolocationErrorMessage(positionError));
+        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
         reject(positionError);
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },

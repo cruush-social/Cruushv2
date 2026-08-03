@@ -73,7 +73,7 @@ const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
   { value: '1h', label: '1h' },
 ];
 const FEED_PAGE_SIZE = 30;
-const DEFAULT_FEED_RADIUS_MILES = 5;
+const DEFAULT_FEED_RADIUS_MILES = 1;
 const LAUNCH_PARTY_EVENT_SLUG = 'the-chocolate-factory-launch';
 const DEFAULT_FEED_SETTINGS: FeedSettings = {
   locationPinVisibility: 'mutuals',
@@ -99,7 +99,7 @@ export default function LocalFeed() {
   const navigate = useNavigate();
   const [newPost, setNewPost] = useState('');
   const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('24h');
+  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('6h');
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
