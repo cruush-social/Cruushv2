@@ -292,13 +292,13 @@ function providerErrorResult(providerName: string, startedAt: number, error: unk
   };
 }
 
+// Rekognition stands in whenever the primary provider cannot classify the
+// image: Stream erroring, Stream not configured at all, or the mock provider
+// (which only reads filenames). Without this, an unclassified photo reaches
+// the app as non_explicit and DL Mode has nothing to mask.
 function canUseProfilePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
   return surface === "profile_photo" &&
-    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
-    (
-      app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
-      activeAlphaPhotoUploadBypass(app.config)
-    );
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
 }
 
 function isMessagePhotoSurface(surface: ModerationSurface) {
@@ -307,11 +307,7 @@ function isMessagePhotoSurface(surface: ModerationSurface) {
 
 function canUseMessagePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
   return isMessagePhotoSurface(surface) &&
-    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
-    (
-      app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
-      activeAlphaPhotoUploadBypass(app.config)
-    );
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
 }
 
 function canUseAlphaPhotoUploadBypass(app: FastifyInstance, surface: ModerationSurface) {
@@ -629,7 +625,9 @@ export async function moderateImageOrReject(
   try {
     providerResult = await provider.moderateImage(input);
   } catch (error) {
-    if (!useAlphaPhotoUploadBypass) {
+    // A Stream outage must not become an upload outage when Rekognition can
+    // classify the image instead. If neither is available the error still wins.
+    if (!useAlphaPhotoUploadBypass && !usePhotoRekognitionFallback) {
       throw error;
     }
 

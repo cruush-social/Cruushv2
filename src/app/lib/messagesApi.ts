@@ -11,6 +11,7 @@ export type ConversationThread = {
     name: string;
     pronouns: string;
     photo: string | null;
+    photoExplicit?: boolean;
   };
   distance: string;
   updatedAt: string;

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { ChevronRight, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
+import { useDlMode } from '../lib/useDlMode';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
@@ -93,6 +94,7 @@ export default function DirectMessages() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
   const [loading, setLoading] = useState(true);
+  const dlModeActive = useDlMode();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'groups'>('all');
   const [error, setError] = useState<string | null>(null);
@@ -431,6 +433,7 @@ export default function DirectMessages() {
                     <HeartPhoto
                       className="w-10 shrink-0"
                       label={`${item.user.name} avatar`}
+                      masked={dlModeActive && item.user.photoExplicit === true}
                       photo={item.user.photo}
                       userId={item.user.id}
                       fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
@@ -474,6 +477,7 @@ export default function DirectMessages() {
                     <HeartPhoto
                       className="w-12"
                       label={`${conversation.user.name} avatar`}
+                      masked={dlModeActive && conversation.user.photoExplicit === true}
                       photo={conversation.user.photo}
                       userId={conversation.user.id}
                       theme={getConversationHeartTheme(conversation)}
@@ -529,6 +533,7 @@ export default function DirectMessages() {
                     <HeartPhoto
                       className="w-20 shrink-0"
                       label={`${conversation.user.name} avatar`}
+                      masked={dlModeActive && conversation.user.photoExplicit === true}
                       photo={conversation.user.photo}
                       userId={conversation.user.id}
                       theme={getConversationHeartTheme(conversation)}
@@ -720,6 +725,8 @@ function MutualDirectOverlay({
   onClose: () => void;
   onMessage: (userId: string) => void;
 }) {
+  const dlModeActive = useDlMode();
+
   return (
     <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
       <div className="mx-auto max-w-2xl space-y-5">
@@ -762,6 +769,7 @@ function MutualDirectOverlay({
               <HeartPhoto
                 className="w-14 shrink-0"
                 label={`${item.user.name} avatar`}
+                masked={dlModeActive && item.user.photoExplicit === true}
                 photo={item.user.photo}
                 userId={item.user.id}
                 fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}

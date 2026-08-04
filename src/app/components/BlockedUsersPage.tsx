@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
+import { useDlMode } from '../lib/useDlMode';
 import { getBlockedUsers, unblockUser, type BlockedUser } from '../lib/blockApi';
 
 function formatBlockedDate(value: string) {
@@ -25,6 +26,7 @@ export default function BlockedUsersPage() {
   const navigate = useNavigate();
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const dlModeActive = useDlMode();
   const [error, setError] = useState<string | null>(null);
   const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
 
@@ -113,6 +115,7 @@ export default function BlockedUsersPage() {
               <HeartPhoto
                 className="w-12 shrink-0"
                 label={`${blockedUser.displayName} avatar`}
+                masked={dlModeActive && blockedUser.photoExplicit === true}
                 photo={blockedUser.photo}
                 userId={blockedUser.userId}
                 fallback={<CruushIcon name="profile" className="size-4 opacity-75" />}
