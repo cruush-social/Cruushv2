@@ -2,11 +2,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, {
-  CURRENT_USER_PIN_CLEARANCE_PX,
+  MARKER_CLEARANCE_PX,
   createCruushVectorStyle,
   createMapMarkerBadge,
   getMapStyle,
-  separateMarkersFromCurrentUser,
+  separateOverlappingMarkers,
 } from './MapView';
 
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
@@ -892,7 +892,7 @@ describe('MapView', () => {
       { approximateLongitude: center[0], approximateLatitude: center[1] },
       { approximateLongitude: -73.99, approximateLatitude: 40.7128 },
       12,
-    )).toBeGreaterThanOrEqual(CURRENT_USER_PIN_CLEARANCE_PX - 0.5);
+    )).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
     expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
     await waitFor(() => {
@@ -1084,7 +1084,26 @@ function pixelDistance(a: { approximateLatitude: number; approximateLongitude: n
   return Math.hypot(p2.x - p1.x, p2.y - p1.y);
 }
 
-describe('separateMarkersFromCurrentUser', () => {
+describe('separateOverlappingMarkers', () => {
+  it('separates two ordinary user pins that share coordinates', () => {
+    const a = { ...me, id: 'a', isCurrentUser: false };
+    const b = { ...me, id: 'b', isCurrentUser: false };
+    const [ra, rb] = separateOverlappingMarkers([a, b], zoom);
+
+    expect(pixelDistance(ra, rb, zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
+  });
+
+  it('separates a whole crowd so no two pins overlap', () => {
+    const crowd = Array.from({ length: 6 }, (_, i) => ({ ...me, id: `p${i}`, isCurrentUser: false }));
+    const out = separateOverlappingMarkers(crowd, zoom);
+
+    for (let i = 0; i < out.length; i += 1) {
+      for (let j = i + 1; j < out.length; j += 1) {
+        expect(pixelDistance(out[i], out[j], zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
+      }
+    }
+  });
+
   const zoom = 14;
   const me = {
     id: 'me',
@@ -1096,14 +1115,14 @@ describe('separateMarkersFromCurrentUser', () => {
 
   it('pushes a pin sharing the current user coordinates out of the pin footprint', () => {
     const other = { ...me, id: 'other', displayName: 'Someone', isCurrentUser: false };
-    const [, moved] = separateMarkersFromCurrentUser([me, other], zoom);
+    const [, moved] = separateOverlappingMarkers([me, other], zoom);
 
-    expect(pixelDistance(me, moved, zoom)).toBeGreaterThanOrEqual(CURRENT_USER_PIN_CLEARANCE_PX - 0.5);
+    expect(pixelDistance(me, moved, zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
   });
 
   it('never moves the current user pin', () => {
     const other = { ...me, id: 'other', isCurrentUser: false };
-    const [mine] = separateMarkersFromCurrentUser([me, other], zoom);
+    const [mine] = separateOverlappingMarkers([me, other], zoom);
 
     expect(mine.approximateLatitude).toBe(me.approximateLatitude);
     expect(mine.approximateLongitude).toBe(me.approximateLongitude);
@@ -1111,15 +1130,15 @@ describe('separateMarkersFromCurrentUser', () => {
 
   it('leaves pins that already clear the footprint untouched', () => {
     const far = { ...me, id: 'far', isCurrentUser: false, approximateLatitude: 40.7 };
-    const [, untouched] = separateMarkersFromCurrentUser([me, far], zoom);
+    const [, untouched] = separateOverlappingMarkers([me, far], zoom);
 
     expect(untouched).toBe(far);
   });
 
   it('is stable across renders so pins do not jitter', () => {
     const other = { ...me, id: 'other', isCurrentUser: false };
-    const first = separateMarkersFromCurrentUser([me, other], zoom)[1];
-    const second = separateMarkersFromCurrentUser([me, other], zoom)[1];
+    const first = separateOverlappingMarkers([me, other], zoom)[1];
+    const second = separateOverlappingMarkers([me, other], zoom)[1];
 
     expect(second).toEqual(first);
   });

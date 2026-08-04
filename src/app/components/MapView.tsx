@@ -83,8 +83,8 @@ const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
-// Rendered footprint of a heart pin, so nothing else may sit inside it.
-export const CURRENT_USER_PIN_CLEARANCE_PX = 64;
+// Rendered footprint of a heart pin, so no two pins may sit inside one another.
+export const MARKER_CLEARANCE_PX = 64;
 const PERSON_CLUSTER_ZOOM_STEP = 1.5;
 
 type MapLibreModule = typeof import('maplibre-gl');
@@ -513,48 +513,71 @@ function markerAngleSeed(id: string) {
 }
 
 /**
- * The current user's pin is deliberately excluded from clustering so it always
- * renders as itself. That exclusion means a nearby person's pin can land on the
- * same pixels and cover it, which reads as someone standing on top of you. Push
- * anything inside the pin's footprint out to the edge of it. Displayed
- * positions are already approximate, and the nudge is derived from the marker
- * id so it stays put across renders instead of jittering.
+ * Clustering only merges person pins below PERSON_CLUSTER_MAX_ZOOM, and it
+ * never touches the current user, event or venue pins. Above that zoom, or
+ * whenever an unclusterable pin sits near another, two hearts render on top of
+ * each other and one is unreadable. Resolve every collision so each pin owns
+ * its own footprint.
+ *
+ * The current user is pinned in place and everything else moves around it, so
+ * your own location never drifts. Remaining pins are processed in a stable id
+ * order and pushed just outside whatever they overlap, so the result is
+ * deterministic and does not jitter between renders. Displayed coordinates are
+ * already approximate, so a nudge of a pin's own width costs no real accuracy.
  */
-export function separateMarkersFromCurrentUser(markers: MapMarker[], zoom: number) {
-  const currentUser = markers.find((marker) => marker.isCurrentUser === true);
-
-  if (!currentUser) {
+export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
+  if (markers.length < 2) {
     return markers;
   }
 
-  const currentPoint = mercatorPixelPoint(currentUser, zoom);
-
-  return markers.map((marker) => {
-    if (marker.isCurrentUser === true) {
-      return marker;
-    }
-
-    const point = mercatorPixelPoint(marker, zoom);
-    const deltaX = point.x - currentPoint.x;
-    const deltaY = point.y - currentPoint.y;
-    const distance = Math.hypot(deltaX, deltaY);
-
-    if (distance >= CURRENT_USER_PIN_CLEARANCE_PX) {
-      return marker;
-    }
-
-    const angle = distance === 0
-      ? markerAngleSeed(marker.id)
-      : Math.atan2(deltaY, deltaX);
-
-    return {
-      ...marker,
-      ...mercatorPixelToCoordinates({
-        x: currentPoint.x + Math.cos(angle) * CURRENT_USER_PIN_CLEARANCE_PX,
-        y: currentPoint.y + Math.sin(angle) * CURRENT_USER_PIN_CLEARANCE_PX,
-      }, zoom),
-    };
+  const ordered = [...markers].sort((a, b) => {
+    if (a.isCurrentUser === true) return -1;
+    if (b.isCurrentUser === true) return 1;
+    return a.id.localeCompare(b.id);
   });
+
+  const placed: Array<{ x: number; y: number }> = [];
+  const moved = new Map<string, MapMarker>();
+
+  const isFree = (x: number, y: number) =>
+    !placed.some((other) => Math.hypot(other.x - x, other.y - y) < MARKER_CLEARANCE_PX);
+
+  ordered.forEach((marker) => {
+    const origin = mercatorPixelPoint(marker, zoom);
+    let spot = { x: origin.x, y: origin.y };
+
+    if (!isFree(spot.x, spot.y)) {
+      // Walk outward through evenly spaced slots on widening rings and take the
+      // first free one. Even spacing keeps a co-located crowd from collapsing
+      // back onto itself the way per-marker angles could.
+      outer: for (let ring = 1; ring <= 6; ring += 1) {
+        const slots = 6 * ring;
+
+        for (let slot = 0; slot < slots; slot += 1) {
+          const angle = (2 * Math.PI * slot) / slots + ring * 0.4 + markerAngleSeed(marker.id) * 0.05;
+          const candidateX = origin.x + Math.cos(angle) * MARKER_CLEARANCE_PX * ring;
+          const candidateY = origin.y + Math.sin(angle) * MARKER_CLEARANCE_PX * ring;
+
+          if (isFree(candidateX, candidateY)) {
+            spot = { x: candidateX, y: candidateY };
+            break outer;
+          }
+        }
+      }
+    }
+
+    placed.push(spot);
+
+    if (spot.x !== origin.x || spot.y !== origin.y) {
+      moved.set(marker.id, { ...marker, ...mercatorPixelToCoordinates(spot, zoom) });
+    }
+  });
+
+  if (moved.size === 0) {
+    return markers;
+  }
+
+  return markers.map((marker) => moved.get(marker.id) ?? marker);
 }
 
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
@@ -1031,7 +1054,7 @@ function MapView({
   const focusLatitude = focusCoordinates?.approximateLatitude ?? null;
   const focusLongitude = focusCoordinates?.approximateLongitude ?? null;
   const renderedMarkers = useMemo(
-    () => separateMarkersFromCurrentUser(
+    () => separateOverlappingMarkers(
       applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates),
       currentZoom,
     ),
