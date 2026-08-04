@@ -83,6 +83,8 @@ const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
+// Rendered footprint of a heart pin, so nothing else may sit inside it.
+export const CURRENT_USER_PIN_CLEARANCE_PX = 64;
 const PERSON_CLUSTER_ZOOM_STEP = 1.5;
 
 type MapLibreModule = typeof import('maplibre-gl');
@@ -487,6 +489,72 @@ function mercatorPixelPoint(marker: MapMarker, zoom: number) {
     x: (marker.approximateLongitude + 180) / 360 * worldSize,
     y: (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * worldSize,
   };
+}
+
+function mercatorPixelToCoordinates(point: { x: number; y: number }, zoom: number) {
+  const worldSize = 512 * 2 ** zoom;
+  const longitude = (point.x / worldSize) * 360 - 180;
+  const n = Math.PI * (1 - 2 * (point.y / worldSize));
+
+  return {
+    approximateLatitude: (180 / Math.PI) * Math.atan(Math.sinh(n)),
+    approximateLongitude: longitude,
+  };
+}
+
+function markerAngleSeed(id: string) {
+  let hash = 0;
+
+  for (let index = 0; index < id.length; index += 1) {
+    hash = (hash * 31 + id.charCodeAt(index)) % 360;
+  }
+
+  return (hash * Math.PI) / 180;
+}
+
+/**
+ * The current user's pin is deliberately excluded from clustering so it always
+ * renders as itself. That exclusion means a nearby person's pin can land on the
+ * same pixels and cover it, which reads as someone standing on top of you. Push
+ * anything inside the pin's footprint out to the edge of it. Displayed
+ * positions are already approximate, and the nudge is derived from the marker
+ * id so it stays put across renders instead of jittering.
+ */
+export function separateMarkersFromCurrentUser(markers: MapMarker[], zoom: number) {
+  const currentUser = markers.find((marker) => marker.isCurrentUser === true);
+
+  if (!currentUser) {
+    return markers;
+  }
+
+  const currentPoint = mercatorPixelPoint(currentUser, zoom);
+
+  return markers.map((marker) => {
+    if (marker.isCurrentUser === true) {
+      return marker;
+    }
+
+    const point = mercatorPixelPoint(marker, zoom);
+    const deltaX = point.x - currentPoint.x;
+    const deltaY = point.y - currentPoint.y;
+    const distance = Math.hypot(deltaX, deltaY);
+
+    if (distance >= CURRENT_USER_PIN_CLEARANCE_PX) {
+      return marker;
+    }
+
+    const angle = distance === 0
+      ? markerAngleSeed(marker.id)
+      : Math.atan2(deltaY, deltaX);
+
+    return {
+      ...marker,
+      ...mercatorPixelToCoordinates({
+        x: currentPoint.x + Math.cos(angle) * CURRENT_USER_PIN_CLEARANCE_PX,
+        y: currentPoint.y + Math.sin(angle) * CURRENT_USER_PIN_CLEARANCE_PX,
+      }, zoom),
+    };
+  });
 }
 
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
@@ -963,7 +1031,10 @@ function MapView({
   const focusLatitude = focusCoordinates?.approximateLatitude ?? null;
   const focusLongitude = focusCoordinates?.approximateLongitude ?? null;
   const renderedMarkers = useMemo(
-    () => applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates),
+    () => separateMarkersFromCurrentUser(
+      applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates),
+      currentZoom,
+    ),
     [currentZoom, denseMarkerResult.markers, focusCoordinates],
   );
   const viewportMarkerSignature = useMemo(() => renderedMarkers
