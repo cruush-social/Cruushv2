@@ -78,6 +78,10 @@ function getOrCreateAudioContext(audioContextRef: MutableRefObject<AudioContext 
     return null;
   }
 
+  if (audioContextRef.current?.state === 'closed') {
+    audioContextRef.current = null;
+  }
+
   if (audioContextRef.current) {
     return audioContextRef.current;
   }
@@ -91,36 +95,61 @@ function getOrCreateAudioContext(audioContextRef: MutableRefObject<AudioContext 
   return audioContextRef.current;
 }
 
-function scheduleHeartbeatBeat(context: AudioContext, startTime: number) {
+async function resumeAudioContext(audioContextRef: MutableRefObject<AudioContext | null>) {
+  const context = getOrCreateAudioContext(audioContextRef);
+
+  if (!context) {
+    return null;
+  }
+
+  if (context.state !== 'running' && typeof context.resume === 'function') {
+    await context.resume();
+  }
+
+  return context;
+}
+
+function scheduleHeartbeatTone(
+  context: AudioContext,
+  startTime: number,
+  duration: number,
+  startFrequency: number,
+  endFrequency: number,
+  peakGain: number,
+  type: OscillatorType,
+) {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
 
-  oscillator.type = 'sine';
-  oscillator.frequency.setValueAtTime(176, startTime);
-  oscillator.frequency.exponentialRampToValueAtTime(132, startTime + 0.16);
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(startFrequency, startTime);
+  oscillator.frequency.exponentialRampToValueAtTime(endFrequency, startTime + duration * 0.72);
   gain.gain.setValueAtTime(0.0001, startTime);
-  gain.gain.exponentialRampToValueAtTime(0.055, startTime + 0.018);
-  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.18);
+  gain.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.018);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
   oscillator.connect(gain);
   gain.connect(context.destination);
   oscillator.start(startTime);
-  oscillator.stop(startTime + 0.2);
+  oscillator.stop(startTime + duration + 0.02);
 }
 
-function playHeartbeatNotificationSound(audioContextRef: MutableRefObject<AudioContext | null>) {
+function scheduleHeartbeatBeat(context: AudioContext, startTime: number, accent = 1) {
+  scheduleHeartbeatTone(context, startTime, 0.2, 154, 92, 0.16 * accent, 'sine');
+  scheduleHeartbeatTone(context, startTime + 0.006, 0.11, 292, 176, 0.055 * accent, 'triangle');
+}
+
+async function playHeartbeatNotificationSound(audioContextRef: MutableRefObject<AudioContext | null>) {
   try {
-    const context = getOrCreateAudioContext(audioContextRef);
+    const context = await resumeAudioContext(audioContextRef);
 
     if (!context) {
       return;
     }
 
-    void context.resume?.();
-
-    const startTime = context.currentTime + 0.01;
+    const startTime = context.currentTime + 0.025;
     scheduleHeartbeatBeat(context, startTime);
-    scheduleHeartbeatBeat(context, startTime + 0.24);
+    scheduleHeartbeatBeat(context, startTime + 0.23, 0.72);
   } catch {
     // Browsers can block foreground audio until the user interacts with the page.
   }
@@ -143,18 +172,22 @@ export default function ForegroundNotifications() {
   useEffect(() => {
     const unlockAudio = () => {
       try {
-        void getOrCreateAudioContext(audioContextRef)?.resume?.();
+        void resumeAudioContext(audioContextRef);
       } catch {
         // Ignore audio unlock failures; notification delivery should keep working.
       }
     };
 
-    window.addEventListener('pointerdown', unlockAudio, { once: true });
-    window.addEventListener('keydown', unlockAudio, { once: true });
+    window.addEventListener('pointerdown', unlockAudio, true);
+    window.addEventListener('touchstart', unlockAudio, true);
+    window.addEventListener('click', unlockAudio, true);
+    window.addEventListener('keydown', unlockAudio, true);
 
     return () => {
-      window.removeEventListener('pointerdown', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('pointerdown', unlockAudio, true);
+      window.removeEventListener('touchstart', unlockAudio, true);
+      window.removeEventListener('click', unlockAudio, true);
+      window.removeEventListener('keydown', unlockAudio, true);
     };
   }, []);
 
@@ -254,7 +287,7 @@ export default function ForegroundNotifications() {
           shouldPlayInAppNotificationSound(pathnameRef.current, notification)
         ));
         if (soundableNotifications.length > 0) {
-          playHeartbeatNotificationSound(audioContextRef);
+          void playHeartbeatNotificationSound(audioContextRef);
         }
 
         newNotifications

@@ -48,6 +48,8 @@ const Rewards = lazy(() => import('./components/Rewards'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
 const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
 const PublicInfoPage = lazy(() => import('./components/PublicInfoPage'));
+// Match system intro shown once after the first onboarding completion
+const MatchSystemIntro = lazy(() => import('./components/MatchSystemIntro'));
 
 const PUBLIC_INFO_ROUTES = [
   { path: '/about', page: 'about' },
@@ -108,6 +110,7 @@ export default function App({
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [showMatchIntro, setShowMatchIntro] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -176,6 +179,17 @@ export default function App({
     } else {
       setNeedsOnboarding(false);
     }
+
+    // Show match system intro once after onboarding completes, unless already seen
+    try {
+      const seen = localStorage.getItem('seenMatchSystemIntro_v1');
+      if (!seen) {
+        setShowMatchIntro(true);
+      }
+    } catch (e) {
+      // ignore localStorage errors
+    }
+
     if (destination === 'rewards') {
       redirectToRewards();
     } else {
@@ -197,7 +211,7 @@ export default function App({
   }
 
   const tokenLinkType = getTokenLinkType();
-  const alphaBugControl = session?.alphaTest?.active ? <AlphaBugButton enabled /> : null;
+  const bugReportControl = session ? <AlphaBugButton enabled /> : null;
 
   if (tokenLinkType === 'verify-email') {
     return (
@@ -207,7 +221,7 @@ export default function App({
           <Route path="*" element={<VerifyEmail />} />
         </Routes>
         <Suspense fallback={null}>
-          {alphaBugControl}
+          {bugReportControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -221,7 +235,7 @@ export default function App({
           <Route path="*" element={<ResetPassword />} />
         </Routes>
         <Suspense fallback={null}>
-          {alphaBugControl}
+          {bugReportControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -263,7 +277,7 @@ export default function App({
               )}
             />
           </Routes>
-          {alphaBugControl}
+          {bugReportControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -289,7 +303,7 @@ export default function App({
               )}
             />
           </Routes>
-          {alphaBugControl}
+          {bugReportControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -314,7 +328,7 @@ export default function App({
               )}
             />
           </Routes>
-          {alphaBugControl}
+          {bugReportControl}
         </Suspense>
       </BrowserRouter>
     );
@@ -373,9 +387,25 @@ export default function App({
             <BottomNav />
             <ForegroundNotifications />
             <DebugCruushPlusToggle />
-            {alphaBugControl}
+            {bugReportControl}
           </Suspense>
           <Toaster closeButton position="top-center" richColors />
+
+          {/* Match system intro modal (shown once after onboarding) */}
+          <Suspense fallback={null}>
+            {showMatchIntro ? (
+              <MatchSystemIntro
+                onClose={() => {
+                  try {
+                    localStorage.setItem('seenMatchSystemIntro_v1', '1');
+                  } catch (e) {
+                    // ignore
+                  }
+                  setShowMatchIntro(false);
+                }}
+              />
+            ) : null}
+          </Suspense>
         </div>
       </AppErrorBoundary>
     </BrowserRouter>

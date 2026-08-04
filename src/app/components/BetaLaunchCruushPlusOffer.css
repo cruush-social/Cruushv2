@@ -8,6 +8,7 @@
     #07070a;
   box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.58);
   color: #fff;
+  font-family: 'Cormorant Garamond', serif;
 }
 
 .beta-launch-plus-dialog::before {
@@ -30,12 +31,15 @@
 .beta-launch-plus-dialog__title {
   color: #fff;
   font-size: 1.1rem;
-  letter-spacing: 0;
+  font-weight: 700;
+  letter-spacing: 0.025em;
 }
 
 .beta-launch-plus-dialog__description {
   max-width: 18rem;
   color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  font-weight: 600;
   line-height: 1.5;
 }
 
@@ -47,7 +51,27 @@
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.16);
   color: #fff;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
   box-shadow: 0 0.85rem 2rem rgba(255, 0, 114, 0.22);
+}
+
+.beta-launch-plus-dialog__inline-word {
+  font-size: 0.82em;
+  line-height: 0.85;
+  vertical-align: -0.08em;
+}
+
+.beta-launch-plus-dialog__description .beta-launch-plus-dialog__inline-word {
+  font-size: 0.78em;
+  vertical-align: -0.06em;
+}
+
+.beta-launch-plus-dialog__button-word {
+  font-size: 0.9em;
+  vertical-align: -0.06em;
 }
 
 .beta-launch-plus-card-scene {

@@ -70,12 +70,14 @@ describe('BottomNav', () => {
 
     const pill = nav.querySelector('[data-testid="bottom-nav-pill"]');
 
-    expect(pill).toHaveClass('rounded-full', 'border', 'bg-background/68', 'backdrop-blur-md');
-    expect(pill).toHaveClass('cruush-bottom-nav-pill');
+    expect(pill).toHaveClass('rounded-full', 'border');
+    expect(pill).toHaveClass('cruush-bottom-nav-pill', 'cruush-liquid-glass-dock');
+    expect(pill).not.toHaveClass('cruush-glass-bar', 'cruush-glass-menu-toggle', 'bg-background/68', 'backdrop-blur-md');
     expect(pill).toHaveClass('pointer-events-auto');
     expect(pill).toHaveClass('px-1.5', 'pb-1.5', 'pt-2');
     expect(pill).toHaveClass('mx-auto');
-    expect(pill).not.toHaveClass('lg:ml-auto', 'lg:mr-4');
+    expect(pill).toHaveClass('max-w-[23rem]');
+    expect(pill).not.toHaveClass('max-w-[35rem]', 'lg:ml-auto', 'lg:mr-4');
     expect(screen.getByTestId('bottom-nav-indicator')).toHaveClass('cruush-bottom-nav-indicator');
   });
 
@@ -105,13 +107,13 @@ describe('BottomNav', () => {
     const indicator = screen.getByTestId('bottom-nav-indicator');
     const indicatorSurface = indicator.firstElementChild;
 
-    expect(pill.getAttribute('style')).toContain('--bottom-nav-active-offset: calc(25% - 1.125rem)');
-    expect(activeButton).toHaveClass('rounded-full', 'text-primary');
+    expect(pill.getAttribute('style')).toContain('--bottom-nav-active-offset: calc(1 * ((100% - 4.5rem) / 4))');
+    expect(activeButton).toHaveClass('rounded-full', 'cruush-bottom-nav-current-page', 'text-white', 'overflow-hidden');
     expect(activeButton).not.toHaveClass('cruush-glass-soft', 'bg-white/[0.10]');
     expect(activeButton.className).not.toContain('transition-colors');
     expect(activeButton.className).not.toContain('shadow-[0_0');
     expect(activeIcon?.className).not.toContain('drop-shadow');
-    expect(indicatorSurface).toHaveClass('cruush-bottom-nav-indicator-surface');
+    expect(indicatorSurface).toHaveClass('cruush-bottom-nav-indicator-surface', 'cruush-liquid-glass-current');
     expect(indicatorSurface).toHaveAttribute('data-direction', 'still');
     expect(indicatorSurface).toHaveAttribute('data-distance', '0');
   });
@@ -130,7 +132,7 @@ describe('BottomNav', () => {
     fireEvent.click(messagesButton);
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/messages');
-    expect(pill.getAttribute('style')).toContain('--bottom-nav-active-offset: calc(75% - 3.375rem)');
+    expect(pill.getAttribute('style')).toContain('--bottom-nav-active-offset: calc(3 * ((100% - 4.5rem) / 4))');
     expect(messagesButton.className).not.toContain('transition-colors');
     await waitFor(() => {
       const indicatorSurface = screen.getByTestId('bottom-nav-indicator').firstElementChild;
@@ -183,6 +185,8 @@ describe('BottomNav', () => {
 
     expect(activeFeedIcon?.getAttribute('src')).toContain('feed-colored');
     expect(inactiveMapIcon?.getAttribute('src')).toContain('map-white');
+    expect(screen.getByRole('button', { name: /feed/i })).toHaveClass('cruush-bottom-nav-current-page');
+    expect(screen.getByRole('button', { name: /map/i })).not.toHaveClass('cruush-bottom-nav-current-page');
   });
 
   it('opens the desktop profile side panel from the profile icon on the map', () => {

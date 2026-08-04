@@ -48,6 +48,7 @@ import {
 } from '../lib/locationPrivacy';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from '../lib/mapMarkers';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import dlModeIconColored from '../assets/ui-icons/dl-mode-colored.png';
@@ -212,6 +213,10 @@ function profileRecordToOwnDiscoveryUser(profile: ProfileRecord, location: Appro
     badges: profile.badges ?? [],
     isCurrentUser: true,
   };
+}
+
+function getDlModeSafeMarkerPhoto(photo: string | null | undefined, explicit: boolean | undefined, dlModeActive: boolean) {
+  return dlModeActive && explicit === true ? null : photo ?? null;
 }
 
 function getAvailableCrowdModes(profile: ProfileRecord | null) {
@@ -387,6 +392,24 @@ function getJoinEventChatErrorMessage(error: unknown) {
   }
 
   return 'Unable to join the party chat right now. Try again in a moment.';
+}
+
+const KEEP_BROWSING_SUFFIX = 'You can keep browsing the NYC beta map.';
+
+function getGeolocationErrorMessage(error: GeolocationPositionError | undefined) {
+  // Only code 1 means the user actually declined. Codes 2 and 3 fire even with
+  // permission granted (no GPS/Wi-Fi fix, VPN, or a slow lookup), so reporting
+  // them as a denied permission sends people to settings that are already correct.
+  switch (error?.code) {
+    case 1:
+      return `Location permission was not granted. ${KEEP_BROWSING_SUFFIX}`;
+    case 2:
+      return `We couldn't pin down your location. Check that location services are on for your browser, then try again. ${KEEP_BROWSING_SUFFIX}`;
+    case 3:
+      return `Finding your location took too long. Try again in a moment. ${KEEP_BROWSING_SUFFIX}`;
+    default:
+      return `We couldn't get your location right now. ${KEEP_BROWSING_SUFFIX}`;
+  }
 }
 
 export default function MapHome(_props: MapHomeProps = {}) {
@@ -633,6 +656,22 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setSelectedUser((currentUser) => currentUser?.id === blockedUserId ? null : currentUser);
   };
 
+  const handleMutualCruushRevoked = (revokedUserId: string) => {
+    setUsers((currentUsers) => currentUsers
+      .filter((user) => !(isMutualMapMode && user.id === revokedUserId))
+      .map((user) => user.id === revokedUserId
+        ? {
+            ...user,
+            relationship: {
+              ...user.relationship,
+              mutualCruush: false,
+              canMessage: false,
+            },
+          }
+        : user));
+    setSelectedUser((currentUser) => currentUser?.id === revokedUserId ? null : currentUser);
+  };
+
   useEffect(() => {
     if (isMobile && selectedUser) {
       setSelectedUser(null);
@@ -817,9 +856,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
       (position) => {
         applyBrowserPositionToMap(position, centerAfterUpdate);
       },
-      () => {
+      (positionError) => {
         setLocationStatus('error');
-        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
+        setLocationError(getGeolocationErrorMessage(positionError));
       },
       {
         enableHighAccuracy: centerAfterUpdate,
@@ -846,7 +885,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       },
       (positionError) => {
         setLocationStatus('error');
-        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
+        setLocationError(getGeolocationErrorMessage(positionError));
         reject(positionError);
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
@@ -1284,7 +1323,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
         approximateLatitude: user.lat,
         approximateLongitude: user.lng,
         lastActiveLabel: user.lastActive,
-        photo: user.photo,
+        photo: getDlModeSafeMarkerPhoto(user.photo, user.photoExplicit, dlModeActive),
+        photoExplicit: user.photoExplicit === true,
         badge: createMapMarkerBadge(user.position, user.hostingTravel),
         animationHint: user.animationHint,
         displayMode: user.displayMode,
@@ -1329,7 +1369,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
         approximateLatitude: currentUserMapLocation.approximateLatitude,
         approximateLongitude: currentUserMapLocation.approximateLongitude,
         lastActiveLabel: 'Now',
-        photo: currentProfile?.photos[0] ?? null,
+        photo: getDlModeSafeMarkerPhoto(
+          currentProfile?.photos[0],
+          currentProfile?.photo_metadata?.[0]?.explicit,
+          dlModeActive,
+        ),
+        photoExplicit: currentProfile?.photo_metadata?.[0]?.explicit === true,
         isCurrentUser: true,
         badge: createMapMarkerBadge(currentProfile?.position ?? []),
         displayMode: privacySettings.ghostModeEnabled ? 'GHOST' : 'PRECISE',
@@ -1338,7 +1383,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       ...nearbyMarkers,
       ...eventMarkers,
     ];
-  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, privacySettings, userApproximateLocation]);
+  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, dlModeActive, privacySettings, userApproximateLocation]);
 
   const focusedMapLocation = useMemo(() => {
     if (!focusUserId) {
@@ -1502,7 +1547,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={() => navigate('/rewards')}
               aria-label="cruush+ rewards"
               title="cruush+ rewards"
-              className="cruush-logo-font h-8 rounded-full px-2 text-sm font-normal leading-none tracking-normal normal-case text-white sm:h-9 sm:px-2.5 sm:text-base"
+              className="cruush-plus-shimmer-button cruush-logo-font h-8 rounded-full px-2 text-sm font-normal leading-none tracking-normal normal-case text-white sm:h-9 sm:px-2.5 sm:text-base"
               style={{ background: 'var(--cruush-gradient)' }}
             >
               <CruushPlusWord />
@@ -1566,6 +1611,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
               >
                 <CruushIconImage src={settingsIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
               </Button>
+              <div
+                className="contents"
+                data-testid="map-bug-button-slot"
+                ref={registerBugButtonSlot}
+              />
             </div>
           </div>
         </div>
@@ -1587,6 +1637,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               setSelectedEventSlug(null);
             }}
             markers={mapMarkers}
+            mobileSignalPreview={isMobile}
             enable3dBuildings={is3dMapModeEnabled}
             heatmapEnabled={isHeatmapEnabled}
             onHeatmapAvailabilityChange={setIsHeatmapAvailable}
@@ -1651,6 +1702,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             fixed={selectedUser.isCurrentUser === true}
             isOwnProfile={selectedUser.isCurrentUser === true}
             onBlockedUser={handleBlockedUser}
+            onMutualCruushRevoked={handleMutualCruushRevoked}
             onProfileSaved={(savedProfile) => {
               const nextProfile = {
                 ...emptyProfilePayload,
@@ -1896,8 +1948,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               aria-label={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
               aria-pressed={is3dMapModeEnabled}
               title={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
-              className={`cruush-glass-control rounded-full border text-white ${
-                is3dMapModeEnabled ? 'cruush-glass-active border-white/15' : 'border-white/10'
+              data-state={is3dMapModeEnabled ? 'active' : 'inactive'}
+              className={`cruush-map-3d-toggle cruush-glass-control rounded-full border text-white ${
+                is3dMapModeEnabled ? 'border-white/30' : 'border-white/10'
               }`}
             >
               <Building2 className="h-4 w-4" />
@@ -1910,8 +1963,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 aria-label={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
                 aria-pressed={isHeatmapEnabled}
                 title={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
-                className={`cruush-glass-control rounded-full border text-white ${
-                  isHeatmapEnabled ? 'cruush-glass-active border-white/15' : 'border-white/10'
+                data-state={isHeatmapEnabled ? 'active' : 'inactive'}
+                className={`cruush-map-heatmap-toggle cruush-glass-control rounded-full border text-white ${
+                  isHeatmapEnabled ? 'border-white/30' : 'border-white/10'
                 }`}
               >
                 <Flame aria-hidden="true" className="h-4 w-4" strokeWidth={2.35} />

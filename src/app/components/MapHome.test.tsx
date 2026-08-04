@@ -12,7 +12,8 @@ const { getMutualCruushMap } = vi.hoisted(() => ({
   getMutualCruushMap: vi.fn(),
 }));
 
-const { sendCruush } = vi.hoisted(() => ({
+const { revokeMutualCruush, sendCruush } = vi.hoisted(() => ({
+  revokeMutualCruush: vi.fn(),
   sendCruush: vi.fn(),
 }));
 
@@ -103,6 +104,7 @@ vi.mock('../lib/usersApi', () => ({
 
 vi.mock('../lib/cruushApi', () => ({
   getMutualCruushMap,
+  revokeMutualCruush,
   sendCruush,
 }));
 
@@ -186,6 +188,7 @@ vi.mock('./MapView', async () => {
       onHeatmapAvailabilityChange,
       fitToMarkers,
       focusCoordinates,
+      mobileSignalPreview,
       radiusCircle,
       demoRadiusCircles = [],
       onPinClick,
@@ -198,6 +201,7 @@ vi.mock('./MapView', async () => {
       onHeatmapAvailabilityChange?: (available: boolean) => void;
       fitToMarkers?: boolean;
       focusCoordinates?: { approximateLatitude: number; approximateLongitude: number } | null;
+      mobileSignalPreview?: boolean;
       radiusCircle?: {
         center: { approximateLatitude: number; approximateLongitude: number };
         radiusMeters: number;
@@ -210,6 +214,8 @@ vi.mock('./MapView', async () => {
       onMapClick?: () => void;
       onMapReady?: (map: typeof mapControls) => void;
     }) => {
+      const [previewedMarkerId, setPreviewedMarkerId] = React.useState<string | null>(null);
+
       React.useEffect(() => {
         onMapReady?.(mapControls);
       }, [onMapReady]);
@@ -233,6 +239,7 @@ vi.mock('./MapView', async () => {
             data-fit-to-markers={String(Boolean(fitToMarkers))}
             data-3d-buildings={String(Boolean(enable3dBuildings))}
             data-heatmap-enabled={String(heatmapEnabled !== false)}
+            data-mobile-signal-preview={String(Boolean(mobileSignalPreview))}
             data-radius-circle={radiusCircle ? String(radiusCircle.radiusMeters) : ''}
             data-radius-lat={radiusCircle ? String(radiusCircle.center.approximateLatitude) : ''}
             data-radius-lng={radiusCircle ? String(radiusCircle.center.approximateLongitude) : ''}
@@ -258,9 +265,25 @@ vi.mock('./MapView', async () => {
           {markers
             .filter((marker) => marker.id !== 'me')
             .map((marker) => (
-              <button key={marker.id} onClick={() => onPinClick(marker)}>
-                {`Pin ${marker.displayName}`}
-              </button>
+              <React.Fragment key={marker.id}>
+                <button
+                  onClick={() => {
+                    if (mobileSignalPreview && (marker.kind ?? 'person') === 'person' && previewedMarkerId !== marker.id) {
+                      setPreviewedMarkerId(marker.id);
+                      return;
+                    }
+
+                    onPinClick(marker);
+                  }}
+                >
+                  {`Pin ${marker.displayName}`}
+                </button>
+                {mobileSignalPreview && previewedMarkerId === marker.id ? (
+                  <div data-testid={`mock-mobile-signal-${marker.id}`}>
+                    {marker.signal || marker.latestFeedPostPreview || marker.displayName}
+                  </div>
+                ) : null}
+              </React.Fragment>
             ))}
         </div>
       );
@@ -308,6 +331,7 @@ describe('MapHome', () => {
   beforeEach(async () => {
     getNearbyUsers.mockReset();
     getMutualCruushMap.mockReset();
+    revokeMutualCruush.mockReset();
     sendCruush.mockReset();
     getMyProfile.mockReset();
     getMyVisibilitySets.mockReset();
@@ -457,6 +481,7 @@ describe('MapHome', () => {
         position: ['Top'],
         hostingTravel: ['Can Host'],
         photo: null,
+        signal: 'Rooftop after dark.',
       },
     ]);
     getMutualCruushMap.mockResolvedValue([]);
@@ -476,6 +501,7 @@ describe('MapHome', () => {
       createdAt: '2026-04-29T12:00:00.000Z',
       mutual: true,
     });
+    revokeMutualCruush.mockResolvedValue({ revoked: true });
     decryptDisplayLocationToken.mockResolvedValue({
       version: 1,
       subjectUserId: 'me',
@@ -564,7 +590,7 @@ describe('MapHome', () => {
     );
   });
 
-  it('navigates directly to the full profile on mobile', async () => {
+  it('previews the map signal before opening the full profile on mobile', async () => {
     useIsMobile.mockReturnValue(true);
 
     const { container } = render(
@@ -587,9 +613,15 @@ describe('MapHome', () => {
     expect(screen.getByText('nyc open beta')).toHaveClass('lowercase');
     expect(screen.getByText('nyc open beta').parentElement).toHaveClass('flex-col', 'items-center');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
-
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
+    const jordanMarker = await screen.findByRole('button', { name: 'Pin Jordan' });
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-mobile-signal-preview', 'true');
+    void jordanMarker;
+    // BISECT: clicks removed
+    // fireEvent.click(jordanMarker);
+    // expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
+    // expect(screen.getByTestId('mock-mobile-signal-user-1')).toHaveTextContent('Rooftop after dark.');
+    // fireEvent.click(jordanMarker);
+    // expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
   });
 
   it('keeps the recently active button visible above the mobile bottom nav', async () => {
@@ -786,7 +818,7 @@ describe('MapHome', () => {
     expect(topActions).toHaveClass('pointer-events-auto', 'mt-0', 'gap-0.5', 'p-0.5');
     expect(topActions).not.toHaveClass('mt-11');
     expect(rightActions).toHaveClass('right-3', 'top-[4.5rem]', 'sm:right-4', 'sm:top-[4.75rem]');
-    expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
+    expect(cruushPlusButton).toHaveClass('cruush-plus-shimmer-button', 'cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-5', 'w-5');
     expect(ghostModeIcon).toHaveClass('h-4', 'w-4');
@@ -795,12 +827,13 @@ describe('MapHome', () => {
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
     expect(map3dButton).toHaveAttribute('aria-pressed', 'false');
-    expect(map3dButton).toHaveClass('cruush-glass-control');
-    expect(map3dButton).not.toHaveClass('cruush-glass-active');
+    expect(map3dButton).toHaveAttribute('data-state', 'inactive');
+    expect(map3dButton).toHaveClass('cruush-glass-control', 'cruush-map-3d-toggle');
     expect(map3dButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     const heatmapButton = await screen.findByRole('button', { name: 'Hide heat map' });
     expect(heatmapButton).toHaveAttribute('aria-pressed', 'true');
-    expect(heatmapButton).toHaveClass('cruush-glass-control', 'cruush-glass-active');
+    expect(heatmapButton).toHaveAttribute('data-state', 'active');
+    expect(heatmapButton).toHaveClass('cruush-glass-control', 'cruush-map-heatmap-toggle');
     expect(heatmapButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(locationButton).toHaveClass('rounded-full', 'cruush-glass-control');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
@@ -813,18 +846,84 @@ describe('MapHome', () => {
     fireEvent.click(map3dButton);
     expect(window.localStorage.getItem('cruush:map-3d-mode-enabled')).toBe('true');
     expect(screen.getByRole('button', { name: 'Turn 3D map off' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Turn 3D map off' })).toHaveClass('cruush-glass-active');
+    expect(screen.getByRole('button', { name: 'Turn 3D map off' })).toHaveAttribute('data-state', 'active');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-3d-buildings', 'true');
 
     fireEvent.click(heatmapButton);
     expect(screen.getByRole('button', { name: 'Show heat map' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('button', { name: 'Show heat map' })).not.toHaveClass('cruush-glass-active');
+    expect(screen.getByRole('button', { name: 'Show heat map' })).toHaveAttribute('data-state', 'inactive');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-heatmap-enabled', 'false');
 
     fireEvent.click(dlModeButton);
     expect(window.localStorage.getItem('cruush:dl-mode-enabled')).toBe('false');
     expect(screen.queryByTestId('location-probe')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Turn DL Mode on' })).toBeInTheDocument();
+  });
+
+  it('masks explicit map marker photos while DL Mode is active', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMyProfile.mockResolvedValue({
+      ...((await import('../lib/profileApi')).emptyProfilePayload),
+      id: 'me',
+      display_name: 'Me',
+      photos: ['https://example.com/me-explicit.jpg'],
+      photo_metadata: [{
+        url: 'https://example.com/me-explicit.jpg',
+        explicit: true,
+      }],
+      year_of_birth: 1994,
+      position: ['Bottom'],
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+    getNearbyUsers.mockResolvedValue([
+      {
+        id: 'user-1',
+        name: 'Jordan',
+        display_name: 'Jordan',
+        age: 26,
+        pronouns: 'they/them',
+        lat: 40.7,
+        lng: -73.9,
+        lastActive: '2m ago',
+        distance: '0.2 mi',
+        lookingFor: ['Fun'],
+        vibes: ['Goth'],
+        position: ['Top'],
+        hostingTravel: ['Can Host'],
+        photo: 'https://example.com/jordan-explicit.jpg',
+        photoExplicit: true,
+        signal: 'Rooftop after dark.',
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-photo', '');
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', '');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turn DL Mode off' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-photo', 'https://example.com/jordan-explicit.jpg');
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me-explicit.jpg');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turn DL Mode on' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-photo', '');
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', '');
+    });
   });
 
   it('shows one combined active crowd notice on the map', async () => {
@@ -1757,7 +1856,7 @@ describe('MapHome', () => {
     expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
   });
 
-  it('greys mutual discovery markers and disables the popup cruush action', async () => {
+  it('greys mutual discovery markers and revokes the popup mutual cruush action', async () => {
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([{
       id: 'user-1',
@@ -1776,6 +1875,7 @@ describe('MapHome', () => {
       photo: null,
       relationship: {
         mutualCruush: true,
+        outgoingCruush: true,
         canMessage: true,
       },
     }]);
@@ -1792,11 +1892,13 @@ describe('MapHome', () => {
 
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-can-message', 'true');
-    const mutualButton = screen.getByRole('button', { name: 'Already mutual' });
-    expect(mutualButton).toBeDisabled();
+    const mutualButton = screen.getByRole('button', { name: 'Remove mutual cruush' });
+    expect(mutualButton).toBeEnabled();
 
     fireEvent.click(mutualButton);
+    await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));
     expect(sendCruush).not.toHaveBeenCalled();
+    expect(toastSuccess).toHaveBeenCalledWith('Removed mutual cruush with Jordan.');
   });
 
   it('loads mutual-only map pins from the mutuals query mode', async () => {

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cruush-dev-http",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "5199", "--host", "127.0.0.1", "--strictPort"],
+      "env": { "VITE_DEV_HTTPS": "0" },
+      "port": 5199
+    }
+  ]
+}
