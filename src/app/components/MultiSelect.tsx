@@ -161,11 +161,22 @@ export default function MultiSelect({
     window.addEventListener('resize', updatePortalStyle);
     window.addEventListener('scroll', updatePortalStyle, true);
 
+    // Scroll and resize alone miss layout shifts that move the trigger while
+    // the menu is open, which desyncs a portalled menu from its anchor.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePortalStyle);
+    if (observer && triggerRef.current) {
+      observer.observe(triggerRef.current);
+      if (triggerRef.current.offsetParent instanceof Element) {
+        observer.observe(triggerRef.current.offsetParent);
+      }
+    }
+
     return () => {
       window.removeEventListener('resize', updatePortalStyle);
       window.removeEventListener('scroll', updatePortalStyle, true);
+      observer?.disconnect();
     };
-  }, [isOpen, menuPlacement, menuPortal]);
+  }, [isOpen, menuPlacement, menuPortal, selected.length]);
 
   useEffect(() => {
     if (!isOpen || !menuPortal) {
@@ -320,19 +331,6 @@ export default function MultiSelect({
 
   return (
     <div className="space-y-2">
-      {selected.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {selected.map((item) => (
-            <Badge key={item} variant="secondary" className="gap-1">
-              {item}
-              <button type="button" onClick={() => removeOption(item)} className="ml-1">
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-
       <div className="relative">
         <button
           ref={triggerRef}
@@ -365,6 +363,26 @@ export default function MultiSelect({
           </>
         )}
       </div>
+
+      {/*
+        Selected badges render after the trigger, never before it. Above the
+        trigger they add a row on the first selection and push the trigger down
+        ~30px mid-interaction, which either slides the open menu's options out
+        from under the tapping finger (inline menu) or leaves the portalled menu
+        anchored to a stale position overlapping its own trigger (menuPortal).
+      */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selected.map((item) => (
+            <Badge key={item} variant="secondary" className="gap-1">
+              {item}
+              <button type="button" onClick={() => removeOption(item)} className="ml-1">
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
