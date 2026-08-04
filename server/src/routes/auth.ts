@@ -121,6 +121,14 @@ type MediaObjectKeyRow = {
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const AUTH_ATTEMPT_MAX = 5;
 const AUTH_ATTEMPT_WINDOW_MS = FIFTEEN_MINUTES_MS;
+// Failed verification attempts against one emailed link. A real user retries a
+// handful of times at most; anything past this is guessing at that token.
+const VERIFICATION_FAILURE_MAX = 10;
+// Ceiling for buckets keyed by address. TRUST_PROXY_HOPS defaults to 0, which
+// leaves trustProxy off and reports the reverse proxy's address for every
+// request, so this bucket can be shared by the whole user base. Keep it well
+// above AUTH_ATTEMPT_MAX and only charge it for failures.
+const SHARED_IP_FAILURE_MAX = 200;
 const CURRENT_CODE_OF_CONDUCT_VERSION = "2026-07-07";
 
 const acceptCodeOfConductPayloadSchema = z.object({
@@ -906,14 +914,17 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const payload = resendVerificationPayloadSchema.parse(request.body);
     await applyRateLimits(app, [
       {
-        key: `verification-resend:ip:${getRequestIp(request)}`,
+        // Per-account limit: the meaningful one, since it maps to a real mailbox.
+        key: `verification-resend:email:${payload.email}`,
         max: AUTH_ATTEMPT_MAX,
         windowMs: AUTH_ATTEMPT_WINDOW_MS,
         message: "Too many verification email requests. Try again later."
       },
       {
-        key: `verification-resend:email:${payload.email}`,
-        max: AUTH_ATTEMPT_MAX,
+        // Address-keyed backstop. Shared by every user behind the proxy while
+        // TRUST_PROXY_HOPS is unset, so it must not sit at the per-account value.
+        key: `verification-resend:ip:${getRequestIp(request)}`,
+        max: SHARED_IP_FAILURE_MAX,
         windowMs: AUTH_ATTEMPT_WINDOW_MS,
         message: "Too many verification email requests. Try again later."
       }
@@ -1057,12 +1068,6 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/verification/verify", async (request, reply) => {
     const payload = verifyEmailPayloadSchema.parse(request.body);
-    await applyRateLimits(app, [{
-      key: `verification-verify:ip:${getRequestIp(request)}`,
-      max: AUTH_ATTEMPT_MAX,
-      windowMs: AUTH_ATTEMPT_WINDOW_MS,
-      message: "Too many verification attempts. Try again later."
-    }]);
     const tokenHash = hashSessionToken(payload.token);
     const verificationLookup = await app.db.query<VerificationLookupRow>(
       `select user_id
@@ -1076,6 +1081,24 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const verificationToken = verificationLookup.rows[0];
 
     if (!verificationToken) {
+      // Charge the limiter only for failures. Asserting before the lookup made a
+      // successful verification consume budget, and behind a proxy every request
+      // carries the same address, so one shared bucket throttled all users at once.
+      await applyRateLimits(app, [
+        {
+          key: `verification-verify:token:${tokenHash}`,
+          max: VERIFICATION_FAILURE_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many verification attempts. Try again later."
+        },
+        {
+          key: `verification-verify:ip:${getRequestIp(request)}`,
+          max: SHARED_IP_FAILURE_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many verification attempts. Try again later."
+        }
+      ]);
+
       throw new ApiError(400, "VALIDATION_ERROR", "Verification link is invalid or expired.");
     }
 

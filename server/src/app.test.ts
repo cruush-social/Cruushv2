@@ -2948,7 +2948,7 @@ describe("server", () => {
   it("rate limits repeated email verification token attempts", async () => {
     query.mockResolvedValue({ rows: [] });
 
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
       const response = await app.inject({
         method: "POST",
         url: "/api/auth/verification/verify",
@@ -2976,7 +2976,44 @@ describe("server", () => {
         details: expect.any(Object)
       }
     });
-    expect(query).toHaveBeenCalledTimes(5);
+  });
+
+  it("does not spend the verification rate limit on successful verifications", async () => {
+    // Every request reports the same address behind the proxy, so charging the
+    // limiter for successes locked out everyone once a handful of people had
+    // verified inside the window.
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from email_verification_tokens")) {
+        return { rows: [{ user_id: userId }] };
+      }
+
+      if (sql.includes("update app_users")) {
+        return {
+          rows: [{
+            id: userId,
+            email: "river@example.com",
+            display_name: "River",
+            email_verified_at: "2026-04-29T12:05:00.000Z",
+            created_at: "2026-04-28T12:00:00.000Z"
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/verification/verify",
+        payload: {
+          token: `valid-verification-token-${attempt}`
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data.verified).toBe(true);
+    }
   });
 
   it("returns conversations from GET /api/conversations", async () => {
