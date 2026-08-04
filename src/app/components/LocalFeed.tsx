@@ -99,7 +99,7 @@ export default function LocalFeed() {
   const navigate = useNavigate();
   const [newPost, setNewPost] = useState('');
   const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('6h');
+  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('24h');
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);

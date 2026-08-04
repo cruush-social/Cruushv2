@@ -1,10 +1,23 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileCard from './ProfileCard';
 
-const { sendCruush } = vi.hoisted(() => ({
+const { revokeMutualCruush, sendCruush } = vi.hoisted(() => ({
+  revokeMutualCruush: vi.fn(),
   sendCruush: vi.fn(),
+}));
+
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: toastSuccess,
+    error: toastError,
+  },
 }));
 
 vi.mock('../lib/cruushApi', async () => {
@@ -12,16 +25,21 @@ vi.mock('../lib/cruushApi', async () => {
 
   return {
     ...actual,
+    revokeMutualCruush,
     sendCruush,
   };
 });
 
 describe('ProfileCard', () => {
   beforeEach(() => {
+    revokeMutualCruush.mockReset();
     sendCruush.mockReset();
+    toastSuccess.mockReset();
+    toastError.mockReset();
+    revokeMutualCruush.mockResolvedValue({ revoked: true });
   });
 
-  it('disables the cruush action for existing mutuals', () => {
+  it('revokes the mutual cruush when an existing mutual button is tapped', async () => {
     render(
       <MemoryRouter>
         <ProfileCard
@@ -36,6 +54,7 @@ describe('ProfileCard', () => {
             photo: null,
             relationship: {
               mutualCruush: true,
+              outgoingCruush: true,
               canMessage: true,
             },
           }}
@@ -45,12 +64,15 @@ describe('ProfileCard', () => {
       </MemoryRouter>
     );
 
-    const cruushButton = screen.getByRole('button', { name: 'Already mutual' });
-    expect(cruushButton).toBeDisabled();
-    expect(cruushButton).toHaveTextContent('mutual');
+    const cruushButton = screen.getByRole('button', { name: 'Remove mutual cruush' });
+    expect(cruushButton).toBeEnabled();
+    expect(cruushButton).toHaveTextContent('remove');
 
     fireEvent.click(cruushButton);
+    await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));
     expect(sendCruush).not.toHaveBeenCalled();
+    expect(toastSuccess).toHaveBeenCalledWith('Removed mutual cruush with Jordan.');
+    expect(screen.getByRole('button', { name: 'send cruush' })).toHaveTextContent('cruush');
   });
 
   it('can render inline for page-level feature results', () => {
