@@ -871,11 +871,8 @@ function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
 }
 
 function getHeartSideBadgeClass(side: 'left' | 'right', isCurrentUser: boolean) {
-  const edgeClass = side === 'left'
-    ? isCurrentUser ? 'left-2' : 'left-1.5'
-    : '-right-3';
-
-  return `${edgeClass} top-1/2 -translate-y-1/2`;
+  const edgeClass = side === 'left' ? 'left-[0.375rem]' : 'right-[0.375rem]';
+  return `${edgeClass} top-[42%] -translate-y-1/2 z-20`;
 }
 
 function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
@@ -896,7 +893,7 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     <span
       aria-label={isCurrentUser ? 'Your profile' : badge?.label}
       className={[
-        'cruush-glass-soft absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'cruush-glass-soft absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-md transition-transform duration-150',
         getHeartSideBadgeClass('right', isCurrentUser),
         borderClass,
       ].join(' ')}
@@ -933,7 +930,7 @@ function MarkerRelationshipBadge({ marker, isCurrentUser }: { marker: MapMarker;
     <span
       aria-label={precisionLabel}
       className={[
-        'cruush-glass-soft absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border border-[#6f00ff]/80 bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'cruush-glass-soft absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border border-[#6f00ff]/80 bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-md transition-transform duration-150',
         getHeartSideBadgeClass('left', isCurrentUser),
       ].join(' ')}
       data-testid={`marker-relationship-${marker.id}`}
