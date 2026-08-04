@@ -8,7 +8,8 @@ import { multilineTextSchema, singleLineTextSchema, uuidSchema } from "../input-
 import { decryptMediaBytes } from "../media-encryption.js";
 import { deleteEncryptedMediaObject, readEncryptedMediaObject } from "../media-storage.js";
 import { recordModeratorAccess } from "../moderation-access-log.js";
-import { getModeratorUser } from "../moderator-auth.js";
+import { getModeratorUser, type ModeratorRole } from "../moderator-auth.js";
+import { isOwnerFullAccessEmail } from "../owner-access.js";
 import {
   approvePendingProfilePhotoReview,
   getPendingProfilePhotoReviewImage,
@@ -43,11 +44,22 @@ const reportResolutionSchema = z.object({
   notes: multilineTextSchema({ max: 2000 }).optional().default("")
 }).strict();
 
+const moderatedAccountStatuses = ["active", "under_review", "suspended", "banned"] as const;
+
+type ModeratedAccountStatus = (typeof moderatedAccountStatuses)[number];
+
 const accountStatusSchema = z.object({
-  status: z.enum(["active", "under_review", "suspended"]),
+  status: z.enum(moderatedAccountStatuses),
   reasonCode: singleLineTextSchema({ min: 1, max: 120 }),
   notes: multilineTextSchema({ max: 2000 }).optional().default(""),
   reportId: uuidSchema.optional()
+}).strict();
+
+const userSearchQuerySchema = z.object({
+  query: z.string().trim().min(1).max(120).optional(),
+  status: z.enum(moderatedAccountStatuses).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(25),
+  offset: z.coerce.number().int().min(0).optional().default(0)
 }).strict();
 
 const reviewDecisionSchema = z.object({
@@ -147,8 +159,22 @@ type QueueRow = {
 
 type AccountStatusRow = {
   id: string;
+  email?: string | null;
   account_status: string | null;
   account_status_updated_at: string | Date;
+};
+
+type ModeratedUserRow = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  account_status: string | null;
+  account_status_updated_at: string | Date;
+  created_at: string | Date;
+  moderator_role: string | null;
+  open_report_count: string | number;
+  total_report_count: string | number;
+  total_count?: string | number;
 };
 
 type AuditRow = { id: string; created_at: string | Date };
@@ -309,10 +335,64 @@ function mapQueueRow(row: QueueRow) {
   };
 }
 
-function actionForStatusChange(previousStatus: AccountStatus, nextStatus: "active" | "under_review" | "suspended") {
+function moderatedUserSelectSql(whereSql: string) {
+  return `with base as (
+     select
+       users.id::text as id,
+       users.email,
+       coalesce(profile.display_name, users.display_name, 'cruush user') as display_name,
+       coalesce(users.account_status, 'active') as account_status,
+       users.account_status_updated_at,
+       users.created_at,
+       moderator.role as moderator_role,
+       (select count(*) from reports open_report
+        where open_report.target_user_id = users.id
+          and open_report.status in ('open', 'automod_processing')) as open_report_count,
+       (select count(*) from reports all_reports
+        where all_reports.target_user_id = users.id) as total_report_count
+     from app_users users
+     left join profiles profile on profile.id = users.id
+     left join moderator_users moderator on moderator.user_id = users.id
+     ${whereSql}
+   )
+   select base.*,`;
+}
+
+function maskEmail(email: string) {
+  const [local, domain] = email.split("@");
+
+  if (!domain) {
+    return "hidden";
+  }
+
+  return `${local.slice(0, 1)}${"*".repeat(Math.max(local.length - 1, 1))}@${domain}`;
+}
+
+function mapModeratedUser(row: ModeratedUserRow, role: ModeratorRole) {
+  return {
+    id: row.id,
+    displayName: row.display_name?.trim() || "cruush user",
+    email: role === "admin" ? row.email : maskEmail(row.email),
+    accountStatus: normalizeAccountStatus(row.account_status),
+    accountStatusUpdatedAt: new Date(row.account_status_updated_at).toISOString(),
+    createdAt: new Date(row.created_at).toISOString(),
+    moderatorRole: row.moderator_role,
+    isOwner: isOwnerFullAccessEmail(row.email),
+    openReportCount: Number(row.open_report_count ?? 0),
+    totalReportCount: Number(row.total_report_count ?? 0)
+  };
+}
+
+function actionForStatusChange(previousStatus: AccountStatus, nextStatus: ModeratedAccountStatus) {
+  if (nextStatus === "banned") return "ban_user";
   if (nextStatus === "suspended") return "suspend_user";
   if (nextStatus === "under_review") return "mark_under_review";
+  if (previousStatus === "banned") return "unban_user";
   return previousStatus === "suspended" ? "unsuspend_user" : "restore_user";
+}
+
+async function revokeAllSessions(db: DbClient, userId: string) {
+  await db.query("delete from app_sessions where user_id = $1", [userId]);
 }
 
 async function createModerationAction(db: DbClient, input: {
@@ -1078,12 +1158,15 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
     }
     const result = await withTransaction(app.db, async (db) => {
       const targetLookup = await db.query<AccountStatusRow>(
-        `select id::text, coalesce(account_status, 'active') as account_status, account_status_updated_at
+        `select id::text, email, coalesce(account_status, 'active') as account_status, account_status_updated_at
          from app_users where id = $1 and coalesce(account_status, 'active') <> 'deleted' limit 1`,
         [userId]
       );
       const target = targetLookup.rows[0];
       if (!target) throw new ApiError(404, "NOT_FOUND", "User not found.");
+      if (isOwnerFullAccessEmail(target.email) && payload.status !== "active") {
+        throw new ApiError(400, "VALIDATION_ERROR", "The owner account cannot be restricted.");
+      }
       const previousStatus = normalizeAccountStatus(target.account_status);
       const updatedResult = await db.query<AccountStatusRow>(
         `update app_users set account_status = $2, account_status_updated_at = now()
@@ -1100,6 +1183,11 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
         notes: payload.notes,
         metadata: { previousStatus, newStatus: payload.status }
       });
+
+      if (payload.status === "suspended" || payload.status === "banned") {
+        await revokeAllSessions(db, userId);
+      }
+
       return { updated, moderationAction };
     });
     return reply.send({
@@ -1110,6 +1198,102 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
           accountStatusUpdatedAt: new Date(result.updated.account_status_updated_at).toISOString()
         },
         moderationAction: result.moderationAction
+      }
+    });
+  });
+
+  app.get("/api/admin/moderation/users", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    const query = userSearchQuerySchema.parse(request.query);
+    const search = query.query?.toLowerCase() ?? null;
+    const result = await app.db.query<ModeratedUserRow>(
+      `${moderatedUserSelectSql(
+        `where coalesce(users.account_status, 'active') <> 'deleted'
+           and ($1::text is null
+                or lower(users.email) like '%' || $1 || '%'
+                or lower(coalesce(users.display_name, '')) like '%' || $1 || '%'
+                or lower(coalesce(profile.display_name, '')) like '%' || $1 || '%'
+                or users.id::text = $1)
+           and ($2::text is null or coalesce(users.account_status, 'active') = $2)`
+      )},
+       count(*) over() as total_count
+       from base
+       order by
+         case coalesce(account_status, 'active')
+           when 'banned' then 0
+           when 'suspended' then 1
+           when 'under_review' then 2
+           else 3
+         end,
+         account_status_updated_at desc
+       limit $3 offset $4`,
+      [search, query.status ?? null, query.limit, query.offset]
+    );
+    const total = Number(result.rows[0]?.total_count ?? 0);
+    return reply.send({
+      data: {
+        users: result.rows.map((row) => mapModeratedUser(row, moderator.role)),
+        page: {
+          limit: query.limit,
+          offset: query.offset,
+          total,
+          hasMore: query.offset + result.rows.length < total
+        }
+      }
+    });
+  });
+
+  app.get("/api/admin/moderation/users/:userId", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    const { userId } = userParamsSchema.parse(request.params);
+    const result = await app.db.query<ModeratedUserRow>(
+      `${moderatedUserSelectSql("where users.id = $1")}
+       0 as total_count
+       from base
+       limit 1`,
+      [userId]
+    );
+    const row = result.rows[0];
+    if (!row) throw new ApiError(404, "NOT_FOUND", "User not found.");
+
+    const [history, reports] = await Promise.all([
+      app.db.query<ModerationHistoryRow>(
+        `select action.id::text as id, action.action, action.reason_code, action.notes,
+                action.created_at,
+                coalesce(profile.display_name, actor.display_name, 'former moderator') as actor_display_name
+         from moderation_actions action
+         left join app_users actor on actor.id = action.actor_user_id
+         left join profiles profile on profile.id = actor.id
+         where action.target_user_id = $1
+         order by action.created_at desc
+         limit 50`,
+        [userId]
+      ),
+      app.db.query<ReportAdminRow>(
+        `${reportSelectSql("where reports.target_user_id = $1")}
+         order by reports.created_at desc limit 25`,
+        [userId]
+      )
+    ]);
+
+    await recordModeratorAccess(app.db, {
+      actorUserId: moderator.userId,
+      accessType: "queue_detail",
+      metadata: { itemKind: "user", targetUserId: userId }
+    });
+
+    return reply.send({
+      data: {
+        user: mapModeratedUser(row, moderator.role),
+        history: history.rows.map((historyRow) => ({
+          id: historyRow.id,
+          action: historyRow.action,
+          reasonCode: historyRow.reason_code,
+          notes: historyRow.notes,
+          actorDisplayName: historyRow.actor_display_name?.trim() || "former moderator",
+          createdAt: new Date(historyRow.created_at).toISOString()
+        })),
+        reports: reports.rows.map(mapReportRow)
       }
     });
   });
