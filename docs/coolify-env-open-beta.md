@@ -6,7 +6,9 @@ Use this when configuring Coolify for the cruush app frontend and API. Do not pa
 
 ## How To Use
 
-The temporary Coolify dashboard at `http://87.99.130.8:8000/` is an admin/control-plane URL. Do not give it to alpha testers as the app link. Alpha testers need the frontend app URL, and the API needs its own URL or a same-origin proxy.
+The Coolify dashboard is an admin/control-plane URL. Do not give it to alpha testers as the app link. Alpha testers need the frontend app URL, and the API needs its own URL or a same-origin proxy.
+
+Production now runs on `http://87.99.152.196:8000`. Earlier revisions of this document named `87.99.130.8`, which is retired and unreachable. See `docs/coolify-production-config.md` for the current host, resource UUIDs, and required build and health-check settings.
 
 Create separate Coolify resources/projects for staging and production:
 
