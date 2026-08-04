@@ -51,19 +51,35 @@ exist on the other.
 | Setting | `cruush-frontend` | `cruush-api` |
 | --- | --- | --- |
 | Path | `/` | `/health` |
+| Host | `localhost` | `127.0.0.1` |
 | Port | `80` | `3001` |
 | Interval | 10s | 15s |
 | Retries | 3 | 40 |
 | Start period | 5s | 60s |
 
-The API's retry budget is deliberately large. Its entrypoint is
-`npm run migrate && npm run start`, so the process does not bind port 3001 until
-every migration in `server/sql` has finished — well over two minutes on a cold
-database. A budget shorter than that rolls back a container that was going to be
-healthy, and the deploy fails with `wget: can't connect to remote host: Connection
-refused` while the migration log is still advancing.
+The API's health check host must be `127.0.0.1`, not `localhost`. Coolify's probe
+is `curl ... || wget ...`, and `node:22-alpine` ships neither curl nor an IPv6
+listener: the API binds `0.0.0.0:3001` only, while the container's `/etc/hosts`
+maps `localhost` to both `127.0.0.1` and `::1`. busybox `wget` tries `::1` first
+and the probe fails with `wget: can't connect to remote host: Connection refused`
+even though the API is serving correctly. No retry budget can rescue this — the
+probe is aimed at an address nothing listens on.
 
-`retries x interval` must exceed the migration time. Raise retries, not interval.
+The frontend is not affected. The `nginx:1.27-alpine` entrypoint runs
+`10-listen-on-ipv6-by-default.sh`, which adds `listen [::]:80`, so `localhost`
+resolves either way.
+
+To tell the two failure modes apart, run the probe by hand against a live container:
+
+```bash
+docker exec <container> wget -qO- http://127.0.0.1:3001/health   # works
+docker exec <container> wget -qO- http://localhost:3001/health   # refused
+```
+
+The API's retry budget is separately large because its entrypoint is
+`npm run migrate && npm run start`, so it does not bind port 3001 until every
+migration in `server/sql` finishes — over two minutes on a cold database.
+`retries x interval` must exceed that. Raise retries, not interval.
 
 ## Detecting a split brain
 

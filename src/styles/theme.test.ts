@@ -42,16 +42,23 @@ describe('global text selection policy', () => {
     expect(themeCss).toContain('--cruush-glass-dock-backdrop: blur(20px) saturate(1.44) brightness(1.06) contrast(1.02);');
     expect(themeCss).toContain('--cruush-glass-current-backdrop: blur(12px) saturate(1.28) brightness(1.05) contrast(1.01);');
     expect(themeCss).toContain('@supports ((backdrop-filter: url("#cruush-liquid-glass-panel")) or (-webkit-backdrop-filter: url("#cruush-liquid-glass-panel"))) {');
-    expect(themeCss).toContain('--cruush-glass-backdrop: url("#cruush-liquid-glass-panel") saturate(1.5) brightness(1.06) contrast(1.02);');
-    expect(themeCss).toContain('--cruush-glass-backdrop-soft: url("#cruush-liquid-glass-pill") saturate(1.4) brightness(1.05) contrast(1.01);');
-    expect(themeCss).toContain('--cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") saturate(1.5) brightness(1.06) contrast(1.02);');
-    expect(themeCss).toContain('--cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") saturate(1.35) brightness(1.05) contrast(1.02);');
+    // Reference pen recipe: displacement lens + saturate only, dock adds the
+    // brightness lift. No contrast pass, no blur stacked on the lens.
+    expect(themeCss).toContain('--cruush-glass-backdrop: url("#cruush-liquid-glass-panel") saturate(1.5);');
+    expect(themeCss).toContain('--cruush-glass-backdrop-soft: url("#cruush-liquid-glass-pill") saturate(1.5);');
+    expect(themeCss).toContain('--cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") brightness(1.1) saturate(1.5);');
+    expect(themeCss).toContain('--cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") saturate(1.5);');
+    expect(themeCss).toContain('--cruush-glass-field-backdrop: url("#cruush-liquid-glass-field") saturate(1.5);');
     expect(themeCss).toContain('--cruush-glass-material-noise: linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0));');
-    expect(themeCss).toContain('--cruush-glass-surface: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.1)');
-    expect(themeCss).toContain('--cruush-glass-dock-bg: radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.12)');
-    expect(themeCss).toContain('--cruush-glass-current-bg: radial-gradient(circle at 34% 8%, rgba(255, 255, 255, 0.18)');
+    // Frost is a flat low-alpha tint in the reference, never a gradient stack.
+    expect(themeCss).toContain('--cruush-glass-frost: hsl(0 0% 0% / 0.05);');
+    expect(themeCss).toContain('--cruush-glass-surface: var(--cruush-glass-frost);');
+    expect(themeCss).toContain('--cruush-glass-dock-bg: var(--cruush-glass-frost);');
+    expect(themeCss).toContain('--cruush-glass-current-bg: hsl(0 0% 100% / 0.06);');
     expect(themeCss).toContain('--cruush-glass-menu-toggle-bg:');
-    expect(themeCss).toContain('--cruush-liquid-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22) inset');
+    expect(themeCss).not.toContain('--cruush-glass-surface: radial-gradient(');
+    expect(themeCss).not.toContain('--cruush-glass-dock-bg: radial-gradient(');
+    expect(themeCss).toContain('--cruush-liquid-shadow: 0 0 2px 1px rgba(255, 255, 255, 0.35) inset, 0 0 10px 4px rgba(255, 255, 255, 0.15) inset');
     expect(themeCss).toContain('.cruush-glass-menu-toggle {');
     expect(themeCss).toContain('.cruush-liquid-glass-filters {');
     expect(themeCss).toContain('.cruush-liquid-glass-dock {');
@@ -67,7 +74,7 @@ describe('global text selection policy', () => {
     expect(themeCss).toContain('transition: left 520ms cubic-bezier(0.32, 0.72, 0, 1);');
     expect(themeCss).toContain('background: var(--cruush-glass-current-bg);');
     expect(themeCss).toContain('backdrop-filter: var(--cruush-glass-current-backdrop);');
-    expect(themeCss).toContain('opacity: 0.52;');
+    expect(themeCss).toContain('opacity: 0.26;');
   });
 
   it('keeps the cruush plus shimmer and recently active rail hooks available', () => {

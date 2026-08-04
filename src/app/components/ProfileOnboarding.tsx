@@ -51,6 +51,7 @@ const PROFILE_STEPS: OnboardingStep[] = [
   'crowds',
   'lookingFor',
   'vibes',
+  'signal',
   'bio',
 ];
 
@@ -88,7 +89,12 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   vibes: {
     rite: 'reveal your aura',
     title: 'Set the signal around you.',
-    detail: 'Pick up to three.',
+    detail: 'Pick up to five.',
+  },
+  signal: {
+    rite: 'broadcast your signal',
+    title: 'Broadcast your live map signal',
+    detail: 'This short status broadcast appears next to your heart pin on the live map.',
   },
   bio: {
     rite: 'leave your confession',
@@ -754,6 +760,20 @@ export default function ProfileOnboarding({
                   <p className="text-xs text-white/58 mt-1">Select up to 5</p>
                 </div>
               );
+            case 'signal':
+              return (
+                <div>
+                  <label className="text-sm mb-2 block text-white/82">Signal Broadcast</label>
+                  <Input
+                    type="text"
+                    maxLength={180}
+                    placeholder="A few words people see when they hover your heart pin..."
+                    value={profile.signal}
+                    onChange={e => setProfileField('signal', e.target.value)}
+                  />
+                  <p className="mt-2 text-xs text-white/50">Your signal appears when someone hovers or taps over your heart pin on the map.</p>
+                </div>
+              );
             case 'bio':
               return (
                 <div>
@@ -764,15 +784,6 @@ export default function ProfileOnboarding({
                     value={profile.bio}
                     onChange={e => setProfileField('bio', e.target.value)}
                   />
-                  <label className="mt-4 text-sm mb-2 block">Signal</label>
-                  <Input
-                    type="text"
-                    maxLength={180}
-                    placeholder="A few words people see when they hover your heart pin"
-                    value={profile.signal}
-                    onChange={e => setProfileField('signal', e.target.value)}
-                  />
-                  <p className="mt-2 text-xs text-white/50">Your signal appears when someone hovers over your heart pin on the map.</p>
                 </div>
               );
             case 'oath':

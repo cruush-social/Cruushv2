@@ -444,14 +444,17 @@
 }
 
 :root {
-  --cruush-glass-border: rgba(255, 255, 255, 0.55);
-  --cruush-glass-border-soft: rgba(255, 255, 255, 0.34);
+  --cruush-glass-border: rgba(255, 255, 255, 0.18);
+  --cruush-glass-border-soft: rgba(255, 255, 255, 0.1);
   --cruush-glass-highlight: rgba(255, 255, 255, 0.72);
-  --cruush-liquid-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22) inset, 0 1.5px 2px rgba(255, 255, 255, 0.72) inset, 0 -1px 1.5px rgba(255, 255, 255, 0.28) inset, 1.5px 0 2px -1px rgba(255, 255, 255, 0.34) inset, -1.5px 0 2px -1px rgba(255, 255, 255, 0.34) inset, 0 -10px 20px rgba(0, 0, 0, 0.1) inset, 0 14px 34px rgba(0, 0, 0, 0.34);
-  --cruush-glass-shadow: var(--cruush-liquid-shadow), 0 0 0 1px rgba(0, 0, 0, 0.18);
-  --cruush-glass-shadow-soft: 0 0 0 1px rgba(255, 255, 255, 0.18) inset, 0 1.5px 2px rgba(255, 255, 255, 0.6) inset, 0 -1px 1.5px rgba(255, 255, 255, 0.22) inset, 1.5px 0 2px -1px rgba(255, 255, 255, 0.28) inset, -1.5px 0 2px -1px rgba(255, 255, 255, 0.28) inset, 0 10px 26px rgba(0, 0, 0, 0.28);
-  --cruush-glass-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.24) inset, 0 2px 2.5px rgba(255, 255, 255, 0.7) inset, 0 -1px 2px rgba(255, 255, 255, 0.26) inset, 2px 0 2.5px -1px rgba(255, 255, 255, 0.32) inset, -2px 0 2.5px -1px rgba(255, 255, 255, 0.32) inset, 0 -12px 26px rgba(0, 0, 0, 0.1) inset, 0 18px 48px rgba(0, 0, 0, 0.4);
-  --cruush-glass-current-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3) inset, 0 1.5px 2px rgba(255, 255, 255, 0.75) inset, 0 -1px 1.5px rgba(255, 255, 255, 0.3) inset, 0 8px 20px rgba(0, 0, 0, 0.26);
+  /* Reference pen rim: two inset white halos plus the near-invisible ambient
+     stack. No thick white keyline, no dark inner vignette — those read as a
+     painted-on plastic bezel and bury the refraction. */
+  --cruush-liquid-shadow: 0 0 2px 1px rgba(255, 255, 255, 0.35) inset, 0 0 10px 4px rgba(255, 255, 255, 0.15) inset, 0 4px 16px rgba(17, 17, 26, 0.05), 0 8px 24px rgba(17, 17, 26, 0.05), 0 16px 56px rgba(17, 17, 26, 0.05), 0 4px 16px rgba(17, 17, 26, 0.05) inset, 0 8px 24px rgba(17, 17, 26, 0.05) inset, 0 16px 56px rgba(17, 17, 26, 0.05) inset;
+  --cruush-glass-shadow: var(--cruush-liquid-shadow);
+  --cruush-glass-shadow-soft: 0 0 2px 1px rgba(255, 255, 255, 0.26) inset, 0 0 10px 4px rgba(255, 255, 255, 0.1) inset, 0 4px 16px rgba(17, 17, 26, 0.05), 0 8px 24px rgba(17, 17, 26, 0.05);
+  --cruush-glass-dock-shadow: var(--cruush-liquid-shadow), 0 18px 48px rgba(0, 0, 0, 0.38);
+  --cruush-glass-current-shadow: var(--cruush-liquid-shadow);
   --cruush-glass-backdrop: blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);
   --cruush-glass-backdrop-soft: blur(17px) saturate(1.36) brightness(1.05) contrast(1.01);
   --cruush-glass-dock-backdrop: blur(20px) saturate(1.44) brightness(1.06) contrast(1.02);
@@ -460,19 +463,22 @@
   --cruush-glass-edge-reflection: radial-gradient(circle at 18% 2%, rgba(255, 255, 255, 0.46), transparent 30%), linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.11) 17%, transparent 45%), linear-gradient(118deg, rgba(255, 255, 255, 0.18) 0%, transparent 30% 70%, rgba(255, 255, 255, 0.11) 100%);
   --cruush-glass-material-noise: linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0));
   --cruush-glass-specular: linear-gradient(104deg, transparent 0 35%, rgba(255, 255, 255, 0.1) 43%, rgba(255, 255, 255, 0.42) 49%, rgba(255, 255, 255, 0.1) 55%, transparent 68% 100%);
-  /* Clear glass, not frost. These fills used to stack a bright white radial over
-     a dark scrim, which is what made the surfaces look milky and hid the
-     refraction behind them. Keep only a thin edge sheen so the rim still catches
-     light, and let the displacement lens supply the actual glass. */
-  --cruush-glass-surface: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.1), transparent 36%), linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.008) 44%, rgba(255, 255, 255, 0.02) 100%);
-  --cruush-glass-surface-soft: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.08), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.028) 0%, rgba(255, 255, 255, 0.006) 46%, rgba(255, 255, 255, 0.016) 100%);
-  --cruush-glass-panel-bg: radial-gradient(circle at 18% -8%, rgba(255, 255, 255, 0.09), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.007) 46%, rgba(255, 255, 255, 0.018) 100%);
-  --cruush-glass-bar-bg: radial-gradient(circle at 18% -10%, rgba(255, 255, 255, 0.1), transparent 36%), linear-gradient(180deg, rgba(255, 255, 255, 0.032) 0%, rgba(255, 255, 255, 0.008) 45%, rgba(255, 255, 255, 0.018) 100%);
-  --cruush-glass-control-bg: radial-gradient(circle at 24% 0%, rgba(255, 255, 255, 0.09), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.007) 48%, rgba(255, 255, 255, 0.016) 100%);
-  --cruush-glass-control-hover-bg: radial-gradient(circle at 24% 0%, rgba(255, 255, 255, 0.14), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.014) 48%, rgba(255, 255, 255, 0.028) 100%);
-  --cruush-glass-menu-toggle-bg: radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.1), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.033) 0%, rgba(255, 255, 255, 0.008) 46%, rgba(255, 255, 255, 0.018) 100%);
-  --cruush-glass-dock-bg: radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.12), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.038) 0%, rgba(255, 255, 255, 0.01) 43%, rgba(255, 255, 255, 0.022) 100%);
-  --cruush-glass-current-bg: radial-gradient(circle at 34% 8%, rgba(255, 255, 255, 0.18), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.022) 52%, rgba(255, 255, 255, 0.04));
+  /* Frost, exactly as the reference pen defines it: a single flat tint at very
+     low alpha, nothing else. The old radial + linear stacks were the milk that
+     buried the lens. Reference dock frost is 0.05, every other preset is 0. */
+  --cruush-glass-frost: hsl(0 0% 0% / 0.05);
+  --cruush-glass-surface: var(--cruush-glass-frost);
+  --cruush-glass-surface-soft: transparent;
+  --cruush-glass-panel-bg: var(--cruush-glass-frost);
+  --cruush-glass-bar-bg: var(--cruush-glass-frost);
+  --cruush-glass-control-bg: transparent;
+  --cruush-glass-control-hover-bg: hsl(0 0% 100% / 0.08);
+  --cruush-glass-menu-toggle-bg: var(--cruush-glass-frost);
+  --cruush-glass-dock-bg: var(--cruush-glass-frost);
+  /* The nav switcher bubble is the same material as the dock it sits in —
+     same frost, same rim. A brighter fill here read as frosted plastic
+     against clear glass. */
+  --cruush-glass-current-bg: var(--cruush-glass-frost);
 }
 
 @supports ((backdrop-filter: url("#cruush-liquid-glass-panel")) or (-webkit-backdrop-filter: url("#cruush-liquid-glass-panel"))) {
@@ -481,11 +487,13 @@
        mush and hides the displacement entirely, which is what stopped this
        reading as glass. The reference effect uses displacement + saturation
        only, so keep the blur token-thin and let the lens do the work. */
-    --cruush-glass-backdrop: url("#cruush-liquid-glass-panel") saturate(1.5) brightness(1.06) contrast(1.02);
-    --cruush-glass-backdrop-soft: url("#cruush-liquid-glass-pill") saturate(1.4) brightness(1.05) contrast(1.01);
-    --cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") saturate(1.5) brightness(1.06) contrast(1.02);
-    --cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") saturate(1.35) brightness(1.05) contrast(1.02);
-    --cruush-glass-field-backdrop: url("#cruush-liquid-glass-field") saturate(1.4) brightness(1.06) contrast(1.02);
+    /* No blur here. A blur pass smears the backdrop into frost and buries the
+       lens; the displacement map is what makes this read as glass. */
+    --cruush-glass-backdrop: url("#cruush-liquid-glass-panel") saturate(1.5);
+    --cruush-glass-backdrop-soft: url("#cruush-liquid-glass-pill") saturate(1.5);
+    --cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") brightness(1.1) saturate(1.5);
+    --cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") brightness(1.1) saturate(1.5);
+    --cruush-glass-field-backdrop: url("#cruush-liquid-glass-field") saturate(1.5);
   }
 }
 
@@ -648,9 +656,9 @@
 }
 
 .cruush-liquid-glass-dock::before {
-  background: radial-gradient(circle at 16% 0%, rgba(255, 255, 255, 0.44), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 22% 76%, rgba(255, 255, 255, 0.08)), linear-gradient(112deg, rgba(255, 255, 255, 0.18), transparent 30% 70%, rgba(255, 255, 255, 0.11));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 26% 78%, rgba(255, 255, 255, 0.06));
   mix-blend-mode: screen;
-  opacity: 0.5;
+  opacity: 0.22;
 }
 
 .cruush-liquid-glass-dock::after {
@@ -728,15 +736,17 @@
 }
 
 .cruush-bottom-nav-indicator-surface::before {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.36), transparent 19% 76%, rgba(255, 255, 255, 0.075)), linear-gradient(120deg, rgba(255, 255, 255, 0.18), transparent 32% 72%, rgba(255, 255, 255, 0.12));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 22% 78%, rgba(255, 255, 255, 0.06));
   mix-blend-mode: screen;
-  opacity: 0.52;
+  opacity: 0.26;
 }
 
 .cruush-bottom-nav-indicator-surface::after {
+  /* No inner fill. The white radial + dark scrim that used to live here made
+     the switcher look frosted while the dock around it stayed clear glass. */
   inset: 0.18rem;
-  background: radial-gradient(circle at 38% 18%, rgba(255, 255, 255, 0.18), transparent 27%), linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(0, 0, 0, 0.14));
-  opacity: 0.62;
+  background: none;
+  opacity: 0;
 }
 
 .cruush-bottom-nav-indicator-surface[data-distance="2"],

@@ -115,12 +115,17 @@ const FRONTEND_BUILD = {
   baseDirectory: '/',
   portsExposes: '80',
   healthCheckPath: '/',
+  // The nginx image adds a `listen [::]:80`, so either loopback name resolves.
+  healthCheckHost: 'localhost',
   minHealthCheckBudgetSeconds: 30,
 };
 const API_BUILD = {
   baseDirectory: '/server',
   portsExposes: '3001',
   healthCheckPath: '/health',
+  // The API binds 0.0.0.0 only. `localhost` also resolves to ::1 inside the
+  // container, and busybox wget tries that first, so the probe must name IPv4.
+  healthCheckHost: '127.0.0.1',
   // The API runs migrations before it listens, so the probe budget must outlast them.
   minHealthCheckBudgetSeconds: 600,
 };
@@ -198,6 +203,9 @@ function assertBuildConfig(app, target) {
   }
   if (app.health_check_path !== expected.healthCheckPath) {
     problems.push(`health_check_path is ${JSON.stringify(app.health_check_path)}, expected ${JSON.stringify(expected.healthCheckPath)}`);
+  }
+  if (app.health_check_host !== expected.healthCheckHost) {
+    problems.push(`health_check_host is ${JSON.stringify(app.health_check_host)}, expected ${JSON.stringify(expected.healthCheckHost)}; a container that binds IPv4 only fails a localhost probe that resolves to ::1`);
   }
 
   const budget = Number(app.health_check_retries ?? 0) * Number(app.health_check_interval ?? 0);

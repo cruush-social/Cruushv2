@@ -15,7 +15,6 @@ import { CruushIcon } from './CruushIconImage';
 import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
-import cruushLogo from '../assets/brand/cruush-logo.svg';
 import './Auth.css';
 
 interface AuthProps {
@@ -428,15 +427,10 @@ export default function Auth({ onAuth }: AuthProps) {
       <div className="launch-login-auth-card w-full max-w-[20rem] relative z-10" data-testid="launch-login-auth-panel">
         {/* Logo */}
         <div className="launch-login-auth-brand text-center" data-testid="launch-login-auth-brand">
+          {/* No static wordmark here: the teaser video is the logo, and a
+              second logo stacked above the tagline pushed the whole card off
+              the recording's centre. */}
           <h1 className="sr-only">cruush</h1>
-          <img
-            alt=""
-            aria-hidden="true"
-            className="launch-login-auth-logo-image"
-            data-testid="launch-login-auth-logo"
-            draggable={false}
-            src={cruushLogo}
-          />
           <div className="launch-login-auth-tagline-stack">
             <p className="launch-login-auth-tagline" data-testid="launch-login-auth-tagline">
               <span>queer cruisers cruise</span>{' '}

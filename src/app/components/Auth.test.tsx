@@ -128,7 +128,9 @@ describe('Auth', () => {
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
     expect(screen.getByTestId('launch-login-auth-brand')).toHaveClass('launch-login-auth-brand');
-    expect(screen.getByTestId('launch-login-auth-logo')).toHaveClass('launch-login-auth-logo-image');
+    // The teaser video is the only logo on this screen; a static wordmark
+    // above the tagline shifted the card off the recording's centre.
+    expect(screen.queryByTestId('launch-login-auth-logo')).not.toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-brand-mark')).not.toBeInTheDocument();
     expect(screen.getByTestId('launch-login-map-teaser')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-auth-panel')).toHaveClass('launch-login-auth-card');

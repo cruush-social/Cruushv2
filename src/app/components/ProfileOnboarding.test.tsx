@@ -138,6 +138,9 @@ async function fillProfileRites() {
   await chooseMultiSelect('Vibes', 'Goth');
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
+  fireEvent.change(screen.getByPlaceholderText('A few words people see when they hover your heart pin...'), { target: { value: 'Night owl.' } });
+  fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
   fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
   fireEvent.click(screen.getByRole('button', { name: /next/i }));
 }
@@ -242,6 +245,9 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
+    expect(screen.getByText('broadcast your signal')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
     expect(screen.getByText('leave your confession')).toBeInTheDocument();
   });
 
@@ -275,6 +281,9 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     await chooseMultiSelect('Vibes', 'Goth');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    fireEvent.change(screen.getByPlaceholderText('A few words people see when they hover your heart pin...'), { target: { value: 'Night owl.' } });
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
     fireEvent.change(screen.getByPlaceholderText('A little about you...'), { target: { value: 'Velvet trouble.' } });
