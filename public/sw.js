@@ -134,18 +134,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        return cached;
-      }
-
-      return fetch(request).then((response) => {
-        if (!response.ok && (url.pathname.startsWith('/assets/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))) {
-          // If a build asset 404s, invalidate cached app shell so next reload fetches latest deployment HTML
-          void caches.delete(CACHE_NAME);
-        }
-        return response;
-      });
-    })
+    caches.match(request).then((cached) => cached || fetch(request))
   );
 });

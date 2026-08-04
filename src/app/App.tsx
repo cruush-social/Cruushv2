@@ -111,12 +111,6 @@ export default function App({
   useEffect(() => {
     let isActive = true;
 
-    const timeoutId = setTimeout(() => {
-      if (isActive) {
-        setAuthStatus('signed_out');
-      }
-    }, 5000);
-
     const bootstrap = async () => {
       try {
         const session = await loadCurrentSession();
@@ -124,8 +118,6 @@ export default function App({
         if (!isActive) {
           return;
         }
-
-        clearTimeout(timeoutId);
 
         if (!session) {
           setSession(null);
@@ -142,7 +134,6 @@ export default function App({
           return;
         }
 
-        clearTimeout(timeoutId);
         setNeedsOnboarding(false);
         setAuthStatus('signed_out');
       }
@@ -152,7 +143,6 @@ export default function App({
 
     return () => {
       isActive = false;
-      clearTimeout(timeoutId);
     };
   }, []);
 
