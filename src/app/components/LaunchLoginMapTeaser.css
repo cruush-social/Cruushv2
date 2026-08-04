@@ -72,13 +72,15 @@
 
 @media (min-width: 641px) {
   .launch-login-map-teaser__video {
-    transform: translateY(-14%);
+    transform: translateY(2%);
+    object-position: center 42%;
   }
 }
 
 @media (max-height: 560px) {
   .launch-login-map-teaser__video {
-    transform: translateY(-26%);
+    transform: translateY(0%);
+    object-position: center 40%;
   }
 }
 

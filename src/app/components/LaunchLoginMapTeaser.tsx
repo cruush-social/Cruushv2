@@ -12,67 +12,9 @@ type LaunchLoginMapTeaserProps = {
 
 const DESKTOP_TEASER_VIDEO = '/teasers/cruush-logo-login-alpha-desktop.webm';
 const MOBILE_TEASER_VIDEO = '/teasers/cruush-logo-login-alpha-mobile.webm';
-const CODEPEN_BUTTERFLY_TEXTURE = '/teasers/codepen-butterfly-tex.png';
+const BUTTERFLY_TEXTURE = '/teasers/codepen-butterfly-tex.png';
 const MOBILE_VIDEO_QUERY = '(max-width: 640px)';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-const CODEPEN_BUTTERFLY_SIZE = 150;
-const CODEPEN_BUTTERFLY_COUNT = 9;
-const CODEPEN_CAMERA_SIZE_X = 640;
-const CODEPEN_CAMERA_SIZE_Y = 480;
-
-const CODEPEN_BUTTERFLY_VERTEX_SHADER = `
-precision highp float;
-attribute vec3 position;
-attribute vec2 uv;
-
-uniform mat4 modelViewMatrix;
-uniform mat4 projectionMatrix;
-uniform float index;
-uniform float time;
-uniform float size;
-
-varying vec2 vUv;
-
-void main() {
-  float flapTime = radians(sin(time * 6.0 - length(position.xy) / size * 2.6 + index * 2.0) * 45.0 + 30.0);
-  float hovering = cos(time * 2.0 + index * 3.0) * size / 16.0;
-  vec3 updatePosition = vec3(
-    cos(flapTime) * position.x,
-    position.y + hovering,
-    sin(flapTime) * abs(position.x) + hovering
-  );
-
-  vec4 mvPosition = modelViewMatrix * vec4(updatePosition, 1.0);
-  vUv = uv;
-  gl_Position = projectionMatrix * mvPosition;
-}
-`;
-
-const CODEPEN_BUTTERFLY_FRAGMENT_SHADER = `
-precision highp float;
-
-uniform float index;
-uniform float time;
-uniform sampler2D butterflyTexture;
-
-varying vec2 vUv;
-
-vec3 convertHsvToRgb(vec3 c) {
-  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-}
-
-void main() {
-  vec4 texColor = texture2D(butterflyTexture, vUv);
-  float shimmer = 0.82 + sin(time * 3.0 + index * 1.7 + vUv.x * 2.0) * 0.18;
-  vec3 penColor = convertHsvToRgb(vec3(1.0 + index * 0.7 + sin(time + vUv.y * 3.0) * 0.08, 0.18, 1.0));
-  vec3 invertedTexture = mix(vec3(1.0), vec3(0.1), texColor.r);
-  vec3 rgb = mix(invertedTexture, penColor, 0.24) * shimmer;
-
-  gl_FragColor = vec4(rgb, texColor.a * 0.94);
-}
-`;
 
 function getTeaserVideoSource() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -86,236 +28,126 @@ function getTeaserVideoSource() {
   return window.matchMedia(MOBILE_VIDEO_QUERY).matches ? MOBILE_TEASER_VIDEO : DESKTOP_TEASER_VIDEO;
 }
 
-function getWebGlContext(canvas: HTMLCanvasElement) {
-  if (typeof window === 'undefined' || typeof window.WebGLRenderingContext === 'undefined') {
-    return null;
-  }
-
-  const options: WebGLContextAttributes = {
-    alpha: true,
-    antialias: false,
-    depth: true,
-    premultipliedAlpha: false,
-  };
-
-  try {
-    return (
-      canvas.getContext('webgl', options)
-      ?? canvas.getContext('experimental-webgl', options)
-    ) as WebGLRenderingContext | null;
-  } catch {
-    return null;
-  }
-}
-
-function CodePenButterflyField() {
+function ButterflyField() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return undefined;
-    }
-
     const canvas = canvasRef.current;
-    const reducedMotionQuery = typeof window.matchMedia === 'function'
-      ? window.matchMedia(REDUCED_MOTION_QUERY)
-      : null;
+    if (!canvas) return undefined;
 
-    if (!canvas || reducedMotionQuery?.matches) {
-      return undefined;
-    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
 
-    const context = getWebGlContext(canvas);
-    if (!context) {
-      return undefined;
-    }
-
-    let animationFrame = 0;
+    let animId = 0;
     let isDisposed = false;
-    let cleanupScene: (() => void) | undefined;
 
-    void import('three').then((THREE) => {
-      if (isDisposed) {
-        return;
+    const img = new Image();
+    img.src = BUTTERFLY_TEXTURE;
+
+    type Butterfly = {
+      x: number;
+      y: number;
+      size: number;
+      speedX: number;
+      speedY: number;
+      flapSpeed: number;
+      flapPhase: number;
+      angle: number;
+      opacity: number;
+    };
+
+    let butterflies: Butterfly[] = [];
+
+    const initButterflies = (w: number, h: number) => {
+      const count = w < 640 ? 6 : 10;
+      butterflies = Array.from({ length: count }, (_, i) => ({
+        x: (w / (count + 1)) * (i + 1) + (Math.random() - 0.5) * 80,
+        y: Math.random() * h,
+        size: 32 + Math.random() * 24,
+        speedX: (Math.random() - 0.5) * 0.8,
+        speedY: 0.6 + Math.random() * 0.9,
+        flapSpeed: 0.12 + Math.random() * 0.08,
+        flapPhase: Math.random() * Math.PI * 2,
+        angle: (Math.random() - 0.5) * 0.3,
+        opacity: 0.7 + Math.random() * 0.3,
+      }));
+    };
+
+    const resize = () => {
+      const parent = canvas.parentElement;
+      const w = parent ? parent.clientWidth : window.innerWidth;
+      const h = parent ? parent.clientHeight : window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.scale(dpr, dpr);
+      if (butterflies.length === 0) {
+        initButterflies(w, h);
       }
+    };
 
-      const renderer = new THREE.WebGLRenderer({
-        alpha: true,
-        antialias: false,
-        canvas,
-        context,
+    resize();
+    window.addEventListener('resize', resize);
+
+    let time = 0;
+
+    const render = () => {
+      if (isDisposed) return;
+
+      const parent = canvas.parentElement;
+      const w = parent ? parent.clientWidth : window.innerWidth;
+      const h = parent ? parent.clientHeight : window.innerHeight;
+
+      ctx.clearRect(0, 0, w, h);
+      time += 0.016;
+
+      butterflies.forEach((b) => {
+        b.y -= b.speedY;
+        b.x += Math.sin(time * 1.5 + b.flapPhase) * 0.7 + b.speedX;
+
+        if (b.y < -60) {
+          b.y = h + 40;
+          b.x = Math.random() * w;
+        }
+
+        if (b.x < -60) b.x = w + 40;
+        if (b.x > w + 60) b.x = -40;
+
+        const flap = Math.abs(Math.sin(time * b.flapSpeed * 60 + b.flapPhase));
+        const wingWidth = Math.max(0.15, flap) * b.size;
+
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.angle + Math.sin(time * 2 + b.flapPhase) * 0.1);
+        ctx.globalAlpha = b.opacity;
+
+        if (img.complete && img.naturalWidth > 0) {
+          ctx.drawImage(img, -wingWidth / 2, -b.size / 2, wingWidth, b.size);
+        } else {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, wingWidth / 2, b.size / 2, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
       });
-      const scene = new THREE.Scene();
-      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 10000);
-      const clock = new THREE.Clock();
-      const butterflies: CodePenButterfly[] = [];
-      let activeTexture: import('three').Texture | null = null;
 
-      const isSmallScreen = typeof window.matchMedia === 'function'
-        && window.matchMedia(MOBILE_VIDEO_QUERY).matches;
-      const butterflyCount = isSmallScreen
-        ? Math.ceil(CODEPEN_BUTTERFLY_COUNT / 2)
-        : CODEPEN_BUTTERFLY_COUNT;
+      animId = requestAnimationFrame(render);
+    };
 
-      renderer.setClearColor(0x000000, 0);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmallScreen ? 1 : 2));
-      camera.position.set(250, 500, 1000);
-      camera.lookAt(new THREE.Vector3());
-
-      class CodePenButterfly {
-        private readonly uniforms: {
-          index: { value: number };
-          time: { value: number };
-          size: { value: number };
-          butterflyTexture: { value: import('three').Texture };
-        };
-
-        readonly obj: import('three').Mesh;
-
-        private readonly speed: number;
-
-        constructor(index: number, texture: import('three').Texture) {
-          this.uniforms = {
-            index: { value: index },
-            time: { value: 0 },
-            size: { value: CODEPEN_BUTTERFLY_SIZE },
-            butterflyTexture: { value: texture },
-          };
-          this.speed = 3.8 + (index % 3) * 0.72;
-          this.obj = this.createObj();
-        }
-
-        createObj() {
-          const geometry = new THREE.PlaneGeometry(
-            CODEPEN_BUTTERFLY_SIZE,
-            CODEPEN_BUTTERFLY_SIZE / 2,
-            24,
-            12,
-          );
-          const mesh = new THREE.Mesh(
-            geometry,
-            new THREE.RawShaderMaterial({
-              depthWrite: false,
-              fragmentShader: CODEPEN_BUTTERFLY_FRAGMENT_SHADER,
-              side: THREE.DoubleSide,
-              transparent: true,
-              uniforms: this.uniforms,
-              vertexShader: CODEPEN_BUTTERFLY_VERTEX_SHADER,
-            }),
-          );
-
-          mesh.rotation.set(-45 * Math.PI / 180, 0, 0);
-          return mesh;
-        }
-
-        render(delta: number) {
-          this.uniforms.time.value += delta;
-          this.obj.position.z = this.obj.position.z > -900
-            ? this.obj.position.z - this.speed
-            : 900;
-        }
-
-        dispose() {
-          this.obj.geometry.dispose();
-          const material = this.obj.material;
-          if (Array.isArray(material)) {
-            material.forEach((entry) => entry.dispose());
-            return;
-          }
-
-          material.dispose();
-        }
-      }
-
-      const resizeCamera = () => {
-        const host = canvas.parentElement ?? canvas;
-        const bounds = host.getBoundingClientRect();
-        const width = Math.max(1, Math.floor(bounds.width || window.innerWidth));
-        const height = Math.max(1, Math.floor(bounds.height || window.innerHeight));
-        const x = Math.min(
-          (width / height) / (CODEPEN_CAMERA_SIZE_X / CODEPEN_CAMERA_SIZE_Y),
-          1,
-        ) * CODEPEN_CAMERA_SIZE_X;
-        const y = Math.min(
-          (height / width) / (CODEPEN_CAMERA_SIZE_Y / CODEPEN_CAMERA_SIZE_X),
-          1,
-        ) * CODEPEN_CAMERA_SIZE_Y;
-
-        camera.left = x * -0.5;
-        camera.right = x * 0.5;
-        camera.top = y * 0.5;
-        camera.bottom = y * -0.5;
-        camera.updateProjectionMatrix();
-        renderer.setSize(width, height, false);
-      };
-
-      const render = () => {
-        if (isDisposed) {
-          return;
-        }
-
-        const delta = clock.getDelta();
-        butterflies.forEach((butterfly) => butterfly.render(delta));
-        renderer.render(scene, camera);
-        animationFrame = window.requestAnimationFrame(render);
-      };
-
-      const resizeObserver = 'ResizeObserver' in window
-        ? new ResizeObserver(resizeCamera)
-        : null;
-
-      if (resizeObserver && canvas.parentElement) {
-        resizeObserver.observe(canvas.parentElement);
-      } else {
-        window.addEventListener('resize', resizeCamera);
-      }
-
-      cleanupScene = () => {
-        resizeObserver?.disconnect();
-        window.removeEventListener('resize', resizeCamera);
-        butterflies.forEach((butterfly) => {
-          scene.remove(butterfly.obj);
-          butterfly.dispose();
-        });
-        activeTexture?.dispose();
-        renderer.dispose();
-      };
-
-      resizeCamera();
-
-      new THREE.TextureLoader().load(CODEPEN_BUTTERFLY_TEXTURE, (texture) => {
-        if (isDisposed) {
-          texture.dispose();
-          return;
-        }
-
-        activeTexture = texture;
-        texture.magFilter = THREE.NearestFilter;
-        texture.minFilter = THREE.NearestFilter;
-        texture.needsUpdate = true;
-
-        for (let index = 0; index < butterflyCount; index += 1) {
-          const butterfly = new CodePenButterfly(index, texture);
-          const lane = index % 2 === 0 ? -1 : 1;
-          const x = lane * (170 + index * 32);
-          const y = ((index % 5) - 2) * 20;
-          const z = (1800 / butterflyCount) * index;
-
-          butterfly.obj.position.set(x, y, z);
-          butterflies.push(butterfly);
-          scene.add(butterfly.obj);
-        }
-
+    img.onload = () => {
+      if (!isDisposed && animId === 0) {
         render();
-      });
-    }).catch(() => undefined);
+      }
+    };
+
+    render();
 
     return () => {
       isDisposed = true;
-      if (animationFrame) {
-        window.cancelAnimationFrame(animationFrame);
-      }
-      cleanupScene?.();
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
     };
   }, []);
 
@@ -326,6 +158,7 @@ function CodePenButterflyField() {
         className="launch-login-map-teaser__codepen-butterfly-canvas"
         data-testid="launch-login-codepen-butterfly-canvas"
         ref={canvasRef}
+        style={{ display: 'block', width: '100%', height: '100%' }}
       />
     </div>
   );
@@ -380,6 +213,7 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
       className={teaserClassName}
       data-testid="launch-login-map-teaser"
     >
+      <div className="launch-login-map-teaser__realistic-glitter" data-testid="launch-login-realistic-glitter" />
       {videoSource ? (
         <video
           aria-hidden="true"
@@ -400,9 +234,8 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
       ) : (
         <div className="launch-login-map-teaser__ambient-fallback" data-testid="launch-login-ambient-fallback" />
       )}
+      <ButterflyField />
       <div className="launch-login-map-teaser__video-logo-scrub" data-testid="launch-login-video-logo-scrub" />
-      <div className="launch-login-map-teaser__realistic-glitter" data-testid="launch-login-realistic-glitter" />
-      <CodePenButterflyField />
       <div className="launch-login-map-teaser__mobile-pulse" data-testid="launch-login-mobile-pulse" />
       <div className="launch-login-map-teaser__shade" data-testid="launch-login-video-shade" />
     </div>
