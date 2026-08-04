@@ -3,7 +3,12 @@
   import App from "./app/App.tsx";
   import "./styles/index.css";
 
+  window.addEventListener("vite:preloadError", () => {
+    window.location.reload();
+  });
+
   createRoot(document.getElementById("root")!).render(<App />);
+
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
