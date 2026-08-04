@@ -51,7 +51,7 @@ export default function BottomNav() {
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="cruush-bottom-nav-pill cruush-liquid-glass-dock pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/40 bg-white/[0.04] px-1.5 pb-1.5 pt-2 shadow-[0_0_2px_1px_rgba(255,255,255,0.75)_inset,0_0_14px_2px_rgba(255,255,255,0.4)_inset,0_20px_60px_rgba(0,0,0,0.45)]"
+        className="pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
       >
         {navItems.map((item) => {
           const active = isActive(item.path);

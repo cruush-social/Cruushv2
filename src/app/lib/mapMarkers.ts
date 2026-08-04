@@ -15,6 +15,7 @@ export type MapMarker = {
   approximateLongitude: number;
   lastActiveLabel?: string;
   photo?: string | null;
+  photoExplicit?: boolean;
   isCurrentUser?: boolean;
   displayMode?: 'PRECISE' | 'GHOST';
   animationHint?: 'NONE' | 'FADE_LAST_MINUTE' | 'SIGNAL_LOSS' | 'REAPPEAR';
@@ -39,6 +40,7 @@ export type MapMarker = {
     label: string;
     kind?: 'venue' | 'people';
     memberIds?: string[];
+    action?: 'zoom' | 'spiderfy';
   };
 };
 
