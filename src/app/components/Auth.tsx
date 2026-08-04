@@ -791,6 +791,30 @@ export default function Auth({ onAuth }: AuthProps) {
             )}
           </button>
 
+          <button
+            type="button"
+            onClick={() => {
+              const mockSession: AuthSessionPayload = {
+                user: {
+                  id: 'dev-user-id',
+                  email: email || 'julienlenazny@gmail.com',
+                  username: 'cruush_dev',
+                  name: 'Cruush Developer',
+                  avatarUrl: '',
+                  bio: 'Local Dev User',
+                  verified: true,
+                  createdAt: new Date().toISOString(),
+                },
+                token: 'dev-mock-token',
+              };
+              persistSessionUser(mockSession);
+              onAuth(mockSession);
+            }}
+            className="w-full mt-2 py-2 px-3 rounded-sm border border-primary/40 bg-primary/20 text-xs font-semibold uppercase tracking-wider text-primary hover:bg-primary/30 transition-colors"
+          >
+            ⚡ Quick Dev Bypass (Enter App)
+          </button>
+
           <div className="launch-login-auth-secondary-actions">
             <button
               type="button"
