@@ -21,6 +21,9 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       'server/**',
+      // The project lives on a volume that writes AppleDouble sidecars; without
+      // this they get collected as unparsable test files.
+      '**/._*',
     ],
   }
 });

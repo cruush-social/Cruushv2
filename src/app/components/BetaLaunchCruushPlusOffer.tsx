@@ -22,7 +22,7 @@ type BetaLaunchCruushPlusOfferProps = {
   userId: string;
 };
 
-function offerStorageKey(userId: string) {
+export function offerStorageKey(userId: string) {
   return `${BETA_LAUNCH_OFFER_STORAGE_KEY}:${userId}`;
 }
 

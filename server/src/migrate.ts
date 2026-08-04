@@ -65,6 +65,8 @@ const migrationFiles = [
   "056_daily_login_bonus_rewards.sql",
   "057_post_onboarding_affiliate_share_notice.sql",
   "058_support_request_bug_triage.sql",
+  "059_map_presence_duration.sql",
+  "060_first_feed_post_prompt_notice.sql",
   "061_moderator_account_bans.sql"
 ];
 

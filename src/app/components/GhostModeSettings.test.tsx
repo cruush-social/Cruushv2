@@ -1,11 +1,18 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import GhostModeSettings from './GhostModeSettings';
 
-const { getMyPrivacySettings, saveMyPrivacySettings } = vi.hoisted(() => ({
+const {
+  getMyPrivacySettings,
+  saveMyPrivacySettings,
+  getMyMapPresenceSettings,
+  saveMyMapPresenceSettings,
+} = vi.hoisted(() => ({
   getMyPrivacySettings: vi.fn(),
   saveMyPrivacySettings: vi.fn(),
+  getMyMapPresenceSettings: vi.fn(),
+  saveMyMapPresenceSettings: vi.fn(),
 }));
 
 vi.mock('../lib/privacyApi', async () => {
@@ -15,6 +22,8 @@ vi.mock('../lib/privacyApi', async () => {
     ...actual,
     getMyPrivacySettings,
     saveMyPrivacySettings,
+    getMyMapPresenceSettings,
+    saveMyMapPresenceSettings,
   };
 });
 
@@ -27,12 +36,43 @@ describe('GhostModeSettings', () => {
   beforeEach(() => {
     getMyPrivacySettings.mockReset();
     saveMyPrivacySettings.mockReset();
+    getMyMapPresenceSettings.mockReset();
+    saveMyMapPresenceSettings.mockReset();
 
     getMyPrivacySettings.mockResolvedValue({
       ghostModeEnabled: false,
       preciseLocationVisibility: 'none',
     });
     saveMyPrivacySettings.mockImplementation((settings) => Promise.resolve(settings));
+    getMyMapPresenceSettings.mockResolvedValue({ days: 7, minDays: 1, maxDays: 30 });
+    saveMyMapPresenceSettings.mockImplementation((days: number) => Promise.resolve({
+      days,
+      minDays: 1,
+      maxDays: 30,
+    }));
+  });
+
+  it('defaults map presence to seven days and saves a new duration', async () => {
+    render(
+      <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
+        <Routes>
+          <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Map presence')).toBeInTheDocument();
+    expect(await screen.findByText('7 days after your last check-in')).toBeInTheDocument();
+    expect(screen.getByText('How long your heart pin keeps showing on the map after you stop opening cruush. Seven days by default.')).toBeInTheDocument();
+
+    const presenceControl = screen.getByTestId('map-presence-duration');
+    const presenceSlider = within(presenceControl).getByRole('slider');
+
+    await waitFor(() => expect(presenceSlider).not.toHaveAttribute('data-disabled'));
+    fireEvent.keyDown(presenceSlider, { key: 'ArrowRight' });
+
+    await waitFor(() => expect(saveMyMapPresenceSettings).toHaveBeenCalledWith(14));
+    expect(await screen.findByText('14 days after your last check-in')).toBeInTheDocument();
   });
 
   it('persists Ghost Mode and precise mutual location settings from the dedicated page', async () => {
