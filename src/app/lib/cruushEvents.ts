@@ -6,7 +6,6 @@ export type CruushChangedPayload = {
   targetUserId: string;
   mutual: boolean;
   permissions?: CruushRecord['permissions'];
-  revoked?: boolean;
 };
 
 export function emitCruushChanged(payload: CruushChangedPayload) {

@@ -5,14 +5,9 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
-import { revokeMutualCruush, sendCruush } from '../lib/cruushApi';
+import { sendCruush } from '../lib/cruushApi';
 import { resolveMediaUrl } from '../lib/apiClient';
-import {
-  handleCruushSendSuccess,
-  handleMutualCruushRevokeSuccess,
-  notifyCruushSendError,
-  notifyMutualCruushRevokeError,
-} from '../lib/cruushNotifications';
+import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
 import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
@@ -31,14 +26,12 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
   const [sendingCruush, setSendingCruush] = useState(false);
-  const [revokingMutual, setRevokingMutual] = useState(false);
-  const [mutualRevoked, setMutualRevoked] = useState(false);
   const [openingMessage, setOpeningMessage] = useState(false);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
-  const isAlreadyMutual = !mutualRevoked && (cruushBecameMutual || user.relationship?.mutualCruush === true);
-  const hasSentCruush = !isAlreadyMutual && !mutualRevoked && (cruushed || user.relationship?.outgoingCruush === true);
-  const canMessage = !mutualRevoked && user.relationship?.canMessage !== false;
-  const cruushDisabled = sendingCruush || revokingMutual || hasSentCruush;
+  const isAlreadyMutual = cruushBecameMutual || user.relationship?.mutualCruush === true;
+  const hasSentCruush = cruushed || user.relationship?.outgoingCruush === true;
+  const canMessage = user.relationship?.canMessage !== false;
+  const cruushDisabled = sendingCruush || hasSentCruush || isAlreadyMutual;
   const maskPhoto = Boolean(dlModeActive && user.photo && user.photoExplicit === true);
   const compact = placement === 'inline' && density === 'compact';
   const mediaStyle = compact ? PROFILE_CARD_COMPACT_MEDIA_STYLE : PROFILE_CARD_MEDIA_ASPECT_STYLE;
@@ -55,7 +48,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const handleCruush = async () => {
-    if (sendingCruush || revokingMutual || hasSentCruush || isAlreadyMutual) {
+    if (sendingCruush || hasSentCruush || isAlreadyMutual) {
       return;
     }
 
@@ -74,26 +67,6 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
       notifyCruushSendError(error);
     } finally {
       setSendingCruush(false);
-    }
-  };
-
-  const handleRevokeMutualCruush = async () => {
-    if (!isAlreadyMutual || sendingCruush || revokingMutual) {
-      return;
-    }
-
-    setRevokingMutual(true);
-    try {
-      await revokeMutualCruush(user.id);
-      setCruushed(false);
-      setCruushBecameMutual(false);
-      setMutualRevoked(true);
-      handleMutualCruushRevokeSuccess(user.id, user.name);
-    } catch (error) {
-      console.error('Error revoking mutual cruush:', error);
-      notifyMutualCruushRevokeError(error);
-    } finally {
-      setRevokingMutual(false);
     }
   };
 
@@ -198,18 +171,16 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
           <Button
             variant="outline"
             className={actionButtonClassName}
-            onClick={() => {
-              void (isAlreadyMutual ? handleRevokeMutualCruush() : handleCruush());
-            }}
+            onClick={handleCruush}
             disabled={cruushDisabled}
-            aria-label={revokingMutual ? 'Removing mutual cruush' : isAlreadyMutual ? 'Remove mutual cruush' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
+            aria-label={isAlreadyMutual ? 'Already mutual' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
             style={{
-              borderColor: cruushDisabled || isAlreadyMutual ? '#73737C' : 'var(--cruush-pink)',
-              color: cruushDisabled || isAlreadyMutual ? '#A2A2AA' : 'var(--cruush-pink)',
+              borderColor: cruushDisabled ? '#73737C' : 'var(--cruush-pink)',
+              color: cruushDisabled ? '#A2A2AA' : 'var(--cruush-pink)',
             }}
           >
             <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={cruushDisabled ? 'white' : 'colored'} />
-            {revokingMutual ? 'removing...' : isAlreadyMutual ? 'remove' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
+            {isAlreadyMutual ? 'mutual' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
           </Button>
           <Button
             variant="outline"

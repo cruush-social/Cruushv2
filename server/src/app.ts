@@ -75,12 +75,22 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
     trustProxy: (config.TRUST_PROXY_HOPS ?? 0) > 0 ? config.TRUST_PROXY_HOPS : false
   });
   const db = deps.db ?? createPool(config);
-  const allowedCorsOrigins = new Set(
-    config.CORS_ORIGIN
-      .split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean)
-  );
+  const allowedCorsOrigins = new Set<string>();
+  for (const origin of config.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean)) {
+    allowedCorsOrigins.add(origin);
+    try {
+      const url = new URL(origin);
+      if (url.hostname.startsWith("www.")) {
+        url.hostname = url.hostname.replace(/^www\./, "");
+        allowedCorsOrigins.add(url.origin);
+      } else if (url.hostname.includes(".") && !url.hostname.startsWith("localhost") && !url.hostname.startsWith("127.")) {
+        url.hostname = `www.${url.hostname}`;
+        allowedCorsOrigins.add(url.origin);
+      }
+    } catch {
+      // Ignore invalid URL formatting
+    }
+  }
 
   void app.register(cors, {
     origin: (origin, callback) => {

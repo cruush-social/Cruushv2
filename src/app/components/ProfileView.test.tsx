@@ -3,8 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileView from './ProfileView';
 
-const { revokeMutualCruush, sendCruush } = vi.hoisted(() => ({
-  revokeMutualCruush: vi.fn(),
+const { sendCruush } = vi.hoisted(() => ({
   sendCruush: vi.fn(),
 }));
 
@@ -40,7 +39,6 @@ vi.mock('../lib/cruushApi', async () => {
 
   return {
     ...actual,
-    revokeMutualCruush,
     sendCruush,
   };
 });
@@ -117,7 +115,6 @@ function createProfileFixture(overrides: Record<string, unknown> = {}) {
 
 describe('ProfileView', () => {
   beforeEach(() => {
-    revokeMutualCruush.mockReset();
     sendCruush.mockReset();
     getMyProfile.mockReset();
     getProfileById.mockReset();
@@ -127,7 +124,6 @@ describe('ProfileView', () => {
     toastError.mockReset();
     toastInfo.mockReset();
 
-    revokeMutualCruush.mockResolvedValue({ revoked: true });
     getProfileById.mockResolvedValue(createProfileFixture());
     blockUser.mockResolvedValue({
       userId: 'user-1',
@@ -346,7 +342,7 @@ describe('ProfileView', () => {
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-1', expect.objectContaining({
       name: 'Jordan',
     })));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'remove mutual cruush' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'mutual cruush' })).toBeDisabled());
     await waitFor(() => expect(getProfileById).toHaveBeenCalledTimes(2));
 
     expect(eventListener).toHaveBeenCalledWith(expect.objectContaining({
@@ -423,56 +419,11 @@ describe('ProfileView', () => {
     expect(sendCruush).not.toHaveBeenCalled();
   });
 
-  it('removes profile sharing and revokes an existing mutual by tapping', async () => {
-    getProfileById
-      .mockResolvedValueOnce(createProfileFixture({
-        viewer_relationship: {
-          match_id: 'match-1',
-          mutual_cruush: true,
-          outgoing_cruush: true,
-          can_message: true,
-          can_reveal_precise_location: false,
-        },
-      }))
-      .mockResolvedValueOnce(createProfileFixture({
-        viewer_relationship: {
-          match_id: null,
-          mutual_cruush: false,
-          outgoing_cruush: false,
-          can_message: false,
-          can_reveal_precise_location: false,
-        },
-      }));
-
-    render(
-      <MemoryRouter initialEntries={['/profile/user-1']}>
-        <Routes>
-          <Route path="/profile/:userId" element={<ProfileView />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByTestId('profile-hero-media')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Share profile' })).not.toBeInTheDocument();
-    const cruushButton = screen.getByRole('button', { name: 'remove mutual cruush' });
-
-    expect(cruushButton).toBeEnabled();
-    expect(cruushButton).toHaveTextContent('remove mutual');
-
-    fireEvent.click(cruushButton);
-
-    await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));
-    expect(sendCruush).not.toHaveBeenCalled();
-    expect(toastSuccess).toHaveBeenCalledWith('Removed mutual cruush with Jordan.');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'send cruush' })).toBeEnabled());
-  });
-
-  it('does not allow sending a duplicate cruush for an existing mutual', async () => {
+  it('removes profile sharing and disables cruushing an existing mutual', async () => {
     getProfileById.mockResolvedValue(createProfileFixture({
       viewer_relationship: {
         match_id: 'match-1',
         mutual_cruush: true,
-        outgoing_cruush: true,
         can_message: true,
         can_reveal_precise_location: false,
       },
@@ -487,12 +438,13 @@ describe('ProfileView', () => {
     );
 
     expect(await screen.findByTestId('profile-hero-media')).toBeInTheDocument();
-    const cruushButton = screen.getByRole('button', { name: 'remove mutual cruush' });
+    expect(screen.queryByRole('button', { name: 'Share profile' })).not.toBeInTheDocument();
+    const cruushButton = screen.getByRole('button', { name: 'mutual cruush' });
 
-    expect(cruushButton).toBeEnabled();
+    expect(cruushButton).toBeDisabled();
+    expect(cruushButton).toHaveTextContent('mutual cruush');
 
     fireEvent.click(cruushButton);
-    await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));
     expect(sendCruush).not.toHaveBeenCalled();
   });
 

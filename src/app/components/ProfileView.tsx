@@ -9,15 +9,9 @@ import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
-import { revokeMutualCruush, sendCruush } from '../lib/cruushApi';
+import { sendCruush } from '../lib/cruushApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
-import {
-  handleCruushSendSuccess,
-  handleMutualCruushRevokeSuccess,
-  notifyCruushSendError,
-  notifyMutualCruushRequired,
-  notifyMutualCruushRevokeError,
-} from '../lib/cruushNotifications';
+import { handleCruushSendSuccess, notifyCruushSendError, notifyMutualCruushRequired } from '../lib/cruushNotifications';
 import { emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
@@ -94,19 +88,6 @@ function profileIdentityItems(profileView: Pick<ProfileViewModel, 'identities' |
     : nonTransIdentities;
 }
 
-function removeViewerMutualCruush(profile: ProfileRecord): ProfileRecord {
-  return {
-    ...profile,
-    viewer_relationship: {
-      match_id: null,
-      mutual_cruush: false,
-      outgoing_cruush: false,
-      can_message: false,
-      can_reveal_precise_location: false,
-    },
-  };
-}
-
 export function profileRecordToProfileView(
   profile: ProfileRecord,
   previewState: ProfileLocationState | null = null,
@@ -163,7 +144,6 @@ export default function ProfileView() {
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
   const [sendingCruush, setSendingCruush] = useState(false);
-  const [revokingMutual, setRevokingMutual] = useState(false);
   const [openingMessage, setOpeningMessage] = useState(false);
   const [activeTab, setActiveTab] = useState('basics');
 
@@ -225,13 +205,7 @@ export default function ProfileView() {
         return;
       }
 
-      if (payload.revoked) {
-        setCruushed(false);
-        setCruushBecameMutual(false);
-      } else {
-        setCruushed(true);
-        setCruushBecameMutual(payload.mutual === true);
-      }
+      setCruushed(true);
 
       void getProfileById(userId)
         .then((data) => {
@@ -264,8 +238,8 @@ export default function ProfileView() {
   }, [previewState?.distance, previewState?.lastActive, profile]);
 
   const isAlreadyMutual = cruushBecameMutual || profileView?.relationship?.mutual_cruush === true;
-  const hasSentCruush = !isAlreadyMutual && (cruushed || profileView?.relationship?.outgoing_cruush === true);
-  const cruushDisabled = sendingCruush || revokingMutual || hasSentCruush;
+  const hasSentCruush = cruushed || profileView?.relationship?.outgoing_cruush === true;
+  const cruushDisabled = sendingCruush || hasSentCruush || isAlreadyMutual;
   const heartTheme = isOwnProfile ? 'current' : isAlreadyMutual ? 'mutual' : 'nearby';
 
   const handleCruush = async () => {
@@ -273,7 +247,7 @@ export default function ProfileView() {
       return;
     }
 
-    if (sendingCruush || revokingMutual || hasSentCruush || isAlreadyMutual) {
+    if (sendingCruush || hasSentCruush || isAlreadyMutual) {
       return;
     }
 
@@ -292,26 +266,6 @@ export default function ProfileView() {
       notifyCruushSendError(cruushError);
     } finally {
       setSendingCruush(false);
-    }
-  };
-
-  const handleRevokeMutualCruush = async () => {
-    if (!userId || !profileView || !isAlreadyMutual || sendingCruush || revokingMutual) {
-      return;
-    }
-
-    setRevokingMutual(true);
-    try {
-      await revokeMutualCruush(userId);
-      setCruushed(false);
-      setCruushBecameMutual(false);
-      setProfile((currentProfile) => currentProfile ? removeViewerMutualCruush(currentProfile) : currentProfile);
-      handleMutualCruushRevokeSuccess(userId, profileView.name);
-    } catch (cruushError) {
-      console.error('Error revoking mutual cruush:', cruushError);
-      notifyMutualCruushRevokeError(cruushError);
-    } finally {
-      setRevokingMutual(false);
     }
   };
 
@@ -470,18 +424,18 @@ export default function ProfileView() {
                 <Button
                   className="flex-1"
                   onClick={() => {
-                    void (isAlreadyMutual ? handleRevokeMutualCruush() : handleCruush());
+                    void handleCruush();
                   }}
                   disabled={cruushDisabled}
-                  aria-label={revokingMutual ? 'removing mutual cruush' : isAlreadyMutual ? 'remove mutual cruush' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
+                  aria-label={isAlreadyMutual ? 'mutual cruush' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
                   style={{
-                    background: cruushDisabled || isAlreadyMutual
+                    background: cruushDisabled
                       ? '#666'
                       : 'var(--cruush-gradient)',
                   }}
                 >
                   <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={cruushDisabled ? 'white' : 'colored'} />
-                  {revokingMutual ? 'removing...' : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
+                  {isAlreadyMutual ? 'mutual cruush' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
                 </Button>
                 <Button
                   variant="outline"
