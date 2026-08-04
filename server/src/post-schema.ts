@@ -30,7 +30,7 @@ const crowdTargetsSchema = z.array(z.string()).optional().default([])
 
 export const createPostPayloadSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 }),
-  expiresIn: postExpirySchema.optional().default("24h"),
+  expiresIn: postExpirySchema.optional().default("6h"),
   crowdTargets: crowdTargetsSchema
 }).strict();
 

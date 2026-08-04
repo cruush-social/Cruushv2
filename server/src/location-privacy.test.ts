@@ -9,7 +9,6 @@ import {
   distanceMiles,
   issueBrowserDisplayKey,
   loadLocationEnvelope,
-  loadLocationEnvelopes,
   loadVisibilityPolicy,
   makeDisplayLocationToken,
   saveVisibilityPolicy,
@@ -173,47 +172,6 @@ describe("location privacy", () => {
     expect(JSON.stringify(db.query.mock.calls)).not.toContain("-74.002");
   });
 
-  it("loads recently collected location envelopes after legacy expiry", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
-
-    try {
-      const writeDb = createLocationDb();
-      await storeLocationEnvelope({ config, db: writeDb }, {
-        subjectUserId,
-        lat: 40.711,
-        lng: -74.002,
-        accuracyM: 12
-      });
-      const insertCall = writeDb.query.mock.calls.find(([sql]) => String(sql).includes("insert into encrypted_location_envelopes"));
-      const params = (insertCall?.[1] ?? []) as unknown[];
-      const legacyExpiredRow = {
-        subject_user_id: params[0],
-        location_version: params[1],
-        location_ciphertext: params[2],
-        location_nonce: params[3],
-        location_auth_tag: params[4],
-        wrapped_location_dek: params[5],
-        location_dek_nonce: params[6],
-        location_dek_auth_tag: params[7],
-        key_version: params[8],
-        coarse_index_tokens: params[9],
-        collected_at_ms: params[10],
-        expires_at_ms: new Date("2026-06-04T11:59:00.000Z").getTime()
-      };
-      const readQuery = vi.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [legacyExpiredRow] }));
-      const readDb = { query: readQuery } as unknown as Pick<DbClient, "query"> & { query: typeof readQuery };
-
-      vi.setSystemTime(new Date("2026-06-04T12:30:00.000Z"));
-      const loaded = await loadLocationEnvelopes({ config, db: readDb }, [subjectUserId]);
-
-      expect(loaded.get(subjectUserId)?.latE7).toBe(407110000);
-      expect(readQuery.mock.calls[0]?.[0]).toContain("collected_at_ms >= $3");
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
   it("stores coarse index tokens for the full encrypted location ttl", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
@@ -232,10 +190,10 @@ describe("location privacy", () => {
         config,
         40.711,
         -74.002,
-        new Date("2026-06-07T11:30:00.000Z").getTime()
+        new Date("2026-06-10T11:30:00.000Z").getTime()
       );
 
-      expect(tokens.length).toBeGreaterThan(350);
+      expect(tokens.length).toBeGreaterThan(600);
       expect(futureTokens.some((token) => tokens.includes(token))).toBe(true);
     } finally {
       vi.useRealTimers();

@@ -394,7 +394,7 @@ export async function claimBetaLaunchCruushPlus(
   const activeUntil = new Date(BETA_LAUNCH_CRUUSH_PLUS_ENDS_AT);
 
   if (Number.isNaN(activeUntil.getTime()) || activeUntil.getTime() <= Date.now()) {
-    throw new ApiError(400, "OFFER_ENDED", "The beta launch cruush+ offer has ended.");
+    throw new ApiError(400, "VALIDATION_ERROR", "The beta launch cruush+ offer has ended.");
   }
 
   return runTransaction(app.db, (db) => grantPromotionalAccessUntilInTransaction(db, {

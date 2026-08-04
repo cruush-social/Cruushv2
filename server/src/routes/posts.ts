@@ -234,7 +234,7 @@ const postParamsSchema = z.object({
 
 const feedPostQuerySchema = z.object({
   within: z.enum(["1h", "3h", "6h", "24h"]).default("24h"),
-  distanceMiles: z.coerce.number().min(1).max(15).default(5),
+  distanceMiles: z.coerce.number().min(1).max(15).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   before: z.string().datetime().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
@@ -363,44 +363,17 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const payload = createPostPayloadSchema.parse(request.body);
     await requireCruushPlus(app, userId, "Upgrade to cruush+ to post on the local feed.");
     const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
-    const crowdTargetTokenRows = payload.crowdTargets.flatMap((crowd) => createCrowdTokens(app.config, [crowd]).map((token) => ({
-      crowd,
-      token_hash: token.token_hash,
-      token_key_version: token.token_key_version
-    })));
-
-    // The insert below silently drops posts targeting crowds the author is not in.
-    // Check first so the author gets a message naming the crowds instead of a bare 403.
-    if (crowdTargetTokenRows.length > 0) {
-      const unmatchedCrowds = await app.db.query<{ crowd: string }>(
-        `select distinct token.crowd
-         from jsonb_to_recordset($2::jsonb) as token(crowd text, token_hash text, token_key_version text)
-         where not exists (
-           select 1
-           from profile_sensitive_tokens author_crowd_token
-           where author_crowd_token.user_id = $1
-             and author_crowd_token.token_hash = token.token_hash
-             and author_crowd_token.token_key_version = token.token_key_version
-         )`,
-        [userId, JSON.stringify(crowdTargetTokenRows)]
-      );
-
-      if (unmatchedCrowds.rows.length > 0) {
-        const missing = unmatchedCrowds.rows.map((row) => row.crowd);
-        throw new ApiError(
-          400,
-          "CROWD_TARGET_NOT_MEMBER",
-          `You can only post to crowds you belong to. Add ${missing.join(", ")} to your profile, or remove ${missing.length === 1 ? "it" : "them"} from this post.`
-        );
-      }
-    }
-
     const moderation = await moderateTextOrReject(app, {
       userId,
       surface: "feed",
       text: payload.content
     });
     const encryptedContent = encryptTextContent(app.config, "feed", payload.content);
+    const crowdTargetTokenRows = payload.crowdTargets.flatMap((crowd) => createCrowdTokens(app.config, [crowd]).map((token) => ({
+      crowd,
+      token_hash: token.token_hash,
+      token_key_version: token.token_key_version
+    })));
 
     const result = await app.db.query<PostRow>(
       `with eligible_user as (

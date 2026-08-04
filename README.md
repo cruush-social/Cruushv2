@@ -195,10 +195,9 @@ startup migration creates the rewards schema and default database settings.
   VITE_MAP_STYLE_URL=
   VITE_MAP_VECTOR_TILEJSON_URL=https://tiles.openfreemap.org/planet
   VITE_MAP_GLYPHS_URL=
-  VITE_MAP_ENABLE_3D_BUILDINGS=false
   VITE_MAP_TILE_URL=https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png
   VITE_MAP_ATTRIBUTION=&copy; CARTO &copy; OpenStreetMap contributors
   ```
 
-  `VITE_MAP_STYLE_URL` takes priority when set, and it bypasses the in-app cruush vector style, including Cormorant Garamond labels. `VITE_MAP_GLYPHS_URL` is optional and should only point at a self-hosted glyph endpoint that actually includes Cormorant Garamond stacks. `VITE_MAP_ENABLE_3D_BUILDINGS=true` enables a local/test dark `fill-extrusion` layer from OpenFreeMap building tiles and pitches the camera so building height is visible. `VITE_MAP_TILE_URL` switches the map back to a raster tile fallback and also bypasses the in-app Cormorant vector style. Do not put paid or secret map API keys in frontend env vars. Nearby markers come from the existing discovery API; the map screen does not create real-time presence, matching, messaging, or premium filters. Browser geolocation is requested only after tapping "Use my location," and exact coordinates are kept out of the UI. The current implementation snaps coordinates to an approximate area before map display and discovery refreshes.
+  `VITE_MAP_STYLE_URL` takes priority when set, and it bypasses the in-app Cruush vector style, including Cormorant Garamond labels. `VITE_MAP_GLYPHS_URL` is optional and should only point at a self-hosted glyph endpoint that actually includes Cormorant Garamond stacks. `VITE_MAP_TILE_URL` switches the map back to a raster tile fallback and also bypasses the in-app Cormorant vector style. Do not put paid or secret map API keys in frontend env vars. Nearby markers come from the existing discovery API; the map screen does not create real-time presence, matching, messaging, or premium filters. Browser geolocation is requested only after tapping "Use my location," and exact coordinates are kept out of the UI. The current implementation snaps coordinates to an approximate area before map display and discovery refreshes.
   

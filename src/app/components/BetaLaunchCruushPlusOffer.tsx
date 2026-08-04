@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Gift } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -9,13 +10,11 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import CruushPlusWord from './CruushPlusWord';
-import { ApiClientError } from '../lib/apiClient';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { claimBetaLaunchCruushPlus } from '../lib/rewardsApi';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
-import './BetaLaunchCruushPlusOffer.css';
 
 const BETA_LAUNCH_OFFER_STORAGE_KEY = 'cruush:beta-launch-plus-offer-seen';
 
@@ -31,31 +30,9 @@ function dialogKey(userId: string) {
   return `beta-launch-plus-offer:${userId}`;
 }
 
-function BetaLaunchCruushPlusCard() {
-  return (
-    <div className="beta-launch-plus-card-scene" aria-hidden="true">
-      <div className="beta-launch-plus-card" data-testid="beta-launch-cruush-plus-card">
-        <div className="beta-launch-plus-card__moire" />
-        <div className="beta-launch-plus-card__pattern beta-launch-plus-card__pattern--base" />
-        <div className="beta-launch-plus-card__pattern beta-launch-plus-card__pattern--drift" />
-        <div className="beta-launch-plus-card__pattern beta-launch-plus-card__pattern--counter" />
-        <div className="beta-launch-plus-card__flicker" />
-        <div className="beta-launch-plus-card__shine" />
-        <div className="beta-launch-plus-card__label">
-          <div className="beta-launch-plus-card__label-bg" />
-          <span className="beta-launch-plus-card__label-text" data-testid="beta-launch-cruush-plus-card-label">
-            <CruushPlusWord />
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPlusOfferProps) {
   const [open, setOpen] = useState(false);
   const [claiming, setClaiming] = useState(false);
-  const [activated, setActivated] = useState(false);
   const [error, setError] = useState('');
   const activeDialogKey = dialogKey(userId);
 
@@ -87,6 +64,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
       }
 
       if (acquireOneTimeDialog(activeDialogKey)) {
+        markSeen();
         setOpen(true);
         return;
       }
@@ -136,7 +114,6 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
     setOpen(nextOpen);
 
     if (!nextOpen) {
-      setActivated(false);
       releaseOneTimeDialog(activeDialogKey);
     }
   };
@@ -148,14 +125,8 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
     try {
       const claim = await claimBetaLaunchCruushPlus();
       window.dispatchEvent(new CustomEvent(CRUUSH_PLUS_CHANGED_EVENT, { detail: claim }));
-      markSeen();
-      setActivated(true);
+      close();
     } catch (claimError) {
-      // The offer is gone for good, so stop re-opening this dialog on every load.
-      if (claimError instanceof ApiClientError && claimError.code === 'OFFER_ENDED') {
-        markSeen();
-      }
-
       setError(claimError instanceof Error ? claimError.message : 'Unable to activate cruush+.');
     } finally {
       setClaiming(false);
@@ -164,31 +135,14 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="beta-launch-plus-dialog max-w-sm rounded-lg border-white/10 bg-background">
-        <DialogHeader className="items-center text-center sm:text-center">
-          <BetaLaunchCruushPlusCard />
-          <DialogTitle className="beta-launch-plus-dialog__title">
-            {activated ? (
-              <>
-                <CruushPlusWord className="beta-launch-plus-dialog__inline-word" /> activated
-              </>
-            ) : (
-              <>
-                7-day <CruushPlusWord className="beta-launch-plus-dialog__inline-word" /> trial
-              </>
-            )}
-          </DialogTitle>
-          <DialogDescription className="beta-launch-plus-dialog__description">
-            {activated ? (
-              <>
-                Your beta launch week is active. Press Done to close this card.
-              </>
-            ) : (
-              <>
-                Claim one free week of <CruushPlusWord className="beta-launch-plus-dialog__inline-word" /> for the beta
-                launch, active until August 7 at 12:00 AM.
-              </>
-            )}
+      <DialogContent className="max-w-sm rounded-lg border-white/10 bg-background">
+        <DialogHeader>
+          <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-primary/25 bg-primary/10">
+            <Gift className="h-5 w-5 text-primary" />
+          </div>
+          <DialogTitle>Beta launch gift</DialogTitle>
+          <DialogDescription>
+            Get one free week of <CruushPlusWord /> for the beta launch, active until August 7 at 12:00 AM.
           </DialogDescription>
         </DialogHeader>
         {error ? (
@@ -196,22 +150,13 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
             {error}
           </div>
         ) : null}
-        <DialogFooter className="beta-launch-plus-dialog__footer gap-2 sm:gap-2">
+        <DialogFooter className="gap-2 sm:gap-2">
           <Button
             disabled={claiming}
-            onClick={activated ? close : handleClaim}
+            onClick={handleClaim}
             style={{ background: 'var(--cruush-gradient)' }}
           >
-            {activated ? (
-              'Done'
-            ) : claiming ? (
-              'Activating...'
-            ) : (
-              <>
-                OK, activate{' '}
-                <CruushPlusWord className="beta-launch-plus-dialog__inline-word beta-launch-plus-dialog__button-word" />
-              </>
-            )}
+            {claiming ? 'Activating...' : 'OK, activate cruush+'}
           </Button>
         </DialogFooter>
       </DialogContent>

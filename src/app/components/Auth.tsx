@@ -15,6 +15,7 @@ import { CruushIcon } from './CruushIconImage';
 import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
+import cruushLogo from '../assets/brand/cruush-logo.svg';
 import './Auth.css';
 
 interface AuthProps {
@@ -428,6 +429,14 @@ export default function Auth({ onAuth }: AuthProps) {
         {/* Logo */}
         <div className="launch-login-auth-brand text-center" data-testid="launch-login-auth-brand">
           <h1 className="sr-only">cruush</h1>
+          <img
+            alt=""
+            aria-hidden="true"
+            className="launch-login-auth-logo-image"
+            data-testid="launch-login-auth-logo"
+            draggable={false}
+            src={cruushLogo}
+          />
           <div className="launch-login-auth-tagline-stack">
             <p className="launch-login-auth-tagline" data-testid="launch-login-auth-tagline">
               <span>queer cruisers cruise</span>{' '}

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import BottomNav from './BottomNav';
@@ -64,21 +64,16 @@ describe('BottomNav', () => {
     expect(nav.className).not.toContain('bg-background/');
     expect(nav.className).not.toContain('backdrop-blur');
     expect(nav).toHaveClass('pointer-events-none');
-    expect(nav).toHaveClass('cruush-map-nav');
     expect(nav.querySelector('.bg-gradient-to-t')).toBeNull();
     expect(nav.className).toContain('pb-[calc(0.75rem+env(safe-area-inset-bottom))]');
 
     const pill = nav.querySelector('[data-testid="bottom-nav-pill"]');
 
-    expect(pill).toHaveClass('rounded-full', 'border');
-    expect(pill).toHaveClass('cruush-bottom-nav-pill', 'cruush-liquid-glass-dock');
-    expect(pill).not.toHaveClass('cruush-glass-bar', 'cruush-glass-menu-toggle', 'bg-background/68', 'backdrop-blur-md');
+    expect(pill).toHaveClass('rounded-full', 'border', 'bg-background/68', 'backdrop-blur-md');
     expect(pill).toHaveClass('pointer-events-auto');
     expect(pill).toHaveClass('px-1.5', 'pb-1.5', 'pt-2');
     expect(pill).toHaveClass('mx-auto');
-    expect(pill).toHaveClass('max-w-[23rem]');
-    expect(pill).not.toHaveClass('max-w-[35rem]', 'lg:ml-auto', 'lg:mr-4');
-    expect(screen.getByTestId('bottom-nav-indicator')).toHaveClass('cruush-bottom-nav-indicator');
+    expect(pill).not.toHaveClass('lg:ml-auto', 'lg:mr-4');
   });
 
   it('adds a bottom backdrop on scroll-heavy non-map pages', () => {
@@ -94,7 +89,7 @@ describe('BottomNav', () => {
     expect(backdrop).toHaveClass('h-28', 'from-background', 'from-[68%]', 'via-background/96', 'via-[82%]', 'to-background/0');
   });
 
-  it('uses a moving active tab treatment without glow or color animation', () => {
+  it('uses a circular active tab treatment without glow', () => {
     render(
       <MemoryRouter initialEntries={['/feed']}>
         <BottomNav />
@@ -103,56 +98,11 @@ describe('BottomNav', () => {
 
     const activeButton = screen.getByRole('button', { name: /feed/i });
     const activeIcon = activeButton.querySelector('img');
-    const pill = screen.getByTestId('bottom-nav-pill');
-    const indicator = screen.getByTestId('bottom-nav-indicator');
-    const indicatorSurface = indicator.firstElementChild;
 
-    expect(pill.getAttribute('style')).toContain('--bottom-nav-active-offset: calc(1 * ((100% - 4.5rem) / 4))');
-    expect(activeButton).toHaveClass('rounded-full', 'cruush-bottom-nav-current-page', 'text-white', 'overflow-hidden');
-    expect(activeButton).not.toHaveClass('cruush-glass-soft', 'bg-white/[0.10]');
-    expect(activeButton.className).not.toContain('transition-colors');
+    expect(activeButton).toHaveClass('rounded-full', 'bg-white/[0.10]');
+    expect(activeButton.className).toContain('hover:bg-white/[0.12]');
     expect(activeButton.className).not.toContain('shadow-[0_0');
     expect(activeIcon?.className).not.toContain('drop-shadow');
-    expect(indicatorSurface).toHaveClass('cruush-bottom-nav-indicator-surface', 'cruush-liquid-glass-current');
-    expect(indicatorSurface).toHaveAttribute('data-direction', 'still');
-    expect(indicatorSurface).toHaveAttribute('data-distance', '0');
-  });
-
-  it('slides the active indicator between bottom nav items without swapping colors mid-animation', async () => {
-    render(
-      <MemoryRouter initialEntries={['/feed']}>
-        <BottomNav />
-        <LocationProbe />
-      </MemoryRouter>
-    );
-
-    const pill = screen.getByTestId('bottom-nav-pill');
-    const messagesButton = screen.getByRole('button', { name: /messages/i });
-
-    fireEvent.click(messagesButton);
-
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/messages');
-    expect(pill.getAttribute('style')).toContain('--bottom-nav-active-offset: calc(3 * ((100% - 4.5rem) / 4))');
-    expect(messagesButton.className).not.toContain('transition-colors');
-    await waitFor(() => {
-      const indicatorSurface = screen.getByTestId('bottom-nav-indicator').firstElementChild;
-
-      expect(indicatorSurface).toHaveAttribute('data-direction', 'forward');
-      expect(indicatorSurface).toHaveAttribute('data-distance', '2');
-    });
-  });
-
-  it('does not show a false active indicator on routes outside the bottom menu', () => {
-    render(
-      <MemoryRouter initialEntries={['/rewards']}>
-        <BottomNav />
-      </MemoryRouter>
-    );
-
-    expect(screen.queryByTestId('bottom-nav-indicator')).not.toBeInTheDocument();
-    screen.getAllByRole('button').forEach((button) => {
-      expect(button).not.toHaveAttribute('aria-current');
-    });
   });
 
   it('keeps all five icons centered inside mobile-safe circular tabs', () => {
@@ -185,8 +135,6 @@ describe('BottomNav', () => {
 
     expect(activeFeedIcon?.getAttribute('src')).toContain('feed-colored');
     expect(inactiveMapIcon?.getAttribute('src')).toContain('map-white');
-    expect(screen.getByRole('button', { name: /feed/i })).toHaveClass('cruush-bottom-nav-current-page');
-    expect(screen.getByRole('button', { name: /map/i })).not.toHaveClass('cruush-bottom-nav-current-page');
   });
 
   it('opens the desktop profile side panel from the profile icon on the map', () => {
