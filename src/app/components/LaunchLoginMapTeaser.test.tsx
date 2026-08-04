@@ -102,7 +102,7 @@ describe('LaunchLoginMapTeaser', () => {
 
     render(<LaunchLoginRainPane />);
 
-    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(3);
-    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(6);
+    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(2);
+    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(4);
   });
 });

@@ -146,13 +146,6 @@
   transform: translateZ(0);
 }
 
-.launch-login-map-teaser__codepen-butterfly-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
->>>>>>> release/consolidated-updates
-}
-
 .launch-login-map-teaser__mobile-pulse {
   /* Behind the logo: this is a screen-blend glow, and above the video it
      lightened the logo itself and made it read as translucent. */
