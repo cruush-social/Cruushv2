@@ -130,6 +130,10 @@ const configSchema = z.object({
   TRUST_SAFETY_ALERT_EMAIL: z.string().trim().email().optional().or(z.literal("")).default(""),
   SUPPORT_INBOX_EMAIL: z.string().trim().email().optional().or(z.literal("")).default(""),
   INTERNAL_API_SECRET: z.string().optional().default(""),
+  GITHUB_BUG_TRIAGE_ENABLED: booleanEnvSchema,
+  GITHUB_BUG_TRIAGE_REPO: z.string().trim().regex(/^$|^[\w.-]+\/[\w.-]+$/).optional().default(""),
+  GITHUB_BUG_TRIAGE_TOKEN: z.string().optional().default(""),
+  GITHUB_BUG_TRIAGE_LABEL: z.string().trim().max(50).optional().default("bug-report"),
   RESEND_API_KEY: z.string().optional().default(""),
   MAIL_FROM: z.string().optional().default(""),
   EMAIL_PREVIEW_ENABLED: booleanEnvSchema,
@@ -718,13 +722,18 @@ type BetaAccessConfigKey =
   | "BETA_ACCESS_CENTER_LONGITUDE"
   | "BETA_ACCESS_RADIUS_MILES"
   | "BETA_ACCESS_VENUE_NAME";
+type BugTriageConfigKey =
+  | "GITHUB_BUG_TRIAGE_ENABLED"
+  | "GITHUB_BUG_TRIAGE_REPO"
+  | "GITHUB_BUG_TRIAGE_TOKEN"
+  | "GITHUB_BUG_TRIAGE_LABEL";
 
 export type AppConfig = Omit<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey
 > & Partial<Pick<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey
 >>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {

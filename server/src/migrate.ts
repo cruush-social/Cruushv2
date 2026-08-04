@@ -63,7 +63,8 @@ const migrationFiles = [
   "054_notification_sound_preference.sql",
   "055_user_notice_dismissals.sql",
   "056_daily_login_bonus_rewards.sql",
-  "057_post_onboarding_affiliate_share_notice.sql"
+  "057_post_onboarding_affiliate_share_notice.sql",
+  "058_support_request_bug_triage.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;
