@@ -28,7 +28,7 @@ function getTeaserVideoSource() {
 }
 
 export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLoginMapTeaserProps = {}) {
-  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(true);
   const [videoSource, setVideoSource] = useState<string | null>(() => getTeaserVideoSource());
   const isMobileRecording = videoSource === MOBILE_TEASER_VIDEO;
   const teaserClassName = [
@@ -86,9 +86,10 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
           loop
           muted
           onCanPlay={() => setIsVideoReady(true)}
+          onLoadedData={() => setIsVideoReady(true)}
           onError={() => setIsVideoReady(false)}
           playsInline
-          preload="metadata"
+          preload="auto"
           src={videoSource}
         />
       ) : (
