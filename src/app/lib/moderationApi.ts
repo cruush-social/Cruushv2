@@ -2,7 +2,7 @@ import { requestApi } from './apiClient';
 
 export type ModerationReportStatus = 'open' | 'automod_processing' | 'resolved' | 'dismissed';
 export type ModerationTargetType = 'user' | 'profile' | 'conversation' | 'message' | 'post' | 'profile_photo';
-export type ModeratedAccountStatus = 'active' | 'under_review' | 'suspended';
+export type ModeratedAccountStatus = 'active' | 'under_review' | 'suspended' | 'banned';
 
 export type ModerationActionReceipt = {
   id: string;
@@ -225,6 +225,60 @@ export function changeModeratedAccountStatus(userId: string, payload: ChangeAcco
       ...(payload.reportId ? { reportId: payload.reportId } : {}),
     }),
   });
+}
+
+export type ModeratedUser = {
+  id: string;
+  displayName: string;
+  email: string;
+  accountStatus: ModeratedAccountStatus;
+  accountStatusUpdatedAt: string;
+  createdAt: string;
+  moderatorRole: 'admin' | 'moderator' | null;
+  isOwner: boolean;
+  openReportCount: number;
+  totalReportCount: number;
+};
+
+export type ModeratedUserSearchResponse = {
+  users: ModeratedUser[];
+  page: {
+    limit: number;
+    offset: number;
+    total: number;
+    hasMore: boolean;
+  };
+};
+
+export type ModeratedUserDetail = {
+  user: ModeratedUser;
+  history: ModerationHistoryItem[];
+  reports: ModerationReport[];
+};
+
+export function searchModeratedUsers(options: {
+  query?: string;
+  status?: ModeratedAccountStatus;
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const searchParams = new URLSearchParams({
+    limit: String(options.limit ?? 25),
+    offset: String(options.offset ?? 0),
+  });
+
+  if (options.query?.trim()) {
+    searchParams.set('query', options.query.trim());
+  }
+  if (options.status) {
+    searchParams.set('status', options.status);
+  }
+
+  return requestApi<ModeratedUserSearchResponse>(`/api/admin/moderation/users?${searchParams.toString()}`);
+}
+
+export function getModeratedUser(userId: string) {
+  return requestApi<ModeratedUserDetail>(`/api/admin/moderation/users/${encodeURIComponent(userId)}`);
 }
 
 export function getModerationQueue(options: {

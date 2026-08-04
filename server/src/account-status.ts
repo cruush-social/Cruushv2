@@ -1,9 +1,10 @@
-export type AccountStatus = "active" | "under_review" | "suspended" | "deleted";
+export type AccountStatus = "active" | "under_review" | "suspended" | "banned" | "deleted";
 
 const accountStatuses = new Set<AccountStatus>([
   "active",
   "under_review",
   "suspended",
+  "banned",
   "deleted"
 ]);
 
@@ -20,4 +21,8 @@ export function accountCanAuthenticate(value: unknown) {
 
 export function accountCanPerformUnsafeAction(value: unknown) {
   return normalizeAccountStatus(value) === "active";
+}
+
+export function accountIsPermanentlyBanned(value: unknown) {
+  return normalizeAccountStatus(value) === "banned";
 }
