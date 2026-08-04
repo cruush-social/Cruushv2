@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   DetectFacesCommand,
@@ -12,9 +15,38 @@ import {
 //
 // Skips unless credentials are present, so CI and local runs stay green:
 //
-//   AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... npx vitest run src/rekognition-live.test.ts
+//   1. put the secret in server/.env (gitignored)
+//   2. cd server && npx vitest run src/rekognition-live.test.ts
 //
 // Or from inside the deployed container, where the env is already set.
+
+// Credentials come from server/.env, which is gitignored. Parsed inline rather
+// than adding a dotenv dependency for one test. Real env vars win, so the same
+// test runs unchanged inside the deployed container.
+function loadLocalEnv() {
+  const envPath = path.resolve(fileURLToPath(new URL(".", import.meta.url)), "../.env");
+
+  if (!existsSync(envPath)) {
+    return;
+  }
+
+  for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/);
+
+    if (!match) {
+      continue;
+    }
+
+    const [, key, rawValue] = match;
+    const value = rawValue.trim().replace(/^["']|["']$/g, "");
+
+    if (value && !process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadLocalEnv();
 
 const hasCredentials = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
 const region = process.env.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1";
