@@ -82,13 +82,15 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
           autoPlay
           className="launch-login-map-teaser__video"
           data-testid="launch-login-teaser-video"
+          disablePictureInPicture
+          disableRemotePlayback
           key={videoSource}
           loop
           muted
           onCanPlay={() => setIsVideoReady(true)}
           onError={() => setIsVideoReady(false)}
           playsInline
-          preload="metadata"
+          preload="auto"
           src={videoSource}
         />
       ) : (
