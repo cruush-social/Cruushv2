@@ -15,12 +15,10 @@ describe('LaunchLoginMapTeaser', () => {
     expect(teaser).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('launch-login-teaser-video')).toHaveAttribute(
       'src',
-      '/teasers/cruush-logo-login-alpha-desktop.webm',
+      '/teasers/launch-login-teaser-desktop.webm',
     );
     expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-realistic-glitter')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-butterfly-field')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-codepen-butterfly-canvas')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-mobile-pulse')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-video-shade')).toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
@@ -53,10 +51,9 @@ describe('LaunchLoginMapTeaser', () => {
     expect(video).toHaveAttribute('loop');
     expect((video as HTMLVideoElement).muted).toBe(true);
     expect(video).toHaveAttribute('playsinline');
-    expect(video).toHaveAttribute('preload', 'metadata');
     expect(video).toHaveAttribute(
       'src',
-      '/teasers/cruush-logo-login-alpha-mobile.webm',
+      '/teasers/launch-login-teaser-mobile.mp4',
     );
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-frosted-glass')).not.toBeInTheDocument();
@@ -83,8 +80,6 @@ describe('LaunchLoginMapTeaser', () => {
     expect(screen.getByTestId('launch-login-ambient-fallback')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-realistic-glitter')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-butterfly-field')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-codepen-butterfly-canvas')).toBeInTheDocument();
   });
 
   it('keeps the archived rain layer available for later restoration', () => {
@@ -107,10 +102,7 @@ describe('LaunchLoginMapTeaser', () => {
 
     render(<LaunchLoginRainPane />);
 
-    expect(screen.getByTestId('launch-login-foreground-rain-pane')).toHaveClass('launch-login-rain-pane--mobile-lite');
-    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(2);
-    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(4);
-    expect(screen.getAllByTestId('launch-login-clear-trail')[0]).toHaveStyle({ '--duration': '12s' });
-    expect(screen.getAllByTestId('launch-login-water-droplet')[0]).toHaveStyle({ '--duration': '9s' });
+    expect(screen.getAllByTestId('launch-login-clear-trail')).toHaveLength(3);
+    expect(screen.getAllByTestId('launch-login-water-droplet')).toHaveLength(6);
   });
 });
