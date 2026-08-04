@@ -89,3 +89,7 @@ coverage/
 
 # Ignore docs
 .docs/design-master.md
+
+# Ignore macOS AppleDouble and Finder metadata
+._*
+.DS_Store

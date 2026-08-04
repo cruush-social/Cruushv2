@@ -234,7 +234,7 @@ const postParamsSchema = z.object({
 
 const feedPostQuerySchema = z.object({
   within: z.enum(["1h", "3h", "6h", "24h"]).default("24h"),
-  distanceMiles: z.coerce.number().min(1).max(15).default(1),
+  distanceMiles: z.coerce.number().min(1).max(15).default(15),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   before: z.string().datetime().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
