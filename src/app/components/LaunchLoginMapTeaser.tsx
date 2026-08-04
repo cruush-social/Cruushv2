@@ -11,8 +11,8 @@ type LaunchLoginMapTeaserProps = {
   onPlaybackStateChange?: (state: LaunchLoginMapTeaserPlaybackState) => void;
 };
 
-const DESKTOP_TEASER_VIDEO = '/teasers/cruush-logo-login-alpha-desktop.webm';
-const MOBILE_TEASER_VIDEO = '/teasers/cruush-logo-login-alpha-mobile.webm';
+const DESKTOP_TEASER_VIDEO = '/teasers/launch-login-teaser-desktop.webm';
+const MOBILE_TEASER_VIDEO = '/teasers/launch-login-teaser-mobile.mp4';
 const CODEPEN_BUTTERFLY_TEXTURE = '/teasers/codepen-butterfly-tex.png';
 const MOBILE_VIDEO_QUERY = '(max-width: 640px)';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
@@ -253,7 +253,7 @@ function CodePenButterflyField() {
 
     resizeCamera();
 
-    new THREE.TextureLoader().load(CODEPEN_BUTTERFLY_TEXTURE, (texture) => {
+    const setupButterfliesWithTexture = (texture: THREE.Texture) => {
       if (isDisposed) {
         texture.dispose();
         return;
@@ -277,7 +277,31 @@ function CodePenButterflyField() {
       }
 
       render();
-    });
+    };
+
+    new THREE.TextureLoader().load(
+      CODEPEN_BUTTERFLY_TEXTURE,
+      (texture) => setupButterfliesWithTexture(texture),
+      undefined,
+      () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.beginPath();
+          ctx.ellipse(20, 24, 16, 22, -0.2, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(44, 24, 16, 22, 0.2, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+        }
+        const proceduralTexture = new THREE.CanvasTexture(canvas);
+        setupButterfliesWithTexture(proceduralTexture);
+      },
+    );
 
     return () => {
       isDisposed = true;
