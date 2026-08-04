@@ -6210,6 +6210,9 @@ describe("server", () => {
         }]
       })
       .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
         rows: [{
           user_id: targetUserId,
           account_status: "suspended"
@@ -6252,10 +6255,135 @@ describe("server", () => {
       }
     });
 
+    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions where user_id");
+    expect(query.mock.calls[4]?.[1]).toEqual([targetUserId]);
+
     expect(authResponse.statusCode).toBe(401);
-    expect(query.mock.calls[4]?.[0]).toContain("from app_sessions s");
-    expect(query.mock.calls[5]?.[0]).toContain("delete from app_sessions");
-    expect(query.mock.calls[5]?.[1]).toEqual([hashSessionToken("suspended-after-admin-action")]);
+    expect(query.mock.calls[5]?.[0]).toContain("from app_sessions s");
+    expect(query.mock.calls[6]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[6]?.[1]).toEqual([hashSessionToken("suspended-after-admin-action")]);
+  });
+
+  it("lets moderators permanently ban a user and revokes every session", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "admin" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          email: "reported@example.com",
+          account_status: "suspended",
+          account_status_updated_at: "2026-04-29T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          account_status: "banned",
+          account_status_updated_at: "2026-04-29T12:45:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          created_at: "2026-04-29T12:45:01.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/users/${targetUserId}/status`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "banned",
+        reasonCode: "severe_abuse_permanent_ban",
+        notes: "Confirmed severe abuse."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.user.accountStatus).toBe("banned");
+    expect(query.mock.calls[3]?.[1]?.slice(4, 7)).toEqual([
+      "ban_user",
+      "severe_abuse_permanent_ban",
+      "Confirmed severe abuse."
+    ]);
+    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions where user_id");
+    expect(query.mock.calls[4]?.[1]).toEqual([targetUserId]);
+  });
+
+  it("refuses to restrict the owner account", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "admin" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          email: "julienlenazny@gmail.com",
+          account_status: "active",
+          account_status_updated_at: "2026-04-29T12:00:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/users/${targetUserId}/status`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "banned",
+        reasonCode: "severe_abuse_permanent_ban"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("update app_users set account_status"))).toBe(false);
+  });
+
+  it("searches moderated accounts and masks emails from non-admin moderators", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          email: "jordan@example.com",
+          display_name: "Jordan",
+          account_status: "banned",
+          account_status_updated_at: "2026-04-29T12:45:00.000Z",
+          created_at: "2026-01-02T09:00:00.000Z",
+          moderator_role: null,
+          open_report_count: "2",
+          total_report_count: "5",
+          total_count: "1"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/moderation/users?query=jordan",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json().data;
+    expect(body.page.total).toBe(1);
+    expect(body.users[0]).toMatchObject({
+      displayName: "Jordan",
+      email: "j*****@example.com",
+      accountStatus: "banned",
+      openReportCount: 2,
+      totalReportCount: 5,
+      isOwner: false
+    });
+    expect(query.mock.calls[1]?.[1]?.[0]).toBe("jordan");
   });
 
   it("rate limits repeated report creation", async () => {

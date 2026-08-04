@@ -1,5 +1,6 @@
 import type { FastifyRequest } from "fastify";
 import { ApiError } from "./errors.js";
+import { OWNER_FULL_ACCESS_EMAIL } from "./owner-access.js";
 import { getActiveAccountUserId } from "./request-auth.js";
 
 export type ModeratorRole = "admin" | "moderator";
@@ -15,9 +16,12 @@ export async function getModeratorUser(request: FastifyRequest) {
      from moderator_users moderator
      join app_users users on users.id = moderator.user_id
      where moderator.user_id = $1
-       and coalesce(users.account_status, 'active') = 'active'
+       and (
+         coalesce(users.account_status, 'active') = 'active'
+         or (lower(users.email) = $2 and coalesce(users.account_status, 'active') <> 'deleted')
+       )
      limit 1`,
-    [userId]
+    [userId, OWNER_FULL_ACCESS_EMAIL]
   );
   const row = result.rows[0];
 
