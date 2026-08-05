@@ -188,6 +188,16 @@ const FADE_WINDOW_MS = 60 * 1000;
 const DISPLAY_KEY_TTL_MS = 30 * 60 * 1000;
 const COARSE_CELL_DEGREES = 0.02;
 
+// How many coarse cells out from the viewer discovery searches. A cell is
+// 0.02 degrees: about 2.2 km north-south and 1.7 km east-west at this latitude.
+//
+// This was 1, giving a 3x3 grid and roughly a one mile reach - far smaller than
+// the 15 mile beta geofence, so most people inside the launch radius were stored
+// and unexpired yet never matched a query. 11 cells reaches about 11.5 miles and
+// costs 529 cells x 2 time buckets = ~1058 tokens per query, which the GIN index
+// on coarse_index_tokens handles comfortably.
+const COARSE_CELL_SEARCH_RADIUS = 11;
+
 function base64Url(buffer: Buffer) {
   return buffer
     .toString("base64")
@@ -583,8 +593,8 @@ export function createCoarseIndexTokens(config: AppConfig, lat: number, lng: num
   const tokens = new Set<string>();
 
   for (const bucket of buckets) {
-    for (let dLat = -1; dLat <= 1; dLat += 1) {
-      for (let dLng = -1; dLng <= 1; dLng += 1) {
+    for (let dLat = -COARSE_CELL_SEARCH_RADIUS; dLat <= COARSE_CELL_SEARCH_RADIUS; dLat += 1) {
+      for (let dLng = -COARSE_CELL_SEARCH_RADIUS; dLng <= COARSE_CELL_SEARCH_RADIUS; dLng += 1) {
         tokens.add(hmacHex(key, `coarse-cell:${baseLatCell + dLat}:${baseLngCell + dLng}:${bucket}:discovery:${keyVersion}`));
       }
     }
