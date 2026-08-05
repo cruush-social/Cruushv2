@@ -24,6 +24,7 @@ const PrivateGroupChat = lazy(() => import('./components/PrivateGroupChat'));
 const DirectMessages = lazy(() => import('./components/DirectMessages'));
 const NotificationCenter = lazy(() => import('./components/NotificationCenter'));
 const NotificationSettings = lazy(() => import('./components/NotificationSettings'));
+const ForegroundNotifications = lazy(() => import('./components/ForegroundNotifications'));
 const MobileInstallPrompt = lazy(() => import('./components/MobileInstallPrompt'));
 const ReportPage = lazy(() => import('./components/ReportPage'));
 const ModeratorReview = lazy(() => import('./components/ModeratorReview'));
@@ -378,6 +379,7 @@ export default function App({
             <BetaLaunchCruushPlusOffer userId={session.user.id} />
             <FirstFeedPostPrompt userId={session.user.id} />
             <BottomNav />
+            <ForegroundNotifications />
             <DebugCruushPlusToggle />
             {alphaBugControl}
           </Suspense>

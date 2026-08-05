@@ -96,3 +96,4 @@ coverage/
 
 # Local Claude Code config: launch profiles and worktrees with machine-specific paths.
 .claude/
+.agents/

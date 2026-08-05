@@ -65,6 +65,22 @@ vi.mock('./components/CodeOfConductGate', () => ({
   default: () => <div>Mock Code Gate</div>
 }));
 
+vi.mock('./components/ForegroundNotifications', () => ({
+  default: () => null
+}));
+
+vi.mock('./components/FirstFeedPostPrompt', () => ({
+  default: () => null
+}));
+
+vi.mock('./components/OnboardingPreview', () => ({
+  default: () => <div>Mock Onboarding Preview</div>
+}));
+
+vi.mock('./components/MobileInstallPrompt', () => ({
+  default: () => null
+}));
+
 vi.mock('./components/FiltersPanel', () => ({
   default: () => <div>Mock Filters</div>
 }));
