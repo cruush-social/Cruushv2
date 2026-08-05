@@ -85,6 +85,12 @@ const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
 // Rendered footprint of a heart pin, so no two pins may sit inside one another.
 export const MARKER_CLEARANCE_PX = 64;
+// Markers sharing a spot to this many decimal places are treated as one place
+// and collapsed into a cluster that fans out on tap rather than stacking.
+const SAME_LOCATION_CLUSTER_PRECISION = 6;
+const SPIDERFY_RADIUS_PX = 86;
+const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
+const SPIDERFY_SECOND_RING_AFTER = 10;
 const PERSON_CLUSTER_ZOOM_STEP = 1.5;
 
 type MapLibreModule = typeof import('maplibre-gl');
@@ -454,12 +460,86 @@ type RenderedMapMarker = {
   root: Root;
 };
 
+type SpiderfiedCluster = {
+  center: {
+    approximateLatitude: number;
+    approximateLongitude: number;
+  };
+  memberIds: string[];
+};
+
+type DisplayMapMarker = MapMarker & {
+  spiderfy?: {
+    offset: [number, number];
+    index: number;
+    count: number;
+  };
+};
+
+function coordinateKey(marker: Pick<MapMarker, 'approximateLatitude' | 'approximateLongitude'>) {
+  return `${marker.approximateLatitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}:${marker.approximateLongitude.toFixed(SAME_LOCATION_CLUSTER_PRECISION)}`;
+}
+
+function groupMarkersByCoordinate(markers: MapMarker[]) {
+  return markers.reduce((groups, marker) => {
+    const key = coordinateKey(marker);
+    const group = groups.get(key) ?? [];
+    group.push(marker);
+    groups.set(key, group);
+    return groups;
+  }, new Map<string, MapMarker[]>());
+}
+
+function getSpiderfyOffsets(count: number): Array<[number, number]> {
+  return Array.from({ length: count }, (_, index) => {
+    const isSecondRing = count > SPIDERFY_SECOND_RING_AFTER && index >= SPIDERFY_SECOND_RING_AFTER;
+    const ringIndex = isSecondRing ? index - SPIDERFY_SECOND_RING_AFTER : index;
+    const ringCount = isSecondRing ? count - SPIDERFY_SECOND_RING_AFTER : Math.min(count, SPIDERFY_SECOND_RING_AFTER);
+    const radius = isSecondRing ? SPIDERFY_SECOND_RING_RADIUS_PX : SPIDERFY_RADIUS_PX;
+    const angle = -Math.PI / 2 + (ringIndex / Math.max(1, ringCount)) * Math.PI * 2;
+
+    return [
+      Number((Math.cos(angle) * radius).toFixed(2)),
+      Number((Math.sin(angle) * radius).toFixed(2)),
+    ] as [number, number];
+  });
+}
+
+function getSpiderfiedMarkerMap(markers: MapMarker[], spiderfiedCluster: SpiderfiedCluster | null) {
+  if (!spiderfiedCluster || spiderfiedCluster.memberIds.length < 2) {
+    return new Map<string, DisplayMapMarker>();
+  }
+
+  const markersById = new Map(markers.map((marker) => [marker.id, marker]));
+  const members = spiderfiedCluster.memberIds
+    .map((memberId) => markersById.get(memberId))
+    .filter((marker): marker is MapMarker => Boolean(marker));
+
+  if (members.length < 2 || new Set(members.map(coordinateKey)).size !== 1) {
+    return new Map<string, DisplayMapMarker>();
+  }
+
+  const offsets = getSpiderfyOffsets(members.length);
+
+  return new Map(members.map((marker, index) => [
+    marker.id,
+    {
+      ...marker,
+      spiderfy: { offset: offsets[index], index, count: members.length },
+    },
+  ]));
+}
+
 function isMapMarker(value: MapMarker) {
   return Number.isFinite(value.approximateLatitude) && Number.isFinite(value.approximateLongitude);
 }
 
 function isPersonCluster(marker: MapMarker) {
   return marker.kind === 'cluster' && marker.cluster?.kind === 'people';
+}
+
+function isSpiderfyCluster(marker: MapMarker) {
+  return isPersonCluster(marker) && marker.cluster?.action === 'spiderfy';
 }
 
 function getDisplayName(marker: MapMarker) {
@@ -530,6 +610,13 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
     return markers;
   }
 
+  // Spiderfied members are placed by explicit pixel offsets at render time and
+  // all share one coordinate by definition, so nudging them here would fight
+  // the fan-out. Leave them, and let everything else avoid their anchor.
+  if (markers.some((marker) => (marker as DisplayMapMarker).spiderfy)) {
+    return markers;
+  }
+
   const ordered = [...markers].sort((a, b) => {
     if (a.isCurrentUser === true) return -1;
     if (b.isCurrentUser === true) return 1;
@@ -595,7 +682,7 @@ function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['foc
   );
 }
 
-function buildPeopleCluster(group: MapMarker[], index: number): MapMarker {
+function buildPeopleCluster(group: MapMarker[], index: number, action: 'zoom' | 'spiderfy' = 'zoom'): MapMarker {
   const sortedIds = group.map((marker) => marker.id).sort();
   const count = group.length;
   const label = getClusterLabel(count);
@@ -615,6 +702,7 @@ function buildPeopleCluster(group: MapMarker[], index: number): MapMarker {
       label,
       kind: 'people',
       memberIds: sortedIds,
+      action,
     },
   };
 }
@@ -623,14 +711,34 @@ function applyPersonMarkerClusters(
   markers: MapMarker[],
   zoom: number,
   focusCoordinates: MapViewProps['focusCoordinates'],
-) {
-  if (zoom >= PERSON_CLUSTER_MAX_ZOOM) {
-    return markers;
-  }
+  spiderfiedCluster: SpiderfiedCluster | null = null,
+): DisplayMapMarker[] {
+  const spiderfiedMarkersById = getSpiderfiedMarkerMap(markers, spiderfiedCluster);
+  const spiderfiedIds = new Set(spiderfiedMarkersById.keys());
 
   const clusteredIds = new Set<string>();
-  const clusterableMarkers = markers.filter((marker) => canClusterMarker(marker, focusCoordinates));
+  const clusterableMarkers = markers
+    .filter((marker) => canClusterMarker(marker, focusCoordinates))
+    .filter((marker) => !spiderfiedIds.has(marker.id));
   const clusters: MapMarker[] = [];
+
+  // People standing on the exact same spot never separate by zooming, so they
+  // collapse into a cluster that fans its members out on tap instead.
+  Array.from(groupMarkersByCoordinate(clusterableMarkers).values())
+    .filter((group) => group.length >= 2)
+    .forEach((group) => {
+      group.forEach((marker) => clusteredIds.add(marker.id));
+      clusters.push(buildPeopleCluster(group, clusters.length, 'spiderfy'));
+    });
+
+  if (zoom >= PERSON_CLUSTER_MAX_ZOOM) {
+    return [
+      ...markers
+        .filter((marker) => !clusteredIds.has(marker.id))
+        .map((marker) => spiderfiedMarkersById.get(marker.id) ?? marker),
+      ...clusters,
+    ];
+  }
 
   clusterableMarkers.forEach((seed) => {
     if (clusteredIds.has(seed.id)) {
@@ -655,12 +763,10 @@ function applyPersonMarkerClusters(
     clusters.push(buildPeopleCluster(group, clusters.length));
   });
 
-  if (clusters.length === 0) {
-    return markers;
-  }
-
   return [
-    ...markers.filter((marker) => !clusteredIds.has(marker.id)),
+    ...markers
+      .filter((marker) => !clusteredIds.has(marker.id))
+      .map((marker) => spiderfiedMarkersById.get(marker.id) ?? marker),
     ...clusters,
   ];
 }
@@ -941,7 +1047,9 @@ function createMarkerElement(
     button.setAttribute('aria-label', marker.kind === 'event'
       ? `Open ${marker.event?.venueName ?? name} launch party on map`
       : marker.kind === 'cluster'
-      ? isPersonCluster(marker)
+      ? isSpiderfyCluster(marker)
+        ? `Open ${marker.cluster?.label ?? name} sharing this map spot`
+        : isPersonCluster(marker)
         ? `Zoom into ${marker.cluster?.label ?? name} on map`
         : `Open ${marker.cluster?.label ?? name} on map`
       : `Open ${name} on map`);
@@ -1046,6 +1154,7 @@ function MapView({
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
+  const [spiderfiedCluster, setSpiderfiedCluster] = useState<SpiderfiedCluster | null>(null);
   const mapStyle = useMemo(() => getMapStyle(), []);
   const denseMarkerResult = useMemo(
     () => applyDenseVenueMarkers(markers, denseVenue, currentZoom),
@@ -1055,10 +1164,10 @@ function MapView({
   const focusLongitude = focusCoordinates?.approximateLongitude ?? null;
   const renderedMarkers = useMemo(
     () => separateOverlappingMarkers(
-      applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates),
+      applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates, spiderfiedCluster),
       currentZoom,
     ),
-    [currentZoom, denseMarkerResult.markers, focusCoordinates],
+    [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster],
   );
   const viewportMarkerSignature = useMemo(() => renderedMarkers
     .filter(isMapMarker)
@@ -1503,24 +1612,52 @@ function MapView({
         const { element, root } = createMarkerElement(
           marker,
           (selectedMarker) => {
+            if (isSpiderfyCluster(selectedMarker)) {
+              const memberIds = selectedMarker.cluster?.memberIds ?? [];
+
+              if (memberIds.length >= 2) {
+                setSpiderfiedCluster({
+                  center: {
+                    approximateLatitude: selectedMarker.approximateLatitude,
+                    approximateLongitude: selectedMarker.approximateLongitude,
+                  },
+                  memberIds,
+                });
+              }
+              return;
+            }
+
             if (isPersonCluster(selectedMarker)) {
               const nextZoom = Math.min(
                 PERSON_CLUSTER_MAX_ZOOM + 0.75,
                 Math.max(currentZoom + PERSON_CLUSTER_ZOOM_STEP, PERSON_CLUSTER_MAX_ZOOM + 0.25),
               );
+              setSpiderfiedCluster(null);
               map.setCenter([selectedMarker.approximateLongitude, selectedMarker.approximateLatitude]);
               map.setZoom(nextZoom);
               setCurrentZoom(nextZoom);
               return;
             }
 
+            setSpiderfiedCluster(null);
             onPinClickRef.current(selectedMarker);
           },
           () => {
             lastMarkerInteractionAtRef.current = Date.now();
           },
         );
-        const mapMarker = new maplibregl.Marker({ element })
+        const displayMarker = marker as DisplayMapMarker;
+
+        if (displayMarker.spiderfy) {
+          element.dataset.spiderfyIndex = String(displayMarker.spiderfy.index);
+          element.dataset.spiderfyCount = String(displayMarker.spiderfy.count);
+          element.style.zIndex = String(30 + displayMarker.spiderfy.index);
+        }
+
+        const mapMarker = new maplibregl.Marker({
+          element,
+          ...(displayMarker.spiderfy ? { offset: displayMarker.spiderfy.offset } : {}),
+        })
           .setLngLat([marker.approximateLongitude, marker.approximateLatitude])
           .addTo(map);
         return {

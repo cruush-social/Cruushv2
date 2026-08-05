@@ -69,8 +69,11 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
       this.element.remove();
     });
 
-    constructor(options: { element: HTMLElement }) {
+    offset: [number, number] | null = null;
+
+    constructor(options: { element: HTMLElement; offset?: [number, number] }) {
       this.element = options.element;
+      this.offset = options.offset ?? null;
       markerInstances.push(this);
     }
 
@@ -1083,6 +1086,40 @@ function pixelDistance(a: { approximateLatitude: number; approximateLongitude: n
   const p2 = project(b);
   return Math.hypot(p2.x - p1.x, p2.y - p1.y);
 }
+
+describe('spiderfy clusters', () => {
+  it('fans same-spot people out on tap instead of zooming', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'b', displayName: 'B', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'c', displayName: 'C', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+        ]}
+      />
+    );
+
+    const cluster = await screen.findByRole('button', { name: /sharing this map spot/ });
+
+    await act(async () => {
+      fireEvent.click(cluster);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Tapping expands the members in place; it must not zoom the map.
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
+
+    const offsets = markerInstances.map((m: any) => m.offset).filter(Boolean);
+    expect(offsets).toHaveLength(3);
+    // Every member gets a distinct offset so none of them stack.
+    expect(new Set(offsets.map((o: number[]) => o.join(','))).size).toBe(3);
+  });
+});
 
 describe('separateOverlappingMarkers', () => {
   it('separates two ordinary user pins that share coordinates', () => {
