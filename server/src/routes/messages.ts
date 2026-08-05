@@ -7,6 +7,7 @@ import { readEncryptedMediaObject } from "../media-storage.js";
 import { createPendingMediaAsset, deletePendingMediaAsset, moderatePendingMediaAsset } from "../media-assets.js";
 import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
+import { toReportablePhotoUploadError } from "../photo-upload-incident.js";
 import { ApiError } from "../errors.js";
 import { assertCanSendNsfwMessagePhoto } from "../cruush-match-settings.js";
 import { hasActiveMutualMessagePermission } from "../match-relationships.js";
@@ -1255,7 +1256,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       const favorite = result.rows[0];
 
       if (!favorite) {
-        throw new ApiError(403, "FEATURE_RESTRICTED", "Favorite image uploads are unavailable for this account.");
+        throw new ApiError(500, "INTERNAL_ERROR", "Favorite image could not be saved.");
       }
 
       return reply.code(201).send({
@@ -1263,7 +1264,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       });
     } catch (error) {
       await deletePendingMediaAsset(app, request, pendingAsset);
-      throw error;
+      throw toReportablePhotoUploadError(app, request, error, { surface: "favorite_image", userId });
     }
   });
 
@@ -2091,7 +2092,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       });
     } catch (error) {
       await deletePendingMediaAsset(app, request, pendingAsset);
-      throw error;
+      throw toReportablePhotoUploadError(app, request, error, { surface: "message_photo", userId });
     }
   });
 

@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
+import { toReportablePhotoUploadError } from "../photo-upload-incident.js";
 import {
   createPendingMediaAsset,
   deletePendingMediaAsset,
@@ -596,7 +597,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       if (pendingAsset) {
         await deletePendingMediaAsset(app, request, pendingAsset);
       }
-      throw error;
+      throw toReportablePhotoUploadError(app, request, error, { surface: "profile_photo", userId });
     }
   });
 }
