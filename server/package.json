@@ -21,7 +21,8 @@
     "rewards:qualify-referrals": "sh -c 'if [ -f dist/qualify-referrals.js ]; then node --enable-source-maps dist/qualify-referrals.js; else tsx src/qualify-referrals.ts; fi'",
     "configure:stream-profile-safety": "sh -c 'if [ -f dist/configure-stream-profile-photo-safety.js ]; then node --enable-source-maps dist/configure-stream-profile-photo-safety.js; else tsx src/configure-stream-profile-photo-safety.ts; fi'",
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts"
   },
   "dependencies": {
     "@aws-sdk/client-rekognition": "^3.1090.0",

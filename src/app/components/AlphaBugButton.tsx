@@ -50,10 +50,10 @@ function getBugButtonPlacement(pathname: string) {
 
 function getBugTipPlacement(pathname: string) {
   if (pathname.startsWith('/chat/')) {
-    return 'right-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] sm:right-4 sm:bottom-[calc(4.25rem+env(safe-area-inset-bottom))]';
+    return 'right-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] sm:right-28 sm:bottom-[calc(0.5rem+env(safe-area-inset-bottom))]';
   }
 
-  return 'right-4 bottom-[calc(17.25rem+env(safe-area-inset-bottom))] sm:right-4 sm:bottom-[calc(4.25rem+env(safe-area-inset-bottom))]';
+  return 'right-4 bottom-[calc(17.25rem+env(safe-area-inset-bottom))] sm:right-28 sm:bottom-[calc(0.5rem+env(safe-area-inset-bottom))]';
 }
 
 function waitForVideoMetadata(video: HTMLVideoElement) {
