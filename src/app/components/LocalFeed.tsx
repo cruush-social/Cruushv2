@@ -19,6 +19,7 @@ import {
 } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
+import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
 import {
   createFeedPost,
   deleteFeedPost,
@@ -116,6 +117,7 @@ export default function LocalFeed() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const fetchPosts = useCallback(async (options: {
@@ -173,6 +175,8 @@ export default function LocalFeed() {
       }
     }
   }, [feedCoordinates, feedDistanceMiles, feedWindow]);
+
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   useEffect(() => {
     const loadBillingStatus = () => {
@@ -581,6 +585,7 @@ export default function LocalFeed() {
                     <HeartPhoto
                       className="w-20 flex-shrink-0"
                       label={`${post.user.name} preview`}
+                      masked={dlModeActive && post.user.photoExplicit === true}
                       photo={post.user?.photo}
                       theme={currentUserId && post.user.id === currentUserId ? 'current' : 'nearby'}
                       userId={post.user.id}
