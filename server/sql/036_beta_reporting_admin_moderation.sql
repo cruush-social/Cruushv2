@@ -58,6 +58,10 @@ alter table moderation_actions
     'suspend_user',
     'mark_under_review',
     'unsuspend_user',
+    -- Kept in step with 041 and 061. Migrations re-run on every deploy, so an
+    -- older list here rejects rows written by newer code.
+    'ban_user',
+    'unban_user',
     'restrict_feature',
     'remove_post',
     'remove_media',

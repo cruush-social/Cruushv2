@@ -626,19 +626,6 @@ export default function LocalFeed() {
                             {post.expiresIn}
                           </span>
                           <div className="ml-auto flex items-center gap-2">
-                            {currentUserId && post.user.id === currentUserId ? (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                aria-label={`Delete feed post: ${post.content.slice(0, 48)}`}
-                                title="Delete post"
-                                disabled={deletingPostId === post.id}
-                                onClick={() => void handleDeletePost(post.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            ) : null}
                             {currentUserId && post.user.id !== currentUserId ? (
                               <>
                                 <ReportAction
@@ -661,22 +648,40 @@ export default function LocalFeed() {
 
                       <p className="text-sm">{post.content}</p>
                     </div>
-                    {post.locationPin ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-10 w-10 shrink-0 self-center rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10"
-                        aria-label={`Center map on ${post.user.name}`}
-                        title={`Center map on ${post.user.name}`}
-                        onClick={() => navigate('/map', {
-                          state: {
-                            focusUserId: post.locationPin?.userId,
-                          },
-                        })}
-                      >
-                        <MapPin className="h-5 w-5" />
-                      </Button>
+                    {post.locationPin || (currentUserId && post.user.id === currentUserId) ? (
+                      <div className="flex shrink-0 flex-col items-center justify-center gap-2 self-center">
+                        {currentUserId && post.user.id === currentUserId ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0 rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10 hover:text-destructive"
+                            aria-label={`Delete feed post: ${post.content.slice(0, 48)}`}
+                            title="Delete post"
+                            disabled={deletingPostId === post.id}
+                            onClick={() => void handleDeletePost(post.id)}
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </Button>
+                        ) : null}
+                        {post.locationPin ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0 rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10"
+                            aria-label={`Center map on ${post.user.name}`}
+                            title={`Center map on ${post.user.name}`}
+                            onClick={() => navigate('/map', {
+                              state: {
+                                focusUserId: post.locationPin?.userId,
+                              },
+                            })}
+                          >
+                            <MapPin className="h-5 w-5" />
+                          </Button>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 </div>

@@ -1,20 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import {
-  ArrowLeft,
-  ChevronRight,
-  ExternalLink,
-  KeyRound,
-  LifeBuoy,
-  LogOut,
-  ShieldAlert,
-  ShieldCheck,
-  Gift,
-  Eye,
-  Trash2,
-  UserX,
-  type LucideIcon,
-} from 'lucide-react';
+import { ArrowLeft, ChevronRight, ExternalLink, Eye, Gift, KeyRound, LifeBuoy, LogOut, MapPin, ShieldAlert, ShieldCheck, Trash2, UserX, type LucideIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
 import {
@@ -224,6 +210,12 @@ export default function Settings() {
           label: 'DL Mode',
           description: 'Mask explicit message and favorite-image previews with gradients.',
           action: () => navigate('/privacy/dl-mode'),
+        },
+        {
+          icon: MapPin,
+          label: 'Map presence',
+          description: 'How many days you stay on the map after you were last active.',
+          action: () => navigate('/privacy/map-presence'),
         },
         {
           icon: UserX,
