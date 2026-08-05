@@ -33,6 +33,8 @@ describe("deployed photo upload availability", () => {
       profilePhotos: true,
       messagePhotos: true
     });
+    // The Stream stack on its own is a complete scanner, so uploads stay open even
+    // without Rekognition.
     expect(photoUploadAvailability({
       ...baseConfig,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
@@ -40,12 +42,12 @@ describe("deployed photo upload availability", () => {
       PROFILE_PHOTO_REKOGNITION_ENABLED: false,
       PHOTODNA_ENABLED: true
     })).toEqual({
-      profilePhotos: false,
-      messagePhotos: false
+      profilePhotos: true,
+      messagePhotos: true
     });
   });
 
-  it("keeps uploads closed when the non-PhotoDNA safety gates are incomplete", () => {
+  it("keeps uploads open when either scanner is configured on its own", () => {
     expect(photoUploadAvailability({
       ...baseConfig,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
@@ -57,6 +59,8 @@ describe("deployed photo upload availability", () => {
       messagePhotos: true
     });
 
+    // Rekognition alone is enough: it is the fallback that covers Stream being
+    // unconfigured or unreachable. This is the production shape that used to be closed.
     expect(photoUploadAvailability({
       ...baseConfig,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
@@ -64,8 +68,8 @@ describe("deployed photo upload availability", () => {
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
       ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: true
     })).toEqual({
-      profilePhotos: false,
-      messagePhotos: false
+      profilePhotos: true,
+      messagePhotos: true
     });
   });
 

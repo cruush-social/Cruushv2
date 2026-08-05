@@ -292,13 +292,11 @@ function providerErrorResult(providerName: string, startedAt: number, error: unk
   };
 }
 
+// Rekognition backs Stream up whenever it is enabled. Previously this also required the
+// Stream automod flag or an active alpha test, so production ran with no fallback at all.
 function canUseProfilePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
   return surface === "profile_photo" &&
-    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
-    (
-      app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
-      activeAlphaPhotoUploadBypass(app.config)
-    );
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
 }
 
 function isMessagePhotoSurface(surface: ModerationSurface) {
@@ -307,15 +305,22 @@ function isMessagePhotoSurface(surface: ModerationSurface) {
 
 function canUseMessagePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
   return isMessagePhotoSurface(surface) &&
-    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
-    (
-      app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
-      activeAlphaPhotoUploadBypass(app.config)
-    );
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+}
+
+function isPhotoUploadSurface(surface: ModerationSurface) {
+  return surface === "profile_photo" || isMessagePhotoSurface(surface);
+}
+
+// When every moderation provider is unreachable we let the photo through rather than
+// stranding it in review. This covers provider outages only — a provider that runs and
+// rejects the photo still rejects it.
+function canFailOpenOnProviderOutage(app: FastifyInstance, surface: ModerationSurface) {
+  return isPhotoUploadSurface(surface) || canUseAlphaPhotoUploadBypass(app, surface);
 }
 
 function canUseAlphaPhotoUploadBypass(app: FastifyInstance, surface: ModerationSurface) {
-  return (surface === "profile_photo" || isMessagePhotoSurface(surface)) &&
+  return isPhotoUploadSurface(surface) &&
     activeAlphaPhotoUploadBypass(app.config);
 }
 
@@ -619,7 +624,7 @@ export async function moderateImageOrReject(
   options: { allowProfilePhotoManualReview?: boolean } = {}
 ) {
   const provider = createModerationProvider(app.config);
-  const useAlphaPhotoUploadBypass = canUseAlphaPhotoUploadBypass(app, input.surface);
+  const failOpenOnProviderOutage = canFailOpenOnProviderOutage(app, input.surface);
   const useProfilePhotoRekognitionFallback = canUseProfilePhotoRekognitionFallback(app, input.surface);
   const useMessagePhotoRekognitionFallback = canUseMessagePhotoRekognitionFallback(app, input.surface);
   const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback || useMessagePhotoRekognitionFallback;
@@ -629,10 +634,16 @@ export async function moderateImageOrReject(
   try {
     providerResult = await provider.moderateImage(input);
   } catch (error) {
-    if (!useAlphaPhotoUploadBypass) {
+    if (!failOpenOnProviderOutage) {
       throw error;
     }
 
+    // Record the outage and continue: the Rekognition fallback below still gets a chance
+    // to score this image before anything decides to fail open.
+    app.log.error(
+      { err: error, provider: provider.name, surface: input.surface },
+      "image moderation provider failed"
+    );
     providerResult = providerErrorResult(provider.name, startedAt, error);
   }
 
@@ -654,8 +665,21 @@ export async function moderateImageOrReject(
     providerResult
   });
   let resolvedProviderResult = providerResult;
+  let failedOpenOnProviderOutage = false;
 
-  if (useAlphaPhotoUploadBypass && isProviderUnavailableDecision(decision)) {
+  // Every provider is unreachable, including the Rekognition fallback. Let the upload
+  // through instead of parking it in a review queue nobody can clear.
+  if (failOpenOnProviderOutage && isProviderUnavailableDecision(decision)) {
+    failedOpenOnProviderOutage = true;
+    app.log.warn(
+      {
+        provider: providerResult.provider,
+        surface: input.surface,
+        userId: input.userId,
+        providerError: providerResult.error ?? null
+      },
+      "photo moderation unavailable, allowing upload"
+    );
     resolvedProviderResult = alphaPhotoUploadBypassResult(providerResult);
     decision = mapProviderResultToPolicy({
       surface: input.surface,
@@ -665,7 +689,9 @@ export async function moderateImageOrReject(
   }
 
   if (input.surface === "profile_photo") {
-    const skipAdultHumanGateForAlphaUpload = useAlphaPhotoUploadBypass &&
+    // Only skip the adult-human requirement when we actually failed open. A provider that
+    // ran and found no adult human must still fall through to the gate below.
+    const skipAdultHumanGateForAlphaUpload = failedOpenOnProviderOutage &&
       decision.decision === "allow" &&
       !hasHumanProof(resolvedProviderResult);
 

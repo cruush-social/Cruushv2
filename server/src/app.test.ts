@@ -1201,7 +1201,8 @@ describe("server", () => {
         alreadyVerified: false,
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
-        previewUrl: expect.stringContaining("https://cruush.test/?verifyEmailToken=")
+        previewUrl: expect.stringContaining("https://cruush.test/?verifyEmailToken="),
+        verificationEmailSent: true
       }
     });
   });
@@ -1341,7 +1342,8 @@ describe("server", () => {
         alreadyVerified: false,
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
-        previewUrl: expect.stringContaining("https://www.cruush.app/?verifyEmailToken=")
+        previewUrl: expect.stringContaining("https://www.cruush.app/?verifyEmailToken="),
+        verificationEmailSent: true
       }
     });
   });
@@ -1385,7 +1387,8 @@ describe("server", () => {
         alreadyVerified: false,
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
-        previewUrl: expect.stringContaining("https://www.cruush.app/?verifyEmailToken=")
+        previewUrl: expect.stringContaining("https://www.cruush.app/?verifyEmailToken="),
+        verificationEmailSent: true
       }
     });
   });
