@@ -116,6 +116,7 @@ type MutualCruushRow = {
   display_name: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
+  photo_explicit?: boolean | null;
   badges?: string[] | null;
   updated_at: string | Date;
   lat: number | null;
