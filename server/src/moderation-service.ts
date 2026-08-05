@@ -312,11 +312,16 @@ function isPhotoUploadSurface(surface: ModerationSurface) {
   return surface === "profile_photo" || isMessagePhotoSurface(surface);
 }
 
-// When every moderation provider is unreachable we let the photo through rather than
-// stranding it in review. This covers provider outages only — a provider that runs and
-// rejects the photo still rejects it.
+// Failing open is limited to the explicit alpha-test bypass and never applies to
+// ordinary production uploads.
+//
+// A total provider outage yields no labels at all, so there is no way to tell adult
+// nudity - which this app allows - from an animal, gore, or a hate symbol, which it
+// never allows. Publishing blind would admit all of them, and on profile photos it
+// also skips the adult-human gate below. Rejecting during an outage is recoverable;
+// a published hate symbol is not.
 function canFailOpenOnProviderOutage(app: FastifyInstance, surface: ModerationSurface) {
-  return isPhotoUploadSurface(surface) || canUseAlphaPhotoUploadBypass(app, surface);
+  return canUseAlphaPhotoUploadBypass(app, surface);
 }
 
 function canUseAlphaPhotoUploadBypass(app: FastifyInstance, surface: ModerationSurface) {

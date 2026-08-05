@@ -224,23 +224,33 @@ describe("DL Mode end to end", () => {
     await cleanup(app, query);
   });
 
-  it("fails open and publishes unclassified when every classifier is unreachable", async () => {
+  it("rejects rather than publishing blind when every classifier is unreachable", async () => {
     rekognitionState.throwOnModeration = new Error("AccessDeniedException: not authorized to perform rekognition:DetectModerationLabels");
     const { app, query } = createTestApp();
 
     const response = await uploadProfilePhoto(app);
 
-    // Deliberate availability-over-safety tradeoff in moderateImageOrReject: when
-    // the provider and Rekognition are both unreachable the upload is published
-    // rather than stranded, and the outage is logged.
-    //
-    // The cost is real and worth stating plainly: a photo published this way is
-    // stored unclassified, so DL Mode will not mask it even if it is explicit.
-    // That is the exact failure this suite exists to catch, so it is pinned here
-    // rather than left implicit - if the policy is ever changed to fail closed,
-    // this assertion should flip with it.
-    expect(response.statusCode, response.body).toBe(201);
-    expect(response.json()).toMatchObject({ data: { explicit: false } });
+    // A total outage returns no labels, so adult nudity - which this app allows -
+    // cannot be told apart from an animal, gore, or a hate symbol, which it never
+    // allows. Publishing blind would admit all of them and would also skip the
+    // adult-human gate on profile photos. Rejecting is recoverable; a published
+    // hate symbol is not.
+    expect(response.statusCode, response.body).not.toBe(201);
+
+    await cleanup(app, query);
+  });
+
+  it("still rejects a non-human photo when the classifier is working", async () => {
+    // The lenient path is for adult nudity only. Everything else stays rejected
+    // whether or not Rekognition is reachable.
+    rekognitionState.labels = [{ Name: "Dog", Confidence: 98, Parents: [{ Name: "Animal" }] }];
+    rekognitionState.faces = [];
+    rekognitionState.moderationLabels = [];
+    const { app, query } = createTestApp();
+
+    const response = await uploadProfilePhoto(app);
+
+    expect(response.statusCode, response.body).not.toBe(201);
 
     await cleanup(app, query);
   });
