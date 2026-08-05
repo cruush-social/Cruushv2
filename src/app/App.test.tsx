@@ -272,7 +272,7 @@ describe('App', () => {
     expect(screen.getByRole('navigation', { name: 'Bottom Navigation' })).toBeInTheDocument();
   });
 
-  it('does not show the alpha bug button for signed-in users outside active alpha testing', async () => {
+  it('shows the bug button for signed-in users outside active alpha testing', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -292,7 +292,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Map')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Mock Alpha Bug' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toBeInTheDocument();
   });
 
   it('shows the alpha bug button on authenticated app routes for active alpha testers', async () => {

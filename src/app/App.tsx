@@ -196,7 +196,7 @@ export default function App({
   }
 
   const tokenLinkType = getTokenLinkType();
-  const alphaBugControl = session?.alphaTest?.active ? <AlphaBugButton enabled /> : null;
+  const alphaBugControl = <AlphaBugButton enabled />;
 
   if (tokenLinkType === 'verify-email') {
     return (
