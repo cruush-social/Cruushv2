@@ -93,3 +93,6 @@ coverage/
 # Ignore macOS AppleDouble and Finder metadata
 ._*
 .DS_Store
+
+# Local Claude Code config: launch profiles and worktrees with machine-specific paths.
+.claude/
