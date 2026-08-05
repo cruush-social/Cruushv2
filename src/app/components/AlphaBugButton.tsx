@@ -36,20 +36,24 @@ function getCurrentPageUrl() {
   return `${window.location.pathname}${window.location.search}` || '/';
 }
 
+// The button has to clear three map overlays that all sit on the right edge: the map
+// header row (top-0, full width, z-40), the zoom/locate stack (top-14, z-40), and the
+// Recently Active panel (bottom-6.25rem, right-4, z-30, and full width on mobile when
+// it is open). Desktop drops below Recently Active; mobile sits above it.
 function getBugButtonPlacement(pathname: string) {
   if (pathname.startsWith('/chat/')) {
-    return 'right-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(0.75rem+env(safe-area-inset-top))]';
+    return 'right-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] sm:right-4 sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]';
   }
 
-  return 'right-4 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(0.75rem+env(safe-area-inset-top))]';
+  return 'right-4 bottom-[calc(14rem+env(safe-area-inset-bottom))] sm:right-4 sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]';
 }
 
 function getBugTipPlacement(pathname: string) {
   if (pathname.startsWith('/chat/')) {
-    return 'right-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(4.5rem+env(safe-area-inset-top))]';
+    return 'right-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] sm:right-4 sm:bottom-[calc(4.25rem+env(safe-area-inset-bottom))]';
   }
 
-  return 'right-4 bottom-[calc(10rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(4.5rem+env(safe-area-inset-top))]';
+  return 'right-4 bottom-[calc(17.25rem+env(safe-area-inset-bottom))] sm:right-4 sm:bottom-[calc(4.25rem+env(safe-area-inset-bottom))]';
 }
 
 function waitForVideoMetadata(video: HTMLVideoElement) {
@@ -231,7 +235,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       }}
     >
       {showTip ? (
-        <div className={`fixed z-30 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
+        <div className={`fixed z-50 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
           <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"
@@ -245,7 +249,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       <DialogTrigger asChild>
         <button
           aria-label="Report alpha bug"
-          className={`fixed z-30 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${getBugButtonPlacement(location.pathname)}`}
+          className={`fixed z-50 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${getBugButtonPlacement(location.pathname)}`}
           type="button"
         >
           <Bug className="h-5 w-5" />

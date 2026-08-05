@@ -55,8 +55,10 @@ describe('AlphaBugButton', () => {
     renderAlphaBugButton();
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
-    expect(reportButton).toHaveClass('right-4', 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]');
-    expect(reportButton).toHaveClass('z-30');
+    // Sits above the Recently Active panel (bottom-6.25rem) rather than inside it, and
+    // at z-50 so the map header row and zoom stack (both z-40) cannot cover it.
+    expect(reportButton).toHaveClass('right-4', 'bottom-[calc(14rem+env(safe-area-inset-bottom))]');
+    expect(reportButton).toHaveClass('z-50');
     expect(reportButton).not.toHaveClass('left-[calc(50%-5.5rem)]', 'top-[calc(5.85rem+env(safe-area-inset-top))]');
 
     fireEvent.click(reportButton);
@@ -84,7 +86,7 @@ describe('AlphaBugButton', () => {
     expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
       'right-4',
       'bottom-[calc(19rem+env(safe-area-inset-bottom))]',
-      'z-30',
+      'z-50',
     );
   });
 });
