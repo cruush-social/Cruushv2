@@ -63,3 +63,24 @@ export function setPersistentNoticeFlag(key: string) {
   const domain = sharedDomain ? `; Domain=${sharedDomain}` : '';
   document.cookie = `${noticeCookieName(key)}=true; Max-Age=${NOTICE_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secure}${domain}`;
 }
+
+export function clearPersistentNoticeFlag(key: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Clearing the cookie below is still worth attempting.
+  }
+
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  const sharedDomain = getSharedCookieDomain(window.location.hostname);
+  const domain = sharedDomain ? `; Domain=${sharedDomain}` : '';
+  document.cookie = `${noticeCookieName(key)}=; Max-Age=0; Path=/; SameSite=Lax${secure}${domain}`;
+}

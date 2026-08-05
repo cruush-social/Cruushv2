@@ -20,7 +20,7 @@ type AlphaBugButtonProps = {
   enabled?: boolean;
 };
 
-const ALPHA_BUG_TIP_STORAGE_KEY = 'cruush:alpha-bug-tip-seen';
+export const ALPHA_BUG_TIP_STORAGE_KEY = 'cruush:alpha-bug-tip-seen';
 
 type ScreenshotAttachment = {
   filename: string;

@@ -93,3 +93,7 @@ coverage/
 # Ignore macOS AppleDouble and Finder metadata
 ._*
 .DS_Store
+
+# Ignore agent worktrees and local agent state
+.claude/
+.agents/

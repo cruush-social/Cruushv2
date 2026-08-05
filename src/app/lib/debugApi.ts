@@ -13,3 +13,10 @@ export async function setDebugCruushPlus(enabled: boolean) {
     body: JSON.stringify({ enabled }),
   });
 }
+
+export async function resetDebugNotices(noticeKeys: string[]) {
+  return requestApi<{ reset: string[] }>('/api/dev/reset-notices', {
+    method: 'POST',
+    body: JSON.stringify({ noticeKeys }),
+  });
+}

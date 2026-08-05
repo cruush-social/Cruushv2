@@ -107,6 +107,7 @@ describe('LocalFeed', () => {
     createReport.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
+    window.localStorage.removeItem('cruush:dl-mode-enabled');
     getCurrentUserId.mockResolvedValue('user-1');
     getFeedSettings.mockResolvedValue({
       locationPinVisibility: 'mutuals',
@@ -197,6 +198,80 @@ describe('LocalFeed', () => {
       'pb-[calc(1.5rem+env(safe-area-inset-bottom))]',
     );
     expect(within(dialog).getByRole('button', { name: /off/i })).toBeEnabled();
+  });
+
+  it('masks explicit author photos in the feed while DL Mode is on', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-explicit',
+      content: 'explicit author post',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-2',
+        name: 'river',
+        pronouns: 'he/him',
+        photo: '/media/river.jpg',
+        photoExplicit: true,
+      },
+    }, {
+      id: 'post-safe',
+      content: 'safe author post',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-3',
+        name: 'sky',
+        pronouns: 'she/her',
+        photo: '/media/sky.jpg',
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('explicit author post')).toBeInTheDocument();
+
+    const maskedPhoto = screen.getByLabelText('river preview');
+    const visiblePhoto = screen.getByLabelText('sky preview');
+
+    expect(maskedPhoto.querySelector('image')).toBeNull();
+    expect(visiblePhoto.querySelector('image')).not.toBeNull();
+  });
+
+  it('shows explicit author photos in the feed once DL Mode is off', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'false');
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-explicit',
+      content: 'explicit author post',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-2',
+        name: 'river',
+        pronouns: 'he/him',
+        photo: '/media/river.jpg',
+        photoExplicit: true,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('explicit author post')).toBeInTheDocument();
+    expect(screen.getByLabelText('river preview').querySelector('image')).not.toBeNull();
   });
 
   it('lets users delete their own feed posts without showing delete for other posts', async () => {

@@ -14,6 +14,11 @@ export default defineConfig({
     },
   },
   test: {
+    // Each fork loads jsdom + React + maplibre-gl, so an unbounded pool (one
+    // fork per core) exhausts memory on this machine. Cap it.
+    pool: 'forks',
+    minWorkers: 1,
+    maxWorkers: 4,
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
@@ -21,6 +26,9 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       'server/**',
+      // The project lives on a volume that writes AppleDouble sidecars; without
+      // this they get collected as unparsable test files.
+      '**/._*',
     ],
   }
 });

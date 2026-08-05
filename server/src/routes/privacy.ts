@@ -23,6 +23,12 @@ import {
 } from "../encrypted-relationships.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { CROWD_OPTIONS, normalizeCrowdOption } from "../profile-sensitive.js";
+import {
+  DEFAULT_MAP_PRESENCE_DAYS,
+  MAX_MAP_PRESENCE_DAYS,
+  MIN_MAP_PRESENCE_DAYS,
+  normalizeMapPresenceDays
+} from "../map-presence.js";
 
 type AuditProfileRow = {
   id: string;
@@ -41,6 +47,10 @@ const crowdPrecisionPolicySchema = z.object({
   createdAtMs: z.number().int().optional(),
   revokedAtMs: z.number().int().nullable().optional().default(null)
 }).strip();
+
+const mapPresencePayloadSchema = z.object({
+  days: z.coerce.number().int().min(MIN_MAP_PRESENCE_DAYS).max(MAX_MAP_PRESENCE_DAYS)
+}).strict();
 
 const ghostModePayloadSchema = z.object({
   baseMode: z.enum(["PUBLIC_PRECISE", "GHOST", "STEALTH"]).optional(),
@@ -215,6 +225,46 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
         preciseToMutualCrowds,
         preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" : "none"
       }))
+    });
+  });
+
+  app.get("/api/privacy/map-presence", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const result = await app.db.query<{ map_presence_days: number | null }>(
+      `select map_presence_days
+       from user_privacy_settings
+       where user_id = $1`,
+      [userId]
+    );
+
+    return reply.send({
+      data: {
+        days: normalizeMapPresenceDays(result.rows[0]?.map_presence_days ?? DEFAULT_MAP_PRESENCE_DAYS),
+        minDays: MIN_MAP_PRESENCE_DAYS,
+        maxDays: MAX_MAP_PRESENCE_DAYS
+      }
+    });
+  });
+
+  app.put("/api/privacy/map-presence", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const payload = mapPresencePayloadSchema.parse(request.body);
+    const result = await app.db.query<{ map_presence_days: number | null }>(
+      `insert into user_privacy_settings (user_id, map_presence_days)
+       values ($1, $2)
+       on conflict (user_id) do update
+       set map_presence_days = excluded.map_presence_days,
+           updated_at = now()
+       returning map_presence_days`,
+      [userId, payload.days]
+    );
+
+    return reply.send({
+      data: {
+        days: normalizeMapPresenceDays(result.rows[0]?.map_presence_days ?? payload.days),
+        minDays: MIN_MAP_PRESENCE_DAYS,
+        maxDays: MAX_MAP_PRESENCE_DAYS
+      }
     });
   });
 

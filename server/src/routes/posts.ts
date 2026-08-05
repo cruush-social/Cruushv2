@@ -25,6 +25,7 @@ type PostRow = {
   display_name: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
+  photo_explicit?: boolean | null;
   badges?: string[] | null;
   crowd_targets?: string[] | null;
   feed_location_pin_visibility?: FeedLocationPinVisibility | null;
@@ -147,10 +148,25 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       name: row.display_name?.trim() || "cruush user",
       pronouns: row.pronouns?.join(", ") ?? "",
       photo: row.photos?.[0] ?? null,
+      ...(row.photo_explicit === true ? { photoExplicit: true } : {}),
       ...(row.attending_launch_party === true ? { attendingLaunchParty: true } : {}),
       ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
     }
   };
+}
+
+// DL Mode masks explicit avatars everywhere they render, so the feed needs the
+// same explicit_classification the profile endpoints expose for the first photo.
+function feedAuthorPhotoExplicitSelect(postAlias: string, profileAlias: string) {
+  return `coalesce((
+    select media.explicit_classification = 'explicit'
+    from media_objects media
+    where media.owner_user_id = ${postAlias}.user_id
+      and media.public_url = ${profileAlias}.photos[1]
+      and media.surface = 'profile_photo'
+      and media.deleted_at is null
+    limit 1
+  ), false) as photo_explicit`;
 }
 
 const POST_COLUMNS = `
@@ -167,6 +183,7 @@ const POST_COLUMNS = `
   pr.display_name,
   pr.pronouns,
   pr.photos,
+  ${feedAuthorPhotoExplicitSelect("p", "pr")},
   coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as feed_location_pin_visibility,
   case
     when $3::double precision is null or $4::double precision is null then null
@@ -497,6 +514,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
          pr.display_name,
          pr.pronouns,
          pr.photos,
+         ${feedAuthorPhotoExplicitSelect("i", "pr")},
          coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as feed_location_pin_visibility,
          exists (
            select 1

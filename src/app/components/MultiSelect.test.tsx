@@ -40,6 +40,20 @@ describe('MultiSelect', () => {
     expect(onChange).toHaveBeenCalledTimes(4);
   });
 
+  it('keeps selected badges after the trigger so choosing an option never displaces the open menu', () => {
+    const { container } = render(
+      <MultiSelect ariaLabel="Gender Identity" options={['agender', 'androgynous', 'bakla']} value={['agender']} />
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Gender Identity' });
+    const badge = within(container).getByText('agender');
+
+    // The badge row must follow the trigger in document order. Rendered before
+    // it, the first selection adds a row above the trigger and shifts the open
+    // menu out from under the pointer mid-tap.
+    expect(trigger.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('lets grouped menus switch categories before choosing options', () => {
     const onChange = vi.fn();
 

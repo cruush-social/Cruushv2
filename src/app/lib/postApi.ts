@@ -26,6 +26,7 @@ export type FeedPost = {
     name: string;
     pronouns: string;
     photo: string | null;
+    photoExplicit?: boolean;
     badges?: CruushBadge[];
     attendingLaunchParty?: boolean;
   };
