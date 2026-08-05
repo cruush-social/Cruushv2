@@ -75,6 +75,10 @@ alter table moderation_actions
     'suspend_user',
     'mark_under_review',
     'unsuspend_user',
+    -- Kept in step with 061. Every migration re-runs on each deploy, so an
+    -- older constraint list here rejects rows written by newer code.
+    'ban_user',
+    'unban_user',
     'restrict_feature',
     'remove_post',
     'remove_media',
