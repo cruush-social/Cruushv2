@@ -7,6 +7,7 @@ import { readEncryptedMediaObject } from "../media-storage.js";
 import { createPendingMediaAsset, deletePendingMediaAsset, moderatePendingMediaAsset } from "../media-assets.js";
 import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
+import { diagnoseMessageInsertFailure } from "../message-insert-diagnostics.js";
 import { toReportablePhotoUploadError } from "../photo-upload-incident.js";
 import { ApiError } from "../errors.js";
 import { assertCanSendNsfwMessagePhoto } from "../cruush-match-settings.js";
@@ -1518,6 +1519,11 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const created = result.rows[0];
 
     if (!created) {
+      await diagnoseMessageInsertFailure(app, request, {
+        conversationId: payload.conversationId,
+        userId,
+        mediaObjectId: null
+      });
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
@@ -2070,6 +2076,11 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const created = result.rows[0];
 
     if (!created) {
+      await diagnoseMessageInsertFailure(app, request, {
+        conversationId: payload.conversationId,
+        userId,
+        mediaObjectId: mediaAsset.id
+      });
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
@@ -2265,6 +2276,11 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const created = result.rows[0];
 
     if (!created) {
+      await diagnoseMessageInsertFailure(app, request, {
+        conversationId: payload.conversationId,
+        userId,
+        mediaObjectId: null
+      });
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
