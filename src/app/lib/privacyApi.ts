@@ -107,3 +107,18 @@ export function revokePrivacyAccess(revokeActionToken: string) {
     }),
   });
 }
+
+export type MapPresenceSettings = {
+  days: number;
+};
+
+export function getMapPresence() {
+  return requestApi<MapPresenceSettings>('/api/privacy/map-presence');
+}
+
+export function saveMapPresence(days: number) {
+  return requestApi<MapPresenceSettings>('/api/privacy/map-presence', {
+    method: 'PUT',
+    body: JSON.stringify({ days }),
+  });
+}

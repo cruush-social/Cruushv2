@@ -1788,7 +1788,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-12 z-30 flex flex-col items-end gap-2 sm:right-4"
+          className="pointer-events-auto absolute right-3 top-14 z-40 flex flex-col items-end gap-2 sm:right-4 sm:top-16"
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (

@@ -561,18 +561,34 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     }
 
     const verification = await createVerificationToken(app, createdUser.id);
-    const preview = await sendVerificationEmail({
-      config: request.server.config,
-      email: createdUser.email,
-      logger: request.log,
-      verificationUrl: buildVerificationUrl(request, verification.token)
-    });
+    // The account row is already committed. If delivery fails we must not fail the whole
+    // signup: that leaves the user with an account they cannot verify and cannot re-create.
+    let previewUrl: string | null = null;
+    let verificationEmailSent = true;
+
+    try {
+      const preview = await sendVerificationEmail({
+        config: request.server.config,
+        email: createdUser.email,
+        logger: request.log,
+        verificationUrl: buildVerificationUrl(request, verification.token)
+      });
+      previewUrl = preview.previewUrl;
+    } catch (error) {
+      verificationEmailSent = false;
+      request.log.error(
+        { err: error, userId: createdUser.id, email: createdUser.email },
+        "signup verification email delivery failed"
+      );
+    }
+
     return reply.code(201).send({
       data: {
         alreadyVerified: false,
         email: createdUser.email,
         expiresAt: verification.expiresAt.toISOString(),
-        previewUrl: preview.previewUrl
+        previewUrl,
+        verificationEmailSent
       }
     });
   });

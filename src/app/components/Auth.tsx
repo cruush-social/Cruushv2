@@ -78,6 +78,7 @@ export default function Auth({ onAuth }: AuthProps) {
   const [modeSelectedByUser, setModeSelectedByUser] = useState(false);
   const [verificationPreviewUrl, setLocalVerificationPreviewUrl] = useState<string | null>(null);
   const [verificationRetryAvailable, setVerificationRetryAvailable] = useState(false);
+  const [verificationDeliveryFailed, setVerificationDeliveryFailed] = useState(false);
   const [requestedCity, setRequestedCity] = useState('');
   const [cityRequestNotice, setCityRequestNotice] = useState('');
   const [cityRequestLoading, setCityRequestLoading] = useState(false);
@@ -221,10 +222,16 @@ export default function Auth({ onAuth }: AuthProps) {
         }
         setVerificationPreviewUrl(delivery.previewUrl);
         setLocalVerificationPreviewUrl(delivery.previewUrl);
-        setNotice('Check your email to verify your account, then sign in.');
+        const deliveryFailed = delivery.verificationEmailSent === false;
+        setVerificationDeliveryFailed(deliveryFailed);
+        setVerificationRetryAvailable(deliveryFailed);
+        setNotice(deliveryFailed ? '' : 'Check your email to verify your account, then sign in.');
         setModeSelectedByUser(true);
         setMode('signin');
-        setPassword('');
+        // Keep the password when delivery failed so the resend control below can use it.
+        if (!deliveryFailed) {
+          setPassword('');
+        }
         setConfirmPassword('');
         setAlphaPassword('');
         setShowPassword(false);
@@ -414,6 +421,7 @@ export default function Auth({ onAuth }: AuthProps) {
       setLocalVerificationPreviewUrl(delivery.previewUrl);
       setNotice('Verification email sent. Check your inbox, then sign in again.');
       setVerificationRetryAvailable(false);
+      setVerificationDeliveryFailed(false);
       resetCaptcha();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to resend the verification email.');
@@ -600,7 +608,11 @@ export default function Auth({ onAuth }: AuthProps) {
 
 	          {verificationRetryAvailable && !notice ? (
 	            <div className="p-3 bg-white/5 border border-white/10 text-white/70 text-sm rounded space-y-3">
-	              <p>That account is not verified yet.</p>
+	              <p>
+	                {verificationDeliveryFailed
+	                  ? "Your account was created, but we couldn't send the verification email. Try again."
+	                  : 'That account is not verified yet.'}
+	              </p>
 	              <button
 	                type="button"
                 onClick={handleResendVerification}

@@ -26,6 +26,7 @@ import { getAuthenticatedUserId } from "../request-auth.js";
 import { normalizeSingleLineText } from "../input-schema.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
 import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
+import { DEFAULT_MAP_PRESENCE_DAYS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
@@ -184,6 +185,11 @@ const DEFAULT_CENTER = {
   lat: 40.6782,
   lng: -73.9442
 };
+
+// Each profile controls how long it keeps showing on the map after its last
+// location update. `pin_settings` is the user_privacy_settings row for the
+// profile being scanned, so the window is per-subject, not per-viewer.
+const MAP_PRESENCE_DAYS_SQL = `coalesce(pin_settings.map_presence_days, ${DEFAULT_MAP_PRESENCE_DAYS})`;
 
 function isSchemaCompatibilityError(error: unknown) {
   const code = typeof error === "object" && error !== null && "code" in error
@@ -498,7 +504,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
     const where = [
       "profiles.id <> $1",
       `(
-        profiles.location_updated_at >= now() - interval '7 days'
+        profiles.location_updated_at >= now() - make_interval(days => ${MAP_PRESENCE_DAYS_SQL})
         or location_envelopes.expires_at_ms > ${activeLocationWindow}
       )`,
       `not exists (
@@ -673,7 +679,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lat,
          fuzzy_lng
        from profiles
-       where last_active >= now() - interval '7 days'
+       where last_active >= now() - make_interval(days => ${DEFAULT_MAP_PRESENCE_DAYS})
        order by last_active desc nulls last
        limit $1`,
       [filters.limit]

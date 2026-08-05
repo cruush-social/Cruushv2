@@ -36,10 +36,13 @@ export function photoUploadAvailability(
   >
 ) {
   const deployed = config.NODE_ENV === "production";
-  const deployedSafetyReadyBeforePhotoDna =
+  const streamSafetyReady =
     config.STREAM_IMAGE_BRIDGE_ENABLED === true &&
-    config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true &&
-    config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+    config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true;
+  // Rekognition alone is enough to open uploads. It backs Stream up when Stream is
+  // unconfigured or failing, so requiring both left uploads switched off in production.
+  const deployedSafetyReadyBeforePhotoDna =
+    config.PROFILE_PHOTO_REKOGNITION_ENABLED === true || streamSafetyReady;
   const alphaPhotoUploadBypass = activeAlphaPhotoUploadBypass(config);
   const photosAvailable = !deployed || deployedSafetyReadyBeforePhotoDna || alphaPhotoUploadBypass;
 

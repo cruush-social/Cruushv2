@@ -32,6 +32,9 @@ export type VerificationDeliveryPayload = {
   email?: string;
   expiresAt: string | null;
   previewUrl: string | null;
+  // Absent on older responses. False means the account exists but delivery failed, so the
+  // caller should offer a resend rather than reporting a failed signup.
+  verificationEmailSent?: boolean;
 };
 
 export type VerifyEmailPayload = {
