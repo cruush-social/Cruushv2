@@ -244,7 +244,7 @@ function userMessageForDecision(decision: PolicyDecision) {
   }
 
   if (decision.user_message_code === "moderation_delayed") {
-    return "Automated moderation is temporarily unavailable. Try again later.";
+    return "We could not check this photo because automated moderation is temporarily unavailable, so it was not uploaded. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
   }
 
   if (decision.user_message_code === "feed_content_rejected") {
@@ -629,7 +629,6 @@ export async function moderateImageOrReject(
   options: { allowProfilePhotoManualReview?: boolean } = {}
 ) {
   const provider = createModerationProvider(app.config);
-  const failOpenOnProviderOutage = canFailOpenOnProviderOutage(app, input.surface);
   const useProfilePhotoRekognitionFallback = canUseProfilePhotoRekognitionFallback(app, input.surface);
   const useMessagePhotoRekognitionFallback = canUseMessagePhotoRekognitionFallback(app, input.surface);
   const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback || useMessagePhotoRekognitionFallback;
@@ -639,12 +638,10 @@ export async function moderateImageOrReject(
   try {
     providerResult = await provider.moderateImage(input);
   } catch (error) {
-    if (!failOpenOnProviderOutage) {
-      throw error;
-    }
-
-    // Record the outage and continue: the Rekognition fallback below still gets a chance
-    // to score this image before anything decides to fail open.
+    // Always convert a thrown provider call into an error result rather than rethrowing.
+    // Rethrowing surfaced a bare 500; carrying on lets the Rekognition fallback below
+    // still score the image, and if that fails too the upload is refused with a message
+    // that actually tells the user what happened.
     app.log.error(
       { err: error, provider: provider.name, surface: input.surface },
       "image moderation provider failed"
@@ -669,54 +666,40 @@ export async function moderateImageOrReject(
     contentType: "image",
     providerResult
   });
-  let resolvedProviderResult = providerResult;
-  let failedOpenOnProviderOutage = false;
+  const resolvedProviderResult = providerResult;
 
-  // Every provider is unreachable, including the Rekognition fallback. Let the upload
-  // through instead of parking it in a review queue nobody can clear.
-  if (failOpenOnProviderOutage && isProviderUnavailableDecision(decision)) {
-    failedOpenOnProviderOutage = true;
-    app.log.warn(
+  // Every provider is unreachable, including the Rekognition fallback, so the image was
+  // never actually screened. Refuse it rather than publishing something no scanner has
+  // looked at. `handlePolicyDecision` turns this into a 503 whose message tells the user
+  // to try again or contact reports@cruush.app.
+  if (isProviderUnavailableDecision(decision)) {
+    app.log.error(
       {
         provider: providerResult.provider,
         surface: input.surface,
         userId: input.userId,
         providerError: providerResult.error ?? null
       },
-      "photo moderation unavailable, allowing upload"
+      "photo moderation unavailable, refusing upload"
     );
-    resolvedProviderResult = alphaPhotoUploadBypassResult(providerResult);
-    decision = mapProviderResultToPolicy({
-      surface: input.surface,
-      contentType: "image",
-      providerResult: resolvedProviderResult
-    });
   }
+
+  let gatedProviderResult = resolvedProviderResult;
 
   if (input.surface === "profile_photo") {
-    // Only skip the adult-human requirement when we actually failed open. A provider that
-    // ran and found no adult human must still fall through to the gate below.
-    const skipAdultHumanGateForAlphaUpload = failedOpenOnProviderOutage &&
-      decision.decision === "allow" &&
-      !hasHumanProof(resolvedProviderResult);
+    const gate = resolveProfilePhotoAdultHumanGate(gatedProviderResult, decision, {
+      allowManualReview: options.allowProfilePhotoManualReview === true
+    });
 
-    if (skipAdultHumanGateForAlphaUpload) {
-      resolvedProviderResult = alphaPhotoUploadBypassResult(resolvedProviderResult);
-    } else {
-      const gate = resolveProfilePhotoAdultHumanGate(resolvedProviderResult, decision, {
-        allowManualReview: options.allowProfilePhotoManualReview === true
-      });
-
-      if (gate.status === "manual_review_required") {
-        return gate;
-      }
-
-      decision = gate.decision;
-      resolvedProviderResult = gate.providerResult;
+    if (gate.status === "manual_review_required") {
+      return gate;
     }
+
+    decision = gate.decision;
+    gatedProviderResult = gate.providerResult;
   }
 
-  return handlePolicyDecision(app, input.userId, input.surface, "image", resolvedProviderResult, decision, {
+  return handlePolicyDecision(app, input.userId, input.surface, "image", gatedProviderResult, decision, {
     contentId: input.contentId,
     contentRef: input.contentRef,
     severeAccessBanIdentity: input.severeAccessBanIdentity
