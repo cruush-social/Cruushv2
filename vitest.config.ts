@@ -26,6 +26,11 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       'server/**',
+      // Agent worktrees hold whole checkouts of this repo. Collected, every
+      // suite runs once per worktree, and a CLI path argument is a substring
+      // filter, so naming one file runs every copy of it.
+      '.claude/**',
+      '.agents/**',
       // The project lives on a volume that writes AppleDouble sidecars; without
       // this they get collected as unparsable test files.
       '**/._*',
