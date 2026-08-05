@@ -76,6 +76,7 @@ type ConversationRow = {
   other_user_name: string | null;
   other_user_pronouns: string[] | null;
   other_user_photo: string | null;
+  other_user_photo_explicit: boolean | null;
   member_count: number;
 };
 
@@ -202,7 +203,8 @@ function mapConversationRow(app: FastifyInstance, row: ConversationRow, options:
         ? row.title?.trim() || "Group chat"
         : row.other_user_name?.trim() || "cruush user",
       pronouns: isGroup ? "" : row.other_user_pronouns?.join(", ") ?? "",
-      photo: isGroup ? null : row.other_user_photo ?? null
+      photo: isGroup ? null : row.other_user_photo ?? null,
+      ...(!isGroup && row.other_user_photo_explicit === true ? { photoExplicit: true } : {})
     },
     distance: "Nearby",
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -406,6 +408,15 @@ const CONVERSATION_SELECT = `
     end as other_user_name,
     other_profile.pronouns as other_user_pronouns,
     case when c.kind = 'dm' then other_profile.photos[1] else null end as other_user_photo,
+    case when c.kind = 'dm' then coalesce((
+      select media.explicit_classification = 'explicit'
+      from media_objects media
+      where media.owner_user_id = other_profile.id
+        and media.public_url = other_profile.photos[1]
+        and media.surface = 'profile_photo'
+        and media.deleted_at is null
+      limit 1
+    ), false) else false end as other_user_photo_explicit,
     member_counts.member_count
   from conversation_members cm
   join conversations c on c.id = cm.conversation_id

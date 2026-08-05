@@ -6,6 +6,7 @@ import {
   X,
 } from 'lucide-react';
 import HeartPhoto from './HeartPhoto';
+import { useDlMode } from '../lib/useDlMode';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
@@ -67,6 +68,8 @@ function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
 }
 
 function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem | ProfileViewActivityItem; fallbackLabel: string }) {
+  const dlModeActive = useDlMode();
+
   if (item.locked || !item.user) {
     return <LockedHeart label={fallbackLabel} />;
   }
@@ -75,6 +78,7 @@ function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem
     <HeartPhoto
       className={activityHeartClassName}
       label={`${item.user.name} preview`}
+      masked={dlModeActive && item.user.photoExplicit === true}
       photo={item.user.photo}
       userId={item.user.id}
       theme={'mutual' in item && item.mutual ? 'mutual' : 'nearby'}
@@ -183,6 +187,8 @@ function IncomingRow({
 }
 
 function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; onOpenProfile: (userId: string) => void }) {
+  const dlModeActive = useDlMode();
+
   if (!item.user) {
     return null;
   }
@@ -196,6 +202,7 @@ function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; on
       <HeartPhoto
         className={activityHeartClassName}
         label={`${item.user.name} preview`}
+        masked={dlModeActive && item.user.photoExplicit === true}
         photo={item.user.photo}
         userId={item.user.id}
         theme={item.mutual ? 'mutual' : 'nearby'}
