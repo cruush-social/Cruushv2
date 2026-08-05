@@ -15,7 +15,9 @@
     "test:profile-photo-apis": "node scripts/smoke-real-profile-photo-upload.mjs",
     "smoke:profile-photo": "node scripts/smoke-real-profile-photo-upload.mjs",
     "security:check": "bash scripts/security-check.sh",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
+    "smoke": "pnpm test:smoke && pnpm --dir server test:smoke"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
