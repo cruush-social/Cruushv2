@@ -863,6 +863,52 @@ describe('PrivateGroupChat', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2');
   });
 
+  it('opens the profile from the header heart pin and no longer shows a separate profile button', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        muted: false,
+        mutual: true,
+        tags: [],
+      },
+      messages: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<><PrivateGroupChat /><LocationProbe /></>} />
+          <Route path="/profile/:userId" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const header = await screen.findByTestId('chat-thread-header');
+
+    // The heart pin is the only route into the profile from the header now; the
+    // icon button that used to sit on the right is gone.
+    const headerProfileButtons = within(header).getAllByRole('button', { name: 'Open River profile' });
+    expect(headerProfileButtons).toHaveLength(1);
+    expect(within(headerProfileButtons[0]).getByLabelText('River avatar')).toBeInTheDocument();
+
+    fireEvent.click(headerProfileButtons[0]);
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2');
+  });
+
   it('lets group admins change timers and clear history from conversation settings', async () => {
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);

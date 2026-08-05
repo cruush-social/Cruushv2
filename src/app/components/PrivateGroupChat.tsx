@@ -738,17 +738,30 @@ export default function PrivateGroupChat() {
             </Button>
 
             {conversation ? (
-              <HeartPhoto
-                className="w-12 shrink-0"
-                label={`${conversation.user.name} avatar`}
-                photo={conversation.user.photo}
-                userId={conversation.user.id}
-                fallback={
-                  conversation.kind === 'group'
-                    ? <CruushIcon name="profile" className="size-5 opacity-80" />
-                    : <div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>
-                }
-              />
+              conversation.kind === 'dm' ? (
+                <button
+                  type="button"
+                  className="w-12 shrink-0 rounded-full p-0 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  aria-label={`Open ${conversation.user.name} profile`}
+                  onClick={openDmProfile}
+                >
+                  <HeartPhoto
+                    className="w-12"
+                    label={`${conversation.user.name} avatar`}
+                    photo={conversation.user.photo}
+                    userId={conversation.user.id}
+                    fallback={<div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>}
+                  />
+                </button>
+              ) : (
+                <HeartPhoto
+                  className="w-12 shrink-0"
+                  label={`${conversation.user.name} avatar`}
+                  photo={conversation.user.photo}
+                  userId={conversation.user.id}
+                  fallback={<CruushIcon name="profile" className="size-5 opacity-80" />}
+                />
+              )
             ) : (
               <div className="h-12 w-12 shrink-0 rounded-full bg-card" />
             )}
@@ -798,17 +811,6 @@ export default function PrivateGroupChat() {
             >
               <Star className="w-5 h-5" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
             </Button>
-            {conversation?.kind === 'dm' ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                title="Open profile"
-                aria-label={`Open ${conversation.user.name} profile`}
-                onClick={openDmProfile}
-              >
-                <CruushIcon name="profile" className="h-5 w-5" />
-              </Button>
-            ) : null}
             {conversation ? (
               <ReportAction
                 targetType="conversation"
