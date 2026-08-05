@@ -244,7 +244,7 @@ function userMessageForDecision(decision: PolicyDecision) {
   }
 
   if (decision.user_message_code === "moderation_delayed") {
-    return "We could not check this photo because automated moderation is temporarily unavailable, so it was not uploaded. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
+    return "We could not check this photo for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
   }
 
   if (decision.user_message_code === "feed_content_rejected") {

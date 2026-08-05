@@ -20,6 +20,7 @@
     "bugs:sync-issues": "sh -c 'if [ -f dist/sync-bug-report-issues.js ]; then node --enable-source-maps dist/sync-bug-report-issues.js; else tsx src/sync-bug-report-issues.ts; fi'",
     "rewards:qualify-referrals": "sh -c 'if [ -f dist/qualify-referrals.js ]; then node --enable-source-maps dist/qualify-referrals.js; else tsx src/qualify-referrals.ts; fi'",
     "configure:stream-profile-safety": "sh -c 'if [ -f dist/configure-stream-profile-photo-safety.js ]; then node --enable-source-maps dist/configure-stream-profile-photo-safety.js; else tsx src/configure-stream-profile-photo-safety.ts; fi'",
+    "health:rekognition": "sh -c 'if [ -f dist/check-rekognition-health.js ]; then node --enable-source-maps dist/check-rekognition-health.js; else tsx src/check-rekognition-health.ts; fi'",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:smoke": "vitest run --config vitest.smoke.config.ts"
