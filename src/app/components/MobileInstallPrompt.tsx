@@ -27,6 +27,7 @@ export default function MobileInstallPrompt() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
   const [showManualInstructions, setShowManualInstructions] = useState(false);
+  const manualInstallOnly = showManualInstructions && !installEvent;
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -107,7 +108,9 @@ export default function MobileInstallPrompt() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <p className="text-base text-white">Install cruush</p>
+            <p className="text-base text-white">
+              {manualInstallOnly ? 'Add cruush to Home Screen' : 'Install cruush'}
+            </p>
             <Button
               type="button"
               variant="ghost"
@@ -125,12 +128,20 @@ export default function MobileInstallPrompt() {
               : 'Open cruush from your Home Screen for a full-screen mobile app feel.'}
           </p>
           <div className="mt-3 flex gap-2">
-            <Button type="button" onClick={() => void install()} className="rounded-full">
-              Install cruush
-            </Button>
-            <Button type="button" variant="outline" onClick={dismiss} className="rounded-full">
-              Not now
-            </Button>
+            {manualInstallOnly ? (
+              <Button type="button" onClick={dismiss} className="rounded-full">
+                Got it
+              </Button>
+            ) : (
+              <>
+                <Button type="button" onClick={() => void install()} className="rounded-full">
+                  Install cruush
+                </Button>
+                <Button type="button" variant="outline" onClick={dismiss} className="rounded-full">
+                  Not now
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
