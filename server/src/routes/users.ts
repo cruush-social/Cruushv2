@@ -642,7 +642,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
            ) as has_shared_crowd
          from posts
          where posts.user_id = profiles.id
-           and posts.expires_at > now()
+           and (posts.expires_at is null or posts.expires_at > now())
            and (
              not exists (
                select 1

@@ -1021,22 +1021,11 @@ function buildSensitiveProfile(payload: ProfilePayload, kinkInterests: ProfileKi
   };
 }
 
-function buildProfileModerationFields(payload: ProfilePayload, kinkInterests: ProfileKinkInterest[]) {
+export function buildProfileModerationFields(payload: ProfilePayload, _kinkInterests: ProfileKinkInterest[]) {
   return {
     display_name: payload.display_name,
     bio: payload.bio,
-    signal: payload.signal,
-    custom_pronouns: payload.custom_pronouns,
-    custom_hobby: payload.custom_hobby,
-    kinks: kinkInterests.map((interest) => interest.label ?? interest.kink_id),
-    vibes: payload.vibes,
-    scenes: payload.scenes,
-    archetypes: payload.archetypes,
-    looking_for: payload.looking_for,
-    availability: payload.availability,
-    hosting_travel: payload.hosting_travel,
-    position: payload.position,
-    role: payload.role
+    signal: payload.signal
   };
 }
 

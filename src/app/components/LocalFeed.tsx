@@ -536,6 +536,14 @@ export default function LocalFeed() {
               >
                 24h
               </Button>
+              <Button
+                variant={expiresIn === 'never' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setExpiresIn('never')}
+                disabled={!canPost}
+              >
+                Never
+              </Button>
               {availableCrowdTargets.length > 0 ? (
                 <div className="ml-0 flex flex-wrap items-center gap-2 sm:ml-2">
                   {availableCrowdTargets.map((crowd) => {
@@ -629,8 +637,7 @@ export default function LocalFeed() {
                           ) : null}
                           <span>{formatRelativeTime(post.createdAt)}</span>
                           <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {post.expiresIn}
+                            {post.expiresIn === 'never' ? 'Never' : <><Clock className="w-3 h-3" />{post.expiresIn}</>}
                           </span>
                           <div className="ml-auto flex items-center gap-2">
                             {currentUserId && post.user.id === currentUserId ? (

@@ -134,7 +134,8 @@ describe('ProfileEdit', () => {
     expect(screen.queryByLabelText('leather receive')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Position' }));
-    await waitFor(() => expect(screen.getByRole('listbox', { name: 'Position' }).parentElement).toHaveClass('top-full', 'mt-2'));
+    await waitFor(() => expect(screen.getByRole('listbox', { name: 'Position' }).parentElement).toHaveStyle({ position: 'fixed' }));
+    expect(document.body.querySelector('.fixed.inset-0')).not.toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'pillow princess' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'stone top' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'vers bottom' })).toBeInTheDocument();
@@ -306,7 +307,7 @@ describe('ProfileEdit', () => {
     expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
   });
 
-  it('masks explicit and unknown profile photos in the editor while DL Mode is on', async () => {
+  it('masks explicit but not unknown profile photos in the editor while DL Mode is on', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const explicitPhoto = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';
     const safePhoto = '/api/media/assets/22222222-2222-4222-8222-222222222222/display';
@@ -334,9 +335,9 @@ describe('ProfileEdit', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
     expect(await screen.findByAltText('Profile photo 2')).toHaveAttribute('src', expect.stringContaining(safePhoto));
     expect(screen.queryByAltText('Primary profile photo')).not.toBeInTheDocument();
-    expect(screen.queryByAltText('Profile photo 3')).not.toBeInTheDocument();
+    expect(screen.getByAltText('Profile photo 3')).toHaveAttribute('src', expect.stringContaining(unknownPhoto));
     expect(screen.getByRole('img', { name: 'Primary profile photo hidden by DL Mode' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Profile photo 3 hidden by DL Mode' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Profile photo 3 hidden by DL Mode' })).not.toBeInTheDocument();
     expect(document.body.innerHTML).not.toContain(explicitPhoto);
   });
 

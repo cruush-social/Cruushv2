@@ -219,7 +219,7 @@ describe("rewards activity and promotional entitlement service", () => {
     expect(db.activityDates).toEqual(new Set(["2026-07-27", "2026-07-28"]));
   });
 
-  it("grants the seventh-day milestone exactly once and resets after a missed day", async () => {
+  it("preserves streak tracking but does not create new automatic milestone grants", async () => {
     const db = new RewardTestDb();
 
     for (let day = 1; day <= 7; day += 1) {
@@ -236,8 +236,7 @@ describe("rewards activity and promotional entitlement service", () => {
       occurredAt: new Date("2026-07-07T18:00:00.000Z")
     });
 
-    expect(db.grants).toHaveLength(1);
-    expect(db.grants[0]).toMatchObject({ source: "activity_recurring", days: 1 });
+    expect(db.grants).toHaveLength(0);
 
     const reset = await recordMeaningfulActivity(appFor(db), {
       userId,
@@ -247,7 +246,7 @@ describe("rewards activity and promotional entitlement service", () => {
     expect(reset).toMatchObject({ currentStreak: 1 });
   });
 
-  it("awards one-day login bonuses between recurring rewards without retry duplication", async () => {
+  it("does not create recurring or long-streak promotional grants", async () => {
     const db = new RewardTestDb();
 
     for (let day = 1; day <= 14; day += 1) {
@@ -258,17 +257,7 @@ describe("rewards activity and promotional entitlement service", () => {
       });
     }
 
-    expect(db.grants.map((grant) => [grant.source, grant.days])).toEqual([
-      ["activity_recurring", 1],
-      ["activity_long_bonus", 1],
-      ["activity_long_bonus", 1],
-      ["activity_long_bonus", 1],
-      ["activity_long_bonus", 1],
-      ["activity_long_bonus", 1],
-      ["activity_long_bonus", 1],
-      ["activity_recurring", 1]
-    ]);
-    expect(db.grants.reduce((total, grant) => total + grant.days, 0)).toBe(8);
+    expect(db.grants).toHaveLength(0);
   });
 
   it("enforces activity caps and the maximum promotional bank", async () => {
@@ -282,7 +271,7 @@ describe("rewards activity and promotional entitlement service", () => {
         occurredAt: new Date(Date.UTC(2026, 6, day, 12))
       });
     }
-    expect(cappedDb.grants).toHaveLength(1);
+    expect(cappedDb.grants).toHaveLength(0);
 
     const bankDb = new RewardTestDb();
     bankDb.settings = [{ key: "max_banked_promotional_days", value: 1 }];
@@ -323,7 +312,7 @@ describe("rewards activity and promotional entitlement service", () => {
       idempotencyKey: "referral-one",
       referralId: "76b226e8-01f1-4232-bccc-746ddc0dcdf8"
     });
-    expect(db.bankedSeconds).toBe(7 * 86_400);
+    expect(db.bankedSeconds).toBe(0);
     expect(db.activeUntil?.toISOString()).toBe("2026-07-29T12:00:00.000Z");
   });
 

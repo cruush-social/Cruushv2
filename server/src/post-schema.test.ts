@@ -21,4 +21,14 @@ describe("createPostPayloadSchema", () => {
       crowdTargets: ["T4T"]
     }).crowdTargets).toEqual(["T4T"]);
   });
+
+  it("allows a post to have no expiry", () => {
+    expect(createPostPayloadSchema.parse({
+      content: "Permanent local feed post",
+      expiresIn: "never"
+    })).toMatchObject({
+      content: "Permanent local feed post",
+      expiresIn: "never"
+    });
+  });
 });

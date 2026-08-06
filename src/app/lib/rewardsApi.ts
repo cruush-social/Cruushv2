@@ -40,6 +40,7 @@ export type RewardSummary = {
     referralRewardDays: number;
     referralMinAccountAgeDays: number;
     maxBankedPromotionalDays: number;
+    automaticPromotionalRewardsEnabled: boolean;
   };
 };
 

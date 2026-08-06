@@ -14,6 +14,7 @@ import {
   type PolicyDecision,
   type ProviderModerationResult
 } from "./moderation-types.js";
+import { buildProfileModerationFields } from "./routes/profiles.js";
 
 function createApp() {
   return {
@@ -54,6 +55,31 @@ async function moderateSurface(surface: ModerationSurface, text: string) {
 }
 
 describe("text language moderation policy", () => {
+  it("moderates only the profile fields that are intended to be free-form text", () => {
+    const fields = buildProfileModerationFields({
+      display_name: "Jordan",
+      bio: "A short bio",
+      signal: "Ask me",
+      custom_pronouns: "kill all faggots",
+      position: ["kill all faggots"],
+      role: ["kill all faggots"],
+      hobbies: ["kill all faggots"],
+      kinks: ["kill all faggots"],
+      scenes: ["kill all faggots"],
+      archetypes: ["kill all faggots"],
+      looking_for: ["kill all faggots"],
+      availability: ["kill all faggots"],
+      hosting_travel: ["kill all faggots"],
+      vibes: ["kill all faggots"]
+    } as never, []);
+
+    expect(fields).toEqual({
+      display_name: "Jordan",
+      bio: "A short bio",
+      signal: "Ask me"
+    });
+  });
+
   it("rejects the hard-r racial slur across feed, messaging, and profiles", async () => {
     for (const surface of ["feed", "direct_message", "group_message", "profile"] as const) {
       await expect(moderateSurface(surface, "n.i.g.g.e.r")).rejects.toMatchObject({

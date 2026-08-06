@@ -1,7 +1,7 @@
 import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
 
-export type FeedPostExpiry = '1h' | '6h' | '24h';
+export type FeedPostExpiry = '1h' | '6h' | '24h' | 'never';
 export type FeedPostWindow = '1h' | '3h' | '6h' | '24h';
 export type FeedLocationPinVisibility = 'off' | 'mutuals' | 'same_crowd' | 'public';
 
@@ -9,7 +9,7 @@ export type FeedPost = {
   id: string;
   content: string;
   expiresIn: FeedPostExpiry;
-  expiresAt: string;
+  expiresAt: string | null;
   createdAt: string;
   distance: string;
   crowdTargets?: string[];

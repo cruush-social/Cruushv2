@@ -14,8 +14,8 @@ type PostRow = {
   id: string;
   user_id: string;
   content: string;
-  expires_in: "1h" | "6h" | "24h";
-  expires_at: string | Date;
+  expires_in: "1h" | "6h" | "24h" | "never";
+  expires_at: string | Date | null;
   created_at: string | Date;
   content_ciphertext?: string | null;
   content_nonce?: string | null;
@@ -129,7 +129,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       keyVersion: row.content_key_version ?? undefined
     }, row.content),
     expiresIn: row.expires_in,
-    expiresAt: new Date(row.expires_at).toISOString(),
+    expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
     createdAt: new Date(row.created_at).toISOString(),
     distance: typeof row.distance_miles === "number"
       ? formatCoarseDistance(row.distance_miles)
@@ -267,13 +267,16 @@ export async function registerPostRoutes(app: FastifyInstance) {
        from posts p
        left join profiles pr on pr.id = p.user_id
        left join user_privacy_settings pin_settings on pin_settings.user_id = p.user_id
-       where p.expires_at > now()
-         and p.created_at >= now() - case
-           when $2 = '1h' then interval '1 hour'
-           when $2 = '3h' then interval '3 hours'
-           when $2 = '6h' then interval '6 hours'
-           else interval '24 hours'
-         end
+       where (p.expires_at is null or p.expires_at > now())
+         and (
+           p.expires_in = 'never'
+           or p.created_at >= now() - case
+             when $2 = '1h' then interval '1 hour'
+             when $2 = '3h' then interval '3 hours'
+             when $2 = '6h' then interval '6 hours'
+             else interval '24 hours'
+           end
+         )
          and (
            $3::double precision is null
            or $4::double precision is null
@@ -463,10 +466,11 @@ export async function registerPostRoutes(app: FastifyInstance) {
            $5,
            $6,
            $2,
-           now() + case
-             when $2 = '1h' then interval '1 hour'
-             when $2 = '6h' then interval '6 hours'
-             else interval '24 hours'
+           case
+             when $2 = 'never' then null
+             when $2 = '1h' then now() + interval '1 hour'
+             when $2 = '6h' then now() + interval '6 hours'
+             else now() + interval '24 hours'
            end
          from eligible_user
          join moderation_review on true

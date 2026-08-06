@@ -546,6 +546,43 @@ describe('LocalFeed', () => {
     }));
   });
 
+  it('lets a feed post remain visible without an expiry', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    createFeedPost.mockResolvedValue({
+      id: 'post-never',
+      content: 'keep this around',
+      expiresIn: 'never',
+      expiresAt: null,
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-1',
+        name: 'me',
+        pronouns: 'they/them',
+        photo: null,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(await screen.findByPlaceholderText('Share something with nearby people...'), {
+      target: { value: 'keep this around' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Never' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }));
+
+    await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
+      content: 'keep this around',
+      expiresIn: 'never',
+      crowdTargets: [],
+    }));
+    expect((await screen.findAllByText('Never')).length).toBeGreaterThanOrEqual(2);
+  });
+
   it('shows the party hat beside party member names without a venue tag', async () => {
     getFeedPosts.mockResolvedValue([{
       id: 'post-party',

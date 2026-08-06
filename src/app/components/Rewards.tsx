@@ -137,21 +137,29 @@ export default function Rewards() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Progress
-                  value={((summary.rules.recurringStreakDays - summary.streak.nextRecurringInDays) /
-                    summary.rules.recurringStreakDays) * 100}
-                  aria-label="Progress to next streak reward"
-                />
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-lg bg-muted/40 p-3">
-                    <p className="text-muted-foreground">Next reward</p>
-                    <p className="mt-1 font-medium">{summary.streak.nextRecurringInDays} active days</p>
+                {summary.rules.automaticPromotionalRewardsEnabled ? (
+                  <>
+                    <Progress
+                      value={((summary.rules.recurringStreakDays - summary.streak.nextRecurringInDays) /
+                        summary.rules.recurringStreakDays) * 100}
+                      aria-label="Progress to next streak reward"
+                    />
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-lg bg-muted/40 p-3">
+                        <p className="text-muted-foreground">Next reward</p>
+                        <p className="mt-1 font-medium">{summary.streak.nextRecurringInDays} active days</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/40 p-3">
+                        <p className="text-muted-foreground">Next log in bonus</p>
+                        <p className="mt-1 font-medium">{summary.streak.nextLoginBonusAtDays} active days</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+                    Automatic streak and referral promotions are paused. Existing grants remain active.
                   </div>
-                  <div className="rounded-lg bg-muted/40 p-3">
-                    <p className="text-muted-foreground">Next log in bonus</p>
-                    <p className="mt-1 font-medium">{summary.streak.nextLoginBonusAtDays} active days</p>
-                  </div>
-                </div>
+                )}
                 <p className="text-xs leading-5 text-muted-foreground">
                   A cruush, legitimate message, reply, or other eligible social action counts once per
                   calendar day. Opening the app or logging in alone does not count.
@@ -163,9 +171,10 @@ export default function Rewards() {
               <CardHeader>
                 <CardTitle>Invite people you trust</CardTitle>
                 <CardDescription>
-                  You receive {summary.rules.referralRewardDays} <CruushPlusWord /> days after they secure their
-                  account with 2FA, complete their profile, and reach{' '}
-                  {summary.rules.referralMinAccountAgeDays} days old.
+                  {summary.rules.automaticPromotionalRewardsEnabled
+                    ? <>You receive {summary.rules.referralRewardDays} <CruushPlusWord /> days after they secure their
+                      account with 2FA, complete their profile, and reach {summary.rules.referralMinAccountAgeDays} days old.</>
+                    : 'Referral promotions are paused. Existing referral grants remain in your history.'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

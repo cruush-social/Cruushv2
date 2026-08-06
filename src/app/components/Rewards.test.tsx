@@ -55,6 +55,7 @@ const summary = {
     referralRewardDays: 7,
     referralMinAccountAgeDays: 7,
     maxBankedPromotionalDays: 90,
+    automaticPromotionalRewardsEnabled: false,
   },
 };
 
@@ -95,8 +96,8 @@ describe('Rewards', () => {
 
     expect(await screen.findByText('6-day streak')).toBeInTheDocument();
     expect(screen.getByText('Opening the app or logging in alone does not count.', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('Next log in bonus')).toBeInTheDocument();
-    expect(screen.getByText('8 active days')).toBeInTheDocument();
+    expect(screen.getByText('Automatic streak and referral promotions are paused. Existing grants remain active.')).toBeInTheDocument();
+    expect(screen.queryByText('Next log in bonus')).not.toBeInTheDocument();
     expect(screen.queryByText('Real activity. Real referrals. No spam.')).not.toBeInTheDocument();
     expect(screen.getByText('Your first confirmed reward will appear here.')).toBeInTheDocument();
     expect(screen.getByDisplayValue(summary.referrals.link)).toHaveAttribute('readonly');

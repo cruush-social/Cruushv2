@@ -825,10 +825,12 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       ] as const)
   );
   const profileMenuProps = {
-    menuPortal: embedded,
+    // Keep every profile editor menu outside the scrolling surface. Inline
+    // menus install a full-screen blocker that prevents scrolling on mobile.
+    menuPortal: true,
   };
   return (
-    <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
+    <div className={embedded ? 'bg-transparent pb-0' : 'min-h-[100dvh] overflow-visible bg-background pb-20'}>
       <header className={`${embedded ? 'top-0 border-white/10 bg-black/85 text-white' : 'top-0 border-border bg-card/80'} sticky z-10 flex items-center justify-between border-b p-4 backdrop-blur-sm`}>
         <Button variant="ghost" size="icon" onClick={handleCancel} aria-label={embedded ? 'Back to profile preview' : 'Back'}>
           <ArrowLeft className="w-5 h-5" />

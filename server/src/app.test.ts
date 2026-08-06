@@ -8378,6 +8378,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
     expect(query.mock.calls[1]?.[0]).toContain("from posts p");
+    expect(query.mock.calls[1]?.[0]).toContain("p.expires_in = 'never'");
     expect(response.json()).toEqual({
       data: [{
         id: "post-1",
@@ -8554,6 +8555,50 @@ describe("server", () => {
           photoExplicit: true
         }
       }
+    });
+  });
+
+  it("creates a never-expiring post with a null expiry timestamp", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-never",
+          user_id: userId,
+          content: "Keep this post",
+          expires_in: "never",
+          expires_at: null,
+          created_at: "2026-04-28T12:10:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: []
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Keep this post",
+        expiresIn: "never"
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[1]?.[0]).toContain("when $2 = 'never' then null");
+    expect(query.mock.calls[1]?.[1]).toContain("never");
+    expect(response.json().data).toMatchObject({
+      id: "post-never",
+      expiresIn: "never",
+      expiresAt: null
     });
   });
 

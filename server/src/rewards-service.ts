@@ -23,6 +23,12 @@ type GrantInput = {
   auditMetadata?: Record<string, unknown>;
 };
 
+const AUTOMATIC_PROMOTIONAL_GRANT_SOURCES = new Set<RewardSource>([
+  "activity_recurring",
+  "activity_long_bonus",
+  "referral"
+]);
+
 type EntitlementRow = {
   legacy_enabled?: boolean | null;
   legacy_expires_at?: string | Date | null;
@@ -207,6 +213,13 @@ export async function grantPromotionalDaysInTransaction(
   input: GrantInput,
   config: RewardConfig
 ): Promise<RewardGrantResult | null> {
+  // Existing grants remain valid, but new automatic streak/referral grants are
+  // permanently paused. Explicit first-login, admin, and promo-code grants
+  // continue through this function unchanged.
+  if (AUTOMATIC_PROMOTIONAL_GRANT_SOURCES.has(input.source)) {
+    return null;
+  }
+
   // Serialize all grants for one recipient so rolling caps and the promotional
   // bank limit remain correct when different workers grant concurrently.
   await db.query("select id from app_users where id = $1 for update", [input.userId]);
@@ -939,7 +952,8 @@ export async function getRewardSummary(
       longStreakBonusDays: config.longStreakBonusDays,
       referralRewardDays: config.referralRewardDays,
       referralMinAccountAgeDays: config.referralMinAccountAgeDays,
-      maxBankedPromotionalDays: config.maxBankedPromotionalDays
+      maxBankedPromotionalDays: config.maxBankedPromotionalDays,
+      automaticPromotionalRewardsEnabled: false
     }
   };
 }
