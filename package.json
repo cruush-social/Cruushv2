@@ -16,6 +16,7 @@
     "smoke:profile-photo": "node scripts/smoke-real-profile-photo-upload.mjs",
     "security:check": "bash scripts/security-check.sh",
     "test": "vitest run",
+    "test:release-coolify": "npm --prefix server run test:release-coolify",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "smoke": "pnpm test:smoke && pnpm --dir server test:smoke"
   },

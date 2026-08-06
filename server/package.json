@@ -26,6 +26,7 @@
     "health:rekognition": "sh -c 'if [ -f dist/check-rekognition-health.js ]; then node --enable-source-maps dist/check-rekognition-health.js; else tsx src/check-rekognition-health.ts; fi'",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
+    "test:release-coolify": "vitest run src/release-main-coolify.test.ts",
     "test:smoke": "vitest run --config vitest.smoke.config.ts"
   },
   "dependencies": {

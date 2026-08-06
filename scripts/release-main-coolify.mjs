@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const DEFAULT_SOURCE_BRANCH = 'codex/beta-launch-release-20260731';
+const DEFAULT_SOURCE_BRANCH = 'main';
 const REQUIRED_ENVS = [
   'COOLIFY_API_BASE_URL',
   'COOLIFY_API_TOKEN',
@@ -93,6 +94,16 @@ function run(command, args, options = {}) {
   return result.stdout ?? '';
 }
 
+function remoteMainSha() {
+  const output = run('git', ['ls-remote', 'origin', 'refs/heads/main'], { capture: true }).trim();
+  const [sha] = output.split(/\s+/);
+  if (!/^[0-9a-f]{40}$/i.test(sha ?? '')) {
+    throw new Error(`Could not read origin/main SHA from git ls-remote output: ${output || '(empty)'}`);
+  }
+
+  return sha.toLowerCase();
+}
+
 function requireCleanWorktree() {
   const status = run('git', ['status', '--porcelain'], { capture: true }).trim();
   if (status) {
@@ -112,6 +123,7 @@ function requireEnv(name) {
 // server/Dockerfile (Fastify, port 3001). A frontend base_directory on the API
 // resource silently ships the nginx image as the API, which answers 502.
 const FRONTEND_BUILD = {
+  kind: 'frontend',
   baseDirectory: '/',
   portsExposes: '80',
   healthCheckPath: '/',
@@ -120,6 +132,7 @@ const FRONTEND_BUILD = {
   minHealthCheckBudgetSeconds: 30,
 };
 const API_BUILD = {
+  kind: 'api',
   baseDirectory: '/server',
   portsExposes: '3001',
   healthCheckPath: '/health',
@@ -145,6 +158,8 @@ function appTargets(target) {
       uuid: requireEnv('COOLIFY_STAGING_API_UUID'),
       expectedHost: 'api-staging.cruush.app',
       smokeUrl: 'https://api-staging.cruush.app/health',
+      buildMetadataUrl: 'https://api-staging.cruush.app/api/build',
+      expectedStage: 'staging',
       build: API_BUILD,
     },
   ];
@@ -162,6 +177,8 @@ function appTargets(target) {
       uuid: requireEnv('COOLIFY_PRODUCTION_API_UUID'),
       expectedHost: 'api.cruush.app',
       smokeUrl: 'https://api.cruush.app/health',
+      buildMetadataUrl: 'https://api.cruush.app/api/build',
+      expectedStage: 'production',
       build: API_BUILD,
     },
   ];
@@ -218,143 +235,245 @@ function assertBuildConfig(app, target) {
   }
 }
 
-function releaseRuntimeEnvData() {
+function findValueByNames(app, names) {
+  const seen = new Set();
+  const queue = [app];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== 'object' || seen.has(current)) {
+      continue;
+    }
+    seen.add(current);
+
+    for (const name of names) {
+      if (Object.prototype.hasOwnProperty.call(current, name)) {
+        return current[name];
+      }
+    }
+
+    for (const value of Object.values(current)) {
+      if (value && typeof value === 'object') {
+        queue.push(value);
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function firstDefined(app, names) {
+  for (const name of names) {
+    if (Object.prototype.hasOwnProperty.call(app, name)) {
+      return app[name];
+    }
+  }
+
+  return undefined;
+}
+
+function valueIsEnabled(value) {
+  if (value === true) return true;
+  if (value === 1) return true;
+  if (typeof value === 'string') {
+    return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
+  }
+
+  return false;
+}
+
+function assertSourceConfig(app, target, expectedSha) {
+  const problems = [];
+  const gitBranch = String(findValueByNames(app, ['git_branch', 'gitBranch']) ?? '').trim();
+  const gitCommitSha = String(findValueByNames(app, ['git_commit_sha', 'gitCommitSha', 'commit_sha', 'commitSha']) ?? '').trim();
+
+  if (gitBranch !== 'main') {
+    problems.push(`git_branch is ${JSON.stringify(gitBranch || null)}, expected "main"`);
+  }
+
+  if (gitCommitSha && gitCommitSha !== 'HEAD' && gitCommitSha !== expectedSha) {
+    problems.push(`git_commit_sha is pinned to ${gitCommitSha}, expected empty, HEAD, or ${expectedSha}`);
+  }
+
+  if (target.build.kind === 'api') {
+    const includeSourceCommit = findValueByNames(app, [
+      'include_source_commit',
+      'include_source_commit_in_build',
+      'includeSourceCommitInBuild',
+      'is_include_source_commit',
+    ]);
+    const injectBuildArgs = findValueByNames(app, [
+      'inject_build_args',
+      'inject_build_args_to_dockerfile',
+      'injectBuildArgsToDockerfile',
+      'is_build_args_enabled',
+    ]);
+
+    if (!valueIsEnabled(includeSourceCommit)) {
+      problems.push('include source commit in build is not enabled, so SOURCE_COMMIT may be missing');
+    }
+
+    if (!valueIsEnabled(injectBuildArgs)) {
+      problems.push('inject build args to Dockerfile is not enabled, so APP_BUILD_SHA may be empty');
+    }
+  }
+
+  if (problems.length > 0) {
+    throw new Error(`${target.label} Coolify source config drifted:\n  - ${problems.join('\n  - ')}`);
+  }
+}
+
+function releaseRuntimeEnvData(target) {
+  const data = [
+    ...(target?.build?.kind === 'api' && target.expectedStage
+      ? [{
+        key: 'APP_DEPLOYMENT_STAGE',
+        value: target.expectedStage,
+        is_preview: false,
+        is_buildtime: false,
+        is_runtime: true,
+      }]
+      : []),
+  ];
+
+  data.push(
+    {
+      key: 'ALPHA_TEST_ENABLED',
+      value: 'false',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'ALPHA_TEST_PASSWORD_HASH',
+      value: '',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'ALPHA_TEST_ENDS_AT',
+      value: '',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'BETA_ACCESS_GEOFENCE_ENABLED',
+      value: 'true',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'BETA_ACCESS_CENTER_LATITUDE',
+      value: '40.70982',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'BETA_ACCESS_CENTER_LONGITUDE',
+      value: '-73.92256',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'BETA_ACCESS_RADIUS_MILES',
+      value: '15',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'BETA_ACCESS_VENUE_NAME',
+      value: '70 Scott Ave',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'SUPPORT_INBOX_EMAIL',
+      value: 'reports@cruush.app',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'LAUNCH_PARTY_ENABLED',
+      value: 'true',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'LAUNCH_PARTY_LATITUDE',
+      value: '40.70982',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'LAUNCH_PARTY_LONGITUDE',
+      value: '-73.92256',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'LAUNCH_PARTY_RADIUS_MILES',
+      value: '1',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'LAUNCH_PARTY_STARTS_AT',
+      value: '2026-07-31T22:00:00-04:00',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'LAUNCH_PARTY_ENDS_AT',
+      value: '2026-08-01T05:00:00-04:00',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'LAUNCH_PARTY_CHAT_EXPIRES_AT',
+      value: '2026-08-07T03:59:00-04:00',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'LAUNCH_PARTY_CHAT_ADMIN_EMAIL',
+      value: 'julienlenazny@gmail.com',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'LAUNCH_PARTY_CHAT_MAX_MEMBERS',
+      value: '500',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+    {
+      key: 'LAUNCH_PARTY_RA_URL',
+      value: 'https://ra.co/events/2483120',
+      is_preview: false,
+      is_buildtime: false,
+      is_runtime: true,
+    },
+  );
+
   return {
-    data: [
-      {
-        key: 'ALPHA_TEST_ENABLED',
-        value: 'false',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'ALPHA_TEST_PASSWORD_HASH',
-        value: '',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'ALPHA_TEST_ENDS_AT',
-        value: '',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'BETA_ACCESS_GEOFENCE_ENABLED',
-        value: 'true',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'BETA_ACCESS_CENTER_LATITUDE',
-        value: '40.70982',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'BETA_ACCESS_CENTER_LONGITUDE',
-        value: '-73.92256',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'BETA_ACCESS_RADIUS_MILES',
-        value: '15',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'BETA_ACCESS_VENUE_NAME',
-        value: '70 Scott Ave',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'SUPPORT_INBOX_EMAIL',
-        value: 'reports@cruush.app',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'LAUNCH_PARTY_ENABLED',
-        value: 'true',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'LAUNCH_PARTY_LATITUDE',
-        value: '40.70982',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'LAUNCH_PARTY_LONGITUDE',
-        value: '-73.92256',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'LAUNCH_PARTY_RADIUS_MILES',
-        value: '1',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'LAUNCH_PARTY_STARTS_AT',
-        value: '2026-07-31T22:00:00-04:00',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'LAUNCH_PARTY_ENDS_AT',
-        value: '2026-08-01T05:00:00-04:00',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'LAUNCH_PARTY_CHAT_EXPIRES_AT',
-        value: '2026-08-07T03:59:00-04:00',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'LAUNCH_PARTY_CHAT_ADMIN_EMAIL',
-        value: 'julienlenazny@gmail.com',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'LAUNCH_PARTY_CHAT_MAX_MEMBERS',
-        value: '500',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-      {
-        key: 'LAUNCH_PARTY_RA_URL',
-        value: 'https://ra.co/events/2483120',
-        is_preview: false,
-        is_buildtime: false,
-        is_runtime: true,
-      },
-    ],
+    data,
   };
 }
 
@@ -388,7 +507,7 @@ async function coolifyRequest(path, options = {}) {
   return body;
 }
 
-async function validateAndPatchApps(targets, dryRun) {
+async function validateAndPatchApps(targets, dryRun, expectedSha) {
   for (const target of targets) {
     const app = await coolifyRequest(`/applications/${encodeURIComponent(target.uuid)}`);
     assertExpectedDomain(app, target);
@@ -396,19 +515,22 @@ async function validateAndPatchApps(targets, dryRun) {
     console.log(`Validated ${target.label} domain ${target.expectedHost} and build config.`);
 
     if (dryRun) {
-      console.log(`[dry-run] Would set ${target.label} git_branch=main, alpha env cutoff values, 15-mile beta access geofence, reports inbox, and launch party pin.`);
+      assertSourceConfig(app, target, expectedSha);
+      console.log(`[dry-run] Would set ${target.label} git_branch=main, git_commit_sha=${expectedSha}, alpha env cutoff values, 15-mile beta access geofence, reports inbox, and launch party pin.`);
       continue;
     }
 
     await coolifyRequest(`/applications/${encodeURIComponent(target.uuid)}`, {
       method: 'PATCH',
-      body: JSON.stringify({ git_branch: 'main' }),
+      body: JSON.stringify({ git_branch: 'main', git_commit_sha: expectedSha }),
     });
     await coolifyRequest(`/applications/${encodeURIComponent(target.uuid)}/envs/bulk`, {
       method: 'PATCH',
-      body: JSON.stringify(releaseRuntimeEnvData()),
+      body: JSON.stringify(releaseRuntimeEnvData(target)),
     });
-    console.log(`Updated ${target.label} branch, alpha envs, beta access geofence, reports inbox, and launch party pin.`);
+    const updatedApp = await coolifyRequest(`/applications/${encodeURIComponent(target.uuid)}`);
+    assertSourceConfig(updatedApp, target, expectedSha);
+    console.log(`Updated ${target.label} branch, commit SHA, alpha envs, beta access geofence, reports inbox, and launch party pin.`);
   }
 }
 
@@ -429,10 +551,75 @@ async function deployTargets(targets, dryRun) {
 // every response is healthy and that the HTML always names the same build.
 const SMOKE_REQUEST_COUNT = 8;
 
-async function smokeTargets(targets, dryRun) {
+function assertBuildMetadataPayload(payload, target, expectedSha) {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error(`${target.label} /api/build did not return a JSON object.`);
+  }
+
+  if (payload.service !== 'cruush-server') {
+    throw new Error(`${target.label} /api/build service is ${JSON.stringify(payload.service)}, expected "cruush-server".`);
+  }
+
+  if (payload.sha !== expectedSha) {
+    throw new Error(`${target.label} /api/build sha is ${JSON.stringify(payload.sha)}, expected ${expectedSha}.`);
+  }
+
+  if (payload.shortSha !== expectedSha.slice(0, 12)) {
+    throw new Error(`${target.label} /api/build shortSha is ${JSON.stringify(payload.shortSha)}, expected ${expectedSha.slice(0, 12)}.`);
+  }
+
+  if (payload.stage !== target.expectedStage) {
+    throw new Error(`${target.label} /api/build stage is ${JSON.stringify(payload.stage)}, expected ${JSON.stringify(target.expectedStage)}.`);
+  }
+}
+
+async function smokeBuildMetadata(target, expectedSha) {
+  if (!target.buildMetadataUrl) {
+    return;
+  }
+
+  const statuses = [];
+  const shas = new Set();
+  const stages = new Set();
+
+  for (let attempt = 0; attempt < SMOKE_REQUEST_COUNT; attempt += 1) {
+    const separator = target.buildMetadataUrl.includes('?') ? '&' : '?';
+    const response = await fetch(`${target.buildMetadataUrl}${separator}smoke=${attempt}`, {
+      redirect: 'manual',
+      cache: 'no-store',
+    });
+    statuses.push(response.status);
+
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    if (response.status !== 200) {
+      throw new Error(`${target.label} /api/build returned ${response.status}; expected 200. Body: ${JSON.stringify(payload)}`);
+    }
+
+    assertBuildMetadataPayload(payload, target, expectedSha);
+    shas.add(payload.sha);
+    stages.add(payload.stage);
+  }
+
+  if (shas.size !== 1 || stages.size !== 1) {
+    throw new Error(`${target.label} /api/build served inconsistent metadata: shas=${[...shas].join(', ')} stages=${[...stages].join(', ')}`);
+  }
+
+  console.log(`Build metadata passed for ${target.label}: ${target.buildMetadataUrl} -> ${statuses.join(' ')} sha=${expectedSha} stage=${target.expectedStage}`);
+}
+
+async function smokeTargets(targets, dryRun, expectedSha) {
   for (const target of targets) {
     if (dryRun) {
       console.log(`[dry-run] Would smoke ${target.smokeUrl} ${SMOKE_REQUEST_COUNT} times.`);
+      if (target.buildMetadataUrl) {
+        console.log(`[dry-run] Would verify ${target.buildMetadataUrl} returns sha=${expectedSha} stage=${target.expectedStage}.`);
+      }
       continue;
     }
 
@@ -465,6 +652,8 @@ async function smokeTargets(targets, dryRun) {
 
     const build = target.expectsHtml ? ` build=${[...builds][0] ?? '(none found)'}` : '';
     console.log(`Smoke passed for ${target.label}: ${target.smokeUrl} -> ${statuses.join(' ')}${build}`);
+
+    await smokeBuildMetadata(target, expectedSha);
   }
 }
 
@@ -489,28 +678,45 @@ async function main() {
     console.log(`[dry-run] Would push ${args.source}:main.`);
   } else {
     run('git', ['push', 'origin', `${args.source}:main`]);
+    const pushedRemoteSha = remoteMainSha();
+    if (pushedRemoteSha !== sourceSha) {
+      throw new Error(`origin/main moved after push. Expected ${sourceSha}; remote is ${pushedRemoteSha}. Stop before deploying stale source.`);
+    }
+    console.log(`Verified origin/main is ${pushedRemoteSha}.`);
   }
 
   const targets = appTargets(args.target);
   const stagingTargets = targets.filter((target) => target.label.startsWith('staging'));
   const productionTargets = targets.filter((target) => target.label.startsWith('production'));
 
-  await validateAndPatchApps(targets, args.dryRun);
+  await validateAndPatchApps(targets, args.dryRun, sourceSha);
 
   if (stagingTargets.length > 0) {
     await deployTargets(stagingTargets, args.dryRun);
-    await smokeTargets(stagingTargets, args.dryRun);
+    await smokeTargets(stagingTargets, args.dryRun, sourceSha);
   }
 
   if (productionTargets.length > 0) {
     await deployTargets(productionTargets, args.dryRun);
-    await smokeTargets(productionTargets, args.dryRun);
+    await smokeTargets(productionTargets, args.dryRun, sourceSha);
   }
 
   console.log('Release script completed.');
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
+}
+
+export {
+  API_BUILD,
+  FRONTEND_BUILD,
+  assertBuildConfig,
+  assertBuildMetadataPayload,
+  assertSourceConfig,
+  releaseRuntimeEnvData,
+  valueIsEnabled,
+};

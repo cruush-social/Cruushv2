@@ -33,6 +33,26 @@ builds the Fastify API and listens on port 3001.
 | Ports exposes | `80` | `3001` |
 | Build pack | `dockerfile` | `dockerfile` |
 | Git branch | `main` | `main` |
+| Commit SHA | empty or current `origin/main` SHA only | empty or current `origin/main` SHA only |
+| Include source commit in build | optional | enabled |
+| Inject build args to Dockerfile | optional | enabled |
+
+The API Dockerfile maps Coolify's `SOURCE_COMMIT` build arg into
+`APP_BUILD_SHA`. Production must keep `APP_DEPLOYMENT_STAGE=production` on the
+`cruush-api` resource. A production API deployment is not accepted until
+`https://api.cruush.app/api/build` returns:
+
+- `service: "cruush-server"`
+- `sha`: the exact current `origin/main` commit SHA
+- `shortSha`: the first 12 characters of that SHA
+- `stage: "production"`
+
+The release guard `npm run test:release-coolify` covers stale-source and missing
+build-metadata regressions. During a live release,
+`scripts/release-main-coolify.mjs` also checks the Coolify source fields and
+samples `/api/build` repeatedly so a stale branch, stale pinned commit, missing
+route, wrong stage, or split-brain deployment fails the release instead of being
+reported as current.
 
 Setting `cruush-api` to base directory `/` builds the **frontend** image and
 deploys it as the API. The container starts cleanly and looks healthy in `docker ps`,
