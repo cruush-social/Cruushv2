@@ -70,7 +70,8 @@ const migrationFiles = [
   "061_moderator_account_bans.sql",
   "062_message_expiry_cleanup.sql",
   "063_media_classification_audit.sql",
-  "064_owner_access_repair.sql"
+  "064_owner_access_repair.sql",
+  "065_owner_photo_messaging_repair.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

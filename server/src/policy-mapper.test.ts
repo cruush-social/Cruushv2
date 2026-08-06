@@ -89,6 +89,27 @@ describe("policy mapper", () => {
     }
   );
 
+  it.each(["animal", "screenshot_or_interface"] as const)(
+    "allows a safe %s image in private messages even when Stream recommends removal",
+    (label) => {
+      const decision = mapProviderResultToPolicy({
+        surface: "direct_message",
+        contentType: "image",
+        providerResult: {
+          ...providerResult(label, 0.98),
+          provider: "stream",
+          recommended_action: "remove",
+          status: "complete"
+        }
+      });
+
+      expect(decision).toMatchObject({
+        decision: "allow",
+        category: label
+      });
+    }
+  );
+
   it("rejects PnP discussion in the feed without an immediate trust penalty", () => {
     const decision = map("pnp_discussion", "feed");
 

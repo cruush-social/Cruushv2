@@ -4328,6 +4328,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
     expect(query.mock.calls[6]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[6]?.[0]).toContain("lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com'");
     expect(query.mock.calls[6]?.[0]).toContain("content_ciphertext");
     expect(query.mock.calls[6]?.[1]).not.toContain("on my way");
     expect(query.mock.calls[6]?.[1]).toContain("keyword_prefilter");
@@ -4718,6 +4719,7 @@ describe("server", () => {
     const notificationInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into app_notifications"));
     expect(mediaInsert?.[1]?.[2]).toBe("message_photo");
     expect(messageInsert?.[0]).toContain("message_media_attachments");
+    expect(messageInsert?.[0]).toContain("lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com'");
     expect(messageInsert?.[0]).toContain("view_once");
     expect(messageInsert?.[0]).toContain("when $19 then 'explicit'");
     expect(messageInsert?.[1]?.[18]).toBe(true);
