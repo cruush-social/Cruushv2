@@ -661,6 +661,11 @@ describe("server", () => {
       auth: "session-cookie",
       storage: "postgres",
       migratedFromSupabase: true,
+      build: {
+        sha: null,
+        shortSha: null,
+        stage: "development"
+      },
       alphaTest: {
         enabled: false,
         active: false,
@@ -687,6 +692,59 @@ describe("server", () => {
         streamAppIdConfigured: false
       }
     });
+  });
+
+  it("returns public build metadata from /api/build", async () => {
+    const stampedApp = buildServer({
+      NODE_ENV: "production",
+      APP_DEPLOYMENT_STAGE: "production",
+      APP_BUILD_SHA: "f230afbcf9247390dfe5b3b0ce63d97d839ce6c4",
+      PORT: 3001,
+      HOST: "127.0.0.1",
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      CORS_ORIGIN: "http://localhost:5173",
+      SESSION_SECRET: "test-secret",
+      APP_URL: "https://cruush.test",
+      RESEND_API_KEY: "",
+      MAIL_FROM: "",
+      EMAIL_PREVIEW_ENABLED: false,
+      DEVELOPMENT_ADMIN_ENABLED: false,
+      DEVELOPMENT_ADMIN_PASSWORD: "",
+      TURNSTILE_SECRET_KEY: "",
+      PROFILE_ENCRYPTION_KEY: "",
+      PROFILE_TOKEN_KEY: "",
+      PROFILE_TOKEN_KEY_VERSION: "v1",
+      RELATIONSHIP_ENCRYPTION_KEY: "",
+      RELATIONSHIP_INDEX_KEY: "",
+      RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v1",
+      RELATIONSHIP_INDEX_KEY_VERSION: "v1",
+      MATCH_TOKEN_ENCRYPTION_KEY: "",
+      MATCH_TOKEN_SIGNING_KEY: "",
+      MATCH_TOKEN_KEY_VERSION: "v1"
+    }, {
+      db: {
+        query,
+        end
+      },
+      rateLimiter: createMemoryRateLimiter()
+    });
+
+    try {
+      const response = await stampedApp.inject({
+        method: "GET",
+        url: "/api/build"
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        service: "cruush-server",
+        sha: "f230afbcf9247390dfe5b3b0ce63d97d839ce6c4",
+        shortSha: "f230afbcf924",
+        stage: "production"
+      });
+    } finally {
+      await stampedApp.close();
+    }
   });
 
   it("keeps admin moderation routes mounted and protected when the legacy feature flag is disabled", async () => {

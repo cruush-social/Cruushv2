@@ -11,7 +11,9 @@ RUN npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
+ARG SOURCE_COMMIT=""
 ENV NODE_ENV=production
+ENV APP_BUILD_SHA=$SOURCE_COMMIT
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist

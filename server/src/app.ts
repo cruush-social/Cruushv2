@@ -69,6 +69,16 @@ function moderationRuntimeStatus(config: AppConfig) {
   };
 }
 
+function buildMetadata(config: AppConfig) {
+  const sha = config.APP_BUILD_SHA?.trim() || null;
+
+  return {
+    sha,
+    shortSha: sha ? sha.slice(0, 12) : null,
+    stage: config.APP_DEPLOYMENT_STAGE ?? "development"
+  };
+}
+
 export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   const app = Fastify({
     logger: deps.logger ?? config.NODE_ENV !== "test",
@@ -164,6 +174,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
       auth: "session-cookie",
       storage: "postgres",
       migratedFromSupabase: true,
+      build: buildMetadata(config),
       alphaTest: getAlphaTestState(config),
       betaAccess: {
         enabled: Boolean(config.BETA_ACCESS_GEOFENCE_ENABLED),
@@ -176,6 +187,13 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
       },
       photoUploads: photoUploadAvailability(config),
       moderation: moderationRuntimeStatus(config)
+    };
+  });
+
+  app.get("/api/build", async () => {
+    return {
+      service: "cruush-server",
+      ...buildMetadata(config)
     };
   });
 

@@ -73,9 +73,17 @@ const corsOriginSchema = z.string().min(1).transform((value, ctx) => {
   return origins.join(",");
 });
 
+const buildShaSchema = z.string()
+  .trim()
+  .regex(/^$|^[0-9a-f]{7,40}$/i, "APP_BUILD_SHA must be empty or a Git commit SHA")
+  .transform((value) => value.toLowerCase())
+  .optional()
+  .default("");
+
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_DEPLOYMENT_STAGE: z.enum(["development", "staging", "production"]).default("development"),
+  APP_BUILD_SHA: buildShaSchema,
   PORT: z.coerce.number().int().positive().default(3001),
   HOST: z.string().min(1).default("0.0.0.0"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -727,13 +735,15 @@ type BugTriageConfigKey =
   | "GITHUB_BUG_TRIAGE_REPO"
   | "GITHUB_BUG_TRIAGE_TOKEN"
   | "GITHUB_BUG_TRIAGE_LABEL";
+type BuildInfoConfigKey =
+  | "APP_BUILD_SHA";
 
 export type AppConfig = Omit<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey
 > & Partial<Pick<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey
 >>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {

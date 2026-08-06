@@ -126,6 +126,29 @@ describe("loadConfig", () => {
     expect(config.APP_URL).toBe("https://localhost:5173");
   });
 
+  it("validates optional public build sha metadata", () => {
+    const baseEnv = {
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      SESSION_SECRET: "local-dev-secret"
+    };
+
+    expect(loadConfig(baseEnv).APP_BUILD_SHA).toBe("");
+    expect(loadConfig({
+      ...baseEnv,
+      APP_BUILD_SHA: "F230AFB"
+    }).APP_BUILD_SHA).toBe("f230afb");
+
+    expect(loadConfig({
+      ...baseEnv,
+      APP_BUILD_SHA: "f230afbcf9247390dfe5b3b0ce63d97d839ce6c4"
+    }).APP_BUILD_SHA).toBe("f230afbcf9247390dfe5b3b0ce63d97d839ce6c4");
+
+    expect(() => loadConfig({
+      ...baseEnv,
+      APP_BUILD_SHA: "not-a-sha"
+    })).toThrow(/APP_BUILD_SHA/);
+  });
+
   it("rejects production config without dedicated profile keys", () => {
     expect(() => loadConfig({
       NODE_ENV: "production",
