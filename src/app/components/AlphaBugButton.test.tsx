@@ -15,6 +15,7 @@ const { dismissUserNotice, getUserNoticeDismissal, markNoticeDismissed, resolveN
   resolveNoticeDismissal: vi.fn(),
 }));
 
+
 vi.mock('../lib/supportApi', () => ({
   createSupportRequest,
 }));
@@ -136,79 +137,3 @@ describe('AlphaBugButton', () => {
   });
 });
 
-// Regression: the coach mark used to mark itself seen the moment it rendered, and it
-// rendered on the verify-email and reset-password screens too - so a user could burn
-// their one showing on a screen they barely looked at, before reaching the app.
-describe('AlphaBugButton coach mark', () => {
-  const TIP_TEXT = 'Found something broken?';
-
-  function dock() {
-    const slot = document.createElement('div');
-    document.body.appendChild(slot);
-    registerBugButtonSlot(slot);
-    return slot;
-  }
-
-  beforeEach(() => {
-    registerBugButtonSlot(null);
-    createSupportRequest.mockReset();
-    markNoticeDismissed.mockReset();
-    resolveNoticeDismissal.mockReset();
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
-  });
-
-  afterEach(() => {
-    registerBugButtonSlot(null);
-  });
-
-  it('does not show or spend itself on screens without the nav dock', async () => {
-    renderAlphaBugButton();
-
-    await waitFor(() => expect(screen.getByTestId('alpha-bug-button')).toBeInTheDocument());
-    expect(screen.queryByText(TIP_TEXT)).not.toBeInTheDocument();
-    expect(resolveNoticeDismissal).not.toHaveBeenCalled();
-    expect(markNoticeDismissed).not.toHaveBeenCalled();
-  });
-
-  it('shows once docked without marking itself seen', async () => {
-    dock();
-    renderAlphaBugButton();
-
-    expect(await screen.findByText(TIP_TEXT)).toBeInTheDocument();
-    // Blocking: dims the screen, no X, no click-away, no Esc.
-    const content = screen.getByTestId('alpha-bug-tip');
-    expect(content).toHaveAttribute('data-dismissible', 'false');
-    expect(content.querySelector('[data-slot="dialog-close"]')).toBeNull();
-    expect(document.querySelector('[data-slot="dialog-overlay"]')).toBeInTheDocument();
-    expect(markNoticeDismissed).not.toHaveBeenCalled();
-  });
-
-  it('records the dismissal only when the user dismisses it', async () => {
-    dock();
-    renderAlphaBugButton();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Got it' }));
-
-    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:alpha-bug-tip-seen', { offline: false });
-    expect(screen.queryByText(TIP_TEXT)).not.toBeInTheDocument();
-  });
-
-  it('shows when the notices API is unreachable and does not write a server dismissal', async () => {
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: true });
-    dock();
-    renderAlphaBugButton();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Got it' }));
-
-    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:alpha-bug-tip-seen', { offline: true });
-  });
-
-  it('stays hidden when it has already been dismissed', async () => {
-    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
-    dock();
-    renderAlphaBugButton();
-
-    await waitFor(() => expect(resolveNoticeDismissal).toHaveBeenCalled());
-    expect(screen.queryByText(TIP_TEXT)).not.toBeInTheDocument();
-  });
-});

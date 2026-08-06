@@ -1,30 +1,23 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Bug, Crown, Download, Eye, MapPin } from 'lucide-react';
+import { ArrowLeft, Download, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import ProfileOnboarding from './ProfileOnboarding';
-import { ALPHA_BUG_TIP_STORAGE_KEY } from './AlphaBugButton';
-import { offerStorageKey } from './BetaLaunchCruushPlusOffer';
-import { firstFeedPostPromptStorageKey } from './FirstFeedPostPrompt';
-import { DL_MODE_DEFAULT_NOTICE_KEY } from '../lib/dlMode';
+import { FIRST_RUN_TUTORIAL_KEY } from './FirstRunTutorial';
 import { clearPersistentNoticeFlag } from '../lib/persistentNotice';
 
 const AlphaBugButton = lazy(() => import('./AlphaBugButton'));
-const BetaLaunchCruushPlusOffer = lazy(() => import('./BetaLaunchCruushPlusOffer'));
 const BottomNav = lazy(() => import('./BottomNav'));
-const DlModeDefaultNotice = lazy(() => import('./DlModeDefaultNotice'));
-const FirstFeedPostPrompt = lazy(() => import('./FirstFeedPostPrompt'));
+const FirstRunTutorial = lazy(() => import('./FirstRunTutorial'));
 const MobileInstallPrompt = lazy(() => import('./MobileInstallPrompt'));
 
-const PREVIEW_USER_ID = 'preview-user';
-
-type PopupId = 'dl-mode' | 'beta-plus' | 'first-post' | 'bug-tip' | 'install';
+type PopupId = 'tutorial' | 'install';
 
 type PreviewPopup = {
   id: PopupId;
   label: string;
   description: string;
-  icon: typeof Eye;
+  icon: typeof MapPin;
   // Device flags to clear so the popup fires again on every replay. There is no session
   // here, so the notices API lookup fails and each popup treats itself as never seen.
   keys: string[];
@@ -32,32 +25,11 @@ type PreviewPopup = {
 
 const POPUPS: PreviewPopup[] = [
   {
-    id: 'dl-mode',
-    label: 'DL Mode is on by default',
-    description: 'Explains that NSFW photos start masked. Fires on the map.',
-    icon: Eye,
-    keys: [DL_MODE_DEFAULT_NOTICE_KEY],
-  },
-  {
-    id: 'beta-plus',
-    label: 'cruush+ trial',
-    description: 'Offers the free seven-day trial on first login.',
-    icon: Crown,
-    keys: [offerStorageKey(PREVIEW_USER_ID)],
-  },
-  {
-    id: 'first-post',
-    label: 'First feed post prompt',
-    description: 'Nudges a first local post after onboarding.',
+    id: 'tutorial',
+    label: 'First-run tutorial',
+    description: 'The steps a new account sees the first time it reaches the map.',
     icon: MapPin,
-    keys: [firstFeedPostPromptStorageKey(PREVIEW_USER_ID)],
-  },
-  {
-    id: 'bug-tip',
-    label: 'Bug report tip',
-    description: 'Points at the bug button in the bottom bar.',
-    icon: Bug,
-    keys: [ALPHA_BUG_TIP_STORAGE_KEY],
+    keys: [FIRST_RUN_TUTORIAL_KEY],
   },
   {
     id: 'install',
@@ -149,15 +121,8 @@ export default function OnboardingPreview() {
         </div>
         <Suspense fallback={null}>
           <BottomNav />
-          {activePopup === 'bug-tip' ? <AlphaBugButton enabled key={replayNonce} /> : null}
-          {/* This one only fires on the map, so tell it that is where we are. */}
-          {activePopup === 'dl-mode' ? <DlModeDefaultNotice pathname="/map" key={replayNonce} /> : null}
-          {activePopup === 'beta-plus' ? (
-            <BetaLaunchCruushPlusOffer userId={PREVIEW_USER_ID} key={replayNonce} />
-          ) : null}
-          {activePopup === 'first-post' ? (
-            <FirstFeedPostPrompt userId={PREVIEW_USER_ID} key={replayNonce} />
-          ) : null}
+          <AlphaBugButton enabled />
+          {activePopup === 'tutorial' ? <FirstRunTutorial forceOpen key={replayNonce} /> : null}
           {activePopup === 'install' ? <MobileInstallPrompt key={replayNonce} /> : null}
         </Suspense>
       </div>

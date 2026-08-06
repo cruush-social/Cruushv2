@@ -237,6 +237,9 @@ describe('App', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    // The first-run tutorial is a blocking modal, so leave it already seen unless a test
+    // is specifically about it - otherwise it hides the shell behind its backdrop.
+    localStorage.setItem('cruush:first-run-tutorial-seen', 'true');
     window.history.replaceState({}, '', '/');
     loadCurrentSession.mockReset();
     persistSessionUser.mockReset();

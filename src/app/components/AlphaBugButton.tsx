@@ -1,10 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { FormEvent, useMemo, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { Bug, CheckCircle2 } from 'lucide-react';
 import { ApiClientError } from '../lib/apiClient';
 import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 import { createSupportRequest } from '../lib/supportApi';
-import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -20,8 +19,6 @@ import { Textarea } from './ui/textarea';
 type AlphaBugButtonProps = {
   enabled?: boolean;
 };
-
-export const ALPHA_BUG_TIP_STORAGE_KEY = 'cruush:alpha-bug-tip-seen';
 
 type ScreenshotAttachment = {
   filename: string;
@@ -123,51 +120,15 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState('');
-  const [showTip, setShowTip] = useState(false);
-  const [noticeOffline, setNoticeOffline] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
   // useSyncExternalStore, not useState+useEffect: the nav registers its slot during the
   // same commit, before any effect runs, so a state initializer read at render time
   // always saw null and the button fell back to floating over the page.
   const buttonSlot = useSyncExternalStore(subscribeToBugButtonSlot, getBugButtonSlot, () => null);
 
-  // The tip used to be a floating panel. It sat on top of posts and buttons, and because
-  // the only free band was ~260px above the button it was describing, it pointed at
-  // nothing. It is a blocking modal now: it dims the screen and waits to be acknowledged.
-  // It waits for the nav dock so it cannot fire on the verify-email or reset-password
-  // screens, where the button renders but the app has not started.
-  const canShowTip = enabled && Boolean(buttonSlot);
-
-  useEffect(() => {
-    if (!canShowTip || typeof window === 'undefined') {
-      return;
-    }
-
-    let isMounted = true;
-
-    void resolveNoticeDismissal(ALPHA_BUG_TIP_STORAGE_KEY).then((notice) => {
-      if (!isMounted) {
-        return;
-      }
-
-      // Not marked seen here: a tip the user never acknowledged has not been shown.
-      setNoticeOffline(notice.offline);
-      setShowTip(!notice.dismissed);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [canShowTip]);
-
   if (!enabled) {
     return null;
   }
-
-  const dismissTip = () => {
-    setShowTip(false);
-    markNoticeDismissed(ALPHA_BUG_TIP_STORAGE_KEY, { offline: noticeOffline });
-  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -222,9 +183,6 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
-        if (nextOpen && showTip) {
-          dismissTip();
-        }
         if (!nextOpen) {
           setError('');
           setStatus('idle');
@@ -232,33 +190,6 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       }}
     >
       {buttonSlot && typeof document !== 'undefined' ? createPortal(trigger, buttonSlot) : trigger}
-      {showTip ? (
-        <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) dismissTip(); }}>
-          <DialogContent
-            className="max-w-sm rounded-lg border-white/10 bg-background"
-            data-testid="alpha-bug-tip"
-            dismissible={false}
-          >
-            <DialogHeader>
-              <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.045]">
-                <Bug className="h-5 w-5 text-primary" />
-              </div>
-              <DialogTitle>Found something broken?</DialogTitle>
-              <DialogDescription>
-                Tap the bug icon in the bottom bar to report it. It sends the page you are on and a
-                screenshot when your browser allows it.
-              </DialogDescription>
-            </DialogHeader>
-            <Button
-              className="w-full"
-              onClick={dismissTip}
-              style={{ background: 'var(--cruush-gradient)' }}
-            >
-              Got it
-            </Button>
-          </DialogContent>
-        </Dialog>
-      ) : null}
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>
