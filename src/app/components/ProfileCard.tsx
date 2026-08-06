@@ -39,7 +39,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   const hasSentCruush = !isAlreadyMutual && !mutualRevoked && (cruushed || user.relationship?.outgoingCruush === true);
   const canMessage = !mutualRevoked && user.relationship?.canMessage !== false;
   const cruushDisabled = sendingCruush || revokingMutual || hasSentCruush;
-  const maskPhoto = shouldMaskPhoto(dlModeActive, user.photoExplicit);
+  const maskPhoto = Boolean(dlModeActive && user.photo && user.photoExplicit === true);
   const compact = placement === 'inline' && density === 'compact';
   const mediaStyle = compact ? PROFILE_CARD_COMPACT_MEDIA_STYLE : PROFILE_CARD_MEDIA_ASPECT_STYLE;
   const lookingForItems = Array.isArray(user.lookingFor)

@@ -516,11 +516,13 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
       createCoarseIndexTokens(app.config, centerLat, centerLng)
     ];
     const activeLocationWindow = "(extract(epoch from now()) * 1000)::bigint";
+    const discoveryLocationWindow = "(extract(epoch from now() - interval '4 days') * 1000)::bigint";
     const where = [
       "profiles.id <> $1",
       `(
-        profiles.location_updated_at >= now() - make_interval(days => ${MAP_PRESENCE_DAYS_SQL})
+        profiles.location_updated_at >= now() - interval '4 days'
         or location_envelopes.expires_at_ms > ${activeLocationWindow}
+        or location_envelopes.collected_at_ms >= ${discoveryLocationWindow}
       )`,
       `not exists (
         select 1
@@ -533,6 +535,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
           location_envelopes.expires_at_ms > ${activeLocationWindow}
           and location_envelopes.coarse_index_tokens && $2::text[]
         )
+        or location_envelopes.collected_at_ms >= ${discoveryLocationWindow}
         or (
           (profiles.fuzzy_lat is not null and profiles.fuzzy_lng is not null)
           or (profiles.lat is not null and profiles.lng is not null)
@@ -703,7 +706,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lat,
          fuzzy_lng
        from profiles
-       where last_active >= now() - make_interval(days => ${DEFAULT_MAP_PRESENCE_DAYS})
+       where last_active >= now() - interval '4 days'
        order by last_active desc nulls last
        limit $1`,
       [filters.limit]

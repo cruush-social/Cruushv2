@@ -90,10 +90,7 @@ coverage/
 # Ignore docs
 .docs/design-master.md
 
-# Ignore macOS AppleDouble and Finder metadata
-._*
-.DS_Store
-
-# Local Claude Code config: launch profiles and worktrees with machine-specific paths.
-.claude/
-.agents/
+# Claude Code (local/machine-specific state)
+.claude/settings.local.json
+.claude/worktrees/
+._.claude

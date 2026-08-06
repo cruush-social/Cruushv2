@@ -17,7 +17,7 @@ import {
 import { getMyCruushActivity, sendCruush, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { openConversationOrInbox } from '../lib/openConversation';
-import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
+import posthog from '../lib/posthog';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -311,6 +311,10 @@ export default function DirectMessages() {
         disappearingTimer: groupTimer,
       });
       resetGroupComposer();
+      posthog.capture('group_conversation_created', {
+        member_count: selectedMemberIds.length,
+        disappearing_timer: groupTimer,
+      });
       navigate(`/chat/${created.id}`);
     } catch (error) {
       console.error('Error creating group conversation:', error);
@@ -337,6 +341,9 @@ export default function DirectMessages() {
 
     try {
       await deleteConversationForEveryone(conversation.id);
+      posthog.capture('conversation_deleted_for_everyone', {
+        conversation_type: conversation.kind,
+      });
       setConversations((current) => current.filter((item) => item.id !== conversation.id));
     } catch (error) {
       console.error('Error deleting conversation:', error);

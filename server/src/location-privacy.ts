@@ -182,7 +182,8 @@ export const GHOST_RADIUS_OPTIONS = [
 
 export const DEFAULT_GHOST_RADIUS_METERS = 1609;
 export const DISPLAY_TOKEN_TTL_MS = 180 * 1000;
-const LOCATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const LOCATION_DISCOVERY_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
+const LOCATION_TTL_MS = LOCATION_DISCOVERY_WINDOW_MS;
 const ROTATION_INTERVAL_MS = 15 * 60 * 1000;
 const FADE_WINDOW_MS = 60 * 1000;
 const DISPLAY_KEY_TTL_MS = 30 * 60 * 1000;
@@ -764,6 +765,7 @@ export async function loadLocationEnvelopes(context: LocationPrivacyContext, sub
     return new Map<string, LocationPayload>();
   }
 
+  const nowMs = Date.now();
   const result = await context.db.query<EncryptedLocationEnvelopeRow>(
     `select
        subject_user_id::text as subject_user_id,
@@ -780,8 +782,11 @@ export async function loadLocationEnvelopes(context: LocationPrivacyContext, sub
        expires_at_ms
      from encrypted_location_envelopes
      where subject_user_id = any($1::uuid[])
-       and expires_at_ms > $2`,
-    [uniqueIds, Date.now()]
+       and (
+         expires_at_ms > $2
+         or collected_at_ms >= $3
+       )`,
+    [uniqueIds, nowMs, nowMs - LOCATION_DISCOVERY_WINDOW_MS]
   );
 
   return new Map((result?.rows ?? []).map((row) => [row.subject_user_id, decryptLocationEnvelope(context, row)]));

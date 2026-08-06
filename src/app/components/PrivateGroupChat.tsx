@@ -43,7 +43,8 @@ import {
 } from '../lib/messagesApi';
 import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
-import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import posthog from '../lib/posthog';
+import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
 
@@ -732,6 +733,10 @@ export default function PrivateGroupChat() {
           ? normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)
           : item
       )));
+      posthog.capture('message_sent', {
+        conversation_type: conversation.kind,
+        message_type: 'text',
+      });
       setError(null);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -766,6 +771,11 @@ export default function PrivateGroupChat() {
       setMessages((prev) => [...prev, normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)]);
       setMessage('');
       setPhotoViewOnce(false);
+      posthog.capture('message_sent', {
+        conversation_type: conversation.kind,
+        message_type: 'photo',
+        view_once: photoViewOnce,
+      });
       setError(null);
       setComposerError(null);
     } catch (error) {

@@ -108,7 +108,7 @@ export default function ProfilePhotoGallery({
               type="button"
               aria-label={`Show profile photo ${index + 1}`}
               onClick={() => setActiveIndex(index)}
-              className="flex items-center justify-center overflow-visible border-0 bg-transparent p-0 drop-shadow-[0_10px_24px_rgba(0,0,0,0.42)] transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+              className="flex items-center justify-center overflow-visible border-0 bg-transparent p-0 transition hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               style={{
                 height: 'clamp(2.75rem, 9dvh, 4rem)',
                 width: 'clamp(2.75rem, 9dvh, 4rem)',

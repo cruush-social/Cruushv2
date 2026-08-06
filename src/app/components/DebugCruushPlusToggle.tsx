@@ -69,9 +69,9 @@ export default function DebugCruushPlusToggle() {
       className={[
         'fixed left-1/2 top-3 z-[80] inline-flex h-9 -translate-x-1/2 items-center gap-2 rounded-full border px-3 text-[11px] font-semibold uppercase tracking-[0.12em] shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition',
         enabled
-          ? 'border-primary/50 bg-primary/20 text-primary'
+          ? 'border-white/18 bg-white/[0.075] text-white/86'
           : 'border-white/15 bg-black/55 text-white/70',
-        saving ? 'opacity-60' : 'hover:bg-primary/24 hover:text-primary',
+        saving ? 'opacity-60' : 'hover:bg-white/[0.11] hover:text-white',
       ].join(' ')}
     >
       <CruushIcon name="lucky" className="h-3.5 w-3.5" variant={enabled ? 'colored' : 'white'} />

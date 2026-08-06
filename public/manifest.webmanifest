@@ -2,7 +2,7 @@
   "name": "cruush",
   "short_name": "cruush",
   "description": "queer cruisers cruise cruush",
-  "start_url": "/map?source=pwa",
+  "start_url": "/map?source=pwa&release=20260802-phone-refresh-v20",
   "scope": "/",
   "display": "standalone",
   "background_color": "#09090b",

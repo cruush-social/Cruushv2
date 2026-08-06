@@ -257,16 +257,31 @@
   }
 
   .cruush-map .maplibregl-canvas {
-    filter: brightness(1.2) contrast(1.14) saturate(0.9);
+    filter: brightness(0.86) contrast(1.2) saturate(1);
   }
 
   .cruush-map-shell {
+    width: 100%;
     height: 100vh;
     min-height: 100vh;
     max-height: 100vh;
+    height: 100svh;
+    min-height: 100svh;
+    max-height: 100svh;
     height: 100dvh;
     min-height: 100dvh;
     max-height: 100dvh;
+  }
+
+  @supports selector(body:has(.cruush-map-shell)) {
+    html:has(.cruush-map-shell),
+    body:has(.cruush-map-shell),
+    #root:has(.cruush-map-shell) {
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
   }
 
   .cruush-logo-text {
@@ -281,6 +296,97 @@
 
   .cruush-logo-font {
     font-family: 'UnifrakturMaguntia', serif;
+  }
+
+  .cruush-plus-word {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: baseline;
+  }
+
+  .cruush-plus-word::after {
+    position: absolute;
+    inset: 0;
+    content: attr(data-text);
+    pointer-events: none;
+    color: transparent;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      transparent 34%,
+      rgba(255, 255, 255, 0.3) 43%,
+      rgba(255, 255, 255, 0.95) 48%,
+      rgba(255, 255, 255, 0.28) 53%,
+      transparent 62%,
+      transparent 100%
+    );
+    background-position: 140% 0;
+    background-size: 240% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    mix-blend-mode: screen;
+    animation: cruush-plus-shimmer 3.4s ease-in-out infinite;
+  }
+
+  .cruush-plus-shimmer-button {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .cruush-plus-shimmer-button::before {
+    position: absolute;
+    inset: -1px;
+    z-index: 0;
+    content: '';
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      transparent 34%,
+      rgba(255, 255, 255, 0.26) 43%,
+      rgba(255, 255, 255, 0.82) 48%,
+      rgba(255, 255, 255, 0.24) 53%,
+      transparent 62%,
+      transparent 100%
+    );
+    background-position: 140% 0;
+    background-size: 240% 100%;
+    mix-blend-mode: screen;
+    animation: cruush-plus-shimmer 3.4s ease-in-out infinite;
+  }
+
+  .cruush-plus-shimmer-button > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes cruush-plus-shimmer {
+    0%,
+    42%,
+    100% {
+      background-position: 140% 0;
+      opacity: 0;
+    }
+
+    58% {
+      opacity: 0.9;
+    }
+
+    78% {
+      background-position: -80% 0;
+      opacity: 0.45;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cruush-plus-word::after,
+    .cruush-plus-shimmer-button::before {
+      animation: none;
+      opacity: 0;
+    }
   }
 
   /* Pulse animation for map pins */
@@ -335,4 +441,859 @@
       transform: translateX(0);
     }
   }
+}
+
+:root {
+  --cruush-glass-border: rgba(255, 255, 255, 0.55);
+  --cruush-glass-border-soft: rgba(255, 255, 255, 0.34);
+  --cruush-glass-highlight: rgba(255, 255, 255, 0.72);
+  --cruush-liquid-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22) inset, 0 1.5px 2px rgba(255, 255, 255, 0.72) inset, 0 -1px 1.5px rgba(255, 255, 255, 0.28) inset, 1.5px 0 2px -1px rgba(255, 255, 255, 0.34) inset, -1.5px 0 2px -1px rgba(255, 255, 255, 0.34) inset, 0 -10px 20px rgba(0, 0, 0, 0.1) inset, 0 14px 34px rgba(0, 0, 0, 0.34);
+  --cruush-glass-shadow: var(--cruush-liquid-shadow), 0 0 0 1px rgba(0, 0, 0, 0.18);
+  --cruush-glass-shadow-soft: 0 0 0 1px rgba(255, 255, 255, 0.18) inset, 0 1.5px 2px rgba(255, 255, 255, 0.6) inset, 0 -1px 1.5px rgba(255, 255, 255, 0.22) inset, 1.5px 0 2px -1px rgba(255, 255, 255, 0.28) inset, -1.5px 0 2px -1px rgba(255, 255, 255, 0.28) inset, 0 10px 26px rgba(0, 0, 0, 0.28);
+  --cruush-glass-dock-shadow: 0 0 0 1px rgba(255, 255, 255, 0.24) inset, 0 2px 2.5px rgba(255, 255, 255, 0.7) inset, 0 -1px 2px rgba(255, 255, 255, 0.26) inset, 2px 0 2.5px -1px rgba(255, 255, 255, 0.32) inset, -2px 0 2.5px -1px rgba(255, 255, 255, 0.32) inset, 0 -12px 26px rgba(0, 0, 0, 0.1) inset, 0 18px 48px rgba(0, 0, 0, 0.4);
+  --cruush-glass-current-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3) inset, 0 1.5px 2px rgba(255, 255, 255, 0.75) inset, 0 -1px 1.5px rgba(255, 255, 255, 0.3) inset, 0 8px 20px rgba(0, 0, 0, 0.26);
+  --cruush-glass-backdrop: blur(22px) saturate(1.48) brightness(1.06) contrast(1.01);
+  --cruush-glass-backdrop-soft: blur(17px) saturate(1.36) brightness(1.05) contrast(1.01);
+  --cruush-glass-dock-backdrop: blur(20px) saturate(1.44) brightness(1.06) contrast(1.02);
+  --cruush-glass-current-backdrop: blur(12px) saturate(1.28) brightness(1.05) contrast(1.01);
+  --cruush-glass-field-backdrop: blur(18px) saturate(1.4) brightness(1.06) contrast(1.01);
+  --cruush-glass-edge-reflection: radial-gradient(circle at 18% 2%, rgba(255, 255, 255, 0.46), transparent 30%), linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.11) 17%, transparent 45%), linear-gradient(118deg, rgba(255, 255, 255, 0.18) 0%, transparent 30% 70%, rgba(255, 255, 255, 0.11) 100%);
+  --cruush-glass-material-noise: linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0));
+  --cruush-glass-specular: linear-gradient(104deg, transparent 0 35%, rgba(255, 255, 255, 0.1) 43%, rgba(255, 255, 255, 0.42) 49%, rgba(255, 255, 255, 0.1) 55%, transparent 68% 100%);
+  --cruush-glass-surface: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.32), transparent 36%), linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.035) 44%, rgba(255, 255, 255, 0.055) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.08), rgba(6, 8, 13, 0.17));
+  --cruush-glass-surface-soft: radial-gradient(circle at 20% -8%, rgba(255, 255, 255, 0.24), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.028) 46%, rgba(255, 255, 255, 0.045) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.07), rgba(6, 8, 13, 0.13));
+  --cruush-glass-panel-bg: radial-gradient(circle at 18% -8%, rgba(255, 255, 255, 0.26), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 46%, rgba(255, 255, 255, 0.05) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.13), rgba(6, 8, 13, 0.24));
+  --cruush-glass-bar-bg: radial-gradient(circle at 18% -10%, rgba(255, 255, 255, 0.28), transparent 36%), linear-gradient(180deg, rgba(255, 255, 255, 0.095) 0%, rgba(255, 255, 255, 0.035) 45%, rgba(255, 255, 255, 0.05) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.06), rgba(6, 8, 13, 0.19));
+  --cruush-glass-control-bg: radial-gradient(circle at 24% 0%, rgba(255, 255, 255, 0.26), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 48%, rgba(255, 255, 255, 0.045) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.08), rgba(6, 8, 13, 0.15));
+  --cruush-glass-control-hover-bg: radial-gradient(circle at 24% 0%, rgba(255, 255, 255, 0.34), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.045) 48%, rgba(255, 255, 255, 0.07) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.07), rgba(6, 8, 13, 0.15));
+  --cruush-glass-menu-toggle-bg: radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.28), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.033) 46%, rgba(255, 255, 255, 0.05) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.06), rgba(6, 8, 13, 0.21));
+  --cruush-glass-dock-bg: radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.34), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.04) 43%, rgba(255, 255, 255, 0.06) 100%), linear-gradient(180deg, rgba(6, 8, 13, 0.11), rgba(6, 8, 13, 0.22));
+  --cruush-glass-current-bg: radial-gradient(circle at 34% 8%, rgba(255, 255, 255, 0.42), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.19), rgba(255, 255, 255, 0.07) 52%, rgba(255, 255, 255, 0.11)), linear-gradient(180deg, rgba(6, 8, 13, 0.06), rgba(6, 8, 13, 0.13));
+}
+
+@supports ((backdrop-filter: url("#cruush-liquid-glass-panel")) or (-webkit-backdrop-filter: url("#cruush-liquid-glass-panel"))) {
+  :root {
+    --cruush-glass-backdrop: url("#cruush-liquid-glass-panel") blur(15px) saturate(1.42) brightness(1.06) contrast(1.02);
+    --cruush-glass-backdrop-soft: url("#cruush-liquid-glass-pill") blur(12px) saturate(1.34) brightness(1.05) contrast(1.01);
+    --cruush-glass-dock-backdrop: url("#cruush-liquid-glass-dock") blur(13px) saturate(1.4) brightness(1.06) contrast(1.02);
+    --cruush-glass-current-backdrop: url("#cruush-liquid-glass-bubble") blur(9px) saturate(1.28) brightness(1.05) contrast(1.02);
+    --cruush-glass-field-backdrop: url("#cruush-liquid-glass-field") blur(11px) saturate(1.36) brightness(1.06) contrast(1.02);
+  }
+}
+
+.cruush-liquid-glass-filters {
+  position: fixed;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cruush-glass,
+.cruush-glass-panel,
+.cruush-glass-bar,
+.cruush-glass-pill,
+.cruush-glass-soft,
+.cruush-glass-menu,
+.cruush-glass-control,
+.cruush-glass-input {
+  position: relative;
+  border-color: var(--cruush-glass-border);
+  background: var(--cruush-glass-surface);
+  box-shadow: var(--cruush-glass-shadow);
+  backdrop-filter: var(--cruush-glass-backdrop);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop);
+  isolation: isolate;
+}
+
+.absolute.cruush-glass,
+.absolute.cruush-glass-panel,
+.absolute.cruush-glass-bar,
+.absolute.cruush-glass-pill,
+.absolute.cruush-glass-soft,
+.absolute.cruush-glass-menu,
+.absolute.cruush-glass-control,
+.absolute.cruush-glass-input {
+  position: absolute;
+}
+
+.fixed.cruush-glass,
+.fixed.cruush-glass-panel,
+.fixed.cruush-glass-bar,
+.fixed.cruush-glass-pill,
+.fixed.cruush-glass-soft,
+.fixed.cruush-glass-menu,
+.fixed.cruush-glass-control,
+.fixed.cruush-glass-input {
+  position: fixed;
+}
+
+.sticky.cruush-glass,
+.sticky.cruush-glass-panel,
+.sticky.cruush-glass-bar,
+.sticky.cruush-glass-pill,
+.sticky.cruush-glass-soft,
+.sticky.cruush-glass-menu,
+.sticky.cruush-glass-control,
+.sticky.cruush-glass-input {
+  position: sticky;
+}
+
+.cruush-glass-panel {
+  background: var(--cruush-glass-panel-bg);
+}
+
+.cruush-glass-bar {
+  background: var(--cruush-glass-bar-bg);
+}
+
+.cruush-glass-pill,
+.cruush-glass-control,
+.cruush-glass-input {
+  background: var(--cruush-glass-control-bg);
+}
+
+.cruush-glass-soft {
+  border-color: var(--cruush-glass-border-soft);
+  background: var(--cruush-glass-surface-soft);
+  box-shadow: var(--cruush-glass-shadow-soft);
+  backdrop-filter: var(--cruush-glass-backdrop-soft);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop-soft);
+}
+
+.cruush-glass-menu {
+  background: var(--cruush-glass-panel-bg);
+}
+
+.cruush-glass-menu-toggle {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: var(--cruush-glass-menu-toggle-bg);
+  box-shadow: var(--cruush-glass-shadow), 0 0 0 0.5px rgba(255, 255, 255, 0.16) inset;
+  backdrop-filter: var(--cruush-glass-backdrop);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop);
+}
+
+.cruush-map-3d-toggle,
+.cruush-map-heatmap-toggle {
+  overflow: hidden;
+}
+
+.cruush-map-3d-toggle[data-state="active"],
+.cruush-map-heatmap-toggle[data-state="active"] {
+  border-color: rgba(255, 255, 255, 0.38);
+  background: radial-gradient(circle at 28% 6%, rgba(255, 255, 255, 0.34), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0.1)), linear-gradient(180deg, rgba(6, 8, 13, 0.07), rgba(6, 8, 13, 0.17));
+  box-shadow: var(--cruush-glass-current-shadow);
+}
+
+.cruush-map-3d-toggle[data-state="active"]::before,
+.cruush-map-heatmap-toggle[data-state="active"]::before {
+  opacity: 0.2;
+}
+
+.cruush-map-3d-toggle[data-state="active"]::after,
+.cruush-map-heatmap-toggle[data-state="active"]::after {
+  opacity: 0.08;
+}
+
+.cruush-recently-active-panel {
+  min-width: 0;
+}
+
+.cruush-recently-active-toggle {
+  overflow: hidden;
+  border-color: var(--cruush-glass-border-soft);
+  background: var(--cruush-glass-control-bg);
+  box-shadow: var(--cruush-glass-shadow-soft);
+  backdrop-filter: var(--cruush-glass-backdrop-soft);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop-soft);
+}
+
+.cruush-recently-active-toggle[data-state="open"] {
+  border-color: rgba(255, 255, 255, 0.36);
+  background: var(--cruush-glass-current-bg);
+  box-shadow: var(--cruush-glass-current-shadow);
+}
+
+.cruush-bottom-nav-pill {
+  --bottom-nav-active-offset: 0rem;
+  --bottom-nav-indicator-origin: center;
+  min-height: 5rem;
+}
+
+.cruush-liquid-glass-dock {
+  position: relative;
+  isolation: isolate;
+  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--cruush-glass-dock-bg);
+  box-shadow: var(--cruush-glass-dock-shadow);
+  backdrop-filter: var(--cruush-glass-dock-backdrop);
+  -webkit-backdrop-filter: var(--cruush-glass-dock-backdrop);
+}
+
+.cruush-liquid-glass-dock::before,
+.cruush-liquid-glass-dock::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+}
+
+.cruush-liquid-glass-dock::before {
+  background: radial-gradient(circle at 16% 0%, rgba(255, 255, 255, 0.44), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 22% 76%, rgba(255, 255, 255, 0.08)), linear-gradient(112deg, rgba(255, 255, 255, 0.18), transparent 30% 70%, rgba(255, 255, 255, 0.11));
+  mix-blend-mode: screen;
+  opacity: 0.5;
+}
+
+.cruush-liquid-glass-dock::after {
+  background: var(--cruush-glass-specular);
+  background-position: 130% 0;
+  background-size: 230% 100%;
+  mix-blend-mode: screen;
+  opacity: 0.055;
+  animation: cruush-glass-idle-specular 16s ease-in-out infinite;
+}
+
+.cruush-bottom-nav-current-page {
+  color: rgba(255, 255, 255, 0.96);
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.cruush-bottom-nav-current-page::before,
+.cruush-bottom-nav-current-page::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+}
+
+.cruush-bottom-nav-current-page::before {
+  background: none;
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+
+.cruush-bottom-nav-current-page::after {
+  inset: 0.12rem;
+  background: none;
+  opacity: 0;
+}
+
+.cruush-bottom-nav-indicator {
+  position: absolute;
+  top: 0.55rem;
+  left: calc(0.375rem + var(--bottom-nav-active-offset));
+  z-index: 0;
+  width: 3.9rem;
+  height: 3.9rem;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.38));
+  transition: left 520ms cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: left;
+}
+
+.cruush-bottom-nav-indicator-surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 9999px;
+  background: var(--cruush-glass-current-bg);
+  box-shadow: var(--cruush-glass-current-shadow);
+  transform-origin: var(--bottom-nav-indicator-origin);
+  animation: cruush-bottom-nav-toggle-settle 520ms cubic-bezier(0.32, 0.72, 0, 1);
+  backdrop-filter: var(--cruush-glass-current-backdrop);
+  -webkit-backdrop-filter: var(--cruush-glass-current-backdrop);
+}
+
+.cruush-bottom-nav-indicator-surface::before,
+.cruush-bottom-nav-indicator-surface::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+}
+
+.cruush-bottom-nav-indicator-surface::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.36), transparent 19% 76%, rgba(255, 255, 255, 0.075)), linear-gradient(120deg, rgba(255, 255, 255, 0.18), transparent 32% 72%, rgba(255, 255, 255, 0.12));
+  mix-blend-mode: screen;
+  opacity: 0.52;
+}
+
+.cruush-bottom-nav-indicator-surface::after {
+  inset: 0.18rem;
+  background: radial-gradient(circle at 38% 18%, rgba(255, 255, 255, 0.18), transparent 27%), linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(0, 0, 0, 0.14));
+  opacity: 0.62;
+}
+
+.cruush-bottom-nav-indicator-surface[data-distance="2"],
+.cruush-bottom-nav-indicator-surface[data-distance="3"],
+.cruush-bottom-nav-indicator-surface[data-distance="4"] {
+  animation-name: cruush-bottom-nav-toggle-stretch;
+}
+
+@keyframes cruush-bottom-nav-toggle-settle {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+
+  52% {
+    transform: scaleX(1.08);
+  }
+}
+
+@keyframes cruush-bottom-nav-toggle-stretch {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+
+  52% {
+    transform: scaleX(1.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cruush-bottom-nav-indicator {
+    transition: none;
+  }
+
+  .cruush-bottom-nav-indicator-surface {
+    animation: none;
+  }
+}
+
+:where(
+  .cruush-glass,
+  .cruush-glass-panel,
+  .cruush-glass-bar,
+  .cruush-glass-pill,
+  .cruush-glass-soft,
+  .cruush-glass-menu,
+  .cruush-glass-control,
+  .cruush-glass-input,
+  .launch-login-auth-form,
+  .launch-login-auth-beta-capsule,
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="popover-content"],
+  [data-slot="select-content"],
+  [data-slot="dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"],
+  [data-slot="select-trigger"],
+  header.sticky[class*="backdrop-blur"],
+  [data-slot="sheet-footer"][class*="backdrop-blur"]
+) {
+  position: relative;
+  isolation: isolate;
+}
+
+:where(
+  .cruush-glass,
+  .cruush-glass-panel,
+  .cruush-glass-bar,
+  .cruush-glass-pill,
+  .cruush-glass-soft,
+  .cruush-glass-menu,
+  .cruush-glass-control,
+  .launch-login-auth-form,
+  .launch-login-auth-beta-capsule,
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="popover-content"],
+  [data-slot="select-content"],
+  [data-slot="dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"],
+  [data-slot="select-trigger"],
+  header.sticky[class*="backdrop-blur"],
+  [data-slot="sheet-footer"][class*="backdrop-blur"]
+)::before,
+:where(
+  .cruush-glass,
+  .cruush-glass-panel,
+  .cruush-glass-bar,
+  .cruush-glass-pill,
+  .cruush-glass-soft,
+  .cruush-glass-menu,
+  .cruush-glass-control,
+  .launch-login-auth-form,
+  .launch-login-auth-beta-capsule,
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="popover-content"],
+  [data-slot="select-content"],
+  [data-slot="dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"],
+  [data-slot="select-trigger"],
+  header.sticky[class*="backdrop-blur"],
+  [data-slot="sheet-footer"][class*="backdrop-blur"]
+)::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+}
+
+:where(
+  .cruush-glass,
+  .cruush-glass-panel,
+  .cruush-glass-bar,
+  .cruush-glass-pill,
+  .cruush-glass-soft,
+  .cruush-glass-menu,
+  .cruush-glass-control,
+  .launch-login-auth-form,
+  .launch-login-auth-beta-capsule,
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="popover-content"],
+  [data-slot="select-content"],
+  [data-slot="dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"],
+  [data-slot="select-trigger"],
+  header.sticky[class*="backdrop-blur"],
+  [data-slot="sheet-footer"][class*="backdrop-blur"]
+)::before {
+  background: var(--cruush-glass-edge-reflection), var(--cruush-glass-material-noise);
+  background-blend-mode: screen, overlay;
+  background-size: auto, 100% 100%;
+  opacity: 0.42;
+  mix-blend-mode: screen;
+}
+
+:where(
+  .cruush-glass,
+  .cruush-glass-panel,
+  .cruush-glass-bar,
+  .cruush-glass-pill,
+  .cruush-glass-soft,
+  .cruush-glass-menu,
+  .cruush-glass-control,
+  .launch-login-auth-form,
+  .launch-login-auth-beta-capsule,
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="popover-content"],
+  [data-slot="select-content"],
+  [data-slot="dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"],
+  [data-slot="select-trigger"],
+  header.sticky[class*="backdrop-blur"],
+  [data-slot="sheet-footer"][class*="backdrop-blur"]
+)::after {
+  background: var(--cruush-glass-specular);
+  background-position: 130% 0;
+  background-size: 230% 100%;
+  opacity: 0.06;
+  mix-blend-mode: screen;
+  animation: cruush-glass-idle-specular 16s ease-in-out infinite;
+}
+
+@keyframes cruush-glass-idle-specular {
+  0%,
+  58%,
+  100% {
+    background-position: 130% 0;
+    opacity: 0;
+  }
+
+  72% {
+    opacity: 0.075;
+  }
+
+  88% {
+    background-position: -35% 0;
+    opacity: 0.035;
+  }
+}
+
+@keyframes cruush-glass-scroll-specular {
+  0% {
+    background-position: 135% 0;
+    opacity: 0.018;
+  }
+
+  38% {
+    opacity: 0.095;
+  }
+
+  100% {
+    background-position: -40% 0;
+    opacity: 0.04;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  :where(
+    .cruush-glass,
+    .cruush-glass-panel,
+    .cruush-glass-bar,
+    .cruush-glass-pill,
+    .cruush-glass-soft,
+    .cruush-glass-menu,
+    .cruush-glass-control,
+    .launch-login-auth-form,
+    .launch-login-auth-beta-capsule,
+    [data-slot="dropdown-menu-content"],
+    [data-slot="dropdown-menu-sub-content"],
+    [data-slot="popover-content"],
+    [data-slot="select-content"],
+    [data-slot="dialog-content"],
+    [data-slot="sheet-content"],
+    [data-slot="drawer-content"],
+    [data-slot="select-trigger"],
+    header.sticky[class*="backdrop-blur"],
+    [data-slot="sheet-footer"][class*="backdrop-blur"]
+  )::after {
+    animation: cruush-glass-scroll-specular both;
+    animation-range: 0% 100%;
+    animation-timeline: scroll(root);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    .cruush-glass,
+    .cruush-glass-panel,
+    .cruush-glass-bar,
+    .cruush-glass-pill,
+    .cruush-glass-soft,
+    .cruush-glass-menu,
+    .cruush-glass-control,
+    .launch-login-auth-form,
+    .launch-login-auth-beta-capsule,
+    [data-slot="dropdown-menu-content"],
+    [data-slot="dropdown-menu-sub-content"],
+    [data-slot="popover-content"],
+    [data-slot="select-content"],
+    [data-slot="dialog-content"],
+    [data-slot="sheet-content"],
+    [data-slot="drawer-content"],
+    [data-slot="select-trigger"],
+    header.sticky[class*="backdrop-blur"],
+    [data-slot="sheet-footer"][class*="backdrop-blur"]
+  )::after {
+    animation: none;
+    opacity: 0.035;
+  }
+}
+
+.cruush-heart-glass-svg {
+  overflow: visible;
+  isolation: isolate;
+  filter: none;
+}
+
+.cruush-map-logo-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  isolation: isolate;
+  filter: drop-shadow(0 0.5rem 1.15rem rgba(0, 0, 0, 0.32));
+}
+
+.cruush-map-logo-shell::before,
+.cruush-map-logo-shell::after {
+  position: absolute;
+  inset: -0.28rem;
+  z-index: -1;
+  content: '';
+  pointer-events: none;
+  -webkit-mask: var(--cruush-map-logo-mask) center / contain no-repeat;
+  mask: var(--cruush-map-logo-mask) center / contain no-repeat;
+}
+
+.cruush-map-logo-shell::before {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.14) 20%, rgba(255, 255, 255, 0.065) 42%, rgba(206, 245, 255, 0.16) 74%, rgba(255, 255, 255, 0.18) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(2, 3, 7, 0.22));
+  transform: scale(1.075);
+  opacity: 0.56;
+  box-shadow: var(--cruush-liquid-shadow);
+  backdrop-filter: blur(8px) saturate(1.42) brightness(1.08);
+  -webkit-backdrop-filter: blur(8px) saturate(1.42) brightness(1.08);
+}
+
+.cruush-map-logo-shell::after {
+  inset: -0.16rem;
+  background:
+    linear-gradient(100deg, transparent 0 34%, rgba(255, 255, 255, 0.72) 43%, rgba(255, 255, 255, 0.15) 51%, transparent 62% 100%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.11), transparent 36% 64%, rgba(213, 247, 255, 0.15));
+  transform: scale(1.035);
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  filter: blur(0.2px);
+}
+
+.cruush-map-logo-glass {
+  position: relative;
+  z-index: 1;
+  filter: none;
+}
+
+.cruush-heart-glass-theme-border,
+.cruush-heart-glass-refraction,
+.cruush-heart-glass-rim,
+.cruush-heart-glass-edge,
+.cruush-heart-glass-lip,
+.cruush-heart-glass-specular {
+  pointer-events: none;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  vector-effect: non-scaling-stroke;
+  shape-rendering: geometricPrecision;
+}
+
+.cruush-heart-glass-base {
+  pointer-events: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  vector-effect: non-scaling-stroke;
+  shape-rendering: geometricPrecision;
+  paint-order: stroke fill;
+  filter: none;
+}
+
+.cruush-heart-glass-theme-border {
+  fill: none;
+  stroke-width: 3.35;
+  opacity: 0.68;
+  paint-order: stroke;
+  filter: none;
+}
+
+.cruush-heart-glass-refraction {
+  fill: rgba(255, 255, 255, 0.032);
+  stroke: rgba(255, 255, 255, 0.82);
+  stroke-width: 3.15;
+  opacity: 0.76;
+  mix-blend-mode: screen;
+  filter: none;
+}
+
+.cruush-heart-glass-rim {
+  stroke: rgba(255, 255, 255, 0.7);
+  stroke-width: 1.35;
+  opacity: 0.92;
+  mix-blend-mode: screen;
+  filter: none;
+}
+
+.cruush-heart-glass-edge {
+  mix-blend-mode: screen;
+  filter: none;
+}
+
+.cruush-heart-glass-edge-magenta {
+  stroke: rgba(255, 196, 230, 0.68);
+  stroke-width: 1.2;
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
+  opacity: 0;
+  transform: translate(-0.38px, -0.18px);
+}
+
+.cruush-heart-glass-edge-cyan {
+  stroke: rgba(193, 246, 255, 0.72);
+  stroke-width: 1.16;
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
+  opacity: 0;
+  transform: translate(0.38px, 0.22px);
+}
+
+.cruush-heart-glass-lip {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 1.2;
+  stroke-dasharray: 84 76;
+  stroke-dashoffset: 10;
+  opacity: 0.56;
+  mix-blend-mode: screen;
+  filter: none;
+}
+
+.cruush-heart-glass-specular {
+  stroke: rgba(255, 255, 255, 0.84);
+  stroke-width: 0.92;
+  stroke-dasharray: 15 143;
+  stroke-dashoffset: 34;
+  opacity: 0.18;
+  mix-blend-mode: screen;
+  animation: cruush-heart-glass-idle-specular 13s ease-in-out infinite;
+  filter: none;
+}
+
+@keyframes cruush-heart-glass-idle-specular {
+  0%,
+  62%,
+  100% {
+    stroke-dashoffset: 36;
+    opacity: 0.055;
+  }
+
+  76% {
+    opacity: 0.22;
+  }
+
+  88% {
+    stroke-dashoffset: -58;
+    opacity: 0.1;
+  }
+}
+
+@keyframes cruush-heart-glass-scroll-specular {
+  0% {
+    stroke-dashoffset: 48;
+    opacity: 0.06;
+  }
+
+  42% {
+    opacity: 0.24;
+  }
+
+  100% {
+    stroke-dashoffset: -66;
+    opacity: 0.1;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  .cruush-heart-glass-specular {
+    animation: cruush-heart-glass-scroll-specular both;
+    animation-range: 0% 100%;
+    animation-timeline: scroll(root);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cruush-heart-glass-specular {
+    animation: none;
+    opacity: 0.08;
+  }
+}
+
+button.cruush-glass-pill:hover:not(:disabled),
+button.cruush-glass-control:hover:not(:disabled),
+button.cruush-glass-soft:hover:not(:disabled),
+a.cruush-glass-pill:hover,
+a.cruush-glass-control:hover,
+a.cruush-glass-soft:hover,
+[role="button"].cruush-glass-pill:hover,
+[role="button"].cruush-glass-control:hover,
+[role="button"].cruush-glass-soft:hover,
+.cruush-glass-input:hover:not(:disabled) {
+  border-color: var(--cruush-glass-highlight);
+  background: var(--cruush-glass-control-hover-bg);
+}
+
+button.cruush-map-3d-toggle[data-state="active"]:hover:not(:disabled),
+button.cruush-map-heatmap-toggle[data-state="active"]:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.52);
+  background: var(--cruush-glass-control-hover-bg);
+}
+
+:where(
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="popover-content"],
+  [data-slot="select-content"]
+) {
+  border-color: var(--cruush-glass-border);
+  background: var(--cruush-glass-panel-bg);
+  box-shadow: var(--cruush-glass-shadow);
+  backdrop-filter: var(--cruush-glass-backdrop);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop);
+}
+
+:where(
+  [data-slot="dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"]
+) {
+  border-color: var(--cruush-glass-border);
+  background: var(--cruush-glass-panel-bg);
+  box-shadow: var(--cruush-glass-shadow);
+  backdrop-filter: var(--cruush-glass-backdrop);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop);
+}
+
+:where([data-slot="select-trigger"]) {
+  border-color: var(--cruush-glass-border-soft);
+  background: var(--cruush-glass-control-bg);
+  box-shadow: var(--cruush-glass-shadow-soft);
+  backdrop-filter: var(--cruush-glass-backdrop-soft);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop-soft);
+}
+
+:where(
+  [data-slot="dropdown-menu-item"],
+  [data-slot="dropdown-menu-checkbox-item"],
+  [data-slot="dropdown-menu-radio-item"],
+  [data-slot="dropdown-menu-sub-trigger"],
+  [data-slot="select-item"]
+):focus,
+:where([data-slot="dropdown-menu-sub-trigger"])[data-state="open"] {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+header.sticky[class*="backdrop-blur"],
+[data-slot="sheet-footer"][class*="backdrop-blur"] {
+  border-color: var(--cruush-glass-border-soft);
+  background: var(--cruush-glass-bar-bg);
+  box-shadow: var(--cruush-glass-shadow-soft);
+  backdrop-filter: var(--cruush-glass-backdrop-soft);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop-soft);
+}
+
+header.sticky[class*="backdrop-blur"] {
+  color: #ffffff;
+}
+
+[class*="rounded"][class*="border"][class~="bg-card/60"],
+[class*="rounded"][class*="border"][class~="bg-card/70"],
+[class*="rounded"][class*="border"][class~="bg-card/80"],
+[class*="rounded"][class*="border"][class~="bg-background/50"],
+[class*="rounded"][class*="border"][class~="bg-background/55"],
+[class*="rounded"][class*="border"][class~="bg-black/55"],
+[class*="rounded"][class*="border"][class~="bg-black/60"],
+[class*="rounded"][class*="border"][class~="bg-black/72"],
+[class*="rounded"][class*="border"][class~="bg-white/[0.04]"] {
+  border-color: var(--cruush-glass-border-soft);
+  background: var(--cruush-glass-surface-soft);
+  box-shadow: var(--cruush-glass-shadow-soft);
+  backdrop-filter: var(--cruush-glass-backdrop-soft);
+  -webkit-backdrop-filter: var(--cruush-glass-backdrop-soft);
+}
+
+button[class*="rounded"][class*="border"][class~="bg-card/60"]:hover:not(:disabled),
+button[class*="rounded"][class*="border"][class~="bg-card/70"]:hover:not(:disabled),
+button[class*="rounded"][class*="border"][class~="bg-card/80"]:hover:not(:disabled),
+button[class*="rounded"][class*="border"][class~="bg-background/50"]:hover:not(:disabled),
+button[class*="rounded"][class*="border"][class~="bg-background/55"]:hover:not(:disabled),
+button[class*="rounded"][class*="border"][class~="bg-black/55"]:hover:not(:disabled),
+button[class*="rounded"][class*="border"][class~="bg-black/60"]:hover:not(:disabled),
+button[class*="rounded"][class*="border"][class~="bg-black/72"]:hover:not(:disabled),
+button[class*="rounded"][class*="border"][class~="bg-white/[0.04]"]:hover:not(:disabled) {
+  border-color: var(--cruush-glass-highlight);
+  background: var(--cruush-glass-control-hover-bg);
 }

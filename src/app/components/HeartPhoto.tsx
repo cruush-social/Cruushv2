@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 import { useId } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
-import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
-import { getProfileGradientStops } from '../lib/profileGradient';
+import { HEART_PIN_PATH, HEART_PIN_PHOTO_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
 
 interface HeartPhotoProps {
   borderColor?: string;
@@ -23,14 +22,13 @@ export default function HeartPhoto({
   masked,
   photo = null,
   theme = 'nearby',
-  userId = null,
 }: HeartPhotoProps) {
   const id = useId();
-  const patternId = `heart-photo-${id}`;
+  const clipId = `heart-photo-clip-${id}`;
   const gradientId = `heart-gradient-${id}`;
   const resolvedTheme = HEART_PIN_THEMES[theme];
   const showPhoto = Boolean(photo && !masked);
-  const gradientStops = userId && !showPhoto && theme !== 'current' ? getProfileGradientStops(userId) : resolvedTheme.stops;
+  const gradientStops = resolvedTheme.stops;
   const resolvedBorderColor = borderColor ?? resolvedTheme.border;
   const resolvedPhoto = showPhoto && photo ? resolveMediaUrl(photo) : null;
 
@@ -43,13 +41,13 @@ export default function HeartPhoto({
         width="71"
         height="71"
         viewBox="0 0 64 64"
-        className="h-full w-full"
+        className="cruush-heart-glass-svg h-full w-full"
       >
         <defs>
           {resolvedPhoto ? (
-            <pattern id={patternId} width="1" height="1">
-              <image href={resolvedPhoto} width="64" height="64" preserveAspectRatio="xMidYMid slice" />
-            </pattern>
+            <clipPath id={clipId}>
+              <path d={HEART_PIN_PHOTO_PATH} />
+            </clipPath>
           ) : null}
           <linearGradient id={gradientId} x1="10" y1="9" x2="55" y2="56" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor={gradientStops[0]} />
@@ -58,11 +56,27 @@ export default function HeartPhoto({
           </linearGradient>
         </defs>
         <path
+          className="cruush-heart-glass-base"
           d={HEART_PIN_PATH}
-          fill={resolvedPhoto ? `url(#${patternId})` : `url(#${gradientId})`}
+          fill={`url(#${gradientId})`}
           stroke={resolvedBorderColor}
           strokeWidth="3.2"
         />
+        {resolvedPhoto ? (
+          <image
+            clipPath={`url(#${clipId})`}
+            height="64"
+            href={resolvedPhoto}
+            preserveAspectRatio="xMidYMid slice"
+            width="64"
+          />
+        ) : null}
+        <path className="cruush-heart-glass-theme-border" d={HEART_PIN_PATH} stroke={resolvedBorderColor} />
+        <path className="cruush-heart-glass-rim" d={HEART_PIN_PATH} />
+        <path className="cruush-heart-glass-edge cruush-heart-glass-edge-magenta" d={HEART_PIN_PATH} />
+        <path className="cruush-heart-glass-edge cruush-heart-glass-edge-cyan" d={HEART_PIN_PATH} />
+        <path className="cruush-heart-glass-lip" d={HEART_PIN_PATH} />
+        <path className="cruush-heart-glass-specular" d={HEART_PIN_PATH} />
       </svg>
 
       {!resolvedPhoto && fallback ? (

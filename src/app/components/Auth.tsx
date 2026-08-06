@@ -11,11 +11,11 @@ import {
 import { checkBetaAccess, requestBetaCity } from '../lib/betaAccessApi';
 import { getAppMeta, type AppMetaPayload } from '../lib/metaApi';
 import { persistSessionUser, setVerificationPreviewUrl } from '../lib/sessionUser';
+import posthog from '../lib/posthog';
 import { CruushIcon } from './CruushIconImage';
 import LaunchLoginMapTeaser from './LaunchLoginMapTeaser';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import Turnstile, { getTurnstileSiteKey } from './Turnstile';
-import cruushLogo from '../assets/brand/cruush-logo.svg';
 import './Auth.css';
 
 interface AuthProps {
@@ -159,6 +159,7 @@ export default function Auth({ onAuth }: AuthProps) {
         const delivery = await requestPasswordReset(email);
         setLocalVerificationPreviewUrl(delivery.previewUrl);
         setNotice('If that email belongs to an account, a reset link is on the way.');
+        posthog.capture('password_reset_requested');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to request a password reset.');
       } finally {
@@ -222,10 +223,8 @@ export default function Auth({ onAuth }: AuthProps) {
         }
         setVerificationPreviewUrl(delivery.previewUrl);
         setLocalVerificationPreviewUrl(delivery.previewUrl);
-        const deliveryFailed = delivery.verificationEmailSent === false;
-        setVerificationDeliveryFailed(deliveryFailed);
-        setVerificationRetryAvailable(deliveryFailed);
-        setNotice(deliveryFailed ? '' : 'Check your email to verify your account, then sign in.');
+        setNotice('Check your email to verify your account, then sign in.');
+        posthog.capture('account_created');
         setModeSelectedByUser(true);
         setMode('signin');
         // Keep the password when delivery failed so the resend control below can use it.
@@ -248,6 +247,9 @@ export default function Auth({ onAuth }: AuthProps) {
           betaAccessLocation: betaAccessLocation ?? undefined,
         });
         persistSessionUser(session);
+        posthog.capture('user_signed_in', {
+          two_factor_required: twoFactorRequired,
+        });
         setIsLoading(false);
         onAuth(session);
       }
@@ -437,14 +439,6 @@ export default function Auth({ onAuth }: AuthProps) {
         {/* Logo */}
         <div className="launch-login-auth-brand text-center" data-testid="launch-login-auth-brand">
           <h1 className="sr-only">cruush</h1>
-          <img
-            alt=""
-            aria-hidden="true"
-            className="launch-login-auth-logo-image"
-            data-testid="launch-login-auth-logo"
-            draggable={false}
-            src={cruushLogo}
-          />
           <div className="launch-login-auth-tagline-stack">
             <p className="launch-login-auth-tagline" data-testid="launch-login-auth-tagline">
               <span>queer cruisers cruise</span>{' '}
