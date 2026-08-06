@@ -55,6 +55,8 @@ alter table moderation_actions
   check (action in (
     'resolve_report',
     'dismiss_report',
+    'approve_content',
+    'reject_content',
     'suspend_user',
     'mark_under_review',
     'unsuspend_user',
