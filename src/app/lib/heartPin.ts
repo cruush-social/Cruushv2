@@ -3,8 +3,8 @@ export const HEART_PIN_PATH =
 
 export const HEART_PIN_THEMES = {
   current: {
-    border: '#0BA8FF',
-    stops: ['#00B8FF', '#0A7DF4', '#3236D4'],
+    border: '#004BFF',
+    stops: ['#3826FF', '#004BFF', '#1181FF'],
   },
   mutual: {
     border: '#6f00ff',

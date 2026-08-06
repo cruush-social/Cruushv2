@@ -482,24 +482,28 @@ export async function loadVisibilityPolicy(context: LocationPrivacyContext, subj
 
   const policyVersion = toNumber(row.policy_version);
   const updatedAtMs = toNumber(row.updated_at_ms);
-  const policy = decryptWithWrappedDataKey<VisibilityPolicyPayload>({
-    ciphertext: row.policy_ciphertext,
-    nonce: row.policy_nonce,
-    authTag: row.policy_auth_tag,
-    wrappedDek: row.wrapped_policy_dek,
-    dekNonce: row.policy_dek_nonce,
-    dekAuthTag: row.policy_dek_auth_tag,
-    aad: policyAad(subjectUserId, policyVersion, updatedAtMs),
-    secret: getVisibilityPolicySecret(context.config),
-    purpose: "visibility-policy",
-    keyVersion: row.key_version || getVisibilityPolicyKeyVersion(context.config)
-  });
+  try {
+    const policy = decryptWithWrappedDataKey<VisibilityPolicyPayload>({
+      ciphertext: row.policy_ciphertext,
+      nonce: row.policy_nonce,
+      authTag: row.policy_auth_tag,
+      wrappedDek: row.wrapped_policy_dek,
+      dekNonce: row.policy_dek_nonce,
+      dekAuthTag: row.policy_dek_auth_tag,
+      aad: policyAad(subjectUserId, policyVersion, updatedAtMs),
+      secret: getVisibilityPolicySecret(context.config),
+      purpose: "visibility-policy",
+      keyVersion: row.key_version || getVisibilityPolicyKeyVersion(context.config)
+    });
 
-  if (policy.subjectUserId !== subjectUserId) {
-    throw new Error("Encrypted visibility policy subject mismatch.");
+    if (policy.subjectUserId !== subjectUserId) {
+      return buildDefaultVisibilityPolicy(context.config, subjectUserId);
+    }
+
+    return policy;
+  } catch (error) {
+    return buildDefaultVisibilityPolicy(context.config, subjectUserId);
   }
-
-  return policy;
 }
 
 export async function saveVisibilityPolicy(
