@@ -11,6 +11,18 @@ given repeatedly across different agents. The evidence is in
 
 Do not ask Julien to repeat anything documented here.
 
+## The rules that are enforced by a command
+
+These are not suggestions you interpret. Run them.
+
+| Command | Enforces | Notes |
+| --- | --- | --- |
+| `pnpm ship -m "message"` | A1, A2, A3, F1, I5 | Commits, pushes to `main`, deploys, and polls until the deployed commit matches the pushed SHA. This is what "push to main" means. |
+| `pnpm check:layout` | D1, D2, D5, D6, D7 | Drives the installed Chrome over the DevTools Protocol at 375/768/1280 and measures real bounding boxes. Add `--url https://www.cruush.app` to check production. |
+| `pnpm check:copy` | F1 | Fails on user-facing `Cruush`. `--fix` rewrites it. |
+| `pnpm docs:worktrees` | J1 | Regenerates `docs/worktrees.md`. |
+| `pnpm docs:env` | I1, I2 | Regenerates `docs/env-matrix.md` and lists variables the code reads that `server/.env.example` does not document. |
+
 ---
 
 ## A. Shipping

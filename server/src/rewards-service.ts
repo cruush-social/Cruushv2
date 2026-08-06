@@ -279,12 +279,12 @@ export async function grantPromotionalDaysInTransaction(
     `insert into app_notifications (
        user_id, type, title, body, link_url, dedupe_key, metadata
      )
-     values ($1, 'reward', 'Cruush+ reward earned',
+     values ($1, 'reward', 'cruush+ reward earned',
        $2, '/rewards', $3, $4::jsonb)
      on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing`,
     [
       input.userId,
-      `${requestedDays} promotional ${requestedDays === 1 ? "day" : "days"} of Cruush+ added.`,
+      `${requestedDays} promotional ${requestedDays === 1 ? "day" : "days"} of cruush+ added.`,
       `reward:${input.idempotencyKey}`,
       JSON.stringify({ grantId: grant.id, days: requestedDays, source: input.source })
     ]
@@ -369,7 +369,7 @@ async function grantPromotionalAccessUntilInTransaction(
     `insert into app_notifications (
        user_id, type, title, body, link_url, dedupe_key, metadata
      )
-     values ($1, 'reward', 'Cruush+ reward earned',
+     values ($1, 'reward', 'cruush+ reward earned',
        $2, '/rewards', $3, $4::jsonb)
      on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing`,
     [
@@ -444,7 +444,7 @@ export async function redeemCruushPlusPromoCode(
     )).rows[0];
 
     if (!promo) {
-      throw new ApiError(404, "NOT_FOUND", "Cruush+ code is invalid or expired.");
+      throw new ApiError(404, "NOT_FOUND", "cruush+ code is invalid or expired.");
     }
 
     const existing = (await db.query<{ id: string }>(
@@ -474,7 +474,7 @@ export async function redeemCruushPlusPromoCode(
       )).rows[0];
 
       if (Number(redemptionCount?.total ?? 0) >= Number(promo.max_redemptions)) {
-        throw new ApiError(409, "VALIDATION_ERROR", "Cruush+ code has already been fully redeemed.");
+        throw new ApiError(409, "VALIDATION_ERROR", "cruush+ code has already been fully redeemed.");
       }
     }
 
@@ -494,7 +494,7 @@ export async function redeemCruushPlusPromoCode(
       }, config);
 
       if (!grant) {
-        throw new ApiError(409, "VALIDATION_ERROR", "Cruush+ code could not be applied.");
+        throw new ApiError(409, "VALIDATION_ERROR", "cruush+ code could not be applied.");
       }
 
       result = {
@@ -507,7 +507,7 @@ export async function redeemCruushPlusPromoCode(
       const activeUntil = asDate(promo.active_until);
 
       if (!activeUntil || activeUntil.getTime() <= Date.now()) {
-        throw new ApiError(404, "NOT_FOUND", "Cruush+ code is invalid or expired.");
+        throw new ApiError(404, "NOT_FOUND", "cruush+ code is invalid or expired.");
       }
 
       result = await grantPromotionalAccessUntilInTransaction(db, {

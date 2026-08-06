@@ -542,7 +542,7 @@ export async function sendSupportRequestReplyEmail(input: SupportRequestReplyEma
     <p>${escapedOriginalMessage}</p>
   `;
   const text = [
-    "Cruush support reply",
+    "cruush support reply",
     "",
     `Request ID: ${request.id}`,
     `Category: ${request.category}`,
