@@ -29,7 +29,7 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type EventPassReveal, type LaunchEvent } from '../lib/eventsApi';
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
-import { addDlModeChangedListener, isDlModeEnabled, setDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto, setDlModeEnabled } from '../lib/dlMode';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation } from '../lib/locationApi';
