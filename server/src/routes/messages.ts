@@ -2045,11 +2045,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          contentIdParam: "$7",
          contentRefParam: "jsonb_build_object('assetId', $7, 'surface', 'message_photo')"
        })}, linked_media as (
-         update media_objects media
-         set content_review_id = moderation_review.id
-         from moderation_review
+         select media.id
+         from media_objects media
+         join moderation_review on true
          where media.id = $7
-         returning media.id
        ), inserted as (
          insert into messages (
            conversation_id,
@@ -2224,6 +2223,23 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       }, "photo message insert precondition failed");
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
+
+    await app.db.query(
+      `update media_objects media
+       set content_review_id = review.id
+       from content_reviews review
+       where media.id = $1
+         and review.id = (
+           select latest.id
+           from content_reviews latest
+           where latest.content_id = $1
+             and latest.user_id = $2
+             and latest.surface = $3
+           order by latest.created_at desc
+           limit 1
+         )`,
+      [mediaAsset.id, userId, moderationSurface]
+    );
 
     await recordMeaningfulActivitySafely(app, {
       userId,
