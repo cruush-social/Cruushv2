@@ -215,6 +215,10 @@ vi.mock('./components/PublicInfoPage', () => ({
   default: ({ page }: { page: string }) => <div>Mock Public Info {page}</div>
 }));
 
+vi.mock('./components/OnboardingPreview', () => ({
+  default: () => <div>Mock Onboarding Preview</div>
+}));
+
 vi.mock('./components/ui/sonner', () => ({
   Toaster: () => <div data-testid="toaster" />
 }));
@@ -266,6 +270,47 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Public Info about')).toBeInTheDocument();
+  });
+
+  // Regression: the preview route was declared in two of the five routers, so in every
+  // other auth state it fell through to that router's catch-all and silently redirected.
+  it.each([
+    ['signed out', null],
+    ['unverified', {
+      user: { id: 'u', email: 'e@x.com', displayName: 'U', emailVerifiedAt: null, createdAt: '2026-04-28T12:00:00.000Z' },
+      profile: { displayName: 'U', yearOfBirth: 1998 },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    }],
+    ['needs onboarding', {
+      user: { id: 'u', email: 'e@x.com', displayName: 'U', emailVerifiedAt: '2026-04-28T12:00:00.000Z', createdAt: '2026-04-28T12:00:00.000Z' },
+      profile: null,
+      needsOnboarding: true,
+      ...acceptedConductSession,
+    }],
+    ['needs code of conduct', {
+      user: { id: 'u', email: 'e@x.com', displayName: 'U', emailVerifiedAt: '2026-04-28T12:00:00.000Z', createdAt: '2026-04-28T12:00:00.000Z' },
+      profile: { displayName: 'U', yearOfBirth: 1998 },
+      needsOnboarding: false,
+      needsCodeOfConduct: true,
+      codeOfConductVersion: '2026-07-07',
+      acceptedCodeOfConductVersion: null,
+      codeOfConductAcceptedAt: null,
+    }],
+    ['fully signed in', {
+      user: { id: 'u', email: 'e@x.com', displayName: 'U', emailVerifiedAt: '2026-04-28T12:00:00.000Z', createdAt: '2026-04-28T12:00:00.000Z' },
+      profile: { displayName: 'U', yearOfBirth: 1998 },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    }],
+  ])('serves the onboarding preview when %s', async (_label, session) => {
+    loadCurrentSession.mockResolvedValue(session);
+    window.history.replaceState({}, '', '/dev/onboarding-preview');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Onboarding Preview')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/dev/onboarding-preview');
   });
 
   it('renders the authenticated shell on the map by default', async () => {
