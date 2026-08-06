@@ -1836,6 +1836,48 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 
+  it('does not crash when pointer capture is rejected while dragging recently active', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const recentTray = await screen.findByTestId('recently-active-tray');
+    recentTray.setPointerCapture = vi.fn(() => {
+      throw new DOMException('Pointer capture is no longer available', 'InvalidStateError');
+    });
+    recentTray.releasePointerCapture = vi.fn(() => {
+      throw new DOMException('Pointer capture is no longer available', 'InvalidStateError');
+    });
+
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperties(pointerDown, {
+      clientX: { value: 140 },
+      pointerId: { value: 1 },
+    });
+    const pointerMove = new Event('pointermove', { bubbles: true });
+    Object.defineProperties(pointerMove, {
+      clientX: { value: 90 },
+      pointerId: { value: 1 },
+    });
+    const pointerUp = new Event('pointerup', { bubbles: true });
+    Object.defineProperties(pointerUp, {
+      clientX: { value: 90 },
+      pointerId: { value: 1 },
+    });
+
+    expect(() => {
+      fireEvent(recentTray, pointerDown);
+      fireEvent(recentTray, pointerMove);
+      fireEvent(recentTray, pointerUp);
+    }).not.toThrow();
+  });
+
   it('hides developer-only map demo tools for regular users and bank reviewers', async () => {
     useIsMobile.mockReturnValue(false);
     window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');

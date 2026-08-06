@@ -1452,7 +1452,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
       dragState.hasDragged = true;
 
       if (!dragState.hasPointerCapture) {
-        event.currentTarget.setPointerCapture?.(event.pointerId);
+        try {
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        } catch {
+          // Some mobile browsers reject capture after a touch has been cancelled.
+        }
         dragState.hasPointerCapture = true;
       }
     }
@@ -1465,7 +1469,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     if (dragState.pointerId === event.pointerId) {
       if (dragState.hasPointerCapture) {
-        event.currentTarget.releasePointerCapture?.(event.pointerId);
+        try {
+          event.currentTarget.releasePointerCapture?.(event.pointerId);
+        } catch {
+          // The pointer may already have been released by the browser.
+        }
       }
 
       dragState.hasPointerCapture = false;

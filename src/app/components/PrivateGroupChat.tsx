@@ -190,6 +190,7 @@ export default function PrivateGroupChat() {
   const [keyboardInset, setKeyboardInset] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
+  const settingsPanelRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
@@ -316,6 +317,16 @@ export default function PrivateGroupChat() {
       void loadGroupSettingsData(conversation.id);
     }
   };
+
+  useEffect(() => {
+    if (!settingsOpen) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      settingsPanelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }, [settingsOpen]);
 
   const loadFavoriteImages = async () => {
     setFavoriteImagesLoading(true);
@@ -817,7 +828,16 @@ export default function PrivateGroupChat() {
                 label="Report conversation"
               />
             ) : null}
-            <Button variant="ghost" size="icon" aria-label="More conversation options" disabled={!conversation} onClick={openSettings}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="More conversation options"
+              aria-expanded={settingsOpen}
+              aria-controls="conversation-settings"
+              disabled={!conversation}
+              onClick={openSettings}
+            >
               <MoreHorizontal className="w-5 h-5" />
             </Button>
           </div>
@@ -842,7 +862,11 @@ export default function PrivateGroupChat() {
         ) : null}
 
         {settingsOpen && conversation ? (
-          <section className="mb-4 space-y-4 rounded-3xl border border-border bg-card/80 p-4">
+          <section
+            ref={settingsPanelRef}
+            id="conversation-settings"
+            className="mb-4 space-y-4 rounded-3xl border border-border bg-card/80 p-4"
+          >
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Settings</p>
