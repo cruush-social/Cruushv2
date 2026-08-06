@@ -21,7 +21,7 @@ import {
 } from "./location-privacy.js";
 import { hasUserBlockBetween } from "./user-blocks.js";
 import { getAlphaTestState } from "./alpha-test.js";
-import { userHasOwnerFullAccess } from "./owner-access.js";
+import { isOwnerFullAccessEmail } from "./owner-access.js";
 
 export type PreciseLocationVisibility = "none" | "mutual_cruushes";
 
@@ -39,6 +39,7 @@ export type PrivacySettings = {
 export type CruushEntitlement = {
   cruushPlus: boolean;
   expiresAt: string | null;
+  ownerFullAccess?: boolean;
 };
 
 export type RelationshipPermissions = {
@@ -61,6 +62,7 @@ type PrivacySettingsRow = {
 };
 
 type EntitlementRow = {
+  owner_email?: string | null;
   cruush_plus_enabled: boolean | null;
   cruush_plus_expires_at: string | Date | null;
   has_lifetime?: boolean | null;
@@ -226,17 +228,15 @@ export async function savePrivacySettings(
 }
 
 export async function getCruushEntitlement(app: FastifyInstance, userId: string): Promise<CruushEntitlement> {
-  if (await userHasOwnerFullAccess(app, userId)) {
-    return {
-      cruushPlus: true,
-      expiresAt: null
-    };
-  }
-
   const row = (await safeRows<EntitlementRow>(
     app,
     `with paid_state as (
        select
+         (
+           select email
+           from app_users
+           where id = $1
+         ) as owner_email,
          coalesce((
            select cruush_plus_enabled
            from user_entitlements
@@ -279,6 +279,7 @@ export async function getCruushEntitlement(app: FastifyInstance, userId: string)
        returning promotion.active_until
      )
      select
+       paid_state.owner_email,
        paid_state.cruush_plus_enabled,
        paid_state.cruush_plus_expires_at,
        paid_state.has_lifetime,
@@ -290,6 +291,14 @@ export async function getCruushEntitlement(app: FastifyInstance, userId: string)
      from paid_state`,
     [userId]
   ))[0];
+
+  if (isOwnerFullAccessEmail(row?.owner_email)) {
+    return {
+      cruushPlus: true,
+      expiresAt: null,
+      ownerFullAccess: true
+    };
+  }
   const legacyExpiresAt = toIsoDate(row?.cruush_plus_expires_at);
   const legacyActive = row?.cruush_plus_enabled === true &&
     (!legacyExpiresAt || new Date(legacyExpiresAt).getTime() > Date.now());
@@ -306,7 +315,8 @@ export async function getCruushEntitlement(app: FastifyInstance, userId: string)
   const alphaTest = getAlphaTestState(app.config);
   const baseEntitlement = {
     cruushPlus: lifetime || legacyActive || paidActive || promotionalActive,
-    expiresAt: lifetime ? null : datedExpirations.at(-1) ?? null
+    expiresAt: lifetime ? null : datedExpirations.at(-1) ?? null,
+    ownerFullAccess: false
   };
 
   if (!alphaTest.active) {
@@ -315,6 +325,7 @@ export async function getCruushEntitlement(app: FastifyInstance, userId: string)
 
   if (!baseEntitlement.cruushPlus) {
     return {
+      ...baseEntitlement,
       cruushPlus: true,
       expiresAt: alphaTest.endsAt
     };
@@ -325,6 +336,7 @@ export async function getCruushEntitlement(app: FastifyInstance, userId: string)
   }
 
   return {
+    ...baseEntitlement,
     cruushPlus: true,
     expiresAt: new Date(baseEntitlement.expiresAt).getTime() >= new Date(alphaTest.endsAt).getTime()
       ? baseEntitlement.expiresAt
@@ -496,7 +508,10 @@ export async function getRelationshipPermissions(
     isBlocked: blocked,
     isMutualCruush: blocked ? false : isMutualCruush,
     hasOutgoingCruush: blocked ? false : hasOutgoingCruush,
-    canMessage: !blocked && isMutualCruush && hasActiveMatchToken,
+    // Direct messages are public by default. Mutuality still gates protected
+    // location/profile fields and NSFW-photo settings; blocks remain a hard
+    // boundary for every message surface.
+    canMessage: !blocked,
     canRevealMutualProtectedFields: !blocked && isMutualCruush,
     canRevealPreciseLocation: !blocked && canRevealPreciseLocation,
     shouldLogProfileView: !blocked && !viewerGhostMode && !targetGhostMode,
@@ -511,10 +526,6 @@ export async function hasActiveMutualMessagePermission(
   userId: string,
   otherUserId: string
 ) {
-  if (await userHasOwnerFullAccess(app, userId) && !await hasUserBlockBetween(app, userId, otherUserId)) {
-    return true;
-  }
-
   return (await getRelationshipPermissions(app, userId, otherUserId)).canMessage;
 }
 

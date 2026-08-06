@@ -9,8 +9,7 @@ import {
 } from "./reward-config.js";
 
 const DAY_SECONDS = 86_400;
-export const BETA_LAUNCH_CRUUSH_PLUS_ENDS_AT = "2026-08-07T00:00:00-04:00";
-const BETA_LAUNCH_GRANT_DAYS = 7;
+export const FIRST_LOGIN_CRUUSH_PLUS_DAYS = 7;
 
 type RewardSource = "activity_recurring" | "activity_long_bonus" | "referral" | "admin";
 
@@ -349,6 +348,15 @@ async function grantPromotionalAccessUntilInTransaction(
   );
   const grant = inserted.rows[0] ?? null;
 
+  if (!grant) {
+    return {
+      claimed: false,
+      label: input.label,
+      activeUntil: input.activeUntil.toISOString(),
+      grant: null
+    };
+  }
+
   await db.query(
     `update promotional_cruush_plus_entitlements
      set active_until = greatest(coalesce(active_until, now()), $2::timestamptz),
@@ -357,22 +365,20 @@ async function grantPromotionalAccessUntilInTransaction(
     [input.userId, input.activeUntil.toISOString()]
   );
 
-  if (grant) {
-    await db.query(
-      `insert into app_notifications (
-         user_id, type, title, body, link_url, dedupe_key, metadata
-       )
-       values ($1, 'reward', 'Cruush+ reward earned',
-         $2, '/rewards', $3, $4::jsonb)
-       on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing`,
-      [
-        input.userId,
-        `${input.label} activated through ${input.activeUntil.toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`,
-        `reward:${input.idempotencyKey}`,
-        JSON.stringify({ grantId: grant.id, source: "admin", activeUntil: input.activeUntil.toISOString() })
-      ]
-    );
-  }
+  await db.query(
+    `insert into app_notifications (
+       user_id, type, title, body, link_url, dedupe_key, metadata
+     )
+     values ($1, 'reward', 'Cruush+ reward earned',
+       $2, '/rewards', $3, $4::jsonb)
+     on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing`,
+    [
+      input.userId,
+      `${input.label} activated through ${input.activeUntil.toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`,
+      `reward:${input.idempotencyKey}`,
+      JSON.stringify({ grantId: grant.id, source: "admin", activeUntil: input.activeUntil.toISOString() })
+    ]
+  );
 
   return {
     claimed: Boolean(grant),
@@ -387,26 +393,29 @@ async function grantPromotionalAccessUntilInTransaction(
   };
 }
 
-export async function claimBetaLaunchCruushPlus(
+export async function grantFirstLoginCruushPlus(
   app: Pick<FastifyInstance, "db">,
   userId: string
 ) {
-  const activeUntil = new Date(BETA_LAUNCH_CRUUSH_PLUS_ENDS_AT);
-
-  if (Number.isNaN(activeUntil.getTime()) || activeUntil.getTime() <= Date.now()) {
-    throw new ApiError(400, "VALIDATION_ERROR", "The beta launch cruush+ offer has ended.");
-  }
+  const activeUntil = new Date(Date.now() + FIRST_LOGIN_CRUUSH_PLUS_DAYS * DAY_SECONDS * 1000);
 
   return runTransaction(app.db, (db) => grantPromotionalAccessUntilInTransaction(db, {
     userId,
     activeUntil,
-    days: BETA_LAUNCH_GRANT_DAYS,
-    idempotencyKey: `beta-launch-2026:${userId}`,
-    label: "Beta launch cruush+",
+    days: FIRST_LOGIN_CRUUSH_PLUS_DAYS,
+    idempotencyKey: `first-login-cruush-plus-7d:${userId}`,
+    label: "First-login cruush+ trial",
     auditMetadata: {
-      offer: "beta_launch_2026"
+      offer: "first_login_7_day_trial"
     }
   }));
+}
+
+export async function claimBetaLaunchCruushPlus(
+  app: Pick<FastifyInstance, "db">,
+  userId: string
+) {
+  return grantFirstLoginCruushPlus(app, userId);
 }
 
 export async function redeemCruushPlusPromoCode(

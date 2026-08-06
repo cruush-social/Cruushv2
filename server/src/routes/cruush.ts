@@ -7,7 +7,6 @@ import {
   saveCruushMatchSettings
 } from "../cruush-match-settings.js";
 import { createCruushPayloadSchema } from "../cruush-schema.js";
-import { primaryPhotoExplicitSelect } from "../profile-photo-explicit.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
@@ -249,7 +248,7 @@ function mapActivityPerson(row: {
     name: row.displayName?.trim() || row.fallbackName?.trim() || "cruush user",
     pronouns: row.pronouns?.join(", ") ?? row.fallbackPronouns ?? "",
     photo: row.photos?.[0] ?? null,
-    ...(row.photoExplicit === true ? { photoExplicit: true } : {}),
+    photoExplicit: row.photoExplicit !== false,
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
   };
 }
@@ -351,7 +350,15 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
        profiles.display_name,
        profiles.pronouns,
        profiles.photos,
-       ${primaryPhotoExplicitSelect("profiles")},
+       coalesce((
+         select media.explicit_classification is distinct from 'non_explicit'
+         from media_objects media
+         where media.owner_user_id = profiles.id
+           and media.public_url = profiles.photos[1]
+           and media.surface = 'profile_photo'
+           and media.deleted_at is null
+         limit 1
+       ), true) as photo_explicit,
        profiles.updated_at,
        null::double precision as lat,
        null::double precision as lng,
@@ -422,7 +429,7 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       display_name: profile.display_name,
       pronouns: profile.pronouns,
       photos: profile.photos,
-      photo_explicit: profile.photo_explicit ?? false,
+      photo_explicit: profile.photo_explicit,
       badges: profile.badges,
       updated_at: profile.updated_at,
       lat: profile.lat,
@@ -521,7 +528,7 @@ async function mapTokenizedMutualCruushRow(
       displayName: row.display_name,
       pronouns: row.pronouns,
       photos: row.photos,
-      photoExplicit: row.photo_explicit ?? false,
+      photoExplicit: row.photo_explicit,
       badges: row.badges ?? null
     }),
     mutualCrowds: sharedCrowds,
@@ -581,7 +588,7 @@ function mapMutualCruushRow(
       displayName: row.display_name,
       pronouns: row.pronouns,
       photos: row.photos,
-      photoExplicit: row.photo_explicit ?? false,
+      photoExplicit: row.photo_explicit,
       badges: row.badges ?? null
     }),
     mutualCrowds: sharedCrowds,
@@ -658,7 +665,7 @@ async function mapIncomingCruushRecords(
         displayName: senderProfile?.display_name ?? null,
         pronouns: senderProfile?.pronouns ?? null,
         photos: senderProfile?.photos ?? null,
-        photoExplicit: senderProfile?.photo_explicit ?? false,
+        photoExplicit: senderProfile?.photo_explicit,
         badges: senderProfile?.badges ?? null
       })
     };
@@ -688,7 +695,7 @@ async function mapSentCruushRecords(
         displayName: targetProfile?.display_name ?? null,
         pronouns: targetProfile?.pronouns ?? null,
         photos: targetProfile?.photos ?? null,
-        photoExplicit: targetProfile?.photo_explicit ?? false,
+        photoExplicit: targetProfile?.photo_explicit,
         fallbackName: snapshot?.name ?? null,
         fallbackPronouns: snapshot?.pronouns ?? null,
         badges: targetProfile?.badges ?? null
@@ -720,7 +727,7 @@ function mapProfileViewRecords(
           displayName: viewerProfile?.display_name ?? null,
           pronouns: viewerProfile?.pronouns ?? null,
           photos: viewerProfile?.photos ?? null,
-        photoExplicit: viewerProfile?.photo_explicit ?? false,
+          photoExplicit: viewerProfile?.photo_explicit,
           badges: viewerProfile?.badges ?? null
         })
       };

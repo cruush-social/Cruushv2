@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DbClient, DbQueryResult } from "./db.js";
 import {
   calendarDateInTimeZone,
+  grantFirstLoginCruushPlus,
   grantPromotionalDays,
   recordMeaningfulActivity,
   reverseRewardGrant
@@ -70,16 +71,21 @@ class RewardTestDb implements DbClient {
         banked_seconds: this.bankedSeconds
       }];
     } else if (sql.includes("insert into reward_grants")) {
-      const key = String(params[3]);
+      const isFixedAccessGrant = sql.includes("values ($1, 'admin'");
+      const key = String(isFixedAccessGrant ? params[2] : params[3]);
 
       if (!this.grants.some((grant) => grant.idempotencyKey === key)) {
         const grant = {
           id: `grant-${this.grants.length + 1}`,
-          source: String(params[1]),
-          days: Number(params[2]),
+          source: isFixedAccessGrant ? "admin" : String(params[1]),
+          days: Number(isFixedAccessGrant ? params[1] : params[2]),
           idempotencyKey: key,
-          milestoneKey: params[4] ? String(params[4]) : null,
-          referralId: params[5] ? String(params[5]) : null
+          milestoneKey: isFixedAccessGrant
+            ? (params[3] ? String(params[3]) : null)
+            : (params[4] ? String(params[4]) : null),
+          referralId: isFixedAccessGrant
+            ? null
+            : (params[5] ? String(params[5]) : null)
         };
         this.grants.push(grant);
         rows = [{
@@ -106,7 +112,10 @@ class RewardTestDb implements DbClient {
       const start = this.activeUntil && this.activeUntil > new Date()
         ? this.activeUntil
         : new Date();
-      this.activeUntil = new Date(start.getTime() + Number(params[1]) * 1000);
+      const requestedUntil = typeof params[1] === "string" && params[1].includes("T")
+        ? new Date(String(params[1]))
+        : new Date(start.getTime() + Number(params[1]) * 1000);
+      this.activeUntil = requestedUntil > start ? requestedUntil : start;
     } else if (sql.includes("from reward_grants reward") && sql.includes("for update of reward")) {
       const grant = this.grants.find((candidate) => candidate.id === params[0]);
 
@@ -316,6 +325,22 @@ describe("rewards activity and promotional entitlement service", () => {
     });
     expect(db.bankedSeconds).toBe(7 * 86_400);
     expect(db.activeUntil?.toISOString()).toBe("2026-07-29T12:00:00.000Z");
+  });
+
+  it("grants the first-login trial once without extending it on later entitlement reads", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
+    const db = new RewardTestDb();
+
+    const first = await grantFirstLoginCruushPlus(appFor(db), userId);
+    const retry = await grantFirstLoginCruushPlus(appFor(db), userId);
+
+    expect(first).toMatchObject({ claimed: true, label: "First-login cruush+ trial" });
+    expect(first.grant).toMatchObject({ days: 7, source: "admin" });
+    expect(first.activeUntil).toBe("2026-08-12T12:00:00.000Z");
+    expect(retry).toMatchObject({ claimed: false, grant: null });
+    expect(db.grants).toHaveLength(1);
+    expect(db.activeUntil?.toISOString()).toBe("2026-08-12T12:00:00.000Z");
   });
 
   it("handles expired promo access and creates an auditable idempotent reversal without touching paid state", async () => {

@@ -112,7 +112,7 @@ export default function MapProfilePopup({
   const displayPhotos = profileView?.photos ?? (user.photo ? [user.photo] : []);
   const displayPhotoMetadata = profileView?.photoMetadata ?? (user.photo ? [{
     url: user.photo,
-    explicit: user.photoExplicit === true,
+    explicit: user.photoExplicit === false ? false : true,
   }] : []);
   const displayBadges = profileView?.badges ?? user.badges;
   const displayDistance = profileView?.distance ?? user.distance;

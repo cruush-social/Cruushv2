@@ -35,6 +35,7 @@ type AuditProfileRow = {
   display_name: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
+  photo_explicit?: boolean | null;
 };
 
 const crowdIdSchema = z.preprocess((value) => normalizeCrowdOption(value) ?? value, z.enum(CROWD_OPTIONS));
@@ -112,9 +113,18 @@ async function loadAuditProfiles(app: FastifyInstance, userIds: string[]) {
   }
 
   const result = await app.db.query<AuditProfileRow>(
-    `select id::text as id, display_name, pronouns, photos
-     from profiles
-     where id = any($1::uuid[])`,
+    `select p.id::text as id, p.display_name, p.pronouns, p.photos,
+            coalesce((
+              select media.explicit_classification is distinct from 'non_explicit'
+              from media_objects media
+              where media.owner_user_id = p.id
+                and media.public_url = p.photos[1]
+                and media.surface = 'profile_photo'
+                and media.deleted_at is null
+              limit 1
+            ), true) as photo_explicit
+     from profiles p
+     where p.id = any($1::uuid[])`,
     [uniqueUserIds]
   );
 
@@ -126,7 +136,8 @@ function mapAuditProfile(row: AuditProfileRow | undefined, userId: string) {
     id: userId,
     name: row?.display_name?.trim() || "cruush user",
     pronouns: row?.pronouns?.join(", ") ?? "",
-    photo: row?.photos?.[0] ?? null
+    photo: row?.photos?.[0] ?? null,
+    photoExplicit: row?.photo_explicit !== false
   };
 }
 

@@ -88,6 +88,7 @@ export type PrivacyAuditAccess = {
     name: string;
     pronouns: string;
     photo: string | null;
+    photoExplicit?: boolean;
   };
   reason: string;
   permission_type: 'mutual_cruush' | 'mutual_crowd';

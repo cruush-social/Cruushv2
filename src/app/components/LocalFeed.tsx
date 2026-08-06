@@ -19,7 +19,7 @@ import {
 } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
-import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import {
   createFeedPost,
   deleteFeedPost,
@@ -74,7 +74,7 @@ const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
   { value: '1h', label: '1h' },
 ];
 const FEED_PAGE_SIZE = 30;
-const DEFAULT_FEED_RADIUS_MILES = 15;
+const DEFAULT_FEED_RADIUS_MILES = 5;
 const LAUNCH_PARTY_EVENT_SLUG = 'the-chocolate-factory-launch';
 const DEFAULT_FEED_SETTINGS: FeedSettings = {
   locationPinVisibility: 'mutuals',
@@ -100,7 +100,7 @@ export default function LocalFeed() {
   const navigate = useNavigate();
   const [newPost, setNewPost] = useState('');
   const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('6h');
+  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('24h');
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -252,7 +252,8 @@ export default function LocalFeed() {
 
   const handlePost = async () => {
     if (!newPost.trim()) return;
-    if (billingStatus && !billingStatus.cruushPlus) {
+    if (!billingStatus) return;
+    if (!billingStatus.cruushPlus) {
       navigate('/rewards');
       return;
     }
@@ -276,7 +277,7 @@ export default function LocalFeed() {
     }
   };
 
-  const canPost = billingStatus?.cruushPlus !== false;
+  const canPost = billingStatus?.cruushPlus === true;
 
   const toggleCrowdTarget = (crowd: string) => {
     if (!canPost) {
@@ -482,11 +483,15 @@ export default function LocalFeed() {
           <Textarea
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
-            placeholder={canPost ? 'Share something with nearby people...' : 'Upgrade to post on the local feed.'}
+            placeholder={billingStatus === null
+              ? 'Checking cruush+ access...'
+              : canPost
+                ? 'Share something with nearby people...'
+                : 'Upgrade to post on the local feed.'}
             className="bg-input-background mb-3 min-h-[100px]"
             disabled={!canPost}
           />
-          {!canPost ? (
+          {billingStatus !== null && !canPost ? (
             <div
               className="mb-3 flex flex-col gap-3 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-white/78 sm:flex-row sm:items-center sm:justify-between"
               data-testid="local-feed-cruush-plus-notice"
@@ -585,7 +590,7 @@ export default function LocalFeed() {
                     <HeartPhoto
                       className="w-20 flex-shrink-0"
                       label={`${post.user.name} preview`}
-                      masked={dlModeActive && post.user.photoExplicit === true}
+                      masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)}
                       photo={post.user?.photo}
                       theme={currentUserId && post.user.id === currentUserId ? 'current' : 'nearby'}
                       userId={post.user.id}
@@ -631,6 +636,19 @@ export default function LocalFeed() {
                             {post.expiresIn}
                           </span>
                           <div className="ml-auto flex items-center gap-2">
+                            {currentUserId && post.user.id === currentUserId ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                aria-label={`Delete feed post: ${post.content.slice(0, 48)}`}
+                                title="Delete post"
+                                disabled={deletingPostId === post.id}
+                                onClick={() => void handleDeletePost(post.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : null}
                             {currentUserId && post.user.id !== currentUserId ? (
                               <>
                                 <ReportAction
@@ -653,40 +671,22 @@ export default function LocalFeed() {
 
                       <p className="text-sm">{post.content}</p>
                     </div>
-                    {post.locationPin || (currentUserId && post.user.id === currentUserId) ? (
-                      <div className="flex shrink-0 flex-col items-center justify-center gap-2 self-center">
-                        {currentUserId && post.user.id === currentUserId ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-10 w-10 shrink-0 rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10 hover:text-destructive"
-                            aria-label={`Delete feed post: ${post.content.slice(0, 48)}`}
-                            title="Delete post"
-                            disabled={deletingPostId === post.id}
-                            onClick={() => void handleDeletePost(post.id)}
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </Button>
-                        ) : null}
-                        {post.locationPin ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-10 w-10 shrink-0 rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10"
-                            aria-label={`Center map on ${post.user.name}`}
-                            title={`Center map on ${post.user.name}`}
-                            onClick={() => navigate('/map', {
-                              state: {
-                                focusUserId: post.locationPin?.userId,
-                              },
-                            })}
-                          >
-                            <MapPin className="h-5 w-5" />
-                          </Button>
-                        ) : null}
-                      </div>
+                    {post.locationPin ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 shrink-0 self-center rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10"
+                        aria-label={`Center map on ${post.user.name}`}
+                        title={`Center map on ${post.user.name}`}
+                        onClick={() => navigate('/map', {
+                          state: {
+                            focusUserId: post.locationPin?.userId,
+                          },
+                        })}
+                      >
+                        <MapPin className="h-5 w-5" />
+                      </Button>
                     ) : null}
                   </div>
                 </div>

@@ -26,7 +26,7 @@ import { CruushIcon, type CruushIconName } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changePassword, deleteAccount, sendVerificationEmail, signOut } from '../lib/authApi';
-import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import SupportRequestForm from './SupportRequestForm';
 import {
@@ -241,7 +241,7 @@ export default function Settings() {
           <HeartPhoto
             className="w-16 shrink-0"
             label={`${displayName} profile photo`}
-            masked={dlModeActive && profile?.photo_metadata?.[0]?.explicit === true}
+            masked={shouldMaskPhoto(dlModeActive, profile?.photo_metadata?.[0]?.explicit)}
             photo={profile?.photos?.[0] ?? null}
             theme="current"
             userId={profile?.id ?? storedUser?.id ?? null}

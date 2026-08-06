@@ -9,7 +9,7 @@ interface HeartPhotoProps {
   className?: string;
   fallback?: ReactNode;
   label: string;
-  masked?: boolean;
+  masked: boolean;
   photo?: string | null;
   theme?: HeartPinTheme;
   userId?: string | null;
@@ -20,7 +20,7 @@ export default function HeartPhoto({
   className = '',
   fallback = null,
   label,
-  masked = false,
+  masked,
   photo = null,
   theme = 'nearby',
   userId = null,

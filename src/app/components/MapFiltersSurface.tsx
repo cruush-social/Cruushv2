@@ -102,7 +102,6 @@ function FieldGroup({
       <Label>{label}</Label>
       <MultiSelect
         ariaLabel={label}
-        menuPortal
         options={options}
         optionGroups={optionGroups}
         value={value[stateKey]}

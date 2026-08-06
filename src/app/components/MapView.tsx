@@ -32,6 +32,7 @@ import {
   type MapMarkerBadge,
 } from '../lib/mapMarkers';
 import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 
 export { createMapMarkerBadge };
 
@@ -864,7 +865,11 @@ function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
 }
 
 function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
-  const resolvedPhoto = resolveMediaUrl(marker.photo);
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
+  const showPhoto = Boolean(marker.photo && !shouldMaskPhoto(dlModeActive, marker.photoExplicit));
+  const resolvedPhoto = showPhoto && marker.photo ? resolveMediaUrl(marker.photo) : null;
   const hasPhoto = Boolean(resolvedPhoto);
   const gradientId = `marker-fill-${marker.id}`;
   const clipId = `marker-photo-clip-${marker.id}`;

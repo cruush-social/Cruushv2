@@ -7,12 +7,9 @@ import { readEncryptedMediaObject } from "../media-storage.js";
 import { createPendingMediaAsset, deletePendingMediaAsset, moderatePendingMediaAsset } from "../media-assets.js";
 import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
-import { diagnoseMessageInsertFailure } from "../message-insert-diagnostics.js";
-import { sendApprovedPhotoMessage } from "../message-photo-send.js";
-import { toReportablePhotoUploadError } from "../photo-upload-incident.js";
 import { ApiError } from "../errors.js";
 import { assertCanSendNsfwMessagePhoto } from "../cruush-match-settings.js";
-import { hasActiveMutualMessagePermission } from "../match-relationships.js";
+import { getRelationshipPermissions, hasActiveMutualMessagePermission } from "../match-relationships.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
   conversationTimerSchema,
@@ -79,7 +76,7 @@ type ConversationRow = {
   other_user_name: string | null;
   other_user_pronouns: string[] | null;
   other_user_photo: string | null;
-  other_user_photo_explicit: boolean | null;
+  other_user_photo_explicit?: boolean | null;
   member_count: number;
 };
 
@@ -94,6 +91,7 @@ type MessageRow = {
   sender_name?: string | null;
   sender_pronouns?: string[] | null;
   sender_photo?: string | null;
+  sender_photo_explicit?: boolean | null;
   content: string;
   content_ciphertext?: string | null;
   content_nonce?: string | null;
@@ -136,6 +134,7 @@ type GroupMemberRow = {
   name: string | null;
   pronouns: string[] | null;
   photo: string | null;
+  photo_explicit?: boolean | null;
   role: "owner" | "admin" | "member";
   joined_at: string | Date;
 };
@@ -185,6 +184,44 @@ function normalizeMessageAttachments(value: MessageRow["attachments"]): MessageA
   return Array.isArray(value) ? value : [];
 }
 
+async function refreshCreatedMessageAttachments(app: FastifyInstance, row: MessageRow) {
+  const attachments = normalizeMessageAttachments(row.attachments);
+
+  if (attachments.length === 0) {
+    return row;
+  }
+
+  // The upload statement updates media_objects and returns the message in the
+  // same PostgreSQL statement. PostgreSQL's statement snapshot can therefore
+  // expose the pre-update URL/classification. Read the committed media rows in
+  // a second statement before returning the message to the browser.
+  const mediaIds = [...new Set(attachments.map((attachment) => attachment.id).filter(Boolean))];
+  const mediaResult = await app.db.query<{
+    id: string;
+    public_url: string | null;
+    explicit: boolean;
+  }>(
+    `select id::text as id,
+            public_url,
+            explicit_classification is distinct from 'non_explicit' as explicit
+     from media_objects
+     where id = any($1::uuid[])
+       and deleted_at is null`,
+    [mediaIds]
+  );
+  const mediaById = new Map(mediaResult.rows.map((media) => [media.id, media]));
+
+  row.attachments = attachments.map((attachment) => {
+    const media = mediaById.get(attachment.id);
+
+    return media
+      ? { ...attachment, url: media.public_url ?? attachment.url, explicit: media.explicit }
+      : attachment;
+  });
+
+  return row;
+}
+
 function mapConversationRow(app: FastifyInstance, row: ConversationRow, options: {
   canMessage?: boolean;
   mutual?: boolean;
@@ -207,7 +244,7 @@ function mapConversationRow(app: FastifyInstance, row: ConversationRow, options:
         : row.other_user_name?.trim() || "cruush user",
       pronouns: isGroup ? "" : row.other_user_pronouns?.join(", ") ?? "",
       photo: isGroup ? null : row.other_user_photo ?? null,
-      ...(!isGroup && row.other_user_photo_explicit === true ? { photoExplicit: true } : {})
+      ...(isGroup ? {} : { photoExplicit: row.other_user_photo_explicit !== false })
     },
     distance: "Nearby",
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -243,8 +280,7 @@ function mapReadableConversationRow(app: FastifyInstance, row: ConversationRow) 
   }
 
   return mapConversationRow(app, row, {
-    canMessage: true,
-    mutual: true
+    canMessage: true
   });
 }
 
@@ -276,7 +312,8 @@ function mapMessageRow(app: FastifyInstance, row: MessageRow) {
         id: row.user_id,
         name: row.sender_name?.trim() || "cruush user",
         pronouns: row.sender_pronouns?.join(", ") ?? "",
-        photo: row.sender_photo ?? null
+        photo: row.sender_photo ?? null,
+        photoExplicit: row.sender_photo_explicit !== false
       }
     } : {}),
     ...(attachments.length > 0 ? { attachments } : {})
@@ -412,14 +449,14 @@ const CONVERSATION_SELECT = `
     other_profile.pronouns as other_user_pronouns,
     case when c.kind = 'dm' then other_profile.photos[1] else null end as other_user_photo,
     case when c.kind = 'dm' then coalesce((
-      select media.explicit_classification = 'explicit'
+      select media.explicit_classification is distinct from 'non_explicit'
       from media_objects media
-      where media.owner_user_id = other_profile.id
+      where media.owner_user_id = other_member.user_id
         and media.public_url = other_profile.photos[1]
         and media.surface = 'profile_photo'
         and media.deleted_at is null
       limit 1
-    ), false) else false end as other_user_photo_explicit,
+    ), true) else true end as other_user_photo_explicit,
     member_counts.member_count
   from conversation_members cm
   join conversations c on c.id = cm.conversation_id
@@ -502,7 +539,8 @@ async function assertGroupAdmin(app: FastifyInstance, userId: string, conversati
 
 async function assertMutualGroupInvitees(app: FastifyInstance, userId: string, memberIds: string[]) {
   for (const memberId of memberIds) {
-    if (!await hasActiveMutualMessagePermission(app, userId, memberId)) {
+    const relationship = await getRelationshipPermissions(app, userId, memberId);
+    if (!relationship.canMessage || !relationship.isMutualCruush) {
       throw new ApiError(403, "MUTUAL_CRUUSH_REQUIRED", "Groups can only include mutual cruushes.");
     }
   }
@@ -524,7 +562,7 @@ async function assertNoBlockedConversationMembers(app: FastifyInstance, userId: 
   );
 
   if (result.rows[0]) {
-    throw new ApiError(403, "MUTUAL_CRUUSH_REQUIRED", "You can message after a mutual cruush.");
+    throw new ApiError(403, "FORBIDDEN", "You cannot message one or more blocked group members.");
   }
 }
 
@@ -582,8 +620,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     if (!await hasActiveMutualMessagePermission(app, userId, payload.otherUserId)) {
       throw new ApiError(
         403,
-        "MUTUAL_CRUUSH_REQUIRED",
-        "You can message after a mutual cruush."
+        "FORBIDDEN",
+        "You cannot message this user."
       );
     }
 
@@ -729,24 +767,19 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const payload = updateGroupConversationPayloadSchema.parse(request.body);
     await assertGroupAdmin(app, userId, conversationId);
 
-    const result = await app.db.query<ConversationRow>(
-      `with updated as (
-         update conversations
-         set
-           title = coalesce($3, title),
-           disappearing_timer = coalesce($4, disappearing_timer),
+    const result = await app.db.query<{ id: string }>(
+      `update conversations
+       set title = coalesce($2, title),
+           disappearing_timer = coalesce($3, disappearing_timer),
            updated_at = now()
-         where id::text = $1
-           and kind = 'group'
-         returning id
-       )
-       ${CONVERSATION_SELECT}
-       where cm.user_id = $2
-         and c.id = (select id from updated)
-       limit 1`,
-      [conversationId, userId, payload.title ?? null, payload.disappearingTimer ?? null]
+       where id::text = $1
+         and kind = 'group'
+       returning id::text as id`,
+      [conversationId, payload.title ?? null, payload.disappearingTimer ?? null]
     );
-    const conversation = result.rows[0];
+    const conversation = result.rows[0]
+      ? await loadConversationForUser(app, userId, conversationId)
+      : null;
 
     if (!conversation) {
       throw new ApiError(404, "NOT_FOUND", "Group conversation not found.");
@@ -887,21 +920,17 @@ export async function registerMessageRoutes(app: FastifyInstance) {
 
     assertCanManageConversation(conversation, "timer");
 
-    const result = await app.db.query<ConversationRow>(
-      `with updated as (
-         update conversations
-         set disappearing_timer = $3,
-             updated_at = now()
-         where id::text = $1
-         returning id
-       )
-       ${CONVERSATION_SELECT}
-       where cm.user_id = $2
-         and c.id = (select id from updated)
-       limit 1`,
-      [conversationId, userId, payload.disappearingTimer]
+    const result = await app.db.query<{ id: string }>(
+      `update conversations
+       set disappearing_timer = $2,
+           updated_at = now()
+       where id::text = $1
+       returning id::text as id`,
+      [conversationId, payload.disappearingTimer]
     );
-    const updated = result.rows[0];
+    const updated = result.rows[0]
+      ? await loadConversationForUser(app, userId, conversationId)
+      : null;
 
     if (!updated) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
@@ -921,22 +950,18 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
     }
 
-    const result = await app.db.query<ConversationRow>(
-      `with updated as (
-         update conversations
-         set cleared_at = now(),
-             cleared_by = $2,
-             updated_at = now()
-         where id::text = $1
-         returning id
-       )
-       ${CONVERSATION_SELECT}
-       where cm.user_id = $2
-         and c.id = (select id from updated)
-       limit 1`,
+    const result = await app.db.query<{ id: string }>(
+      `update conversations
+       set cleared_at = now(),
+           cleared_by = $2,
+           updated_at = now()
+       where id::text = $1
+       returning id::text as id`,
       [conversationId, userId]
     );
-    const updated = result.rows[0];
+    const updated = result.rows[0]
+      ? await loadConversationForUser(app, userId, conversationId)
+      : null;
 
     if (!updated) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
@@ -987,6 +1012,15 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          coalesce(profile.display_name, app_user.display_name, app_user.email) as name,
          profile.pronouns,
          profile.photos[1] as photo,
+         coalesce((
+           select media.explicit_classification is distinct from 'non_explicit'
+           from media_objects media
+           where media.owner_user_id = member.user_id
+             and media.public_url = profile.photos[1]
+             and media.surface = 'profile_photo'
+             and media.deleted_at is null
+           limit 1
+         ), true) as photo_explicit,
          member.role,
          member.joined_at
        from conversation_members member
@@ -1005,6 +1039,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         name: row.name?.trim() || "cruush user",
         pronouns: row.pronouns?.join(", ") ?? "",
         photo: row.photo ?? null,
+        photoExplicit: row.photo_explicit !== false,
         role: row.role,
         joinedAt: new Date(row.joined_at).toISOString()
       }))
@@ -1038,7 +1073,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          '/api/media/assets/' || media.id::text || '/thumbnail' as thumbnail_url,
          media.media_type,
          coalesce(display_variant.mime_type, media.mime_type) as mime_type,
-         media.explicit_classification = 'explicit' as explicit,
+         media.explicit_classification is distinct from 'non_explicit' as explicit,
          favorite.created_at,
          favorite.updated_at
        from message_favorite_images favorite
@@ -1228,7 +1263,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            '/api/media/assets/' || media.id::text || '/thumbnail' as thumbnail_url,
            media.media_type,
            coalesce(display_variant.mime_type, media.mime_type) as mime_type,
-           media.explicit_classification = 'explicit' as explicit,
+           media.explicit_classification is distinct from 'non_explicit' as explicit,
            favorite.created_at,
            favorite.updated_at
          from favorite
@@ -1258,15 +1293,40 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       const favorite = result.rows[0];
 
       if (!favorite) {
-        throw new ApiError(500, "INTERNAL_ERROR", "Favorite image could not be saved.");
+        throw new ApiError(403, "FEATURE_RESTRICTED", "Favorite image uploads are unavailable for this account.");
       }
 
+      const refreshedFavorite = await app.db.query<FavoriteMessageImageRow>(
+        `select
+           favorite.id::text,
+           favorite.media_object_id::text,
+           favorite.label,
+           media.public_url as url,
+           '/api/media/assets/' || media.id::text || '/thumbnail' as thumbnail_url,
+           media.media_type,
+           coalesce(display_variant.mime_type, media.mime_type) as mime_type,
+           media.explicit_classification is distinct from 'non_explicit' as explicit,
+           favorite.created_at,
+           favorite.updated_at
+         from message_favorite_images favorite
+         join media_objects media on media.id = favorite.media_object_id
+         left join media_variants display_variant
+           on display_variant.media_object_id = media.id
+          and display_variant.variant_type = 'display'
+          and display_variant.deleted_at is null
+         where favorite.id::text = $1
+           and favorite.user_id = $2
+         limit 1`,
+        [favorite.id, userId]
+      );
+      const committedFavorite = refreshedFavorite.rows[0] ?? favorite;
+
       return reply.code(201).send({
-        data: mapFavoriteMessageImage(favorite)
+        data: mapFavoriteMessageImage(committedFavorite)
       });
     } catch (error) {
       await deletePendingMediaAsset(app, request, pendingAsset);
-      throw toReportablePhotoUploadError(app, request, error, { surface: "favorite_image", userId });
+      throw error;
     }
   });
 
@@ -1299,7 +1359,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     }>(
       `select
          media.id::text as media_object_id,
-         media.explicit_classification = 'explicit' as explicit
+         media.explicit_classification is distinct from 'non_explicit' as explicit
        from message_favorite_images favorite
        join media_objects media on media.id = favorite.media_object_id
        where favorite.id = $1
@@ -1337,8 +1397,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     ) {
       throw new ApiError(
         403,
-        "MUTUAL_CRUUSH_REQUIRED",
-        "You can message after a mutual cruush."
+        "FORBIDDEN",
+        "You cannot message this user."
       );
     }
     if (conversation.kind === "group") {
@@ -1489,7 +1549,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            'mimeType', favorite_media.mime_type,
            'viewOnce', attached.view_once,
            'viewedAt', null,
-           'explicit', favorite_media.explicit_classification = 'explicit'
+           'explicit', favorite_media.explicit_classification is distinct from 'non_explicit'
          ) order by attached.media_object_id), '[]'::jsonb) as attachments
        from inserted
        join attached on attached.message_id = inserted.id::uuid
@@ -1517,14 +1577,9 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         ownerFullAccess
       ]
     );
-    const created = result.rows[0];
+    const created = result.rows[0] ? await refreshCreatedMessageAttachments(app, result.rows[0]) : null;
 
     if (!created) {
-      await diagnoseMessageInsertFailure(app, request, {
-        conversationId: payload.conversationId,
-        userId,
-        mediaObjectId: null
-      });
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
@@ -1583,6 +1638,15 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          coalesce(sender_profile.display_name, sender_user.display_name, sender_user.email) as sender_name,
          sender_profile.pronouns as sender_pronouns,
          sender_profile.photos[1] as sender_photo,
+         coalesce((
+           select media.explicit_classification is distinct from 'non_explicit'
+           from media_objects media
+           where media.owner_user_id = sender_profile.id
+             and media.public_url = sender_profile.photos[1]
+             and media.surface = 'profile_photo'
+             and media.deleted_at is null
+           limit 1
+         ), true) as sender_photo_explicit,
          coalesce(message_attachments.attachments, '[]'::jsonb) as attachments
        from messages m
        join conversations c on c.id = m.conversation_id
@@ -1596,7 +1660,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            'mimeType', coalesce(display_variant.mime_type, media.mime_type),
            'viewOnce', attachment.view_once,
            'viewedAt', viewed.viewed_at,
-           'explicit', media.explicit_classification = 'explicit'
+           'explicit', media.explicit_classification is distinct from 'non_explicit'
          ) order by attachment.created_at asc) as attachments
          from message_media_attachments attachment
          join media_objects media on media.id = attachment.media_object_id
@@ -1853,8 +1917,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     ) {
       throw new ApiError(
         403,
-        "MUTUAL_CRUUSH_REQUIRED",
-        "You can message after a mutual cruush."
+        "FORBIDDEN",
+        "You cannot message this user."
       );
     }
     if (conversation.kind === "group") {
@@ -1896,36 +1960,189 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const encryptedContent = encryptTextContent(app.config, "message", payload.content);
     const disappearingTimer = conversation.disappearing_timer ?? "off";
     const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
+    const result = await app.db.query<MessageRow>(
+      `with membership as (
+         select c.id
+         from conversations c
+         join conversation_members cm on cm.conversation_id = c.id
+         where c.id::text = $1
+           and cm.user_id = $2
+           and c.closed_at is null
+         limit 1
+       ), eligible_sender as (
+         select u.id
+         from app_users u
+         left join user_trust_profiles trust on trust.user_id = u.id
+         where u.id = $2
+           and (
+             $20::boolean
+             or (
+               u.account_status = 'active'
+               and coalesce(trust.is_suspended, false) = false
+               and coalesce(trust.trust_score, 50) > 20
+               and not exists (
+                 select 1
+                 from suspensions suspension
+                 where suspension.user_id = u.id
+                   and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+               )
+               and not exists (
+                 select 1
+                 from feature_restrictions restriction
+                 where restriction.user_id = u.id
+                   and restriction.feature = '${restrictedFeature}'
+                   and (restriction.ends_at is null or restriction.ends_at > now())
+               )
+             )
+           )
+       ), approved_media as (
+         update media_objects media
+         set public_url = $16,
+             moderation_status = 'approved',
+             moderation_provider = $8,
+             moderation_provider_version = $9,
+             moderation_scores = $11::jsonb,
+             moderation_decided_at = now(),
+             moderation_failure_reason = null,
+             explicit_classification = case when $19 then 'explicit' else 'non_explicit' end,
+             photodna_status = $14,
+             photodna_provider_request_id = $15
+         from eligible_sender
+         where media.id = $7
+           and media.owner_user_id = eligible_sender.id
+           and media.surface = 'message_photo'
+           and media.moderation_status = 'pending'
+         returning eligible_sender.id
+       ), ${approvedContentReviewCte({
+         userIdParam: "$2",
+         surface: moderationSurface,
+         contentType: "image",
+         fromCte: "approved_media",
+         providerParam: "$8",
+         providerRequestIdParam: "$10",
+         normalizedLabelsParam: "$11",
+         policyDecisionParam: "$12",
+         moderationStatusParam: "'allowed'",
+         moderationRawResultParam: "$13",
+         contentIdParam: "$7",
+         contentRefParam: "jsonb_build_object('assetId', $7, 'surface', 'message_photo')"
+       })}, linked_media as (
+         update media_objects media
+         set content_review_id = moderation_review.id
+         from moderation_review
+         where media.id = $7
+         returning media.id
+       ), inserted as (
+         insert into messages (
+           conversation_id,
+           user_id,
+           content,
+           content_ciphertext,
+           content_nonce,
+           content_auth_tag,
+           content_key_version,
+           expires_at
+         )
+         select
+           membership.id,
+           eligible_sender.id,
+           '[encrypted]',
+           $3,
+           $4,
+           $5,
+           $6,
+           ${expirationSql("$17")}
+         from membership
+         join eligible_sender on true
+         join linked_media on true
+         returning
+           id::text as id,
+           user_id::text as user_id,
+           content,
+           content_ciphertext,
+           content_nonce,
+           content_auth_tag,
+           content_key_version,
+           created_at,
+           expires_at,
+           conversation_id
+       ), attached as (
+         insert into message_media_attachments (message_id, media_object_id, view_once)
+         select inserted.id::uuid, $7::uuid, $18
+         from inserted
+         returning message_id, media_object_id, view_once
+       ), updated_conversation as (
+         update conversations c
+         set updated_at = now()
+         from inserted
+         where c.id = inserted.conversation_id
+       ), updated_member as (
+         update conversation_members cm
+         set last_read_at = now()
+         from inserted
+         where cm.conversation_id = inserted.conversation_id
+           and cm.user_id = $2
+       )
+       select
+         inserted.id,
+         inserted.user_id,
+         inserted.content,
+         inserted.content_ciphertext,
+         inserted.content_nonce,
+         inserted.content_auth_tag,
+         inserted.content_key_version,
+         inserted.created_at,
+         inserted.expires_at,
+         coalesce(jsonb_agg(jsonb_build_object(
+          'id', media.id::text,
+          'url', media.public_url,
+          'mediaType', media.media_type,
+          'mimeType', media.mime_type,
+          'viewOnce', attached.view_once,
+          'viewedAt', null,
+           'explicit', media.explicit_classification is distinct from 'non_explicit'
+        ) order by attached.media_object_id), '[]'::jsonb) as attachments
+       from inserted
+       join attached on attached.message_id = inserted.id::uuid
+       join media_objects media on media.id = attached.media_object_id
+       group by
+         inserted.id,
+         inserted.user_id,
+         inserted.content,
+         inserted.content_ciphertext,
+         inserted.content_nonce,
+         inserted.content_auth_tag,
+         inserted.content_key_version,
+         inserted.created_at,
+         inserted.expires_at`,
+      [
+        payload.conversationId,
+        userId,
+        encryptedContent.ciphertext,
+        encryptedContent.nonce,
+        encryptedContent.authTag,
+        encryptedContent.keyVersion,
+        mediaAsset.id,
+        mediaAsset.moderation.provider,
+        mediaAsset.moderation.providerVersion,
+        mediaAsset.moderation.providerRequestId,
+        JSON.stringify(mediaAsset.moderation.labels),
+        JSON.stringify(mediaAsset.moderation.decision),
+        JSON.stringify(mediaAsset.moderation.rawResult),
+        mediaAsset.moderation.photoDnaStatus,
+        mediaAsset.moderation.photoDnaProviderRequestId,
+        mediaAsset.displayUrl,
+        disappearingTimer,
+        payload.viewOnce,
+        isAdultExplicit,
+        ownerFullAccess
+      ]
+    );
+    const created = result.rows[0] ? await refreshCreatedMessageAttachments(app, result.rows[0]) : null;
 
-    const created = await sendApprovedPhotoMessage(app, request, {
-      conversationId: payload.conversationId,
-      senderUserId: userId,
-      mediaObjectId: mediaAsset.id,
-      displayUrl: mediaAsset.displayUrl,
-      content: {
-        ciphertext: encryptedContent.ciphertext,
-        nonce: encryptedContent.nonce,
-        authTag: encryptedContent.authTag,
-        keyVersion: encryptedContent.keyVersion
-      },
-      moderation: {
-        provider: mediaAsset.moderation.provider,
-        providerVersion: mediaAsset.moderation.providerVersion,
-        providerRequestId: mediaAsset.moderation.providerRequestId,
-        labels: mediaAsset.moderation.labels,
-        decision: mediaAsset.moderation.decision,
-        rawResult: mediaAsset.moderation.rawResult,
-        photoDnaStatus: mediaAsset.moderation.photoDnaStatus,
-        photoDnaProviderRequestId: mediaAsset.moderation.photoDnaProviderRequestId
-      },
-      isAdultExplicit,
-      viewOnce: payload.viewOnce,
-      disappearingTimer,
-      restrictedFeature: restrictedFeature as "direct_messages" | "group_messages",
-      moderationSurface,
-      ownerFullAccess
-    });
-
+    if (!created) {
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
+    }
 
     await recordMeaningfulActivitySafely(app, {
       userId,
@@ -1946,7 +2163,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       });
     } catch (error) {
       await deletePendingMediaAsset(app, request, pendingAsset);
-      throw toReportablePhotoUploadError(app, request, error, { surface: "message_photo", userId });
+      throw error;
     }
   });
 
@@ -1974,8 +2191,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     ) {
       throw new ApiError(
         403,
-        "MUTUAL_CRUUSH_REQUIRED",
-        "You can message after a mutual cruush."
+        "FORBIDDEN",
+        "You cannot message this user."
       );
     }
     if (conversation.kind === "group") {
@@ -2119,11 +2336,6 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const created = result.rows[0];
 
     if (!created) {
-      await diagnoseMessageInsertFailure(app, request, {
-        conversationId: payload.conversationId,
-        userId,
-        mediaObjectId: null
-      });
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
