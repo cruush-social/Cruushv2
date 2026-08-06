@@ -556,7 +556,7 @@ async function handlePolicyDecision(
   );
 }
 
-export async function moderateFeedTextWithLocalFallback(
+export async function moderateTextWithLocalFallback(
   app: FastifyInstance,
   input: ModerateTextInput,
   unavailableProviderResult: ProviderModerationResult
@@ -568,8 +568,8 @@ export async function moderateFeedTextWithLocalFallback(
 
   const providerResult: ProviderModerationResult = {
     ...fallbackResult,
-    provider: "local_feed_text_fallback",
-    provider_request_id: `local-feed-text-fallback-${randomUUID()}`,
+    provider: "local_text_fallback",
+    provider_request_id: `local-text-fallback-${randomUUID()}`,
     raw_result: {
       ...(fallbackResult.raw_result ?? {}),
       fallback: {
@@ -583,15 +583,18 @@ export async function moderateFeedTextWithLocalFallback(
   };
 
   app.log?.warn({
+    fallbackSurface: input.surface,
     surface: input.surface,
     provider: unavailableProviderResult.provider,
     providerRequestId: unavailableProviderResult.provider_request_id,
     providerStatus: unavailableProviderResult.status,
     providerError: unavailableProviderResult.error
-  }, "Stream text moderation unavailable; used local feed text fallback");
+  }, "Stream text moderation unavailable; used local text fallback");
 
   return providerResult;
 }
+
+export const moderateFeedTextWithLocalFallback = moderateTextWithLocalFallback;
 
 export async function moderateTextOrReject(app: FastifyInstance, input: ModerateTextInput) {
   const providerResultFromPrimary: ProviderModerationResult = containsBlockedRacialSlur(input.text)
@@ -613,8 +616,8 @@ export async function moderateTextOrReject(app: FastifyInstance, input: Moderate
         ...input,
         text: prepareTextForModerationProvider(input.text)
       });
-  const providerResult = input.surface === "feed" && providerResultUnavailable(providerResultFromPrimary)
-    ? await moderateFeedTextWithLocalFallback(app, input, providerResultFromPrimary)
+  const providerResult = (input.surface === "feed" || input.surface === "profile") && providerResultUnavailable(providerResultFromPrimary)
+    ? await moderateTextWithLocalFallback(app, input, providerResultFromPrimary)
     : providerResultFromPrimary;
   const decision = mapProviderResultToPolicy({
     surface: input.surface,

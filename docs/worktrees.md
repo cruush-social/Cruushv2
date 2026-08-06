@@ -9,6 +9,8 @@ the branch name.
 
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
+| `codex/moderation-text-fallback` | `/private/tmp/cruush-moderation-text-fallback` | 2026-08-06 local Fix profile moderation fallback | clean | +1/-0 | Fix profile text saves so Stream moderation outages fall back to local safety rules instead of blocking ordinary edits. |
+| `codex/github-issues-aug6` | `/Volumes/corrupt/Cruushv2-issues` | 2026-08-06 943e4eb5 Merge pull request #18 from cruush-social/posthog/instrumentation-ce1df8 | clean | +0/-0 | Superseded scratch branch from the initial GitHub issue sweep; final moderation fix lives in `codex/moderation-text-fallback`. |
 | `feature/moderation-dashboard-full-access` | `/Volumes/corrupt/Cruushv2-1` | 2026-08-06 a12e45f6 Fix messages settings and recently active touch crash | dirty (95 files) | +82/-65 |  |
 | `codex/bug-report-replies` | `/private/tmp/cruush-bug-replies` | 2026-08-05 7592aa5a fix: stop collecting tests from agent worktrees | dirty (12 files) | +81/-65 |  |
 | `codex/bug-report-replies-main` | `/private/tmp/cruush-bug-replies-main` | 2026-08-06 3e2ddfc0 Add bug report replies | clean | +0/-6 |  |
