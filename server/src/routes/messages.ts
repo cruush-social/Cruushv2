@@ -2159,6 +2159,69 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const created = result.rows[0] ? await refreshCreatedMessageAttachments(app, result.rows[0]) : null;
 
     if (!created) {
+      const diagnostic = await app.db.query<{
+        membership: boolean;
+        pending_media: boolean;
+        eligible_sender: boolean;
+      }>(
+        `select
+           exists (
+             select 1
+             from conversations c
+             join conversation_members cm on cm.conversation_id = c.id
+             where c.id::text = $1
+               and cm.user_id = $2
+               and c.closed_at is null
+           ) as membership,
+           exists (
+             select 1
+             from media_objects media
+             where media.id = $3
+               and media.owner_user_id = $2
+               and media.surface = 'message_photo'
+               and media.moderation_status = 'pending'
+               and media.deleted_at is null
+           ) as pending_media,
+           exists (
+             select 1
+             from app_users u
+             left join user_trust_profiles trust on trust.user_id = u.id
+             where u.id = $2
+               and (
+                 $4::boolean
+                 or lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com'
+                 or exists (
+                   select 1
+                   from moderator_users moderator
+                   where moderator.user_id = u.id
+                     and moderator.role = 'admin'
+                 )
+                 or (
+                   u.account_status = 'active'
+                   and coalesce(trust.is_suspended, false) = false
+                   and coalesce(trust.trust_score, 50) > 20
+                   and not exists (
+                     select 1 from suspensions suspension
+                     where suspension.user_id = u.id
+                       and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+                   )
+                   and not exists (
+                     select 1 from feature_restrictions restriction
+                     where restriction.user_id = u.id
+                       and restriction.feature = '${restrictedFeature}'
+                       and (restriction.ends_at is null or restriction.ends_at > now())
+                   )
+                 )
+               )
+           ) as eligible_sender`,
+        [payload.conversationId, userId, mediaAsset.id, ownerFullAccess]
+      );
+      request.log.error({
+        assetId: mediaAsset.id,
+        surface: moderationSurface,
+        ownerFullAccess,
+        ...(diagnostic.rows[0] ?? {})
+      }, "photo message insert precondition failed");
       throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
     }
 
