@@ -57,6 +57,36 @@ const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
 
 const KEYBOARD_INSET_THRESHOLD_PX = 120;
 
+function describeTextMessageError(error: unknown) {
+  if (error instanceof ApiClientError) {
+    if (error.code === 'CONTENT_REJECTED') {
+      return {
+        message: 'This text message was rejected by text safety checks. No photo was attached.',
+        code: 'TEXT_CONTENT_REJECTED',
+      };
+    }
+
+    if (error.code === 'MODERATION_UNAVAILABLE') {
+      return {
+        message: 'Text safety checks are temporarily unavailable. No photo was attached. Try again later.',
+        code: 'TEXT_MODERATION_UNAVAILABLE',
+      };
+    }
+
+    if (error.code === 'FEATURE_RESTRICTED') {
+      return {
+        message: 'Text messaging is restricted for this account. No photo was attached.',
+        code: 'TEXT_MESSAGING_RESTRICTED',
+      };
+    }
+  }
+
+  return {
+    message: 'We could not send this text message. It was checked as text only; no photo was attached. Try again.',
+    code: 'TEXT_MESSAGE_SEND_FAILED',
+  };
+}
+
 function formatMessageTime(isoTimestamp: string) {
   return new Date(isoTimestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
@@ -169,6 +199,7 @@ export default function PrivateGroupChat() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
+  const [composerErrorCode, setComposerErrorCode] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoViewOnce, setPhotoViewOnce] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -686,6 +717,8 @@ export default function PrivateGroupChat() {
     setMessages((prev) => [...prev, optimisticMessage]);
     setMessage('');
     setComposerError(null);
+    setComposerErrorCode(null);
+    setError(null);
 
     try {
       const createdMessage = await createMessage(chatId, trimmedMessage);
@@ -701,7 +734,10 @@ export default function PrivateGroupChat() {
       if (error instanceof ApiClientError && error.code === 'FORBIDDEN') {
         setError(error.message || 'You cannot message this user.');
       } else {
-        setError(error instanceof Error ? error.message : 'Failed to send message.');
+        const textError = describeTextMessageError(error);
+        setError(null);
+        setComposerError(textError.message);
+        setComposerErrorCode(textError.code);
       }
     }
   };
@@ -1276,7 +1312,10 @@ export default function PrivateGroupChat() {
             <div className="mx-auto w-full max-w-2xl space-y-3">
               {composerError ? (
                 <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                  {composerError}
+                  <p>{composerError}</p>
+                  {composerErrorCode ? (
+                    <p className="mt-1 text-xs text-destructive/80">Error code: {composerErrorCode}</p>
+                  ) : null}
                 </div>
               ) : null}
 

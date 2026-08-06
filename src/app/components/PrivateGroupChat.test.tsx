@@ -310,6 +310,58 @@ describe('PrivateGroupChat', () => {
     expect(await screen.findByText('You cannot message this user.')).toBeInTheDocument();
   });
 
+  it('shows a text-only moderation error when a text message is rejected without a photo', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+    createMessage.mockRejectedValue(new ApiClientError(
+      400,
+      'CONTENT_REJECTED',
+      'This content violates cruush safety rules and cannot be saved.',
+    ));
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Drop the plan...'), {
+      target: { value: 'text only' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    const composerError = await within(screen.getByTestId('chat-composer-bar')).findByRole('alert');
+    expect(composerError).toHaveTextContent('This text message was rejected by text safety checks. No photo was attached.');
+    expect(composerError).toHaveTextContent('Error code: TEXT_CONTENT_REJECTED');
+    expect(createMessage).toHaveBeenCalledWith(conversationId, 'text only');
+    expect(createMessagePhoto).not.toHaveBeenCalled();
+  });
+
   it('navigates to the report page from the conversation safety action', async () => {
     getConversationMessages.mockResolvedValue({
       conversation: {
