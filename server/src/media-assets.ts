@@ -17,7 +17,7 @@ import {
   deleteEncryptedMediaObject,
   writeEncryptedMediaObject
 } from "./media-storage.js";
-import { createModerationProvider } from "./moderation-provider.js";
+import { createModerationProviderOrUnavailable } from "./moderation-provider.js";
 import { moderateImageOrReject } from "./moderation-service.js";
 import type { PolicyDecision, ProviderModerationResult } from "./moderation-types.js";
 import type { PhotoDnaResult } from "./photodna.js";
@@ -352,7 +352,7 @@ export async function moderatePendingMediaAsset(
             surface: asset.surface
           }
         });
-    const provider = createModerationProvider(app.config);
+    const provider = createModerationProviderOrUnavailable(app.config);
     const bridgeEnabled = app.config.STREAM_IMAGE_BRIDGE_ENABLED === true;
     const signedInspectionEnabled = app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true;
     const alphaPhotoUploadBypass = activeAlphaPhotoUploadBypass(app.config);

@@ -8,7 +8,9 @@ import { describe, expect, it } from "vitest";
 import {
   classifyImageChildFaces,
   classifyProfilePhotoSafety,
+  classifyPublicImageSafety,
   detectProfilePhotoHuman,
+  detectPublicImageSafety,
   mergeProfilePhotoSafetyResults
 } from "./profile-photo-human-detection.js";
 import type { ProviderModerationResult } from "./moderation-types.js";
@@ -224,5 +226,124 @@ describe("image child-face and profile-photo human detection", () => {
       status: "complete",
       recommended_action: "keep"
     });
+  });
+});
+
+describe("public feed image safety", () => {
+  function faces(details: Array<{ Confidence: number; AgeRange: { Low: number; High: number } }> = []) {
+    return { FaceDetails: details, $metadata: { requestId: "rekognition-feed-faces" } };
+  }
+
+  function moderation(labels: Array<{ Name: string; ParentName?: string; Confidence: number }>) {
+    return { ModerationLabels: labels, $metadata: { requestId: "rekognition-feed-moderation" } };
+  }
+
+  it("keeps an ordinary feed photo with no rejectable label", () => {
+    expect(classifyPublicImageSafety(
+      moderation([]),
+      faces([{ Confidence: 99, AgeRange: { Low: 25, High: 35 } }]),
+      config
+    )).toMatchObject({
+      status: "complete",
+      recommended_action: "keep",
+      labels: [],
+      raw_result: { child_face_outcome: "adult", rejected_label_count: 0 }
+    });
+  });
+
+  // A shirtless or swimwear post is ordinary on this app and Stream does not reject it.
+  // A Stream outage must not quietly make the feed stricter than it is when Stream is up.
+  it("keeps swimwear, barechested and non-explicit nudity labels", () => {
+    const result = classifyPublicImageSafety(
+      moderation([
+        { Name: "Barechested Male", ParentName: "Swimwear or Underwear", Confidence: 97 },
+        { Name: "Male Swimwear or Underwear", ParentName: "Swimwear or Underwear", Confidence: 95 },
+        { Name: "Non-Explicit Nudity", ParentName: "Non-Explicit Nudity of Intimate parts and Kissing", Confidence: 92 }
+      ]),
+      faces([{ Confidence: 99, AgeRange: { Low: 25, High: 35 } }]),
+      config
+    );
+
+    expect(result.recommended_action).toBe("keep");
+    expect(result.labels).toEqual([]);
+    // The unrejected labels are still recorded so a moderator can see what was seen.
+    expect(result.raw_result?.moderation_label_count).toBe(3);
+  });
+
+  it("rejects explicit content, gore, weapons and hate symbols on the feed", () => {
+    for (const [name, parent, normalized] of [
+      ["Explicit Nudity", "Explicit", "adult_nudity"],
+      ["Explicit Sexual Activity", "Explicit", "adult_explicit"],
+      ["Graphic Violence", "Violence", "gore"],
+      ["Weapon Violence", "Violence", "threat"],
+      ["Corpses", "Visually Disturbing", "gore"],
+      ["Nazi Party", "Hate Symbols", "hate_symbol"]
+    ] as const) {
+      expect(classifyPublicImageSafety(
+        moderation([{ Name: name, ParentName: parent, Confidence: 96 }]),
+        faces(),
+        config
+      )).toMatchObject({
+        recommended_action: "remove",
+        labels: [expect.objectContaining({ normalized_label: normalized })]
+      });
+    }
+  });
+
+  it("still catches a child face on the feed with no Stream answer", () => {
+    expect(classifyPublicImageSafety(
+      moderation([]),
+      faces([{ Confidence: 99, AgeRange: { Low: 8, High: 14 } }]),
+      config
+    )).toMatchObject({
+      recommended_action: "remove",
+      labels: [expect.objectContaining({ normalized_label: "minor_present" })]
+    });
+  });
+
+  it("reports an error result when Rekognition is disabled so the feed still fails closed", async () => {
+    await expect(detectPublicImageSafety({
+      PROFILE_PHOTO_REKOGNITION_ENABLED: false,
+      PROFILE_PHOTO_REKOGNITION_REGION: "us-east-1",
+      PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: 90,
+      PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: 80,
+      PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE: 90,
+      PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE: 18,
+      PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS: 5000
+    }, Buffer.from(""))).resolves.toMatchObject({ status: "error" });
+  });
+
+  it("asks Rekognition only for moderation labels and faces", async () => {
+    const jpeg = await sharp({
+      create: { width: 10, height: 10, channels: 3, background: { r: 10, g: 20, b: 30 } }
+    }).jpeg().toBuffer();
+    const commands: string[] = [];
+    const client = {
+      async send(command: DetectLabelsCommand | DetectFacesCommand | DetectModerationLabelsCommand) {
+        commands.push(command.constructor.name);
+
+        if (command instanceof DetectFacesCommand) {
+          return {
+            FaceDetails: [{ Confidence: 99, AgeRange: { Low: 30, High: 40 } }],
+            $metadata: { requestId: "feed-faces" }
+          };
+        }
+
+        return { ModerationLabels: [], $metadata: { requestId: "feed-moderation" } };
+      }
+    };
+
+    const result = await detectPublicImageSafety({
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      PROFILE_PHOTO_REKOGNITION_REGION: "us-east-1",
+      PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE: 90,
+      PROFILE_PHOTO_REKOGNITION_ANIMAL_CONFIDENCE: 80,
+      PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE: 90,
+      PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE: 18,
+      PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS: 5000
+    }, jpeg, client as never);
+
+    expect(commands.sort()).toEqual(["DetectFacesCommand", "DetectModerationLabelsCommand"]);
+    expect(result).toMatchObject({ status: "complete", recommended_action: "keep" });
   });
 });

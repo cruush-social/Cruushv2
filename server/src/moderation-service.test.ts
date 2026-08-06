@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  moderateImageOrReject,
   moderateMessageTextOrAllowByKeyword,
   moderateProfileOrReject,
   moderateTextOrReject,
@@ -14,6 +15,20 @@ import {
   type PolicyDecision,
   type ProviderModerationResult
 } from "./moderation-types.js";
+
+const { detectImageChildFaces, detectProfilePhotoHuman, detectPublicImageSafety } = vi.hoisted(() => ({
+  detectImageChildFaces: vi.fn(),
+  detectProfilePhotoHuman: vi.fn(),
+  detectPublicImageSafety: vi.fn()
+}));
+
+vi.mock("./profile-photo-human-detection.js", async () => {
+  const actual = await vi.importActual<typeof import("./profile-photo-human-detection.js")>(
+    "./profile-photo-human-detection.js"
+  );
+
+  return { ...actual, detectImageChildFaces, detectProfilePhotoHuman, detectPublicImageSafety };
+});
 
 function createApp() {
   return {
@@ -240,5 +255,107 @@ describe("profile-photo adult-human gate", () => {
       status: "resolved",
       decision: { reason_code: "profile_photo_not_adult_human" }
     });
+  });
+});
+
+// Regression: a Stream image outage refused every feed photo, because the Rekognition
+// fallback covered profile photos and message photos but not the feed.
+describe("feed image moderation during a Stream outage", () => {
+  beforeEach(() => {
+    detectImageChildFaces.mockReset();
+    detectProfilePhotoHuman.mockReset();
+    detectPublicImageSafety.mockReset();
+  });
+
+  function createFeedApp() {
+    const app = createApp();
+
+    Object.assign(app.config, {
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "",
+      STREAM_API_SECRET: "",
+      STREAM_MODERATION_CONFIG_KEY: "",
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: false
+    });
+    (app as unknown as { log: unknown }).log = { error: vi.fn(), warn: vi.fn(), info: vi.fn() };
+
+    return app;
+  }
+
+  function feedImage() {
+    return {
+      userId: "user-1",
+      surface: "feed" as const,
+      mimeType: "image/jpeg",
+      bytes: Buffer.from("feed-image")
+    };
+  }
+
+  function rekognitionResult(overrides: Partial<ProviderModerationResult> = {}): ProviderModerationResult {
+    return {
+      provider: "aws_rekognition",
+      provider_request_id: "rekognition-feed-1",
+      labels: [],
+      latency_ms: 8,
+      status: "complete",
+      recommended_action: "keep",
+      raw_result: {},
+      ...overrides
+    };
+  }
+
+  it("screens the photo with the public-image detector instead of refusing it", async () => {
+    detectPublicImageSafety.mockResolvedValue(rekognitionResult());
+
+    const result = await moderateImageOrReject(createFeedApp(), feedImage());
+
+    expect(detectPublicImageSafety).toHaveBeenCalledOnce();
+    expect(detectImageChildFaces).not.toHaveBeenCalled();
+    expect(result.decision.decision).toBe("allow");
+    expect(result.providerResult.provider).toContain("aws_rekognition");
+  });
+
+  it("rejects a feed photo the fallback finds explicit", async () => {
+    detectPublicImageSafety.mockResolvedValue(rekognitionResult({
+      recommended_action: "remove",
+      labels: [{
+        provider_label: "Amazon Rekognition moderation: Explicit > Explicit Nudity",
+        normalized_label: "adult_nudity",
+        confidence: 0.96,
+        severity: "high"
+      }]
+    }));
+
+    await expect(moderateImageOrReject(createFeedApp(), feedImage()))
+      .rejects.toMatchObject({ code: "CONTENT_REJECTED" });
+  });
+
+  it("still fails closed when Rekognition is down too", async () => {
+    detectPublicImageSafety.mockResolvedValue(rekognitionResult({
+      status: "error",
+      recommended_action: undefined,
+      error: "Rekognition timeout"
+    }));
+
+    await expect(moderateImageOrReject(createFeedApp(), feedImage()))
+      .rejects.toMatchObject({ code: "MODERATION_UNAVAILABLE" });
+  });
+
+  it("keeps the cheap child-face check while Stream is answering", async () => {
+    detectImageChildFaces.mockResolvedValue(rekognitionResult());
+
+    const app = createFeedApp();
+    Object.assign(app.config, {
+      STREAM_MODERATION_ENABLED: false,
+      MODERATION_PROVIDER: "mock",
+      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: false
+    });
+
+    await moderateImageOrReject(app, feedImage());
+
+    expect(detectImageChildFaces).toHaveBeenCalledOnce();
+    expect(detectPublicImageSafety).not.toHaveBeenCalled();
   });
 });

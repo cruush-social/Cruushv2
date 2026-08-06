@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildStreamImageCheckRequest,
   createModerationProvider,
+  createModerationProviderOrUnavailable,
   isCompleteStreamImageResponse,
   MockModerationProvider,
   normalizeStreamLabel,
@@ -377,5 +378,46 @@ describe("moderation provider", () => {
       recommended_action: "keep",
       status: "complete"
     })).toBe(true);
+  });
+});
+
+describe("provider construction during a credential rotation", () => {
+  // Rotating the Stream key leaves a window where the secret is missing or stale.
+  // createModerationProvider throws there, which used to escape as a bare 500 from every
+  // upload and every profile save instead of reaching the fallback chain.
+  const brokenStreamConfig = {
+    MODERATION_PROVIDER: "mock" as const,
+    MODERATION_TIMEOUT_MS: 5000,
+    STREAM_MODERATION_ENABLED: true,
+    STREAM_API_KEY: "",
+    STREAM_API_SECRET: "",
+    STREAM_MODERATION_CONFIG_KEY: ""
+  };
+
+  it("answers as an unavailable provider instead of throwing", async () => {
+    const provider = createModerationProviderOrUnavailable(brokenStreamConfig);
+
+    expect(provider.name).toBe("stream");
+
+    for (const result of [
+      await provider.moderateText({ userId: "u", surface: "feed", text: "hi" }),
+      await provider.moderateImage({
+        userId: "u",
+        surface: "feed",
+        mimeType: "image/jpeg",
+        bytes: Buffer.from("")
+      })
+    ]) {
+      expect(result.status).toBe("error");
+      expect(result.error).toMatch(/STREAM_API_KEY/);
+      expect(result.labels).toEqual([]);
+    }
+  });
+
+  it("still returns the real provider when the config is complete", () => {
+    expect(createModerationProviderOrUnavailable({
+      ...brokenStreamConfig,
+      STREAM_MODERATION_ENABLED: false
+    })).toBeInstanceOf(MockModerationProvider);
   });
 });

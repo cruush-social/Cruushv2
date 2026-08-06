@@ -62,7 +62,13 @@ vi.mock("@aws-sdk/client-rekognition", () => ({
 }));
 
 vi.mock("./moderation-provider.js", () => ({
-  createModerationProvider: () => ({
+  // Both factories resolve to the same stub: production calls the OrUnavailable variant.
+  createModerationProviderOrUnavailable: () => moderationProviderStub(),
+  createModerationProvider: () => moderationProviderStub()
+}));
+
+function moderationProviderStub() {
+  return ({
     name: "stream",
     version: "test",
     moderateText: vi.fn(),
@@ -70,8 +76,8 @@ vi.mock("./moderation-provider.js", () => ({
       providerState.lastImageUrl = input.imageUrl ?? null;
       return providerState.result;
     })
-  })
-}));
+  });
+}
 
 import { buildServer } from "./app.js";
 import type { AppConfig } from "./config.js";

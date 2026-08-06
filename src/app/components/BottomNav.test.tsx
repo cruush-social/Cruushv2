@@ -72,7 +72,10 @@ describe('BottomNav', () => {
     expect(pill).toHaveClass('rounded-full', 'border', 'bg-background/68', 'backdrop-blur-md');
     expect(pill).toHaveClass('pointer-events-auto');
     expect(pill).toHaveClass('px-1.5', 'pb-1.5', 'pt-2');
-    expect(pill).toHaveClass('mx-auto');
+    // The pill is no longer centred on its own: it shares an mx-auto row with the docked
+    // bug button and takes the width that row has left.
+    expect(pill).toHaveClass('flex-1', 'min-w-0');
+    expect(pill!.parentElement).toHaveClass('mx-auto', 'max-w-[26rem]');
     expect(pill).not.toHaveClass('lg:ml-auto', 'lg:mr-4');
   });
 
@@ -116,10 +119,14 @@ describe('BottomNav', () => {
     const activeIcon = activeButton.querySelector('img');
     const buttons = screen.getAllByRole('button');
 
-    expect(activeButton).toHaveClass('items-center', 'justify-center', 'h-[3.75rem]', 'w-[3.75rem]');
-    expect(activeIcon).toHaveClass('h-[3.6rem]', 'w-[3.6rem]', 'object-contain');
+    // Tabs cap at 3.75rem but may shrink below it so the pill can make room for the
+    // docked bug button on a narrow phone. aspect-square keeps them circles at every
+    // width they shrink to - they must never become ovals.
+    expect(activeButton).toHaveClass('items-center', 'justify-center', 'aspect-square', 'max-w-[3.75rem]');
+    expect(activeIcon).toHaveClass('object-contain');
     buttons.forEach((button) => {
-      expect(button).toHaveClass('h-[3.75rem]', 'w-[3.75rem]', 'min-w-0');
+      expect(button).toHaveClass('aspect-square', 'max-w-[3.75rem]', 'min-w-0', 'rounded-full');
+      expect(button).not.toHaveClass('shrink-0');
     });
   });
 
@@ -176,5 +183,44 @@ describe('BottomNav', () => {
     fireEvent.click(screen.getByRole('button', { name: /profile/i }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile:null');
+  });
+});
+
+// Regression: the bug reporter used to float over page content and landed on photo-tile
+// buttons, feed post controls and moderation queue rows. It now docks into the nav band,
+// the one strip every page reserves and never draws into.
+describe('BottomNav bug report dock', () => {
+  it('exposes a dock slot beside the pill and registers it', async () => {
+    const { registerBugButtonSlot, getBugButtonSlot } = await import('../lib/bugButtonSlot');
+    registerBugButtonSlot(null);
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const slot = screen.getByTestId('bottom-nav-bug-slot');
+    expect(getBugButtonSlot()).toBe(slot);
+    expect(screen.getByTestId('bottom-nav-pill')).not.toContainElement(slot);
+    expect(slot.parentElement).toContainElement(screen.getByTestId('bottom-nav-pill'));
+
+    unmount();
+  });
+
+  it('lets the pill shrink so the docked button never has to sit on top of it', () => {
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const pill = screen.getByTestId('bottom-nav-pill');
+    expect(pill.className).toContain('min-w-0');
+    expect(pill.className).toContain('flex-1');
+    expect(pill.className).not.toContain('max-w-[23rem]');
+    // Nav icons have to be able to give up width too, or the pill cannot shrink.
+    expect(screen.getByRole('button', { name: /map/i }).className).toContain('min-w-0');
+    expect(screen.getByRole('button', { name: /map/i }).className).not.toContain('shrink-0');
   });
 });

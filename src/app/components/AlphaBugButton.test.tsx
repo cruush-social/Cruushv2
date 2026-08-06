@@ -60,9 +60,11 @@ describe('AlphaBugButton', () => {
     renderAlphaBugButton();
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
-    expect(reportButton).toHaveClass('left-4', 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]');
-    expect(reportButton).toHaveClass('z-20');
-    expect(reportButton).not.toHaveClass('right-4', 'top-[calc(0.75rem+env(safe-area-inset-top))]');
+    // No nav is rendered here, so this is the signed-out fallback: the empty top-right
+    // corner. Everywhere the nav exists the button docks into it instead.
+    expect(reportButton).toHaveClass('right-4', 'top-[calc(0.75rem+env(safe-area-inset-top))]');
+    expect(reportButton).toHaveClass('fixed');
+    expect(reportButton).not.toHaveClass('left-4');
 
     fireEvent.click(reportButton);
     expect(screen.getByText('/map?layer=nearby')).toBeInTheDocument();
@@ -82,18 +84,24 @@ describe('AlphaBugButton', () => {
     expect(screen.getByText('This report includes the current page and attaches a screenshot when your browser allows it.')).toBeInTheDocument();
   });
 
-  it('floats above the fixed chat composer on chat routes', () => {
+  // Regression: placement used to be computed per route, which is how it ended up over
+  // the chat composer, the feed post controls and the profile photo tiles. There is now
+  // one placement - docked in the nav - and one corner fallback for routes without a nav.
+  it('uses one placement on every route instead of per-route offsets', () => {
     window.history.replaceState({}, '', '/chat/group/group-1');
-    renderAlphaBugButton(true, '/chat/group/group-1');
+    const { unmount } = renderAlphaBugButton(true, '/chat/group/group-1');
+    const chatClassName = screen.getByRole('button', { name: 'Report alpha bug' }).className;
+    unmount();
 
-    expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
-      'left-4',
-      'bottom-[calc(19rem+env(safe-area-inset-bottom))]',
-      'z-20',
-    );
+    window.history.replaceState({}, '', '/map?layer=nearby');
+    renderAlphaBugButton(true, '/map?layer=nearby');
+
+    expect(screen.getByRole('button', { name: 'Report alpha bug' }).className).toBe(chatClassName);
+    expect(chatClassName).not.toContain('19rem');
+    expect(chatClassName).not.toContain('6.75rem');
   });
 
-  it('uses the map chrome slot instead of floating over map controls', () => {
+  it('docks into a registered slot instead of floating over page content', () => {
     const slot = document.createElement('div');
     document.body.appendChild(slot);
     registerBugButtonSlot(slot);
@@ -102,7 +110,7 @@ describe('AlphaBugButton', () => {
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
     expect(slot).toContainElement(reportButton);
-    expect(reportButton).toHaveClass('size-8');
+    expect(reportButton).toHaveClass('h-11', 'w-11', 'shrink-0', 'rounded-full');
     expect(reportButton).not.toHaveClass('fixed', 'z-20');
   });
 

@@ -1,6 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router';
 import { Bug, CheckCircle2 } from 'lucide-react';
 import { ApiClientError } from '../lib/apiClient';
 import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
@@ -39,21 +38,17 @@ function getCurrentPageUrl() {
   return `${window.location.pathname}${window.location.search}` || '/';
 }
 
-function getBugButtonPlacement(pathname: string) {
-  if (pathname.startsWith('/chat/')) {
-    return 'left-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
-  }
-
-  return 'left-4 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
-}
-
-function getBugTipPlacement(pathname: string) {
-  if (pathname.startsWith('/chat/')) {
-    return 'left-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
-  }
-
-  return 'left-4 bottom-[calc(10rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
-}
+// Wherever the bottom nav renders, the button docks into it and these do not apply. They
+// are the fallback for the handful of signed-out routes that have no nav - the verify-email
+// and reset-password cards - where the top-right corner is empty on every viewport.
+const FALLBACK_BUTTON_PLACEMENT =
+  'right-4 top-[calc(0.75rem+env(safe-area-inset-top))]';
+const FALLBACK_TIP_PLACEMENT =
+  'right-4 top-[calc(4.5rem+env(safe-area-inset-top))]';
+// Sits directly above the nav band, anchored to the docked button. One-time coach mark,
+// dismissed on first tap or on opening the dialog.
+const DOCKED_TIP_PLACEMENT =
+  'right-3 bottom-[calc(16.5rem+env(safe-area-inset-bottom))]';
 
 function waitForVideoMetadata(video: HTMLVideoElement) {
   return new Promise<void>((resolve, reject) => {
@@ -131,8 +126,6 @@ async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined>
 }
 
 export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps) {
-  const location = useLocation();
-  const [buttonSlot, setButtonSlot] = useState<HTMLElement | null>(() => getBugButtonSlot());
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
@@ -140,8 +133,10 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
   const [errorCode, setErrorCode] = useState('');
   const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
-
-  useEffect(() => subscribeToBugButtonSlot(() => setButtonSlot(getBugButtonSlot())), []);
+  // useSyncExternalStore, not useState+useEffect: the nav registers its slot during the
+  // same commit, before any effect runs, so a state initializer read at render time
+  // always saw null and the button fell back to floating over the page.
+  const buttonSlot = useSyncExternalStore(subscribeToBugButtonSlot, getBugButtonSlot, () => null);
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -231,8 +226,8 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       <button
         aria-label="Report alpha bug"
         className={buttonSlot
-          ? 'inline-flex size-8 shrink-0 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:size-9'
-          : `fixed z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${getBugButtonPlacement(location.pathname)}`}
+          ? 'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-background/68 text-white/90 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          : `fixed z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${FALLBACK_BUTTON_PLACEMENT}`}
         data-testid="alpha-bug-button"
         title="Report a bug"
         type="button"
@@ -257,7 +252,12 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       }}
     >
       {showTip ? (
-        <div className={`fixed z-30 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
+        <div
+          className={`fixed z-30 w-[min(18rem,calc(100vw-1.5rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${
+            buttonSlot ? DOCKED_TIP_PLACEMENT : FALLBACK_TIP_PLACEMENT
+          }`}
+          data-testid="alpha-bug-tip"
+        >
           <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"

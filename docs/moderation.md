@@ -115,7 +115,23 @@ Rejected before save/publish:
 
 When shared Stream automod is enabled, publication requires all three synchronous approvals: PhotoDNA non-match, Stream completion, and Rekognition age-safety approval. Profile photos also require person/no-animal approval and reject high-confidence `Explicit` or `Non-Explicit Nudity` labels even when Stream recommends `keep`. Direct and group-message photos may contain consensual adult nudity. Rejected encrypted pending assets are deleted.
 
-If Stream is unavailable, partial, pending, or returns an error, **photos** are not saved. The request fails closed with `MODERATION_UNAVAILABLE`. A total image-provider outage yields no labels at all, so there is no way to tell the adult nudity cruush allows from an animal, gore, or a hate symbol it never allows, and there is no local image classifier to fall back on.
+### When Stream is unavailable
+
+Rekognition is the image fallback, and it now covers every image surface:
+
+| Surface | Fallback when Stream is unavailable | What it screens for |
+| --- | --- | --- |
+| `profile_photo` | `detectProfilePhotoHuman` | Person/no-animal gate, child faces, nudity labels |
+| `direct_message`, `group_message` | `detectImageChildFaces` | Child faces (adult nudity is allowed here) |
+| `feed` | `detectPublicImageSafety` | Child faces, explicit nudity and sexual activity, sex toys, graphic violence, self-harm, corpses, weapon and physical violence, hate symbols |
+
+`detectPublicImageSafety` runs only while Stream is unusable. When Stream answers, the feed keeps the cheaper child-face check, so a working pipeline behaves exactly as it did before the fallback existed.
+
+The feed fallback deliberately does **not** reject Rekognition's `Swimwear or Underwear` or `Non-Explicit Nudity of Intimate parts and Kissing` families — shirtless and swimwear photos are ordinary here, and Stream does not reject them either. A Stream outage must never quietly tighten what the feed allows. Every label Rekognition returned, including the ones not acted on, is written to `raw_result.moderation_labels` so a moderator can see what the fallback saw.
+
+If Stream **and** the Rekognition fallback are both unavailable, the photo is not saved and the request fails closed with `MODERATION_UNAVAILABLE`. With no labels at all there is no way to tell the adult nudity cruush allows from gore or a hate symbol it never allows.
+
+`createModerationProvider` throws when Stream is enabled without complete credentials — the state a key rotation passes through. Call sites use `createModerationProviderOrUnavailable`, which turns that throw into an unavailable-provider result so the fallback chain runs instead of the request returning a bare 500.
 
 **Text** does have a complete local classifier — the `MockModerationProvider` rule set plus the blocked racial-slur list — so a Stream text outage falls back to it instead of refusing the write. This applies to every text surface: feed posts, profile fields, and keyword-flagged direct and group messages. It is not a fail-open: every local rule still runs, the feed/profile-only coded-language rules still apply on those surfaces, and rejections are recorded normally. The fallback is recorded as provider `local_text_fallback`, with the failed Stream attempt kept under `raw_result.fallback` so an outage stays auditable, and it logs a warning per use.
 

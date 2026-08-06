@@ -7,7 +7,10 @@ import {
   prepareTextForModerationProvider,
   shouldModerateMessageTextWithProvider
 } from "./message-keyword-prefilter.js";
-import { createModerationProvider, MockModerationProvider } from "./moderation-provider.js";
+import {
+  createModerationProviderOrUnavailable,
+  MockModerationProvider
+} from "./moderation-provider.js";
 import {
   type ModerationContentType,
   type ModerationSurface,
@@ -18,6 +21,7 @@ import { mapProviderResultToPolicy } from "./policy-mapper.js";
 import {
   detectImageChildFaces,
   detectProfilePhotoHuman,
+  detectPublicImageSafety,
   mergeProfilePhotoSafetyResults
 } from "./profile-photo-human-detection.js";
 import {
@@ -312,6 +316,11 @@ function isMessagePhotoSurface(surface: ModerationSurface) {
 
 function canUseMessagePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
   return isMessagePhotoSurface(surface) &&
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+}
+
+function canUseFeedImageRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
+  return surface === "feed" &&
     app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
 }
 
@@ -630,26 +639,21 @@ async function primaryTextProviderResult(
     };
   }
 
+  const provider = createModerationProviderOrUnavailable(app.config);
   const startedAt = Date.now();
 
   try {
-    // createModerationProvider throws when Stream is enabled without complete credentials,
-    // which previously escaped as a bare 500 instead of reaching the fallback below.
-    return await createModerationProvider(app.config).moderateText({
+    return await provider.moderateText({
       ...input,
       text: prepareTextForModerationProvider(input.text)
     });
   } catch (error) {
     app.log?.error(
-      { err: error, surface: input.surface },
+      { err: error, provider: provider.name, surface: input.surface },
       "text moderation provider failed"
     );
 
-    return providerErrorResult(
-      app.config.STREAM_MODERATION_ENABLED ? "stream" : app.config.MODERATION_PROVIDER ?? "mock",
-      startedAt,
-      error
-    );
+    return providerErrorResult(provider.name, startedAt, error);
   }
 }
 
@@ -707,10 +711,13 @@ export async function moderateImageOrReject(
   input: ModerateImageInput,
   options: { allowProfilePhotoManualReview?: boolean } = {}
 ) {
-  const provider = createModerationProvider(app.config);
+  const provider = createModerationProviderOrUnavailable(app.config);
   const useProfilePhotoRekognitionFallback = canUseProfilePhotoRekognitionFallback(app, input.surface);
   const useMessagePhotoRekognitionFallback = canUseMessagePhotoRekognitionFallback(app, input.surface);
-  const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback || useMessagePhotoRekognitionFallback;
+  const useFeedImageRekognitionFallback = canUseFeedImageRekognitionFallback(app, input.surface);
+  const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback ||
+    useMessagePhotoRekognitionFallback ||
+    useFeedImageRekognitionFallback;
   const startedAt = Date.now();
   let providerResult: ProviderModerationResult;
 
@@ -729,12 +736,19 @@ export async function moderateImageOrReject(
   }
 
   if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true || usePhotoRekognitionFallback) {
+    const streamUnusable = providerResultUnavailable(providerResult) || providerResult.provider === "mock";
+    // A feed image standing on Rekognition alone needs the full public-image screen
+    // (explicit content, gore, weapons, hate symbols) rather than only the child-face
+    // gate. While Stream is answering, the feed keeps the cheaper child-face check so a
+    // working pipeline behaves exactly as before.
     const safetyResult = input.surface === "profile_photo"
       ? await detectProfilePhotoHuman(app.config, input.bytes)
-      : await detectImageChildFaces(app.config, input.bytes);
+      : useFeedImageRekognitionFallback && streamUnusable
+        ? await detectPublicImageSafety(app.config, input.bytes)
+        : await detectImageChildFaces(app.config, input.bytes);
 
     providerResult = usePhotoRekognitionFallback &&
-      (providerResultUnavailable(providerResult) || providerResult.provider === "mock") &&
+      streamUnusable &&
       providerResultComplete(safetyResult)
       ? photoRekognitionFallbackResult(providerResult, safetyResult)
       : mergeProfilePhotoSafetyResults(providerResult, safetyResult);

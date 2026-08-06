@@ -24,7 +24,13 @@ vi.mock("@aws-sdk/client-rekognition", () => ({
 }));
 
 vi.mock("./moderation-provider.js", () => ({
-  createModerationProvider: () => ({
+  // Both factories resolve to the same stub: production calls the OrUnavailable variant.
+  createModerationProviderOrUnavailable: () => moderationProviderStub(),
+  createModerationProvider: () => moderationProviderStub()
+}));
+
+function moderationProviderStub() {
+  return ({
     name: "stream",
     version: "test",
     moderateText: vi.fn(),
@@ -38,8 +44,8 @@ vi.mock("./moderation-provider.js", () => ({
       raw_result: {},
       ...state.providerResult
     } satisfies ProviderModerationResult))
-  })
-}));
+  });
+}
 
 import type { FastifyInstance } from "fastify";
 import { moderateImageOrReject } from "./moderation-service.js";
