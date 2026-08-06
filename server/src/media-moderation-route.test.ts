@@ -79,7 +79,9 @@ describe("signed Stream moderation media route", () => {
     expect(valid.headers["content-type"]).toContain("image/webp");
     expect(valid.headers["cache-control"]).toBe("private, no-store, max-age=0");
     expect(valid.headers["x-content-type-options"]).toBe("nosniff");
-    expect(head.statusCode).toBe(404);
+    expect(head.statusCode).toBe(200);
+    expect(head.body).toBe("");
+    expect(head.headers["content-type"]).toContain("image/webp");
     expect(invalid.statusCode).toBe(404);
     expect(noLongerPending.statusCode).toBe(404);
   });

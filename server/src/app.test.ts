@@ -4469,6 +4469,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
     expect(query.mock.calls[6]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[6]?.[0]).toContain("lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com'");
     expect(query.mock.calls[6]?.[0]).toContain("content_ciphertext");
     expect(query.mock.calls[6]?.[1]).not.toContain("on my way");
     expect(query.mock.calls[6]?.[1]).toContain("keyword_prefilter");

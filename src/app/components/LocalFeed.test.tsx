@@ -371,7 +371,7 @@ describe('LocalFeed', () => {
     expect(screen.getByText('suspicious link in this post')).toBeInTheDocument();
   });
 
-  it('renders feed profile previews at the same visible size as map pins', async () => {
+  it('renders feed profile previews without showing author pronouns', async () => {
     getFeedPosts.mockResolvedValue([{
       id: 'post-other',
       content: 'hello nearby',
@@ -397,6 +397,7 @@ describe('LocalFeed', () => {
     expect(preview.parentElement).toHaveClass('w-20');
     expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('min-w-0', 'flex-1', 'truncate');
     expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex-wrap');
+    expect(screen.queryByText('he/him')).not.toBeInTheDocument();
   });
 
   it('blocks another feed author and removes all of their posts locally', async () => {

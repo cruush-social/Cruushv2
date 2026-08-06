@@ -147,7 +147,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       name: row.display_name?.trim() || "cruush user",
       pronouns: row.pronouns?.join(", ") ?? "",
       photo: row.photos?.[0] ?? null,
-      photoExplicit: row.photo_explicit !== false,
+      photoExplicit: row.photo_explicit === true,
       ...(row.attending_launch_party === true ? { attendingLaunchParty: true } : {}),
       ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
     }

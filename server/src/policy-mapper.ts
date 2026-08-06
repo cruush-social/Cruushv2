@@ -208,13 +208,15 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
     return rejectProfilePhotoWithoutAdultHuman(label);
   }
 
-  if (normalizedLabel === "screenshot_or_interface") {
+  if (normalizedLabel === "animal" || normalizedLabel === "screenshot_or_interface") {
     if (isPrivateMessageSurface(surface)) {
       return baseDecision({
         category: normalizedLabel,
         severity: label.severity ?? "low",
         confidence: label.confidence,
-        reason_code: "non_human_message_photo_allowed"
+        reason_code: normalizedLabel === "animal"
+          ? "private_message_animal_image_allowed"
+          : "private_message_screenshot_allowed"
       });
     }
 
@@ -497,6 +499,20 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
     input.providerResult.labels.length > 0 &&
     input.providerResult.labels.every((label) => label.normalized_label === "profile_photo_not_adult_human")
   );
+  const isPrivateAllowedImageOnly = (
+    isPrivateMessageSurface(input.surface) &&
+    input.contentType === "image" &&
+    input.providerResult.labels.length > 0 &&
+    input.providerResult.labels.every((label) => [
+      "adult_human_body",
+      "human_present",
+      "adult_nudity",
+      "adult_explicit",
+      "profile_photo_not_adult_human",
+      "animal",
+      "screenshot_or_interface"
+    ].includes(label.normalized_label))
+  );
   const isAllowedAdultProfilePhoto = (
     input.surface === "profile_photo" &&
     input.contentType === "image" &&
@@ -508,7 +524,7 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
     )
   );
 
-  if (decision.decision === "allow" && (isPrivateAdultImageOnly || isPrivateNonHumanImageOnly || isAllowedAdultProfilePhoto)) {
+  if (decision.decision === "allow" && (isPrivateAdultImageOnly || isPrivateNonHumanImageOnly || isPrivateAllowedImageOnly || isAllowedAdultProfilePhoto)) {
     return decision;
   }
 

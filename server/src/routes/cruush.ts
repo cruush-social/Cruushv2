@@ -248,7 +248,7 @@ function mapActivityPerson(row: {
     name: row.displayName?.trim() || row.fallbackName?.trim() || "cruush user",
     pronouns: row.pronouns?.join(", ") ?? row.fallbackPronouns ?? "",
     photo: row.photos?.[0] ?? null,
-    photoExplicit: row.photoExplicit !== false,
+    photoExplicit: row.photoExplicit === true,
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
   };
 }

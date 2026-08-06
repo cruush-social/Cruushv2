@@ -620,9 +620,6 @@ export default function LocalFeed() {
                             </button>
                           ) : null}
                         </div>
-                        {post.user.pronouns ? (
-                          <p className="text-sm text-white/58">{post.user.pronouns}</p>
-                        ) : null}
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/52" data-testid={`feed-post-meta-${post.id}`}>
                           {feedSettings.showDistanceLabels !== false ? (
                             <span className="flex items-center gap-1">

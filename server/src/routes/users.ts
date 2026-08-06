@@ -843,7 +843,7 @@ async function mapModernDiscoveryRow(
     role: coerceStringArray(row.role),
     hostingTravel: coerceStringArray(row.hosting_travel),
     photo: row.photos?.[0] ?? null,
-    photoExplicit: row.primary_photo_explicit !== false,
+    photoExplicit: row.primary_photo_explicit === true,
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     relationship: relationship?.isMutualCruush
       ? {
