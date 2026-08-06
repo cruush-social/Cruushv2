@@ -1,56 +1,64 @@
-const CACHE_NAME = 'cruush-app-shell-v6';
-const OFFLINE_APP_SHELL_URL = '/';
-const APP_SHELL_URLS = [
-  '/manifest.webmanifest',
-  '/icons/favicon-16.png',
-  '/icons/favicon-32.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/apple-touch-icon.png'
-];
+const CACHE_NAME = 'cruush-app-shell-v20';
+const LEGACY_CACHE_PREFIX = 'cruush-app-shell-';
+const REFRESH_QUERY_PARAM = 'cruush-sw-refresh';
+const REFRESH_QUERY_VALUE = 'v20';
 
-async function refreshOfflineAppShell() {
-  const cache = await caches.open(CACHE_NAME);
-  const response = await fetch(OFFLINE_APP_SHELL_URL, { cache: 'reload' });
+async function deleteLegacyCaches() {
+  const keys = await caches.keys();
+  await Promise.all(
+    keys
+      .filter((key) => key === CACHE_NAME || key.startsWith(LEGACY_CACHE_PREFIX))
+      .map((key) => caches.delete(key))
+  );
+}
 
-  if (response.ok) {
-    await cache.put(OFFLINE_APP_SHELL_URL, response.clone());
-  }
+async function refreshOpenClients() {
+  const clients = await self.clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true
+  });
 
-  await cache.addAll(APP_SHELL_URLS);
+  await Promise.all(clients.map((client) => {
+    if (!client.url.startsWith(self.location.origin) || !('navigate' in client)) {
+      return undefined;
+    }
+
+    const url = new URL(client.url);
+    if (url.searchParams.get(REFRESH_QUERY_PARAM) === REFRESH_QUERY_VALUE) {
+      return undefined;
+    }
+
+    url.searchParams.set(REFRESH_QUERY_PARAM, REFRESH_QUERY_VALUE);
+    return client.navigate(url.href);
+  }));
 }
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    refreshOfflineAppShell()
+    deleteLegacyCaches()
       .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys
-        .filter((key) => key !== CACHE_NAME)
-        .map((key) => caches.delete(key))))
+    deleteLegacyCaches()
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({
-        type: 'window',
-        includeUncontrolled: true
-      }))
-      .then((clients) => {
-        for (const client of clients) {
-          if (client.url.startsWith(self.location.origin) && 'navigate' in client) {
-            client.navigate(client.url);
-          }
-        }
-      })
+      .then(refreshOpenClients)
   );
 });
 
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+
+  if (event.data?.type === 'CLIENT_REFRESH_REQUESTED' && event.data?.refreshId === REFRESH_QUERY_VALUE) {
+    event.waitUntil(
+      deleteLegacyCaches()
+        .then(refreshOpenClients)
+    );
   }
 });
 
@@ -114,38 +122,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request, { cache: 'reload' })
-        .then((response) => {
-          if (response.ok) {
-            const responseClone = response.clone();
-            event.waitUntil(
-              caches.open(CACHE_NAME)
-                .then((cache) => cache.put(OFFLINE_APP_SHELL_URL, responseClone))
-                .catch(() => undefined)
-            );
-          }
-
-          return response;
-        })
-        .catch(() => caches.match(OFFLINE_APP_SHELL_URL))
-    );
+    event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        return cached;
-      }
-
-      return fetch(request).then((response) => {
-        if (!response.ok && (url.pathname.startsWith('/assets/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css'))) {
-          // If a build asset 404s, invalidate cached app shell so next reload fetches latest deployment HTML
-          void caches.delete(CACHE_NAME);
-        }
-        return response;
-      });
-    })
-  );
+  event.respondWith(fetch(request));
 });

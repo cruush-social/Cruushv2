@@ -2,23 +2,40 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const serviceWorkerSource = readFileSync('public/sw.js', 'utf8');
+const recoverySource = readFileSync('public/service-worker-recovery.js', 'utf8');
 const appEntrySource = readFileSync('src/main.tsx', 'utf8');
+const indexSource = readFileSync('index.html', 'utf8');
 const nginxConfig = readFileSync('nginx.conf', 'utf8');
 
 describe('service worker update delivery', () => {
   it('bypasses stale mobile app shells when the login surface changes', () => {
-    expect(serviceWorkerSource).toContain("const CACHE_NAME = 'cruush-app-shell-v6';");
-    expect(serviceWorkerSource).toContain("fetch(OFFLINE_APP_SHELL_URL, { cache: 'reload' })");
-    expect(serviceWorkerSource).toContain("fetch(request, { cache: 'reload' })");
+    expect(serviceWorkerSource).toContain("const CACHE_NAME = 'cruush-app-shell-v20';");
+    expect(serviceWorkerSource).toContain("key.startsWith(LEGACY_CACHE_PREFIX)");
+    expect(serviceWorkerSource).toContain("fetch(request, { cache: 'no-store' })");
     expect(serviceWorkerSource).toContain("event.data?.type === 'SKIP_WAITING'");
-    expect(serviceWorkerSource).not.toContain("  '/',");
+    expect(serviceWorkerSource).toContain("event.data?.type === 'CLIENT_REFRESH_REQUESTED'");
+    expect(serviceWorkerSource).toContain("url.searchParams.set(REFRESH_QUERY_PARAM, REFRESH_QUERY_VALUE)");
+    expect(serviceWorkerSource).toContain("url.searchParams.get(REFRESH_QUERY_PARAM) === REFRESH_QUERY_VALUE");
+    expect(serviceWorkerSource).not.toContain('caches.match');
+    expect(serviceWorkerSource).not.toContain('cache.put');
+    expect(serviceWorkerSource).not.toContain('cache.addAll');
   });
 
   it('registers the worker without HTTP cache reuse and reloads controlled clients', () => {
-    expect(appEntrySource).toContain('navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })');
+    expect(appEntrySource).toContain('const APP_SHELL_REFRESH_ID = "v20";');
+    expect(appEntrySource).toContain('const SERVICE_WORKER_SCRIPT_URL = `/sw.js?release=${APP_SHELL_REFRESH_ID}`;');
+    expect(appEntrySource).toContain('navigator.serviceWorker.register(SERVICE_WORKER_SCRIPT_URL, { updateViaCache: "none" })');
     expect(appEntrySource).toContain('navigator.serviceWorker.addEventListener("controllerchange"');
+    expect(appEntrySource).toContain('navigator.serviceWorker.getRegistrations()');
+    expect(appEntrySource).toContain('window.addEventListener("focus", refreshOnVisible)');
+    expect(appEntrySource).toContain('document.addEventListener("visibilitychange", refreshOnVisible)');
     expect(appEntrySource).toContain('window.location.reload()');
-    expect(appEntrySource).toContain('registration.waiting?.postMessage({ type: "SKIP_WAITING" })');
+    expect(appEntrySource).toContain('registration?.waiting?.postMessage({ type: "SKIP_WAITING" })');
+    expect(appEntrySource).toContain('registration?.active?.postMessage({ type: "CLIENT_REFRESH_REQUESTED", refreshId: APP_SHELL_REFRESH_ID })');
+    expect(indexSource).toContain('<script src="/service-worker-recovery.js?release=v20"></script>');
+    expect(recoverySource).toContain("const APP_SHELL_REFRESH_ID = 'v20';");
+    expect(recoverySource).toContain('navigator.serviceWorker.getRegistrations()');
+    expect(recoverySource).toContain("navigator.serviceWorker.register(SERVICE_WORKER_SCRIPT_URL, { updateViaCache: 'none' })");
   });
 
   it('serves the HTML shell and service worker with no-store headers', () => {
