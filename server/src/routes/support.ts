@@ -240,25 +240,30 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     });
 
     let deliveryStatus: "sent" | "failed" = "sent";
+    const recipientEmail = replyResult.request.recipient_email;
+
+    if (!recipientEmail) {
+      throw new ApiError(400, "VALIDATION_ERROR", "This bug report has no reply address on file.");
+    }
 
     try {
       await sendSupportRequestReplyEmail({
         config: app.config,
         logger: app.log,
-          replyToEmail: replyResult.request.recipient_email,
-          request: {
-            id: replyResult.request.id,
-            category: replyResult.request.category,
-            contactEmail: replyResult.request.recipient_email,
-            createdAt: new Date(replyResult.request.created_at).toISOString(),
-            message: replyResult.request.message,
-            pageUrl: replyResult.request.page_url,
-            requesterUserId: replyResult.request.requester_user_id,
-            source: replyResult.request.source,
-            subject: replyResult.request.subject
-          },
-          replyMessage: payload.message
-        });
+        replyToEmail: recipientEmail,
+        request: {
+          id: replyResult.request.id,
+          category: replyResult.request.category,
+          contactEmail: recipientEmail,
+          createdAt: new Date(replyResult.request.created_at).toISOString(),
+          message: replyResult.request.message,
+          pageUrl: replyResult.request.page_url,
+          requesterUserId: replyResult.request.requester_user_id,
+          source: replyResult.request.source,
+          subject: replyResult.request.subject
+        },
+        replyMessage: payload.message
+      });
       await app.db.query(
         `update support_request_replies
          set delivery_status = 'sent'
@@ -282,7 +287,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
           id: replyResult.reply.id,
           createdAt: new Date(replyResult.reply.created_at).toISOString(),
           deliveryStatus,
-          recipientEmail: replyResult.request.recipient_email
+          recipientEmail
         }
       }
     });
