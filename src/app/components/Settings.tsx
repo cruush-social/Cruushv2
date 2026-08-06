@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowLeft, ChevronRight, ExternalLink, Eye, Gift, KeyRound, LifeBuoy, LogOut, MapPin, ShieldAlert, ShieldCheck, Trash2, UserX, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ExternalLink, Eye, Gift, KeyRound, LifeBuoy, LogOut, MapPin, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, UserX, type LucideIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
 import {
@@ -172,6 +172,11 @@ export default function Settings() {
         label: 'Moderator dashboard',
         description: `Signed in as ${moderatorRole}.`,
         action: () => navigate('/admin/moderation'),
+      }, {
+        icon: MessageSquareReply,
+        label: 'Bug reports',
+        description: 'Read and reply to support and bug reports.',
+        action: () => navigate('/requests'),
       }],
     }] : []),
     {

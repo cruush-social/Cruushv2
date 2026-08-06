@@ -43,6 +43,11 @@ export const createSupportRequestPayloadSchema = z.object({
   screenshot: supportScreenshotSchema.optional()
 }).strict();
 
+export const replySupportRequestPayloadSchema = z.object({
+  message: multilineTextSchema({ min: 1, max: 4000 })
+}).strict();
+
 export type CreateSupportRequestPayload = z.infer<typeof createSupportRequestPayloadSchema>;
+export type ReplySupportRequestPayload = z.infer<typeof replySupportRequestPayloadSchema>;
 export type SupportRequestCategory = z.infer<typeof supportRequestCategorySchema>;
 export type SupportRequestSource = z.infer<typeof supportRequestSourceSchema>;
