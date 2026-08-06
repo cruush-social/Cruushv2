@@ -1440,7 +1440,16 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          left join user_trust_profiles trust on trust.user_id = u.id
          where u.id = $2
            and (
-             ($10::boolean or lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com')
+             (
+               $10::boolean
+               or lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com'
+               or exists (
+                 select 1
+                 from moderator_users moderator
+                 where moderator.user_id = u.id
+                   and moderator.role = 'admin'
+               )
+             )
              or (
                u.account_status = 'active'
                and coalesce(trust.is_suspended, false) = false
@@ -1975,7 +1984,16 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          left join user_trust_profiles trust on trust.user_id = u.id
          where u.id = $2
            and (
-             ($20::boolean or lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com')
+             (
+               $20::boolean
+               or lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com'
+               or exists (
+                 select 1
+                 from moderator_users moderator
+                 where moderator.user_id = u.id
+                   and moderator.role = 'admin'
+               )
+             )
              or (
                u.account_status = 'active'
                and coalesce(trust.is_suspended, false) = false
@@ -2225,7 +2243,16 @@ export async function registerMessageRoutes(app: FastifyInstance) {
          left join user_trust_profiles trust on trust.user_id = u.id
          where u.id = $2
            and (
-             ($15::boolean or lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com')
+             (
+               $15::boolean
+               or lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com'
+               or exists (
+                 select 1
+                 from moderator_users moderator
+                 where moderator.user_id = u.id
+                   and moderator.role = 'admin'
+               )
+             )
              or (
                coalesce(trust.is_suspended, false) = false
                and coalesce(trust.trust_score, 50) > 20
