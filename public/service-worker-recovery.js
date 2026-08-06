@@ -1,5 +1,5 @@
 (function () {
-  const APP_SHELL_REFRESH_ID = 'v20';
+  const APP_SHELL_REFRESH_ID = 'v21';
   const SERVICE_WORKER_SCRIPT_URL = `/sw.js?release=${APP_SHELL_REFRESH_ID}`;
 
   if (!('serviceWorker' in navigator)) {
@@ -24,7 +24,7 @@
     });
   }
 
-  window.addEventListener('load', function () {
+  function refreshServiceWorker() {
     navigator.serviceWorker.getRegistrations()
       .then(function (registrations) {
         return Promise.all(registrations.map(requestWorkerRefresh));
@@ -39,5 +39,8 @@
       .catch(function () {
         return undefined;
       });
-  });
+  }
+
+  refreshServiceWorker();
+  window.addEventListener('load', refreshServiceWorker);
 }());

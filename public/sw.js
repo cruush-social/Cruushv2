@@ -1,15 +1,9 @@
-const CACHE_NAME = 'cruush-app-shell-v20';
-const LEGACY_CACHE_PREFIX = 'cruush-app-shell-';
-const REFRESH_QUERY_PARAM = 'cruush-sw-refresh';
-const REFRESH_QUERY_VALUE = 'v20';
+const CACHE_NAME = 'cruush-app-shell-v21';
+const REFRESH_ID = 'v21';
 
-async function deleteLegacyCaches() {
+async function deleteCachedShells() {
   const keys = await caches.keys();
-  await Promise.all(
-    keys
-      .filter((key) => key === CACHE_NAME || key.startsWith(LEGACY_CACHE_PREFIX))
-      .map((key) => caches.delete(key))
-  );
+  await Promise.all(keys.map((key) => caches.delete(key)));
 }
 
 async function refreshOpenClients() {
@@ -23,26 +17,20 @@ async function refreshOpenClients() {
       return undefined;
     }
 
-    const url = new URL(client.url);
-    if (url.searchParams.get(REFRESH_QUERY_PARAM) === REFRESH_QUERY_VALUE) {
-      return undefined;
-    }
-
-    url.searchParams.set(REFRESH_QUERY_PARAM, REFRESH_QUERY_VALUE);
-    return client.navigate(url.href);
+    return client.navigate(client.url);
   }));
 }
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    deleteLegacyCaches()
+    deleteCachedShells()
       .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    deleteLegacyCaches()
+    deleteCachedShells()
       .then(() => self.clients.claim())
       .then(refreshOpenClients)
   );
@@ -54,10 +42,9 @@ self.addEventListener('message', (event) => {
     return;
   }
 
-  if (event.data?.type === 'CLIENT_REFRESH_REQUESTED' && event.data?.refreshId === REFRESH_QUERY_VALUE) {
+  if (event.data?.type === 'CLIENT_REFRESH_REQUESTED' && event.data?.refreshId === REFRESH_ID) {
     event.waitUntil(
-      deleteLegacyCaches()
-        .then(refreshOpenClients)
+      deleteCachedShells()
     );
   }
 });
