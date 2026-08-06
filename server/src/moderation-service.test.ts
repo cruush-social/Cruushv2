@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it, vi } from "vitest";
 import {
-  moderateFeedTextWithLocalFallback,
   moderateMessageTextOrAllowByKeyword,
   moderateProfileOrReject,
   moderateTextOrReject,
+  moderateTextWithLocalFallback,
   resolveProfilePhotoAdultHumanGate,
   userMessageForDecision
 } from "./moderation-service.js";
@@ -118,7 +118,7 @@ describe("moderation error messages", () => {
   });
 
   it("uses a text-only local fallback for an unavailable feed provider", async () => {
-    const fallback = await moderateFeedTextWithLocalFallback(
+    const fallback = await moderateTextWithLocalFallback(
       createApp(),
       {
         userId: "user-1",
@@ -132,16 +132,58 @@ describe("moderation error messages", () => {
     );
 
     expect(fallback).toMatchObject({
-      provider: "local_feed_text_fallback",
+      provider: "local_text_fallback",
       labels: []
     });
     expect(fallback.raw_result).toMatchObject({
       fallback: {
         reason: "stream_text_moderation_unavailable",
+        surface: "feed",
         provider: "stream",
         status: "error"
       }
     });
+  });
+});
+
+// Regression: a Stream text outage used to 503 every profile save and every
+// keyword-flagged message, because the local fallback covered the feed surface only.
+describe("text moderation during a provider outage", () => {
+  function createAppWithBrokenStream() {
+    const app = createApp();
+
+    Object.assign(app.config, {
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "",
+      STREAM_API_SECRET: "",
+      STREAM_MODERATION_CONFIG_KEY: ""
+    });
+
+    return app;
+  }
+
+  it("screens safe text locally instead of refusing it on every text surface", async () => {
+    for (const surface of ["feed", "profile", "direct_message", "group_message"] as const) {
+      const app = createAppWithBrokenStream();
+      const result = surface === "profile"
+        ? await moderateProfileOrReject(app, { userId: "user-1", fields: { bio: "a safe bio" } })
+        : await moderateTextOrReject(app, { userId: "user-1", surface, text: "a safe note" });
+
+      expect(result.decision.decision).toBe("allow");
+      expect(result.providerResult.provider).toBe("local_text_fallback");
+    }
+  });
+
+  it("still rejects content the local rules catch while the provider is down", async () => {
+    const app = createAppWithBrokenStream();
+
+    await expect(
+      moderateProfileOrReject(app, { userId: "user-1", fields: { bio: "n.i.g.g.e.r" } })
+    ).rejects.toMatchObject({ code: "CONTENT_REJECTED" });
+
+    await expect(
+      moderateTextOrReject(app, { userId: "user-1", surface: "feed", text: "kill all faggots" })
+    ).rejects.toMatchObject({ code: "CONTENT_REJECTED" });
   });
 });
 

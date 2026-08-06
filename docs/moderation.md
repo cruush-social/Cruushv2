@@ -115,7 +115,9 @@ Rejected before save/publish:
 
 When shared Stream automod is enabled, publication requires all three synchronous approvals: PhotoDNA non-match, Stream completion, and Rekognition age-safety approval. Profile photos also require person/no-animal approval and reject high-confidence `Explicit` or `Non-Explicit Nudity` labels even when Stream recommends `keep`. Direct and group-message photos may contain consensual adult nudity. Rejected encrypted pending assets are deleted.
 
-If Stream is unavailable, partial, pending, or returns an error, content is not saved. The request fails closed with `MODERATION_UNAVAILABLE`.
+If Stream is unavailable, partial, pending, or returns an error, **photos** are not saved. The request fails closed with `MODERATION_UNAVAILABLE`. A total image-provider outage yields no labels at all, so there is no way to tell the adult nudity cruush allows from an animal, gore, or a hate symbol it never allows, and there is no local image classifier to fall back on.
+
+**Text** does have a complete local classifier — the `MockModerationProvider` rule set plus the blocked racial-slur list — so a Stream text outage falls back to it instead of refusing the write. This applies to every text surface: feed posts, profile fields, and keyword-flagged direct and group messages. It is not a fail-open: every local rule still runs, the feed/profile-only coded-language rules still apply on those surfaces, and rejections are recorded normally. The fallback is recorded as provider `local_text_fallback`, with the failed Stream attempt kept under `raw_result.fallback` so an outage stays auditable, and it logs a warning per use.
 
 ## Reports
 

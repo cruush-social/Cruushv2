@@ -295,7 +295,7 @@ function providerErrorResult(providerName: string, startedAt: number, error: unk
     raw_result: {
       error_name: error instanceof Error ? error.name : "UnknownError"
     },
-    error: error instanceof Error ? error.message : "Image moderation failed."
+    error: error instanceof Error ? error.message : "Moderation provider call failed."
   };
 }
 
@@ -566,7 +566,12 @@ async function handlePolicyDecision(
   );
 }
 
-export async function moderateFeedTextWithLocalFallback(
+// Text has a complete local classifier (the rule set in MockModerationProvider plus the
+// racial-slur list), so when Stream is unreachable the text is still screened rather than
+// refused. This is not a fail-open: every rule still runs, and the feed/profile-only rules
+// still apply on those surfaces. Images have no equivalent local classifier, which is why
+// they still fail closed above.
+export async function moderateTextWithLocalFallback(
   app: FastifyInstance,
   input: ModerateTextInput,
   unavailableProviderResult: ProviderModerationResult
@@ -578,12 +583,13 @@ export async function moderateFeedTextWithLocalFallback(
 
   const providerResult: ProviderModerationResult = {
     ...fallbackResult,
-    provider: "local_feed_text_fallback",
-    provider_request_id: `local-feed-text-fallback-${randomUUID()}`,
+    provider: "local_text_fallback",
+    provider_request_id: `local-text-fallback-${randomUUID()}`,
     raw_result: {
       ...(fallbackResult.raw_result ?? {}),
       fallback: {
         reason: "stream_text_moderation_unavailable",
+        surface: input.surface,
         provider: unavailableProviderResult.provider,
         providerRequestId: unavailableProviderResult.provider_request_id,
         status: unavailableProviderResult.status ?? null,
@@ -598,33 +604,59 @@ export async function moderateFeedTextWithLocalFallback(
     providerRequestId: unavailableProviderResult.provider_request_id,
     providerStatus: unavailableProviderResult.status,
     providerError: unavailableProviderResult.error
-  }, "Stream text moderation unavailable; used local feed text fallback");
+  }, "Stream text moderation unavailable; used local text fallback");
 
   return providerResult;
 }
 
-export async function moderateTextOrReject(app: FastifyInstance, input: ModerateTextInput) {
-  const providerResultFromPrimary: ProviderModerationResult = containsBlockedRacialSlur(input.text)
-    ? {
-        provider: "local_text_policy",
-        provider_request_id: "local-text-policy-blocked-racial-slur",
-        labels: [{
-          provider_label: "blocked_hard_r_racial_slur",
-          normalized_label: "hate_speech",
-          confidence: 1,
-          severity: "high"
-        }],
-        latency_ms: 0,
-        raw_result: {
-          matchedCategories: ["hate_or_extremism"]
-        }
+async function primaryTextProviderResult(
+  app: FastifyInstance,
+  input: ModerateTextInput
+): Promise<ProviderModerationResult> {
+  if (containsBlockedRacialSlur(input.text)) {
+    return {
+      provider: "local_text_policy",
+      provider_request_id: "local-text-policy-blocked-racial-slur",
+      labels: [{
+        provider_label: "blocked_hard_r_racial_slur",
+        normalized_label: "hate_speech",
+        confidence: 1,
+        severity: "high"
+      }],
+      latency_ms: 0,
+      raw_result: {
+        matchedCategories: ["hate_or_extremism"]
       }
-    : await createModerationProvider(app.config).moderateText({
-        ...input,
-        text: prepareTextForModerationProvider(input.text)
-      });
-  const providerResult = input.surface === "feed" && providerResultUnavailable(providerResultFromPrimary)
-    ? await moderateFeedTextWithLocalFallback(app, input, providerResultFromPrimary)
+    };
+  }
+
+  const startedAt = Date.now();
+
+  try {
+    // createModerationProvider throws when Stream is enabled without complete credentials,
+    // which previously escaped as a bare 500 instead of reaching the fallback below.
+    return await createModerationProvider(app.config).moderateText({
+      ...input,
+      text: prepareTextForModerationProvider(input.text)
+    });
+  } catch (error) {
+    app.log?.error(
+      { err: error, surface: input.surface },
+      "text moderation provider failed"
+    );
+
+    return providerErrorResult(
+      app.config.STREAM_MODERATION_ENABLED ? "stream" : app.config.MODERATION_PROVIDER ?? "mock",
+      startedAt,
+      error
+    );
+  }
+}
+
+export async function moderateTextOrReject(app: FastifyInstance, input: ModerateTextInput) {
+  const providerResultFromPrimary = await primaryTextProviderResult(app, input);
+  const providerResult = providerResultUnavailable(providerResultFromPrimary)
+    ? await moderateTextWithLocalFallback(app, input, providerResultFromPrimary)
     : providerResultFromPrimary;
   const decision = mapProviderResultToPolicy({
     surface: input.surface,
