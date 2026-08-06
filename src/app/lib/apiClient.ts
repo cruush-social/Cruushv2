@@ -21,7 +21,21 @@ export class ApiClientError extends Error {
 }
 
 export function getApiBaseUrl() {
-  return (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'cruush.app' || window.location.hostname === 'www.cruush.app') {
+      return 'https://api.cruush.app';
+    }
+    if (window.location.hostname === 'staging.cruush.app') {
+      return 'https://api-staging.cruush.app';
+    }
+  }
+
+  return '';
 }
 
 export function resolveApiUrl(pathOrUrl: string | null | undefined) {
