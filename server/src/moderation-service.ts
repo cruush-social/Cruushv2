@@ -7,7 +7,7 @@ import {
   prepareTextForModerationProvider,
   shouldModerateMessageTextWithProvider
 } from "./message-keyword-prefilter.js";
-import { createModerationProvider } from "./moderation-provider.js";
+import { createModerationProvider, MockModerationProvider } from "./moderation-provider.js";
 import {
   type ModerationContentType,
   type ModerationSurface,
@@ -230,7 +230,10 @@ async function recordContentReview(app: FastifyInstance, input: ContentReviewInp
   return id;
 }
 
-function userMessageForDecision(decision: PolicyDecision) {
+export function userMessageForDecision(
+  decision: PolicyDecision,
+  contentType: ModerationContentType = "image"
+) {
   if (decision.user_message_code === "minor_face_permanent_ban") {
     return "A child face was detected. This account has been permanently banned.";
   }
@@ -244,6 +247,10 @@ function userMessageForDecision(decision: PolicyDecision) {
   }
 
   if (decision.user_message_code === "moderation_delayed") {
+    if (contentType === "text") {
+      return "We could not check this text for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
+    }
+
     return "We could not check this photo for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
   }
 
@@ -518,7 +525,7 @@ async function handlePolicyDecision(
       decision
     });
 
-    throw new ApiError(503, "MODERATION_UNAVAILABLE", userMessageForDecision(decision));
+    throw new ApiError(503, "MODERATION_UNAVAILABLE", userMessageForDecision(decision, contentType));
   }
 
   const contentReviewId = await recordContentReview(app, {
@@ -555,12 +562,49 @@ async function handlePolicyDecision(
   throw new ApiError(
     decision.enforcement_action?.type === "suspend" ? 403 : 400,
     "CONTENT_REJECTED",
-    userMessageForDecision(decision)
+    userMessageForDecision(decision, contentType)
   );
 }
 
+export async function moderateFeedTextWithLocalFallback(
+  app: FastifyInstance,
+  input: ModerateTextInput,
+  unavailableProviderResult: ProviderModerationResult
+) {
+  const fallbackResult = await new MockModerationProvider().moderateText({
+    ...input,
+    text: prepareTextForModerationProvider(input.text)
+  });
+
+  const providerResult: ProviderModerationResult = {
+    ...fallbackResult,
+    provider: "local_feed_text_fallback",
+    provider_request_id: `local-feed-text-fallback-${randomUUID()}`,
+    raw_result: {
+      ...(fallbackResult.raw_result ?? {}),
+      fallback: {
+        reason: "stream_text_moderation_unavailable",
+        provider: unavailableProviderResult.provider,
+        providerRequestId: unavailableProviderResult.provider_request_id,
+        status: unavailableProviderResult.status ?? null,
+        error: unavailableProviderResult.error ?? null
+      }
+    }
+  };
+
+  app.log?.warn({
+    surface: input.surface,
+    provider: unavailableProviderResult.provider,
+    providerRequestId: unavailableProviderResult.provider_request_id,
+    providerStatus: unavailableProviderResult.status,
+    providerError: unavailableProviderResult.error
+  }, "Stream text moderation unavailable; used local feed text fallback");
+
+  return providerResult;
+}
+
 export async function moderateTextOrReject(app: FastifyInstance, input: ModerateTextInput) {
-  const providerResult: ProviderModerationResult = containsBlockedRacialSlur(input.text)
+  const providerResultFromPrimary: ProviderModerationResult = containsBlockedRacialSlur(input.text)
     ? {
         provider: "local_text_policy",
         provider_request_id: "local-text-policy-blocked-racial-slur",
@@ -579,6 +623,9 @@ export async function moderateTextOrReject(app: FastifyInstance, input: Moderate
         ...input,
         text: prepareTextForModerationProvider(input.text)
       });
+  const providerResult = input.surface === "feed" && providerResultUnavailable(providerResultFromPrimary)
+    ? await moderateFeedTextWithLocalFallback(app, input, providerResultFromPrimary)
+    : providerResultFromPrimary;
   const decision = mapProviderResultToPolicy({
     surface: input.surface,
     contentType: "text",

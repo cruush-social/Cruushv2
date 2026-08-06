@@ -1,14 +1,17 @@
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it, vi } from "vitest";
 import {
+  moderateFeedTextWithLocalFallback,
   moderateMessageTextOrAllowByKeyword,
   moderateProfileOrReject,
   moderateTextOrReject,
-  resolveProfilePhotoAdultHumanGate
+  resolveProfilePhotoAdultHumanGate,
+  userMessageForDecision
 } from "./moderation-service.js";
 import {
   ALLOW_POLICY_DECISION,
   type ModerationSurface,
+  type PolicyDecision,
   type ProviderModerationResult
 } from "./moderation-types.js";
 
@@ -99,6 +102,48 @@ function streamResult(overrides: Partial<ProviderModerationResult> = {}): Provid
     ...overrides
   };
 }
+
+describe("moderation error messages", () => {
+  it("never describes a text moderation outage as a photo failure", () => {
+    const decision: PolicyDecision = {
+      ...ALLOW_POLICY_DECISION,
+      decision: "quarantine",
+      reason_code: "provider_unavailable",
+      user_message_code: "moderation_delayed"
+    };
+
+    expect(userMessageForDecision(decision, "text")).toContain("check this text");
+    expect(userMessageForDecision(decision, "text")).not.toContain("check this photo");
+    expect(userMessageForDecision(decision, "image")).toContain("check this photo");
+  });
+
+  it("uses a text-only local fallback for an unavailable feed provider", async () => {
+    const fallback = await moderateFeedTextWithLocalFallback(
+      createApp(),
+      {
+        userId: "user-1",
+        surface: "feed",
+        text: "a safe feed post"
+      },
+      streamResult({
+        status: "error",
+        error: "Stream request failed"
+      })
+    );
+
+    expect(fallback).toMatchObject({
+      provider: "local_feed_text_fallback",
+      labels: []
+    });
+    expect(fallback.raw_result).toMatchObject({
+      fallback: {
+        reason: "stream_text_moderation_unavailable",
+        provider: "stream",
+        status: "error"
+      }
+    });
+  });
+});
 
 describe("profile-photo adult-human gate", () => {
   it("does not treat a complete Stream keep as proof that a profile photo contains a human", () => {
