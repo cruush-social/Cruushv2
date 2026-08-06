@@ -153,7 +153,7 @@ export async function getNearbyUsers(
   if (Array.isArray(response)) {
     return response.map((user) => ({
       ...user,
-      photoExplicit: user.photoExplicit !== false,
+      photoExplicit: user.photoExplicit === true,
     }));
   }
 
@@ -180,7 +180,7 @@ export async function getNearbyUsers(
       role: profile.role,
       hostingTravel: profile.hostingTravel,
       photo: profile.photo,
-      photoExplicit: profile.photoExplicit !== false,
+      photoExplicit: profile.photoExplicit === true,
       badges: profile.badges,
       displayMode: displayPayload.displayMode,
       animationHint: profile.animationHint ?? displayPayload.animationHint,

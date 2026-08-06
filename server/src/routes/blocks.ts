@@ -116,7 +116,7 @@ export async function registerBlockRoutes(app: FastifyInstance) {
           userId: row.id,
           displayName: row.display_name?.trim() || "cruush user",
           photo: row.photo ?? null,
-          photoExplicit: row.photo_explicit !== false,
+          photoExplicit: row.photo_explicit === true,
           createdAt: new Date(row.created_at).toISOString()
         }))
       }

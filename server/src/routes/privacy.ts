@@ -137,7 +137,7 @@ function mapAuditProfile(row: AuditProfileRow | undefined, userId: string) {
     name: row?.display_name?.trim() || "cruush user",
     pronouns: row?.pronouns?.join(", ") ?? "",
     photo: row?.photos?.[0] ?? null,
-    photoExplicit: row?.photo_explicit !== false
+    photoExplicit: row?.photo_explicit === true
   };
 }
 

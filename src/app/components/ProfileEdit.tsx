@@ -740,7 +740,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
         photos: [...(prev.photos ?? []), uploaded.url].slice(0, MAX_PROFILE_PHOTOS),
         photo_metadata: [
           ...(prev.photo_metadata ?? []).filter((metadata) => metadata.url !== uploaded.url),
-          { url: uploaded.url, explicit: uploaded.explicit !== false },
+          { url: uploaded.url, explicit: uploaded.explicit === true },
         ].slice(-MAX_PROFILE_PHOTOS),
       }));
       setPendingPhoto(null);

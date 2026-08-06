@@ -77,5 +77,5 @@ export function useDlMode() {
 
 /** Missing classification is unsafe and therefore remains masked. */
 export function shouldMaskPhoto(dlModeActive: boolean, explicit: boolean | null | undefined) {
-  return explicit !== false && (dlModeActive || explicit == null);
+  return dlModeActive && explicit === true;
 }

@@ -485,7 +485,7 @@ function mapProfileRow(
   );
   const photoMetadata = photos.map((photo) => ({
     url: photo,
-    explicit: metadataByUrl.get(photo) !== false
+    explicit: metadataByUrl.get(photo) === true
   }));
 
   return {
