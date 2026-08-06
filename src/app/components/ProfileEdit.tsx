@@ -22,7 +22,7 @@ import {
   type ProfilePayload,
   type ProfileVisibilityRules,
 } from '../lib/profileApi';
-import { resolveMediaUrl } from '../lib/apiClient';
+import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { getAppMeta } from '../lib/metaApi';
 import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
@@ -208,9 +208,13 @@ function readProfilePhotoPreviewUrl(file: File): Promise<PendingProfilePhoto> {
 }
 
 export function getPhotoUploadRejectedMessage(uploadError: unknown) {
-  const reason = uploadError instanceof Error ? uploadError.message : 'Failed to upload profile photo.';
+  if (uploadError instanceof ApiClientError) {
+    return uploadError.code === 'CONTENT_REJECTED'
+      ? `Photo rejected: ${uploadError.message}`
+      : uploadError.message;
+  }
 
-  return `Photo rejected: ${reason}`;
+  return uploadError instanceof Error ? uploadError.message : 'Failed to upload profile photo.';
 }
 
 function ProfilePhotoCropper({

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiClientError } from '../lib/apiClient';
 import ProfileEdit, { getPhotoUploadRejectedMessage } from './ProfileEdit';
 
 const { getAppMeta, getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
@@ -341,7 +342,9 @@ describe('ProfileEdit', () => {
   });
 
   it('closes the crop dialog and immediately reveals the upload rejection reason', async () => {
-    uploadProfilePhoto.mockRejectedValueOnce(new Error('Profile photo must be of you.'));
+    uploadProfilePhoto.mockRejectedValueOnce(
+      new ApiClientError(400, 'CONTENT_REJECTED', 'Profile photo must be of you.'),
+    );
 
     render(
       <MemoryRouter>
@@ -369,6 +372,40 @@ describe('ProfileEdit', () => {
       expect(screen.queryByRole('dialog', { name: 'Crop profile photo' })).not.toBeInTheDocument();
     });
     expect(screen.getByText('Photo rejected: Profile photo must be of you.')).toBeVisible();
+  });
+
+  it('shows moderation outages without labeling them as photo rejections', async () => {
+    uploadProfilePhoto.mockRejectedValueOnce(
+      new ApiClientError(503, 'MODERATION_UNAVAILABLE', 'Automated photo safety checks are temporarily unavailable. Try again later.'),
+    );
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+
+    const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+
+    fireEvent.change(uploadInput as HTMLInputElement, {
+      target: {
+        files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })],
+      },
+    });
+
+    const preview = await screen.findByAltText('Profile crop preview');
+    fireEvent.load(preview);
+    fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));
+
+    await waitFor(() => expect(uploadProfilePhoto).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Crop profile photo' })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Automated photo safety checks are temporarily unavailable. Try again later.')).toBeVisible();
+    expect(screen.queryByText(/^Photo rejected:/)).not.toBeInTheDocument();
   });
 
   it('previews selected profile photos as data URLs before cropping', async () => {
@@ -521,9 +558,17 @@ describe('ProfileEdit', () => {
   });
 
   it('formats profile photo rejection reasons', () => {
-    expect(getPhotoUploadRejectedMessage(new Error('Profile photo must be of you.'))).toBe(
+    expect(getPhotoUploadRejectedMessage(new ApiClientError(400, 'CONTENT_REJECTED', 'Profile photo must be of you.'))).toBe(
       'Photo rejected: Profile photo must be of you.',
     );
+  });
+
+  it('leaves non-rejection profile photo errors unprefixed', () => {
+    expect(
+      getPhotoUploadRejectedMessage(
+        new ApiClientError(503, 'MODERATION_UNAVAILABLE', 'Automated photo safety checks are temporarily unavailable. Try again later.'),
+      ),
+    ).toBe('Automated photo safety checks are temporarily unavailable. Try again later.');
   });
 
   it('does not try to crop a broken profile photo preview', async () => {
