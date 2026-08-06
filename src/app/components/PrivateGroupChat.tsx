@@ -56,6 +56,7 @@ const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
 ];
 
 const KEYBOARD_INSET_THRESHOLD_PX = 120;
+const UNSAFE_CONTROL_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
 function describeTextMessageError(error: unknown) {
   if (error instanceof ApiClientError) {
@@ -104,6 +105,10 @@ function getConversationInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('');
+}
+
+function normalizeMessageForSend(value: string) {
+  return value.replace(UNSAFE_CONTROL_CHARACTERS, '').trim();
 }
 
 function normalizeRemoteMessage(message: RemoteChatMessage, activeUserId: string | null): ChatMessageRecord {
@@ -707,15 +712,15 @@ export default function PrivateGroupChat() {
   };
 
   const handleSend = async () => {
-    if (!message.trim() || !chatId || !conversation || composerDisabled) return;
+    const normalizedMessage = normalizeMessageForSend(message);
+    if (!normalizedMessage || !chatId || !conversation || composerDisabled) return;
 
-    const trimmedMessage = message.trim();
     const optimisticId = `local-${Date.now()}`;
     const optimisticMessage: ChatMessageRecord = {
       id: optimisticId,
       userId: currentUserId ?? undefined,
       author: 'self',
-      content: trimmedMessage,
+      content: normalizedMessage,
       timestamp: new Date().toISOString(),
     };
 
@@ -726,7 +731,7 @@ export default function PrivateGroupChat() {
     setError(null);
 
     try {
-      const createdMessage = await createMessage(chatId, trimmedMessage);
+      const createdMessage = await createMessage(chatId, normalizedMessage);
       setMessages((prev) => prev.map((item) => (
         item.id === optimisticId
           ? normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)
@@ -805,6 +810,7 @@ export default function PrivateGroupChat() {
   const groupMemberIds = new Set(groupMembers.map((member) => member.id));
   const availableAddOptions = mutualOptions.filter((item) => !groupMemberIds.has(item.user.id));
   const messagePhotoControlDisabled = photoUploading || composerDisabled;
+  const canSendMessage = normalizeMessageForSend(message).length > 0;
   const favoriteUploadControlDisabled = favoriteUploading || composerDisabled;
   const composerBarStyle = {
     '--chat-composer-bottom': keyboardInset > 0
@@ -1542,12 +1548,12 @@ export default function PrivateGroupChat() {
                     </Button>
                     <Button
                       onClick={() => void handleSend()}
-                      disabled={!message.trim() || composerDisabled}
+                      disabled={!canSendMessage || composerDisabled}
                       size="icon"
                       className="rounded-full"
                       aria-label="Send message"
                       style={{
-                        background: message.trim()
+                        background: canSendMessage
                           ? 'var(--cruush-gradient)'
                           : undefined,
                       }}
