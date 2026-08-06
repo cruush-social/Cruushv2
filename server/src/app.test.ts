@@ -2252,6 +2252,61 @@ describe("server", () => {
     expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
   });
 
+  it("completes the account deletion flow for a suspended account", async () => {
+    const passwordHash = await hashPassword("current-password");
+    let deleted = false;
+
+    query.mockImplementation(async (sql: string) => {
+      const normalizedSql = sql.replace(/\s+/g, " ").trim();
+
+      if (normalizedSql.includes("from app_sessions s")) {
+        return {
+          rows: deleted
+            ? []
+            : [{ user_id: userId, email: "suspended@example.com", account_status: "suspended" }]
+        };
+      }
+
+      if (normalizedSql.startsWith("select id, password_hash")) {
+        return {
+          rows: deleted ? [] : [{ id: userId, password_hash: passwordHash }]
+        };
+      }
+
+      if (normalizedSql.startsWith("delete from app_users")) {
+        deleted = true;
+        return { rows: [{ id: userId }] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        password: "current-password",
+        confirmation: "DELETE"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(deleted).toBe(true);
+
+    const sessionAfterDeletion = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(sessionAfterDeletion.statusCode).toBe(401);
+  });
+
   it("requires the exact account deletion confirmation", async () => {
     query.mockResolvedValueOnce({
       rows: [{
