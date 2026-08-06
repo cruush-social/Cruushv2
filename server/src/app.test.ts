@@ -2152,12 +2152,9 @@ describe("server", () => {
     });
   });
 
-  it("deletes the current user's account, media objects, sessions, and session cookie", async () => {
+  it("deletes the current user's account and queues media cleanup", async () => {
     const sessionToken = "test-session-token";
     const passwordHash = await hashPassword("current-password");
-    const objectKey = `profile-photos/${userId}/delete-account-test.enc`;
-    await writeEncryptedMediaObject(app.config, objectKey, Buffer.from("encrypted"));
-    await expect(readEncryptedMediaObject(app.config, objectKey)).resolves.toEqual(Buffer.from("encrypted"));
 
     query
       .mockResolvedValueOnce({
@@ -2172,18 +2169,10 @@ describe("server", () => {
           password_hash: passwordHash
         }]
       })
-      .mockResolvedValueOnce({
-        rows: [{
-          object_key: objectKey
-        }]
-      })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: userId
-        }]
-      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: userId }] })
       .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
@@ -2199,11 +2188,11 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(204);
-    await expect(readEncryptedMediaObject(app.config, objectKey)).rejects.toThrow();
     expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
     expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken(sessionToken)]);
-    expect(query.mock.calls[2]?.[0]).toContain("from media_objects");
-    expect(query.mock.calls[3]?.[0]).toBe("begin");
+    expect(query.mock.calls[2]?.[0]).toBe("begin");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into account_deletion_media_cleanup");
+    expect(query.mock.calls[3]?.[0]).toContain("media_variants");
     expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions");
     expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
     expect(query.mock.calls[6]?.[0]).toBe("commit");
@@ -2223,6 +2212,44 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(401);
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it("lets a banned account delete itself when an owned media object cannot be cleaned up", async () => {
+    const passwordHash = await hashPassword("current-password");
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          account_status: "banned"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          password_hash: passwordHash
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: userId }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        password: "current-password",
+        confirmation: "DELETE"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(query.mock.calls[3]?.[0]).toContain("insert into account_deletion_media_cleanup");
+    expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
   });
 
   it("requires the exact account deletion confirmation", async () => {
@@ -2328,7 +2355,8 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(404);
-    expect(query.mock.calls[3]?.[0]).toBe("begin");
+    expect(query.mock.calls[2]?.[0]).toBe("begin");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into account_deletion_media_cleanup");
     expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions");
     expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
     expect(query.mock.calls[6]?.[0]).toBe("rollback");

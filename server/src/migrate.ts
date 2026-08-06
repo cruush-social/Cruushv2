@@ -66,7 +66,8 @@ const migrationFiles = [
   "057_post_onboarding_affiliate_share_notice.sql",
   "059_map_presence_duration.sql",
   "060_first_feed_post_prompt_notice.sql",
-  "061_moderator_account_bans.sql"
+  "061_moderator_account_bans.sql",
+  "062_account_deletion_media_cleanup.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;
