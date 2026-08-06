@@ -100,8 +100,9 @@ const STEPS: TutorialStep[] = [
 
 // Rings the control a step is about and dims everything else. Re-measured on a short
 // delay because sheets slide in over ~500ms and are portaled outside the map shell.
-function Spotlight({ selector }: { selector: string }) {
+function Spotlight({ selector, onMeasure }: { selector: string; onMeasure: (rect: DOMRect | null) => void }) {
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [targetRadius, setTargetRadius] = useState('9999px');
 
   useEffect(() => {
     let frame = 0;
@@ -110,7 +111,14 @@ function Spotlight({ selector }: { selector: string }) {
     const measure = () => {
       const target = document.querySelector(selector);
       const next = target ? target.getBoundingClientRect() : null;
-      setRect(next && next.width > 0 ? next : null);
+      const measured = next && next.width > 0 ? next : null;
+
+      if (target) {
+        setTargetRadius(window.getComputedStyle(target).borderRadius || '9999px');
+      }
+
+      setRect(measured);
+      onMeasure(measured);
 
       if ((!next || next.width === 0) && Date.now() < deadline) {
         frame = window.setTimeout(measure, 120);
@@ -126,26 +134,26 @@ function Spotlight({ selector }: { selector: string }) {
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
     };
-  }, [selector]);
+  }, [selector, onMeasure]);
 
   if (!rect) {
     return null;
   }
 
-  const padding = 8;
-  const radius = rect.width > 96 || rect.height > 96 ? 16 : 9999;
+  const padding = 6;
 
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed z-[60] border-2 border-primary shadow-[0_0_0_9999px_rgba(0,0,0,0.55),0_0_28px_rgba(255,0,114,0.65)]"
+      className="pointer-events-none fixed z-[60] border border-primary/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]"
       data-testid="tutorial-spotlight"
       style={{
         left: rect.left - padding,
         top: rect.top - padding,
         width: rect.width + padding * 2,
         height: rect.height + padding * 2,
-        borderRadius: radius,
+        // Follows the control's own corners: a pill stays a pill, an input stays an input.
+        borderRadius: `calc(${targetRadius} + ${padding}px)`,
       }}
     />
   );
@@ -163,6 +171,8 @@ export default function FirstRunTutorial({ forceOpen = false }: FirstRunTutorial
   const [stepIndex, setStepIndex] = useState(0);
   const [noticeOffline, setNoticeOffline] = useState(false);
   const [postedToFeed, setPostedToFeed] = useState(false);
+  const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
+  const handleMeasure = useCallback((rect: DOMRect | null) => setSpotlightRect(rect), []);
 
   const step = STEPS[stepIndex];
   const onMap = forceOpen || location.pathname === '/' || location.pathname.startsWith('/map');
@@ -221,14 +231,25 @@ export default function FirstRunTutorial({ forceOpen = false }: FirstRunTutorial
   const StepIcon = step.icon;
   const isLastStep = stepIndex === STEPS.length - 1;
   const waitingForPost = step.requires === 'feed-post' && !postedToFeed;
+  // A target in the upper half of the screen pushes the card to the bottom, and the other
+  // way round. Falls back to the step's declared side until the target has been measured.
+  const targetInTopHalf = spotlightRect
+    ? spotlightRect.top + spotlightRect.height / 2 < window.innerHeight / 2
+    : step.place === 'top';
+  const cardBelowTarget = Boolean(step.spotlight) && targetInTopHalf;
+  const cardAboveTarget = Boolean(step.spotlight) && !targetInTopHalf;
 
   return (
     <>
-      {step.spotlight ? <Spotlight selector={step.spotlight} /> : null}
+      {step.spotlight ? <Spotlight selector={step.spotlight} onMeasure={handleMeasure} /> : null}
       <Dialog open onOpenChange={() => {}}>
         <DialogContent
-          className={`max-w-sm rounded-lg border-white/10 bg-background ${
-            step.place === 'top' ? 'top-[26%]' : step.place === 'bottom' ? 'bottom-6 top-auto translate-y-0' : ''
+          className={`max-h-[calc(100dvh-3rem)] max-w-sm overflow-y-auto rounded-lg border-white/10 bg-background ${
+            cardBelowTarget
+              ? 'bottom-6 top-auto translate-y-0'
+              : cardAboveTarget
+                ? 'top-6 translate-y-0'
+                : ''
           }`}
           data-testid="first-run-tutorial"
           dismissible={false}

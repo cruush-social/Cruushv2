@@ -95,6 +95,26 @@ describe('FirstRunTutorial', () => {
     expect(screen.getByText('Something broken?')).toBeInTheDocument();
   });
 
+  // The card has to dodge the thing it is pointing at, and it must never clip.
+  it('puts the card opposite the control and caps its height', async () => {
+    const target = document.createElement('div');
+    target.dataset.testid = 'map-visibility-button';
+    // Near the top of the viewport, so the card belongs at the bottom.
+    target.getBoundingClientRect = () => ({ x: 8, y: 20, left: 8, top: 20, width: 90, height: 32, right: 98, bottom: 52, toJSON: () => ({}) }) as DOMRect;
+    document.body.appendChild(target);
+
+    renderTutorial();
+    await first();
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+
+    await screen.findByTestId('tutorial-spotlight');
+    const card = screen.getByTestId('first-run-tutorial');
+    expect(card.className).toContain('bottom-6');
+    expect(card.className).toContain('max-h-[calc(100dvh-3rem)]');
+    expect(card.className).toContain('overflow-y-auto');
+    target.remove();
+  });
+
   it('rings the control each step describes', async () => {
     const target = document.createElement('div');
     target.dataset.testid = 'map-visibility-button';
