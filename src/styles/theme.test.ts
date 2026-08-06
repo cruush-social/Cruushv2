@@ -81,7 +81,7 @@ describe('global text selection policy', () => {
   });
 
   it('lets heart pin base paths render their gradient fills under the glass rim', () => {
-    const fillNoneRule = themeCss.match(/\\.cruush-heart-glass-theme-border,[\\s\\S]*?fill: none;[\\s\\S]*?}/)?.[0] ?? '';
+    const fillNoneRule = themeCss.match(/\.cruush-heart-glass-theme-border,[\s\S]*?fill: none;[\s\S]*?}/)?.[0] ?? '';
 
     expect(fillNoneRule).not.toContain('.cruush-heart-glass-base');
     expect(themeCss).toContain('.cruush-heart-glass-base {');
