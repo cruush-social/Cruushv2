@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   moderateFeedTextWithLocalFallback,
   moderateMessageTextOrAllowByKeyword,
@@ -15,6 +15,18 @@ import {
   type ProviderModerationResult
 } from "./moderation-types.js";
 
+const { streamModerationCheck } = vi.hoisted(() => ({
+  streamModerationCheck: vi.fn()
+}));
+
+vi.mock("@stream-io/node-sdk", () => ({
+  StreamClient: class {
+    moderation = {
+      check: streamModerationCheck
+    };
+  }
+}));
+
 function createApp() {
   return {
     config: {
@@ -27,6 +39,20 @@ function createApp() {
     },
     db: {
       query: vi.fn().mockResolvedValue({ rows: [] })
+    }
+  } as unknown as FastifyInstance;
+}
+
+function createStreamApp() {
+  return {
+    ...createApp(),
+    config: {
+      MODERATION_PROVIDER: "stream",
+      MODERATION_TIMEOUT_MS: 5000,
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "stream-key",
+      STREAM_API_SECRET: "stream-secret",
+      STREAM_MODERATION_CONFIG_KEY: "cruush-test"
     }
   } as unknown as FastifyInstance;
 }
@@ -103,6 +129,10 @@ function streamResult(overrides: Partial<ProviderModerationResult> = {}): Provid
   };
 }
 
+beforeEach(() => {
+  streamModerationCheck.mockReset();
+});
+
 describe("moderation error messages", () => {
   it("never describes a text moderation outage as a photo failure", () => {
     const decision: PolicyDecision = {
@@ -132,7 +162,7 @@ describe("moderation error messages", () => {
     );
 
     expect(fallback).toMatchObject({
-      provider: "local_feed_text_fallback",
+      provider: "local_text_fallback",
       labels: []
     });
     expect(fallback.raw_result).toMatchObject({
@@ -142,6 +172,52 @@ describe("moderation error messages", () => {
         status: "error"
       }
     });
+  });
+
+  it("uses the same local fallback for profile text when the provider is unavailable", async () => {
+    const fallback = await moderateFeedTextWithLocalFallback(
+      createApp(),
+      {
+        userId: "user-1",
+        surface: "profile",
+        text: "Queer trans masc switch looking for dates, coffee, rope classes, and aftercare."
+      },
+      streamResult({
+        status: "error",
+        error: "Stream request failed"
+      })
+    );
+
+    expect(fallback).toMatchObject({
+      provider: "local_text_fallback",
+      labels: []
+    });
+    expect(fallback.raw_result).toMatchObject({
+      fallback: {
+        reason: "stream_text_moderation_unavailable",
+        provider: "stream",
+        status: "error"
+      }
+    });
+  });
+
+  it("saves ordinary profile text through the local fallback when Stream is unavailable", async () => {
+    streamModerationCheck.mockRejectedValue(new Error("Stream unavailable"));
+
+    await expect(moderateProfileOrReject(createStreamApp(), {
+      userId: "user-1",
+      fields: {
+        bio: "Queer trans masc switch looking for dates, coffee, rope classes, and aftercare.",
+        signal: "Coffee and rope class."
+      }
+    })).resolves.toMatchObject({
+      decision: expect.objectContaining({ decision: "allow" }),
+      providerResult: expect.objectContaining({
+        provider: "local_text_fallback"
+      })
+    });
+
+    expect(streamModerationCheck).toHaveBeenCalledTimes(1);
   });
 });
 
