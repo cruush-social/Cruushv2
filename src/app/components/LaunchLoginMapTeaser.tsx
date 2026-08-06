@@ -261,7 +261,9 @@ function CodePenButterflyField() {
       };
 
       const resizeObserver = 'ResizeObserver' in window
-        ? new ResizeObserver(resizeCamera)
+        ? new ResizeObserver(() => {
+            resizeCamera();
+          })
         : null;
 
       if (resizeObserver && canvas.parentElement) {
