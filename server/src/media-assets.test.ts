@@ -154,4 +154,29 @@ describe("privacy-hardened media assets", () => {
       }
     });
   });
+
+  it("uses the signed bridge for message-photo assets without profile-photo automod", async () => {
+    const { app, request } = await setup(true, {
+      MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
+      MEDIA_MODERATION_URL_SECRET: "test-moderation-url-secret-1234567890",
+      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: false
+    } as Partial<AppConfig>);
+    const processed = await processUploadedImage(await imageWithMetadata(), "image/jpeg");
+    const asset = await createPendingMediaAsset(app, request, {
+      ownerUserId,
+      surface: "message_photo",
+      processed
+    });
+
+    await expect(moderatePendingMediaAsset(app, request, asset, {
+      filename: "neutral-message-photo.jpg",
+      moderationSurface: "direct_message"
+    })).resolves.toMatchObject({
+      moderation: {
+        provider: "mock",
+        decision: expect.objectContaining({ decision: "allow" })
+      }
+    });
+    expect(asset.grant).toBeUndefined();
+  });
 });

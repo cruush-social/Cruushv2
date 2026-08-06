@@ -4,6 +4,7 @@ import { photoUploadAvailability } from "./photo-upload-availability.js";
 const baseConfig = {
   NODE_ENV: "production" as const,
   APP_DEPLOYMENT_STAGE: "production" as const,
+  STREAM_MODERATION_ENABLED: false,
   STREAM_IMAGE_BRIDGE_ENABLED: false,
   PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: false,
   PROFILE_PHOTO_REKOGNITION_ENABLED: false,
@@ -26,6 +27,7 @@ describe("deployed photo upload availability", () => {
   it("enables deployed photos when the non-PhotoDNA safety gates are configured", () => {
     expect(photoUploadAvailability({
       ...baseConfig,
+      STREAM_MODERATION_ENABLED: true,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
       PROFILE_PHOTO_REKOGNITION_ENABLED: true
@@ -37,6 +39,7 @@ describe("deployed photo upload availability", () => {
     // without Rekognition.
     expect(photoUploadAvailability({
       ...baseConfig,
+      STREAM_MODERATION_ENABLED: true,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
       PROFILE_PHOTO_REKOGNITION_ENABLED: false,
@@ -47,9 +50,23 @@ describe("deployed photo upload availability", () => {
     });
   });
 
+  it("opens message photos when the shared Stream image bridge is ready before profile-photo automod", () => {
+    expect(photoUploadAvailability({
+      ...baseConfig,
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_IMAGE_BRIDGE_ENABLED: true,
+      PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: false,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: false
+    })).toEqual({
+      profilePhotos: false,
+      messagePhotos: true
+    });
+  });
+
   it("keeps uploads open when either scanner is configured on its own", () => {
     expect(photoUploadAvailability({
       ...baseConfig,
+      STREAM_MODERATION_ENABLED: true,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
@@ -85,6 +102,7 @@ describe("deployed photo upload availability", () => {
 
     expect(photoUploadAvailability({
       ...baseConfig,
+      STREAM_MODERATION_ENABLED: true,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true,
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,

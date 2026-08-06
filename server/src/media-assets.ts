@@ -312,8 +312,16 @@ export async function createPendingMediaAsset(
   }
 }
 
+function usesSignedInspectionUrl(app: FastifyInstance, asset: PendingMediaAsset) {
+  return app.config.STREAM_IMAGE_BRIDGE_ENABLED === true &&
+    (
+      app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
+      asset.surface === "message_photo"
+    );
+}
+
 function moderationMediaUrl(app: FastifyInstance, asset: PendingMediaAsset) {
-  if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true) {
+  if (usesSignedInspectionUrl(app, asset)) {
     return createMediaModerationInspectionUrl(app.config, asset.id);
   }
 
@@ -354,7 +362,7 @@ export async function moderatePendingMediaAsset(
         });
     const provider = createModerationProvider(app.config);
     const bridgeEnabled = app.config.STREAM_IMAGE_BRIDGE_ENABLED === true;
-    const signedInspectionEnabled = app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true;
+    const signedInspectionEnabled = usesSignedInspectionUrl(app, asset);
     const alphaPhotoUploadBypass = activeAlphaPhotoUploadBypass(app.config);
     const useStreamImageUrl = bridgeEnabled && (signedInspectionEnabled || Boolean(asset.grant));
 
