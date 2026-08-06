@@ -208,18 +208,10 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
     return rejectProfilePhotoWithoutAdultHuman(label);
   }
 
-  if (normalizedLabel === "animal" || normalizedLabel === "screenshot_or_interface") {
-    if (isPrivateMessageSurface(surface)) {
-      return baseDecision({
-        category: normalizedLabel,
-        severity: label.severity ?? "low",
-        confidence: label.confidence,
-        reason_code: normalizedLabel === "animal"
-          ? "private_message_animal_image_allowed"
-          : "private_message_screenshot_allowed"
-      });
-    }
-
+  // Animals and screenshots are rejected everywhere, private messages included.
+  // Photos of objects still pass through profile_photo_not_adult_human above,
+  // so a toy sends and a pet or a screenshot does not.
+  if (normalizedLabel === "screenshot_or_interface") {
     return thresholdedReject(label, {
       evidenceValue: 75,
       trustImpact: 0,

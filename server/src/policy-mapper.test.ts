@@ -89,9 +89,12 @@ describe("policy mapper", () => {
     }
   );
 
-  it.each(["animal", "screenshot_or_interface"] as const)(
-    "allows a safe %s image in private messages even when Stream recommends removal",
-    (label) => {
+  it.each([
+    ["animal", "animal_image_content"],
+    ["screenshot_or_interface", "screenshot_image_content"]
+  ] as const)(
+    "rejects a %s image in private messages",
+    (label, reasonCode) => {
       const decision = mapProviderResultToPolicy({
         surface: "direct_message",
         contentType: "image",
@@ -104,8 +107,9 @@ describe("policy mapper", () => {
       });
 
       expect(decision).toMatchObject({
-        decision: "allow",
-        category: label
+        decision: "reject",
+        reason_code: reasonCode,
+        user_message_code: "content_rejected"
       });
     }
   );
@@ -147,7 +151,7 @@ describe("policy mapper", () => {
   });
 
   it.each(["direct_message", "group_message"] as const)(
-    "allows non-human screenshot/interface images in %s messages",
+    "rejects screenshot/interface images in %s messages",
     (surface) => {
       const decision = mapProviderResultToPolicy({
         surface,
@@ -156,9 +160,9 @@ describe("policy mapper", () => {
       });
 
       expect(decision).toMatchObject({
-        decision: "allow",
-        reason_code: "private_message_screenshot_allowed",
-        trust_impact: 0
+        decision: "reject",
+        reason_code: "screenshot_image_content",
+        user_message_code: "content_rejected"
       });
     }
   );
