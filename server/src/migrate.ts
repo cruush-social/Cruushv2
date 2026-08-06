@@ -73,7 +73,8 @@ const migrationFiles = [
   "063_media_classification_audit.sql",
   "064_owner_access_repair.sql",
   "064_support_request_replies.sql",
-  "065_owner_photo_messaging_repair.sql"
+  "065_owner_photo_messaging_repair.sql",
+  "066_recurring_weekly_promotions.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

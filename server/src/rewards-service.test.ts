@@ -219,7 +219,7 @@ describe("rewards activity and promotional entitlement service", () => {
     expect(db.activityDates).toEqual(new Set(["2026-07-27", "2026-07-28"]));
   });
 
-  it("grants the seventh-day milestone exactly once and resets after a missed day", async () => {
+  it("grants seven days on the seventh qualifying day and resets after a missed day", async () => {
     const db = new RewardTestDb();
 
     for (let day = 1; day <= 7; day += 1) {
@@ -237,7 +237,7 @@ describe("rewards activity and promotional entitlement service", () => {
     });
 
     expect(db.grants).toHaveLength(1);
-    expect(db.grants[0]).toMatchObject({ source: "activity_recurring", days: 1 });
+    expect(db.grants[0]).toMatchObject({ source: "activity_recurring", days: 7 });
 
     const reset = await recordMeaningfulActivity(appFor(db), {
       userId,
@@ -247,10 +247,10 @@ describe("rewards activity and promotional entitlement service", () => {
     expect(reset).toMatchObject({ currentStreak: 1 });
   });
 
-  it("awards one-day login bonuses between recurring rewards without retry duplication", async () => {
+  it("grants exactly seven days on days seven, eight, and nine without retry duplication", async () => {
     const db = new RewardTestDb();
 
-    for (let day = 1; day <= 14; day += 1) {
+    for (let day = 1; day <= 9; day += 1) {
       await recordMeaningfulActivity(appFor(db), {
         userId,
         activityType: "cruush",
@@ -258,22 +258,23 @@ describe("rewards activity and promotional entitlement service", () => {
       });
     }
 
+    await recordMeaningfulActivity(appFor(db), {
+      userId,
+      activityType: "cruush",
+      occurredAt: new Date("2026-06-09T18:00:00.000Z")
+    });
+
     expect(db.grants.map((grant) => [grant.source, grant.days])).toEqual([
-      ["activity_recurring", 1],
-      ["activity_long_bonus", 1],
-      ["activity_long_bonus", 1],
-      ["activity_long_bonus", 1],
-      ["activity_long_bonus", 1],
-      ["activity_long_bonus", 1],
-      ["activity_long_bonus", 1],
-      ["activity_recurring", 1]
+      ["activity_recurring", 7],
+      ["activity_recurring", 7],
+      ["activity_recurring", 7]
     ]);
-    expect(db.grants.reduce((total, grant) => total + grant.days, 0)).toBe(8);
+    expect(db.grants.reduce((total, grant) => total + grant.days, 0)).toBe(21);
   });
 
-  it("enforces activity caps and the maximum promotional bank", async () => {
+  it("allows recurring activity rewards without a rolling cap and enforces the maximum promotional bank", async () => {
     const cappedDb = new RewardTestDb();
-    cappedDb.settings = [{ key: "activity_reward_cap_days", value: 1 }];
+    cappedDb.settings = [{ key: "activity_reward_cap_days", value: 14 }];
 
     for (let day = 1; day <= 14; day += 1) {
       await recordMeaningfulActivity(appFor(cappedDb), {
@@ -282,7 +283,7 @@ describe("rewards activity and promotional entitlement service", () => {
         occurredAt: new Date(Date.UTC(2026, 6, day, 12))
       });
     }
-    expect(cappedDb.grants).toHaveLength(1);
+    expect(cappedDb.grants).toHaveLength(2);
 
     const bankDb = new RewardTestDb();
     bankDb.settings = [{ key: "max_banked_promotional_days", value: 1 }];

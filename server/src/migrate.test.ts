@@ -50,6 +50,16 @@ describe("migration runner", () => {
     expect(affiliateNoticeSql).toContain("profiles.year_of_birth is not null");
   });
 
+  it("keeps recurring and referral promotions active at seven days per grant", async () => {
+    const rewardsSql = await readFile(path.join(serverRoot, "sql", "066_recurring_weekly_promotions.sql"), "utf8");
+
+    expect(rewardsSql).toContain("('recurring_streak_reward_days', '7'::jsonb)");
+    expect(rewardsSql).toContain("('activity_reward_cap_days', 'null'::jsonb)");
+    expect(rewardsSql).toContain("'[\"cruush\",\"message\",\"post\"]'::jsonb");
+    expect(rewardsSql).toContain("('referral_reward_days', '7'::jsonb)");
+    expect(rewardsSql).toContain("('referral_reward_cap_days', 'null'::jsonb)");
+  });
+
   it("adds the launch party and crowd feed schema after rewards and 2FA", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const launchSql = await readFile(path.join(serverRoot, "sql", "043_launch_party_crowd_feed.sql"), "utf8");

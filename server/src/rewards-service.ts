@@ -547,7 +547,7 @@ async function grantActivityMilestones(
 ) {
   const grants: RewardGrantResult[] = [];
 
-  if (input.streak % config.recurringStreakDays === 0) {
+  if (input.streak >= config.recurringStreakDays) {
     const grant = await grantPromotionalDaysInTransaction(db, {
       userId: input.userId,
       source: "activity_recurring",
@@ -566,47 +566,7 @@ async function grantActivityMilestones(
     }
   }
 
-  if (isLoginBonusMilestone(input.streak, config)) {
-    const grant = await grantPromotionalDaysInTransaction(db, {
-      userId: input.userId,
-      source: "activity_long_bonus",
-      days: config.longStreakBonusDays,
-      idempotencyKey: `activity:long:${input.userId}:${input.streak}`,
-      milestoneKey: `streak:${input.streak}`,
-      auditMetadata: {
-        streak: input.streak,
-        activityDate: input.activityDate,
-        timezone: input.timezone
-      }
-    }, config);
-
-    if (grant) {
-      grants.push(grant);
-    }
-  }
-
   return grants;
-}
-
-function isLoginBonusMilestone(streak: number, config: RewardConfig) {
-  return streak > config.recurringStreakDays &&
-    streak % config.recurringStreakDays !== 0 &&
-    (streak - config.recurringStreakDays) % config.longStreakDays === 0;
-}
-
-function nextLoginBonusTargetStreak(currentStreak: number, config: RewardConfig) {
-  let candidate = Math.max(currentStreak + 1, config.recurringStreakDays + config.longStreakDays);
-  const maxAttempts = Math.max(config.recurringStreakDays, config.longStreakDays) * 2 + 2;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    if (isLoginBonusMilestone(candidate, config)) {
-      return candidate;
-    }
-
-    candidate += 1;
-  }
-
-  return Math.max(currentStreak + 1, config.recurringStreakDays + 1);
 }
 
 export async function recordMeaningfulActivity(
@@ -906,19 +866,19 @@ export async function getRewardSummary(
     : Number(streak?.current_streak ?? 0);
   const activeUntil = asDate(promotion.active_until);
   const promotionalActive = Boolean(activeUntil && activeUntil > new Date());
-  const recurringRemainder = currentStreak % config.recurringStreakDays;
-  const nextLoginBonusAtDays = nextLoginBonusTargetStreak(currentStreak, config);
+  const nextRewardAtDays = Math.max(currentStreak + 1, config.recurringStreakDays);
+  const nextRewardInDays = Math.max(1, nextRewardAtDays - currentStreak);
 
   return {
     streak: {
       current: currentStreak,
       longest: Number(streak?.longest_streak ?? 0),
       todayQualified: lastActivityDate === today,
-      nextRecurringInDays: recurringRemainder === 0
-        ? config.recurringStreakDays
-        : config.recurringStreakDays - recurringRemainder,
-      nextLongBonusInDays: Math.max(1, nextLoginBonusAtDays - currentStreak),
-      nextLoginBonusAtDays
+      nextRecurringInDays: nextRewardInDays,
+      // Keep the legacy response fields for older clients; both now describe
+      // the same fixed seven-day reward stream.
+      nextLongBonusInDays: nextRewardInDays,
+      nextLoginBonusAtDays: nextRewardAtDays
     },
     promotionalAccess: {
       active: promotionalActive,
