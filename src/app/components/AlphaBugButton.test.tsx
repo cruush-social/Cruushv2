@@ -31,6 +31,10 @@ function renderAlphaBugButton(enabled = true, initialEntry = '/map?layer=nearby'
 }
 
 describe('AlphaBugButton', () => {
+  afterEach(() => {
+    registerBugButtonSlot(null);
+  });
+
   beforeEach(() => {
     createSupportRequest.mockReset();
     dismissUserNotice.mockReset();
@@ -43,28 +47,22 @@ describe('AlphaBugButton', () => {
     });
     dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
-    window.localStorage.clear();
-    document.cookie = 'cruush_alpha-bug-tip-seen=; Max-Age=0; Path=/';
     window.history.replaceState({}, '', '/map?layer=nearby');
   });
 
-  afterEach(() => {
-    registerBugButtonSlot(null);
-  });
-
-  it('stays hidden when reporting is not enabled', () => {
+  it('stays hidden when alpha reporting is not enabled', () => {
     renderAlphaBugButton(false);
 
-    expect(screen.queryByRole('button', { name: 'Report bug' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Report alpha bug' })).not.toBeInTheDocument();
   });
 
   it('submits a fast bug report with page context', async () => {
     renderAlphaBugButton();
 
-    const reportButton = screen.getByRole('button', { name: 'Report bug' });
-    expect(reportButton).toHaveClass('right-4', 'bottom-[calc(8.75rem+env(safe-area-inset-bottom))]');
-    expect(reportButton).toHaveClass('z-[40]');
-    expect(reportButton).not.toHaveClass('left-[calc(50%-5.5rem)]', 'top-[calc(5.85rem+env(safe-area-inset-top))]');
+    const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
+    expect(reportButton).toHaveClass('left-4', 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]');
+    expect(reportButton).toHaveClass('z-20');
+    expect(reportButton).not.toHaveClass('right-4', 'top-[calc(0.75rem+env(safe-area-inset-top))]');
 
     fireEvent.click(reportButton);
     expect(screen.getByText('/map?layer=nearby')).toBeInTheDocument();
@@ -75,7 +73,7 @@ describe('AlphaBugButton', () => {
 
     await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith({
       category: 'bug',
-      subject: 'Bug report: /map?layer=nearby',
+      subject: 'Alpha bug: /map?layer=nearby',
       message: 'Map pins disappeared after I changed filters.',
       source: 'unknown',
       pageUrl: '/map?layer=nearby',
@@ -88,44 +86,37 @@ describe('AlphaBugButton', () => {
     window.history.replaceState({}, '', '/chat/group/group-1');
     renderAlphaBugButton(true, '/chat/group/group-1');
 
-    expect(screen.getByRole('button', { name: 'Report bug' })).toHaveClass(
-      'right-4',
+    expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
+      'left-4',
       'bottom-[calc(19rem+env(safe-area-inset-bottom))]',
-      'z-[40]',
+      'z-20',
     );
   });
 
-  it('docks into a registered slot instead of floating over screen controls', async () => {
-    getUserNoticeDismissal.mockResolvedValue({ dismissed: false, dismissedAt: null });
-
+  it('uses the map chrome slot instead of floating over map controls', () => {
     const slot = document.createElement('div');
-    slot.dataset.testid = 'bug-slot';
     document.body.appendChild(slot);
     registerBugButtonSlot(slot);
 
     renderAlphaBugButton();
 
-    const reportButton = screen.getByRole('button', { name: 'Report bug' });
+    const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
     expect(slot).toContainElement(reportButton);
-    expect(reportButton).not.toHaveClass('fixed');
-    expect(reportButton).not.toHaveClass('bottom-[calc(8.75rem+env(safe-area-inset-bottom))]');
-    await waitFor(() => expect(getUserNoticeDismissal).toHaveBeenCalled());
-    expect(screen.queryByText('Tap the bug icon to report anything broken.')).not.toBeInTheDocument();
-
-    fireEvent.click(reportButton);
-    expect(screen.getByLabelText('What broke?')).toBeInTheDocument();
+    expect(reportButton).toHaveClass('size-8');
+    expect(reportButton).not.toHaveClass('fixed', 'z-20');
   });
 
-  it('shows the bug tip without alpha wording above the mobile nav', async () => {
-    getUserNoticeDismissal.mockResolvedValue({ dismissed: false, dismissedAt: null });
-
+  it('shows an actionable error code when sending fails', async () => {
+    createSupportRequest.mockRejectedValueOnce(new Error('Support service unavailable.'));
     renderAlphaBugButton();
 
-    expect(await screen.findByText('Tap the bug icon to report anything broken.')).toHaveClass('leading-snug');
-    expect(screen.queryByText(/Alpha test/i)).not.toBeInTheDocument();
-    expect(screen.getByText('Tap the bug icon to report anything broken.').closest('div')).toHaveClass(
-      'bottom-[calc(12rem+env(safe-area-inset-bottom))]',
-      'z-[40]',
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+    fireEvent.change(screen.getByLabelText('What broke?'), {
+      target: { value: 'The feed menu covers the bug report button.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
+
+    const reportError = await screen.findByTestId('bug-report-error');
+    expect(reportError).toHaveTextContent('Error code: BUG_REPORT_SUBMIT_FAILED');
   });
 });

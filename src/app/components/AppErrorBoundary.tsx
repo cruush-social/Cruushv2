@@ -6,16 +6,21 @@ interface AppErrorBoundaryProps {
 
 interface AppErrorBoundaryState {
   hasError: boolean;
+  errorCode: string | null;
 }
 
 export default class AppErrorBoundary extends Component<
   AppErrorBoundaryProps,
   AppErrorBoundaryState
 > {
-  state: AppErrorBoundaryState = { hasError: false };
+  state: AppErrorBoundaryState = { hasError: false, errorCode: null };
 
-  static getDerivedStateFromError(): AppErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): AppErrorBoundaryState {
+    const errorCode = typeof (error as Error & { code?: unknown }).code === 'string'
+      ? (error as Error & { code: string }).code
+      : 'APP_SHELL_RENDER_ERROR';
+
+    return { hasError: true, errorCode };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -30,6 +35,9 @@ export default class AppErrorBoundary extends Component<
             <h1 className="text-2xl font-semibold">Something broke after login</h1>
             <p className="text-sm text-muted-foreground">
               The app shell crashed while loading. Use a safer route while the map is being fixed.
+            </p>
+            <p className="font-mono text-xs text-muted-foreground">
+              Error code: {this.state.errorCode ?? 'APP_SHELL_RENDER_ERROR'}
             </p>
             <a className="underline" href="/feed">
               Open Feed
