@@ -712,15 +712,14 @@ export default function PrivateGroupChat() {
   };
 
   const handleSend = async () => {
-    const normalizedMessage = normalizeMessageForSend(message);
-    if (!normalizedMessage || !chatId || !conversation || composerDisabled) return;
+    if (!normalizedComposerMessage || !chatId || !conversation || composerDisabled) return;
 
     const optimisticId = `local-${Date.now()}`;
     const optimisticMessage: ChatMessageRecord = {
       id: optimisticId,
       userId: currentUserId ?? undefined,
       author: 'self',
-      content: normalizedMessage,
+      content: normalizedComposerMessage,
       timestamp: new Date().toISOString(),
     };
 
@@ -731,7 +730,7 @@ export default function PrivateGroupChat() {
     setError(null);
 
     try {
-      const createdMessage = await createMessage(chatId, normalizedMessage);
+      const createdMessage = await createMessage(chatId, normalizedComposerMessage);
       setMessages((prev) => prev.map((item) => (
         item.id === optimisticId
           ? normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)
@@ -810,7 +809,8 @@ export default function PrivateGroupChat() {
   const groupMemberIds = new Set(groupMembers.map((member) => member.id));
   const availableAddOptions = mutualOptions.filter((item) => !groupMemberIds.has(item.user.id));
   const messagePhotoControlDisabled = photoUploading || composerDisabled;
-  const canSendMessage = normalizeMessageForSend(message).length > 0;
+  const normalizedComposerMessage = normalizeMessageForSend(message);
+  const canSendMessage = normalizedComposerMessage.length > 0;
   const favoriteUploadControlDisabled = favoriteUploading || composerDisabled;
   const composerBarStyle = {
     '--chat-composer-bottom': keyboardInset > 0
