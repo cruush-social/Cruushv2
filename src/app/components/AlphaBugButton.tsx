@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router';
-import { CheckCircle2, MessageCircleWarning } from 'lucide-react';
+import { Bug, CheckCircle2 } from 'lucide-react';
+import { ApiClientError } from '../lib/apiClient';
+import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 import { createSupportRequest } from '../lib/supportApi';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
@@ -42,7 +44,7 @@ function getBugButtonPlacement(pathname: string) {
     return 'left-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
   }
 
-  return 'right-4 bottom-[calc(8.75rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(0.75rem+env(safe-area-inset-top))]';
+  return 'left-4 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
 }
 
 function getBugTipPlacement(pathname: string) {
@@ -50,7 +52,7 @@ function getBugTipPlacement(pathname: string) {
     return 'left-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
   }
 
-  return 'right-4 bottom-[calc(12rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(4.5rem+env(safe-area-inset-top))]';
+  return 'left-4 bottom-[calc(10rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
 }
 
 function waitForVideoMetadata(video: HTMLVideoElement) {
@@ -68,44 +70,8 @@ function waitForVideoMetadata(video: HTMLVideoElement) {
   });
 }
 
-function requestDisplayMedia(mediaDevices: MediaDevices & {
-  getDisplayMedia?: (constraints?: MediaStreamConstraints) => Promise<MediaStream>;
-}) {
-  return new Promise<MediaStream | undefined>((resolve) => {
-    let settled = false;
-    const timeout = window.setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        resolve(undefined);
-      }
-    }, 4000);
-
-    mediaDevices.getDisplayMedia?.({ audio: false, video: true })
-      .then((stream) => {
-        if (!settled) {
-          settled = true;
-          window.clearTimeout(timeout);
-          resolve(stream);
-        } else {
-          stream.getTracks().forEach((track) => track.stop());
-        }
-      })
-      .catch(() => {
-        if (!settled) {
-          settled = true;
-          window.clearTimeout(timeout);
-          resolve(undefined);
-        }
-      });
-  });
-}
-
 async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined> {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return undefined;
-  }
-
-  if (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches) {
     return undefined;
   }
 
@@ -120,12 +86,10 @@ async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined>
   let stream: MediaStream | null = null;
 
   try {
-    stream = (await requestDisplayMedia(mediaDevices)) ?? null;
-
-    if (!stream) {
-      return undefined;
-    }
-
+    stream = await mediaDevices.getDisplayMedia({
+      audio: false,
+      video: true,
+    });
     const video = document.createElement('video');
     video.muted = true;
     video.playsInline = true;
@@ -247,7 +211,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       const screenshot = await captureBugScreenshot();
       await createSupportRequest({
         category: 'bug',
-        subject: `Bug report: ${pageUrl}`,
+        subject: `Alpha bug: ${pageUrl}`,
         message: message.trim(),
         source: 'unknown',
         pageUrl,
@@ -293,8 +257,8 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       }}
     >
       {showTip ? (
-        <div className={`cruush-glass-panel fixed z-[40] w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
-          <p className="leading-snug">Tap the bug icon to report anything broken.</p>
+        <div className={`fixed z-30 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
+          <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"
             onClick={dismissTip}
@@ -304,18 +268,10 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
           </button>
         </div>
       ) : null}
-      <DialogTrigger asChild>
-        <button
-          aria-label="Report bug"
-          className={`cruush-glass-pill fixed z-[40] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary pointer-events-auto ${getBugButtonPlacement(location.pathname)}`}
-          type="button"
-        >
-          <MessageCircleWarning className="h-5 w-5" />
-        </button>
-      </DialogTrigger>
+      {buttonSlot && typeof document !== 'undefined' ? createPortal(trigger, buttonSlot) : trigger}
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
-          <DialogTitle>Report bug</DialogTitle>
+          <DialogTitle>Report alpha bug</DialogTitle>
           <DialogDescription>
             This report includes the current page and attaches a screenshot when your browser allows it.
           </DialogDescription>

@@ -1,22 +1,18 @@
-import { PostHogErrorBoundary, PostHogProvider } from '@posthog/react';
-import { createRoot } from 'react-dom/client';
-import App from './app/App.tsx';
-import LiquidGlassFilters from './app/components/LiquidGlassFilters.tsx';
-import posthog from './app/lib/posthog';
-import './styles/index.css';
 
-createRoot(document.getElementById("root")!).render(
-  <PostHogProvider client={posthog}>
-    <PostHogErrorBoundary>
-      <LiquidGlassFilters />
-      <App />
-    </PostHogErrorBoundary>
-  </PostHogProvider>
-);
+  import { createRoot } from "react-dom/client";
+  import App from "./app/App.tsx";
+  import "./styles/index.css";
+
+  window.addEventListener("vite:preloadError", () => {
+    window.location.reload();
+  });
+
+  createRoot(document.getElementById("root")!).render(<App />);
+
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    const APP_SHELL_REFRESH_ID = "v20";
+    const APP_SHELL_REFRESH_ID = "v21";
     const SERVICE_WORKER_SCRIPT_URL = `/sw.js?release=${APP_SHELL_REFRESH_ID}`;
     let hasController = Boolean(navigator.serviceWorker.controller);
     let reloadStarted = false;
@@ -39,13 +35,13 @@ if ("serviceWorker" in navigator) {
       if (!hasController) {
         hasController = true;
         return;
-      }
+        }
 
-      if (reloadStarted) {
-        return;
-      }
+        if (reloadStarted) {
+          return;
+        }
 
-      reloadStarted = true;
+        reloadStarted = true;
       window.location.reload();
     });
 
@@ -56,9 +52,9 @@ if ("serviceWorker" in navigator) {
         registration.addEventListener("updatefound", () => {
           const nextWorker = registration.installing;
 
-          nextWorker?.addEventListener("statechange", () => {
-            if (nextWorker.state === "installed" && navigator.serviceWorker.controller) {
-              nextWorker.postMessage({ type: "SKIP_WAITING" });
+            nextWorker?.addEventListener("statechange", () => {
+              if (nextWorker.state === "installed" && navigator.serviceWorker.controller) {
+                nextWorker.postMessage({ type: "SKIP_WAITING" });
             }
           });
         });

@@ -203,16 +203,12 @@ vi.mock('./components/BottomNav', () => ({
   default: () => <nav aria-label="Bottom Navigation">Mock Bottom Nav</nav>
 }));
 
-vi.mock('./components/ForegroundNotifications', () => ({
-  default: () => <div data-testid="foreground-notifications" />
-}));
-
 vi.mock('./components/DebugCruushPlusToggle', () => ({
   default: () => <div data-testid="debug-cruush-plus-toggle" />
 }));
 
 vi.mock('./components/AlphaBugButton', () => ({
-  default: ({ enabled }: { enabled?: boolean }) => (enabled ? <button type="button">Mock Bug Report</button> : null)
+  default: ({ enabled }: { enabled?: boolean }) => (enabled ? <button type="button">Mock Alpha Bug</button> : null)
 }));
 
 vi.mock('./components/PublicInfoPage', () => ({
@@ -292,7 +288,7 @@ describe('App', () => {
     expect(screen.getByRole('navigation', { name: 'Bottom Navigation' })).toBeInTheDocument();
   });
 
-  it('shows the bug report button for signed-in users outside active alpha testing', async () => {
+  it('shows the bug button for signed-in users outside active alpha testing', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -312,10 +308,10 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Map')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Mock Bug Report' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toBeInTheDocument();
   });
 
-  it('shows the bug report button on authenticated app routes for active alpha testers', async () => {
+  it('shows the alpha bug button on authenticated app routes for active alpha testers', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
         id: 'user-1',
@@ -337,31 +333,32 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Settings')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Mock Bug Report' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toBeInTheDocument();
   });
 
-  it('keeps the bug report button on token-link routes for authenticated users', async () => {
+  it('keeps the alpha bug button on token-link routes for active alpha testers', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
         id: 'user-1',
-        email: 'test@example.com',
-        displayName: 'Test User',
+        email: 'alpha@example.com',
+        displayName: 'Alpha User',
         emailVerifiedAt: '2026-04-28T12:00:00.000Z',
         createdAt: '2026-04-28T12:00:00.000Z',
       },
       profile: {
-        displayName: 'Test User',
+        displayName: 'Alpha User',
         yearOfBirth: 1998,
       },
       needsOnboarding: false,
       ...acceptedConductSession,
+      ...activeAlphaTest,
     });
     window.history.replaceState({}, '', '/?resetPasswordToken=reset-token-1234567890');
 
     render(<App />);
 
     expect(await screen.findByText('Mock Reset Password')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Mock Bug Report' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toBeInTheDocument();
   });
 
   it('redirects to /map after login', async () => {

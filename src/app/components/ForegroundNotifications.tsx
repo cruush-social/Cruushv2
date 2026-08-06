@@ -188,8 +188,6 @@ export default function ForegroundNotifications() {
       window.removeEventListener('touchstart', unlockAudio, true);
       window.removeEventListener('click', unlockAudio, true);
       window.removeEventListener('keydown', unlockAudio, true);
-      void audioContextRef.current?.close?.().catch(() => {});
-      audioContextRef.current = null;
     };
   }, []);
 

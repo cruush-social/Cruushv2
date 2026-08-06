@@ -1,6 +1,6 @@
 export default function CruushPlusWord({ className = '' }: { className?: string }) {
   return (
-    <span className={`cruush-plus-word cruush-logo-font font-normal normal-case tracking-normal ${className}`.trim()} data-text="cruush+">
+    <span className={`cruush-logo-font font-normal normal-case tracking-normal ${className}`.trim()}>
       cruush+
     </span>
   );

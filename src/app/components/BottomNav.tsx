@@ -1,5 +1,3 @@
-import type { CSSProperties } from 'react';
-import { useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import cruushIconColored from '../assets/ui-icons/cruush-colored.png';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
@@ -21,11 +19,6 @@ const navItems = [
   { path: '/profile', icon: profileIconWhite, activeIcon: profileIconColored, label: 'Profile' },
 ];
 
-type BottomNavStyle = CSSProperties & {
-  '--bottom-nav-active-offset': string;
-  '--bottom-nav-indicator-origin': string;
-};
-
 export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,30 +28,6 @@ export default function BottomNav() {
     return location.pathname === path || location.pathname.startsWith(path);
   };
   const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
-  const navClassName = `pointer-events-none fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2${isMapRoute ? ' cruush-map-nav' : ''}`;
-  const activeIndex = navItems.findIndex((item) => isActive(item.path));
-  const hasActiveItem = activeIndex >= 0;
-  const activeIndexRef = useRef(Math.max(activeIndex, 0));
-  const [previousActiveIndex, setPreviousActiveIndex] = useState(Math.max(activeIndex, 0));
-  const [indicatorMotionKey, setIndicatorMotionKey] = useState(0);
-  const activeIndicatorIndex = hasActiveItem ? activeIndex : activeIndexRef.current;
-  const indicatorDirection = activeIndicatorIndex > previousActiveIndex ? 'forward' : activeIndicatorIndex < previousActiveIndex ? 'backward' : 'still';
-  const indicatorDistance = Math.min(Math.abs(activeIndicatorIndex - previousActiveIndex), navItems.length - 1);
-  const bottomNavStyle: BottomNavStyle = {
-    '--bottom-nav-active-offset': activeIndicatorIndex === 0 ? '0rem' : `calc(${activeIndicatorIndex} * ((100% - 4.5rem) / 4))`,
-    '--bottom-nav-indicator-origin': indicatorDirection === 'forward' ? 'left' : indicatorDirection === 'backward' ? 'right' : 'center',
-  };
-
-  useLayoutEffect(() => {
-    if (!hasActiveItem || activeIndexRef.current === activeIndex) {
-      return;
-    }
-
-    setPreviousActiveIndex(activeIndexRef.current);
-    activeIndexRef.current = activeIndex;
-    setIndicatorMotionKey((key) => key + 1);
-  }, [activeIndex, hasActiveItem]);
-
   const handleNavClick = (path: string) => {
     if (path === '/profile' && !isMobile) {
       navigate('/map', {
@@ -73,7 +42,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className={navClassName}>
+    <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2">
       {!isMapRoute ? (
         <div
           aria-hidden="true"
@@ -82,19 +51,8 @@ export default function BottomNav() {
       ) : null}
       <div
         data-testid="bottom-nav-pill"
-        className="cruush-bottom-nav-pill cruush-liquid-glass-dock pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between overflow-hidden rounded-full border px-1.5 pb-1.5 pt-2"
-        style={bottomNavStyle}
+        className="pointer-events-auto relative z-10 mx-auto flex w-full max-w-[23rem] items-center justify-between rounded-full border border-white/10 bg-background/68 px-1.5 pb-1.5 pt-2 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md"
       >
-        {hasActiveItem ? (
-          <span aria-hidden="true" className="cruush-bottom-nav-indicator" data-testid="bottom-nav-indicator">
-            <span
-              key={indicatorMotionKey}
-              className="cruush-bottom-nav-indicator-surface cruush-liquid-glass-current"
-              data-direction={indicatorDirection}
-              data-distance={indicatorDistance}
-            />
-          </span>
-        ) : null}
         {navItems.map((item) => {
           const active = isActive(item.path);
           return (
@@ -103,16 +61,16 @@ export default function BottomNav() {
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
               onClick={() => handleNavClick(item.path)}
-              className={`group relative z-10 flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-full ${
+              className={`flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full transition-colors ${
                 active
-                  ? 'cruush-bottom-nav-current-page text-white'
+                  ? 'bg-white/[0.10] text-primary hover:bg-white/[0.12]'
                   : 'text-white/52 hover:bg-white/[0.08] hover:text-white/78'
               }`}
             >
               <img
                 alt=""
                 aria-hidden="true"
-                className={`relative z-10 h-[3.6rem] w-[3.6rem] object-contain ${active ? '' : 'transition-transform duration-200 ease-[cubic-bezier(0.5,0,0,1)] group-hover:scale-[1.08]'}`.trim()}
+                className="h-[3.6rem] w-[3.6rem] object-contain"
                 draggable={false}
                 src={active ? item.activeIcon : item.icon}
               />

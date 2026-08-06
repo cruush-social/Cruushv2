@@ -4,7 +4,6 @@ import { Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { blockUser } from '../lib/blockApi';
 import { buttonVariants } from './ui/button';
-import posthog from '../lib/posthog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,7 +58,6 @@ export default function BlockUserAction({
     try {
       const result = await blockUser(userId);
       toast.success(`${safeName} blocked.`);
-      posthog.capture('user_blocked');
       setOpen(false);
       onBlocked?.(result.userId);
     } catch (error) {

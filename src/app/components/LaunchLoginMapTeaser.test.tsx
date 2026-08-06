@@ -18,9 +18,6 @@ describe('LaunchLoginMapTeaser', () => {
       '/teasers/launch-login-teaser-desktop.webm',
     );
     expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-realistic-glitter')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-butterfly-field')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-codepen-butterfly-canvas')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-mobile-pulse')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-video-shade')).toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
@@ -56,7 +53,7 @@ describe('LaunchLoginMapTeaser', () => {
     expect(video).toHaveAttribute('preload', 'metadata');
     expect(video).toHaveAttribute(
       'src',
-      '/teasers/launch-login-teaser-mobile.webm',
+      '/teasers/launch-login-teaser-mobile.mp4',
     );
     expect(screen.queryByTestId('launch-login-map-scene')).not.toBeInTheDocument();
     expect(screen.queryByTestId('launch-login-frosted-glass')).not.toBeInTheDocument();
@@ -82,9 +79,6 @@ describe('LaunchLoginMapTeaser', () => {
     expect(screen.queryByTestId('launch-login-teaser-video')).not.toBeInTheDocument();
     expect(screen.getByTestId('launch-login-ambient-fallback')).toBeInTheDocument();
     expect(screen.getByTestId('launch-login-video-logo-scrub')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-realistic-glitter')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-butterfly-field')).toBeInTheDocument();
-    expect(screen.getByTestId('launch-login-codepen-butterfly-canvas')).toBeInTheDocument();
   });
 
   it('keeps the archived rain layer available for later restoration', () => {

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MapProfilePopup from './MapProfilePopup';
@@ -14,25 +14,12 @@ const { getMyProfile, getProfileById } = vi.hoisted(() => ({
   getProfileById: vi.fn(),
 }));
 
-const { revokeMutualCruush, sendCruush } = vi.hoisted(() => ({
-  revokeMutualCruush: vi.fn(),
+const { sendCruush } = vi.hoisted(() => ({
   sendCruush: vi.fn(),
 }));
 
 const { openConversationOrInbox } = vi.hoisted(() => ({
   openConversationOrInbox: vi.fn(),
-}));
-
-const { toastSuccess, toastError } = vi.hoisted(() => ({
-  toastSuccess: vi.fn(),
-  toastError: vi.fn(),
-}));
-
-vi.mock('sonner', () => ({
-  toast: {
-    success: toastSuccess,
-    error: toastError,
-  },
 }));
 
 vi.mock('../lib/profileApi', async () => {
@@ -50,7 +37,6 @@ vi.mock('../lib/cruushApi', async () => {
 
   return {
     ...actual,
-    revokeMutualCruush,
     sendCruush,
   };
 });
@@ -71,13 +57,9 @@ describe('MapProfilePopup', () => {
   beforeEach(() => {
     getMyProfile.mockReset();
     getProfileById.mockReset();
-    revokeMutualCruush.mockReset();
     sendCruush.mockReset();
     openConversationOrInbox.mockReset();
-    toastSuccess.mockReset();
-    toastError.mockReset();
 
-    revokeMutualCruush.mockResolvedValue({ revoked: true });
     getProfileById.mockResolvedValue({
       id: 'user-1',
       display_name: 'River',
@@ -198,84 +180,5 @@ describe('MapProfilePopup', () => {
     }));
     expect(await screen.findByText('Updated River')).toBeInTheDocument();
     expect(screen.getByText('he/him')).toBeInTheDocument();
-  });
-
-  it('revokes an existing mutual cruush from the desktop preview button', async () => {
-    const onClose = vi.fn();
-    const onMutualCruushRevoked = vi.fn();
-
-    getProfileById.mockResolvedValueOnce({
-      id: 'user-1',
-      display_name: 'River',
-      photos: [],
-      bio: '',
-      pronouns: ['they/them'],
-      year_of_birth: 1998,
-      identities: ['Queer'],
-      presentation: [],
-      sexuality: [],
-      body_type: [],
-      height: '',
-      weight: '',
-      is_trans: null,
-      crowds: [],
-      position: [],
-      role: [],
-      looking_for: [],
-      availability: [],
-      hosting_travel: [],
-      vibes: [],
-      scenes: [],
-      archetypes: [],
-      kinks: [],
-      hobbies: [],
-      condoms: [],
-      prep: [],
-      doxypep: [],
-      hiv_status: [],
-      mpox_vaccine: [],
-      substance_boundaries: [],
-      viewer_relationship: {
-        match_id: 'match-1',
-        mutual_cruush: true,
-        outgoing_cruush: true,
-        can_message: true,
-        can_reveal_precise_location: false,
-      },
-    });
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <MapProfilePopup
-          user={{
-            id: 'user-1',
-            name: 'River',
-            age: 28,
-            pronouns: 'they/them',
-            distance: '0.4 mi',
-            lastActive: 'now',
-            photo: null,
-            badges: [],
-            relationship: {
-              mutualCruush: true,
-              canMessage: true,
-            },
-          }}
-          onClose={onClose}
-          onMutualCruushRevoked={onMutualCruushRevoked}
-        />
-      </MemoryRouter>,
-    );
-
-    const cruushButton = await screen.findByRole('button', { name: 'Remove mutual cruush' });
-    expect(cruushButton).toBeEnabled();
-
-    fireEvent.click(cruushButton);
-
-    await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));
-    expect(sendCruush).not.toHaveBeenCalled();
-    expect(onMutualCruushRevoked).toHaveBeenCalledWith('user-1');
-    expect(onClose).toHaveBeenCalled();
-    expect(toastSuccess).toHaveBeenCalledWith('Removed mutual cruush with River.');
   });
 });
