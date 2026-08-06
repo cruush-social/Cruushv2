@@ -5982,7 +5982,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(403);
-    expect(query.mock.calls[0]?.[0]).toContain("from moderator_users");
+    expect(query.mock.calls[0]?.[0]).toContain("moderator_users");
     expect(response.json()).toEqual({
       error: {
         code: "FORBIDDEN",
@@ -6031,7 +6031,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[0]?.[0]).toContain("from moderator_users");
+    expect(query.mock.calls[0]?.[0]).toContain("moderator_users");
     expect(query.mock.calls[1]?.[0]).toContain("from reports");
     expect(query.mock.calls[1]?.[1]).toEqual(["open", 25, 0]);
     expect(response.json()).toEqual({

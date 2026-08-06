@@ -275,7 +275,7 @@ describe("support routes", () => {
   it("lists support requests for moderator replies", async () => {
     const app = buildSupportApp();
     query.mockImplementation(async (sql: string) => {
-      if (sql.includes("from moderator_users")) {
+      if (sql.includes("moderator_users")) {
         return { rows: [{ role: "admin" }] };
       }
 
@@ -363,7 +363,7 @@ describe("support routes", () => {
         return { rows: [] };
       }
 
-      if (sql.includes("from moderator_users")) {
+      if (sql.includes("moderator_users")) {
         return { rows: [{ role: "admin" }] };
       }
 
