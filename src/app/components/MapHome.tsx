@@ -1465,6 +1465,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <Button
               variant="ghost"
               size="icon"
+              data-testid="map-dl-mode-toggle"
               onClick={handleToggleDlMode}
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
@@ -1800,6 +1801,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 : 'border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
             }`}
             style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
+            data-testid="map-seeking-button"
             onClick={() => setIsFiltersOpen(true)}
           >
             <Filter className="w-4 h-4 mr-2" />
@@ -1808,6 +1810,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
           <Button
             type="button"
+            data-testid="map-visibility-button"
             onClick={() => {
               setVisibilityError(null);
               setIsVisibilityOpen(true);

@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import FirstRunTutorial, { FIRST_RUN_TUTORIAL_KEY } from './FirstRunTutorial';
+import { FEED_POST_CREATED_EVENT } from './LocalFeed';
 
 const { markNoticeDismissed, resolveNoticeDismissal } = vi.hoisted(() => ({
   markNoticeDismissed: vi.fn(),
@@ -9,15 +10,28 @@ const { markNoticeDismissed, resolveNoticeDismissal } = vi.hoisted(() => ({
 }));
 
 vi.mock('../lib/userNoticesApi', () => ({ markNoticeDismissed, resolveNoticeDismissal }));
-vi.mock('../lib/rewardsApi', () => ({ claimBetaLaunchCruushPlus: vi.fn().mockResolvedValue({}) }));
+vi.mock('./LocalFeed', () => ({
+  FEED_POST_CREATED_EVENT: 'cruush:feed-post-created',
+  default: () => <div />,
+}));
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}</div>;
+}
 
 function renderTutorial(pathname = '/map') {
   return render(
     <MemoryRouter initialEntries={[pathname]}>
+      <Routes>
+        <Route path="*" element={<LocationProbe />} />
+      </Routes>
       <FirstRunTutorial />
     </MemoryRouter>
   );
 }
+
+const first = () => screen.findByText('Your link earns you');
 
 describe('FirstRunTutorial', () => {
   beforeEach(() => {
@@ -30,56 +44,76 @@ describe('FirstRunTutorial', () => {
     renderTutorial();
 
     const content = await screen.findByTestId('first-run-tutorial');
-    // No X, no click-away, no Esc: it is a tutorial, not a notice to scroll past.
     expect(content).toHaveAttribute('data-dismissible', 'false');
     expect(content.querySelector('[data-slot="dialog-close"]')).toBeNull();
     expect(document.querySelector('[data-slot="dialog-overlay"]')).toBeInTheDocument();
   });
 
-  it('steps through every stage and ends on the cruush+ offer', async () => {
+  // Every step is about a screen, so the tutorial takes the user there first.
+  it('navigates to the screen each step is about', async () => {
     renderTutorial();
 
-    expect(await screen.findByText('DL Mode is on')).toBeInTheDocument();
+    await first();
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards'));
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByText('The map is the app')).toBeInTheDocument();
+    expect(screen.getByText('Who can see you')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('/map'));
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByText('Who you see')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByText('Ghost Mode')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByText('DL Mode')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByText('Say something to the block')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByText('Something broken?')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('button', { name: 'Activate' })).toBeInTheDocument();
-    expect(screen.queryByTestId('tutorial-next')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('/feed'));
   });
 
-  // The step that says "tap the bug icon" has to point at the bug icon.
-  it('rings the bug button on the step that describes it', async () => {
-    const slot = document.createElement('div');
-    slot.dataset.testid = 'alpha-bug-button';
-    slot.getBoundingClientRect = () => ({ x: 8, y: 8, left: 8, top: 8, width: 44, height: 44, right: 52, bottom: 52, toJSON: () => ({}) }) as DOMRect;
-    document.body.appendChild(slot);
+  it('will not leave the feed step until a post is actually made', async () => {
+    renderTutorial();
+    await first();
+
+    for (let step = 0; step < 5; step += 1) {
+      fireEvent.click(screen.getByTestId('tutorial-next'));
+    }
+
+    expect(screen.getByText('Say something to the block')).toBeInTheDocument();
+    expect(screen.getByTestId('tutorial-next')).toBeDisabled();
+    expect(screen.getByTestId('tutorial-next')).toHaveTextContent('Post to continue');
+    // Nobody is trapped: skip is still there.
+    expect(screen.getByTestId('skip-tutorial')).toBeEnabled();
+
+    window.dispatchEvent(new CustomEvent(FEED_POST_CREATED_EVENT));
+
+    await waitFor(() => expect(screen.getByTestId('tutorial-next')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByText('Something broken?')).toBeInTheDocument();
+  });
+
+  it('rings the control each step describes', async () => {
+    const target = document.createElement('div');
+    target.dataset.testid = 'map-visibility-button';
+    target.getBoundingClientRect = () => ({ x: 8, y: 8, left: 8, top: 8, width: 90, height: 32, right: 98, bottom: 40, toJSON: () => ({}) }) as DOMRect;
+    document.body.appendChild(target);
 
     renderTutorial();
-    await screen.findByText('DL Mode is on');
+    await first();
 
-    expect(screen.queryByTestId('tutorial-spotlight')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
     expect(await screen.findByTestId('tutorial-spotlight')).toBeInTheDocument();
-    slot.remove();
+    target.remove();
   });
 
   it('records the dismissal only once the user skips or finishes', async () => {
     renderTutorial();
-    await screen.findByText('DL Mode is on');
+    await first();
 
-    // Showing it is not the same as acknowledging it.
     expect(markNoticeDismissed).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId('skip-tutorial'));
@@ -101,13 +135,13 @@ describe('FirstRunTutorial', () => {
     resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: true });
     renderTutorial();
 
-    await screen.findByText('DL Mode is on');
+    await first();
     fireEvent.click(screen.getByTestId('skip-tutorial'));
 
     expect(markNoticeDismissed).toHaveBeenCalledWith(FIRST_RUN_TUTORIAL_KEY, { offline: true });
   });
 
-  it('does not fire away from the map', async () => {
+  it('does not start away from the map', async () => {
     renderTutorial('/messages');
 
     await waitFor(() => expect(resolveNoticeDismissal).not.toHaveBeenCalled());
