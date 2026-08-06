@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "./config.js";
-import { sendSupportRequestInboxEmail } from "./mailer.js";
+import { sendSupportRequestInboxEmail, sendSupportRequestReplyEmail } from "./mailer.js";
 
 const config: AppConfig = {
   NODE_ENV: "test",
@@ -66,5 +66,38 @@ describe("support mailer", () => {
     expect(body.subject).toBe("[support] question: Support inbox");
     expect(body.html).toContain("support-1");
     expect(body.text).toContain("Can AI answer most support questions?");
+  });
+
+  it("sends support replies back to the reporter with reports inbox reply-to", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendSupportRequestReplyEmail({
+      config,
+      logger,
+      replyToEmail: "reviewer@example.com",
+      replyMessage: "We fixed the issue and the next build should no longer crash.",
+      request: {
+        id: "support-2",
+        category: "bug",
+        contactEmail: "reviewer@example.com",
+        createdAt: "2026-07-07T12:05:00.000Z",
+        message: "The map crashed after signing in.",
+        pageUrl: "/map",
+        requesterUserId: "user-2",
+        source: "settings",
+        subject: "Map crash"
+      }
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+
+    expect(body.to).toEqual(["reviewer@example.com"]);
+    expect(body.reply_to).toBe("reports@cruush.app");
+    expect(body.subject).toBe("Re: [support] bug: Map crash");
+    expect(body.html).toContain("We fixed the issue");
+    expect(body.text).toContain("Original message");
   });
 });

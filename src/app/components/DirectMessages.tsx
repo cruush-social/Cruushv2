@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ChevronRight, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { CruushIcon } from './CruushIconImage';
@@ -14,7 +14,8 @@ import {
   type ConversationThread,
   type ConversationTimer,
 } from '../lib/messagesApi';
-import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
+import { getMyCruushActivity, sendCruush, type MutualCruushActivityItem } from '../lib/cruushApi';
+import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import posthog from '../lib/posthog';
 
@@ -58,6 +59,7 @@ function normalizeConversation(raw: any): ConversationThread {
       name: raw?.user?.name ?? 'cruush user',
       pronouns: raw?.user?.pronouns ?? '',
       photo: raw?.user?.photo ?? null,
+      photoExplicit: raw?.user?.photoExplicit,
     },
     distance: raw?.distance ?? 'Nearby',
     updatedAt: raw?.updatedAt ?? raw?.timestamp ?? new Date().toISOString(),
@@ -78,7 +80,7 @@ function canDeleteConversation(conversation: ConversationThread) {
   return conversation.kind !== 'group' || ['owner', 'admin'].includes(conversation.currentUserRole ?? '');
 }
 
-const activityBadgeClassName = 'rounded-md border border-primary/20 bg-primary/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-primary';
+const mutualBadgeClassName = 'rounded-md border border-[#8B5CF6]/45 bg-[#8B5CF6]/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#DCC7FF]';
 const quietBadgeClassName = 'rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/52';
 
 function getConversationHeartTheme(conversation: ConversationThread) {
@@ -87,6 +89,45 @@ function getConversationHeartTheme(conversation: ConversationThread) {
   }
 
   return 'nearby';
+}
+
+type DirectSortMode = 'seeking' | 'distance' | 'lastOnline';
+
+function parseDistanceMiles(distance: string) {
+  if (/nearby/i.test(distance)) {
+    return 0;
+  }
+
+  const match = distance.match(/[\d.]+/);
+  return match ? Number(match[0]) : Number.POSITIVE_INFINITY;
+}
+
+function parseLastActiveRank(lastActive: string) {
+  const normalized = lastActive.toLowerCase();
+  if (normalized === 'now' || normalized.includes('just')) {
+    return 0;
+  }
+
+  const amount = Number(normalized.match(/\d+/)?.[0] ?? 9999);
+  if (normalized.includes('m')) return amount;
+  if (normalized.includes('h')) return amount * 60;
+  if (normalized.includes('d')) return amount * 24 * 60;
+  return 9999;
+}
+
+function seekingSortScore(user: DiscoveryUser) {
+  return (
+    (user.lookingFor?.length ?? 0) * 3 +
+    (user.vibes?.length ?? 0) * 2 +
+    (user.hasSharedCrowd ? 6 : 0)
+  );
+}
+
+function describeDiscoveryUser(user: DiscoveryUser) {
+  return [user.pronouns, user.age ? String(user.age) : '', ...(user.presentation ?? []), ...(user.identities ?? [])]
+    .filter(Boolean)
+    .slice(0, 5)
+    .join(' · ');
 }
 
 export default function DirectMessages() {
@@ -104,6 +145,8 @@ export default function DirectMessages() {
   const [groupTimer, setGroupTimer] = useState<ConversationTimer>('24h');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [mutualOptions, setMutualOptions] = useState<MutualCruushActivityItem[]>([]);
+  const [directOptions, setDirectOptions] = useState<DiscoveryUser[]>([]);
+  const [requestedCruushIds, setRequestedCruushIds] = useState<string[]>([]);
   const [groupError, setGroupError] = useState<string | null>(null);
   const [groupLoading, setGroupLoading] = useState(false);
   const [directError, setDirectError] = useState<string | null>(null);
@@ -111,6 +154,7 @@ export default function DirectMessages() {
   const [groupCreating, setGroupCreating] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const dlModeActive = useDlMode();
 
   useEffect(() => {
     void fetchConversations();
@@ -196,10 +240,23 @@ export default function DirectMessages() {
     setComposeChooserOpen(false);
     setGroupComposerOpen(false);
     setDirectComposerOpen(true);
-    await loadMessageableMutuals({
-      setComposerError: setDirectError,
-      setComposerLoading: setDirectLoading,
-    });
+    setDirectError(null);
+    setDirectLoading(true);
+
+    try {
+      const [nearbyUsers, activity] = await Promise.all([
+        getNearbyUsers(null, undefined, { limit: 100 }),
+        getMyCruushActivity().catch(() => ({ mutual: [] })),
+      ]);
+      setDirectOptions(nearbyUsers.filter((user) => user.relationship?.canMessage !== false));
+      setMutualOptions((activity.mutual ?? []).filter((item) => item.canMessage !== false));
+    } catch (error) {
+      console.error('Error loading people available for direct messaging:', error);
+      setDirectOptions([]);
+      setDirectError(error instanceof Error ? error.message : 'Failed to load people to message.');
+    } finally {
+      setDirectLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -361,10 +418,15 @@ export default function DirectMessages() {
       ) : null}
 
       {directComposerOpen ? (
-        <MutualDirectOverlay
+        <DirectUserOverlay
           error={directError}
           loading={directLoading}
+          users={directOptions}
           mutuals={mutualOptions}
+          requestedCruushIds={requestedCruushIds}
+          onAskMutual={(user) => {
+            setRequestedCruushIds((current) => current.includes(user.id) ? current : [...current, user.id]);
+          }}
           onClose={resetDirectComposer}
           onMessage={handleStartDirectChat}
         />
@@ -439,6 +501,7 @@ export default function DirectMessages() {
                     <HeartPhoto
                       className="w-10 shrink-0"
                       label={`${item.user.name} avatar`}
+                      masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
                       photo={item.user.photo}
                       userId={item.user.id}
                       fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
@@ -482,6 +545,7 @@ export default function DirectMessages() {
                     <HeartPhoto
                       className="w-12"
                       label={`${conversation.user.name} avatar`}
+                      masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
                       photo={conversation.user.photo}
                       userId={conversation.user.id}
                       theme={getConversationHeartTheme(conversation)}
@@ -537,6 +601,7 @@ export default function DirectMessages() {
                     <HeartPhoto
                       className="w-20 shrink-0"
                       label={`${conversation.user.name} avatar`}
+                      masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
                       photo={conversation.user.photo}
                       userId={conversation.user.id}
                       theme={getConversationHeartTheme(conversation)}
@@ -553,7 +618,7 @@ export default function DirectMessages() {
                           {conversation.user.name}
                         </p>
                         {conversation.mutual ? (
-                          <Badge variant="outline" className={activityBadgeClassName}>
+                          <Badge variant="outline" className={mutualBadgeClassName}>
                             Mutual
                           </Badge>
                         ) : null}
@@ -563,7 +628,7 @@ export default function DirectMessages() {
                           </Badge>
                         ) : null}
                         {conversation.currentUserRole && conversation.currentUserRole !== 'member' ? (
-                          <Badge variant="outline" className={activityBadgeClassName}>
+                          <Badge variant="outline" className={quietBadgeClassName}>
                             {conversation.currentUserRole}
                           </Badge>
                         ) : null}
@@ -597,7 +662,7 @@ export default function DirectMessages() {
 
                       <div className="mt-3 flex flex-wrap gap-2">
                         {conversation.tags.slice(0, 2).map((tag) => (
-                          <Badge key={tag} variant="outline" className={activityBadgeClassName}>
+                          <Badge key={tag} variant="outline" className={quietBadgeClassName}>
                             {tag}
                           </Badge>
                         ))}
@@ -698,8 +763,8 @@ function ComposeChoiceOverlay({
             className="w-full rounded-2xl border border-border bg-card/80 p-4 text-left transition-colors hover:bg-accent/60"
             onClick={onStartDirect}
           >
-            <span className="block">Start chat with mutual</span>
-            <span className="mt-1 block text-sm text-muted-foreground">Pick one mutual cruush and open a direct chat.</span>
+            <span className="block">Start chat with someone</span>
+            <span className="mt-1 block text-sm text-muted-foreground">Pick someone nearby and open a direct chat.</span>
           </button>
           <button
             type="button"
@@ -715,68 +780,210 @@ function ComposeChoiceOverlay({
   );
 }
 
-function MutualDirectOverlay({
+function DirectUserOverlay({
   error,
   loading,
+  users,
   mutuals,
+  requestedCruushIds,
+  onAskMutual,
   onClose,
   onMessage,
 }: {
   error: string | null;
   loading: boolean;
+  users: DiscoveryUser[];
   mutuals: MutualCruushActivityItem[];
+  requestedCruushIds: string[];
+  onAskMutual: (user: DiscoveryUser) => void;
   onClose: () => void;
   onMessage: (userId: string) => void;
 }) {
+  const dlModeActive = useDlMode();
+  const [activeComposerTab, setActiveComposerTab] = useState<'public' | 'mutuals'>('public');
+  const [sortMode, setSortMode] = useState<DirectSortMode>('seeking');
+  const [requestingUserId, setRequestingUserId] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const publicUsers = useMemo(() => users.filter((user) => user.relationship?.mutualCruush !== true), [users]);
+  const sortedPublicUsers = useMemo(() => {
+    return [...publicUsers].sort((a, b) => {
+      if (sortMode === 'distance') {
+        return parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
+      }
+      if (sortMode === 'lastOnline') {
+        return parseLastActiveRank(a.lastActive) - parseLastActiveRank(b.lastActive);
+      }
+
+      return seekingSortScore(b) - seekingSortScore(a) || parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
+    });
+  }, [publicUsers, sortMode]);
+
+  const requestMutual = async (user: DiscoveryUser) => {
+    if (requestingUserId || requestedCruushIds.includes(user.id)) {
+      return;
+    }
+
+    setRequestingUserId(user.id);
+    setRequestError(null);
+
+    try {
+      await sendCruush(user.id, {
+        name: user.name,
+        pronouns: user.pronouns,
+        photo: user.photo,
+      });
+      onAskMutual(user);
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : 'Failed to ask for a mutual cruush.');
+    } finally {
+      setRequestingUserId(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">mutual chat</p>
-            <h3 className="text-2xl">Choose a mutual</h3>
+            <h3 className="text-2xl">Choose someone to message</h3>
           </div>
           <Button type="button" variant="ghost" size="icon" aria-label="Close mutual picker" onClick={onClose}>
             <X className="size-4" />
           </Button>
         </div>
 
+        <Tabs value={activeComposerTab} onValueChange={(value) => setActiveComposerTab(value as 'public' | 'mutuals')}>
+          <TabsList className="grid h-auto w-full grid-cols-2 rounded-lg border border-white/10 bg-background/25 p-1">
+            <TabsTrigger value="public" className="h-10 rounded-md text-sm text-white/72">Public</TabsTrigger>
+            <TabsTrigger value="mutuals" className="h-10 rounded-md text-sm text-white/72">Mutuals</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {activeComposerTab === 'public' ? (
+          <div className="flex flex-wrap gap-2">
+            {([
+              ['seeking', 'Seeking filters'],
+              ['distance', 'Distance'],
+              ['lastOnline', 'Last online'],
+            ] as const).map(([value, label]) => (
+              <Button
+                key={value}
+                type="button"
+                size="sm"
+                variant={sortMode === value ? 'default' : 'outline'}
+                className="rounded-full"
+                onClick={() => setSortMode(value)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+
         {error ? (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
           </div>
         ) : null}
-
-        {loading ? (
-          <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
-            Loading mutuals...
+        {requestError ? (
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {requestError}
           </div>
         ) : null}
 
-        {!loading && mutuals.length === 0 ? (
+        {loading ? (
+          <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
+            Loading people...
+          </div>
+        ) : null}
+
+        {!loading && activeComposerTab === 'public' && sortedPublicUsers.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-            No mutual cruushes available.
+            No nearby people are available right now.
+          </div>
+        ) : null}
+        {!loading && activeComposerTab === 'mutuals' && mutuals.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
+            No mutual cruushes are available right now.
           </div>
         ) : null}
 
         <div className="space-y-2">
-          {mutuals.map((item) => (
+          {activeComposerTab === 'public' ? sortedPublicUsers.map((user) => {
+            const requested = requestedCruushIds.includes(user.id);
+            return (
+              <div
+                key={user.id}
+                className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card/70 p-3 text-left transition-colors hover:bg-accent/60"
+              >
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  onClick={() => onMessage(user.id)}
+                >
+                  <HeartPhoto
+                    className="w-20 shrink-0"
+                    label={`${user.name} avatar`}
+                    masked={shouldMaskPhoto(dlModeActive, user.photoExplicit)}
+                    photo={user.photo}
+                    userId={user.id}
+                    fallback={<div className="text-base text-white/80">{getConversationInitials(user.name)}</div>}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-base">{user.name}</span>
+                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{describeDiscoveryUser(user) || user.distance}</span>
+                    <span className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className={quietBadgeClassName}>{user.distance}</Badge>
+                      {user.hasSharedCrowd ? <Badge variant="outline" className={mutualBadgeClassName}>Crowd</Badge> : null}
+                      {user.latestFeedPostPreview ? (
+                        <Badge variant="outline" className="max-w-[12rem] border-white/10 bg-white/[0.04] text-[10px] text-white/62">
+                          <CruushIcon name="map" className="mr-1 inline size-3 opacity-80" />
+                          {user.latestFeedPostPreview}
+                        </Badge>
+                      ) : null}
+                    </span>
+                  </span>
+                </button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 rounded-full border-[#8B5CF6]/45 bg-[#8B5CF6]/12 text-[#DCC7FF] hover:bg-[#8B5CF6]/18"
+                  disabled={requested || requestingUserId === user.id}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void requestMutual(user);
+                  }}
+                >
+                  {requested ? 'Sent' : 'Ask mutual'}
+                </Button>
+              </div>
+            );
+          }) : mutuals.map((item) => (
             <button
               key={item.user.id}
               type="button"
-              className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card/70 p-3 text-left transition-colors hover:bg-accent/60"
+              className="flex w-full items-center gap-3 rounded-2xl border border-[#8B5CF6]/35 bg-card/70 p-3 text-left transition-colors hover:bg-accent/60"
               onClick={() => onMessage(item.user.id)}
             >
               <HeartPhoto
-                className="w-14 shrink-0"
+                className="w-20 shrink-0"
                 label={`${item.user.name} avatar`}
+                masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
                 photo={item.user.photo}
+                theme="mutual"
                 userId={item.user.id}
-                fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
+                fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
               />
-              <span className="min-w-0">
-                <span className="block truncate">{item.user.name}</span>
-                <span className="block text-xs text-muted-foreground">{item.distance}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-base">{item.user.name}</span>
+                <span className="mt-0.5 block truncate text-xs text-muted-foreground">{[item.user.pronouns, item.distance].filter(Boolean).join(' · ')}</span>
+                <span className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Badge variant="outline" className={mutualBadgeClassName}>Mutual</Badge>
+                  {item.mutualCrowds.map((crowd) => (
+                    <Badge key={crowd} variant="outline" className={quietBadgeClassName}>{crowd}</Badge>
+                  ))}
+                </span>
               </span>
             </button>
           ))}

@@ -11,6 +11,7 @@ export type ConversationThread = {
     name: string;
     pronouns: string;
     photo: string | null;
+    photoExplicit?: boolean;
   };
   distance: string;
   updatedAt: string;
@@ -43,6 +44,7 @@ export type MessageSender = {
   name: string;
   pronouns: string;
   photo: string | null;
+  photoExplicit?: boolean;
 };
 
 export type RemoteChatMessage = {
@@ -83,6 +85,7 @@ export type GroupMemberRecord = {
   name: string;
   pronouns: string;
   photo: string | null;
+  photoExplicit?: boolean;
   role: 'owner' | 'admin' | 'member';
   joinedAt: string;
 };

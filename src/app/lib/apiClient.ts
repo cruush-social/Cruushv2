@@ -21,7 +21,21 @@ export class ApiClientError extends Error {
 }
 
 export function getApiBaseUrl() {
-  return (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+  const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'cruush.app' || window.location.hostname === 'www.cruush.app') {
+      return 'https://api.cruush.app';
+    }
+    if (window.location.hostname === 'staging.cruush.app') {
+      return 'https://api-staging.cruush.app';
+    }
+  }
+
+  return '';
 }
 
 export function resolveApiUrl(pathOrUrl: string | null | undefined) {
@@ -79,11 +93,16 @@ export async function requestApi<T>(path: string, init?: RequestInit): Promise<T
     headers.set('content-type', 'application/json');
   }
 
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers,
-    credentials: 'include',
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      headers,
+      credentials: 'include',
+    });
+  } catch {
+    throw new ApiClientError(503, 'API_UNAVAILABLE', 'The cruush API is unavailable.');
+  }
 
   return parseApiResponse<T>(response);
 }

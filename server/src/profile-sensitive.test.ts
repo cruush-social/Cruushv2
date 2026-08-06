@@ -58,7 +58,7 @@ describe("profile-sensitive encryption", () => {
     expect(decryptSensitiveProfile(config, first)).toEqual(sensitiveProfile);
   });
 
-  it("fails profile-sensitive decryption when ciphertext metadata is tampered", () => {
+  it("fails closed when profile-sensitive ciphertext metadata is tampered", () => {
     const encrypted = encryptSensitiveProfile(config, {
       is_trans: true,
       crowds: ["T4T"],
@@ -68,17 +68,17 @@ describe("profile-sensitive encryption", () => {
       custom_hiv_status: ""
     });
 
-    expect(() => decryptSensitiveProfile(config, {
+    expect(decryptSensitiveProfile(config, {
       ...encrypted,
       profile_sensitive_auth_tag: Buffer.alloc(16).toString("base64")
-    })).toThrow();
-    expect(() => decryptSensitiveProfile(config, {
+    })).toBeNull();
+    expect(decryptSensitiveProfile(config, {
       ...encrypted,
       profile_sensitive_key_version: "v1"
-    })).toThrow();
+    })).toBeNull();
   });
 
-  it("encrypts visibility rules with distinct nonces and rejects tampering", () => {
+  it("encrypts visibility rules with distinct nonces and fails closed on tampering", () => {
     const visibilityRules: ProfileVisibilityRules = {
       active_crowd_modes: ["T4T"],
       age_range: [25, 45] as [number, number],
@@ -104,10 +104,10 @@ describe("profile-sensitive encryption", () => {
     expect(first.profile_visibility_key_version).toBe("v2");
     expect(first.profile_visibility_nonce).not.toBe(second.profile_visibility_nonce);
     expect(decryptProfileVisibility(config, first)).toEqual(visibilityRules);
-    expect(() => decryptProfileVisibility(config, {
+    expect(decryptProfileVisibility(config, {
       ...first,
       profile_visibility_ciphertext: second.profile_visibility_ciphertext
-    })).toThrow();
+    })).toBeNull();
   });
 
   it("normalizes legacy Sapphic crowd values while keeping old blind tokens matchable", () => {

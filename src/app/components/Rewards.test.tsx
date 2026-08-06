@@ -29,8 +29,8 @@ const summary = {
     longest: 12,
     todayQualified: true,
     nextRecurringInDays: 1,
-    nextLongBonusInDays: 2,
-    nextLoginBonusAtDays: 8,
+    nextLongBonusInDays: 1,
+    nextLoginBonusAtDays: 7,
   },
   promotionalAccess: {
     active: true,
@@ -49,7 +49,7 @@ const summary = {
   timezone: 'America/Chicago',
   rules: {
     recurringStreakDays: 7,
-    recurringStreakRewardDays: 1,
+    recurringStreakRewardDays: 7,
     longStreakDays: 1,
     longStreakBonusDays: 1,
     referralRewardDays: 7,
@@ -95,8 +95,8 @@ describe('Rewards', () => {
 
     expect(await screen.findByText('6-day streak')).toBeInTheDocument();
     expect(screen.getByText('Opening the app or logging in alone does not count.', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('Next log in bonus')).toBeInTheDocument();
-    expect(screen.getByText('8 active days')).toBeInTheDocument();
+    expect(screen.getByText('Next 7-day reward')).toBeInTheDocument();
+    expect(screen.getByText('7 days each time')).toBeInTheDocument();
     expect(screen.queryByText('Real activity. Real referrals. No spam.')).not.toBeInTheDocument();
     expect(screen.getByText('Your first confirmed reward will appear here.')).toBeInTheDocument();
     expect(screen.getByDisplayValue(summary.referrals.link)).toHaveAttribute('readonly');

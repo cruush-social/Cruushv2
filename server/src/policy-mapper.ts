@@ -157,11 +157,11 @@ const permanentAccessRestrictions: FeatureRestriction[] = [
   reasonCode: "minor_face_detected"
 }));
 
-function permanentMinorFaceBan(label: ProviderLabel): PolicyDecision {
+function minorFaceReviewSuspension(label: ProviderLabel): PolicyDecision {
   return {
     ...zeroTolerance(label, "minor_face_detected"),
     feature_restrictions: permanentAccessRestrictions,
-    user_message_code: "minor_face_permanent_ban"
+    user_message_code: "minor_face_review_suspension"
   };
 }
 
@@ -208,17 +208,29 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
     return rejectProfilePhotoWithoutAdultHuman(label);
   }
 
-  if (normalizedLabel === "animal" || normalizedLabel === "screenshot_or_interface") {
+  // Animals and screenshots are rejected everywhere, private messages included.
+  // Photos of objects still pass through profile_photo_not_adult_human above,
+  // so a toy sends and a pet or a screenshot does not.
+  if (normalizedLabel === "screenshot_or_interface") {
     return thresholdedReject(label, {
       evidenceValue: 75,
       trustImpact: 0,
-      reasonCode: normalizedLabel === "animal" ? "animal_image_content" : "screenshot_image_content",
+      reasonCode: "screenshot_image_content",
+      userMessageCode: "content_rejected"
+    });
+  }
+
+  if (normalizedLabel === "animal") {
+    return thresholdedReject(label, {
+      evidenceValue: 75,
+      trustImpact: 0,
+      reasonCode: "animal_image_content",
       userMessageCode: "content_rejected"
     });
   }
 
   if (normalizedLabel === "minor_present") {
-    return permanentMinorFaceBan(label);
+    return minorFaceReviewSuspension(label);
   }
 
   if (normalizedLabel === "minor_age_ambiguous") {
@@ -479,6 +491,20 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
     input.providerResult.labels.length > 0 &&
     input.providerResult.labels.every((label) => label.normalized_label === "profile_photo_not_adult_human")
   );
+  const isPrivateAllowedImageOnly = (
+    isPrivateMessageSurface(input.surface) &&
+    input.contentType === "image" &&
+    input.providerResult.labels.length > 0 &&
+    input.providerResult.labels.every((label) => [
+      "adult_human_body",
+      "human_present",
+      "adult_nudity",
+      "adult_explicit",
+      "profile_photo_not_adult_human",
+      "animal",
+      "screenshot_or_interface"
+    ].includes(label.normalized_label))
+  );
   const isAllowedAdultProfilePhoto = (
     input.surface === "profile_photo" &&
     input.contentType === "image" &&
@@ -490,7 +516,7 @@ export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecis
     )
   );
 
-  if (decision.decision === "allow" && (isPrivateAdultImageOnly || isPrivateNonHumanImageOnly || isAllowedAdultProfilePhoto)) {
+  if (decision.decision === "allow" && (isPrivateAdultImageOnly || isPrivateNonHumanImageOnly || isPrivateAllowedImageOnly || isAllowedAdultProfilePhoto)) {
     return decision;
   }
 

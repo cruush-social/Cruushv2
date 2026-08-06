@@ -5,13 +5,13 @@ import { HEART_PIN_PHOTO_PATH } from '../lib/heartPin';
 
 describe('HeartPhoto', () => {
   it('renders without glow by default', () => {
-    render(<HeartPhoto label="Default preview" />);
+    render(<HeartPhoto label="Default preview" masked />);
 
     expect(screen.getByRole('img', { name: 'Default preview' })).not.toHaveAttribute('style');
   });
 
   it('uses the same red gradient as nearby map hearts by default', () => {
-    render(<HeartPhoto label="Incoming cruush preview" />);
+    render(<HeartPhoto label="Incoming cruush preview" masked />);
 
     const stops = Array.from(screen.getByRole('img', { name: 'Incoming cruush preview' }).querySelectorAll('stop'))
       .map((stop) => stop.getAttribute('stop-color'));
@@ -20,7 +20,7 @@ describe('HeartPhoto', () => {
   });
 
   it('uses the blue current-user theme when requested', () => {
-    render(<HeartPhoto label="Your map pin preview" theme="current" />);
+    render(<HeartPhoto label="Your map pin preview" masked theme="current" />);
 
     const heart = screen.getByRole('img', { name: 'Your map pin preview' });
     const stops = Array.from(heart.querySelectorAll('stop'))
@@ -31,7 +31,7 @@ describe('HeartPhoto', () => {
   });
 
   it('keeps current-user no-photo hearts blue even with a user id', () => {
-    render(<HeartPhoto label="Your feed pin preview" theme="current" userId="user-a" />);
+    render(<HeartPhoto label="Your feed pin preview" masked theme="current" userId="user-a" />);
 
     const heart = screen.getByRole('img', { name: 'Your feed pin preview' });
     const stops = Array.from(heart.querySelectorAll('stop'))
@@ -72,5 +72,11 @@ describe('HeartPhoto', () => {
     expect(photo?.getAttribute('clip-path')).toContain('heart-photo-clip-');
     expect(heart.querySelector('.cruush-heart-glass-theme-border')).toHaveAttribute('stroke', '#FF0072');
     expect(heart.querySelector('.cruush-heart-glass-rim')).toBeInTheDocument();
+  });
+
+  it('does not resolve a masked photo URL', () => {
+    render(<HeartPhoto label="Masked photo" masked photo="https://example.com/private.jpg" />);
+
+    expect(screen.getByRole('img', { name: 'Masked photo' }).querySelector('image')).not.toBeInTheDocument();
   });
 });

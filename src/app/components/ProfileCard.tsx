@@ -15,7 +15,7 @@ import {
 } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
-import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
 
 interface ProfileCardProps {

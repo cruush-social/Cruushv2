@@ -7,7 +7,7 @@ import {
   prepareTextForModerationProvider,
   shouldModerateMessageTextWithProvider
 } from "./message-keyword-prefilter.js";
-import { createModerationProvider } from "./moderation-provider.js";
+import { createModerationProvider, MockModerationProvider } from "./moderation-provider.js";
 import {
   type ModerationContentType,
   type ModerationSurface,
@@ -25,7 +25,6 @@ import {
 } from "./photo-upload-availability.js";
 import { applyPolicyDecision } from "./trust-engine.js";
 import {
-  persistSevereAccessBan,
   type SevereAccessBanIdentity
 } from "./severe-access-bans.js";
 
@@ -230,9 +229,12 @@ async function recordContentReview(app: FastifyInstance, input: ContentReviewInp
   return id;
 }
 
-function userMessageForDecision(decision: PolicyDecision) {
-  if (decision.user_message_code === "minor_face_permanent_ban") {
-    return "A child face was detected. This account has been permanently banned.";
+export function userMessageForDecision(
+  decision: PolicyDecision,
+  contentType: ModerationContentType = "image"
+) {
+  if (decision.user_message_code === "minor_face_review_suspension") {
+    return "A minor face was detected. This account has been suspended for human review.";
   }
 
   if (decision.user_message_code === "profile_photo_not_adult_human") {
@@ -244,7 +246,11 @@ function userMessageForDecision(decision: PolicyDecision) {
   }
 
   if (decision.user_message_code === "moderation_delayed") {
-    return "Automated moderation is temporarily unavailable. Try again later.";
+    if (contentType === "text") {
+      return "We could not check this text for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
+    }
+
+    return "We could not check this photo for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
   }
 
   if (decision.user_message_code === "feed_content_rejected") {
@@ -292,13 +298,11 @@ function providerErrorResult(providerName: string, startedAt: number, error: unk
   };
 }
 
+// Rekognition backs Stream up whenever it is enabled. Previously this also required the
+// Stream automod flag or an active alpha test, so production ran with no fallback at all.
 function canUseProfilePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
   return surface === "profile_photo" &&
-    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
-    (
-      app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
-      activeAlphaPhotoUploadBypass(app.config)
-    );
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
 }
 
 function isMessagePhotoSurface(surface: ModerationSurface) {
@@ -307,15 +311,27 @@ function isMessagePhotoSurface(surface: ModerationSurface) {
 
 function canUseMessagePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
   return isMessagePhotoSurface(surface) &&
-    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true &&
-    (
-      app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true ||
-      activeAlphaPhotoUploadBypass(app.config)
-    );
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+}
+
+function isPhotoUploadSurface(surface: ModerationSurface) {
+  return surface === "profile_photo" || isMessagePhotoSurface(surface);
+}
+
+// Failing open is limited to the explicit alpha-test bypass and never applies to
+// ordinary production uploads.
+//
+// A total provider outage yields no labels at all, so there is no way to tell adult
+// nudity - which this app allows - from an animal, gore, or a hate symbol, which it
+// never allows. Publishing blind would admit all of them, and on profile photos it
+// also skips the adult-human gate below. Rejecting during an outage is recoverable;
+// a published hate symbol is not.
+function canFailOpenOnProviderOutage(app: FastifyInstance, surface: ModerationSurface) {
+  return canUseAlphaPhotoUploadBypass(app, surface);
 }
 
 function canUseAlphaPhotoUploadBypass(app: FastifyInstance, surface: ModerationSurface) {
-  return (surface === "profile_photo" || isMessagePhotoSurface(surface)) &&
+  return isPhotoUploadSurface(surface) &&
     activeAlphaPhotoUploadBypass(app.config);
 }
 
@@ -508,7 +524,7 @@ async function handlePolicyDecision(
       decision
     });
 
-    throw new ApiError(503, "MODERATION_UNAVAILABLE", userMessageForDecision(decision));
+    throw new ApiError(503, "MODERATION_UNAVAILABLE", userMessageForDecision(decision, contentType));
   }
 
   const contentReviewId = await recordContentReview(app, {
@@ -533,24 +549,52 @@ async function handlePolicyDecision(
     }
   });
 
-  if (decision.reason_code === "minor_face_detected") {
-    await persistSevereAccessBan(
-      app.db,
-      userId,
-      decision.reason_code,
-      options.severeAccessBanIdentity
-    );
-  }
-
   throw new ApiError(
     decision.enforcement_action?.type === "suspend" ? 403 : 400,
     "CONTENT_REJECTED",
-    userMessageForDecision(decision)
+    userMessageForDecision(decision, contentType)
   );
 }
 
+export async function moderateFeedTextWithLocalFallback(
+  app: FastifyInstance,
+  input: ModerateTextInput,
+  unavailableProviderResult: ProviderModerationResult
+) {
+  const fallbackResult = await new MockModerationProvider().moderateText({
+    ...input,
+    text: prepareTextForModerationProvider(input.text)
+  });
+
+  const providerResult: ProviderModerationResult = {
+    ...fallbackResult,
+    provider: "local_feed_text_fallback",
+    provider_request_id: `local-feed-text-fallback-${randomUUID()}`,
+    raw_result: {
+      ...(fallbackResult.raw_result ?? {}),
+      fallback: {
+        reason: "stream_text_moderation_unavailable",
+        provider: unavailableProviderResult.provider,
+        providerRequestId: unavailableProviderResult.provider_request_id,
+        status: unavailableProviderResult.status ?? null,
+        error: unavailableProviderResult.error ?? null
+      }
+    }
+  };
+
+  app.log?.warn({
+    surface: input.surface,
+    provider: unavailableProviderResult.provider,
+    providerRequestId: unavailableProviderResult.provider_request_id,
+    providerStatus: unavailableProviderResult.status,
+    providerError: unavailableProviderResult.error
+  }, "Stream text moderation unavailable; used local feed text fallback");
+
+  return providerResult;
+}
+
 export async function moderateTextOrReject(app: FastifyInstance, input: ModerateTextInput) {
-  const providerResult: ProviderModerationResult = containsBlockedRacialSlur(input.text)
+  const providerResultFromPrimary: ProviderModerationResult = containsBlockedRacialSlur(input.text)
     ? {
         provider: "local_text_policy",
         provider_request_id: "local-text-policy-blocked-racial-slur",
@@ -569,6 +613,9 @@ export async function moderateTextOrReject(app: FastifyInstance, input: Moderate
         ...input,
         text: prepareTextForModerationProvider(input.text)
       });
+  const providerResult = input.surface === "feed" && providerResultUnavailable(providerResultFromPrimary)
+    ? await moderateFeedTextWithLocalFallback(app, input, providerResultFromPrimary)
+    : providerResultFromPrimary;
   const decision = mapProviderResultToPolicy({
     surface: input.surface,
     contentType: "text",
@@ -619,7 +666,6 @@ export async function moderateImageOrReject(
   options: { allowProfilePhotoManualReview?: boolean } = {}
 ) {
   const provider = createModerationProvider(app.config);
-  const useAlphaPhotoUploadBypass = canUseAlphaPhotoUploadBypass(app, input.surface);
   const useProfilePhotoRekognitionFallback = canUseProfilePhotoRekognitionFallback(app, input.surface);
   const useMessagePhotoRekognitionFallback = canUseMessagePhotoRekognitionFallback(app, input.surface);
   const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback || useMessagePhotoRekognitionFallback;
@@ -629,10 +675,14 @@ export async function moderateImageOrReject(
   try {
     providerResult = await provider.moderateImage(input);
   } catch (error) {
-    if (!useAlphaPhotoUploadBypass) {
-      throw error;
-    }
-
+    // Always convert a thrown provider call into an error result rather than rethrowing.
+    // Rethrowing surfaced a bare 500; carrying on lets the Rekognition fallback below
+    // still score the image, and if that fails too the upload is refused with a message
+    // that actually tells the user what happened.
+    app.log.error(
+      { err: error, provider: provider.name, surface: input.surface },
+      "image moderation provider failed"
+    );
     providerResult = providerErrorResult(provider.name, startedAt, error);
   }
 
@@ -653,39 +703,40 @@ export async function moderateImageOrReject(
     contentType: "image",
     providerResult
   });
-  let resolvedProviderResult = providerResult;
+  const resolvedProviderResult = providerResult;
 
-  if (useAlphaPhotoUploadBypass && isProviderUnavailableDecision(decision)) {
-    resolvedProviderResult = alphaPhotoUploadBypassResult(providerResult);
-    decision = mapProviderResultToPolicy({
-      surface: input.surface,
-      contentType: "image",
-      providerResult: resolvedProviderResult
-    });
+  // Every provider is unreachable, including the Rekognition fallback, so the image was
+  // never actually screened. Refuse it rather than publishing something no scanner has
+  // looked at. `handlePolicyDecision` turns this into a 503 whose message tells the user
+  // to try again or contact reports@cruush.app.
+  if (isProviderUnavailableDecision(decision)) {
+    app.log.error(
+      {
+        provider: providerResult.provider,
+        surface: input.surface,
+        userId: input.userId,
+        providerError: providerResult.error ?? null
+      },
+      "photo moderation unavailable, refusing upload"
+    );
   }
+
+  let gatedProviderResult = resolvedProviderResult;
 
   if (input.surface === "profile_photo") {
-    const skipAdultHumanGateForAlphaUpload = useAlphaPhotoUploadBypass &&
-      decision.decision === "allow" &&
-      !hasHumanProof(resolvedProviderResult);
+    const gate = resolveProfilePhotoAdultHumanGate(gatedProviderResult, decision, {
+      allowManualReview: options.allowProfilePhotoManualReview === true
+    });
 
-    if (skipAdultHumanGateForAlphaUpload) {
-      resolvedProviderResult = alphaPhotoUploadBypassResult(resolvedProviderResult);
-    } else {
-      const gate = resolveProfilePhotoAdultHumanGate(resolvedProviderResult, decision, {
-        allowManualReview: options.allowProfilePhotoManualReview === true
-      });
-
-      if (gate.status === "manual_review_required") {
-        return gate;
-      }
-
-      decision = gate.decision;
-      resolvedProviderResult = gate.providerResult;
+    if (gate.status === "manual_review_required") {
+      return gate;
     }
+
+    decision = gate.decision;
+    gatedProviderResult = gate.providerResult;
   }
 
-  return handlePolicyDecision(app, input.userId, input.surface, "image", resolvedProviderResult, decision, {
+  return handlePolicyDecision(app, input.userId, input.surface, "image", gatedProviderResult, decision, {
     contentId: input.contentId,
     contentRef: input.contentRef,
     severeAccessBanIdentity: input.severeAccessBanIdentity

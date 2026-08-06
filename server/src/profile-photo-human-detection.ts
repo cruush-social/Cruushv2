@@ -14,7 +14,12 @@ import sharp from "sharp";
 import type { AppConfig } from "./config.js";
 import type { ProviderLabel, ProviderModerationResult } from "./moderation-types.js";
 
-type RekognitionImageClient = Pick<RekognitionClient, "send">;
+type RekognitionSendOptions = { abortSignal?: AbortSignal };
+type RekognitionImageClient = {
+  send(command: DetectFacesCommand, options?: RekognitionSendOptions): Promise<DetectFacesCommandOutput>;
+  send(command: DetectLabelsCommand, options?: RekognitionSendOptions): Promise<DetectLabelsCommandOutput>;
+  send(command: DetectModerationLabelsCommand, options?: RekognitionSendOptions): Promise<DetectModerationLabelsCommandOutput>;
+};
 type RekognitionSafetyConfig = Pick<
   AppConfig,
   | "PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE"
@@ -29,6 +34,10 @@ const MINOR_LABEL_PATTERN = /\b(?:baby|babies|boy|boys|child|children|girl|girls
 const NUDITY_MODERATION_LABEL_PATTERN = /\b(?:explicit nudity|nudity|non-explicit nudity|partial nudity|graphic (?:male|female) nudity|illustrated explicit nudity|sexual activity|sexual situations|sex toy|sex toys)\b/i;
 const REKOGNITION_REQUEST_MIN_CONFIDENCE = 70;
 const REKOGNITION_MODERATION_MIN_CONFIDENCE = 50;
+
+function createRekognitionImageClient(region: string): RekognitionImageClient {
+  return new RekognitionClient({ region }) as unknown as RekognitionImageClient;
+}
 
 function signalNames(label: Label) {
   return [
@@ -316,9 +325,9 @@ export async function detectImageChildFaces(
   const timeout = setTimeout(() => controller.abort(), config.PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS ?? 5000);
 
   try {
-    const rekognition = client ?? new RekognitionClient({
-      region: config.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1"
-    });
+    const rekognition = client ?? createRekognitionImageClient(
+      config.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1"
+    );
     const compatibleImageBytes = await rekognitionJpeg(imageBytes);
     const output = await rekognition.send(new DetectFacesCommand({
       Image: { Bytes: compatibleImageBytes },
@@ -355,9 +364,9 @@ export async function detectProfilePhotoHuman(
   const timeout = setTimeout(() => controller.abort(), config.PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS ?? 5000);
 
   try {
-    const rekognition = client ?? new RekognitionClient({
-      region: config.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1"
-    });
+    const rekognition = client ?? createRekognitionImageClient(
+      config.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1"
+    );
     const compatibleImageBytes = await rekognitionJpeg(imageBytes);
     const [labelsOutput, facesOutput, moderationOutput] = await Promise.all([
       rekognition.send(new DetectLabelsCommand({

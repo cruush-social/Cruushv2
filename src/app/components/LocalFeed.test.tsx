@@ -107,6 +107,7 @@ describe('LocalFeed', () => {
     createReport.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
+    window.localStorage.removeItem('cruush:dl-mode-enabled');
     getCurrentUserId.mockResolvedValue('user-1');
     getFeedSettings.mockResolvedValue({
       locationPinVisibility: 'mutuals',
@@ -197,6 +198,81 @@ describe('LocalFeed', () => {
       'pb-[calc(1.5rem+env(safe-area-inset-bottom))]',
     );
     expect(within(dialog).getByRole('button', { name: /off/i })).toBeEnabled();
+  });
+
+  it('masks explicit author photos in the feed while DL Mode is on', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-explicit',
+      content: 'explicit author post',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-2',
+        name: 'river',
+        pronouns: 'he/him',
+        photo: '/media/river.jpg',
+        photoExplicit: true,
+      },
+    }, {
+      id: 'post-safe',
+      content: 'safe author post',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-3',
+        name: 'sky',
+        pronouns: 'she/her',
+        photo: '/media/sky.jpg',
+        photoExplicit: false,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('explicit author post')).toBeInTheDocument();
+
+    const maskedPhoto = screen.getByLabelText('river preview');
+    const visiblePhoto = screen.getByLabelText('sky preview');
+
+    expect(maskedPhoto.querySelector('image')).toBeNull();
+    expect(visiblePhoto.querySelector('image')).not.toBeNull();
+  });
+
+  it('shows explicit author photos in the feed once DL Mode is off', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'false');
+    getFeedPosts.mockResolvedValue([{
+      id: 'post-explicit',
+      content: 'explicit author post',
+      expiresIn: '6h',
+      expiresAt: '2026-04-28T18:00:00.000Z',
+      createdAt: '2026-04-28T12:00:00.000Z',
+      distance: 'Nearby',
+      user: {
+        id: 'user-2',
+        name: 'river',
+        pronouns: 'he/him',
+        photo: '/media/river.jpg',
+        photoExplicit: true,
+      },
+    }]);
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('explicit author post')).toBeInTheDocument();
+    expect(screen.getByLabelText('river preview').querySelector('image')).not.toBeNull();
   });
 
   it('lets users delete their own feed posts without showing delete for other posts', async () => {
@@ -295,7 +371,7 @@ describe('LocalFeed', () => {
     expect(screen.getByText('suspicious link in this post')).toBeInTheDocument();
   });
 
-  it('renders feed profile previews at the same visible size as map pins', async () => {
+  it('renders feed profile previews without showing author pronouns', async () => {
     getFeedPosts.mockResolvedValue([{
       id: 'post-other',
       content: 'hello nearby',
@@ -321,6 +397,7 @@ describe('LocalFeed', () => {
     expect(preview.parentElement).toHaveClass('w-20');
     expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('min-w-0', 'flex-1', 'truncate');
     expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex-wrap');
+    expect(screen.queryByText('he/him')).not.toBeInTheDocument();
   });
 
   it('blocks another feed author and removes all of their posts locally', async () => {
@@ -464,9 +541,73 @@ describe('LocalFeed', () => {
 
     await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
       content: 'hello crowd',
-      expiresIn: '6h',
+      expiresIn: '24h',
       crowdTargets: ['Dyke', 'Gay'],
     }));
+  });
+
+  it('lets feed posts use seven-day or never expiry from the composer', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    createFeedPost
+      .mockResolvedValueOnce({
+        id: 'post-seven-days',
+        content: 'seven day post',
+        expiresIn: '7d',
+        expiresAt: '2026-05-05T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+        distance: 'Nearby',
+        user: {
+          id: 'user-1',
+          name: 'me',
+          pronouns: 'they/them',
+          photo: null,
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'post-never',
+        content: 'never post',
+        expiresIn: 'never',
+        expiresAt: null,
+        createdAt: '2026-04-28T12:01:00.000Z',
+        distance: 'Nearby',
+        user: {
+          id: 'user-1',
+          name: 'me',
+          pronouns: 'they/them',
+          photo: null,
+        },
+      });
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    const composer = await screen.findByTestId('local-feed-composer');
+    const input = within(composer).getByPlaceholderText('Share something with nearby people...');
+
+    fireEvent.change(input, { target: { value: 'seven day post' } });
+    fireEvent.click(within(composer).getByRole('button', { name: '7d' }));
+    fireEvent.click(within(composer).getByRole('button', { name: 'Post' }));
+
+    await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(1, {
+      content: 'seven day post',
+      expiresIn: '7d',
+      crowdTargets: [],
+    }));
+
+    fireEvent.change(input, { target: { value: 'never post' } });
+    fireEvent.click(within(composer).getByRole('button', { name: 'Never' }));
+    fireEvent.click(within(composer).getByRole('button', { name: 'Post' }));
+
+    await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(2, {
+      content: 'never post',
+      expiresIn: 'never',
+      crowdTargets: [],
+    }));
+    expect(await screen.findByText('never post')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText('Never')).toHaveLength(2));
   });
 
   it('shows the party hat beside party member names without a venue tag', async () => {

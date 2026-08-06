@@ -18,7 +18,7 @@ const rewardConfigSchema = z.object({
   recurringStreakRewardDays: z.number().int().min(1).max(90),
   longStreakDays: z.number().int().min(1).max(3650),
   longStreakBonusDays: z.number().int().min(1).max(365),
-  activityRewardCapDays: z.number().int().min(0).max(365),
+  activityRewardCapDays: z.number().int().min(0).max(365).nullable(),
   activityRewardCapPeriodDays: z.number().int().min(1).max(365),
   referralMinAccountAgeDays: z.number().int().min(0).max(365),
   referralRewardDays: z.number().int().min(1).max(365),
@@ -36,10 +36,10 @@ export type RewardActivityType = z.infer<typeof activityTypeSchema>;
 
 export const DEFAULT_REWARD_CONFIG: RewardConfig = {
   recurringStreakDays: 7,
-  recurringStreakRewardDays: 1,
+  recurringStreakRewardDays: 7,
   longStreakDays: 1,
   longStreakBonusDays: 1,
-  activityRewardCapDays: 30,
+  activityRewardCapDays: null,
   activityRewardCapPeriodDays: 30,
   referralMinAccountAgeDays: 7,
   referralRewardDays: 7,

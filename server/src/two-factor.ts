@@ -245,7 +245,7 @@ export async function startTwoFactorSetup(
       ]
     );
     const uri = generateURI({
-      issuer: "Cruush",
+      issuer: "cruush",
       label: credential.email,
       secret
     });

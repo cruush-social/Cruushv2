@@ -17,6 +17,7 @@ import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
+import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 
@@ -54,6 +55,7 @@ function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
       <HeartPhoto
         className="w-16 blur-[2px]"
         label={label}
+        masked
         theme="mutual"
         fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-20" />}
       />
@@ -67,6 +69,7 @@ function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
 }
 
 function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem | ProfileViewActivityItem; fallbackLabel: string }) {
+  const dlModeActive = useDlMode();
   if (item.locked || !item.user) {
     return <LockedHeart label={fallbackLabel} />;
   }
@@ -75,6 +78,7 @@ function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem
     <HeartPhoto
       className={activityHeartClassName}
       label={`${item.user.name} preview`}
+      masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
       photo={item.user.photo}
       userId={item.user.id}
       theme={'mutual' in item && item.mutual ? 'mutual' : 'nearby'}
@@ -183,6 +187,7 @@ function IncomingRow({
 }
 
 function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; onOpenProfile: (userId: string) => void }) {
+  const dlModeActive = useDlMode();
   if (!item.user) {
     return null;
   }
@@ -196,6 +201,7 @@ function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; on
       <HeartPhoto
         className={activityHeartClassName}
         label={`${item.user.name} preview`}
+        masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
         photo={item.user.photo}
         userId={item.user.id}
         theme={item.mutual ? 'mutual' : 'nearby'}
@@ -227,12 +233,14 @@ function MutualRow({
   onMessage: (userId: string) => void;
   onOpenProfile: (userId: string) => void;
 }) {
+  const dlModeActive = useDlMode();
   return (
     <div className="flex items-center gap-4 border-b border-white/8 py-3 last:border-b-0">
       <button type="button" className={activityHeartClassName} onClick={() => onOpenProfile(item.user.id)}>
         <HeartPhoto
           className={activityHeartClassName}
           label={`${item.user.name} preview`}
+          masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
           photo={item.user.photo}
           userId={item.user.id}
           theme="mutual"
@@ -638,6 +646,7 @@ function MutualDirectOverlay({
   onClose: () => void;
   onMessage: (userId: string) => void;
 }) {
+  const dlModeActive = useDlMode();
   return (
     <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 text-white backdrop-blur-md">
       <div className="mx-auto max-w-2xl space-y-5">
@@ -667,6 +676,7 @@ function MutualDirectOverlay({
                 <HeartPhoto
                   className="w-14 shrink-0"
                   label={`${item.user.name} avatar`}
+                  masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
                   photo={item.user.photo}
                   userId={item.user.id}
                   fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-25" />}

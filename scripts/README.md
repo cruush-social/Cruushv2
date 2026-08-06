@@ -39,13 +39,21 @@ Do not paste the token into chat, docs, screenshots, or commits. The script does
 Dry-run production release to `cruush.app`:
 
 ```bash
-node scripts/release-main-coolify.mjs --source codex/beta-launch-release-20260731 --target production --confirm-production
+node scripts/release-main-coolify.mjs --source main --target production --confirm-production
 ```
 
 Live production release to `cruush.app`:
 
 ```bash
-node scripts/release-main-coolify.mjs --source codex/beta-launch-release-20260731 --target production --confirm-production --no-dry-run
+node scripts/release-main-coolify.mjs --source main --target production --confirm-production --no-dry-run
 ```
 
 Use `--target both` when staging should deploy before production. The worktree must be clean, and checks run by default: server tests, server build, frontend tests, frontend build, and `git diff --check`.
+
+Focused guardrail test:
+
+```bash
+npm run test:release-coolify
+```
+
+That test fails if the release guard would allow the API to stay on a stale Coolify branch, a stale pinned commit, missing source-commit build args, a missing `/api/build` route, a mismatched SHA, or a non-production live stage.

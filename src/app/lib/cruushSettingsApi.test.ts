@@ -7,6 +7,7 @@ describe('cruushSettingsApi', () => {
       ok: true,
       text: vi.fn().mockResolvedValue(JSON.stringify({
         data: {
+          messageVisibility: 'mutual_cruushes',
           nsfwMessageVisibility: 'public',
           nsfwSendVisibility: 'mutual_cruushes',
           updatedAt: '2026-07-31T05:57:00.000Z',
@@ -17,6 +18,7 @@ describe('cruushSettingsApi', () => {
 
   it('does not send read-only cruush match settings fields when saving', async () => {
     const loadedSettings = {
+      messageVisibility: 'mutual_cruushes',
       nsfwMessageVisibility: 'public',
       nsfwSendVisibility: 'mutual_cruushes',
       updatedAt: '2026-07-31T05:57:00.000Z',
@@ -27,6 +29,7 @@ describe('cruushSettingsApi', () => {
     expect(fetch).toHaveBeenCalledWith('/api/cruush/settings', expect.objectContaining({
       method: 'PUT',
       body: JSON.stringify({
+        messageVisibility: 'mutual_cruushes',
         nsfwMessageVisibility: 'public',
         nsfwSendVisibility: 'mutual_cruushes',
       }),

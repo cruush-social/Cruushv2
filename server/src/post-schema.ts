@@ -2,7 +2,7 @@ import { z } from "zod";
 import { multilineTextSchema } from "./input-schema.js";
 import { normalizeCrowdOption } from "./profile-sensitive.js";
 
-export const postExpirySchema = z.enum(["1h", "6h", "24h"]);
+export const postExpirySchema = z.enum(["1h", "6h", "24h", "7d", "never"]);
 export const feedLocationPinVisibilitySchema = z.enum(["off", "mutuals", "same_crowd", "public"]);
 
 const crowdTargetsSchema = z.array(z.string()).optional().default([])
@@ -30,7 +30,7 @@ const crowdTargetsSchema = z.array(z.string()).optional().default([])
 
 export const createPostPayloadSchema = z.object({
   content: multilineTextSchema({ min: 1, max: 1000 }),
-  expiresIn: postExpirySchema.optional().default("6h"),
+  expiresIn: postExpirySchema.optional().default("24h"),
   crowdTargets: crowdTargetsSchema
 }).strict();
 

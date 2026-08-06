@@ -7,17 +7,21 @@ import ModeratorReview from './ModeratorReview';
 const {
   changeModeratedAccountStatus,
   decideContentReview,
+  getModeratedUser,
   getModerationQueue,
   getModerationQueueItem,
   moderateReport,
   removeReportedContent,
+  searchModeratedUsers,
 } = vi.hoisted(() => ({
   changeModeratedAccountStatus: vi.fn(),
   decideContentReview: vi.fn(),
+  getModeratedUser: vi.fn(),
   getModerationQueue: vi.fn(),
   getModerationQueueItem: vi.fn(),
   moderateReport: vi.fn(),
   removeReportedContent: vi.fn(),
+  searchModeratedUsers: vi.fn(),
 }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
@@ -31,10 +35,12 @@ vi.mock('../lib/moderationApi', async () => {
     ...actual,
     changeModeratedAccountStatus,
     decideContentReview,
+    getModeratedUser,
     getModerationQueue,
     getModerationQueueItem,
     moderateReport,
     removeReportedContent,
+    searchModeratedUsers,
   };
 });
 
@@ -144,6 +150,19 @@ const reviewDetail = {
   availableActions: { canDecideReview: true, canModerateAccount: true, canRemoveContent: false },
 };
 
+const moderatedUser = {
+  id: 'user-2',
+  displayName: 'Jordan',
+  email: 'jordan@example.com',
+  accountStatus: 'active' as const,
+  accountStatusUpdatedAt: report.updatedAt,
+  createdAt: report.createdAt,
+  moderatorRole: null,
+  isOwner: false,
+  openReportCount: 1,
+  totalReportCount: 3,
+};
+
 function queue(items = [reportItem], page = { limit: 25, offset: 0, total: items.length, hasMore: false }) {
   return { items, page };
 }
@@ -186,6 +205,11 @@ describe('ModeratorReview', () => {
       user: { id: 'user-2', accountStatus: 'under_review', accountStatusUpdatedAt: report.updatedAt },
       moderationAction: { id: 'action-account', createdAt: report.updatedAt },
     });
+    searchModeratedUsers.mockResolvedValue({
+      users: [moderatedUser],
+      page: { limit: 25, offset: 0, total: 1, hasMore: false },
+    });
+    getModeratedUser.mockResolvedValue({ user: moderatedUser, history: [], reports: [] });
   });
 
   it('shows the authorization loading state while the queue request is pending', () => {
@@ -260,13 +284,55 @@ describe('ModeratorReview', () => {
   it('changes the target account status with an audit note', async () => {
     renderReview();
     await openReport();
-    fireEvent.click(screen.getByRole('button', { name: 'Set under review' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mark under review' }));
     fireEvent.change(screen.getByLabelText('Audit note'), { target: { value: 'Needs additional investigation.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Set under review' }));
     await waitFor(() => expect(changeModeratedAccountStatus).toHaveBeenCalledWith('user-2', expect.objectContaining({
       status: 'under_review',
       reportId: 'report-1',
     })));
+  });
+
+  it('permanently bans the reported account from the queue detail', async () => {
+    changeModeratedAccountStatus.mockResolvedValue({
+      user: { id: 'user-2', accountStatus: 'banned', accountStatusUpdatedAt: report.updatedAt },
+      moderationAction: { id: 'action-9', createdAt: report.updatedAt },
+    });
+    renderReview();
+    await openReport();
+    fireEvent.click(screen.getByRole('button', { name: 'Ban' }));
+    expect(await screen.findByText('Permanently ban this account?')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Audit note'), { target: { value: 'Confirmed severe abuse.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ban account' }));
+    await waitFor(() => expect(changeModeratedAccountStatus).toHaveBeenCalledWith('user-2', expect.objectContaining({
+      status: 'banned',
+      reasonCode: 'severe_abuse_permanent_ban',
+      reportId: 'report-1',
+    })));
+  });
+
+  it('searches accounts and bans a user without an attached report', async () => {
+    changeModeratedAccountStatus.mockResolvedValue({
+      user: { id: 'user-2', accountStatus: 'banned', accountStatusUpdatedAt: report.updatedAt },
+      moderationAction: { id: 'action-ban', createdAt: report.updatedAt },
+    });
+    renderReview();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Accounts' }));
+    fireEvent.change(await screen.findByLabelText('Search accounts'), { target: { value: 'jordan' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await waitFor(() => expect(searchModeratedUsers).toHaveBeenCalledWith(expect.objectContaining({ query: 'jordan' })));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open account Jordan' }));
+    expect(await screen.findByText('jordan@example.com')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ban' }));
+    fireEvent.change(screen.getByLabelText('Audit note'), { target: { value: 'Repeat harassment.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ban account' }));
+
+    await waitFor(() => expect(changeModeratedAccountStatus).toHaveBeenCalledWith('user-2', expect.objectContaining({
+      status: 'banned',
+      reasonCode: 'severe_abuse_permanent_ban',
+    })));
+    expect(changeModeratedAccountStatus).toHaveBeenCalledWith('user-2', expect.not.objectContaining({ reportId: expect.anything() }));
   });
 
   it('does not expose the dashboard to unauthorized users', async () => {

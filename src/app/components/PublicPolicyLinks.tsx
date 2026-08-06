@@ -15,10 +15,12 @@ export const PUBLIC_POLICY_LINKS = [
   { label: 'Takedown policy', path: '/takedown-policy' },
 ];
 
+const AUTH_HIDDEN_POLICY_PATHS = ['/terms', '/privacy', '/billing-policy'];
+
 export const AUTH_POLICY_LINKS = [
   { label: 'Terms of Service', path: '/terms' },
   { label: 'Privacy Policy', path: '/privacy' },
-  ...PUBLIC_POLICY_LINKS.filter((link) => link.path !== '/terms' && link.path !== '/privacy'),
+  ...PUBLIC_POLICY_LINKS.filter((link) => !AUTH_HIDDEN_POLICY_PATHS.includes(link.path)),
 ];
 
 type PublicPolicyLinksProps = {

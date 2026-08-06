@@ -119,7 +119,7 @@ export function profileRecordToProfileView(
     distance: previewState?.distance ?? null,
     lastActive: previewState?.lastActive ?? null,
     photos: profile.photos,
-    photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: false })),
+    photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: true })),
     badges: profile.badges ?? [],
     attendingLaunchParty: profile.attendingLaunchParty === true,
     bio: profile.bio,

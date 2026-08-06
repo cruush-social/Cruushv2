@@ -93,11 +93,15 @@ const MAP_3D_BUILDING_LAYER_ID = 'building-extrusions-dark';
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
-const PERSON_CLUSTER_ZOOM_STEP = 1.5;
+// Rendered footprint of a heart pin, so no two pins may sit inside one another.
+export const MARKER_CLEARANCE_PX = 64;
+// Markers sharing a spot to this many decimal places are treated as one place
+// and collapsed into a cluster that fans out on tap rather than stacking.
 const SAME_LOCATION_CLUSTER_PRECISION = 6;
 const SPIDERFY_RADIUS_PX = 86;
 const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
 const SPIDERFY_SECOND_RING_AFTER = 10;
+const PERSON_CLUSTER_ZOOM_STEP = 1.5;
 const MOBILE_SIGNAL_PREVIEW_ZOOM = 15.6;
 const USER_HEATMAP_SOURCE_ID = 'cruush-user-heatmap';
 const USER_HEATMAP_LAYER_ID = 'cruush-user-heatmap-layer';
@@ -717,6 +721,24 @@ function applyPersonMarkerClusters(
     ];
   }
 
+  // People standing on the exact same spot never separate by zooming, so they
+  // collapse into a cluster that fans its members out on tap instead.
+  Array.from(groupMarkersByCoordinate(clusterableMarkers).values())
+    .filter((group) => group.length >= 2)
+    .forEach((group) => {
+      group.forEach((marker) => clusteredIds.add(marker.id));
+      clusters.push(buildPeopleCluster(group, clusters.length, 'spiderfy'));
+    });
+
+  if (zoom >= PERSON_CLUSTER_MAX_ZOOM) {
+    return [
+      ...markers
+        .filter((marker) => !clusteredIds.has(marker.id))
+        .map((marker) => spiderfiedMarkersById.get(marker.id) ?? marker),
+      ...clusters,
+    ];
+  }
+
   clusterableMarkers.forEach((seed) => {
     if (clusteredIds.has(seed.id)) {
       return;
@@ -946,7 +968,11 @@ function MarkerRelationshipBadge({ marker, isCurrentUser }: { marker: MapMarker;
 }
 
 function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
-  const resolvedPhoto = resolveMediaUrl(marker.photo);
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
+  const showPhoto = Boolean(marker.photo && !shouldMaskPhoto(dlModeActive, marker.photoExplicit));
+  const resolvedPhoto = showPhoto && marker.photo ? resolveMediaUrl(marker.photo) : null;
   const hasPhoto = Boolean(resolvedPhoto);
   const gradientId = `marker-fill-${marker.id}`;
   const clipId = `marker-photo-clip-${marker.id}`;
@@ -957,10 +983,6 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const [gradientFrom, gradientMiddle, gradientTo] = hasPhoto || isCurrentUser || isNpcGhostDemo || isMutualCruush
     ? markerTheme.stops
     : getProfileGradientStops(marker.userId ?? marker.id);
-
-  // DL Mode: overlay a deterministic gradient on top of explicit (NSFW) photos
-  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
-  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const showExplicitGradientOverlay = Boolean(marker.photoExplicit && dlModeActive && hasPhoto);
 

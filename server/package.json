@@ -16,11 +16,19 @@
     "relationships:backfill": "tsx src/backfill-encrypted-relationships.ts",
     "location-privacy:backfill": "tsx src/backfill-encrypted-location-privacy.ts",
     "cleanup:moderation-media-grants": "sh -c 'if [ -f dist/cleanup-moderation-media-grants.js ]; then node --enable-source-maps dist/cleanup-moderation-media-grants.js; else tsx src/cleanup-moderation-media-grants.ts; fi'",
+    "cleanup:account-deletion-media": "sh -c 'if [ -f dist/cleanup-account-deletion-media.js ]; then node --enable-source-maps dist/cleanup-account-deletion-media.js; else tsx src/cleanup-account-deletion-media.ts; fi'",
     "trust:recalculate": "sh -c 'if [ -f dist/recalculate-decaying-trust-profiles.js ]; then node --enable-source-maps dist/recalculate-decaying-trust-profiles.js; else tsx src/recalculate-decaying-trust-profiles.ts; fi'",
+    "messages:expire": "sh -c 'if [ -f dist/expire-messages.js ]; then node --enable-source-maps dist/expire-messages.js; else tsx src/expire-messages.ts; fi'",
+    "media:backfill-classification": "sh -c 'if [ -f dist/backfill-media-classification.js ]; then node --enable-source-maps dist/backfill-media-classification.js \"$@\"; else tsx src/backfill-media-classification.ts \"$@\"; fi' --",
+    "bugs:sync-issues": "sh -c 'if [ -f dist/sync-bug-report-issues.js ]; then node --enable-source-maps dist/sync-bug-report-issues.js; else tsx src/sync-bug-report-issues.ts; fi'",
     "rewards:qualify-referrals": "sh -c 'if [ -f dist/qualify-referrals.js ]; then node --enable-source-maps dist/qualify-referrals.js; else tsx src/qualify-referrals.ts; fi'",
+    "check:stream-profile-safety": "sh -c 'if [ -f dist/check-stream-profile-photo-safety.js ]; then node --enable-source-maps dist/check-stream-profile-photo-safety.js; else tsx src/check-stream-profile-photo-safety.ts; fi'",
     "configure:stream-profile-safety": "sh -c 'if [ -f dist/configure-stream-profile-photo-safety.js ]; then node --enable-source-maps dist/configure-stream-profile-photo-safety.js; else tsx src/configure-stream-profile-photo-safety.ts; fi'",
+    "health:rekognition": "sh -c 'if [ -f dist/check-rekognition-health.js ]; then node --enable-source-maps dist/check-rekognition-health.js; else tsx src/check-rekognition-health.ts; fi'",
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:release-coolify": "vitest run src/release-main-coolify.test.ts",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts"
   },
   "dependencies": {
     "@aws-sdk/client-rekognition": "^3.1090.0",

@@ -1,5 +1,8 @@
 # cruush Codeveloper Handoff
 
+**First read `docs/CRUUSH-RULES.md` in full — it is the standing rules for every agent and
+overrides your defaults.** Then continue here for this branch's context.
+
 Start here when opening this branch in Codex.
 
 ## Current Branch

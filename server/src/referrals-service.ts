@@ -229,7 +229,7 @@ async function qualifyReferral(
     );
     const state = standing.rows[0];
 
-    if (!state || ["suspended", "deleted"].includes(state.account_status) ||
+    if (!state || ["suspended", "banned", "deleted"].includes(state.account_status) ||
         state.trust_suspended || state.has_active_suspension) {
       await db.query(
         `update referrals

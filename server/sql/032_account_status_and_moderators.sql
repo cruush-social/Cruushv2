@@ -16,7 +16,7 @@ end $$;
 
 alter table app_users
   add constraint app_users_account_status_check
-  check (account_status in ('active', 'under_review', 'suspended', 'deleted'));
+  check (account_status in ('active', 'under_review', 'suspended', 'banned', 'deleted'));
 
 create index if not exists idx_app_users_account_status
   on app_users (account_status, account_status_updated_at desc);

@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AlphaBugButton from './AlphaBugButton';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 const { createSupportRequest } = vi.hoisted(() => ({
   createSupportRequest: vi.fn(),
@@ -30,6 +31,10 @@ function renderAlphaBugButton(enabled = true, initialEntry = '/map?layer=nearby'
 }
 
 describe('AlphaBugButton', () => {
+  afterEach(() => {
+    registerBugButtonSlot(null);
+  });
+
   beforeEach(() => {
     createSupportRequest.mockReset();
     dismissUserNotice.mockReset();
@@ -101,5 +106,32 @@ describe('AlphaBugButton', () => {
       'bottom-[calc(12rem+env(safe-area-inset-bottom))]',
       'z-[40]',
     );
+  });
+
+  it('uses the map chrome slot instead of floating over map controls', () => {
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    registerBugButtonSlot(slot);
+
+    renderAlphaBugButton();
+
+    const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
+    expect(slot).toContainElement(reportButton);
+    expect(reportButton).toHaveClass('size-8');
+    expect(reportButton).not.toHaveClass('fixed', 'z-20');
+  });
+
+  it('shows an actionable error code when sending fails', async () => {
+    createSupportRequest.mockRejectedValueOnce(new Error('Support service unavailable.'));
+    renderAlphaBugButton();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+    fireEvent.change(screen.getByLabelText('What broke?'), {
+      target: { value: 'The feed menu covers the bug report button.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
+
+    const reportError = await screen.findByTestId('bug-report-error');
+    expect(reportError).toHaveTextContent('Error code: BUG_REPORT_SUBMIT_FAILED');
   });
 });

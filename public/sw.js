@@ -63,6 +63,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+
+  if (event.data?.type === 'CLIENT_REFRESH_REQUESTED' && event.data?.refreshId === REFRESH_ID) {
+    event.waitUntil(
+      deleteCachedShells()
+    );
   }
 
   if (event.data?.type === 'CLIENT_REFRESH_REQUESTED') {

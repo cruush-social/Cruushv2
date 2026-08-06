@@ -115,6 +115,8 @@ Rejected before save/publish:
 
 When shared Stream automod is enabled, publication requires all three synchronous approvals: PhotoDNA non-match, Stream completion, and Rekognition age-safety approval. Profile photos also require person/no-animal approval and reject high-confidence `Explicit` or `Non-Explicit Nudity` labels even when Stream recommends `keep`. Direct and group-message photos may contain consensual adult nudity. Rejected encrypted pending assets are deleted.
 
+Approved direct and group message photos must post through the same transactional photo-message helper after moderation succeeds. That helper separately verifies conversation membership, closed-state, sender account status, trust score, suspensions, feature restrictions, media ownership, and attachment creation. An active trusted sender in an open conversation with an approved photo must receive a created message with its attachment in the response; missing preconditions must return a specific error instead of the generic `Messaging is unavailable for this account.` failure.
+
 If Stream is unavailable, partial, pending, or returns an error, content is not saved. The request fails closed with `MODERATION_UNAVAILABLE`.
 
 ## Reports
@@ -166,13 +168,14 @@ In Stream dashboard:
 1. Enable Moderation for the app.
 2. Create a moderation policy whose key matches `STREAM_MODERATION_CONFIG_KEY`.
 3. Enable AI text moderation and image moderation.
-4. Configure only `Violence`, `Visually Disturbing`, and `Hate Symbols` to remove at the thresholds committed in `configure-stream-profile-photo-safety.ts`. The shared Stream policy must not globally remove `Explicit` or `Non-Explicit Nudity`, because the app applies the stricter surface rule: reject them outside messages and allow consensual adult nudity only in direct/group-message photos.
+4. Configure only `Violence`, `Visually Disturbing`, and `Hate Symbols` to remove at the thresholds committed in `stream-profile-photo-policy.ts`. Dashboard-expanded rows for `Explicit`, `Non-Explicit Nudity`, `PII`, and `QR Code` must remain `No Action` or absent. The shared Stream policy must not globally flag or remove nudity, because the app applies the stricter surface rule: reject it outside messages and allow consensual adult nudity only in direct/group-message photos.
 5. Configure borderline categories to flag only when cruush should reject or fail closed without human review.
 6. Avoid blocklists that treat queer identity terms, trans terms, kink terms, or consensual adult dating language as violations by themselves.
 7. Configure every Stream action other than `keep` as a cruush rejection. Ordinary non-allowed decisions are visible as follow-up evidence in the moderator dashboard, but a dashboard review does not make unapproved content public.
 8. Run `npm --prefix server run configure:stream-profile-safety` with the Stream environment variables loaded. The command reads the existing policy first and preserves the non-image engines because Stream replaces the full policy on upsert.
-9. Verify the saved policy in Stream Dashboard. Stream does not provide a human-presence category; the direct Rekognition gate supplies that signal.
-10. Verify PhotoDNA against real allowed and blocked provider responses before enabling deployed photo uploads.
+9. Run `npm --prefix server run check:stream-profile-safety` with the same Stream environment variables after every dashboard edit and before every release. The command is read-only and fails if Stream drifts from the checked-in image policy.
+10. Verify the saved policy in Stream Dashboard. Stream does not provide a human-presence category; the direct Rekognition gate supplies that signal.
+11. Verify PhotoDNA against real allowed and blocked provider responses before enabling deployed photo uploads.
 
 ## Staging Profile-Photo Bridge
 
@@ -287,7 +290,7 @@ Manual checks:
 - Send a threat or drug-sales message and confirm it is rejected before message storage.
 - Upload a safe profile photo that mock mode can identify, such as a fixture filename containing `adult-human`, and confirm it appears in `profiles.photos`. For the shared Stream path, use a mocked complete `keep` plus a mocked high-confidence Rekognition `Person` result and confirm no manual-review row is created.
 - Upload a nude profile photo and confirm it is rejected, its encrypted quarantine objects are deleted, and no profile URL is attached.
-- Upload the same permitted adult-nudity fixture in a direct or group message and confirm it is available only through authenticated message-media access.
+- Upload the same permitted adult-nudity fixture in a direct or group message and confirm the route returns `201`, the response contains the `message_photo` attachment, `viewOnce` is preserved when requested, the attachment is available only through authenticated message-media access, and the user is never shown `Messaging is unavailable for this account.` when the conversation and sender are otherwise eligible.
 - Upload a non-human or gradient profile photo and confirm its temporary encrypted quarantine object is deleted without publication.
 - Upload an image filename containing `underage` in mock mode and confirm its temporary encrypted quarantine object is deleted without publication.
 - Submit a report and confirm an evidence signal is created for the reported user.

@@ -1,6 +1,8 @@
 import * as React from "react";
 
-const MOBILE_BREAKPOINT = 768;
+// Keep the JS breakpoint aligned with Tailwind's `lg` breakpoint. Between
+// 768px and 1023px the shell must use the same mobile layout as its CSS.
+export const MOBILE_BREAKPOINT = 1024;
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean>(() => {

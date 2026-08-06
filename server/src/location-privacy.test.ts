@@ -242,6 +242,22 @@ describe("location privacy", () => {
     }
   });
 
+  it("searches far enough to cover the launch city, not just the next block", () => {
+    // The search radius was 1 cell, about a mile, inside a 15 mile geofence, so
+    // most people in the beta radius were stored and unexpired but never matched
+    // a discovery query. Pin the reach so it cannot quietly shrink again.
+    const nowMs = new Date("2026-06-03T12:00:00.000Z").getTime();
+    const viewer = createCoarseIndexTokens(config, 40.711, -74.002, nowMs);
+
+    // Two time buckets x (2r+1)^2 cells.
+    expect(viewer.length).toBe(2 * 23 * 23);
+
+    // Someone about 8 km east still shares a searched cell.
+    const farLng = -74.002 + 0.02 * 5;
+    const far = createCoarseIndexTokens(config, 40.711, farLng, nowMs);
+    expect(far.some((token) => viewer.includes(token))).toBe(true);
+  });
+
   it("derives stable viewer-specific ghost coordinates inside the selected radius", () => {
     const first = deriveGhostCoordinate({
       config,

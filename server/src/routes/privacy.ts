@@ -23,12 +23,19 @@ import {
 } from "../encrypted-relationships.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { CROWD_OPTIONS, normalizeCrowdOption } from "../profile-sensitive.js";
+import {
+  DEFAULT_MAP_PRESENCE_DAYS,
+  MAX_MAP_PRESENCE_DAYS,
+  MIN_MAP_PRESENCE_DAYS,
+  normalizeMapPresenceDays
+} from "../map-presence.js";
 
 type AuditProfileRow = {
   id: string;
   display_name: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
+  photo_explicit?: boolean | null;
 };
 
 const crowdIdSchema = z.preprocess((value) => normalizeCrowdOption(value) ?? value, z.enum(CROWD_OPTIONS));
@@ -41,6 +48,10 @@ const crowdPrecisionPolicySchema = z.object({
   createdAtMs: z.number().int().optional(),
   revokedAtMs: z.number().int().nullable().optional().default(null)
 }).strip();
+
+const mapPresencePayloadSchema = z.object({
+  days: z.coerce.number().int().min(MIN_MAP_PRESENCE_DAYS).max(MAX_MAP_PRESENCE_DAYS)
+}).strict();
 
 const ghostModePayloadSchema = z.object({
   baseMode: z.enum(["PUBLIC_PRECISE", "GHOST", "STEALTH"]).optional(),
@@ -102,9 +113,18 @@ async function loadAuditProfiles(app: FastifyInstance, userIds: string[]) {
   }
 
   const result = await app.db.query<AuditProfileRow>(
-    `select id::text as id, display_name, pronouns, photos
-     from profiles
-     where id = any($1::uuid[])`,
+    `select p.id::text as id, p.display_name, p.pronouns, p.photos,
+            coalesce((
+              select media.explicit_classification is distinct from 'non_explicit'
+              from media_objects media
+              where media.owner_user_id = p.id
+                and media.public_url = p.photos[1]
+                and media.surface = 'profile_photo'
+                and media.deleted_at is null
+              limit 1
+            ), true) as photo_explicit
+     from profiles p
+     where p.id = any($1::uuid[])`,
     [uniqueUserIds]
   );
 
@@ -116,7 +136,8 @@ function mapAuditProfile(row: AuditProfileRow | undefined, userId: string) {
     id: userId,
     name: row?.display_name?.trim() || "cruush user",
     pronouns: row?.pronouns?.join(", ") ?? "",
-    photo: row?.photos?.[0] ?? null
+    photo: row?.photos?.[0] ?? null,
+    photoExplicit: row?.photo_explicit === true
   };
 }
 
@@ -215,6 +236,46 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
         preciseToMutualCrowds,
         preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" : "none"
       }))
+    });
+  });
+
+  app.get("/api/privacy/map-presence", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const result = await app.db.query<{ map_presence_days: number | null }>(
+      `select map_presence_days
+       from user_privacy_settings
+       where user_id = $1`,
+      [userId]
+    );
+
+    return reply.send({
+      data: {
+        days: normalizeMapPresenceDays(result.rows[0]?.map_presence_days ?? DEFAULT_MAP_PRESENCE_DAYS),
+        minDays: MIN_MAP_PRESENCE_DAYS,
+        maxDays: MAX_MAP_PRESENCE_DAYS
+      }
+    });
+  });
+
+  app.put("/api/privacy/map-presence", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const payload = mapPresencePayloadSchema.parse(request.body);
+    const result = await app.db.query<{ map_presence_days: number | null }>(
+      `insert into user_privacy_settings (user_id, map_presence_days)
+       values ($1, $2)
+       on conflict (user_id) do update
+       set map_presence_days = excluded.map_presence_days,
+           updated_at = now()
+       returning map_presence_days`,
+      [userId, payload.days]
+    );
+
+    return reply.send({
+      data: {
+        days: normalizeMapPresenceDays(result.rows[0]?.map_presence_days ?? payload.days),
+        minDays: MIN_MAP_PRESENCE_DAYS,
+        maxDays: MAX_MAP_PRESENCE_DAYS
+      }
     });
   });
 

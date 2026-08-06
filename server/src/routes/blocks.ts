@@ -19,6 +19,7 @@ type BlockedUserListRow = {
   id: string;
   display_name: string | null;
   photo: string | null;
+  photo_explicit?: boolean | null;
   created_at: string | Date;
 };
 
@@ -89,6 +90,15 @@ export async function registerBlockRoutes(app: FastifyInstance) {
          blocked.id::text as id,
          coalesce(profile.display_name, blocked.display_name, 'cruush user') as display_name,
          profile.photos[1] as photo,
+         coalesce((
+           select media.explicit_classification is distinct from 'non_explicit'
+           from media_objects media
+           where media.owner_user_id = blocked.id
+             and media.public_url = profile.photos[1]
+             and media.surface = 'profile_photo'
+             and media.deleted_at is null
+           limit 1
+         ), true) as photo_explicit,
          block.created_at
        from user_blocks block
        join app_users blocked on blocked.id = block.blocked_user_id
@@ -106,6 +116,7 @@ export async function registerBlockRoutes(app: FastifyInstance) {
           userId: row.id,
           displayName: row.display_name?.trim() || "cruush user",
           photo: row.photo ?? null,
+          photoExplicit: row.photo_explicit === true,
           createdAt: new Date(row.created_at).toISOString()
         }))
       }

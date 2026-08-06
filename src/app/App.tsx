@@ -24,6 +24,7 @@ const PrivateGroupChat = lazy(() => import('./components/PrivateGroupChat'));
 const DirectMessages = lazy(() => import('./components/DirectMessages'));
 const NotificationCenter = lazy(() => import('./components/NotificationCenter'));
 const NotificationSettings = lazy(() => import('./components/NotificationSettings'));
+const ForegroundNotifications = lazy(() => import('./components/ForegroundNotifications'));
 const MobileInstallPrompt = lazy(() => import('./components/MobileInstallPrompt'));
 const ReportPage = lazy(() => import('./components/ReportPage'));
 const ModeratorReview = lazy(() => import('./components/ModeratorReview'));
@@ -32,8 +33,11 @@ const CruushMatchSettings = lazy(() => import('./components/CruushMatchSettings'
 const Settings = lazy(() => import('./components/Settings'));
 const BlockedUsersPage = lazy(() => import('./components/BlockedUsersPage'));
 const DlModeSettings = lazy(() => import('./components/DlModeSettings'));
+const MapPresenceSettings = lazy(() => import('./components/MapPresenceSettings'));
 const DlModeDefaultNotice = lazy(() => import('./components/DlModeDefaultNotice'));
 const BetaLaunchCruushPlusOffer = lazy(() => import('./components/BetaLaunchCruushPlusOffer'));
+const FirstFeedPostPrompt = lazy(() => import('./components/FirstFeedPostPrompt'));
+const OnboardingPreview = lazy(() => import('./components/OnboardingPreview'));
 const SupportPage = lazy(() => import('./components/SupportPage'));
 const GhostModeSettings = lazy(() => import('./components/GhostModeSettings'));
 const PrivacyAudit = lazy(() => import('./components/PrivacyAudit'));
@@ -42,7 +46,6 @@ const RequestsDashboard = lazy(() => import('./components/RequestsDashboard'));
 const CodeOfConductGate = lazy(() => import('./components/CodeOfConductGate'));
 const EmailVerificationGate = lazy(() => import('./components/EmailVerificationGate'));
 const BottomNav = lazy(() => import('./components/BottomNav'));
-const ForegroundNotifications = lazy(() => import('./components/ForegroundNotifications'));
 const DebugCruushPlusToggle = lazy(() => import('./components/DebugCruushPlusToggle'));
 const Rewards = lazy(() => import('./components/Rewards'));
 const AlphaBugButton = lazy(() => import('./components/AlphaBugButton'));
@@ -369,10 +372,16 @@ export default function App({
               <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
               <Route path="/settings/notifications" element={<NotificationSettings />} />
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
+              <Route path="/settings/tutorial" element={<Tutorial />} />
+              <Route path="/settings/changelog" element={<Changelog />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />
+              <Route path="/privacy/map-presence" element={<MapPresenceSettings />} />
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
+              {import.meta.env.DEV ? (
+                <Route path="/dev/onboarding-preview" element={<OnboardingPreview />} />
+              ) : null}
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
@@ -384,6 +393,7 @@ export default function App({
             <MobileInstallPrompt />
             <DlModeDefaultNotice />
             <BetaLaunchCruushPlusOffer userId={session.user.id} />
+            <FirstFeedPostPrompt userId={session.user.id} />
             <BottomNav />
             <ForegroundNotifications />
             <DebugCruushPlusToggle />

@@ -661,6 +661,11 @@ describe("server", () => {
       auth: "session-cookie",
       storage: "postgres",
       migratedFromSupabase: true,
+      build: {
+        sha: null,
+        shortSha: null,
+        stage: "development"
+      },
       alphaTest: {
         enabled: false,
         active: false,
@@ -687,6 +692,59 @@ describe("server", () => {
         streamAppIdConfigured: false
       }
     });
+  });
+
+  it("returns public build metadata from /api/build", async () => {
+    const stampedApp = buildServer({
+      NODE_ENV: "production",
+      APP_DEPLOYMENT_STAGE: "production",
+      APP_BUILD_SHA: "f230afbcf9247390dfe5b3b0ce63d97d839ce6c4",
+      PORT: 3001,
+      HOST: "127.0.0.1",
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      CORS_ORIGIN: "http://localhost:5173",
+      SESSION_SECRET: "test-secret",
+      APP_URL: "https://cruush.test",
+      RESEND_API_KEY: "",
+      MAIL_FROM: "",
+      EMAIL_PREVIEW_ENABLED: false,
+      DEVELOPMENT_ADMIN_ENABLED: false,
+      DEVELOPMENT_ADMIN_PASSWORD: "",
+      TURNSTILE_SECRET_KEY: "",
+      PROFILE_ENCRYPTION_KEY: "",
+      PROFILE_TOKEN_KEY: "",
+      PROFILE_TOKEN_KEY_VERSION: "v1",
+      RELATIONSHIP_ENCRYPTION_KEY: "",
+      RELATIONSHIP_INDEX_KEY: "",
+      RELATIONSHIP_ENCRYPTION_KEY_VERSION: "v1",
+      RELATIONSHIP_INDEX_KEY_VERSION: "v1",
+      MATCH_TOKEN_ENCRYPTION_KEY: "",
+      MATCH_TOKEN_SIGNING_KEY: "",
+      MATCH_TOKEN_KEY_VERSION: "v1"
+    }, {
+      db: {
+        query,
+        end
+      },
+      rateLimiter: createMemoryRateLimiter()
+    });
+
+    try {
+      const response = await stampedApp.inject({
+        method: "GET",
+        url: "/api/build"
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        service: "cruush-server",
+        sha: "f230afbcf9247390dfe5b3b0ce63d97d839ce6c4",
+        shortSha: "f230afbcf924",
+        stage: "production"
+      });
+    } finally {
+      await stampedApp.close();
+    }
   });
 
   it("keeps admin moderation routes mounted and protected when the legacy feature flag is disabled", async () => {
@@ -1201,7 +1259,8 @@ describe("server", () => {
         alreadyVerified: false,
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
-        previewUrl: expect.stringContaining("https://cruush.test/?verifyEmailToken=")
+        previewUrl: expect.stringContaining("https://cruush.test/?verifyEmailToken="),
+        verificationEmailSent: true
       }
     });
   });
@@ -1341,7 +1400,8 @@ describe("server", () => {
         alreadyVerified: false,
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
-        previewUrl: expect.stringContaining("https://www.cruush.app/?verifyEmailToken=")
+        previewUrl: expect.stringContaining("https://www.cruush.app/?verifyEmailToken="),
+        verificationEmailSent: true
       }
     });
   });
@@ -1385,7 +1445,8 @@ describe("server", () => {
         alreadyVerified: false,
         email: "river@example.com",
         expiresAt: "2026-04-30T12:00:00.000Z",
-        previewUrl: expect.stringContaining("https://www.cruush.app/?verifyEmailToken=")
+        previewUrl: expect.stringContaining("https://www.cruush.app/?verifyEmailToken="),
+        verificationEmailSent: true
       }
     });
   });
@@ -2152,12 +2213,9 @@ describe("server", () => {
     });
   });
 
-  it("deletes the current user's account, media objects, sessions, and session cookie", async () => {
+  it("deletes the current user's account and queues media cleanup", async () => {
     const sessionToken = "test-session-token";
     const passwordHash = await hashPassword("current-password");
-    const objectKey = `profile-photos/${userId}/delete-account-test.enc`;
-    await writeEncryptedMediaObject(app.config, objectKey, Buffer.from("encrypted"));
-    await expect(readEncryptedMediaObject(app.config, objectKey)).resolves.toEqual(Buffer.from("encrypted"));
 
     query
       .mockResolvedValueOnce({
@@ -2172,18 +2230,10 @@ describe("server", () => {
           password_hash: passwordHash
         }]
       })
-      .mockResolvedValueOnce({
-        rows: [{
-          object_key: objectKey
-        }]
-      })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: userId
-        }]
-      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: userId }] })
       .mockResolvedValueOnce({ rows: [] });
 
     const response = await app.inject({
@@ -2199,11 +2249,11 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(204);
-    await expect(readEncryptedMediaObject(app.config, objectKey)).rejects.toThrow();
     expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
     expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken(sessionToken)]);
-    expect(query.mock.calls[2]?.[0]).toContain("from media_objects");
-    expect(query.mock.calls[3]?.[0]).toBe("begin");
+    expect(query.mock.calls[2]?.[0]).toBe("begin");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into account_deletion_media_cleanup");
+    expect(query.mock.calls[3]?.[0]).toContain("media_variants");
     expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions");
     expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
     expect(query.mock.calls[6]?.[0]).toBe("commit");
@@ -2223,6 +2273,99 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(401);
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it("lets a banned account delete itself when an owned media object cannot be cleaned up", async () => {
+    const passwordHash = await hashPassword("current-password");
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          account_status: "banned"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          password_hash: passwordHash
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: userId }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        password: "current-password",
+        confirmation: "DELETE"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(query.mock.calls[3]?.[0]).toContain("insert into account_deletion_media_cleanup");
+    expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
+  });
+
+  it("completes the account deletion flow for a suspended account", async () => {
+    const passwordHash = await hashPassword("current-password");
+    let deleted = false;
+
+    query.mockImplementation(async (sql: string) => {
+      const normalizedSql = sql.replace(/\s+/g, " ").trim();
+
+      if (normalizedSql.includes("from app_sessions s")) {
+        return {
+          rows: deleted
+            ? []
+            : [{ user_id: userId, email: "suspended@example.com", account_status: "suspended" }]
+        };
+      }
+
+      if (normalizedSql.startsWith("select id, password_hash")) {
+        return {
+          rows: deleted ? [] : [{ id: userId, password_hash: passwordHash }]
+        };
+      }
+
+      if (normalizedSql.startsWith("delete from app_users")) {
+        deleted = true;
+        return { rows: [{ id: userId }] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      },
+      payload: {
+        password: "current-password",
+        confirmation: "DELETE"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(deleted).toBe(true);
+
+    const sessionAfterDeletion = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(sessionAfterDeletion.statusCode).toBe(401);
   });
 
   it("requires the exact account deletion confirmation", async () => {
@@ -2328,7 +2471,8 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(404);
-    expect(query.mock.calls[3]?.[0]).toBe("begin");
+    expect(query.mock.calls[2]?.[0]).toBe("begin");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into account_deletion_media_cleanup");
     expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions");
     expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
     expect(query.mock.calls[6]?.[0]).toBe("rollback");
@@ -2948,7 +3092,7 @@ describe("server", () => {
   it("rate limits repeated email verification token attempts", async () => {
     query.mockResolvedValue({ rows: [] });
 
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
       const response = await app.inject({
         method: "POST",
         url: "/api/auth/verification/verify",
@@ -2976,7 +3120,44 @@ describe("server", () => {
         details: expect.any(Object)
       }
     });
-    expect(query).toHaveBeenCalledTimes(5);
+  });
+
+  it("does not spend the verification rate limit on successful verifications", async () => {
+    // Every request reports the same address behind the proxy, so charging the
+    // limiter for successes locked out everyone once a handful of people had
+    // verified inside the window.
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("from email_verification_tokens")) {
+        return { rows: [{ user_id: userId }] };
+      }
+
+      if (sql.includes("update app_users")) {
+        return {
+          rows: [{
+            id: userId,
+            email: "river@example.com",
+            display_name: "River",
+            email_verified_at: "2026-04-29T12:05:00.000Z",
+            created_at: "2026-04-28T12:00:00.000Z"
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/verification/verify",
+        payload: {
+          token: `valid-verification-token-${attempt}`
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data.verified).toBe(true);
+    }
   });
 
   it("returns conversations from GET /api/conversations", async () => {
@@ -3216,7 +3397,8 @@ describe("server", () => {
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
           name: "Alex",
           pronouns: "they/them",
-          photo: "https://example.com/alex.jpg"
+          photo: "https://example.com/alex.jpg",
+          photoExplicit: false
         },
         distance: "Nearby",
         updatedAt: "2026-04-29T12:00:00.000Z",
@@ -3225,7 +3407,6 @@ describe("server", () => {
         pinned: false,
         muted: false,
         mutual: false,
-        membersLabel: undefined,
         tags: []
       }
     });
@@ -3785,11 +3966,58 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("role = 'admin'");
   });
 
-  it("requires a mutual cruush before opening a new dm conversation", async () => {
-    query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+  it("allows a direct conversation before a mutual cruush", async () => {
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from encrypted_relationship_records")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("from user_blocks")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("from app_users")) {
+        return { rows: [{ id: dmPartnerId }] };
+      }
+
+      if (text.includes("insert into conversations")) {
+        return { rows: [{ id: conversationId }] };
+      }
+
+      if (text.includes("insert into conversation_members")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("from conversation_members cm")) {
+        return {
+          rows: [{
+            id: conversationId,
+            kind: "dm",
+            title: null,
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: dmPartnerId,
+            other_user_name: "Alex",
+            other_user_pronouns: ["they/them"],
+            other_user_photo: null,
+            other_user_photo_explicit: true,
+            member_count: 2
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -3802,12 +4030,14 @@ describe("server", () => {
       }
     });
 
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toEqual({
-      error: {
-        code: "MUTUAL_CRUUSH_REQUIRED",
-        message: "You can message after a mutual cruush.",
-        details: null
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({
+      id: conversationId,
+      kind: "dm",
+      mutual: false,
+      user: {
+        id: dmPartnerId,
+        name: "Alex"
       }
     });
   });
@@ -4239,6 +4469,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("encrypted_relationship_records");
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
     expect(query.mock.calls[6]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls[6]?.[0]).toContain("lower(trim(coalesce(u.email, ''))) = 'julienlenazny@gmail.com'");
     expect(query.mock.calls[6]?.[0]).toContain("content_ciphertext");
     expect(query.mock.calls[6]?.[1]).not.toContain("on my way");
     expect(query.mock.calls[6]?.[1]).toContain("keyword_prefilter");
@@ -4304,6 +4535,7 @@ describe("server", () => {
       .mockRejectedValueOnce(privacyDecryptError)
       .mockResolvedValueOnce({ rows: [matchToken] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ email: "member@example.com" }] })
       .mockResolvedValueOnce({
         rows: [{
           id: "msg-privacy-unreadable",
@@ -4345,7 +4577,7 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[6]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into messages"))).toBe(true);
     expect(response.json().data).toEqual(expect.objectContaining({
       id: "msg-privacy-unreadable",
       content: "still sending"
@@ -4517,87 +4749,161 @@ describe("server", () => {
   });
 
   it("creates a view-once adult-nudity photo in a private group message", async () => {
-    query
-      .mockResolvedValueOnce({
-        rows: [{
-          id: conversationId,
-          kind: "group",
-          title: "Beta crew",
-          tags: [],
-          updated_at: "2026-04-29T12:00:00.000Z",
-          last_message: "",
-          unread_count: 0,
-          pinned: false,
-          muted: false,
-          other_user_id: null,
-          other_user_name: null,
-          other_user_pronouns: null,
-          other_user_photo: null,
-          member_count: 3,
-          current_user_role: "member",
-          disappearing_timer: "24h",
-          closed_at: null
-      }]
-    })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "media-1"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: userId,
-          nsfw_message_visibility: "public",
-          nsfw_send_visibility: "public",
-          updated_at: "2026-04-29T12:05:00.000Z"
-        }, {
-          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          nsfw_message_visibility: "public",
-          nsfw_send_visibility: "public",
-          updated_at: "2026-04-29T12:05:00.000Z"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "msg-photo-1",
-          user_id: userId,
-          content: "photo caption",
-          created_at: "2026-04-29T12:10:00.000Z",
-          expires_at: "2026-04-30T12:10:00.000Z",
-          attachments: [{
-            id: "media-1",
-            url: `/api/media/message-photos/${userId}-photo-id.png`,
-            mediaType: "image",
-            mimeType: "image/png",
-            viewOnce: true
+    let messageCiphertext: unknown = null;
+    let messageNonce: unknown = null;
+    let messageAuthTag: unknown = null;
+    let messageKeyVersion: unknown = null;
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      const text = String(sql);
+
+      if (text.includes("from conversation_members cm") && text.includes("sender_profile")) {
+        return {
+          rows: [{
+            user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            muted: true,
+            sender_name: "Jordan",
+            conversation_title: "Beta crew"
           }]
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          muted: true,
-          sender_name: "Jordan",
-          conversation_title: "Beta crew"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [appNotificationRow({
-          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          type: "group_message",
-          title: "New message in Beta crew",
-          link_url: `/chat/group/${conversationId}`,
-          actor_user_id: userId,
-          conversation_id: conversationId,
-          metadata: { conversationKind: "group" }
-        })]
-      });
+        };
+      }
+
+      if (text.includes("insert into app_notifications")) {
+        return {
+          rows: [appNotificationRow({
+            user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            type: "group_message",
+            title: "New message in Beta crew",
+            link_url: `/chat/group/${conversationId}`,
+            actor_user_id: userId,
+            conversation_id: conversationId,
+            metadata: { conversationKind: "group" }
+          })]
+        };
+      }
+
+      if (text.includes("from conversation_members cm") && text.includes("where cm.user_id = $1")) {
+        return {
+          rows: [{
+            id: conversationId,
+            kind: "group",
+            title: "Beta crew",
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: null,
+            other_user_name: null,
+            other_user_pronouns: null,
+            other_user_photo: null,
+            member_count: 3,
+            current_user_role: "member",
+            disappearing_timer: "24h",
+            closed_at: null
+          }]
+        };
+      }
+
+      if (text.includes("join user_blocks block")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("with inserted_media as")) {
+        return { rows: [{ id: "media-1" }] };
+      }
+
+      if (text.includes("select email") && text.includes("from app_users")) {
+        return { rows: [{ email: "member@example.com" }] };
+      }
+
+      if (text.includes("join app_users app_user")) {
+        return { rows: [{ user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97" }] };
+      }
+
+      if (text.includes("from user_cruush_match_settings")) {
+        return {
+          rows: [{
+            user_id: userId,
+            nsfw_message_visibility: "public",
+            nsfw_send_visibility: "public",
+            updated_at: "2026-04-29T12:05:00.000Z"
+          }, {
+            user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            nsfw_message_visibility: "public",
+            nsfw_send_visibility: "public",
+            updated_at: "2026-04-29T12:05:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("closed_at is not null")) {
+        return { rows: [{ closed: false }] };
+      }
+
+      if (text.includes("coalesce(t.trust_score, 50) as trust_score")) {
+        return {
+          rows: [{
+            account_status: "active",
+            suspended: false,
+            trust_score: 100,
+            suspensions: 0,
+            restrictions: 0
+          }]
+        };
+      }
+
+      if (text.includes("update media_objects") && text.includes("moderation_status = 'approved'")) {
+        return { rows: [{ id: "media-1" }] };
+      }
+
+      if (text.includes("insert into messages")) {
+        messageCiphertext = params[2];
+        messageNonce = params[3];
+        messageAuthTag = params[4];
+        messageKeyVersion = params[5];
+        return {
+          rows: [{
+            id: "msg-photo-1",
+            user_id: userId,
+            content: "",
+            content_ciphertext: params[2],
+            content_nonce: params[3],
+            content_auth_tag: params[4],
+            content_key_version: params[5],
+            created_at: "2026-04-29T12:10:00.000Z",
+            expires_at: "2026-04-30T12:10:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("from messages m") && text.includes("message_media_attachments")) {
+        return {
+          rows: [{
+            id: "msg-photo-1",
+            user_id: userId,
+            content: "",
+            content_ciphertext: messageCiphertext,
+            content_nonce: messageNonce,
+            content_auth_tag: messageAuthTag,
+            content_key_version: messageKeyVersion,
+            created_at: "2026-04-29T12:10:00.000Z",
+            expires_at: "2026-04-30T12:10:00.000Z",
+            attachments: [{
+              id: "media-1",
+              url: "/api/media/assets/media-1/display",
+              mediaType: "image",
+              mimeType: "image/png",
+              viewOnce: true,
+              viewedAt: null,
+              explicit: true
+            }]
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
     const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -4621,16 +4927,20 @@ describe("server", () => {
       payload: multipart.payload
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode, response.body).toBe(201);
     const mediaInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into media_objects"));
     const messageInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into messages"));
+    const mediaApprove = query.mock.calls.find(([sql]) => String(sql).includes("update media_objects") && String(sql).includes("moderation_status = 'approved'"));
+    const contentReviewInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into content_reviews"));
+    const attachmentInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into message_media_attachments"));
     const notificationLookup = query.mock.calls.find(([sql]) => String(sql).includes("from conversation_members cm") && String(sql).includes("sender_profile"));
     const notificationInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into app_notifications"));
     expect(mediaInsert?.[1]?.[2]).toBe("message_photo");
-    expect(messageInsert?.[0]).toContain("message_media_attachments");
-    expect(messageInsert?.[0]).toContain("view_once");
-    expect(messageInsert?.[0]).toContain("when $19 then 'explicit'");
-    expect(messageInsert?.[1]?.[18]).toBe(true);
+    expect(mediaApprove?.[0]).toContain("explicit_classification = case when $6 then 'explicit'");
+    expect(mediaApprove?.[1]?.[5]).toBe(true);
+    expect(contentReviewInsert).toBeDefined();
+    expect(messageInsert).toBeDefined();
+    expect(attachmentInsert?.[1]?.[2]).toBe(true);
     expect(notificationLookup).toBeDefined();
     expect(notificationInsert?.[1]).toEqual([
       "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -4652,10 +4962,12 @@ describe("server", () => {
         expiresAt: "2026-04-30T12:10:00.000Z",
         attachments: [{
           id: "media-1",
-          url: `/api/media/message-photos/${userId}-photo-id.png`,
+          url: "/api/media/assets/media-1/display",
           mediaType: "image",
           mimeType: "image/png",
-          viewOnce: true
+          viewOnce: true,
+          viewedAt: null,
+          explicit: true
         }]
       }
     });
@@ -5060,29 +5372,37 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("insert into suspensions"))).toBe(true);
   });
 
-  it("requires a mutual cruush before sending a dm message", async () => {
-    query
-      .mockResolvedValueOnce({
-        rows: [{
-          id: conversationId,
-          kind: "dm",
-          title: null,
-          tags: [],
-          updated_at: "2026-04-29T12:00:00.000Z",
-          last_message: "",
-          unread_count: 0,
-          pinned: false,
-          muted: false,
-          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          other_user_name: "Alex",
-          other_user_pronouns: ["they/them"],
-          other_user_photo: null,
-          member_count: 2
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+  it("blocks a dm message when either participant has blocked the other", async () => {
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from conversation_members cm")) {
+        return {
+          rows: [{
+            id: conversationId,
+            kind: "dm",
+            title: null,
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: dmPartnerId,
+            other_user_name: "Alex",
+            other_user_pronouns: ["they/them"],
+            other_user_photo: null,
+            member_count: 2
+          }]
+        };
+      }
+
+      if (text.includes("from user_blocks")) {
+        return { rows: [{ exists: true }] };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -5099,8 +5419,8 @@ describe("server", () => {
     expect(response.statusCode).toBe(403);
     expect(response.json()).toEqual({
       error: {
-        code: "MUTUAL_CRUUSH_REQUIRED",
-        message: "You can message after a mutual cruush.",
+        code: "FORBIDDEN",
+        message: "You cannot message this user.",
         details: null
       }
     });
@@ -5662,7 +5982,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(403);
-    expect(query.mock.calls[0]?.[0]).toContain("from moderator_users");
+    expect(query.mock.calls[0]?.[0]).toContain("moderator_users");
     expect(response.json()).toEqual({
       error: {
         code: "FORBIDDEN",
@@ -5711,7 +6031,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[0]?.[0]).toContain("from moderator_users");
+    expect(query.mock.calls[0]?.[0]).toContain("moderator_users");
     expect(query.mock.calls[1]?.[0]).toContain("from reports");
     expect(query.mock.calls[1]?.[1]).toEqual(["open", 25, 0]);
     expect(response.json()).toEqual({
@@ -6210,6 +6530,9 @@ describe("server", () => {
         }]
       })
       .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
         rows: [{
           user_id: targetUserId,
           account_status: "suspended"
@@ -6252,10 +6575,135 @@ describe("server", () => {
       }
     });
 
+    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions where user_id");
+    expect(query.mock.calls[4]?.[1]).toEqual([targetUserId]);
+
     expect(authResponse.statusCode).toBe(401);
-    expect(query.mock.calls[4]?.[0]).toContain("from app_sessions s");
-    expect(query.mock.calls[5]?.[0]).toContain("delete from app_sessions");
-    expect(query.mock.calls[5]?.[1]).toEqual([hashSessionToken("suspended-after-admin-action")]);
+    expect(query.mock.calls[5]?.[0]).toContain("from app_sessions s");
+    expect(query.mock.calls[6]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[6]?.[1]).toEqual([hashSessionToken("suspended-after-admin-action")]);
+  });
+
+  it("lets moderators permanently ban a user and revokes every session", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "admin" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          email: "reported@example.com",
+          account_status: "suspended",
+          account_status_updated_at: "2026-04-29T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          account_status: "banned",
+          account_status_updated_at: "2026-04-29T12:45:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "c6c09b96-80ea-4272-a6f5-91727250c4ce",
+          created_at: "2026-04-29T12:45:01.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/users/${targetUserId}/status`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "banned",
+        reasonCode: "severe_abuse_permanent_ban",
+        notes: "Confirmed severe abuse."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.user.accountStatus).toBe("banned");
+    expect(query.mock.calls[3]?.[1]?.slice(4, 7)).toEqual([
+      "ban_user",
+      "severe_abuse_permanent_ban",
+      "Confirmed severe abuse."
+    ]);
+    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions where user_id");
+    expect(query.mock.calls[4]?.[1]).toEqual([targetUserId]);
+  });
+
+  it("refuses to restrict the owner account", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "admin" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          email: "julienlenazny@gmail.com",
+          account_status: "active",
+          account_status_updated_at: "2026-04-29T12:00:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/users/${targetUserId}/status`,
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        status: "banned",
+        reasonCode: "severe_abuse_permanent_ban"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("update app_users set account_status"))).toBe(false);
+  });
+
+  it("searches moderated accounts and masks emails from non-admin moderators", async () => {
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          email: "jordan@example.com",
+          display_name: "Jordan",
+          account_status: "banned",
+          account_status_updated_at: "2026-04-29T12:45:00.000Z",
+          created_at: "2026-01-02T09:00:00.000Z",
+          moderator_role: null,
+          open_report_count: "2",
+          total_report_count: "5",
+          total_count: "1"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/moderation/users?query=jordan",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json().data;
+    expect(body.page.total).toBe(1);
+    expect(body.users[0]).toMatchObject({
+      displayName: "Jordan",
+      email: "j*****@example.com",
+      accountStatus: "banned",
+      openReportCount: 2,
+      totalReportCount: 5,
+      isOwner: false
+    });
+    expect(query.mock.calls[1]?.[1]?.[0]).toBe("jordan");
   });
 
   it("rate limits repeated report creation", async () => {
@@ -7224,6 +7672,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(9);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
+    expect(query.mock.calls[1]?.[0]).toContain("lower(btrim(candidate.value))");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
     expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
@@ -8160,7 +8609,8 @@ describe("server", () => {
           id: userId,
           name: "Cruusher",
           pronouns: "they/them",
-          photo: "https://example.com/photo.jpg"
+          photo: "https://example.com/photo.jpg",
+          photoExplicit: false
         }
       }]
     });
@@ -8319,10 +8769,126 @@ describe("server", () => {
           id: userId,
           name: "Cruusher",
           pronouns: "they/them",
-          photo: null
+          photo: null,
+          photoExplicit: false
         }
       }
     });
+  });
+
+  it("creates feed posts with seven-day and never expiry options", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-seven-days",
+          user_id: userId,
+          content: "Staying up for a week",
+          expires_in: "7d",
+          expires_at: "2026-05-05T12:00:00.000Z",
+          created_at: "2026-04-28T12:10:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: []
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-never",
+          user_id: userId,
+          content: "Stays up",
+          expires_in: "never",
+          expires_at: "infinity",
+          created_at: "2026-04-28T12:11:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: []
+        }]
+      });
+
+    const sevenDayResponse = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Staying up for a week",
+        expiresIn: "7d"
+      }
+    });
+
+    const neverResponse = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Stays up",
+        expiresIn: "never"
+      }
+    });
+
+    expect(sevenDayResponse.statusCode).toBe(201);
+    expect(neverResponse.statusCode).toBe(201);
+    expect(query.mock.calls[1]?.[0]).toContain("when $2 = '7d' then interval '7 days'");
+    expect(query.mock.calls[1]?.[0]).toContain("when $2 = 'never' then 'infinity'::timestamptz");
+    expect(query.mock.calls[1]?.[1]?.[1]).toBe("7d");
+    expect(query.mock.calls[3]?.[1]?.[1]).toBe("never");
+    expect(sevenDayResponse.json().data.expiresAt).toBe("2026-05-05T12:00:00.000Z");
+    expect(neverResponse.json().data.expiresAt).toBeNull();
+  });
+
+  it.each([
+    ["suspended", { account_suspended: true }, "FEED_POSTING_SUSPENDED"],
+    ["low trust", { low_trust: true }, "FEED_POSTING_LOW_TRUST"],
+    ["feature restricted", { feature_restricted: true }, "FEED_POSTING_RESTRICTED"],
+    ["unknown eligibility failure", {}, "FEED_POSTING_UNAVAILABLE"]
+  ] as const)("returns a distinct feed-post error for %s", async (_caseName, reason, code) => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          trust_suspended: false,
+          account_suspended: false,
+          low_trust: false,
+          feature_restricted: false,
+          ...reason
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Hosting tonight",
+        expiresIn: "1h"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().error.code).toBe(code);
   });
 
   it("creates a feed post with multiple crowd targets only when the author belongs to those crowds", async () => {
@@ -8418,6 +8984,7 @@ describe("server", () => {
   });
 
   it("rejects prohibited feed content before storing a post", async () => {
+    query.mockResolvedValue({ rows: [] });
     query.mockResolvedValueOnce({
       rows: [{
         cruush_plus_enabled: true,
@@ -8454,6 +9021,7 @@ describe("server", () => {
   });
 
   it("rejects public coded drug language before storing a feed post", async () => {
+    query.mockResolvedValue({ rows: [] });
     query.mockResolvedValueOnce({
       rows: [{
         cruush_plus_enabled: true,
@@ -11244,7 +11812,7 @@ describe("server", () => {
     });
   });
 
-  it("rejects gender identity, trans status, and crowd selection changes within the 14 day lock window", async () => {
+  it("rejects gender identity, trans status, and crowd selection changes within the 7 day lock window", async () => {
     const existingSensitiveProfile = encryptSensitiveProfile(app.config, {
       is_trans: true,
       crowds: ["T4T"],
@@ -11283,7 +11851,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message: "Gender identity, trans status, and crowd selection can only be changed once every 14 days.",
+        message: "Gender identity, trans status, and crowd selection can only be changed once every 7 days.",
         details: null
       }
     });

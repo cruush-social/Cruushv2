@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { getBlockedUsers, unblockUser, type BlockedUser } from '../lib/blockApi';
+import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 
 function formatBlockedDate(value: string) {
   const date = new Date(value);
@@ -27,6 +28,7 @@ export default function BlockedUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
+  const dlModeActive = useDlMode();
 
   useEffect(() => {
     let active = true;
@@ -113,6 +115,7 @@ export default function BlockedUsersPage() {
               <HeartPhoto
                 className="w-12 shrink-0"
                 label={`${blockedUser.displayName} avatar`}
+                masked={shouldMaskPhoto(dlModeActive, blockedUser.photoExplicit)}
                 photo={blockedUser.photo}
                 userId={blockedUser.userId}
                 fallback={<CruushIcon name="profile" className="size-4 opacity-75" />}

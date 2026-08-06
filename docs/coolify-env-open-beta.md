@@ -6,7 +6,9 @@ Use this when configuring Coolify for the cruush app frontend and API. Do not pa
 
 ## How To Use
 
-The temporary Coolify dashboard at `http://87.99.130.8:8000/` is an admin/control-plane URL. Do not give it to alpha testers as the app link. Alpha testers need the frontend app URL, and the API needs its own URL or a same-origin proxy.
+The Coolify dashboard is an admin/control-plane URL. Do not give it to alpha testers as the app link. Alpha testers need the frontend app URL, and the API needs its own URL or a same-origin proxy.
+
+Production now runs on `http://87.99.152.196:8000`. Earlier revisions of this document named `87.99.130.8`, which is retired and unreachable. See `docs/coolify-production-config.md` for the current host, resource UUIDs, and required build and health-check settings.
 
 Create separate Coolify resources/projects for staging and production:
 
@@ -311,13 +313,13 @@ These values are safe to add directly if the domains/buckets are correct:
 - `STREAM_MODERATION_ENABLED=true`
 - `STREAM_IMAGE_BRIDGE_ENABLED=true` only after the dedicated no-cache moderation-media hostname is routed and its upstream logs are verified not to retain raw paths
 - `PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED=true` for the shared bank/open-beta Stream path; keep manual review false
-- `PROFILE_PHOTO_REKOGNITION_ENABLED=true`, a Rekognition-only IAM principal with `DetectFaces` and `DetectLabels`, and the documented human/animal/face/age thresholds
+- `PROFILE_PHOTO_REKOGNITION_ENABLED=true`, a Rekognition-only IAM principal with `DetectFaces`, `DetectLabels` and `DetectModerationLabels`, and the documented human/animal/face/age thresholds. This is the standalone fallback classifier: it now runs whenever the primary provider cannot classify an image, including when Stream errors and when Stream is not configured at all. With it off and Stream absent, the mock provider classifies by filename only, so no photo is ever marked explicit and DL Mode masks nothing.
 - `ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED=true` only for legacy alpha staging notes; the active `ALPHA_TEST_ENABLED=true` staging gate now permits the same temporary profile- and message-photo exception, but leave both paths false for open beta or production
 - `ALPHA_TEST_ENABLED=true`, `ALPHA_TEST_PASSWORD_HASH=<scrypt hash>`, and `ALPHA_TEST_ENDS_AT=<planned-beta-launch-timestamp-with-timezone>` keep alpha active until the beta launch cutover. The beta deployment sets `ALPHA_TEST_ENABLED=false`, clears `ALPHA_TEST_PASSWORD_HASH`, and clears `ALPHA_TEST_ENDS_AT` without exposing secrets in logs.
 - `BETA_ACCESS_GEOFENCE_ENABLED=true` limits launch beta signup/signin to the configured 15-mile radius around `70 Scott Ave`. Outside-radius users see the newsletter/city-request path; those email/city entries are encrypted at rest with HMAC-only dedupe indexes.
 - Support requests, alpha bug reports, and in-app moderation reports notify `reports@cruush.app`. Beta launch feedback stays text-only; there is no screenshot prompt or screenshot upload path for beta.
 - Launch party envs should stay backend-only. Keep `LAUNCH_PARTY_ENABLED=true` for the July 31 alpha launch so the map pin is visible. The Chocolate Factory pin is active from `2026-07-31T22:00:00-04:00` until `2026-08-01T05:00:00-04:00`; after that timestamp, the backend cutoff removes the pin while beta can continue. The party group chat expires at `2026-08-07T03:59:00-04:00` for users who accepted the invite from the party hat flow.
-- Use `node scripts/release-main-coolify.mjs --source codex/beta-launch-release-20260731 --target both --confirm-production --no-dry-run` only after checks pass. Dry-run is the default; production deploy is blocked without `--confirm-production`.
+- Use `node scripts/release-main-coolify.mjs --source main --target both --confirm-production --no-dry-run` only after checks pass. Dry-run is the default; production deploy is blocked without `--confirm-production`.
 - `SEVERE_ACCESS_BANS_ENABLED=true`, `SEVERE_ACCESS_BAN_HMAC_KEY=<32+ byte secret>`, and `TRUST_PROXY_HOPS=1` only after confirming the Coolify/Traefik proxy chain
 - `PHOTODNA_ENABLED=true` only after the Microsoft endpoint and response contract are verified; deployed uploads remain disabled while it is false
 - `PHOTODNA_TIMEOUT_MS=5000`

@@ -63,7 +63,20 @@ const migrationFiles = [
   "054_notification_sound_preference.sql",
   "055_user_notice_dismissals.sql",
   "056_daily_login_bonus_rewards.sql",
-  "057_post_onboarding_affiliate_share_notice.sql"
+  "057_post_onboarding_affiliate_share_notice.sql",
+  "058_support_request_bug_triage.sql",
+  "059_map_presence_duration.sql",
+  "060_first_feed_post_prompt_notice.sql",
+  "061_moderator_account_bans.sql",
+  "062_account_deletion_media_cleanup.sql",
+  "062_message_expiry_cleanup.sql",
+  "063_media_classification_audit.sql",
+  "064_owner_access_repair.sql",
+  "064_support_request_replies.sql",
+  "065_owner_photo_messaging_repair.sql",
+  "066_recurring_weekly_promotions.sql",
+  "067_feed_post_expiry_options.sql",
+  "068_cruush_message_visibility.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

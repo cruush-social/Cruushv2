@@ -1,7 +1,7 @@
 import type { ChangeEvent, PointerEvent } from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, RotateCcw, RotateCw, Star, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Eye, RotateCcw, RotateCw, Star, Trash2, Upload } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
@@ -25,6 +25,8 @@ import {
 import { resolveMediaUrl } from '../lib/apiClient';
 import { getAppMeta } from '../lib/metaApi';
 import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import { getProfileGradientCss } from '../lib/profileGradient';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -543,7 +545,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [profilePhotoUploadsAvailable, setProfilePhotoUploadsAvailable] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [pendingPhoto, setPendingPhoto] = useState<PendingProfilePhoto | null>(null);
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const photoPreviewRequestRef = useRef(0);
+
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -733,6 +738,10 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       setProfile((prev) => ({
         ...prev,
         photos: [...(prev.photos ?? []), uploaded.url].slice(0, MAX_PROFILE_PHOTOS),
+        photo_metadata: [
+          ...(prev.photo_metadata ?? []).filter((metadata) => metadata.url !== uploaded.url),
+          { url: uploaded.url, explicit: uploaded.explicit === true },
+        ].slice(-MAX_PROFILE_PHOTOS),
       }));
       setPendingPhoto(null);
       setPhotoUploadError(null);
@@ -807,6 +816,14 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     visibility_rules: sanitizeVisibilityRules(profile),
     year_of_birth: profile.year_of_birth,
   };
+  const photoMetadataByUrl = new Map(
+    (((profile as ProfileRecord).photo_metadata ?? []) as Array<{ url?: unknown; explicit?: unknown }>)
+      .filter((metadata) => typeof metadata.url === 'string')
+      .map((metadata) => [
+        metadata.url as string,
+        metadata.explicit === true ? true : metadata.explicit === false ? false : undefined,
+      ] as const)
+  );
   const profileMenuProps = {
     menuPortal: embedded,
   };
@@ -865,14 +882,28 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               </div>
             ) : null}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {normalizedProfile.photos.map((photo, index) => (
+              {normalizedProfile.photos.map((photo, index) => {
+                const photoMasked = shouldMaskPhoto(dlModeActive, photoMetadataByUrl.get(photo));
+
+                return (
                 <div key={photo} className="group overflow-hidden rounded-lg border border-border bg-card/70">
                   <div className="relative aspect-[4/5] bg-accent">
-                    <img
-                      alt={index === 0 ? 'Primary profile photo' : `Profile photo ${index + 1}`}
-                      className="h-full w-full object-cover"
-                      src={resolveMediaUrl(photo)}
-                    />
+                    {photoMasked ? (
+                      <div
+                        aria-label={index === 0 ? 'Primary profile photo hidden by DL Mode' : `Profile photo ${index + 1} hidden by DL Mode`}
+                        className="flex h-full w-full items-center justify-center"
+                        role="img"
+                        style={{ background: getProfileGradientCss(`${(profile as ProfileRecord).id ?? 'profile'}:${index}`) }}
+                      >
+                        <Eye className="h-10 w-10 text-white/80" strokeWidth={2.35} />
+                      </div>
+                    ) : (
+                      <img
+                        alt={index === 0 ? 'Primary profile photo' : `Profile photo ${index + 1}`}
+                        className="h-full w-full object-cover"
+                        src={resolveMediaUrl(photo)}
+                      />
+                    )}
                     {index === 0 ? (
                       <span className="absolute left-2 top-2 rounded-md bg-primary px-2 py-1 text-[11px] text-white">
                         PFP
@@ -901,7 +932,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                     </Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
 
               {normalizedProfile.photos.length < MAX_PROFILE_PHOTOS ? (
                 <label className={`flex aspect-[4/5] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/60 p-4 text-center transition-colors ${profilePhotoUploadsAvailable === false ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-accent/50'}`}>

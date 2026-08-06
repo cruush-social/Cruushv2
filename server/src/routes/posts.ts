@@ -9,13 +9,12 @@ import { createCrowdTokens } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
-import { userHasOwnerFullAccess } from "../owner-access.js";
 
 type PostRow = {
   id: string;
   user_id: string;
   content: string;
-  expires_in: "1h" | "6h" | "24h";
+  expires_in: "1h" | "6h" | "24h" | "7d" | "never";
   expires_at: string | Date;
   created_at: string | Date;
   content_ciphertext?: string | null;
@@ -25,6 +24,7 @@ type PostRow = {
   display_name: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
+  photo_explicit?: boolean | null;
   badges?: string[] | null;
   crowd_targets?: string[] | null;
   feed_location_pin_visibility?: FeedLocationPinVisibility | null;
@@ -129,7 +129,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       keyVersion: row.content_key_version ?? undefined
     }, row.content),
     expiresIn: row.expires_in,
-    expiresAt: new Date(row.expires_at).toISOString(),
+    expiresAt: row.expires_in === "never" ? null : new Date(row.expires_at).toISOString(),
     createdAt: new Date(row.created_at).toISOString(),
     distance: typeof row.distance_miles === "number"
       ? formatCoarseDistance(row.distance_miles)
@@ -147,10 +147,25 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       name: row.display_name?.trim() || "cruush user",
       pronouns: row.pronouns?.join(", ") ?? "",
       photo: row.photos?.[0] ?? null,
+      photoExplicit: row.photo_explicit === true,
       ...(row.attending_launch_party === true ? { attendingLaunchParty: true } : {}),
       ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
     }
   };
+}
+
+// DL Mode masks explicit avatars everywhere they render, so the feed needs the
+// same explicit_classification the profile endpoints expose for the first photo.
+function feedAuthorPhotoExplicitSelect(postAlias: string, profileAlias: string) {
+  return `coalesce((
+    select media.explicit_classification is distinct from 'non_explicit'
+    from media_objects media
+    where media.owner_user_id = ${postAlias}.user_id
+      and media.public_url = ${profileAlias}.photos[1]
+      and media.surface = 'profile_photo'
+      and media.deleted_at is null
+    limit 1
+  ), true) as photo_explicit`;
 }
 
 const POST_COLUMNS = `
@@ -167,6 +182,7 @@ const POST_COLUMNS = `
   pr.display_name,
   pr.pronouns,
   pr.photos,
+  ${feedAuthorPhotoExplicitSelect("p", "pr")},
   coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as feed_location_pin_visibility,
   case
     when $3::double precision is null or $4::double precision is null then null
@@ -233,8 +249,8 @@ const postParamsSchema = z.object({
 });
 
 const feedPostQuerySchema = z.object({
-  within: z.enum(["1h", "3h", "6h", "24h"]).default("24h"),
-  distanceMiles: z.coerce.number().min(1).max(15).default(1),
+  within: z.enum(["1h", "3h", "6h", "24h", "7d"]).default("24h"),
+  distanceMiles: z.coerce.number().min(1).max(15).default(15),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   before: z.string().datetime().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
@@ -256,6 +272,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
            when $2 = '1h' then interval '1 hour'
            when $2 = '3h' then interval '3 hours'
            when $2 = '6h' then interval '6 hours'
+           when $2 = '7d' then interval '7 days'
            else interval '24 hours'
          end
          and (
@@ -361,8 +378,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
   app.post("/api/posts", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
-    await requireCruushPlus(app, userId, "Upgrade to cruush+ to post on the local feed.");
-    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
+    const entitlement = await requireCruushPlus(app, userId, "Upgrade to cruush+ to post on the local feed.");
+    const ownerFullAccess = entitlement.ownerFullAccess === true;
     const moderation = await moderateTextOrReject(app, {
       userId,
       surface: "feed",
@@ -447,10 +464,14 @@ export async function registerPostRoutes(app: FastifyInstance) {
            $5,
            $6,
            $2,
-           now() + case
-             when $2 = '1h' then interval '1 hour'
-             when $2 = '6h' then interval '6 hours'
-             else interval '24 hours'
+           case
+             when $2 = 'never' then 'infinity'::timestamptz
+             else now() + case
+               when $2 = '1h' then interval '1 hour'
+               when $2 = '6h' then interval '6 hours'
+               when $2 = '7d' then interval '7 days'
+               else interval '24 hours'
+             end
            end
          from eligible_user
          join moderation_review on true
@@ -497,6 +518,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
          pr.display_name,
          pr.pronouns,
          pr.photos,
+         ${feedAuthorPhotoExplicitSelect("i", "pr")},
          coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as feed_location_pin_visibility,
          exists (
            select 1
@@ -564,7 +586,46 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const row = result.rows[0];
 
     if (!row) {
-      throw new ApiError(403, "FEATURE_RESTRICTED", "Feed posting is unavailable for this account.");
+      const eligibility = await app.db.query<{
+        trust_suspended: boolean;
+        account_suspended: boolean;
+        low_trust: boolean;
+        feature_restricted: boolean;
+      }>(
+        `select
+           coalesce(trust.is_suspended, false) as trust_suspended,
+           exists (
+             select 1
+             from suspensions suspension
+             where suspension.user_id = $1
+               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+           ) as account_suspended,
+           coalesce(trust.trust_score, 50) <= 20 as low_trust,
+           exists (
+             select 1
+             from feature_restrictions restriction
+             where restriction.user_id = $1
+               and restriction.feature = 'feed_posting'
+               and (restriction.ends_at is null or restriction.ends_at > now())
+           ) as feature_restricted
+         from app_users user_row
+         left join user_trust_profiles trust on trust.user_id = user_row.id
+         where user_row.id = $1
+         limit 1`,
+        [userId]
+      );
+      const reason = eligibility.rows[0];
+
+      if (reason?.trust_suspended || reason?.account_suspended) {
+        throw new ApiError(403, "FEED_POSTING_SUSPENDED", "Feed posting is unavailable while this account is suspended.");
+      }
+      if (reason?.low_trust) {
+        throw new ApiError(403, "FEED_POSTING_LOW_TRUST", "Feed posting is unavailable while this account is under trust review.");
+      }
+      if (reason?.feature_restricted) {
+        throw new ApiError(403, "FEED_POSTING_RESTRICTED", "Feed posting is unavailable for this account.");
+      }
+      throw new ApiError(403, "FEED_POSTING_UNAVAILABLE", "Feed posting is unavailable for this account.");
     }
 
     await recordMeaningfulActivitySafely(app, {

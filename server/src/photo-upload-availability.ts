@@ -26,6 +26,7 @@ export function photoUploadAvailability(
   config: Pick<
     AppConfig,
     | "NODE_ENV"
+    | "STREAM_MODERATION_ENABLED"
     | "STREAM_IMAGE_BRIDGE_ENABLED"
     | "PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED"
     | "PROFILE_PHOTO_REKOGNITION_ENABLED"
@@ -36,15 +37,28 @@ export function photoUploadAvailability(
   >
 ) {
   const deployed = config.NODE_ENV === "production";
-  const deployedSafetyReadyBeforePhotoDna =
-    config.STREAM_IMAGE_BRIDGE_ENABLED === true &&
-    config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true &&
-    config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+  const streamModerationReady =
+    config.STREAM_MODERATION_ENABLED !== false;
+  const streamImageBridgeReady =
+    streamModerationReady &&
+    config.STREAM_IMAGE_BRIDGE_ENABLED === true;
+  const profilePhotoStreamReady =
+    streamImageBridgeReady &&
+    config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true;
+  const messagePhotoStreamReady = streamImageBridgeReady;
+  const rekognitionReady = config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+  const deployedProfilePhotoSafetyReady =
+    rekognitionReady || profilePhotoStreamReady;
+  const deployedMessagePhotoSafetyReady =
+    rekognitionReady || messagePhotoStreamReady;
   const alphaPhotoUploadBypass = activeAlphaPhotoUploadBypass(config);
-  const photosAvailable = !deployed || deployedSafetyReadyBeforePhotoDna || alphaPhotoUploadBypass;
+  const profilePhotosAvailable =
+    !deployed || deployedProfilePhotoSafetyReady || alphaPhotoUploadBypass;
+  const messagePhotosAvailable =
+    !deployed || deployedMessagePhotoSafetyReady || alphaPhotoUploadBypass;
 
   return {
-    profilePhotos: photosAvailable,
-    messagePhotos: photosAvailable
+    profilePhotos: profilePhotosAvailable,
+    messagePhotos: messagePhotosAvailable
   };
 }

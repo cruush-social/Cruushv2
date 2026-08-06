@@ -25,7 +25,9 @@ import {
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { normalizeSingleLineText } from "../input-schema.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
+import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
+import { DEFAULT_MAP_PRESENCE_DAYS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
@@ -85,6 +87,7 @@ type DiscoveryProfileRow = {
   latest_feed_post_content_key_version: string | null;
   latest_feed_location_pin_visibility: "off" | "mutuals" | "same_crowd" | "public" | null;
   latest_feed_has_shared_crowd: boolean | null;
+  has_shared_crowd: boolean | null;
 };
 
 const CODEVELOPER_NYC_EMAIL = "codeveloper-nyc@cruush.local";
@@ -185,6 +188,11 @@ const DEFAULT_CENTER = {
   lng: -73.9442
 };
 
+// Each profile controls how long it keeps showing on the map after its last
+// location update. `pin_settings` is the user_privacy_settings row for the
+// profile being scanned, so the window is per-subject, not per-viewer.
+const MAP_PRESENCE_DAYS_SQL = `coalesce(pin_settings.map_presence_days, ${DEFAULT_MAP_PRESENCE_DAYS})`;
+
 function isSchemaCompatibilityError(error: unknown) {
   const code = typeof error === "object" && error !== null && "code" in error
     ? String((error as { code?: string }).code)
@@ -251,7 +259,12 @@ function addTextArrayFilter(where: string[], values: unknown[], column: string, 
   }
 
   values.push(selectedValues);
-  where.push(`${column} && $${values.length}::text[]`);
+  where.push(`exists (
+           select 1
+           from unnest(coalesce(${column}, '{}'::text[])) as candidate(value)
+           join unnest($${values.length}::text[]) as selected(value)
+             on lower(btrim(candidate.value)) = lower(btrim(selected.value))
+         )`);
 }
 
 function addVibeFilter(where: string[], values: unknown[], selectedValues: string[]) {
@@ -260,11 +273,19 @@ function addVibeFilter(where: string[], values: unknown[], selectedValues: strin
   }
 
   values.push(selectedValues);
-  const selectedValuesPlaceholder = `$${values.length}`;
   where.push(`(
-           vibes && ${selectedValuesPlaceholder}::text[]
-           or scenes && ${selectedValuesPlaceholder}::text[]
-           or archetypes && ${selectedValuesPlaceholder}::text[]
+           exists (
+             select 1
+             from (
+               select unnest(coalesce(vibes, '{}'::text[])) as value
+               union all
+               select unnest(coalesce(scenes, '{}'::text[])) as value
+               union all
+               select unnest(coalesce(archetypes, '{}'::text[])) as value
+             ) as candidate
+             join unnest($${values.length}::text[]) as selected(value)
+               on lower(btrim(candidate.value)) = lower(btrim(selected.value))
+           )
          )`);
 }
 
@@ -558,7 +579,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          hosting_travel,
          photos,
          coalesce((
-           select media.explicit_classification = 'explicit'
+           select media.explicit_classification is distinct from 'non_explicit'
            from unnest(coalesce(profiles.photos, '{}'::text[])) with ordinality as photo(photo_url, ordinality)
            left join media_objects media
              on media.owner_user_id = profiles.id
@@ -567,7 +588,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
             and media.deleted_at is null
            order by photo.ordinality
            limit 1
-         ), false) as primary_photo_explicit,
+        ), true) as primary_photo_explicit,
          identities,
          presentation,
          sexuality,
@@ -595,6 +616,15 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          latest_feed.content_key_version as latest_feed_post_content_key_version,
          coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as latest_feed_location_pin_visibility,
          latest_feed.has_shared_crowd as latest_feed_has_shared_crowd,
+         exists (
+           select 1
+           from profile_sensitive_tokens viewer_crowd_token
+           join profile_sensitive_tokens author_crowd_token
+             on author_crowd_token.token_hash = viewer_crowd_token.token_hash
+            and author_crowd_token.token_key_version = viewer_crowd_token.token_key_version
+           where viewer_crowd_token.user_id = $1
+             and author_crowd_token.user_id = profiles.id
+         ) as has_shared_crowd,
          coalesce((
            select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
            from user_badges
@@ -814,7 +844,13 @@ async function mapModernDiscoveryRow(
     displayExpiresAtMs: displayLocationToken.expiresAtMs,
     animationHint: displayMode === "GHOST" ? "FADE_LAST_MINUTE" : "NONE",
     ...(npcGhostDemoActive ? { demoDisplayMode: "NPC_GHOST_TEST" as const } : {}),
-    relationshipContext: relationship?.isMutualCruush ? "MUTUAL_CRUUSH" : "PUBLIC",
+    relationshipContext: relationship?.isMutualCruush
+      ? "MUTUAL_CRUUSH"
+      : row.has_shared_crowd === true
+        ? "MUTUAL_CROWD"
+        : "PUBLIC",
+    identities: coerceStringArray(row.identities),
+    presentation: coerceStringArray(row.presentation),
     lookingFor: coerceStringArray(row.looking_for),
     vibes: uniqueStrings([
       ...coerceStringArray(row.vibes),
@@ -828,12 +864,15 @@ async function mapModernDiscoveryRow(
     hostingTravel: coerceStringArray(row.hosting_travel),
     photo: row.photos?.[0] ?? null,
     photoExplicit: row.primary_photo_explicit === true,
+    hasSharedCrowd: row.has_shared_crowd === true,
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
-    relationship: relationship?.isMutualCruush
+    relationship: relationship
       ? {
-          mutualCruush: true,
-          canMessage: relationship.canMessage,
-          precision: displayMode === "PRECISE" ? "precise" as const : "fuzzy" as const
+          mutualCruush: relationship.isMutualCruush,
+          canMessage: await canStartDirectMessage(app, viewerUserId, row.id),
+          ...(relationship.isMutualCruush
+            ? { precision: displayMode === "PRECISE" ? "precise" as const : "fuzzy" as const }
+            : {})
         }
       : null
   };

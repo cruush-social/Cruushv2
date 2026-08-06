@@ -89,6 +89,31 @@ describe("policy mapper", () => {
     }
   );
 
+  it.each([
+    ["animal", "animal_image_content"],
+    ["screenshot_or_interface", "screenshot_image_content"]
+  ] as const)(
+    "rejects a %s image in private messages",
+    (label, reasonCode) => {
+      const decision = mapProviderResultToPolicy({
+        surface: "direct_message",
+        contentType: "image",
+        providerResult: {
+          ...providerResult(label, 0.98),
+          provider: "stream",
+          recommended_action: "remove",
+          status: "complete"
+        }
+      });
+
+      expect(decision).toMatchObject({
+        decision: "reject",
+        reason_code: reasonCode,
+        user_message_code: "content_rejected"
+      });
+    }
+  );
+
   it("rejects PnP discussion in the feed without an immediate trust penalty", () => {
     const decision = map("pnp_discussion", "feed");
 
@@ -122,6 +147,37 @@ describe("policy mapper", () => {
     expect(decision.enforcement_action).toMatchObject({
       type: "suspend",
       reasonCode: "drug_sales"
+    });
+  });
+
+  it.each(["direct_message", "group_message"] as const)(
+    "rejects screenshot/interface images in %s messages",
+    (surface) => {
+      const decision = mapProviderResultToPolicy({
+        surface,
+        contentType: "image",
+        providerResult: providerResult("screenshot_or_interface", 0.98)
+      });
+
+      expect(decision).toMatchObject({
+        decision: "reject",
+        reason_code: "screenshot_image_content",
+        user_message_code: "content_rejected"
+      });
+    }
+  );
+
+  it("continues rejecting screenshot/interface images outside private messages", () => {
+    const decision = mapProviderResultToPolicy({
+      surface: "profile_photo",
+      contentType: "image",
+      providerResult: providerResult("screenshot_or_interface", 0.98)
+    });
+
+    expect(decision).toMatchObject({
+      decision: "reject",
+      reason_code: "screenshot_image_content",
+      user_message_code: "content_rejected"
     });
   });
 
@@ -224,12 +280,13 @@ describe("policy mapper", () => {
     }
   );
 
-  it("applies the permanent all-feature ban to a definite child face", () => {
+  it("applies a review suspension to a definite child face", () => {
     const decision = map("minor_present", "profile_photo", 0.99);
 
     expect(decision).toMatchObject({
       decision: "reject",
       reason_code: "minor_face_detected",
+      user_message_code: "minor_face_review_suspension",
       set_trust_to_zero: true,
       trust_cap: 0,
       penalty_decays: false,

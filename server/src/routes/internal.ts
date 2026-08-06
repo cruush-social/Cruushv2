@@ -2,6 +2,11 @@ import type { FastifyInstance } from "fastify";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import {
+  getBugReportForTriage,
+  linkBugReportTriage,
+  listBugReportsForTriage
+} from "../bug-report-triage.js";
+import {
   buildCsamReportPacket,
   getCsamIncidentDetails,
   markCsamIncidentSubmitted
@@ -46,6 +51,34 @@ const internalProfilePhotoReviewDecisionSchema = z.object({
 const internalProfilePhotoReviewRejectionSchema = internalProfilePhotoReviewDecisionSchema.extend({
   reason: z.string().trim().min(1).max(500)
 }).strict();
+
+const internalBugReportParamsSchema = z.object({
+  reportId: z.uuid()
+}).strict();
+
+const internalBugReportListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(25),
+  status: z.enum(["open", "in_progress", "closed", "dismissed"]).optional(),
+  aiTriageStatus: z.enum(["pending", "processing", "complete", "failed"]).optional()
+}).strict();
+
+const internalBugReportLinkSchema = z.object({
+  branch: z.string().trim().regex(/^bugfix\/[A-Za-z0-9._\-/]{1,80}$/).optional(),
+  prUrl: z.url().refine(
+    (value) => {
+      try {
+        return new URL(value).origin === "https://github.com";
+      } catch {
+        return false;
+      }
+    },
+    { message: "prUrl must be a github.com URL." }
+  ).optional(),
+  status: z.enum(["open", "in_progress", "closed", "dismissed"]).optional()
+}).strict().refine(
+  (value) => Boolean(value.branch || value.prUrl || value.status),
+  { message: "Provide at least one of branch, prUrl, or status." }
+);
 
 function assertInternalAccess(app: FastifyInstance, headerValue: string | string[] | undefined) {
   const configuredSecret = app.config.INTERNAL_API_SECRET ?? "";
@@ -152,6 +185,57 @@ export async function registerInternalRoutes(app: FastifyInstance) {
     const result = await rejectPendingProfilePhotoReview(app.db, app.config, reviewId, payload);
 
     return reply.send({ data: result });
+  });
+
+  app.get("/api/internal/bug-reports", async (request, reply) => {
+    assertInternalAccess(app, request.headers["x-internal-secret"]);
+    await app.rateLimiter.assert({
+      key: `internal-bug-reports:list:${request.ip}`,
+      max: 60,
+      windowMs: 60_000,
+      message: "Too many internal bug report requests."
+    });
+    const filters = internalBugReportListQuerySchema.parse(request.query);
+    const reports = await listBugReportsForTriage(app.db, filters);
+
+    return reply.send({ data: reports });
+  });
+
+  app.get("/api/internal/bug-reports/:reportId", async (request, reply) => {
+    assertInternalAccess(app, request.headers["x-internal-secret"]);
+    await app.rateLimiter.assert({
+      key: `internal-bug-reports:read:${request.ip}`,
+      max: 120,
+      windowMs: 60_000,
+      message: "Too many internal bug report requests."
+    });
+    const { reportId } = internalBugReportParamsSchema.parse(request.params);
+    const report = await getBugReportForTriage(app.db, reportId);
+
+    if (!report) {
+      throw new ApiError(404, "NOT_FOUND", "Bug report not found.");
+    }
+
+    return reply.send({ data: report });
+  });
+
+  app.post("/api/internal/bug-reports/:reportId/link", async (request, reply) => {
+    assertInternalAccess(app, request.headers["x-internal-secret"]);
+    await app.rateLimiter.assert({
+      key: `internal-bug-reports:link:${request.ip}`,
+      max: 60,
+      windowMs: 60_000,
+      message: "Too many internal bug report updates."
+    });
+    const { reportId } = internalBugReportParamsSchema.parse(request.params);
+    const payload = internalBugReportLinkSchema.parse(request.body);
+    const report = await linkBugReportTriage(app.db, reportId, payload);
+
+    if (!report) {
+      throw new ApiError(404, "NOT_FOUND", "Bug report not found.");
+    }
+
+    return reply.send({ data: report });
   });
 
   app.get("/api/internal/csam-incidents/:incidentId", async (request, reply) => {

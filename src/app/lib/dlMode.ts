@@ -1,4 +1,5 @@
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from './persistentNotice';
+import { useEffect, useState } from 'react';
 
 const DL_MODE_STORAGE_KEY = 'cruush:dl-mode-enabled';
 const DL_MODE_CHANGED_EVENT = 'cruush:dl-mode-changed';
@@ -64,4 +65,22 @@ export function addDlModeChangedListener(listener: (enabled: boolean) => void) {
     window.removeEventListener(DL_MODE_CHANGED_EVENT, handleCustomEvent);
     window.removeEventListener('storage', handleStorageEvent);
   };
+}
+
+export function useDlMode() {
+  const [enabled, setEnabled] = useState(() => isDlModeEnabled());
+
+  useEffect(() => addDlModeChangedListener(setEnabled), []);
+
+  return enabled;
+}
+
+/**
+ * Only a photo classified explicit is masked, and only while DL Mode is on.
+ * Unclassified photos are treated as safe: they belong to accounts whose media
+ * has not been through classification yet, and masking them hid new users
+ * entirely. Revisit if unclassified NSFW ever shows up in practice.
+ */
+export function shouldMaskPhoto(dlModeActive: boolean, explicit: boolean | null | undefined) {
+  return dlModeActive && explicit === true;
 }

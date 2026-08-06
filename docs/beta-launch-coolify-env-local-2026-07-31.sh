@@ -27,10 +27,10 @@ export COOLIFY_STAGING_FRONTEND_UUID="not-used-for-production-only"
 export COOLIFY_STAGING_API_UUID="not-used-for-production-only"
 
 # Production dry run:
-# node scripts/release-main-coolify.mjs --source codex/beta-launch-release-20260731 --target production --confirm-production
+# node scripts/release-main-coolify.mjs --source main --target production --confirm-production
 
 # Production live run:
-# node scripts/release-main-coolify.mjs --source codex/beta-launch-release-20260731 --target production --confirm-production --no-dry-run
+# node scripts/release-main-coolify.mjs --source main --target production --confirm-production --no-dry-run
 
 # Fast production live run, only if the commit is already verified:
-# node scripts/release-main-coolify.mjs --source codex/beta-launch-release-20260731 --target production --confirm-production --no-dry-run --skip-checks
+# node scripts/release-main-coolify.mjs --source main --target production --confirm-production --no-dry-run --skip-checks

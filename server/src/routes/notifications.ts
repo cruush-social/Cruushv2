@@ -140,6 +140,22 @@ export function registerNotificationRoutes(app: FastifyInstance) {
     });
   });
 
+  app.delete("/api/notifications", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+
+    await app.db.query(
+      `delete from app_notifications
+       where user_id = $1`,
+      [userId]
+    );
+
+    return reply.send({
+      data: {
+        unreadCount: 0
+      }
+    });
+  });
+
   app.get("/api/notification-preferences", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
 

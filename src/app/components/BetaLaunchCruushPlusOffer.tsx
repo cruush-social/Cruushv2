@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import CruushPlusWord from './CruushPlusWord';
+import './BetaLaunchCruushPlusOffer.css';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
@@ -22,7 +23,7 @@ type BetaLaunchCruushPlusOfferProps = {
   userId: string;
 };
 
-function offerStorageKey(userId: string) {
+export function offerStorageKey(userId: string) {
   return `${BETA_LAUNCH_OFFER_STORAGE_KEY}:${userId}`;
 }
 

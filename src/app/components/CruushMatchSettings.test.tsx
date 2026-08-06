@@ -43,8 +43,9 @@ describe('CruushMatchSettings', () => {
     saveMyPrivacySettings.mockReset();
 
     getCruushMatchSettings.mockResolvedValue({
-      nsfwMessageVisibility: 'mutual_cruushes',
-      nsfwSendVisibility: 'mutual_cruushes',
+      messageVisibility: 'mutual_cruushes',
+      nsfwMessageVisibility: 'public',
+      nsfwSendVisibility: 'public',
       updatedAt: null,
     });
     saveCruushMatchSettings.mockImplementation((settings) => Promise.resolve({
@@ -64,22 +65,24 @@ describe('CruushMatchSettings', () => {
     saveMyPrivacySettings.mockImplementation((settings) => Promise.resolve(settings));
   });
 
-  it('renders and saves mutual crowd NSFW options', async () => {
+  it('renders and saves message permission options', async () => {
     render(
       <MemoryRouter>
         <CruushMatchSettings />
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'mutual cruush settings' })).toBeInTheDocument();
-    expect(screen.getAllByText('Mutual crowds')).toHaveLength(2);
-    expect(screen.getAllByText('Only people who share one of your crowds may exchange NSFW photos.')).toHaveLength(2);
+    expect(await screen.findByRole('heading', { name: 'message settings' })).toBeInTheDocument();
+    expect(screen.getByText('Mutuals')).toBeInTheDocument();
+    expect(screen.getByText('Only mutual cruushes can start a chat. This is the default.')).toBeInTheDocument();
+    expect(screen.getByText('Crowd')).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByText('Mutual crowds')[0].closest('button') as HTMLButtonElement);
+    fireEvent.click(screen.getByText('Crowd').closest('button') as HTMLButtonElement);
 
     await waitFor(() => expect(saveCruushMatchSettings).toHaveBeenCalledWith({
-      nsfwMessageVisibility: 'mutual_crowds',
-      nsfwSendVisibility: 'mutual_cruushes',
+      messageVisibility: 'mutual_crowds',
+      nsfwMessageVisibility: 'public',
+      nsfwSendVisibility: 'public',
     }));
   });
 });

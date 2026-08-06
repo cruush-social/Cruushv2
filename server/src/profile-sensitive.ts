@@ -136,28 +136,32 @@ export function decryptSensitiveProfile(
     return null;
   }
 
-  const keyVersion = encryptedProfile.profile_sensitive_key_version || getSensitiveProfileKeyVersion(config);
-  const key = deriveKey(getProfileEncryptionSecret(config), "profile-sensitive", keyVersion);
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    key,
-    Buffer.from(encryptedProfile.profile_sensitive_nonce, "base64")
-  );
-  decipher.setAuthTag(Buffer.from(encryptedProfile.profile_sensitive_auth_tag, "base64"));
-  const plaintext = Buffer.concat([
-    decipher.update(Buffer.from(encryptedProfile.profile_sensitive_ciphertext, "base64")),
-    decipher.final()
-  ]).toString("utf8");
-  const parsed = JSON.parse(plaintext) as Partial<SensitiveProfileData>;
+  try {
+    const keyVersion = encryptedProfile.profile_sensitive_key_version || getSensitiveProfileKeyVersion(config);
+    const key = deriveKey(getProfileEncryptionSecret(config), "profile-sensitive", keyVersion);
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      key,
+      Buffer.from(encryptedProfile.profile_sensitive_nonce, "base64")
+    );
+    decipher.setAuthTag(Buffer.from(encryptedProfile.profile_sensitive_auth_tag, "base64"));
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(encryptedProfile.profile_sensitive_ciphertext, "base64")),
+      decipher.final()
+    ]).toString("utf8");
+    const parsed = JSON.parse(plaintext) as Partial<SensitiveProfileData>;
 
-  return {
-    is_trans: typeof parsed.is_trans === "boolean" ? parsed.is_trans : null,
-    crowds: normalizeCrowdOptions(parsed.crowds),
-    kinks: Array.isArray(parsed.kinks) ? parsed.kinks.filter((value): value is string => typeof value === "string") : [],
-    kink_interests: Array.isArray(parsed.kink_interests) ? parsed.kink_interests as SensitiveProfileData["kink_interests"] : [],
-    hiv_status: Array.isArray(parsed.hiv_status) ? parsed.hiv_status.filter((value): value is string => typeof value === "string") : [],
-    custom_hiv_status: typeof parsed.custom_hiv_status === "string" ? parsed.custom_hiv_status : ""
-  };
+    return {
+      is_trans: typeof parsed.is_trans === "boolean" ? parsed.is_trans : null,
+      crowds: normalizeCrowdOptions(parsed.crowds),
+      kinks: Array.isArray(parsed.kinks) ? parsed.kinks.filter((value): value is string => typeof value === "string") : [],
+      kink_interests: Array.isArray(parsed.kink_interests) ? parsed.kink_interests as SensitiveProfileData["kink_interests"] : [],
+      hiv_status: Array.isArray(parsed.hiv_status) ? parsed.hiv_status.filter((value): value is string => typeof value === "string") : [],
+      custom_hiv_status: typeof parsed.custom_hiv_status === "string" ? parsed.custom_hiv_status : ""
+    };
+  } catch (error) {
+    return null;
+  }
 }
 
 export function encryptProfileVisibility(
@@ -201,41 +205,45 @@ export function decryptProfileVisibility(
     return null;
   }
 
-  const keyVersion = encryptedProfile.profile_visibility_key_version || getProfileVisibilityKeyVersion(config);
-  const key = deriveKey(getProfileEncryptionSecret(config), "profile-visibility", keyVersion);
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    key,
-    Buffer.from(encryptedProfile.profile_visibility_nonce, "base64")
-  );
-  decipher.setAuthTag(Buffer.from(encryptedProfile.profile_visibility_auth_tag, "base64"));
-  const plaintext = Buffer.concat([
-    decipher.update(Buffer.from(encryptedProfile.profile_visibility_ciphertext, "base64")),
-    decipher.final()
-  ]).toString("utf8");
-  const parsed = JSON.parse(plaintext) as Partial<ProfileVisibilityRules>;
+  try {
+    const keyVersion = encryptedProfile.profile_visibility_key_version || getProfileVisibilityKeyVersion(config);
+    const key = deriveKey(getProfileEncryptionSecret(config), "profile-visibility", keyVersion);
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      key,
+      Buffer.from(encryptedProfile.profile_visibility_nonce, "base64")
+    );
+    decipher.setAuthTag(Buffer.from(encryptedProfile.profile_visibility_auth_tag, "base64"));
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(encryptedProfile.profile_visibility_ciphertext, "base64")),
+      decipher.final()
+    ]).toString("utf8");
+    const parsed = JSON.parse(plaintext) as Partial<ProfileVisibilityRules>;
 
-  return {
-    active_crowd_modes: normalizeCrowdOptions(parsed.active_crowd_modes),
-    age_range: Array.isArray(parsed.age_range) && parsed.age_range.length === 2 && parsed.age_range.every((value) => typeof value === "number")
-      ? [parsed.age_range[0], parsed.age_range[1]]
-      : null,
-    distance: typeof parsed.distance === "number" ? parsed.distance : null,
-    identities: Array.isArray(parsed.identities) ? parsed.identities.filter((value): value is string => typeof value === "string") : [],
-    presentations: Array.isArray(parsed.presentations) ? parsed.presentations.filter((value): value is string => typeof value === "string") : [],
-    looking_for: Array.isArray(parsed.looking_for) ? parsed.looking_for.filter((value): value is string => typeof value === "string") : [],
-    timing: Array.isArray(parsed.timing) ? parsed.timing.filter((value): value is string => typeof value === "string") : [],
-    hosting: Array.isArray(parsed.hosting) ? parsed.hosting.filter((value): value is string => typeof value === "string") : [],
-    vibes: Array.isArray(parsed.vibes) ? parsed.vibes.filter((value): value is string => typeof value === "string") : [],
-    crowds: normalizeCrowdOptions(parsed.crowds),
-    hobbies: Array.isArray(parsed.hobbies) ? parsed.hobbies.filter((value): value is string => typeof value === "string") : [],
-    positions: Array.isArray(parsed.positions) ? parsed.positions.filter((value): value is string => typeof value === "string") : [],
-    roles: Array.isArray(parsed.roles) ? parsed.roles.filter((value): value is string => typeof value === "string") : [],
-    kinks: Array.isArray(parsed.kinks) ? parsed.kinks.filter((value): value is string => typeof value === "string") : [],
-    body_types: Array.isArray(parsed.body_types) ? parsed.body_types.filter((value): value is string => typeof value === "string") : [],
-    sexuality: Array.isArray(parsed.sexuality) ? parsed.sexuality.filter((value): value is string => typeof value === "string") : [],
-    substance_boundaries: Array.isArray(parsed.substance_boundaries) ? parsed.substance_boundaries.filter((value): value is string => typeof value === "string") : []
-  };
+    return {
+      active_crowd_modes: normalizeCrowdOptions(parsed.active_crowd_modes),
+      age_range: Array.isArray(parsed.age_range) && parsed.age_range.length === 2 && parsed.age_range.every((value) => typeof value === "number")
+        ? [parsed.age_range[0], parsed.age_range[1]]
+        : null,
+      distance: typeof parsed.distance === "number" ? parsed.distance : null,
+      identities: Array.isArray(parsed.identities) ? parsed.identities.filter((value): value is string => typeof value === "string") : [],
+      presentations: Array.isArray(parsed.presentations) ? parsed.presentations.filter((value): value is string => typeof value === "string") : [],
+      looking_for: Array.isArray(parsed.looking_for) ? parsed.looking_for.filter((value): value is string => typeof value === "string") : [],
+      timing: Array.isArray(parsed.timing) ? parsed.timing.filter((value): value is string => typeof value === "string") : [],
+      hosting: Array.isArray(parsed.hosting) ? parsed.hosting.filter((value): value is string => typeof value === "string") : [],
+      vibes: Array.isArray(parsed.vibes) ? parsed.vibes.filter((value): value is string => typeof value === "string") : [],
+      crowds: normalizeCrowdOptions(parsed.crowds),
+      hobbies: Array.isArray(parsed.hobbies) ? parsed.hobbies.filter((value): value is string => typeof value === "string") : [],
+      positions: Array.isArray(parsed.positions) ? parsed.positions.filter((value): value is string => typeof value === "string") : [],
+      roles: Array.isArray(parsed.roles) ? parsed.roles.filter((value): value is string => typeof value === "string") : [],
+      kinks: Array.isArray(parsed.kinks) ? parsed.kinks.filter((value): value is string => typeof value === "string") : [],
+      body_types: Array.isArray(parsed.body_types) ? parsed.body_types.filter((value): value is string => typeof value === "string") : [],
+      sexuality: Array.isArray(parsed.sexuality) ? parsed.sexuality.filter((value): value is string => typeof value === "string") : [],
+      substance_boundaries: Array.isArray(parsed.substance_boundaries) ? parsed.substance_boundaries.filter((value): value is string => typeof value === "string") : []
+    };
+  } catch (error) {
+    return null;
+  }
 }
 
 export function createSensitiveProfileToken(

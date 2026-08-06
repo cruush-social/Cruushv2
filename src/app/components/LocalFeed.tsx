@@ -19,6 +19,7 @@ import {
 } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import {
   createFeedPost,
   deleteFeedPost,
@@ -59,6 +60,10 @@ function formatRelativeTime(isoTimestamp: string) {
   return `${diffDays}d ago`;
 }
 
+function formatFeedExpiry(expiry: FeedPostExpiry) {
+  return expiry === 'never' ? 'Never' : expiry;
+}
+
 const FEED_LOCATION_PIN_OPTIONS: Array<{ value: FeedLocationPinVisibility; label: string; description: string }> = [
   { value: 'mutuals', label: 'mutuals', description: 'Only mutual cruushes see your feed pin.' },
   { value: 'same_crowd', label: 'same crowd', description: 'People sharing one of your crowds see your feed pin.' },
@@ -67,13 +72,21 @@ const FEED_LOCATION_PIN_OPTIONS: Array<{ value: FeedLocationPinVisibility; label
 ];
 
 const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
+  { value: '7d', label: '7d' },
   { value: '24h', label: '24h' },
   { value: '6h', label: '6h' },
   { value: '3h', label: '3h' },
   { value: '1h', label: '1h' },
 ];
+const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
+  { value: '1h', label: '1h' },
+  { value: '6h', label: '6h' },
+  { value: '24h', label: '24h' },
+  { value: '7d', label: '7d' },
+  { value: 'never', label: 'Never' },
+];
 const FEED_PAGE_SIZE = 30;
-const DEFAULT_FEED_RADIUS_MILES = 1;
+const DEFAULT_FEED_RADIUS_MILES = 15;
 const LAUNCH_PARTY_EVENT_SLUG = 'the-chocolate-factory-launch';
 const DEFAULT_FEED_SETTINGS: FeedSettings = {
   locationPinVisibility: 'mutuals',
@@ -99,7 +112,7 @@ export default function LocalFeed() {
   const navigate = useNavigate();
   const [newPost, setNewPost] = useState('');
   const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('6h');
+  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('24h');
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -116,6 +129,7 @@ export default function LocalFeed() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const fetchPosts = useCallback(async (options: {
@@ -173,6 +187,8 @@ export default function LocalFeed() {
       }
     }
   }, [feedCoordinates, feedDistanceMiles, feedWindow]);
+
+  useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   useEffect(() => {
     const loadBillingStatus = () => {
@@ -248,7 +264,8 @@ export default function LocalFeed() {
 
   const handlePost = async () => {
     if (!newPost.trim()) return;
-    if (billingStatus && !billingStatus.cruushPlus) {
+    if (!billingStatus) return;
+    if (!billingStatus.cruushPlus) {
       navigate('/rewards');
       return;
     }
@@ -272,7 +289,7 @@ export default function LocalFeed() {
     }
   };
 
-  const canPost = billingStatus?.cruushPlus !== false;
+  const canPost = billingStatus?.cruushPlus === true;
 
   const toggleCrowdTarget = (crowd: string) => {
     if (!canPost) {
@@ -384,7 +401,7 @@ export default function LocalFeed() {
             <div className="space-y-4">
               <section className="rounded-lg border border-white/10 bg-black/42 p-3">
                 <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {FEED_WINDOW_OPTIONS.map((option) => (
                     <button
                       key={option.value}
@@ -478,11 +495,15 @@ export default function LocalFeed() {
           <Textarea
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
-            placeholder={canPost ? 'Share something with nearby people...' : 'Upgrade to post on the local feed.'}
+            placeholder={billingStatus === null
+              ? 'Checking cruush+ access...'
+              : canPost
+                ? 'Share something with nearby people...'
+                : 'Upgrade to post on the local feed.'}
             className="bg-input-background mb-3 min-h-[100px]"
             disabled={!canPost}
           />
-          {!canPost ? (
+          {billingStatus !== null && !canPost ? (
             <div
               className="mb-3 flex flex-col gap-3 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-white/78 sm:flex-row sm:items-center sm:justify-between"
               data-testid="local-feed-cruush-plus-notice"
@@ -503,30 +524,17 @@ export default function LocalFeed() {
           ) : null}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant={expiresIn === '1h' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setExpiresIn('1h')}
-                disabled={!canPost}
-              >
-                1h
-              </Button>
-              <Button
-                variant={expiresIn === '6h' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setExpiresIn('6h')}
-                disabled={!canPost}
-              >
-                6h
-              </Button>
-              <Button
-                variant={expiresIn === '24h' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setExpiresIn('24h')}
-                disabled={!canPost}
-              >
-                24h
-              </Button>
+              {FEED_EXPIRY_OPTIONS.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={expiresIn === option.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setExpiresIn(option.value)}
+                  disabled={!canPost}
+                >
+                  {option.label}
+                </Button>
+              ))}
               {availableCrowdTargets.length > 0 ? (
                 <div className="ml-0 flex flex-wrap items-center gap-2 sm:ml-2">
                   {availableCrowdTargets.map((crowd) => {
@@ -581,6 +589,7 @@ export default function LocalFeed() {
                     <HeartPhoto
                       className="w-20 flex-shrink-0"
                       label={`${post.user.name} preview`}
+                      masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)}
                       photo={post.user?.photo}
                       theme={currentUserId && post.user.id === currentUserId ? 'current' : 'nearby'}
                       userId={post.user.id}
@@ -610,9 +619,6 @@ export default function LocalFeed() {
                             </button>
                           ) : null}
                         </div>
-                        {post.user.pronouns ? (
-                          <p className="text-sm text-white/58">{post.user.pronouns}</p>
-                        ) : null}
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/52" data-testid={`feed-post-meta-${post.id}`}>
                           {feedSettings.showDistanceLabels !== false ? (
                             <span className="flex items-center gap-1">
@@ -623,7 +629,7 @@ export default function LocalFeed() {
                           <span>{formatRelativeTime(post.createdAt)}</span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {post.expiresIn}
+                            {formatFeedExpiry(post.expiresIn)}
                           </span>
                           <div className="ml-auto flex items-center gap-2">
                             {currentUserId && post.user.id === currentUserId ? (

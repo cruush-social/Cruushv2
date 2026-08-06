@@ -23,7 +23,7 @@ import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 function sourceLabel(source: RewardSummary['recentGrants'][number]['source']) {
   switch (source) {
     case 'activity_recurring':
-      return '7-day streak';
+      return '7-day streak reward';
     case 'activity_long_bonus':
       return 'Log-in bonus';
     case 'referral':
@@ -144,17 +144,18 @@ export default function Rewards() {
                 />
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-lg bg-muted/40 p-3">
-                    <p className="text-muted-foreground">Next reward</p>
-                    <p className="mt-1 font-medium">{summary.streak.nextRecurringInDays} active days</p>
+                    <p className="text-muted-foreground">Next 7-day reward</p>
+                    <p className="mt-1 font-medium">{summary.streak.nextRecurringInDays} consecutive days</p>
                   </div>
                   <div className="rounded-lg bg-muted/40 p-3">
-                    <p className="text-muted-foreground">Next log in bonus</p>
-                    <p className="mt-1 font-medium">{summary.streak.nextLoginBonusAtDays} active days</p>
+                    <p className="text-muted-foreground">Reward amount</p>
+                    <p className="mt-1 font-medium">{summary.rules.recurringStreakRewardDays} days each time</p>
                   </div>
                 </div>
                 <p className="text-xs leading-5 text-muted-foreground">
                   A cruush, legitimate message, reply, or other eligible social action counts once per
-                  calendar day. Opening the app or logging in alone does not count.
+                  calendar day. Opening the app or logging in alone does not count. After the first seven
+                  consecutive qualifying days, the next reward takes eight days, then nine, and so on.
                 </p>
               </CardContent>
             </Card>

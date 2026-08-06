@@ -76,6 +76,7 @@ const visibilityRulesPayloadSchema = z.object({
 }).strict();
 const FREE_VISIBILITY_EXCLUSION_LIMIT = 3;
 const VISIBILITY_EXCLUSION_LIMIT_MESSAGE = "Free accounts can use up to 3 visibility filters. Upgrade to cruush+ for more.";
+export const IDENTITY_GATE_LOCK_DAYS = 7;
 
 const crowdIdSchema = z.preprocess((value) => normalizeCrowdOption(value) ?? value, z.enum(CROWD_OPTIONS));
 
@@ -269,7 +270,7 @@ function profilePhotoMetadataSelect(profileAlias = "profiles") {
               select jsonb_agg(
                 jsonb_build_object(
                   'url', photo.photo_url,
-                  'explicit', coalesce(media.explicit_classification = 'explicit', false)
+                  'explicit', coalesce(media.explicit_classification is distinct from 'non_explicit', true)
                 )
                 order by photo.ordinality
               )
@@ -1154,19 +1155,21 @@ function hasIdentityGateChange(
     !stringArraysEqual(existingState.sensitiveProfile.crowds, sensitiveProfile.crowds);
 }
 
+export function isIdentityGateChangeLocked(changedAt: Date, now = new Date()) {
+  const lockWindowMs = IDENTITY_GATE_LOCK_DAYS * 24 * 60 * 60 * 1000;
+  return now.getTime() < changedAt.getTime() + lockWindowMs;
+}
+
 function assertIdentityGateChangeAllowed(existingState: ExistingIdentityState, hasChange: boolean) {
   if (!hasChange || !existingState.changedAt) {
     return;
   }
 
-  const lockWindowMs = 14 * 24 * 60 * 60 * 1000;
-  const lockExpiresAt = existingState.changedAt.getTime() + lockWindowMs;
-
-  if (Date.now() < lockExpiresAt) {
+  if (isIdentityGateChangeLocked(existingState.changedAt)) {
     throw new ApiError(
       400,
       "VALIDATION_ERROR",
-      "Gender identity, trans status, and crowd selection can only be changed once every 14 days."
+      "Gender identity, trans status, and crowd selection can only be changed once every 7 days."
     );
   }
 }

@@ -9,8 +9,7 @@ import {
 } from "./reward-config.js";
 
 const DAY_SECONDS = 86_400;
-export const BETA_LAUNCH_CRUUSH_PLUS_ENDS_AT = "2026-08-07T00:00:00-04:00";
-const BETA_LAUNCH_GRANT_DAYS = 7;
+export const FIRST_LOGIN_CRUUSH_PLUS_DAYS = 7;
 
 type RewardSource = "activity_recurring" | "activity_long_bonus" | "referral" | "admin";
 
@@ -280,12 +279,12 @@ export async function grantPromotionalDaysInTransaction(
     `insert into app_notifications (
        user_id, type, title, body, link_url, dedupe_key, metadata
      )
-     values ($1, 'reward', 'Cruush+ reward earned',
+     values ($1, 'reward', 'cruush+ reward earned',
        $2, '/rewards', $3, $4::jsonb)
      on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing`,
     [
       input.userId,
-      `${requestedDays} promotional ${requestedDays === 1 ? "day" : "days"} of Cruush+ added.`,
+      `${requestedDays} promotional ${requestedDays === 1 ? "day" : "days"} of cruush+ added.`,
       `reward:${input.idempotencyKey}`,
       JSON.stringify({ grantId: grant.id, days: requestedDays, source: input.source })
     ]
@@ -349,6 +348,15 @@ async function grantPromotionalAccessUntilInTransaction(
   );
   const grant = inserted.rows[0] ?? null;
 
+  if (!grant) {
+    return {
+      claimed: false,
+      label: input.label,
+      activeUntil: input.activeUntil.toISOString(),
+      grant: null
+    };
+  }
+
   await db.query(
     `update promotional_cruush_plus_entitlements
      set active_until = greatest(coalesce(active_until, now()), $2::timestamptz),
@@ -357,22 +365,20 @@ async function grantPromotionalAccessUntilInTransaction(
     [input.userId, input.activeUntil.toISOString()]
   );
 
-  if (grant) {
-    await db.query(
-      `insert into app_notifications (
-         user_id, type, title, body, link_url, dedupe_key, metadata
-       )
-       values ($1, 'reward', 'Cruush+ reward earned',
-         $2, '/rewards', $3, $4::jsonb)
-       on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing`,
-      [
-        input.userId,
-        `${input.label} activated through ${input.activeUntil.toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`,
-        `reward:${input.idempotencyKey}`,
-        JSON.stringify({ grantId: grant.id, source: "admin", activeUntil: input.activeUntil.toISOString() })
-      ]
-    );
-  }
+  await db.query(
+    `insert into app_notifications (
+       user_id, type, title, body, link_url, dedupe_key, metadata
+     )
+     values ($1, 'reward', 'cruush+ reward earned',
+       $2, '/rewards', $3, $4::jsonb)
+     on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing`,
+    [
+      input.userId,
+      `${input.label} activated through ${input.activeUntil.toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`,
+      `reward:${input.idempotencyKey}`,
+      JSON.stringify({ grantId: grant.id, source: "admin", activeUntil: input.activeUntil.toISOString() })
+    ]
+  );
 
   return {
     claimed: Boolean(grant),
@@ -387,26 +393,29 @@ async function grantPromotionalAccessUntilInTransaction(
   };
 }
 
-export async function claimBetaLaunchCruushPlus(
+export async function grantFirstLoginCruushPlus(
   app: Pick<FastifyInstance, "db">,
   userId: string
 ) {
-  const activeUntil = new Date(BETA_LAUNCH_CRUUSH_PLUS_ENDS_AT);
-
-  if (Number.isNaN(activeUntil.getTime()) || activeUntil.getTime() <= Date.now()) {
-    throw new ApiError(400, "VALIDATION_ERROR", "The beta launch cruush+ offer has ended.");
-  }
+  const activeUntil = new Date(Date.now() + FIRST_LOGIN_CRUUSH_PLUS_DAYS * DAY_SECONDS * 1000);
 
   return runTransaction(app.db, (db) => grantPromotionalAccessUntilInTransaction(db, {
     userId,
     activeUntil,
-    days: BETA_LAUNCH_GRANT_DAYS,
-    idempotencyKey: `beta-launch-2026:${userId}`,
-    label: "Beta launch cruush+",
+    days: FIRST_LOGIN_CRUUSH_PLUS_DAYS,
+    idempotencyKey: `first-login-cruush-plus-7d:${userId}`,
+    label: "First-login cruush+ trial",
     auditMetadata: {
-      offer: "beta_launch_2026"
+      offer: "first_login_7_day_trial"
     }
   }));
+}
+
+export async function claimBetaLaunchCruushPlus(
+  app: Pick<FastifyInstance, "db">,
+  userId: string
+) {
+  return grantFirstLoginCruushPlus(app, userId);
 }
 
 export async function redeemCruushPlusPromoCode(
@@ -435,7 +444,7 @@ export async function redeemCruushPlusPromoCode(
     )).rows[0];
 
     if (!promo) {
-      throw new ApiError(404, "NOT_FOUND", "Cruush+ code is invalid or expired.");
+      throw new ApiError(404, "NOT_FOUND", "cruush+ code is invalid or expired.");
     }
 
     const existing = (await db.query<{ id: string }>(
@@ -465,7 +474,7 @@ export async function redeemCruushPlusPromoCode(
       )).rows[0];
 
       if (Number(redemptionCount?.total ?? 0) >= Number(promo.max_redemptions)) {
-        throw new ApiError(409, "VALIDATION_ERROR", "Cruush+ code has already been fully redeemed.");
+        throw new ApiError(409, "VALIDATION_ERROR", "cruush+ code has already been fully redeemed.");
       }
     }
 
@@ -485,7 +494,7 @@ export async function redeemCruushPlusPromoCode(
       }, config);
 
       if (!grant) {
-        throw new ApiError(409, "VALIDATION_ERROR", "Cruush+ code could not be applied.");
+        throw new ApiError(409, "VALIDATION_ERROR", "cruush+ code could not be applied.");
       }
 
       result = {
@@ -498,7 +507,7 @@ export async function redeemCruushPlusPromoCode(
       const activeUntil = asDate(promo.active_until);
 
       if (!activeUntil || activeUntil.getTime() <= Date.now()) {
-        throw new ApiError(404, "NOT_FOUND", "Cruush+ code is invalid or expired.");
+        throw new ApiError(404, "NOT_FOUND", "cruush+ code is invalid or expired.");
       }
 
       result = await grantPromotionalAccessUntilInTransaction(db, {
@@ -538,7 +547,7 @@ async function grantActivityMilestones(
 ) {
   const grants: RewardGrantResult[] = [];
 
-  if (input.streak % config.recurringStreakDays === 0) {
+  if (input.streak >= config.recurringStreakDays) {
     const grant = await grantPromotionalDaysInTransaction(db, {
       userId: input.userId,
       source: "activity_recurring",
@@ -557,47 +566,7 @@ async function grantActivityMilestones(
     }
   }
 
-  if (isLoginBonusMilestone(input.streak, config)) {
-    const grant = await grantPromotionalDaysInTransaction(db, {
-      userId: input.userId,
-      source: "activity_long_bonus",
-      days: config.longStreakBonusDays,
-      idempotencyKey: `activity:long:${input.userId}:${input.streak}`,
-      milestoneKey: `streak:${input.streak}`,
-      auditMetadata: {
-        streak: input.streak,
-        activityDate: input.activityDate,
-        timezone: input.timezone
-      }
-    }, config);
-
-    if (grant) {
-      grants.push(grant);
-    }
-  }
-
   return grants;
-}
-
-function isLoginBonusMilestone(streak: number, config: RewardConfig) {
-  return streak > config.recurringStreakDays &&
-    streak % config.recurringStreakDays !== 0 &&
-    (streak - config.recurringStreakDays) % config.longStreakDays === 0;
-}
-
-function nextLoginBonusTargetStreak(currentStreak: number, config: RewardConfig) {
-  let candidate = Math.max(currentStreak + 1, config.recurringStreakDays + config.longStreakDays);
-  const maxAttempts = Math.max(config.recurringStreakDays, config.longStreakDays) * 2 + 2;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    if (isLoginBonusMilestone(candidate, config)) {
-      return candidate;
-    }
-
-    candidate += 1;
-  }
-
-  return Math.max(currentStreak + 1, config.recurringStreakDays + 1);
 }
 
 export async function recordMeaningfulActivity(
@@ -897,19 +866,19 @@ export async function getRewardSummary(
     : Number(streak?.current_streak ?? 0);
   const activeUntil = asDate(promotion.active_until);
   const promotionalActive = Boolean(activeUntil && activeUntil > new Date());
-  const recurringRemainder = currentStreak % config.recurringStreakDays;
-  const nextLoginBonusAtDays = nextLoginBonusTargetStreak(currentStreak, config);
+  const nextRewardAtDays = Math.max(currentStreak + 1, config.recurringStreakDays);
+  const nextRewardInDays = Math.max(1, nextRewardAtDays - currentStreak);
 
   return {
     streak: {
       current: currentStreak,
       longest: Number(streak?.longest_streak ?? 0),
       todayQualified: lastActivityDate === today,
-      nextRecurringInDays: recurringRemainder === 0
-        ? config.recurringStreakDays
-        : config.recurringStreakDays - recurringRemainder,
-      nextLongBonusInDays: Math.max(1, nextLoginBonusAtDays - currentStreak),
-      nextLoginBonusAtDays
+      nextRecurringInDays: nextRewardInDays,
+      // Keep the legacy response fields for older clients; both now describe
+      // the same fixed seven-day reward stream.
+      nextLongBonusInDays: nextRewardInDays,
+      nextLoginBonusAtDays: nextRewardAtDays
     },
     promotionalAccess: {
       active: promotionalActive,

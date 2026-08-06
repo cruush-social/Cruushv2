@@ -704,6 +704,7 @@ describe('MapView', () => {
             approximateLatitude: 40.73,
             approximateLongitude: -73.99,
             photo: 'https://example.com/me.jpg',
+            photoExplicit: false,
             isCurrentUser: true,
             lastActiveLabel: 'Now',
             badge: createMapMarkerBadge(['Vers'], []),
@@ -714,6 +715,7 @@ describe('MapView', () => {
             approximateLatitude: 40.72,
             approximateLongitude: -74.01,
             photo: 'https://example.com/kai.jpg',
+            photoExplicit: false,
             lastActiveLabel: '12m ago',
           },
         ]}
@@ -753,6 +755,7 @@ describe('MapView', () => {
             approximateLatitude: 40.73,
             approximateLongitude: -73.99,
             photo: 'https://example.com/me.jpg',
+            photoExplicit: false,
             isCurrentUser: true,
             relationship: {
               kind: 'mutual_cruush',
@@ -780,6 +783,7 @@ describe('MapView', () => {
             approximateLatitude: 40.72,
             approximateLongitude: -74.01,
             photo: 'https://example.com/river.jpg',
+            photoExplicit: false,
             badge: createMapMarkerBadge(['Bottom'], []),
             relationship: {
               kind: 'mutual_cruush',
@@ -1088,9 +1092,14 @@ describe('MapView', () => {
 
     expect(onPinClick).not.toHaveBeenCalled();
     expect(mapInstances[0].setZoom).toHaveBeenCalledWith(15.5);
+    // The cluster centroid lands on the current user's own coordinates here, so
+    // it is pushed clear of the pin footprint rather than stacking on top of it.
     const center = mapInstances[0].setCenter.mock.calls.at(-1)?.[0] as [number, number];
-    expect(center[0]).toBeCloseTo(-73.9901, 4);
-    expect(center[1]).toBeCloseTo(40.7129, 4);
+    expect(pixelDistance(
+      { approximateLongitude: center[0], approximateLatitude: center[1] },
+      { approximateLongitude: -73.99, approximateLatitude: 40.7128 },
+      12,
+    )).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
     expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
     await waitFor(() => {
@@ -1506,5 +1515,115 @@ describe('MapView', () => {
     expect(style.sources.openmaptiles.url).toBe('https://tiles.example.com/planet.json');
     expect(style.glyphs).toBe('https://fonts.example.com/{fontstack}/{range}.pbf');
     expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
+  });
+});
+
+function pixelDistance(a: { approximateLatitude: number; approximateLongitude: number },
+                       b: { approximateLatitude: number; approximateLongitude: number },
+                       zoom: number) {
+  const worldSize = 512 * 2 ** zoom;
+  const project = (m: { approximateLatitude: number; approximateLongitude: number }) => {
+    const sinLatitude = Math.min(0.9999, Math.max(-0.9999, Math.sin(m.approximateLatitude * Math.PI / 180)));
+    return {
+      x: (m.approximateLongitude + 180) / 360 * worldSize,
+      y: (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * worldSize,
+    };
+  };
+  const p1 = project(a);
+  const p2 = project(b);
+  return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+}
+
+describe('spiderfy clusters', () => {
+  it('fans same-spot people out on tap instead of zooming', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          { id: 'a', displayName: 'A', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'b', displayName: 'B', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+          { id: 'c', displayName: 'C', approximateLatitude: 40.7128, approximateLongitude: -73.99 },
+        ]}
+      />
+    );
+
+    const cluster = await screen.findByRole('button', { name: /sharing this map spot/ });
+
+    await act(async () => {
+      fireEvent.click(cluster);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Tapping expands the members in place; it must not zoom the map.
+    expect(mapInstances[0].setZoom).not.toHaveBeenCalled();
+    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open C on map' })).toBeInTheDocument();
+
+    const offsets = markerInstances.map((m: any) => m.offset).filter(Boolean);
+    expect(offsets).toHaveLength(3);
+    // Every member gets a distinct offset so none of them stack.
+    expect(new Set(offsets.map((o: number[]) => o.join(','))).size).toBe(3);
+  });
+});
+
+describe('separateOverlappingMarkers', () => {
+  it('separates two ordinary user pins that share coordinates', () => {
+    const a = { ...me, id: 'a', isCurrentUser: false };
+    const b = { ...me, id: 'b', isCurrentUser: false };
+    const [ra, rb] = separateOverlappingMarkers([a, b], zoom);
+
+    expect(pixelDistance(ra, rb, zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
+  });
+
+  it('separates a whole crowd so no two pins overlap', () => {
+    const crowd = Array.from({ length: 6 }, (_, i) => ({ ...me, id: `p${i}`, isCurrentUser: false }));
+    const out = separateOverlappingMarkers(crowd, zoom);
+
+    for (let i = 0; i < out.length; i += 1) {
+      for (let j = i + 1; j < out.length; j += 1) {
+        expect(pixelDistance(out[i], out[j], zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
+      }
+    }
+  });
+
+  const zoom = 14;
+  const me = {
+    id: 'me',
+    displayName: 'Julien',
+    approximateLatitude: 40.6782,
+    approximateLongitude: -73.9442,
+    isCurrentUser: true,
+  } as any;
+
+  it('pushes a pin sharing the current user coordinates out of the pin footprint', () => {
+    const other = { ...me, id: 'other', displayName: 'Someone', isCurrentUser: false };
+    const [, moved] = separateOverlappingMarkers([me, other], zoom);
+
+    expect(pixelDistance(me, moved, zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
+  });
+
+  it('never moves the current user pin', () => {
+    const other = { ...me, id: 'other', isCurrentUser: false };
+    const [mine] = separateOverlappingMarkers([me, other], zoom);
+
+    expect(mine.approximateLatitude).toBe(me.approximateLatitude);
+    expect(mine.approximateLongitude).toBe(me.approximateLongitude);
+  });
+
+  it('leaves pins that already clear the footprint untouched', () => {
+    const far = { ...me, id: 'far', isCurrentUser: false, approximateLatitude: 40.7 };
+    const [, untouched] = separateOverlappingMarkers([me, far], zoom);
+
+    expect(untouched).toBe(far);
+  });
+
+  it('is stable across renders so pins do not jitter', () => {
+    const other = { ...me, id: 'other', isCurrentUser: false };
+    const first = separateOverlappingMarkers([me, other], zoom)[1];
+    const second = separateOverlappingMarkers([me, other], zoom)[1];
+
+    expect(second).toEqual(first);
   });
 });

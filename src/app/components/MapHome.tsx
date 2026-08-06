@@ -29,7 +29,7 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type EventPassReveal, type LaunchEvent } from '../lib/eventsApi';
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
-import { addDlModeChangedListener, isDlModeEnabled, setDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto, setDlModeEnabled } from '../lib/dlMode';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation } from '../lib/locationApi';
@@ -48,6 +48,7 @@ import {
 } from '../lib/locationPrivacy';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from '../lib/mapMarkers';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import dlModeIconColored from '../assets/ui-icons/dl-mode-colored.png';
@@ -326,7 +327,7 @@ type LuckySlotState =
 const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
-const MAP_CONTROLS_INTRO_STORAGE_KEY = 'cruush:map-controls-intro-seen';
+export const MAP_CONTROLS_INTRO_STORAGE_KEY = 'cruush:map-controls-intro-seen';
 const MAP_3D_MODE_STORAGE_KEY = 'cruush:map-3d-mode-enabled';
 
 function isEnabledEnvFlag(value: string | undefined) {
@@ -1592,6 +1593,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
               >
                 <CruushIconImage src={settingsIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
               </Button>
+              <div
+                className="contents"
+                data-testid="map-bug-button-slot"
+                ref={registerBugButtonSlot}
+              />
             </div>
           </div>
         </div>
@@ -2042,7 +2048,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       data-testid={`recently-active-tile-${user.id}`}
                     >
                       <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">
-                        {user.photo && !(dlModeActive && user.photoExplicit === true) ? (
+                        {user.photo && !shouldMaskPhoto(dlModeActive, user.photoExplicit) ? (
                           <img
                             alt=""
                             aria-hidden="true"

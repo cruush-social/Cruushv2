@@ -68,6 +68,14 @@ type SupportRequestInboxEmailInput = {
   request: SupportRequestEmailInput;
 };
 
+type SupportRequestReplyEmailInput = {
+  config: AppConfig;
+  logger: FastifyBaseLogger;
+  replyToEmail: string;
+  request: SupportRequestEmailInput;
+  replyMessage: string;
+};
+
 type UserReportInboxEmailInput = {
   config: AppConfig;
   logger: FastifyBaseLogger;
@@ -505,6 +513,61 @@ export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEma
     text,
     attachments: request.screenshot ? [request.screenshot] : undefined,
     failureMessage: "support inbox email delivery failed"
+  });
+}
+
+export async function sendSupportRequestReplyEmail(input: SupportRequestReplyEmailInput) {
+  const { config, logger, replyMessage, replyToEmail, request } = input;
+
+  if (!config.RESEND_API_KEY || !config.MAIL_FROM) {
+    throw new ApiError(500, "INTERNAL_ERROR", "Reports inbox email is not configured.");
+  }
+
+  const escapedSubject = escapeHtml(request.subject);
+  const escapedReplyMessage = escapeHtml(replyMessage).replace(/\n/g, "<br>");
+  const escapedOriginalMessage = escapeHtml(request.message).replace(/\n/g, "<br>");
+  const html = `
+    <p>A cruush support reply is ready.</p>
+    <table>
+      <tr><th align="left">Request ID</th><td>${escapeHtml(request.id)}</td></tr>
+      <tr><th align="left">Category</th><td>${escapeHtml(request.category)}</td></tr>
+      <tr><th align="left">Source</th><td>${escapeHtml(request.source)}</td></tr>
+      <tr><th align="left">Page</th><td>${escapeHtml(request.pageUrl || "unknown")}</td></tr>
+      <tr><th align="left">Created at</th><td>${escapeHtml(request.createdAt)}</td></tr>
+    </table>
+    <h2>${escapedSubject}</h2>
+    <p>${escapedReplyMessage}</p>
+    <hr />
+    <p><strong>Original message</strong></p>
+    <p>${escapedOriginalMessage}</p>
+  `;
+  const text = [
+    "cruush support reply",
+    "",
+    `Request ID: ${request.id}`,
+    `Category: ${request.category}`,
+    `Source: ${request.source}`,
+    `Page: ${request.pageUrl || "unknown"}`,
+    `Created at: ${request.createdAt}`,
+    "",
+    `Subject: ${request.subject}`,
+    "",
+    replyMessage,
+    "",
+    "Original message",
+    "",
+    request.message
+  ].join("\n");
+
+  await sendResendEmail({
+    config,
+    email: replyToEmail,
+    logger,
+    replyTo: REPORTS_INBOX_EMAIL,
+    subject: `Re: [support] ${request.category}: ${request.subject}`,
+    html,
+    text,
+    failureMessage: "support reply email delivery failed"
   });
 }
 

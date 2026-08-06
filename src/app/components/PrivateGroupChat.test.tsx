@@ -262,7 +262,7 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByRole('button', { name: 'Insert quick reply' })).not.toBeInTheDocument();
   });
 
-  it('routes blocked non-mutual dm sends back to the profile', async () => {
+  it('shows a forbidden error when a DM is blocked', async () => {
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({
       conversation: {
@@ -287,8 +287,8 @@ describe('PrivateGroupChat', () => {
     });
     createMessage.mockRejectedValue(new ApiClientError(
       403,
-      'MUTUAL_CRUUSH_REQUIRED',
-      'You can message after a mutual cruush.',
+      'FORBIDDEN',
+      'You cannot message this user.',
     ));
 
     render(
@@ -307,12 +307,59 @@ describe('PrivateGroupChat', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
-    expect(await screen.findByText('You need a mutual cruush before messaging. Open their profile to send a cruush first.')).toBeInTheDocument();
-    expect(screen.getByText('Send a cruush first. Messages open after it is mutual.')).toBeInTheDocument();
+    expect(await screen.findByText('You cannot message this user.')).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open profile' }));
+  it('shows a text-only moderation error when a text message is rejected without a photo', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+    createMessage.mockRejectedValue(new ApiClientError(
+      400,
+      'CONTENT_REJECTED',
+      'This content violates cruush safety rules and cannot be saved.',
+    ));
 
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2');
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Drop the plan...'), {
+      target: { value: 'text only' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    const composerError = await within(screen.getByTestId('chat-composer-bar')).findByRole('alert');
+    expect(composerError).toHaveTextContent('This text message was rejected by text safety checks. No photo was attached.');
+    expect(composerError).toHaveTextContent('Error code: TEXT_CONTENT_REJECTED');
+    expect(createMessage).toHaveBeenCalledWith(conversationId, 'text only');
+    expect(createMessagePhoto).not.toHaveBeenCalled();
   });
 
   it('navigates to the report page from the conversation safety action', async () => {
@@ -561,6 +608,7 @@ describe('PrivateGroupChat', () => {
           url: '/api/media/message-photos/photo.png',
           mediaType: 'message_photo',
           mimeType: 'image/png',
+          explicit: false,
         }],
       }],
     });
@@ -611,6 +659,7 @@ describe('PrivateGroupChat', () => {
         url: '/api/media/message-photos/photo.png',
         mediaType: 'message_photo',
         mimeType: 'image/png',
+        explicit: false,
       }],
     });
 
@@ -706,7 +755,7 @@ describe('PrivateGroupChat', () => {
 
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
 
-    const favoriteGalleryButtons = screen.getAllByRole('button', { name: 'Favorite images' });
+    const favoriteGalleryButtons = screen.getAllByRole('button', { name: 'Quick access gallery' });
     fireEvent.click(favoriteGalleryButtons[favoriteGalleryButtons.length - 1]);
 
     await waitFor(() => expect(getFavoriteMessageImages).toHaveBeenCalledTimes(1));
@@ -1203,6 +1252,7 @@ describe('PrivateGroupChat', () => {
           mediaType: 'image',
           mimeType: 'image/png',
           viewOnce: true,
+          explicit: false,
         }],
       }],
     });

@@ -210,7 +210,8 @@ describe("shared Stream profile-photo automod route", () => {
     expect(response.statusCode, response.body).toBe(201);
     expect(response.json()).toEqual({
       data: {
-        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/)
+        url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/),
+        explicit: false
       }
     });
     expect(sql.some((text) => text.includes("insert into profile_photo_manual_reviews"))).toBe(false);
@@ -268,7 +269,7 @@ describe("shared Stream profile-photo automod route", () => {
     await app.close();
   });
 
-  it("permanently bans the account, sessions, device, and IP when a child face is detected", async () => {
+  it("suspends the account for human review when a child face is detected", async () => {
     providerState.rekognitionFaces = [{
       Confidence: 99,
       AgeRange: { Low: 6, High: 10 }
@@ -291,19 +292,19 @@ describe("shared Stream profile-photo automod route", () => {
     expect(response.json()).toMatchObject({
       error: {
         code: "CONTENT_REJECTED",
-        message: expect.stringContaining("permanently banned")
+        message: expect.stringContaining("suspended for human review")
       }
     });
     expect(JSON.stringify(query.mock.calls)).toContain("minor_face_detected");
     expect(sql.some((text) => text.includes("account_status = 'suspended'"))).toBe(true);
     expect(sql.some((text) => text.includes("delete from app_sessions"))).toBe(true);
-    expect(sql.filter((text) => text.includes("insert into severe_access_bans"))).toHaveLength(2);
+    expect(sql.filter((text) => text.includes("insert into severe_access_bans"))).toHaveLength(0);
     expect(sql.some((text) => text.includes("insert into profiles"))).toBe(false);
 
     await app.close();
   });
 
-  it("rejects adult nudity from profile photos even when Stream keeps it", async () => {
+  it("allows adult nudity on profile photos and classifies it explicit for DL Mode", async () => {
     providerState.result = {
       provider: "stream",
       provider_request_id: "stream-adult-nudity-1",
@@ -331,15 +332,14 @@ describe("shared Stream profile-photo automod route", () => {
     });
     const mediaCall = query.mock.calls.find(([text]) => String(text).includes("insert into media_objects"));
 
-    expect(response.statusCode, response.body).toBe(400);
+    expect(response.statusCode, response.body).toBe(201);
     expect(response.json()).toMatchObject({
-      error: {
-        code: "CONTENT_REJECTED",
-        message: "Nude or sexually explicit photos are only allowed on your own profile or in messages."
+      data: {
+        explicit: true
       }
     });
-    expect(query.mock.calls.some(([text]) => String(text).includes("delete from media_objects"))).toBe(true);
-    expect(query.mock.calls.some(([text]) => String(text).includes("insert into profiles"))).toBe(false);
+    expect(query.mock.calls.some(([text]) => String(text).includes("delete from media_objects"))).toBe(false);
+    expect(query.mock.calls.some(([text]) => String(text).includes("insert into profiles"))).toBe(true);
     await app.close();
     await Promise.all([
       mediaCall?.[1]?.[3],

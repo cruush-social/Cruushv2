@@ -36,7 +36,6 @@ import {
 import { runTransaction } from "../db.js";
 import { verifyClientSecurityCheck } from "../client-security-check.js";
 import { ensureDevelopmentAdminUser, isDevelopmentAdminLogin } from "../development-admin.js";
-import { deleteEncryptedMediaObject } from "../media-storage.js";
 import { verifyTurnstileToken } from "../turnstile.js";
 import { storeLocationEnvelope } from "../location-privacy.js";
 import {
@@ -114,13 +113,17 @@ type PasswordCredentialRow = {
   password_hash: string;
 };
 
-type MediaObjectKeyRow = {
-  object_key: string;
-};
-
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const AUTH_ATTEMPT_MAX = 5;
 const AUTH_ATTEMPT_WINDOW_MS = FIFTEEN_MINUTES_MS;
+// Failed verification attempts against one emailed link. A real user retries a
+// handful of times at most; anything past this is guessing at that token.
+const VERIFICATION_FAILURE_MAX = 10;
+// Ceiling for buckets keyed by address. TRUST_PROXY_HOPS defaults to 0, which
+// leaves trustProxy off and reports the reverse proxy's address for every
+// request, so this bucket can be shared by the whole user base. Keep it well
+// above AUTH_ATTEMPT_MAX and only charge it for failures.
+const SHARED_IP_FAILURE_MAX = 200;
 const CURRENT_CODE_OF_CONDUCT_VERSION = "2026-07-07";
 
 const acceptCodeOfConductPayloadSchema = z.object({
@@ -266,7 +269,10 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
   return session;
 }
 
-async function resolveCurrentSession(request: FastifyRequest) {
+async function resolveCurrentSession(
+  request: FastifyRequest,
+  options: { allowAccountDeletion?: boolean } = {}
+) {
   const token = getSessionTokenFromRequest(request);
 
   if (!token) {
@@ -293,7 +299,7 @@ async function resolveCurrentSession(request: FastifyRequest) {
     throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
-  if (isAlphaTestExpired(request.server.config)) {
+  if (!options.allowAccountDeletion && isAlphaTestExpired(request.server.config)) {
     await request.server.db.query(
       "delete from app_sessions where token_hash = $1",
       [tokenHash]
@@ -303,7 +309,11 @@ async function resolveCurrentSession(request: FastifyRequest) {
 
   const accountStatus = normalizeAccountStatus(session.account_status);
 
-  if (!accountCanAuthenticate(accountStatus) && !ownerCanBypassAccountStatus(session.email, accountStatus)) {
+  if (
+    !options.allowAccountDeletion &&
+    !accountCanAuthenticate(accountStatus) &&
+    !ownerCanBypassAccountStatus(session.email, accountStatus)
+  ) {
     await request.server.db.query(
       "delete from app_sessions where token_hash = $1",
       [tokenHash]
@@ -553,18 +563,34 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     }
 
     const verification = await createVerificationToken(app, createdUser.id);
-    const preview = await sendVerificationEmail({
-      config: request.server.config,
-      email: createdUser.email,
-      logger: request.log,
-      verificationUrl: buildVerificationUrl(request, verification.token)
-    });
+    // The account row is already committed. If delivery fails we must not fail the whole
+    // signup: that leaves the user with an account they cannot verify and cannot re-create.
+    let previewUrl: string | null = null;
+    let verificationEmailSent = true;
+
+    try {
+      const preview = await sendVerificationEmail({
+        config: request.server.config,
+        email: createdUser.email,
+        logger: request.log,
+        verificationUrl: buildVerificationUrl(request, verification.token)
+      });
+      previewUrl = preview.previewUrl;
+    } catch (error) {
+      verificationEmailSent = false;
+      request.log.error(
+        { err: error, userId: createdUser.id, email: createdUser.email },
+        "signup verification email delivery failed"
+      );
+    }
+
     return reply.code(201).send({
       data: {
         alreadyVerified: false,
         email: createdUser.email,
         expiresAt: verification.expiresAt.toISOString(),
-        previewUrl: preview.previewUrl
+        previewUrl,
+        verificationEmailSent
       }
     });
   });
@@ -842,7 +868,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   });
 
   app.delete("/api/auth/me", async (request, reply) => {
-    const session = await resolveCurrentSession(request);
+    const session = await resolveCurrentSession(request, { allowAccountDeletion: true });
     const payload = deleteAccountPayloadSchema.parse(request.body);
     await applyRateLimits(app, [{
       key: `account-delete:user:${session.userId}`,
@@ -868,18 +894,21 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       throw new ApiError(401, "AUTH_REQUIRED", "Password is incorrect.");
     }
 
-    const mediaObjects = await app.db.query<MediaObjectKeyRow>(
-      `select object_key
-       from media_objects
-       where owner_user_id = $1`,
-      [session.userId]
-    );
-
-    for (const mediaObject of mediaObjects.rows) {
-      await deleteEncryptedMediaObject(request.server.config, mediaObject.object_key);
-    }
-
     await runTransaction(app.db, async (db) => {
+      await db.query(
+        `insert into account_deletion_media_cleanup (object_key)
+         select object_key
+         from media_objects
+         where owner_user_id = $1
+         union
+         select variants.object_key
+         from media_variants variants
+         join media_objects media on media.id = variants.media_object_id
+         where media.owner_user_id = $1
+         on conflict (object_key) do nothing`,
+        [session.userId]
+      );
+
       await db.query(
         "delete from app_sessions where user_id = $1",
         [session.userId]
@@ -906,14 +935,17 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const payload = resendVerificationPayloadSchema.parse(request.body);
     await applyRateLimits(app, [
       {
-        key: `verification-resend:ip:${getRequestIp(request)}`,
+        // Per-account limit: the meaningful one, since it maps to a real mailbox.
+        key: `verification-resend:email:${payload.email}`,
         max: AUTH_ATTEMPT_MAX,
         windowMs: AUTH_ATTEMPT_WINDOW_MS,
         message: "Too many verification email requests. Try again later."
       },
       {
-        key: `verification-resend:email:${payload.email}`,
-        max: AUTH_ATTEMPT_MAX,
+        // Address-keyed backstop. Shared by every user behind the proxy while
+        // TRUST_PROXY_HOPS is unset, so it must not sit at the per-account value.
+        key: `verification-resend:ip:${getRequestIp(request)}`,
+        max: SHARED_IP_FAILURE_MAX,
         windowMs: AUTH_ATTEMPT_WINDOW_MS,
         message: "Too many verification email requests. Try again later."
       }
@@ -1057,12 +1089,6 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/verification/verify", async (request, reply) => {
     const payload = verifyEmailPayloadSchema.parse(request.body);
-    await applyRateLimits(app, [{
-      key: `verification-verify:ip:${getRequestIp(request)}`,
-      max: AUTH_ATTEMPT_MAX,
-      windowMs: AUTH_ATTEMPT_WINDOW_MS,
-      message: "Too many verification attempts. Try again later."
-    }]);
     const tokenHash = hashSessionToken(payload.token);
     const verificationLookup = await app.db.query<VerificationLookupRow>(
       `select user_id
@@ -1076,6 +1102,24 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const verificationToken = verificationLookup.rows[0];
 
     if (!verificationToken) {
+      // Charge the limiter only for failures. Asserting before the lookup made a
+      // successful verification consume budget, and behind a proxy every request
+      // carries the same address, so one shared bucket throttled all users at once.
+      await applyRateLimits(app, [
+        {
+          key: `verification-verify:token:${tokenHash}`,
+          max: VERIFICATION_FAILURE_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many verification attempts. Try again later."
+        },
+        {
+          key: `verification-verify:ip:${getRequestIp(request)}`,
+          max: SHARED_IP_FAILURE_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many verification attempts. Try again later."
+        }
+      ]);
+
       throw new ApiError(400, "VALIDATION_ERROR", "Verification link is invalid or expired.");
     }
 

@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router';
 import { CheckCircle2, MessageCircleWarning } from 'lucide-react';
 import { createSupportRequest } from '../lib/supportApi';
@@ -20,7 +21,7 @@ type AlphaBugButtonProps = {
   enabled?: boolean;
 };
 
-const ALPHA_BUG_TIP_STORAGE_KEY = 'cruush:alpha-bug-tip-seen';
+export const ALPHA_BUG_TIP_STORAGE_KEY = 'cruush:alpha-bug-tip-seen';
 
 type ScreenshotAttachment = {
   filename: string;
@@ -38,7 +39,7 @@ function getCurrentPageUrl() {
 
 function getBugButtonPlacement(pathname: string) {
   if (pathname.startsWith('/chat/')) {
-    return 'right-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(0.75rem+env(safe-area-inset-top))]';
+    return 'left-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
   }
 
   return 'right-4 bottom-[calc(8.75rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(0.75rem+env(safe-area-inset-top))]';
@@ -46,7 +47,7 @@ function getBugButtonPlacement(pathname: string) {
 
 function getBugTipPlacement(pathname: string) {
   if (pathname.startsWith('/chat/')) {
-    return 'right-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(4.5rem+env(safe-area-inset-top))]';
+    return 'left-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
   }
 
   return 'right-4 bottom-[calc(12rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-auto sm:top-[calc(4.5rem+env(safe-area-inset-top))]';
@@ -167,12 +168,16 @@ async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined>
 
 export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps) {
   const location = useLocation();
+  const [buttonSlot, setButtonSlot] = useState<HTMLElement | null>(() => getBugButtonSlot());
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState('');
   const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
+
+  useEffect(() => subscribeToBugButtonSlot(() => setButtonSlot(getBugButtonSlot())), []);
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -230,11 +235,13 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
 
     if (message.trim().length < 10) {
       setError('Add a few more details before sending.');
+      setErrorCode('BUG_REPORT_TOO_SHORT');
       return;
     }
 
     setStatus('submitting');
     setError('');
+    setErrorCode('');
 
     try {
       const screenshot = await captureBugScreenshot();
@@ -250,9 +257,26 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       setMessage('');
     } catch (bugError) {
       setError(bugError instanceof Error ? bugError.message : 'Unable to send this bug report.');
+      setErrorCode(bugError instanceof ApiClientError ? bugError.code : 'BUG_REPORT_SUBMIT_FAILED');
       setStatus('idle');
     }
   };
+
+  const trigger = (
+    <DialogTrigger asChild>
+      <button
+        aria-label="Report alpha bug"
+        className={buttonSlot
+          ? 'inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive sm:size-9'
+          : `fixed z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${getBugButtonPlacement(location.pathname)}`}
+        data-testid="alpha-bug-button"
+        title="Report a bug"
+        type="button"
+      >
+        <Bug className="h-5 w-5" />
+      </button>
+    </DialogTrigger>
+  );
 
   return (
     <Dialog
@@ -313,8 +337,9 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>
             {error ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" data-testid="bug-report-error" role="alert">
+                <p>{error}</p>
+                <p className="mt-1 font-mono text-xs">Error code: {errorCode || 'BUG_REPORT_UNKNOWN'}</p>
               </div>
             ) : null}
             <div className="space-y-2">
