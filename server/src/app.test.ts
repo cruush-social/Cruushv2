@@ -8696,6 +8696,46 @@ describe("server", () => {
     });
   });
 
+  it.each([
+    ["suspended", { account_suspended: true }, "FEED_POSTING_SUSPENDED"],
+    ["low trust", { low_trust: true }, "FEED_POSTING_LOW_TRUST"],
+    ["feature restricted", { feature_restricted: true }, "FEED_POSTING_RESTRICTED"],
+    ["unknown eligibility failure", {}, "FEED_POSTING_UNAVAILABLE"]
+  ] as const)("returns a distinct feed-post error for %s", async (_caseName, reason, code) => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          trust_suspended: false,
+          account_suspended: false,
+          low_trust: false,
+          feature_restricted: false,
+          ...reason
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Hosting tonight",
+        expiresIn: "1h"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().error.code).toBe(code);
+  });
+
   it("creates a feed post with multiple crowd targets only when the author belongs to those crowds", async () => {
     query
       .mockResolvedValueOnce({

@@ -79,11 +79,16 @@ export async function requestApi<T>(path: string, init?: RequestInit): Promise<T
     headers.set('content-type', 'application/json');
   }
 
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers,
-    credentials: 'include',
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      headers,
+      credentials: 'include',
+    });
+  } catch {
+    throw new ApiClientError(503, 'API_UNAVAILABLE', 'The cruush API is unavailable.');
+  }
 
   return parseApiResponse<T>(response);
 }

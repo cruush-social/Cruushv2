@@ -581,7 +581,46 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const row = result.rows[0];
 
     if (!row) {
-      throw new ApiError(403, "FEATURE_RESTRICTED", "Feed posting is unavailable for this account.");
+      const eligibility = await app.db.query<{
+        trust_suspended: boolean;
+        account_suspended: boolean;
+        low_trust: boolean;
+        feature_restricted: boolean;
+      }>(
+        `select
+           coalesce(trust.is_suspended, false) as trust_suspended,
+           exists (
+             select 1
+             from suspensions suspension
+             where suspension.user_id = $1
+               and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
+           ) as account_suspended,
+           coalesce(trust.trust_score, 50) <= 20 as low_trust,
+           exists (
+             select 1
+             from feature_restrictions restriction
+             where restriction.user_id = $1
+               and restriction.feature = 'feed_posting'
+               and (restriction.ends_at is null or restriction.ends_at > now())
+           ) as feature_restricted
+         from app_users user_row
+         left join user_trust_profiles trust on trust.user_id = user_row.id
+         where user_row.id = $1
+         limit 1`,
+        [userId]
+      );
+      const reason = eligibility.rows[0];
+
+      if (reason?.trust_suspended || reason?.account_suspended) {
+        throw new ApiError(403, "FEED_POSTING_SUSPENDED", "Feed posting is unavailable while this account is suspended.");
+      }
+      if (reason?.low_trust) {
+        throw new ApiError(403, "FEED_POSTING_LOW_TRUST", "Feed posting is unavailable while this account is under trust review.");
+      }
+      if (reason?.feature_restricted) {
+        throw new ApiError(403, "FEED_POSTING_RESTRICTED", "Feed posting is unavailable for this account.");
+      }
+      throw new ApiError(403, "FEED_POSTING_UNAVAILABLE", "Feed posting is unavailable for this account.");
     }
 
     await recordMeaningfulActivitySafely(app, {
