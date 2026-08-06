@@ -1,4 +1,3 @@
-const CACHE_NAME = 'cruush-app-shell-v20';
 const LEGACY_CACHE_PREFIX = 'cruush-app-shell-';
 const REFRESH_QUERY_PARAM = 'cruush_app_shell';
 const REFRESH_QUERY_VALUE = 'v20';
