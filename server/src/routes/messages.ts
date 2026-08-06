@@ -9,8 +9,8 @@ import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
 import { sendApprovedPhotoMessage } from "../message-photo-send.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { ApiError } from "../errors.js";
-import { assertCanSendNsfwMessagePhoto } from "../cruush-match-settings.js";
-import { getRelationshipPermissions, hasActiveMutualMessagePermission } from "../match-relationships.js";
+import { assertCanSendNsfwMessagePhoto, assertCanStartDirectMessage, canStartDirectMessage } from "../cruush-match-settings.js";
+import { getRelationshipPermissions } from "../match-relationships.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
   conversationTimerSchema,
@@ -272,16 +272,35 @@ async function canReadConversation(app: FastifyInstance, userId: string, convers
     return false;
   }
 
-  return hasActiveMutualMessagePermission(app, userId, conversation.other_user_id);
+  return (await getRelationshipPermissions(app, userId, conversation.other_user_id)).canMessage;
 }
 
-function mapReadableConversationRow(app: FastifyInstance, row: ConversationRow) {
+async function getDirectConversationOptions(app: FastifyInstance, userId: string, row: ConversationRow) {
   if (row.kind !== "dm") {
-    return mapConversationRow(app, row);
+    return {};
   }
 
+  if (!row.other_user_id) {
+    return {
+      canMessage: false,
+      mutual: false
+    };
+  }
+
+  const relationship = await getRelationshipPermissions(app, userId, row.other_user_id);
+  const canMessage = relationship.canMessage
+    ? await canStartDirectMessage(app, userId, row.other_user_id)
+    : false;
+
+  return {
+    canMessage,
+    mutual: relationship.isMutualCruush
+  };
+}
+
+async function mapReadableConversationRow(app: FastifyInstance, userId: string, row: ConversationRow) {
   return mapConversationRow(app, row, {
-    canMessage: true
+    ...await getDirectConversationOptions(app, userId, row)
   });
 }
 
@@ -618,13 +637,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "You cannot create a direct conversation with yourself.");
     }
 
-    if (!await hasActiveMutualMessagePermission(app, userId, payload.otherUserId)) {
-      throw new ApiError(
-        403,
-        "FORBIDDEN",
-        "You cannot message this user."
-      );
-    }
+    await assertCanStartDirectMessage(app, userId, payload.otherUserId);
 
     const existingUser = await app.db.query<ExistingUserRow>(
       `select id::text as id
@@ -676,7 +689,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     }
 
     return reply.code(201).send({
-      data: mapConversationRow(app, conversation)
+      data: mapConversationRow(app, conversation, await getDirectConversationOptions(app, userId, conversation))
     });
   });
 
@@ -1059,7 +1072,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const rows = await filterReadableConversationRows(app, userId, result.rows);
 
     return reply.send({
-      data: rows.map((row) => mapReadableConversationRow(app, row))
+      data: await Promise.all(rows.map((row) => mapReadableConversationRow(app, userId, row)))
     });
   });
 
@@ -1391,16 +1404,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
     }
 
-    if (
-      conversation.kind === "dm" &&
-      conversation.other_user_id &&
-      !await hasActiveMutualMessagePermission(app, userId, conversation.other_user_id)
-    ) {
-      throw new ApiError(
-        403,
-        "FORBIDDEN",
-        "You cannot message this user."
-      );
+    if (conversation.kind === "dm" && conversation.other_user_id) {
+      await assertCanStartDirectMessage(app, userId, conversation.other_user_id);
     }
     if (conversation.kind === "group") {
       await assertNoBlockedConversationMembers(app, userId, payload.conversationId);
@@ -1703,7 +1708,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
           last_message_auth_tag: null,
           last_message_key_version: null,
           unread_count: 0
-        }, conversation.kind === "dm" ? { canMessage: true, mutual: true } : {}),
+        }, await getDirectConversationOptions(app, userId, conversation)),
         messages: messagesResult.rows.map((row) => mapMessageRow(app, row))
       }
     });
@@ -1920,16 +1925,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
     }
 
-    if (
-      conversation.kind === "dm" &&
-      conversation.other_user_id &&
-      !await hasActiveMutualMessagePermission(app, userId, conversation.other_user_id)
-    ) {
-      throw new ApiError(
-        403,
-        "FORBIDDEN",
-        "You cannot message this user."
-      );
+    if (conversation.kind === "dm" && conversation.other_user_id) {
+      await assertCanStartDirectMessage(app, userId, conversation.other_user_id);
     }
     if (conversation.kind === "group") {
       await assertNoBlockedConversationMembers(app, userId, payload.conversationId);
@@ -2025,16 +2022,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
     }
 
-    if (
-      conversation.kind === "dm" &&
-      conversation.other_user_id &&
-      !await hasActiveMutualMessagePermission(app, userId, conversation.other_user_id)
-    ) {
-      throw new ApiError(
-        403,
-        "FORBIDDEN",
-        "You cannot message this user."
-      );
+    if (conversation.kind === "dm" && conversation.other_user_id) {
+      await assertCanStartDirectMessage(app, userId, conversation.other_user_id);
     }
     if (conversation.kind === "group") {
       await assertNoBlockedConversationMembers(app, userId, payload.conversationId);

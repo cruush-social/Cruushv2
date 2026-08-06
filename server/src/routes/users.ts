@@ -25,6 +25,7 @@ import {
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { normalizeSingleLineText } from "../input-schema.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
+import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import { DEFAULT_MAP_PRESENCE_DAYS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
@@ -86,6 +87,7 @@ type DiscoveryProfileRow = {
   latest_feed_post_content_key_version: string | null;
   latest_feed_location_pin_visibility: "off" | "mutuals" | "same_crowd" | "public" | null;
   latest_feed_has_shared_crowd: boolean | null;
+  has_shared_crowd: boolean | null;
 };
 
 const CODEVELOPER_NYC_EMAIL = "codeveloper-nyc@cruush.local";
@@ -611,6 +613,15 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          latest_feed.content_key_version as latest_feed_post_content_key_version,
          coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as latest_feed_location_pin_visibility,
          latest_feed.has_shared_crowd as latest_feed_has_shared_crowd,
+         exists (
+           select 1
+           from profile_sensitive_tokens viewer_crowd_token
+           join profile_sensitive_tokens author_crowd_token
+             on author_crowd_token.token_hash = viewer_crowd_token.token_hash
+            and author_crowd_token.token_key_version = viewer_crowd_token.token_key_version
+           where viewer_crowd_token.user_id = $1
+             and author_crowd_token.user_id = profiles.id
+         ) as has_shared_crowd,
          coalesce((
            select array_agg(user_badges.badge_key order by user_badges.awarded_at asc)
            from user_badges
@@ -830,7 +841,13 @@ async function mapModernDiscoveryRow(
     displayExpiresAtMs: displayLocationToken.expiresAtMs,
     animationHint: displayMode === "GHOST" ? "FADE_LAST_MINUTE" : "NONE",
     ...(npcGhostDemoActive ? { demoDisplayMode: "NPC_GHOST_TEST" as const } : {}),
-    relationshipContext: relationship?.isMutualCruush ? "MUTUAL_CRUUSH" : "PUBLIC",
+    relationshipContext: relationship?.isMutualCruush
+      ? "MUTUAL_CRUUSH"
+      : row.has_shared_crowd === true
+        ? "MUTUAL_CROWD"
+        : "PUBLIC",
+    identities: coerceStringArray(row.identities),
+    presentation: coerceStringArray(row.presentation),
     lookingFor: coerceStringArray(row.looking_for),
     vibes: uniqueStrings([
       ...coerceStringArray(row.vibes),
@@ -844,12 +861,15 @@ async function mapModernDiscoveryRow(
     hostingTravel: coerceStringArray(row.hosting_travel),
     photo: row.photos?.[0] ?? null,
     photoExplicit: row.primary_photo_explicit === true,
+    hasSharedCrowd: row.has_shared_crowd === true,
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
-    relationship: relationship?.isMutualCruush
+    relationship: relationship
       ? {
-          mutualCruush: true,
-          canMessage: relationship.canMessage,
-          precision: displayMode === "PRECISE" ? "precise" as const : "fuzzy" as const
+          mutualCruush: relationship.isMutualCruush,
+          canMessage: await canStartDirectMessage(app, viewerUserId, row.id),
+          ...(relationship.isMutualCruush
+            ? { precision: displayMode === "PRECISE" ? "precise" as const : "fuzzy" as const }
+            : {})
         }
       : null
   };

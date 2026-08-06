@@ -83,6 +83,12 @@ export function markAllNotificationsRead() {
   });
 }
 
+export function clearNotifications() {
+  return requestApi<NotificationSummary>('/api/notifications', {
+    method: 'DELETE',
+  });
+}
+
 export function getNotificationPreferences() {
   return requestApi<NotificationPreferences>('/api/notification-preferences');
 }

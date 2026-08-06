@@ -383,9 +383,14 @@ export default function PrivateGroupChat() {
   };
 
   const openSettings = () => {
-    setSettingsOpen((current) => !current);
+    if (settingsOpen) {
+      setSettingsOpen(false);
+      return;
+    }
 
-    if (!settingsOpen && conversation?.kind === 'group') {
+    setSettingsOpen(true);
+
+    if (conversation?.kind === 'group') {
       void loadGroupSettingsData(conversation.id);
     }
   };
@@ -822,6 +827,7 @@ export default function PrivateGroupChat() {
                 label={`${conversation.user.name} avatar`}
                 masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
                 photo={conversation.user.photo}
+                theme={conversation.kind === 'group' || conversation.mutual ? 'mutual' : 'nearby'}
                 userId={conversation.user.id}
                 fallback={
                   conversation.kind === 'group'
@@ -844,7 +850,7 @@ export default function PrivateGroupChat() {
                       </Badge>
                     ) : null}
                     {conversation.mutual ? (
-                      <Badge variant="outline" className="border-primary/20 bg-primary/10 text-[10px] uppercase tracking-[0.18em] text-primary">
+                      <Badge variant="outline" className="border-[#8B5CF6]/45 bg-[#8B5CF6]/15 text-[10px] uppercase tracking-[0.18em] text-[#DCC7FF]">
                         Mutual cruush
                       </Badge>
                     ) : null}
@@ -1160,6 +1166,7 @@ export default function PrivateGroupChat() {
                       label={`${messageSender.name} avatar`}
                       masked={shouldMaskPhoto(dlModeActive, messageSender.photoExplicit)}
                       photo={messageSender.photo}
+                      theme={conversation?.kind === 'dm' && conversation.mutual ? 'mutual' : 'nearby'}
                       userId={messageSender.id}
                       fallback={<div className="text-[10px] text-white/75">{getConversationInitials(messageSender.name)}</div>}
                     />

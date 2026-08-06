@@ -5,7 +5,15 @@ import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
-import { getPrivacyAudit, revokePrivacyAccess, type PrivacyAuditAccess } from '../lib/privacyApi';
+import { getCruushMatchSettings, type CruushMatchSettings } from '../lib/cruushSettingsApi';
+import {
+  DEFAULT_PRIVACY_SETTINGS,
+  getMyPrivacySettings,
+  getPrivacyAudit,
+  revokePrivacyAccess,
+  type PrivacyAuditAccess,
+  type PrivacySettings,
+} from '../lib/privacyApi';
 
 function formatAuditTime(value: number) {
   if (!value) {
@@ -18,6 +26,8 @@ function formatAuditTime(value: number) {
 export default function PrivacyAudit() {
   const navigate = useNavigate();
   const [items, setItems] = useState<PrivacyAuditAccess[]>([]);
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
+  const [messageVisibility, setMessageVisibility] = useState<CruushMatchSettings['messageVisibility']>('mutual_cruushes');
   const [status, setStatus] = useState<'loading' | 'idle' | 'saving'>('loading');
   const [error, setError] = useState<string | null>(null);
   const dlModeActive = useDlMode();
@@ -25,10 +35,18 @@ export default function PrivacyAudit() {
   useEffect(() => {
     let active = true;
 
-    getPrivacyAudit()
-      .then((audit) => {
+    Promise.all([
+      getPrivacyAudit(),
+      getMyPrivacySettings().catch(() => DEFAULT_PRIVACY_SETTINGS),
+      getCruushMatchSettings().catch(() => null),
+    ])
+      .then(([audit, loadedPrivacySettings, loadedMatchSettings]) => {
         if (active) {
           setItems(audit.exact_location_access);
+          setPrivacySettings(loadedPrivacySettings);
+          if (loadedMatchSettings) {
+            setMessageVisibility(loadedMatchSettings.messageVisibility);
+          }
           setError(null);
         }
       })
@@ -62,6 +80,23 @@ export default function PrivacyAudit() {
     }
   };
 
+  const visibleWhere = privacySettings.baseMode === 'STEALTH'
+    ? 'Hidden from discovery'
+    : privacySettings.ghostModeEnabled || privacySettings.baseMode === 'GHOST'
+      ? `Ghost radius: ${privacySettings.ghostRadiusLabel}`
+      : 'Live map location';
+  const whoCanMessage = messageVisibility === 'public'
+    ? 'Public'
+    : messageVisibility === 'mutual_crowds'
+      ? 'Crowd'
+      : 'Mutuals';
+  const precisePrivileges = [
+    privacySettings.preciseToMutualCruushes ? 'Mutual cruushes can receive precise location.' : 'Mutual cruushes do not get precise location by default.',
+    ...privacySettings.preciseToMutualCrowds
+      .filter((policy) => policy.precisionEnabled && !policy.revokedAtMs)
+      .map((policy) => `${policy.crowdId} crowd precise access is enabled.`),
+  ];
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
@@ -76,10 +111,27 @@ export default function PrivacyAudit() {
           <div className="flex items-start gap-3">
             <ShieldCheck className="mt-1 h-5 w-5 text-primary" />
             <div>
-              <p>Exact location access</p>
-              <p className="text-sm text-muted-foreground">People listed here can receive precise live display tokens while the grant remains valid.</p>
+              <p>Privacy summary</p>
+              <p className="text-sm text-muted-foreground">Where you are visible, who can message you, and the precise privileges you gave out.</p>
             </div>
           </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <section className="rounded-lg border border-white/10 bg-card p-4">
+            <p className="text-sm font-semibold text-white">Where you are visible</p>
+            <p className="mt-2 text-sm text-muted-foreground">{visibleWhere}</p>
+          </section>
+          <section className="rounded-lg border border-white/10 bg-card p-4">
+            <p className="text-sm font-semibold text-white">Who can message you</p>
+            <p className="mt-2 text-sm text-muted-foreground">{whoCanMessage}</p>
+          </section>
+          <section className="rounded-lg border border-white/10 bg-card p-4 sm:col-span-2">
+            <p className="text-sm font-semibold text-white">Privileges you gave out</p>
+            <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+              {precisePrivileges.map((privilege) => <p key={privilege}>{privilege}</p>)}
+            </div>
+          </section>
         </div>
 
         {error ? (

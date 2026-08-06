@@ -1,24 +1,29 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ApiError } from "./errors.js";
-import { hasActiveMutualMessagePermission } from "./match-relationships.js";
+import { getRelationshipPermissions } from "./match-relationships.js";
 import { userHasOwnerFullAccess } from "./owner-access.js";
 import { decryptSensitiveProfile } from "./profile-sensitive.js";
 
 export const nsfwMessageVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds", "none"]);
+export const messageVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
 
 export const cruushMatchSettingsPayloadSchema = z.object({
-  nsfwMessageVisibility: nsfwMessageVisibilitySchema,
-  nsfwSendVisibility: nsfwMessageVisibilitySchema,
+  messageVisibility: messageVisibilitySchema.optional(),
+  nsfwMessageVisibility: nsfwMessageVisibilitySchema.optional(),
+  nsfwSendVisibility: nsfwMessageVisibilitySchema.optional(),
   updatedAt: z.string().nullable().optional()
-}).strict().transform(({ nsfwMessageVisibility, nsfwSendVisibility }) => ({
-  nsfwMessageVisibility,
-  nsfwSendVisibility
+}).strict().transform(({ messageVisibility, nsfwMessageVisibility, nsfwSendVisibility }) => ({
+  messageVisibility: messageVisibility ?? "mutual_cruushes",
+  nsfwMessageVisibility: nsfwMessageVisibility ?? "public",
+  nsfwSendVisibility: nsfwSendVisibility ?? "public"
 }));
 
 export type NsfwMessageVisibility = z.infer<typeof nsfwMessageVisibilitySchema>;
+export type MessageVisibility = z.infer<typeof messageVisibilitySchema>;
 
 export type CruushMatchSettings = {
+  messageVisibility: MessageVisibility;
   nsfwMessageVisibility: NsfwMessageVisibility;
   nsfwSendVisibility: NsfwMessageVisibility;
   updatedAt: string | null;
@@ -26,6 +31,7 @@ export type CruushMatchSettings = {
 
 type CruushMatchSettingsRow = {
   user_id?: string;
+  message_visibility?: MessageVisibility | null;
   nsfw_message_visibility: NsfwMessageVisibility | null;
   nsfw_send_visibility: NsfwMessageVisibility | null;
   updated_at?: string | Date | null;
@@ -44,8 +50,9 @@ type ProfileCrowdsRow = {
 };
 
 const DEFAULT_CRUUSH_MATCH_SETTINGS: CruushMatchSettings = {
-  nsfwMessageVisibility: "mutual_cruushes",
-  nsfwSendVisibility: "mutual_cruushes",
+  messageVisibility: "mutual_cruushes",
+  nsfwMessageVisibility: "public",
+  nsfwSendVisibility: "public",
   updatedAt: null
 };
 
@@ -68,6 +75,9 @@ function mapSettingsRow(row: CruushMatchSettingsRow | null | undefined): CruushM
   }
 
   return {
+    messageVisibility: messageVisibilitySchema.safeParse(row.message_visibility).success
+      ? row.message_visibility as MessageVisibility
+      : DEFAULT_CRUUSH_MATCH_SETTINGS.messageVisibility,
     nsfwMessageVisibility: nsfwMessageVisibilitySchema.safeParse(row.nsfw_message_visibility).success
       ? row.nsfw_message_visibility as NsfwMessageVisibility
       : DEFAULT_CRUUSH_MATCH_SETTINGS.nsfwMessageVisibility,
@@ -81,7 +91,7 @@ function mapSettingsRow(row: CruushMatchSettingsRow | null | undefined): CruushM
 export async function getCruushMatchSettings(app: FastifyInstance, userId: string): Promise<CruushMatchSettings> {
   try {
     const result = await app.db.query<CruushMatchSettingsRow>(
-      `select nsfw_message_visibility, nsfw_send_visibility, updated_at
+      `select message_visibility, nsfw_message_visibility, nsfw_send_visibility, updated_at
        from user_cruush_match_settings
        where user_id = $1
        limit 1`,
@@ -106,17 +116,19 @@ export async function saveCruushMatchSettings(
   const result = await app.db.query<CruushMatchSettingsRow>(
     `insert into user_cruush_match_settings (
        user_id,
+       message_visibility,
        nsfw_message_visibility,
        nsfw_send_visibility,
        updated_at
      )
-     values ($1, $2, $3, now())
+     values ($1, $2, $3, $4, now())
      on conflict (user_id) do update
-     set nsfw_message_visibility = excluded.nsfw_message_visibility,
+     set message_visibility = excluded.message_visibility,
+         nsfw_message_visibility = excluded.nsfw_message_visibility,
          nsfw_send_visibility = excluded.nsfw_send_visibility,
          updated_at = now()
-     returning nsfw_message_visibility, nsfw_send_visibility, updated_at`,
-    [userId, settings.nsfwMessageVisibility, settings.nsfwSendVisibility]
+     returning message_visibility, nsfw_message_visibility, nsfw_send_visibility, updated_at`,
+    [userId, settings.messageVisibility, settings.nsfwMessageVisibility, settings.nsfwSendVisibility]
   );
 
   return mapSettingsRow(result.rows[0]);
@@ -146,7 +158,7 @@ async function loadSettingsByUserId(app: FastifyInstance, userIds: string[]) {
 
   try {
     const result = await app.db.query<CruushMatchSettingsRow>(
-      `select user_id::text as user_id, nsfw_message_visibility, nsfw_send_visibility, updated_at
+      `select user_id::text as user_id, message_visibility, nsfw_message_visibility, nsfw_send_visibility, updated_at
        from user_cruush_match_settings
        where user_id = any($1::uuid[])`,
       [userIds]
@@ -168,7 +180,9 @@ async function loadSettingsByUserId(app: FastifyInstance, userIds: string[]) {
 
 async function everyRecipientIsMutual(app: FastifyInstance, senderUserId: string, recipientUserIds: string[]) {
   const permissions = await Promise.all(
-    recipientUserIds.map((recipientUserId) => hasActiveMutualMessagePermission(app, senderUserId, recipientUserId))
+    recipientUserIds.map(async (recipientUserId) => (
+      (await getRelationshipPermissions(app, senderUserId, recipientUserId)).isMutualCruush
+    ))
   );
 
   return permissions.every(Boolean);
@@ -215,6 +229,38 @@ function sharesCrowd(sourceCrowds: string[], targetCrowds: string[]) {
 
   const targetCrowdSet = new Set(targetCrowds.map((crowd) => crowd.trim().toLowerCase()).filter(Boolean));
   return sourceCrowds.some((crowd) => targetCrowdSet.has(crowd.trim().toLowerCase()));
+}
+
+export async function canStartDirectMessage(app: FastifyInstance, senderUserId: string, recipientUserId: string) {
+  const relationship = await getRelationshipPermissions(app, senderUserId, recipientUserId);
+
+  if (!relationship.canMessage) {
+    return false;
+  }
+
+  const recipientSettings = await getCruushMatchSettings(app, recipientUserId);
+
+  if (recipientSettings.messageVisibility === "public") {
+    return true;
+  }
+
+  if (recipientSettings.messageVisibility === "mutual_cruushes") {
+    return relationship.isMutualCruush;
+  }
+
+  const crowdsByUserId = await loadCrowdsByUserId(app, [senderUserId, recipientUserId]);
+  return sharesCrowd(
+    crowdsByUserId.get(senderUserId) ?? [],
+    crowdsByUserId.get(recipientUserId) ?? []
+  );
+}
+
+export async function assertCanStartDirectMessage(app: FastifyInstance, senderUserId: string, recipientUserId: string) {
+  if (await canStartDirectMessage(app, senderUserId, recipientUserId)) {
+    return;
+  }
+
+  throw new ApiError(403, "FORBIDDEN", "This user is not accepting messages from you right now.");
 }
 
 export async function assertCanSendNsfwMessagePhoto(
@@ -269,7 +315,7 @@ export async function assertCanSendNsfwMessagePhoto(
 
     if (
       recipientSettings.nsfwMessageVisibility === "mutual_cruushes" &&
-      !await hasActiveMutualMessagePermission(app, input.senderUserId, recipientUserId)
+      !(await getRelationshipPermissions(app, input.senderUserId, recipientUserId)).isMutualCruush
     ) {
       throw new ApiError(403, "NSFW_MESSAGES_RESTRICTED", "A recipient only allows NSFW photos from mutual cruushes.");
     }

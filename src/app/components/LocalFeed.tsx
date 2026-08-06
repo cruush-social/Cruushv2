@@ -72,6 +72,7 @@ const FEED_LOCATION_PIN_OPTIONS: Array<{ value: FeedLocationPinVisibility; label
 ];
 
 const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
+  { value: '7d', label: '7d' },
   { value: '24h', label: '24h' },
   { value: '6h', label: '6h' },
   { value: '3h', label: '3h' },
@@ -85,7 +86,7 @@ const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
   { value: 'never', label: 'Never' },
 ];
 const FEED_PAGE_SIZE = 30;
-const DEFAULT_FEED_RADIUS_MILES = 5;
+const DEFAULT_FEED_RADIUS_MILES = 15;
 const LAUNCH_PARTY_EVENT_SLUG = 'the-chocolate-factory-launch';
 const DEFAULT_FEED_SETTINGS: FeedSettings = {
   locationPinVisibility: 'mutuals',
@@ -400,7 +401,7 @@ export default function LocalFeed() {
             <div className="space-y-4">
               <section className="rounded-lg border border-white/10 bg-black/42 p-3">
                 <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {FEED_WINDOW_OPTIONS.map((option) => (
                     <button
                       key={option.value}

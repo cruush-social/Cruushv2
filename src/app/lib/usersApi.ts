@@ -21,6 +21,8 @@ export type DiscoveryUser = {
   distance: string;
   lookingFor: string[];
   vibes: string[];
+  identities?: string[];
+  presentation?: string[];
   scenes?: string[];
   archetypes?: string[];
   position: string[];
@@ -36,6 +38,8 @@ export type DiscoveryUser = {
   displayExpiresAtMs?: number;
   privacyRadiusMeters?: number;
   npcGhostDemo?: boolean;
+  hasSharedCrowd?: boolean;
+  relationshipContext?: 'PUBLIC' | 'MUTUAL_CRUUSH' | 'MUTUAL_CROWD';
   relationship?: {
     mutualCruush: boolean;
     canMessage: boolean;
@@ -85,8 +89,11 @@ type TokenizedDiscoveryProfile = {
   animationHint: DisplayAnimationHint;
   demoDisplayMode?: 'NPC_GHOST_TEST';
   relationshipContext: 'PUBLIC' | 'MUTUAL_CRUUSH' | 'MUTUAL_CROWD';
+  hasSharedCrowd?: boolean;
   lookingFor: string[];
   vibes: string[];
+  identities?: string[];
+  presentation?: string[];
   scenes?: string[];
   archetypes?: string[];
   position: string[];
@@ -174,6 +181,8 @@ export async function getNearbyUsers(
       distance: profile.distanceLabel,
       lookingFor: profile.lookingFor,
       vibes: profile.vibes,
+      identities: profile.identities,
+      presentation: profile.presentation,
       scenes: profile.scenes,
       archetypes: profile.archetypes,
       position: profile.position,
@@ -187,6 +196,8 @@ export async function getNearbyUsers(
       displayExpiresAtMs: profile.displayExpiresAtMs,
       privacyRadiusMeters: displayPayload.accuracyDisplayM,
       npcGhostDemo: profile.demoDisplayMode === 'NPC_GHOST_TEST',
+      hasSharedCrowd: profile.hasSharedCrowd === true || profile.relationshipContext === 'MUTUAL_CROWD',
+      relationshipContext: profile.relationshipContext,
       relationship: profile.relationship,
     };
   }));

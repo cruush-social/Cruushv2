@@ -249,7 +249,7 @@ const postParamsSchema = z.object({
 });
 
 const feedPostQuerySchema = z.object({
-  within: z.enum(["1h", "3h", "6h", "24h"]).default("24h"),
+  within: z.enum(["1h", "3h", "6h", "24h", "7d"]).default("24h"),
   distanceMiles: z.coerce.number().min(1).max(15).default(15),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   before: z.string().datetime().optional(),
@@ -272,6 +272,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
            when $2 = '1h' then interval '1 hour'
            when $2 = '3h' then interval '3 hours'
            when $2 = '6h' then interval '6 hours'
+           when $2 = '7d' then interval '7 days'
            else interval '24 hours'
          end
          and (

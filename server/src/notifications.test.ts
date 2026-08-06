@@ -281,6 +281,25 @@ describe("notification routes", () => {
     expect(query.mock.calls[1]?.[0]).toContain("read_at = now()");
   }, 10000);
 
+  it("clears all notifications for the current user", async () => {
+    const app = buildNotificationsApp();
+    query.mockResolvedValueOnce({ rowCount: 2 });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/notifications",
+      headers: {
+        "x-user-id": recipientUserId
+      }
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: { unreadCount: 0 } });
+    expect(query.mock.calls[0]?.[0]).toContain("delete from app_notifications");
+    expect(query.mock.calls[0]?.[1]).toEqual([recipientUserId]);
+  }, 10000);
+
   it("upserts push subscriptions and enables push preferences", async () => {
     const app = buildNotificationsApp({
       WEB_PUSH_ENABLED: true,

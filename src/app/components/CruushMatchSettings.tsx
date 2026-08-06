@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Eye, Image as ImageIcon, MapPin } from 'lucide-react';
+import { ArrowLeft, MapPin, MessageCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
 import {
@@ -8,7 +8,7 @@ import {
   getCruushMatchSettings,
   saveCruushMatchSettings,
   type CruushMatchSettings as CruushMatchSettingsRecord,
-  type NsfwMessageVisibility,
+  type MessageVisibility,
 } from '../lib/cruushSettingsApi';
 import {
   DEFAULT_PRIVACY_SETTINGS,
@@ -18,29 +18,24 @@ import {
 } from '../lib/privacyApi';
 
 const visibilityOptions: Array<{
-  value: NsfwMessageVisibility;
+  value: MessageVisibility;
   label: string;
   description: string;
 }> = [
   {
     value: 'public',
     label: 'Public',
-    description: 'Anyone you can message may send NSFW photos.',
+    description: 'Anyone who can see you in discovery may start a chat.',
   },
   {
     value: 'mutual_cruushes',
-    label: 'Mutual cruushes',
-    description: 'Only mutual cruushes may exchange NSFW photos.',
+    label: 'Mutuals',
+    description: 'Only mutual cruushes can start a chat. This is the default.',
   },
   {
     value: 'mutual_crowds',
-    label: 'Mutual crowds',
-    description: 'Only people who share one of your crowds may exchange NSFW photos.',
-  },
-  {
-    value: 'none',
-    label: 'No one',
-    description: 'Block NSFW photo sends.',
+    label: 'Crowd',
+    description: 'People who share one of your crowds can start a chat.',
   },
 ];
 
@@ -116,6 +111,7 @@ export default function CruushMatchSettings() {
 
     try {
       setMatchSettings(await saveCruushMatchSettings({
+        messageVisibility: nextSettings.messageVisibility,
         nsfwMessageVisibility: nextSettings.nsfwMessageVisibility,
         nsfwSendVisibility: nextSettings.nsfwSendVisibility,
       }));
@@ -149,7 +145,7 @@ export default function CruushMatchSettings() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h2 className="text-xl">mutual cruush settings</h2>
+          <h2 className="text-xl">message settings</h2>
         </div>
       </header>
 
@@ -162,44 +158,21 @@ export default function CruushMatchSettings() {
 
         <section className="rounded-xl border border-white/10 bg-card/80 p-4">
           <div className="flex items-start gap-3">
-            <ImageIcon className="mt-1 h-5 w-5 text-primary" />
+            <MessageCircle className="mt-1 h-5 w-5 text-primary" />
             <div>
-              <h3 className="text-base">Who can send you NSFW photos</h3>
-              <p className="mt-1 text-sm text-white/58">This controls who can send NSFW photos to you in messages.</p>
+              <h3 className="text-base">Who can message me</h3>
+              <p className="mt-1 text-sm text-white/58">Mutuals is the default. Switch to Public or Crowd when you want more people to be able to start a chat.</p>
             </div>
           </div>
           <div className="mt-4 grid gap-2">
             {visibilityOptions.map((option) => (
               <ChoiceRow
-                key={`receive-${option.value}`}
+                key={option.value}
                 value={option}
-                selected={matchSettings.nsfwMessageVisibility === option.value}
+                selected={matchSettings.messageVisibility === option.value}
                 onSelect={() => void persistMatchSettings({
                   ...matchSettings,
-                  nsfwMessageVisibility: option.value,
-                })}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-white/10 bg-card/80 p-4">
-          <div className="flex items-start gap-3">
-            <Eye className="mt-1 h-5 w-5 text-primary" />
-            <div>
-              <h3 className="text-base">Who you can send NSFW photos to</h3>
-              <p className="mt-1 text-sm text-white/58">This prevents accidental sends outside the boundaries you choose.</p>
-            </div>
-          </div>
-          <div className="mt-4 grid gap-2">
-            {visibilityOptions.map((option) => (
-              <ChoiceRow
-                key={`send-${option.value}`}
-                value={option}
-                selected={matchSettings.nsfwSendVisibility === option.value}
-                onSelect={() => void persistMatchSettings({
-                  ...matchSettings,
-                  nsfwSendVisibility: option.value,
+                  messageVisibility: option.value,
                 })}
               />
             ))}

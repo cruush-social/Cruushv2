@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowLeft, ChevronRight, ExternalLink, Eye, Gift, KeyRound, LifeBuoy, LogOut, MapPin, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, UserX, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronRight, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, UserX, type LucideIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
 import {
@@ -215,6 +215,24 @@ export default function Settings() {
           label: 'DL Mode',
           description: 'Mask explicit message and favorite-image previews with gradients.',
           action: () => navigate('/privacy/dl-mode'),
+        },
+        {
+          icon: MessageCircle,
+          label: 'Message permissions',
+          description: 'Mutuals is the default. Choose Public, Mutuals, or Crowd.',
+          action: () => navigate('/cruush/settings'),
+        },
+        {
+          icon: BookOpen,
+          label: 'Tutorial',
+          description: 'Review the main cruush defaults and privacy controls.',
+          action: () => navigate('/settings/tutorial'),
+        },
+        {
+          icon: History,
+          label: 'Changelog',
+          description: 'See what changed in cruush v1.1.',
+          action: () => navigate('/settings/changelog'),
         },
         {
           icon: MapPin,
