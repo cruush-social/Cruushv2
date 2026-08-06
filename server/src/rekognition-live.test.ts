@@ -6,8 +6,17 @@ import {
   DetectFacesCommand,
   DetectLabelsCommand,
   DetectModerationLabelsCommand,
-  RekognitionClient
+  RekognitionClient,
+  type DetectFacesCommandOutput,
+  type DetectLabelsCommandOutput,
+  type DetectModerationLabelsCommandOutput
 } from "@aws-sdk/client-rekognition";
+
+type RekognitionLiveClient = {
+  send(command: DetectFacesCommand): Promise<DetectFacesCommandOutput>;
+  send(command: DetectLabelsCommand): Promise<DetectLabelsCommandOutput>;
+  send(command: DetectModerationLabelsCommand): Promise<DetectModerationLabelsCommandOutput>;
+};
 
 // Proves the real AWS credentials and IAM policy actually work, so nobody has
 // to upload a photo by hand to find out. Mocked tests cannot catch a missing
@@ -66,7 +75,7 @@ function isAuthorizationFailure(error: unknown) {
 }
 
 describe.skipIf(!hasCredentials)("live Rekognition authorization", () => {
-  const client = new RekognitionClient({ region });
+  const client = new RekognitionClient({ region }) as unknown as RekognitionLiveClient;
   const Image = { Bytes: tinyPng() };
 
   it("is authorized for DetectModerationLabels", async () => {

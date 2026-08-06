@@ -186,7 +186,7 @@ describe("image child-face and profile-photo human detection", () => {
     const receivedFormats: string[] = [];
     const client = {
       async send(command: DetectLabelsCommand | DetectFacesCommand | DetectModerationLabelsCommand) {
-        const bytes = command.input.Image?.Bytes;
+        const bytes = (command as { input: { Image?: { Bytes?: Uint8Array } } }).input.Image?.Bytes;
         receivedFormats.push(bytes ? (await sharp(Buffer.from(bytes)).metadata()).format ?? "" : "");
 
         if (command instanceof DetectFacesCommand) {

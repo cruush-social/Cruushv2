@@ -168,13 +168,14 @@ In Stream dashboard:
 1. Enable Moderation for the app.
 2. Create a moderation policy whose key matches `STREAM_MODERATION_CONFIG_KEY`.
 3. Enable AI text moderation and image moderation.
-4. Configure only `Violence`, `Visually Disturbing`, and `Hate Symbols` to remove at the thresholds committed in `configure-stream-profile-photo-safety.ts`. The shared Stream policy must not globally remove `Explicit` or `Non-Explicit Nudity`, because the app applies the stricter surface rule: reject them outside messages and allow consensual adult nudity only in direct/group-message photos.
+4. Configure only `Violence`, `Visually Disturbing`, and `Hate Symbols` to remove at the thresholds committed in `stream-profile-photo-policy.ts`. Dashboard-expanded rows for `Explicit`, `Non-Explicit Nudity`, `PII`, and `QR Code` must remain `No Action` or absent. The shared Stream policy must not globally flag or remove nudity, because the app applies the stricter surface rule: reject it outside messages and allow consensual adult nudity only in direct/group-message photos.
 5. Configure borderline categories to flag only when cruush should reject or fail closed without human review.
 6. Avoid blocklists that treat queer identity terms, trans terms, kink terms, or consensual adult dating language as violations by themselves.
 7. Configure every Stream action other than `keep` as a cruush rejection. Ordinary non-allowed decisions are visible as follow-up evidence in the moderator dashboard, but a dashboard review does not make unapproved content public.
 8. Run `npm --prefix server run configure:stream-profile-safety` with the Stream environment variables loaded. The command reads the existing policy first and preserves the non-image engines because Stream replaces the full policy on upsert.
-9. Verify the saved policy in Stream Dashboard. Stream does not provide a human-presence category; the direct Rekognition gate supplies that signal.
-10. Verify PhotoDNA against real allowed and blocked provider responses before enabling deployed photo uploads.
+9. Run `npm --prefix server run check:stream-profile-safety` with the same Stream environment variables after every dashboard edit and before every release. The command is read-only and fails if Stream drifts from the checked-in image policy.
+10. Verify the saved policy in Stream Dashboard. Stream does not provide a human-presence category; the direct Rekognition gate supplies that signal.
+11. Verify PhotoDNA against real allowed and blocked provider responses before enabling deployed photo uploads.
 
 ## Staging Profile-Photo Bridge
 
