@@ -280,12 +280,13 @@ describe("policy mapper", () => {
     }
   );
 
-  it("applies the permanent all-feature ban to a definite child face", () => {
+  it("applies a review suspension to a definite child face", () => {
     const decision = map("minor_present", "profile_photo", 0.99);
 
     expect(decision).toMatchObject({
       decision: "reject",
       reason_code: "minor_face_detected",
+      user_message_code: "minor_face_review_suspension",
       set_trust_to_zero: true,
       trust_cap: 0,
       penalty_decays: false,

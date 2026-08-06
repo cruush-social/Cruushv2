@@ -157,11 +157,11 @@ const permanentAccessRestrictions: FeatureRestriction[] = [
   reasonCode: "minor_face_detected"
 }));
 
-function permanentMinorFaceBan(label: ProviderLabel): PolicyDecision {
+function minorFaceReviewSuspension(label: ProviderLabel): PolicyDecision {
   return {
     ...zeroTolerance(label, "minor_face_detected"),
     feature_restrictions: permanentAccessRestrictions,
-    user_message_code: "minor_face_permanent_ban"
+    user_message_code: "minor_face_review_suspension"
   };
 }
 
@@ -230,7 +230,7 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
   }
 
   if (normalizedLabel === "minor_present") {
-    return permanentMinorFaceBan(label);
+    return minorFaceReviewSuspension(label);
   }
 
   if (normalizedLabel === "minor_age_ambiguous") {

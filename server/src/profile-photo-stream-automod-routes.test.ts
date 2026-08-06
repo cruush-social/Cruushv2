@@ -269,7 +269,7 @@ describe("shared Stream profile-photo automod route", () => {
     await app.close();
   });
 
-  it("permanently bans the account, sessions, device, and IP when a child face is detected", async () => {
+  it("suspends the account for human review when a child face is detected", async () => {
     providerState.rekognitionFaces = [{
       Confidence: 99,
       AgeRange: { Low: 6, High: 10 }
@@ -292,13 +292,13 @@ describe("shared Stream profile-photo automod route", () => {
     expect(response.json()).toMatchObject({
       error: {
         code: "CONTENT_REJECTED",
-        message: expect.stringContaining("permanently banned")
+        message: expect.stringContaining("suspended for human review")
       }
     });
     expect(JSON.stringify(query.mock.calls)).toContain("minor_face_detected");
     expect(sql.some((text) => text.includes("account_status = 'suspended'"))).toBe(true);
     expect(sql.some((text) => text.includes("delete from app_sessions"))).toBe(true);
-    expect(sql.filter((text) => text.includes("insert into severe_access_bans"))).toHaveLength(2);
+    expect(sql.filter((text) => text.includes("insert into severe_access_bans"))).toHaveLength(0);
     expect(sql.some((text) => text.includes("insert into profiles"))).toBe(false);
 
     await app.close();
