@@ -96,24 +96,87 @@ async function coolify(pathname) {
   return response.json();
 }
 
-async function verifyApi(expectedSha) {
+// Coolify names its apps; the UUIDs are the only handle the API takes. Looking
+// them up by name means .env.coolify.local needs the token and nothing else.
+async function resolveAppUuids() {
+  const resolved = {
+    api: process.env.COOLIFY_PRODUCTION_API_UUID ?? null,
+    frontend: process.env.COOLIFY_PRODUCTION_FRONTEND_UUID ?? null,
+  };
+  if (resolved.api && resolved.frontend) return resolved;
+  if (!process.env.COOLIFY_API_TOKEN) return resolved;
+
+  try {
+    const apps = await coolify('/applications');
+    const list = Array.isArray(apps) ? apps : apps?.data ?? [];
+    for (const app of list) {
+      if (!resolved.api && app.name === 'cruush-api') resolved.api = app.uuid;
+      if (!resolved.frontend && app.name === 'cruush-frontend') resolved.frontend = app.uuid;
+    }
+  } catch (error) {
+    console.warn(`  could not list Coolify applications: ${error.message}`);
+  }
+  return resolved;
+}
+
+// Pushing to main deploys nothing if the Coolify app is pointed at another
+// branch. That has happened, and it is invisible from the git side, so say it
+// out loud before spending fifteen minutes polling for a SHA that cannot land.
+async function warnOnBranchDrift(uuids) {
+  const drifted = [];
+  for (const [label, uuid] of Object.entries(uuids)) {
+    if (!uuid) continue;
+    try {
+      const app = await coolify(`/applications/${encodeURIComponent(uuid)}`);
+      if (app?.git_branch && app.git_branch !== 'main') {
+        drifted.push(`${label} is deployed from "${app.git_branch}" (currently ${app.git_commit_sha ?? 'unknown'})`);
+      }
+    } catch {
+      // Reported elsewhere; never block the push on a status read.
+    }
+  }
+  if (drifted.length > 0) {
+    console.warn('\n  WARNING: production is not tracking main.');
+    for (const line of drifted) console.warn(`    ${line}`);
+    console.warn('  Pushing to main will not deploy until the Coolify app is pointed back at main.\n');
+  }
+  return drifted;
+}
+
+async function verifyApi(expectedSha, uuid) {
   const deadline = Date.now() + VERIFY_TIMEOUT_MS;
   let last = null;
+  let routeMissing = false;
   while (Date.now() < deadline) {
     try {
       const response = await fetch(`${API_BUILD_URL}?ship=${Date.now()}`, { cache: 'no-store' });
       if (response.ok) {
+        routeMissing = false;
         const payload = await response.json();
         last = payload?.sha ?? null;
         if (last === expectedSha) return { ok: true, sha: last, stage: payload?.stage };
+      } else if (response.status === 404) {
+        // The running build predates /api/build, which means it is not main.
+        routeMissing = true;
       }
     } catch {
       // The API restarts during deploy; keep polling.
     }
+    // Coolify knows which commit it deployed even when the build has no
+    // metadata route, so fall back to it rather than reporting "unknown".
+    if (routeMissing && uuid) {
+      try {
+        const app = await coolify(`/applications/${encodeURIComponent(uuid)}`);
+        last = app?.git_commit_sha ?? last;
+        if (last === expectedSha) return { ok: true, sha: last, stage: 'coolify' };
+      } catch {
+        // Fall through and keep polling.
+      }
+    }
     process.stdout.write('.');
     await sleep(POLL_INTERVAL_MS);
   }
-  return { ok: false, sha: last };
+  return { ok: false, sha: last, routeMissing };
 }
 
 async function verifyFrontend(expectedSha, uuid) {
@@ -196,13 +259,13 @@ async function main() {
   }
 
   const envFile = loadCoolifyEnv();
-  const frontendUuid = process.env.COOLIFY_PRODUCTION_FRONTEND_UUID;
-  const apiUuid = process.env.COOLIFY_PRODUCTION_API_UUID;
+  const { api: apiUuid, frontend: frontendUuid } = await resolveAppUuids();
+  const drift = await warnOnBranchDrift({ api: apiUuid, frontend: frontendUuid });
 
   if (process.env.COOLIFY_API_TOKEN) {
     for (const [label, uuid] of [['api', apiUuid], ['frontend', frontendUuid]]) {
       if (!uuid) {
-        console.log(`Deploy ${label}: skipped (no UUID configured).`);
+        console.log(`Deploy ${label}: skipped (could not resolve the Coolify app UUID).`);
         continue;
       }
       const triggered = await coolify(`/deploy?uuid=${encodeURIComponent(uuid)}`);
@@ -213,8 +276,13 @@ async function main() {
   }
 
   process.stdout.write('Verifying api  ');
-  const api = await verifyApi(sha);
-  console.log(api.ok ? ` matched (${api.sha.slice(0, 12)}, stage ${api.stage})` : ` MISMATCH (serving ${api.sha ?? 'unknown'})`);
+  const api = await verifyApi(sha, apiUuid);
+  if (api.ok) {
+    console.log(` matched (${api.sha.slice(0, 12)}, stage ${api.stage})`);
+  } else {
+    console.log(` MISMATCH (serving ${api.sha ? api.sha.slice(0, 12) : 'unknown'})`);
+    if (api.routeMissing) console.log('    /api/build 404s, so the running build is older than that route — production is not on main.');
+  }
 
   process.stdout.write('Verifying web  ');
   const web = await verifyFrontend(sha, frontendUuid);
@@ -224,6 +292,11 @@ async function main() {
   console.log(`\nCommit   ${sha}`);
   console.log(`Frontend ${FRONTEND_URL}`);
   console.log(`API      ${API_BUILD_URL}`);
+
+  if (drift.length > 0) {
+    console.error('\nProduction is deployed from another branch, so this commit is not live. Point the Coolify app back at main first.');
+    process.exit(1);
+  }
 
   if (api.ok === false || web.ok === false) {
     console.error('\nDeployed commit does not match what was pushed. Do not report this as shipped.');
