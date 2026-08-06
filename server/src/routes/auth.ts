@@ -36,7 +36,6 @@ import {
 import { runTransaction } from "../db.js";
 import { verifyClientSecurityCheck } from "../client-security-check.js";
 import { ensureDevelopmentAdminUser, isDevelopmentAdminLogin } from "../development-admin.js";
-import { deleteEncryptedMediaObject } from "../media-storage.js";
 import { verifyTurnstileToken } from "../turnstile.js";
 import { storeLocationEnvelope } from "../location-privacy.js";
 import {
@@ -112,10 +111,6 @@ type PasswordResetLookupRow = {
 type PasswordCredentialRow = {
   id: string;
   password_hash: string;
-};
-
-type MediaObjectKeyRow = {
-  object_key: string;
 };
 
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
@@ -274,7 +269,10 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
   return session;
 }
 
-async function resolveCurrentSession(request: FastifyRequest) {
+async function resolveCurrentSession(
+  request: FastifyRequest,
+  options: { allowAccountDeletion?: boolean } = {}
+) {
   const token = getSessionTokenFromRequest(request);
 
   if (!token) {
@@ -301,7 +299,7 @@ async function resolveCurrentSession(request: FastifyRequest) {
     throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
   }
 
-  if (isAlphaTestExpired(request.server.config)) {
+  if (!options.allowAccountDeletion && isAlphaTestExpired(request.server.config)) {
     await request.server.db.query(
       "delete from app_sessions where token_hash = $1",
       [tokenHash]
@@ -311,7 +309,11 @@ async function resolveCurrentSession(request: FastifyRequest) {
 
   const accountStatus = normalizeAccountStatus(session.account_status);
 
-  if (!accountCanAuthenticate(accountStatus) && !ownerCanBypassAccountStatus(session.email, accountStatus)) {
+  if (
+    !options.allowAccountDeletion &&
+    !accountCanAuthenticate(accountStatus) &&
+    !ownerCanBypassAccountStatus(session.email, accountStatus)
+  ) {
     await request.server.db.query(
       "delete from app_sessions where token_hash = $1",
       [tokenHash]
@@ -866,7 +868,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   });
 
   app.delete("/api/auth/me", async (request, reply) => {
-    const session = await resolveCurrentSession(request);
+    const session = await resolveCurrentSession(request, { allowAccountDeletion: true });
     const payload = deleteAccountPayloadSchema.parse(request.body);
     await applyRateLimits(app, [{
       key: `account-delete:user:${session.userId}`,
@@ -892,18 +894,21 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       throw new ApiError(401, "AUTH_REQUIRED", "Password is incorrect.");
     }
 
-    const mediaObjects = await app.db.query<MediaObjectKeyRow>(
-      `select object_key
-       from media_objects
-       where owner_user_id = $1`,
-      [session.userId]
-    );
-
-    for (const mediaObject of mediaObjects.rows) {
-      await deleteEncryptedMediaObject(request.server.config, mediaObject.object_key);
-    }
-
     await runTransaction(app.db, async (db) => {
+      await db.query(
+        `insert into account_deletion_media_cleanup (object_key)
+         select object_key
+         from media_objects
+         where owner_user_id = $1
+         union
+         select variants.object_key
+         from media_variants variants
+         join media_objects media on media.id = variants.media_object_id
+         where media.owner_user_id = $1
+         on conflict (object_key) do nothing`,
+        [session.userId]
+      );
+
       await db.query(
         "delete from app_sessions where user_id = $1",
         [session.userId]

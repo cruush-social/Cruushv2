@@ -16,6 +16,7 @@
     "relationships:backfill": "tsx src/backfill-encrypted-relationships.ts",
     "location-privacy:backfill": "tsx src/backfill-encrypted-location-privacy.ts",
     "cleanup:moderation-media-grants": "sh -c 'if [ -f dist/cleanup-moderation-media-grants.js ]; then node --enable-source-maps dist/cleanup-moderation-media-grants.js; else tsx src/cleanup-moderation-media-grants.ts; fi'",
+    "cleanup:account-deletion-media": "sh -c 'if [ -f dist/cleanup-account-deletion-media.js ]; then node --enable-source-maps dist/cleanup-account-deletion-media.js; else tsx src/cleanup-account-deletion-media.ts; fi'",
     "trust:recalculate": "sh -c 'if [ -f dist/recalculate-decaying-trust-profiles.js ]; then node --enable-source-maps dist/recalculate-decaying-trust-profiles.js; else tsx src/recalculate-decaying-trust-profiles.ts; fi'",
     "messages:expire": "sh -c 'if [ -f dist/expire-messages.js ]; then node --enable-source-maps dist/expire-messages.js; else tsx src/expire-messages.ts; fi'",
     "media:backfill-classification": "sh -c 'if [ -f dist/backfill-media-classification.js ]; then node --enable-source-maps dist/backfill-media-classification.js; else tsx src/backfill-media-classification.ts; fi'",
