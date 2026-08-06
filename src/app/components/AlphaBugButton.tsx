@@ -42,12 +42,6 @@ function getCurrentPageUrl() {
 // and reset-password cards - where the top-right corner is empty on every viewport.
 const FALLBACK_BUTTON_PLACEMENT =
   'right-4 top-[calc(0.75rem+env(safe-area-inset-top))]';
-// The coach mark has no undocked variant: it only ever shows inside the app shell, where
-// the nav dock exists. Placement is the one band clear of the install prompt and the
-// Recently Active panel on both viewports - see src/app/lib/overlaySlots.ts.
-const DOCKED_TIP_PLACEMENT =
-  'right-3 bottom-[calc(16.5rem+env(safe-area-inset-bottom))]';
-
 function waitForVideoMetadata(video: HTMLVideoElement) {
   return new Promise<void>((resolve, reject) => {
     const timeout = window.setTimeout(() => reject(new Error('Screenshot timed out.')), 5000);
@@ -137,10 +131,11 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
   // always saw null and the button fell back to floating over the page.
   const buttonSlot = useSyncExternalStore(subscribeToBugButtonSlot, getBugButtonSlot, () => null);
 
-  // The button also renders on the verify-email, reset-password, onboarding and
-  // code-of-conduct screens, where reporting a broken link is exactly when you need it.
-  // The coach mark must not burn its one showing there, so it waits for the nav dock -
-  // which only exists inside the app shell.
+  // The tip used to be a floating panel. It sat on top of posts and buttons, and because
+  // the only free band was ~260px above the button it was describing, it pointed at
+  // nothing. It is a blocking modal now: it dims the screen and waits to be acknowledged.
+  // It waits for the nav dock so it cannot fire on the verify-email or reset-password
+  // screens, where the button renders but the app has not started.
   const canShowTip = enabled && Boolean(buttonSlot);
 
   useEffect(() => {
@@ -155,9 +150,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
         return;
       }
 
-      // Deliberately does NOT mark the notice seen here. It used to, so a tip that
-      // scrolled past unread was spent; it is now recorded only once the user actually
-      // dismisses it or opens the report dialog.
+      // Not marked seen here: a tip the user never acknowledged has not been shown.
       setNoticeOffline(notice.offline);
       setShowTip(!notice.dismissed);
     });
@@ -229,7 +222,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
-        if (nextOpen) {
+        if (nextOpen && showTip) {
           dismissTip();
         }
         if (!nextOpen) {
@@ -238,22 +231,34 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
         }
       }}
     >
-      {showTip && buttonSlot ? (
-        <div
-          className={`fixed z-30 w-[min(18rem,calc(100vw-1.5rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${DOCKED_TIP_PLACEMENT}`}
-          data-testid="alpha-bug-tip"
-        >
-          <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
-          <button
-            className="mt-2 text-xs font-semibold text-primary"
-            onClick={dismissTip}
-            type="button"
-          >
-            Got it
-          </button>
-        </div>
-      ) : null}
       {buttonSlot && typeof document !== 'undefined' ? createPortal(trigger, buttonSlot) : trigger}
+      {showTip ? (
+        <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) dismissTip(); }}>
+          <DialogContent
+            className="max-w-sm rounded-lg border-white/10 bg-background"
+            data-testid="alpha-bug-tip"
+            dismissible={false}
+          >
+            <DialogHeader>
+              <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.045]">
+                <Bug className="h-5 w-5 text-primary" />
+              </div>
+              <DialogTitle>Found something broken?</DialogTitle>
+              <DialogDescription>
+                Tap the bug icon in the bottom bar to report it. It sends the page you are on and a
+                screenshot when your browser allows it.
+              </DialogDescription>
+            </DialogHeader>
+            <Button
+              className="w-full"
+              onClick={dismissTip}
+              style={{ background: 'var(--cruush-gradient)' }}
+            >
+              Got it
+            </Button>
+          </DialogContent>
+        </Dialog>
+      ) : null}
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>

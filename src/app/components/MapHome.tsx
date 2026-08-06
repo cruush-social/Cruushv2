@@ -1990,7 +1990,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             }
           }}
         >
-          <DialogContent className="max-w-md rounded-lg border-white/10 bg-background text-white">
+          <DialogContent className="max-w-md rounded-lg border-white/10 bg-background text-white" data-testid="map-controls-intro" dismissible={false}>
             <DialogHeader>
               <DialogTitle>Map controls</DialogTitle>
               <DialogDescription>

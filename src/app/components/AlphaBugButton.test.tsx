@@ -140,7 +140,7 @@ describe('AlphaBugButton', () => {
 // rendered on the verify-email and reset-password screens too - so a user could burn
 // their one showing on a screen they barely looked at, before reaching the app.
 describe('AlphaBugButton coach mark', () => {
-  const TIP_TEXT = 'Alpha test: tap the bug icon to report anything broken.';
+  const TIP_TEXT = 'Found something broken?';
 
   function dock() {
     const slot = document.createElement('div');
@@ -175,6 +175,11 @@ describe('AlphaBugButton coach mark', () => {
     renderAlphaBugButton();
 
     expect(await screen.findByText(TIP_TEXT)).toBeInTheDocument();
+    // Blocking: dims the screen, no X, no click-away, no Esc.
+    const content = screen.getByTestId('alpha-bug-tip');
+    expect(content).toHaveAttribute('data-dismissible', 'false');
+    expect(content.querySelector('[data-slot="dialog-close"]')).toBeNull();
+    expect(document.querySelector('[data-slot="dialog-overlay"]')).toBeInTheDocument();
     expect(markNoticeDismissed).not.toHaveBeenCalled();
   });
 

@@ -124,7 +124,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="beta-launch-plus-dialog max-w-sm rounded-lg">
+      <DialogContent className="beta-launch-plus-dialog max-w-sm rounded-lg" dismissible={false}>
         <div className="beta-launch-plus-card-scene">
           <div className="beta-launch-plus-card" data-testid="beta-launch-cruush-plus-card">
             <div className="beta-launch-plus-card__moire" />

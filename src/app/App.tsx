@@ -238,6 +238,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/dev/onboarding-preview" element={<OnboardingPreview />} />
             {renderPublicInfoRoutes()}
             <Route path="*" element={<Auth onAuth={handleAuth} />} />
           </Routes>
@@ -363,9 +364,7 @@ export default function App({
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />
               <Route path="/privacy/map-presence" element={<MapPresenceSettings />} />
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
-              {import.meta.env.DEV ? (
-                <Route path="/dev/onboarding-preview" element={<OnboardingPreview />} />
-              ) : null}
+              <Route path="/dev/onboarding-preview" element={<OnboardingPreview />} />
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />

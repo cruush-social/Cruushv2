@@ -9,6 +9,10 @@
 //
 // Adding a new floating overlay means adding it here. If the test fails, the two overlays
 // really do collide on a real screen — move one, do not widen the tolerance.
+//
+// Blocking modals are deliberately absent: they are centred, they dim the whole screen and
+// nothing can be used behind them, so "does it overlap" is not a question worth asking.
+// Only things that float over a usable page belong here.
 
 export type OverlayBox = {
   // Distances from the named viewport edge, in rem. Give either an edge pair
@@ -69,15 +73,6 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     desktop: { bottom: 6.25, right: 1, width: 29.5, height: 7 },
   },
   {
-    id: 'mobile-install-prompt',
-    source: 'src/app/components/MobileInstallPrompt.tsx',
-    z: 40,
-    transient: true,
-    // Narrowed on mobile so it clears the bug button's column on the right edge.
-    mobile: { bottom: 6, left: 1, right: 4.5, height: 10 },
-    desktop: { bottom: 6, left: 1, right: 1, height: 10 },
-  },
-  {
     id: 'bottom-nav',
     source: 'src/app/components/BottomNav.tsx',
     z: 50,
@@ -99,19 +94,6 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     // already reserves and never draws content into.
     mobile: { bottom: 1.15, right: 0.75, width: 2.75, height: 2.75 },
     desktop: { bottom: 1.15, right: 27, width: 2.75, height: 2.75 },
-  },
-  {
-    id: 'alpha-bug-tip',
-    source: 'src/app/components/AlphaBugButton.tsx',
-    z: 30,
-    // A one-time coach mark, dismissed on first tap or as soon as the dialog opens. It
-    // sits in the only band clear of the install prompt and the Recently Active panel on
-    // both viewports, which is why it is higher up the screen than the button it
-    // describes rather than tucked against it.
-    exclusiveWith: ['alpha-bug-button'],
-    transient: true,
-    mobile: { bottom: 16.5, right: 0.75, width: 18, height: 5 },
-    desktop: { bottom: 16.5, right: 0.75, width: 18, height: 5 },
   },
 ];
 

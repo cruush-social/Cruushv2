@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Download, X } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 
 const INSTALL_PROMPT_DISMISSED_KEY = 'cruush-install-prompt-dismissed';
 const INSTALL_REQUESTED_EVENT = 'cruush:install-requested';
@@ -99,41 +107,36 @@ export default function MobileInstallPrompt() {
     return null;
   }
 
+  // Was a floating card pinned above the nav, which meant it sat on top of whatever was
+  // under it and could be scrolled past unread. It is a blocking modal like every other
+  // first-run popup now.
   return (
-    <div className="fixed bottom-24 left-4 right-[4.5rem] z-40 mx-auto max-w-md rounded-lg border border-border bg-card p-4 text-card-foreground shadow-[0_20px_60px_rgba(0,0,0,0.45)] sm:right-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-          <Download className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-base text-white">Install cruush</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={dismiss}
-              aria-label="Dismiss install prompt"
-              className="-mr-2 -mt-2 h-8 w-8 rounded-full"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+    <Dialog open onOpenChange={(nextOpen) => { if (!nextOpen) dismiss(); }}>
+      <DialogContent
+        className="max-w-sm rounded-lg border-white/10 bg-background"
+        data-testid="mobile-install-prompt"
+        dismissible={false}
+      >
+        <DialogHeader>
+          <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-primary/15 text-primary">
+            <Download className="h-5 w-5" />
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <DialogTitle>Install cruush</DialogTitle>
+          <DialogDescription>
             {showManualInstructions
               ? 'Use Safari share, then Add to Home Screen.'
               : 'Open cruush from your Home Screen for a full-screen mobile app feel.'}
-          </p>
-          <div className="mt-3 flex gap-2">
-            <Button type="button" onClick={() => void install()} className="rounded-full">
-              Install cruush
-            </Button>
-            <Button type="button" variant="outline" onClick={dismiss} className="rounded-full">
-              Not now
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button type="button" variant="outline" onClick={dismiss} className="rounded-full">
+            Not now
+          </Button>
+          <Button type="button" onClick={() => void install()} className="rounded-full">
+            Install cruush
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

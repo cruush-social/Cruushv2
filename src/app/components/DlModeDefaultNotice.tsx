@@ -18,13 +18,20 @@ import {
 } from '../lib/dlMode';
 import { dismissUserNotice, resolveNoticeDismissal } from '../lib/userNoticesApi';
 
-export default function DlModeDefaultNotice() {
+type DlModeDefaultNoticeProps = {
+  // The onboarding preview renders this outside the map route and passes the path it
+  // should pretend to be on. Everything else reads the real location.
+  pathname?: string;
+};
+
+export default function DlModeDefaultNotice({ pathname }: DlModeDefaultNoticeProps = {}) {
   const location = useLocation();
+  const activePathname = pathname ?? location.pathname;
   const [open, setOpen] = useState(false);
   const [noticeOffline, setNoticeOffline] = useState(false);
 
   useEffect(() => {
-    if (!location.pathname.startsWith('/map')) {
+    if (!activePathname.startsWith('/map')) {
       return;
     }
 
@@ -65,7 +72,7 @@ export default function DlModeDefaultNotice() {
     return () => {
       isMounted = false;
     };
-  }, [location.pathname]);
+  }, [activePathname]);
 
   const closeNotice = () => {
     setOpen(false);
@@ -85,7 +92,7 @@ export default function DlModeDefaultNotice() {
         }
       }}
     >
-      <DialogContent className="max-w-sm rounded-lg border-white/10 bg-background">
+      <DialogContent className="max-w-sm rounded-lg border-white/10 bg-background" dismissible={false}>
         <DialogHeader>
           <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.045]">
             <Eye className="h-5 w-5 text-primary" strokeWidth={2.35} />

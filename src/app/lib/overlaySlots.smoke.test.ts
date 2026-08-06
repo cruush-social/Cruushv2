@@ -90,16 +90,6 @@ describe('smoke: declared overlay geometry matches the components', () => {
       ['h-11 w-11 shrink-0', 'right-4 top-[calc(0.75rem+env(safe-area-inset-top))]'],
     ],
     [
-      'alpha-bug-tip',
-      'src/app/components/AlphaBugButton.tsx',
-      ['right-3 bottom-[calc(16.5rem+env(safe-area-inset-bottom))]', 'fixed z-30'],
-    ],
-    [
-      'mobile-install-prompt',
-      'src/app/components/MobileInstallPrompt.tsx',
-      ['bottom-24', 'right-[4.5rem]', 'sm:right-4', 'z-40'],
-    ],
-    [
       'bottom-nav',
       'src/app/components/BottomNav.tsx',
       ['fixed bottom-0', 'z-50', 'max-w-[26rem]', 'data-testid="bottom-nav-bug-slot"'],
