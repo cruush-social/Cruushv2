@@ -49,6 +49,31 @@ function buildApp(overrides: Partial<Rows> = {}) {
     if (sql.includes("insert into messages")) {
       return { rows: overrides.message ?? [{ id: "msg-1", user_id: input.senderUserId, content: "", created_at: new Date(), expires_at: new Date() }], rowCount: 1 };
     }
+    if (sql.includes("from messages m") && sql.includes("message_media_attachments")) {
+      return {
+        rows: overrides.attached ?? [{
+          id: "msg-1",
+          user_id: input.senderUserId,
+          content: "",
+          content_ciphertext: input.content.ciphertext,
+          content_nonce: input.content.nonce,
+          content_auth_tag: input.content.authTag,
+          content_key_version: input.content.keyVersion,
+          created_at: new Date(),
+          expires_at: new Date(),
+          attachments: [{
+            id: input.mediaObjectId,
+            url: input.displayUrl,
+            mediaType: "image",
+            mimeType: "image/png",
+            viewOnce: input.viewOnce,
+            viewedAt: null,
+            explicit: input.isAdultExplicit
+          }]
+        }],
+        rowCount: 1
+      };
+    }
     return { rows: [], rowCount: 0 };
   });
 
@@ -65,6 +90,15 @@ describe("sending a photo message the classifier approved", () => {
     const created = await sendApprovedPhotoMessage(app, request, input);
 
     expect(created.id).toBe("msg-1");
+    expect(created.attachments).toEqual([{
+      id: input.mediaObjectId,
+      url: input.displayUrl,
+      mediaType: "image",
+      mimeType: "image/png",
+      viewOnce: false,
+      viewedAt: null,
+      explicit: false
+    }]);
     expect(seen.some((s) => s.includes("insert into messages"))).toBe(true);
     expect(seen.some((s) => s.includes("insert into message_media_attachments"))).toBe(true);
   });

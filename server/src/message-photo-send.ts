@@ -40,6 +40,29 @@ export type PhotoMessageInput = {
   ownerFullAccess: boolean;
 };
 
+type CreatedPhotoMessageAttachment = {
+  id: string;
+  url: string;
+  mediaType: string;
+  mimeType: string;
+  viewOnce: boolean;
+  viewedAt: string | null;
+  explicit: boolean;
+};
+
+export type CreatedPhotoMessageRow = {
+  id: string;
+  user_id: string;
+  content: string;
+  content_ciphertext: string | null;
+  content_nonce: string | null;
+  content_auth_tag: string | null;
+  content_key_version: string | null;
+  created_at: string | Date;
+  expires_at: string | Date | null;
+  attachments?: CreatedPhotoMessageAttachment[] | string | null;
+};
+
 async function assertConversationOpen(db: DbClient, input: PhotoMessageInput) {
   const result = await db.query<{ closed: boolean }>(
     `select (c.closed_at is not null) as closed
@@ -180,17 +203,7 @@ export async function sendApprovedPhotoMessage(
 
     await db.query("update media_objects set content_review_id = $2 where id = $1", [input.mediaObjectId, reviewId]);
 
-    const message = await db.query<{
-      id: string;
-      user_id: string;
-      content: string;
-      content_ciphertext: string | null;
-      content_nonce: string | null;
-      content_auth_tag: string | null;
-      content_key_version: string | null;
-      created_at: string | Date;
-      expires_at: string | Date;
-    }>(
+    const message = await db.query<CreatedPhotoMessageRow>(
       `insert into messages (
          conversation_id, user_id, content, content_ciphertext, content_nonce,
          content_auth_tag, content_key_version, expires_at
@@ -235,6 +248,43 @@ export async function sendApprovedPhotoMessage(
       "photo message sent"
     );
 
-    return created;
+    const withAttachment = await db.query<CreatedPhotoMessageRow>(
+      `select
+         m.id::text as id,
+         m.user_id::text as user_id,
+         m.content,
+         m.content_ciphertext,
+         m.content_nonce,
+         m.content_auth_tag,
+         m.content_key_version,
+         m.created_at,
+         m.expires_at,
+         coalesce(jsonb_agg(jsonb_build_object(
+           'id', media.id::text,
+           'url', media.public_url,
+           'mediaType', media.media_type,
+           'mimeType', media.mime_type,
+           'viewOnce', attachment.view_once,
+           'viewedAt', null,
+           'explicit', media.explicit_classification is distinct from 'non_explicit'
+         ) order by attachment.created_at asc) filter (where media.id is not null), '[]'::jsonb) as attachments
+       from messages m
+       left join message_media_attachments attachment on attachment.message_id = m.id
+       left join media_objects media on media.id = attachment.media_object_id
+       where m.id = $1::uuid
+       group by
+         m.id,
+         m.user_id,
+         m.content,
+         m.content_ciphertext,
+         m.content_nonce,
+         m.content_auth_tag,
+         m.content_key_version,
+         m.created_at,
+         m.expires_at`,
+      [created.id]
+    );
+
+    return withAttachment.rows[0] ?? created;
   });
 }

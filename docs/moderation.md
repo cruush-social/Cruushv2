@@ -115,6 +115,8 @@ Rejected before save/publish:
 
 When shared Stream automod is enabled, publication requires all three synchronous approvals: PhotoDNA non-match, Stream completion, and Rekognition age-safety approval. Profile photos also require person/no-animal approval and reject high-confidence `Explicit` or `Non-Explicit Nudity` labels even when Stream recommends `keep`. Direct and group-message photos may contain consensual adult nudity. Rejected encrypted pending assets are deleted.
 
+Approved direct and group message photos must post through the same transactional photo-message helper after moderation succeeds. That helper separately verifies conversation membership, closed-state, sender account status, trust score, suspensions, feature restrictions, media ownership, and attachment creation. An active trusted sender in an open conversation with an approved photo must receive a created message with its attachment in the response; missing preconditions must return a specific error instead of the generic `Messaging is unavailable for this account.` failure.
+
 If Stream is unavailable, partial, pending, or returns an error, content is not saved. The request fails closed with `MODERATION_UNAVAILABLE`.
 
 ## Reports
@@ -287,7 +289,7 @@ Manual checks:
 - Send a threat or drug-sales message and confirm it is rejected before message storage.
 - Upload a safe profile photo that mock mode can identify, such as a fixture filename containing `adult-human`, and confirm it appears in `profiles.photos`. For the shared Stream path, use a mocked complete `keep` plus a mocked high-confidence Rekognition `Person` result and confirm no manual-review row is created.
 - Upload a nude profile photo and confirm it is rejected, its encrypted quarantine objects are deleted, and no profile URL is attached.
-- Upload the same permitted adult-nudity fixture in a direct or group message and confirm it is available only through authenticated message-media access.
+- Upload the same permitted adult-nudity fixture in a direct or group message and confirm the route returns `201`, the response contains the `message_photo` attachment, `viewOnce` is preserved when requested, the attachment is available only through authenticated message-media access, and the user is never shown `Messaging is unavailable for this account.` when the conversation and sender are otherwise eligible.
 - Upload a non-human or gradient profile photo and confirm its temporary encrypted quarantine object is deleted without publication.
 - Upload an image filename containing `underage` in mock mode and confirm its temporary encrypted quarantine object is deleted without publication.
 - Submit a report and confirm an evidence signal is created for the reported user.

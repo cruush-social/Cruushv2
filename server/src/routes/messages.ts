@@ -6,6 +6,7 @@ import { decryptMediaBytes } from "../media-encryption.js";
 import { readEncryptedMediaObject } from "../media-storage.js";
 import { createPendingMediaAsset, deletePendingMediaAsset, moderatePendingMediaAsset } from "../media-assets.js";
 import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
+import { sendApprovedPhotoMessage } from "../message-photo-send.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { ApiError } from "../errors.js";
 import { assertCanSendNsfwMessagePhoto } from "../cruush-match-settings.js";
@@ -1957,206 +1958,37 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         });
       }
 
-    const encryptedContent = encryptTextContent(app.config, "message", payload.content);
-    const disappearingTimer = conversation.disappearing_timer ?? "off";
-    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
-    const result = await app.db.query<MessageRow>(
-      `with membership as (
-         select c.id
-         from conversations c
-         join conversation_members cm on cm.conversation_id = c.id
-         where c.id::text = $1
-           and cm.user_id = $2
-           and c.closed_at is null
-         limit 1
-       ), eligible_sender as (
-         select u.id
-         from app_users u
-         left join user_trust_profiles trust on trust.user_id = u.id
-         where u.id = $2
-           and (
-             $20::boolean
-             or (
-               u.account_status = 'active'
-               and coalesce(trust.is_suspended, false) = false
-               and coalesce(trust.trust_score, 50) > 20
-               and not exists (
-                 select 1
-                 from suspensions suspension
-                 where suspension.user_id = u.id
-                   and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-               )
-               and not exists (
-                 select 1
-                 from feature_restrictions restriction
-                 where restriction.user_id = u.id
-                   and restriction.feature = '${restrictedFeature}'
-                   and (restriction.ends_at is null or restriction.ends_at > now())
-               )
-             )
-           )
-       ), approved_media as (
-         update media_objects media
-         set public_url = $16,
-             moderation_status = 'approved',
-             moderation_provider = $8,
-             moderation_provider_version = $9,
-             moderation_scores = $11::jsonb,
-             moderation_decided_at = now(),
-             moderation_failure_reason = null,
-             explicit_classification = case when $19 then 'explicit' else 'non_explicit' end,
-             photodna_status = $14,
-             photodna_provider_request_id = $15
-         from eligible_sender
-         where media.id = $7
-           and media.owner_user_id = eligible_sender.id
-           and media.surface = 'message_photo'
-           and media.moderation_status = 'pending'
-         returning eligible_sender.id
-       ), ${approvedContentReviewCte({
-         userIdParam: "$2",
-         surface: moderationSurface,
-         contentType: "image",
-         fromCte: "approved_media",
-         providerParam: "$8",
-         providerRequestIdParam: "$10",
-         normalizedLabelsParam: "$11",
-         policyDecisionParam: "$12",
-         moderationStatusParam: "'allowed'",
-         moderationRawResultParam: "$13",
-         contentIdParam: "$7",
-         contentRefParam: "jsonb_build_object('assetId', $7, 'surface', 'message_photo')"
-       })}, linked_media as (
-         update media_objects media
-         set content_review_id = moderation_review.id
-         from moderation_review
-         where media.id = $7
-         returning media.id
-       ), inserted as (
-         insert into messages (
-           conversation_id,
-           user_id,
-           content,
-           content_ciphertext,
-           content_nonce,
-           content_auth_tag,
-           content_key_version,
-           expires_at
-         )
-         select
-           membership.id,
-           eligible_sender.id,
-           '[encrypted]',
-           $3,
-           $4,
-           $5,
-           $6,
-           ${expirationSql("$17")}
-         from membership
-         join eligible_sender on true
-         join linked_media on true
-         returning
-           id::text as id,
-           user_id::text as user_id,
-           content,
-           content_ciphertext,
-           content_nonce,
-           content_auth_tag,
-           content_key_version,
-           created_at,
-           expires_at,
-           conversation_id
-       ), attached as (
-         insert into message_media_attachments (message_id, media_object_id, view_once)
-         select inserted.id::uuid, $7::uuid, $18
-         from inserted
-         returning message_id, media_object_id, view_once
-       ), updated_conversation as (
-         update conversations c
-         set updated_at = now()
-         from inserted
-         where c.id = inserted.conversation_id
-       ), updated_member as (
-         update conversation_members cm
-         set last_read_at = now()
-         from inserted
-         where cm.conversation_id = inserted.conversation_id
-           and cm.user_id = $2
-       )
-       select
-         inserted.id,
-         inserted.user_id,
-         inserted.content,
-         inserted.content_ciphertext,
-         inserted.content_nonce,
-         inserted.content_auth_tag,
-         inserted.content_key_version,
-         inserted.created_at,
-         inserted.expires_at,
-         coalesce(jsonb_agg(jsonb_build_object(
-          'id', media.id::text,
-          'url', media.public_url,
-          'mediaType', media.media_type,
-          'mimeType', media.mime_type,
-          'viewOnce', attached.view_once,
-          'viewedAt', null,
-           'explicit', media.explicit_classification is distinct from 'non_explicit'
-        ) order by attached.media_object_id), '[]'::jsonb) as attachments
-       from inserted
-       join attached on attached.message_id = inserted.id::uuid
-       join media_objects media on media.id = attached.media_object_id
-       group by
-         inserted.id,
-         inserted.user_id,
-         inserted.content,
-         inserted.content_ciphertext,
-         inserted.content_nonce,
-         inserted.content_auth_tag,
-         inserted.content_key_version,
-         inserted.created_at,
-         inserted.expires_at`,
-      [
-        payload.conversationId,
-        userId,
-        encryptedContent.ciphertext,
-        encryptedContent.nonce,
-        encryptedContent.authTag,
-        encryptedContent.keyVersion,
-        mediaAsset.id,
-        mediaAsset.moderation.provider,
-        mediaAsset.moderation.providerVersion,
-        mediaAsset.moderation.providerRequestId,
-        JSON.stringify(mediaAsset.moderation.labels),
-        JSON.stringify(mediaAsset.moderation.decision),
-        JSON.stringify(mediaAsset.moderation.rawResult),
-        mediaAsset.moderation.photoDnaStatus,
-        mediaAsset.moderation.photoDnaProviderRequestId,
-        mediaAsset.displayUrl,
-        disappearingTimer,
-        payload.viewOnce,
+      const encryptedContent = encryptTextContent(app.config, "message", payload.content);
+      const disappearingTimer = conversation.disappearing_timer ?? "off";
+      const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
+      const created = await sendApprovedPhotoMessage(app, request, {
+        conversationId: payload.conversationId,
+        senderUserId: userId,
+        mediaObjectId: mediaAsset.id,
+        displayUrl: mediaAsset.displayUrl,
+        content: encryptedContent,
+        moderation: mediaAsset.moderation,
         isAdultExplicit,
+        viewOnce: payload.viewOnce,
+        disappearingTimer,
+        restrictedFeature,
+        moderationSurface,
         ownerFullAccess
-      ]
-    );
-    const created = result.rows[0] ? await refreshCreatedMessageAttachments(app, result.rows[0]) : null;
+      });
 
-    if (!created) {
-      throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
-    }
+      await recordMeaningfulActivitySafely(app, {
+        userId,
+        activityType: "message",
+        sourceEventId: created.id
+      });
 
-    await recordMeaningfulActivitySafely(app, {
-      userId,
-      activityType: "message",
-      sourceEventId: created.id
-    });
-
-    await notifyConversationMessageRecipients(app, {
-      conversationId: payload.conversationId,
-      senderUserId: userId,
-      messageId: created.id,
-      conversationKind: conversation.kind,
-      conversationTitle: conversation.title
-    });
+      await notifyConversationMessageRecipients(app, {
+        conversationId: payload.conversationId,
+        senderUserId: userId,
+        messageId: created.id,
+        conversationKind: conversation.kind,
+        conversationTitle: conversation.title
+      });
 
       return reply.code(201).send({
         data: mapMessageRow(app, created)

@@ -3397,7 +3397,8 @@ describe("server", () => {
           id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
           name: "Alex",
           pronouns: "they/them",
-          photo: "https://example.com/alex.jpg"
+          photo: "https://example.com/alex.jpg",
+          photoExplicit: true
         },
         distance: "Nearby",
         updatedAt: "2026-04-29T12:00:00.000Z",
@@ -3406,7 +3407,6 @@ describe("server", () => {
         pinned: false,
         muted: false,
         mutual: false,
-        membersLabel: undefined,
         tags: []
       }
     });
@@ -4748,87 +4748,161 @@ describe("server", () => {
   });
 
   it("creates a view-once adult-nudity photo in a private group message", async () => {
-    query
-      .mockResolvedValueOnce({
-        rows: [{
-          id: conversationId,
-          kind: "group",
-          title: "Beta crew",
-          tags: [],
-          updated_at: "2026-04-29T12:00:00.000Z",
-          last_message: "",
-          unread_count: 0,
-          pinned: false,
-          muted: false,
-          other_user_id: null,
-          other_user_name: null,
-          other_user_pronouns: null,
-          other_user_photo: null,
-          member_count: 3,
-          current_user_role: "member",
-          disappearing_timer: "24h",
-          closed_at: null
-      }]
-    })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "media-1"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: userId,
-          nsfw_message_visibility: "public",
-          nsfw_send_visibility: "public",
-          updated_at: "2026-04-29T12:05:00.000Z"
-        }, {
-          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          nsfw_message_visibility: "public",
-          nsfw_send_visibility: "public",
-          updated_at: "2026-04-29T12:05:00.000Z"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          id: "msg-photo-1",
-          user_id: userId,
-          content: "photo caption",
-          created_at: "2026-04-29T12:10:00.000Z",
-          expires_at: "2026-04-30T12:10:00.000Z",
-          attachments: [{
-            id: "media-1",
-            url: `/api/media/message-photos/${userId}-photo-id.png`,
-            mediaType: "image",
-            mimeType: "image/png",
-            viewOnce: true
+    let messageCiphertext: unknown = null;
+    let messageNonce: unknown = null;
+    let messageAuthTag: unknown = null;
+    let messageKeyVersion: unknown = null;
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      const text = String(sql);
+
+      if (text.includes("from conversation_members cm") && text.includes("sender_profile")) {
+        return {
+          rows: [{
+            user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            muted: true,
+            sender_name: "Jordan",
+            conversation_title: "Beta crew"
           }]
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [{
-          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          muted: true,
-          sender_name: "Jordan",
-          conversation_title: "Beta crew"
-        }]
-      })
-      .mockResolvedValueOnce({
-        rows: [appNotificationRow({
-          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          type: "group_message",
-          title: "New message in Beta crew",
-          link_url: `/chat/group/${conversationId}`,
-          actor_user_id: userId,
-          conversation_id: conversationId,
-          metadata: { conversationKind: "group" }
-        })]
-      });
+        };
+      }
+
+      if (text.includes("insert into app_notifications")) {
+        return {
+          rows: [appNotificationRow({
+            user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            type: "group_message",
+            title: "New message in Beta crew",
+            link_url: `/chat/group/${conversationId}`,
+            actor_user_id: userId,
+            conversation_id: conversationId,
+            metadata: { conversationKind: "group" }
+          })]
+        };
+      }
+
+      if (text.includes("from conversation_members cm") && text.includes("where cm.user_id = $1")) {
+        return {
+          rows: [{
+            id: conversationId,
+            kind: "group",
+            title: "Beta crew",
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: null,
+            other_user_name: null,
+            other_user_pronouns: null,
+            other_user_photo: null,
+            member_count: 3,
+            current_user_role: "member",
+            disappearing_timer: "24h",
+            closed_at: null
+          }]
+        };
+      }
+
+      if (text.includes("join user_blocks block")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("with inserted_media as")) {
+        return { rows: [{ id: "media-1" }] };
+      }
+
+      if (text.includes("select email") && text.includes("from app_users")) {
+        return { rows: [{ email: "member@example.com" }] };
+      }
+
+      if (text.includes("join app_users app_user")) {
+        return { rows: [{ user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97" }] };
+      }
+
+      if (text.includes("from user_cruush_match_settings")) {
+        return {
+          rows: [{
+            user_id: userId,
+            nsfw_message_visibility: "public",
+            nsfw_send_visibility: "public",
+            updated_at: "2026-04-29T12:05:00.000Z"
+          }, {
+            user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+            nsfw_message_visibility: "public",
+            nsfw_send_visibility: "public",
+            updated_at: "2026-04-29T12:05:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("closed_at is not null")) {
+        return { rows: [{ closed: false }] };
+      }
+
+      if (text.includes("coalesce(t.trust_score, 50) as trust_score")) {
+        return {
+          rows: [{
+            account_status: "active",
+            suspended: false,
+            trust_score: 100,
+            suspensions: 0,
+            restrictions: 0
+          }]
+        };
+      }
+
+      if (text.includes("update media_objects") && text.includes("moderation_status = 'approved'")) {
+        return { rows: [{ id: "media-1" }] };
+      }
+
+      if (text.includes("insert into messages")) {
+        messageCiphertext = params[2];
+        messageNonce = params[3];
+        messageAuthTag = params[4];
+        messageKeyVersion = params[5];
+        return {
+          rows: [{
+            id: "msg-photo-1",
+            user_id: userId,
+            content: "",
+            content_ciphertext: params[2],
+            content_nonce: params[3],
+            content_auth_tag: params[4],
+            content_key_version: params[5],
+            created_at: "2026-04-29T12:10:00.000Z",
+            expires_at: "2026-04-30T12:10:00.000Z"
+          }]
+        };
+      }
+
+      if (text.includes("from messages m") && text.includes("message_media_attachments")) {
+        return {
+          rows: [{
+            id: "msg-photo-1",
+            user_id: userId,
+            content: "",
+            content_ciphertext: messageCiphertext,
+            content_nonce: messageNonce,
+            content_auth_tag: messageAuthTag,
+            content_key_version: messageKeyVersion,
+            created_at: "2026-04-29T12:10:00.000Z",
+            expires_at: "2026-04-30T12:10:00.000Z",
+            attachments: [{
+              id: "media-1",
+              url: "/api/media/assets/media-1/display",
+              mediaType: "image",
+              mimeType: "image/png",
+              viewOnce: true,
+              viewedAt: null,
+              explicit: true
+            }]
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
     const png = await validPng();
     const multipart = multipartFilePayload({
       fieldName: "photo",
@@ -4852,16 +4926,20 @@ describe("server", () => {
       payload: multipart.payload
     });
 
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode, response.body).toBe(201);
     const mediaInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into media_objects"));
     const messageInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into messages"));
+    const mediaApprove = query.mock.calls.find(([sql]) => String(sql).includes("update media_objects") && String(sql).includes("moderation_status = 'approved'"));
+    const contentReviewInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into content_reviews"));
+    const attachmentInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into message_media_attachments"));
     const notificationLookup = query.mock.calls.find(([sql]) => String(sql).includes("from conversation_members cm") && String(sql).includes("sender_profile"));
     const notificationInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into app_notifications"));
     expect(mediaInsert?.[1]?.[2]).toBe("message_photo");
-    expect(messageInsert?.[0]).toContain("message_media_attachments");
-    expect(messageInsert?.[0]).toContain("view_once");
-    expect(messageInsert?.[0]).toContain("when $19 then 'explicit'");
-    expect(messageInsert?.[1]?.[18]).toBe(true);
+    expect(mediaApprove?.[0]).toContain("explicit_classification = case when $6 then 'explicit'");
+    expect(mediaApprove?.[1]?.[5]).toBe(true);
+    expect(contentReviewInsert).toBeDefined();
+    expect(messageInsert).toBeDefined();
+    expect(attachmentInsert?.[1]?.[2]).toBe(true);
     expect(notificationLookup).toBeDefined();
     expect(notificationInsert?.[1]).toEqual([
       "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
@@ -4883,10 +4961,12 @@ describe("server", () => {
         expiresAt: "2026-04-30T12:10:00.000Z",
         attachments: [{
           id: "media-1",
-          url: `/api/media/message-photos/${userId}-photo-id.png`,
+          url: "/api/media/assets/media-1/display",
           mediaType: "image",
           mimeType: "image/png",
-          viewOnce: true
+          viewOnce: true,
+          viewedAt: null,
+          explicit: true
         }]
       }
     });
