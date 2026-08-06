@@ -44,6 +44,14 @@ type RadiusCircle = {
   radiusMeters: number;
 };
 
+type InitialViewport = {
+  center: {
+    approximateLatitude: number;
+    approximateLongitude: number;
+  };
+  zoom: number;
+};
+
 interface MapViewProps {
   onPinClick: (marker: MapMarker) => void;
   onMapClick?: () => void;
@@ -54,6 +62,7 @@ interface MapViewProps {
     approximateLatitude: number;
     approximateLongitude: number;
   } | null;
+  initialViewport?: InitialViewport;
   radiusCircle?: RadiusCircle | null;
   demoRadiusCircles?: RadiusCircle[];
   denseVenue?: DenseVenueConfig | null;
@@ -1138,6 +1147,7 @@ function MapView({
   markers,
   fitToMarkers = false,
   focusCoordinates,
+  initialViewport,
   radiusCircle,
   demoRadiusCircles = [],
   denseVenue = null,
@@ -1148,6 +1158,7 @@ function MapView({
   const viewportMarkersRef = useRef<MapMarker[]>([]);
   const demoRadiusCirclesRef = useRef<RadiusCircle[]>([]);
   const mapLibreRef = useRef<MapLibreExport | null>(null);
+  const initialViewportRef = useRef(initialViewport);
   const autoFitFocusKeyRef = useRef<string | null>(null);
   const hasAppliedAutoFitRef = useRef(false);
   const directFocusRef = useRef<{ map: MapLibreMap; key: string } | null>(null);
@@ -1245,8 +1256,10 @@ function MapView({
         const map = new maplibregl.Map({
           container: containerRef.current,
           style,
-          center: DEFAULT_CENTER,
-          zoom: DEFAULT_ZOOM,
+          center: initialViewportRef.current
+            ? [initialViewportRef.current.center.approximateLongitude, initialViewportRef.current.center.approximateLatitude]
+            : DEFAULT_CENTER,
+          zoom: initialViewportRef.current?.zoom ?? DEFAULT_ZOOM,
           minZoom: MIN_DISCOVERY_ZOOM,
           maxBounds: NYC_METRO_MAX_BOUNDS,
           renderWorldCopies: false,

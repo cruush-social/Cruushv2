@@ -66,6 +66,7 @@ const CROWD_NOTICE_LABELS: Record<string, string> = {
   Gay: 'Gay',
   T4T: 'T4T',
 };
+const MAP_VIEWPORT_RESTORE_STORAGE_KEY = 'cruush:map-viewport-restore';
 
 const MapView = lazy(() => import('./MapView'));
 
@@ -304,6 +305,12 @@ type MapRouteState = {
   focusUserId?: string;
 } | null;
 
+type StoredMapViewport = {
+  latitude: number;
+  longitude: number;
+  zoom: number;
+};
+
 type LuckySlotState =
   | {
       mode: 'profile';
@@ -319,6 +326,63 @@ const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
 export const MAP_CONTROLS_INTRO_STORAGE_KEY = 'cruush:map-controls-intro-seen';
+
+export function readStoredMapViewport() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const rawViewport = window.sessionStorage.getItem(MAP_VIEWPORT_RESTORE_STORAGE_KEY);
+
+  if (!rawViewport) {
+    return null;
+  }
+
+  let parsedViewport: StoredMapViewport | null = null;
+
+  try {
+    const candidateViewport = JSON.parse(rawViewport) as StoredMapViewport;
+
+    if (
+      Number.isFinite(candidateViewport.latitude) &&
+      Number.isFinite(candidateViewport.longitude) &&
+      Number.isFinite(candidateViewport.zoom)
+    ) {
+      parsedViewport = candidateViewport;
+    }
+  } catch {
+    // Ignore malformed restore payloads and fall back to default map behavior.
+  }
+
+  window.sessionStorage.removeItem(MAP_VIEWPORT_RESTORE_STORAGE_KEY);
+  return parsedViewport;
+}
+
+export function storeMapViewportForRestore(map: CruushMapInstance | null) {
+  if (typeof window === 'undefined' || !map) {
+    return;
+  }
+
+  const viewportMap = map as CruushMapInstance & {
+    getCenter?: () => { lat: number; lng: number };
+    getZoom?: () => number;
+  };
+  const center = viewportMap.getCenter?.();
+  const zoom = viewportMap.getZoom?.();
+
+  if (!center || !Number.isFinite(center.lat) || !Number.isFinite(center.lng) || !Number.isFinite(zoom)) {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    MAP_VIEWPORT_RESTORE_STORAGE_KEY,
+    JSON.stringify({
+      latitude: center.lat,
+      longitude: center.lng,
+      zoom,
+    } satisfies StoredMapViewport),
+  );
+}
 
 function toRadians(degrees: number) {
   return degrees * Math.PI / 180;
@@ -365,6 +429,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     approximateLatitude: number;
     approximateLongitude: number;
   } | null>(null);
+  const [restoredMapViewport] = useState<StoredMapViewport | null>(() => readStoredMapViewport());
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'ready' | 'error'>('idle');
   const [locationError, setLocationError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -560,6 +625,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
+    storeMapViewportForRestore(mapInstance);
     navigate(`/profile/${user.id}`, {
       state: {
         distance: user.distance,
@@ -1544,12 +1610,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
               setSelectedEventSlug(null);
             }}
             markers={mapMarkers}
-            fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
+            fitToMarkers={!restoredMapViewport && !currentUserMapLocation && !isMutualMapMode && !focusUserId}
             focusCoordinates={
               focusedMapLocation ??
               browserFocusCoordinates ??
-              (focusUserId ? undefined : currentUserMapLocation)
+              (restoredMapViewport || focusUserId ? undefined : currentUserMapLocation)
             }
+            initialViewport={restoredMapViewport ? {
+              center: {
+                approximateLatitude: restoredMapViewport.latitude,
+                approximateLongitude: restoredMapViewport.longitude,
+              },
+              zoom: restoredMapViewport.zoom,
+            } : undefined}
             denseVenue={denseVenue}
             radiusCircle={privacySettings.ghostModeEnabled && currentUserMapLocation
               ? {
