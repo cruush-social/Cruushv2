@@ -8777,6 +8777,81 @@ describe("server", () => {
     });
   });
 
+  it("creates feed posts with seven-day and never expiry options", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-seven-days",
+          user_id: userId,
+          content: "Staying up for a week",
+          expires_in: "7d",
+          expires_at: "2026-05-05T12:00:00.000Z",
+          created_at: "2026-04-28T12:10:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: []
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          cruush_plus_enabled: true,
+          cruush_plus_expires_at: null
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-never",
+          user_id: userId,
+          content: "Stays up",
+          expires_in: "never",
+          expires_at: "infinity",
+          created_at: "2026-04-28T12:11:00.000Z",
+          display_name: "Cruusher",
+          pronouns: ["they/them"],
+          photos: []
+        }]
+      });
+
+    const sevenDayResponse = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Staying up for a week",
+        expiresIn: "7d"
+      }
+    });
+
+    const neverResponse = await app.inject({
+      method: "POST",
+      url: "/api/posts",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        content: "Stays up",
+        expiresIn: "never"
+      }
+    });
+
+    expect(sevenDayResponse.statusCode).toBe(201);
+    expect(neverResponse.statusCode).toBe(201);
+    expect(query.mock.calls[1]?.[0]).toContain("when $2 = '7d' then interval '7 days'");
+    expect(query.mock.calls[1]?.[0]).toContain("when $2 = 'never' then 'infinity'::timestamptz");
+    expect(query.mock.calls[1]?.[1]?.[1]).toBe("7d");
+    expect(query.mock.calls[3]?.[1]?.[1]).toBe("never");
+    expect(sevenDayResponse.json().data.expiresAt).toBe("2026-05-05T12:00:00.000Z");
+    expect(neverResponse.json().data.expiresAt).toBeNull();
+  });
+
   it.each([
     ["suspended", { account_suspended: true }, "FEED_POSTING_SUSPENDED"],
     ["low trust", { low_trust: true }, "FEED_POSTING_LOW_TRUST"],

@@ -14,7 +14,7 @@ type PostRow = {
   id: string;
   user_id: string;
   content: string;
-  expires_in: "1h" | "6h" | "24h";
+  expires_in: "1h" | "6h" | "24h" | "7d" | "never";
   expires_at: string | Date;
   created_at: string | Date;
   content_ciphertext?: string | null;
@@ -129,7 +129,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       keyVersion: row.content_key_version ?? undefined
     }, row.content),
     expiresIn: row.expires_in,
-    expiresAt: new Date(row.expires_at).toISOString(),
+    expiresAt: row.expires_in === "never" ? null : new Date(row.expires_at).toISOString(),
     createdAt: new Date(row.created_at).toISOString(),
     distance: typeof row.distance_miles === "number"
       ? formatCoarseDistance(row.distance_miles)
@@ -463,10 +463,14 @@ export async function registerPostRoutes(app: FastifyInstance) {
            $5,
            $6,
            $2,
-           now() + case
-             when $2 = '1h' then interval '1 hour'
-             when $2 = '6h' then interval '6 hours'
-             else interval '24 hours'
+           case
+             when $2 = 'never' then 'infinity'::timestamptz
+             else now() + case
+               when $2 = '1h' then interval '1 hour'
+               when $2 = '6h' then interval '6 hours'
+               when $2 = '7d' then interval '7 days'
+               else interval '24 hours'
+             end
            end
          from eligible_user
          join moderation_review on true

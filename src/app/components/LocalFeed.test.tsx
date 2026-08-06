@@ -546,6 +546,70 @@ describe('LocalFeed', () => {
     }));
   });
 
+  it('lets feed posts use seven-day or never expiry from the composer', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    createFeedPost
+      .mockResolvedValueOnce({
+        id: 'post-seven-days',
+        content: 'seven day post',
+        expiresIn: '7d',
+        expiresAt: '2026-05-05T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+        distance: 'Nearby',
+        user: {
+          id: 'user-1',
+          name: 'me',
+          pronouns: 'they/them',
+          photo: null,
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'post-never',
+        content: 'never post',
+        expiresIn: 'never',
+        expiresAt: null,
+        createdAt: '2026-04-28T12:01:00.000Z',
+        distance: 'Nearby',
+        user: {
+          id: 'user-1',
+          name: 'me',
+          pronouns: 'they/them',
+          photo: null,
+        },
+      });
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    const composer = await screen.findByTestId('local-feed-composer');
+    const input = within(composer).getByPlaceholderText('Share something with nearby people...');
+
+    fireEvent.change(input, { target: { value: 'seven day post' } });
+    fireEvent.click(within(composer).getByRole('button', { name: '7d' }));
+    fireEvent.click(within(composer).getByRole('button', { name: 'Post' }));
+
+    await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(1, {
+      content: 'seven day post',
+      expiresIn: '7d',
+      crowdTargets: [],
+    }));
+
+    fireEvent.change(input, { target: { value: 'never post' } });
+    fireEvent.click(within(composer).getByRole('button', { name: 'Never' }));
+    fireEvent.click(within(composer).getByRole('button', { name: 'Post' }));
+
+    await waitFor(() => expect(createFeedPost).toHaveBeenNthCalledWith(2, {
+      content: 'never post',
+      expiresIn: 'never',
+      crowdTargets: [],
+    }));
+    expect(await screen.findByText('never post')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText('Never')).toHaveLength(2));
+  });
+
   it('shows the party hat beside party member names without a venue tag', async () => {
     getFeedPosts.mockResolvedValue([{
       id: 'post-party',

@@ -60,6 +60,10 @@ function formatRelativeTime(isoTimestamp: string) {
   return `${diffDays}d ago`;
 }
 
+function formatFeedExpiry(expiry: FeedPostExpiry) {
+  return expiry === 'never' ? 'Never' : expiry;
+}
+
 const FEED_LOCATION_PIN_OPTIONS: Array<{ value: FeedLocationPinVisibility; label: string; description: string }> = [
   { value: 'mutuals', label: 'mutuals', description: 'Only mutual cruushes see your feed pin.' },
   { value: 'same_crowd', label: 'same crowd', description: 'People sharing one of your crowds see your feed pin.' },
@@ -72,6 +76,13 @@ const FEED_WINDOW_OPTIONS: Array<{ value: FeedPostWindow; label: string }> = [
   { value: '6h', label: '6h' },
   { value: '3h', label: '3h' },
   { value: '1h', label: '1h' },
+];
+const FEED_EXPIRY_OPTIONS: Array<{ value: FeedPostExpiry; label: string }> = [
+  { value: '1h', label: '1h' },
+  { value: '6h', label: '6h' },
+  { value: '24h', label: '24h' },
+  { value: '7d', label: '7d' },
+  { value: 'never', label: 'Never' },
 ];
 const FEED_PAGE_SIZE = 30;
 const DEFAULT_FEED_RADIUS_MILES = 5;
@@ -512,30 +523,17 @@ export default function LocalFeed() {
           ) : null}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant={expiresIn === '1h' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setExpiresIn('1h')}
-                disabled={!canPost}
-              >
-                1h
-              </Button>
-              <Button
-                variant={expiresIn === '6h' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setExpiresIn('6h')}
-                disabled={!canPost}
-              >
-                6h
-              </Button>
-              <Button
-                variant={expiresIn === '24h' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setExpiresIn('24h')}
-                disabled={!canPost}
-              >
-                24h
-              </Button>
+              {FEED_EXPIRY_OPTIONS.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={expiresIn === option.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setExpiresIn(option.value)}
+                  disabled={!canPost}
+                >
+                  {option.label}
+                </Button>
+              ))}
               {availableCrowdTargets.length > 0 ? (
                 <div className="ml-0 flex flex-wrap items-center gap-2 sm:ml-2">
                   {availableCrowdTargets.map((crowd) => {
@@ -630,7 +628,7 @@ export default function LocalFeed() {
                           <span>{formatRelativeTime(post.createdAt)}</span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {post.expiresIn}
+                            {formatFeedExpiry(post.expiresIn)}
                           </span>
                           <div className="ml-auto flex items-center gap-2">
                             {currentUserId && post.user.id === currentUserId ? (
