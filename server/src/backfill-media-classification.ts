@@ -1,7 +1,8 @@
 import { buildServer } from "./app.js";
 import { loadConfig } from "./config.js";
+import { classifyLegacyProviderResult } from "./legacy-media-classification.js";
 import { decryptMediaBytes } from "./media-encryption.js";
-import { moderateImageOrReject } from "./moderation-service.js";
+import { detectProfilePhotoHuman } from "./profile-photo-human-detection.js";
 import { readEncryptedMediaObject } from "./media-storage.js";
 
 const requestedBatchSize = Number(process.env.CRUUSH_MEDIA_BACKFILL_BATCH ?? 25);
@@ -54,29 +55,17 @@ try {
         authTag: media.content_auth_tag,
         keyVersion: media.key_version
       });
-      const moderationSurface = media.surface === "profile_photo" ? "profile_photo" : "direct_message";
-      const moderation = await moderateImageOrReject(app, {
-        userId: media.owner_user_id,
-        surface: moderationSurface,
-        mimeType: media.mime_type,
-        bytes,
-        contentId: media.id,
-        contentRef: { assetId: media.id, legacyBackfill: true }
-      });
-      const labels = moderation.providerResult.labels;
-      const hasExplicitLabel = labels.some((label) =>
-        ["adult_nudity", "adult_explicit"].includes(label.normalized_label)
-      );
-      const classification = hasExplicitLabel
-        ? "explicit"
-        : moderation.decision.decision === "allow"
-          ? "non_explicit"
-          : "uncertain";
-      const moderationStatus = moderation.decision.decision === "reject"
-        ? "rejected"
-        : moderation.decision.decision === "quarantine"
-          ? "pending"
-          : "approved";
+      // Legacy classification is an explicitness backfill, not a replay of the
+      // upload workflow. Replaying that workflow would apply the current
+      // profile-photo identity gate to old assets and turn an unresolved legacy
+      // photo into a user-facing rejection. The provider result alone determines
+      // explicitness here; uncertain results remain masked.
+      const providerResult = await detectProfilePhotoHuman(app.config, bytes);
+      const classificationResult = classifyLegacyProviderResult(providerResult);
+
+      if (classificationResult.classification === "unknown") {
+        throw new Error(classificationResult.reason);
+      }
 
       await app.db.query(
         `update media_objects
@@ -93,12 +82,12 @@ try {
          where id = $1 and deleted_at is null`,
         [
           media.id,
-          classification,
-          moderation.decision.reason_code,
-          moderationStatus,
-          moderation.providerResult.provider,
-          moderation.providerResult.provider_request_id,
-          JSON.stringify(moderation.providerResult.labels)
+          classificationResult.classification,
+          classificationResult.reason,
+          "approved",
+          providerResult.provider,
+          providerResult.provider_request_id,
+          JSON.stringify(providerResult.labels)
         ]
       );
       result.classified += 1;
