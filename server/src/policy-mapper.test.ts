@@ -125,6 +125,37 @@ describe("policy mapper", () => {
     });
   });
 
+  it.each(["direct_message", "group_message"] as const)(
+    "allows non-human screenshot/interface images in %s messages",
+    (surface) => {
+      const decision = mapProviderResultToPolicy({
+        surface,
+        contentType: "image",
+        providerResult: providerResult("screenshot_or_interface", 0.98)
+      });
+
+      expect(decision).toMatchObject({
+        decision: "allow",
+        reason_code: "non_human_message_photo_allowed",
+        trust_impact: 0
+      });
+    }
+  );
+
+  it("continues rejecting screenshot/interface images outside private messages", () => {
+    const decision = mapProviderResultToPolicy({
+      surface: "profile_photo",
+      contentType: "image",
+      providerResult: providerResult("screenshot_or_interface", 0.98)
+    });
+
+    expect(decision).toMatchObject({
+      decision: "reject",
+      reason_code: "screenshot_image_content",
+      user_message_code: "content_rejected"
+    });
+  });
+
   it("keeps sex-worker identity statements out of the commercial-sex rule", () => {
     const decision = mapProviderResultToPolicy({
       surface: "feed",

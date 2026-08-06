@@ -208,11 +208,29 @@ function mapLabel(label: ProviderLabel, surface: ModerationSurface, contentType:
     return rejectProfilePhotoWithoutAdultHuman(label);
   }
 
-  if (normalizedLabel === "animal" || normalizedLabel === "screenshot_or_interface") {
+  if (normalizedLabel === "screenshot_or_interface") {
+    if (isPrivateMessageSurface(surface)) {
+      return baseDecision({
+        category: normalizedLabel,
+        severity: label.severity ?? "low",
+        confidence: label.confidence,
+        reason_code: "non_human_message_photo_allowed"
+      });
+    }
+
     return thresholdedReject(label, {
       evidenceValue: 75,
       trustImpact: 0,
-      reasonCode: normalizedLabel === "animal" ? "animal_image_content" : "screenshot_image_content",
+      reasonCode: "screenshot_image_content",
+      userMessageCode: "content_rejected"
+    });
+  }
+
+  if (normalizedLabel === "animal") {
+    return thresholdedReject(label, {
+      evidenceValue: 75,
+      trustImpact: 0,
+      reasonCode: "animal_image_content",
       userMessageCode: "content_rejected"
     });
   }
