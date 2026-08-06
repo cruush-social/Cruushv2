@@ -3398,7 +3398,7 @@ describe("server", () => {
           name: "Alex",
           pronouns: "they/them",
           photo: "https://example.com/alex.jpg",
-          photoExplicit: true
+          photoExplicit: false
         },
         distance: "Nearby",
         updatedAt: "2026-04-29T12:00:00.000Z",
@@ -8611,7 +8611,7 @@ describe("server", () => {
           name: "Cruusher",
           pronouns: "they/them",
           photo: "https://example.com/photo.jpg",
-          photoExplicit: true
+          photoExplicit: false
         }
       }]
     });
@@ -8771,7 +8771,7 @@ describe("server", () => {
           name: "Cruusher",
           pronouns: "they/them",
           photo: null,
-          photoExplicit: true
+          photoExplicit: false
         }
       }
     });

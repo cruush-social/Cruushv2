@@ -75,7 +75,12 @@ export function useDlMode() {
   return enabled;
 }
 
-/** Missing classification is unsafe and therefore remains masked. */
+/**
+ * Only a photo classified explicit is masked, and only while DL Mode is on.
+ * Unclassified photos are treated as safe: they belong to accounts whose media
+ * has not been through classification yet, and masking them hid new users
+ * entirely. Revisit if unclassified NSFW ever shows up in practice.
+ */
 export function shouldMaskPhoto(dlModeActive: boolean, explicit: boolean | null | undefined) {
   return dlModeActive && explicit === true;
 }
