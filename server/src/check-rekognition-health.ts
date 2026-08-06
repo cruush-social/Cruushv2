@@ -10,8 +10,16 @@
 // Exits 0 when healthy, 1 when not, so a cron or uptime checker can act on the status
 // even if email delivery is itself broken.
 
-import { DetectLabelsCommand, RekognitionClient } from "@aws-sdk/client-rekognition";
+import {
+  DetectLabelsCommand,
+  RekognitionClient,
+  type DetectLabelsCommandOutput
+} from "@aws-sdk/client-rekognition";
 import sharp from "sharp";
+
+type RekognitionHealthClient = {
+  send(command: DetectLabelsCommand): Promise<DetectLabelsCommandOutput>;
+};
 
 // Deliberately reads process.env directly rather than going through loadConfig(). A
 // health probe has to keep working when the app config is the thing that is broken, and
@@ -80,7 +88,7 @@ async function main() {
   }
 
   const region = config.PROFILE_PHOTO_REKOGNITION_REGION || "us-east-1";
-  const client = new RekognitionClient({ region });
+  const client = new RekognitionClient({ region }) as unknown as RekognitionHealthClient;
   const startedAt = Date.now();
 
   try {

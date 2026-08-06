@@ -52,6 +52,7 @@ the branch name.
 | `worktree-sunny-twirling-cherny` | `/Volumes/corrupt/Cruushv2-1/.claude/worktrees/sunny-twirling-cherny` | 2026-08-06 9754df03 feat: cruush-colored neon treatment on the glass nav | dirty (9 files) | +5/-12 |  |
 | `integrate/ui-consolidation` | `/Volumes/corrupt/Cruushv2-1/.claude/worktrees/ui-consolidation` | 2026-08-06 41331c77 Restore map features the safety release deleted | clean | +108/-12 |  |
 | `main` | `/Volumes/corrupt/Cruushv2-main` | 2026-08-06 410dd02c test account deletion end to end | clean | +0/-9 |  |
+| `codex/stream-policy-drift-check` | `/Volumes/corrupt/Cruushv2-1.worktrees/stream-policy-drift-check` | 2026-08-06 local Add Stream image policy drift check | clean | +1/-0 | Add Stream image policy drift checking and keep latest Rekognition SDK types buildable. |
 | `codex/urgent-bugfix-safety-release` | `/Volumes/corrupt/Cruushv2-urgent-release` | 2026-08-06 120bde20 show unclassified photos when dl mode is off | dirty (16 files) | +5/-13 |  |
 
 ## Rules that apply here

@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  checkStreamProfilePhotoPolicy,
   configureStreamProfilePhotoPolicy,
+  findStreamProfilePhotoPolicyDrift,
+  STREAM_PROFILE_PHOTO_IMAGE_RULES,
   STREAM_PROFILE_PHOTO_IMAGE_POLICY
 } from "./stream-profile-photo-policy.js";
 
@@ -10,6 +13,72 @@ describe("Stream profile-photo policy configurator", () => {
       expect.objectContaining({ label: "Explicit", action: "remove" }),
       expect.objectContaining({ label: "Non-Explicit Nudity", action: "remove" })
     ]));
+  });
+
+  it("accepts dashboard-expanded no-action rows around the active repo rules", () => {
+    expect(findStreamProfilePhotoPolicyDrift({
+      enabled: true,
+      async: false,
+      rules: [
+        { label: "Explicit", action: "no_action", min_confidence: 50 },
+        { label: "Non-Explicit Nudity", action: "no_action" },
+        { label: "PII", action: "no_action", min_confidence: 50 },
+        { label: "QR Code", action: "no_action", min_confidence: 50 },
+        ...STREAM_PROFILE_PHOTO_IMAGE_RULES
+      ]
+    })).toEqual([]);
+  });
+
+  it("reports drift when Stream flags shared-policy nudity categories", () => {
+    expect(findStreamProfilePhotoPolicyDrift({
+      enabled: true,
+      async: false,
+      rules: [
+        ...STREAM_PROFILE_PHOTO_IMAGE_RULES,
+        { label: "Explicit", action: "flag", min_confidence: 50 }
+      ]
+    })).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label: "Explicit",
+        expected: "no_action or absent",
+        actual: "flag at 50%"
+      })
+    ]));
+  });
+
+  it("reports drift when hard image categories are not remove at the committed threshold", () => {
+    expect(findStreamProfilePhotoPolicyDrift({
+      enabled: true,
+      async: false,
+      rules: [
+        { label: "Violence", action: "flag", min_confidence: 85 },
+        { label: "Visually Disturbing", action: "remove", min_confidence: 80 },
+        { label: "Hate Symbols", action: "remove", min_confidence: 70 }
+      ]
+    })).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label: "Violence",
+        expected: "remove at 85%",
+        actual: "flag at 85%"
+      })
+    ]));
+  });
+
+  it("checks the existing Stream config without writing it", async () => {
+    const getConfig = vi.fn().mockResolvedValue({
+      config: {
+        key: "cruush:automod",
+        ai_image_config: STREAM_PROFILE_PHOTO_IMAGE_POLICY
+      },
+      duration: "1ms"
+    });
+    const upsertConfig = vi.fn();
+    const client = { moderation: { getConfig, upsertConfig } };
+
+    await expect(checkStreamProfilePhotoPolicy(client as never, "cruush:automod"))
+      .resolves.toMatchObject({ key: "cruush:automod" });
+    expect(getConfig).toHaveBeenCalledWith({ key: "cruush:automod" });
+    expect(upsertConfig).not.toHaveBeenCalled();
   });
 
   it("replaces the image rules while preserving every exposed non-image engine", async () => {
