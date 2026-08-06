@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MobileInstallPrompt from './MobileInstallPrompt';
 
@@ -37,7 +37,9 @@ describe('MobileInstallPrompt', () => {
     const prompt = vi.fn().mockResolvedValue(undefined);
 
     render(<MobileInstallPrompt />);
-    window.dispatchEvent(installPromptEvent(prompt));
+    await act(async () => {
+      window.dispatchEvent(installPromptEvent(prompt));
+    });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Install cruush' }));
 
@@ -47,7 +49,9 @@ describe('MobileInstallPrompt', () => {
   it('shows iOS Home Screen guidance when install is requested without a browser prompt', async () => {
     render(<MobileInstallPrompt />);
 
-    window.dispatchEvent(new Event('cruush:install-requested'));
+    await act(async () => {
+      window.dispatchEvent(new Event('cruush:install-requested'));
+    });
 
     expect(await screen.findByText(/Safari share/i)).toBeInTheDocument();
     expect(screen.getByText('Add cruush to Home Screen')).toBeInTheDocument();
