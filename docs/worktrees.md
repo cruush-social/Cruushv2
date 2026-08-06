@@ -5,7 +5,7 @@ current state, merged or not.
 
 | Branch | Base | Purpose | Agent | State | Merged |
 | --- | --- | --- | --- | --- | --- |
-| `claude/error-fixes-c9dgs3` | `codex/urgent-bugfix-safety-release` @ `cfde0fb` | Stream-outage fallbacks for text and feed images, moderation dashboard header overlap, bug button docked into the bottom nav | Claude Code | Pushed | No |
+| `claude/error-fixes-c9dgs3` | `codex/urgent-bugfix-safety-release` @ `cfde0fb` | Stream-outage fallbacks for text and feed images, moderation dashboard header overlap, bug button docked into the bottom nav, first-run notices no longer suppressed by a notices-API error | Claude Code | Pushed | No |
 
 ## Branch layout as of 2026-08-06
 

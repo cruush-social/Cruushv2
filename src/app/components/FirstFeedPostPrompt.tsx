@@ -11,8 +11,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
-import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
-import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
+import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
 
 const FIRST_FEED_POST_STORAGE_KEY = 'cruush:first-feed-post-prompt-seen';
 
@@ -47,12 +46,7 @@ export default function FirstFeedPostPrompt({ userId }: FirstFeedPostPromptProps
       removeDialogWaiter = null;
     };
 
-    const markSeen = () => {
-      setPersistentNoticeFlag(key);
-      void dismissUserNotice(key).catch(() => {});
-    };
-
-    const openWhenAvailable = () => {
+    const openWhenAvailable = (offline: boolean) => {
       clearDialogWaiter();
 
       if (!isMounted) {
@@ -60,39 +54,26 @@ export default function FirstFeedPostPrompt({ userId }: FirstFeedPostPromptProps
       }
 
       if (acquireOneTimeDialog(activeDialogKey)) {
-        markSeen();
+        markNoticeDismissed(key, { offline });
         setOpen(true);
         return;
       }
 
-      removeDialogWaiter = onOneTimeDialogReleased(openWhenAvailable);
+      removeDialogWaiter = onOneTimeDialogReleased(() => openWhenAvailable(offline));
     };
 
-    if (hasPersistentNoticeFlag(key)) {
-      void dismissUserNotice(key).catch(() => {});
-      setOpen(false);
-      return;
-    }
+    void resolveNoticeDismissal(key).then((notice) => {
+      if (!isMounted) {
+        return;
+      }
 
-    getUserNoticeDismissal(key)
-      .then((notice) => {
-        if (!isMounted) {
-          return;
-        }
+      if (notice.dismissed) {
+        setOpen(false);
+        return;
+      }
 
-        if (notice.dismissed) {
-          setPersistentNoticeFlag(key);
-          setOpen(false);
-          return;
-        }
-
-        openWhenAvailable();
-      })
-      .catch(() => {
-        if (isMounted) {
-          setOpen(false);
-        }
-      });
+      openWhenAvailable(notice.offline);
+    });
 
     return () => {
       isMounted = false;

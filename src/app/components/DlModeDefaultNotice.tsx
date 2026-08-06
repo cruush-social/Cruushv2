@@ -16,11 +16,12 @@ import {
   setDlModeEnabled,
   shouldShowDlModeDefaultNotice,
 } from '../lib/dlMode';
-import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
+import { dismissUserNotice, resolveNoticeDismissal } from '../lib/userNoticesApi';
 
 export default function DlModeDefaultNotice() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [noticeOffline, setNoticeOffline] = useState(false);
 
   useEffect(() => {
     if (!location.pathname.startsWith('/map')) {
@@ -35,28 +36,31 @@ export default function DlModeDefaultNotice() {
       return;
     }
 
-    getUserNoticeDismissal(DL_MODE_DEFAULT_NOTICE_KEY)
-      .then((notice) => {
-        if (!isMounted) {
-          return;
-        }
+    void resolveNoticeDismissal(DL_MODE_DEFAULT_NOTICE_KEY).then((notice) => {
+      if (!isMounted) {
+        return;
+      }
 
-        if (notice.dismissed) {
-          markDlModeDefaultNoticeSeen();
-          setOpen(false);
-          return;
-        }
+      setNoticeOffline(notice.offline);
 
-        setDlModeEnabled(true);
+      if (notice.dismissed) {
         markDlModeDefaultNoticeSeen();
+        setOpen(false);
+        return;
+      }
+
+      // Unlike the other notices this one is marked seen as soon as it shows, not on
+      // dismiss, because showing it flips DL Mode on. Re-showing it after a reload would
+      // re-enable DL Mode for someone who had just turned it off.
+      setDlModeEnabled(true);
+      markDlModeDefaultNoticeSeen();
+
+      if (!notice.offline) {
         void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
-        setOpen(true);
-      })
-      .catch(() => {
-        if (isMounted) {
-          setOpen(false);
-        }
-      });
+      }
+
+      setOpen(true);
+    });
 
     return () => {
       isMounted = false;
@@ -66,7 +70,10 @@ export default function DlModeDefaultNotice() {
   const closeNotice = () => {
     setOpen(false);
     markDlModeDefaultNoticeSeen();
-    void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
+
+    if (!noticeOffline) {
+      void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
+    }
   };
 
   return (

@@ -4,8 +4,7 @@ import { Bug, CheckCircle2 } from 'lucide-react';
 import { ApiClientError } from '../lib/apiClient';
 import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 import { createSupportRequest } from '../lib/supportApi';
-import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
-import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
+import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -43,10 +42,9 @@ function getCurrentPageUrl() {
 // and reset-password cards - where the top-right corner is empty on every viewport.
 const FALLBACK_BUTTON_PLACEMENT =
   'right-4 top-[calc(0.75rem+env(safe-area-inset-top))]';
-const FALLBACK_TIP_PLACEMENT =
-  'right-4 top-[calc(4.5rem+env(safe-area-inset-top))]';
-// Sits directly above the nav band, anchored to the docked button. One-time coach mark,
-// dismissed on first tap or on opening the dialog.
+// The coach mark has no undocked variant: it only ever shows inside the app shell, where
+// the nav dock exists. Placement is the one band clear of the install prompt and the
+// Recently Active panel on both viewports - see src/app/lib/overlaySlots.ts.
 const DOCKED_TIP_PLACEMENT =
   'right-3 bottom-[calc(16.5rem+env(safe-area-inset-bottom))]';
 
@@ -132,51 +130,42 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState('');
   const [showTip, setShowTip] = useState(false);
+  const [noticeOffline, setNoticeOffline] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
   // useSyncExternalStore, not useState+useEffect: the nav registers its slot during the
   // same commit, before any effect runs, so a state initializer read at render time
   // always saw null and the button fell back to floating over the page.
   const buttonSlot = useSyncExternalStore(subscribeToBugButtonSlot, getBugButtonSlot, () => null);
 
+  // The button also renders on the verify-email, reset-password, onboarding and
+  // code-of-conduct screens, where reporting a broken link is exactly when you need it.
+  // The coach mark must not burn its one showing there, so it waits for the nav dock -
+  // which only exists inside the app shell.
+  const canShowTip = enabled && Boolean(buttonSlot);
+
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined') {
+    if (!canShowTip || typeof window === 'undefined') {
       return;
     }
 
     let isMounted = true;
 
-    if (hasPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY)) {
-      void dismissUserNotice(ALPHA_BUG_TIP_STORAGE_KEY).catch(() => {});
-      setShowTip(false);
-      return;
-    }
+    void resolveNoticeDismissal(ALPHA_BUG_TIP_STORAGE_KEY).then((notice) => {
+      if (!isMounted) {
+        return;
+      }
 
-    getUserNoticeDismissal(ALPHA_BUG_TIP_STORAGE_KEY)
-      .then((notice) => {
-        if (!isMounted) {
-          return;
-        }
-
-        if (notice.dismissed) {
-          setPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
-          setShowTip(false);
-          return;
-        }
-
-        setPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
-        void dismissUserNotice(ALPHA_BUG_TIP_STORAGE_KEY).catch(() => {});
-        setShowTip(true);
-      })
-      .catch(() => {
-        if (isMounted) {
-          setShowTip(false);
-        }
-      });
+      // Deliberately does NOT mark the notice seen here. It used to, so a tip that
+      // scrolled past unread was spent; it is now recorded only once the user actually
+      // dismisses it or opens the report dialog.
+      setNoticeOffline(notice.offline);
+      setShowTip(!notice.dismissed);
+    });
 
     return () => {
       isMounted = false;
     };
-  }, [enabled]);
+  }, [canShowTip]);
 
   if (!enabled) {
     return null;
@@ -184,9 +173,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
 
   const dismissTip = () => {
     setShowTip(false);
-
-    setPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
-    void dismissUserNotice(ALPHA_BUG_TIP_STORAGE_KEY).catch(() => {});
+    markNoticeDismissed(ALPHA_BUG_TIP_STORAGE_KEY, { offline: noticeOffline });
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -251,11 +238,9 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
         }
       }}
     >
-      {showTip ? (
+      {showTip && buttonSlot ? (
         <div
-          className={`fixed z-30 w-[min(18rem,calc(100vw-1.5rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${
-            buttonSlot ? DOCKED_TIP_PLACEMENT : FALLBACK_TIP_PLACEMENT
-          }`}
+          className={`fixed z-30 w-[min(18rem,calc(100vw-1.5rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${DOCKED_TIP_PLACEMENT}`}
           data-testid="alpha-bug-tip"
         >
           <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
