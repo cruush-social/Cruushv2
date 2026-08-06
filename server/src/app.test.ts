@@ -1645,7 +1645,11 @@ describe("server", () => {
             email_verified_at: "2026-04-28T12:00:00.000Z",
             created_at: "2026-04-28T12:00:00.000Z",
             profile_display_name: "Admin",
-            year_of_birth: 1990
+            year_of_birth: 1990,
+            pronouns: ["he/him"],
+            identities: ["gay man"],
+            looking_for: ["cruise"],
+            vibes: ["Goth"]
           }]
         };
       }
@@ -2175,6 +2179,10 @@ describe("server", () => {
           created_at: "2026-04-28T12:00:00.000Z",
           profile_display_name: "River",
           year_of_birth: 1998,
+          pronouns: ["they/them"],
+          identities: ["nonbinary"],
+          looking_for: ["cruise"],
+          vibes: ["Goth"],
           code_of_conduct_accepted_version: null,
           code_of_conduct_accepted_at: null
         }]
@@ -2836,6 +2844,10 @@ describe("server", () => {
           created_at: "2026-04-28T12:00:00.000Z",
           profile_display_name: "River",
           year_of_birth: 1998,
+          pronouns: ["they/them"],
+          identities: ["nonbinary"],
+          looking_for: ["cruise"],
+          vibes: ["Goth"],
           code_of_conduct_accepted_version: "2026-07-07",
           code_of_conduct_accepted_at: "2026-07-07T15:00:00.000Z"
         }]

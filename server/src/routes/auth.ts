@@ -61,6 +61,10 @@ type AuthUserRow = {
   created_at: string | Date;
   profile_display_name: string | null;
   year_of_birth: number | null;
+  pronouns: string[] | null;
+  identities: string[] | null;
+  looking_for: string[] | null;
+  vibes: string[] | null;
   code_of_conduct_accepted_version: string | null;
   code_of_conduct_accepted_at: string | Date | null;
   account_status?: string | null;
@@ -133,7 +137,12 @@ const acceptCodeOfConductPayloadSchema = z.object({
 function mapSessionRow(row: AuthUserRow) {
   const displayName = row.app_display_name?.trim() || row.profile_display_name?.trim() || row.email;
   const profileDisplayName = row.profile_display_name?.trim() || null;
-  const needsOnboarding = !profileDisplayName || !row.year_of_birth;
+  const needsOnboarding = !profileDisplayName
+    || !row.year_of_birth
+    || !row.pronouns?.length
+    || !row.identities?.length
+    || !row.looking_for?.length
+    || !row.vibes?.length;
   const acceptedCodeOfConductVersion = row.code_of_conduct_accepted_version?.trim() || null;
   const moderatorRole = row.moderator_role ?? (isOwnerFullAccessEmail(row.email) ? "admin" : null);
 
@@ -234,6 +243,10 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
        u.created_at,
        p.display_name as profile_display_name,
        p.year_of_birth,
+       p.pronouns,
+       p.identities,
+       p.looking_for,
+       p.vibes,
        u.code_of_conduct_accepted_version,
        u.code_of_conduct_accepted_at,
        coalesce(u.account_status, 'active') as account_status,
