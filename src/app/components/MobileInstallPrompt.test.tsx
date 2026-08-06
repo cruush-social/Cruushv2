@@ -50,6 +50,8 @@ describe('MobileInstallPrompt', () => {
     window.dispatchEvent(new Event('cruush:install-requested'));
 
     expect(await screen.findByText(/Safari share/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Not now' })).toBeInTheDocument();
+    expect(screen.getByText('Add cruush to Home Screen')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Got it' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Install cruush' })).not.toBeInTheDocument();
   });
 });
