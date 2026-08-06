@@ -109,8 +109,18 @@ async function sendModerationMedia(
   app: FastifyInstance,
   reply: FastifyReply,
   assetId: string,
-  mediaObject: EncryptedMediaRow
+  mediaObject: EncryptedMediaRow,
+  method: string
 ) {
+  const capabilityHeaders = reply
+    .type("image/webp")
+    .header("cache-control", "private, no-store, max-age=0")
+    .header("x-content-type-options", "nosniff");
+
+  if (method === "HEAD") {
+    return capabilityHeaders.send();
+  }
+
   try {
     const encryptedBytes = await readEncryptedMediaObject(app.config, mediaObject.object_key);
     const bytes = decryptMediaBytes(app.config, {
@@ -123,10 +133,7 @@ async function sendModerationMedia(
       keyVersion: mediaObject.key_version
     });
 
-    return reply
-      .type("image/webp")
-      .header("cache-control", "private, no-store, max-age=0")
-      .header("x-content-type-options", "nosniff")
+    return capabilityHeaders
       .send(bytes);
   } catch {
     app.log.error({ assetId, stage: "moderation_media_fetch" }, "moderation media fetch failed");
@@ -167,16 +174,18 @@ function toUploadError(error: unknown) {
 }
 
 export async function registerMediaRoutes(app: FastifyInstance) {
-  app.get("/api/media/moderation/:assetId/display", {
+  app.route({
+    method: ["GET", "HEAD"],
+    url: "/api/media/moderation/:assetId/display",
     exposeHeadRoute: false,
-    logLevel: "silent"
-  }, async (request, reply) => {
+    logLevel: "silent",
+    handler: async (request, reply) => {
     const params = mediaAssetIdParamsSchema.safeParse(request.params);
     const query = moderationMediaQuerySchema.safeParse(request.query);
 
     if (!params.success || !query.success || !verifyMediaModerationInspectionSignature(app.config, {
       assetId: params.success ? params.data.assetId : "",
-      method: request.method,
+      method: "GET",
       variant: "display",
       purpose: query.success ? query.data.purpose : "",
       expires: query.success ? query.data.expires : "",
@@ -217,7 +226,8 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Media not found.");
     }
 
-    return sendModerationMedia(app, reply, assetId, mediaObject);
+      return sendModerationMedia(app, reply, assetId, mediaObject, request.method);
+    }
   });
 
   app.get("/api/media/profile-photos/:filename", async (request, reply) => {
