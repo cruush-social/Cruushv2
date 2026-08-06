@@ -20,7 +20,11 @@ export function classifyLegacyProviderResult(providerResult: ProviderModerationR
     };
   }
 
-  if (providerResult.recommended_action?.toLowerCase() === "keep") {
+  const hasHumanProof = providerResult.labels.some((label) =>
+    ["adult_human_body", "human_present"].includes(label.normalized_label) && label.confidence >= 0.7
+  );
+
+  if (providerResult.recommended_action?.toLowerCase() === "keep" && hasHumanProof) {
     return {
       classification: "non_explicit",
       reason: "legacy_provider_allowed"

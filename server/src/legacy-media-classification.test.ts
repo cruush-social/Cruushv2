@@ -5,7 +5,12 @@ import type { ProviderModerationResult } from "./moderation-types.js";
 const baseResult: ProviderModerationResult = {
   provider: "aws_rekognition",
   provider_request_id: "test-request",
-  labels: [],
+  labels: [{
+    provider_label: "Human",
+    normalized_label: "human_present",
+    confidence: 0.99,
+    severity: "none"
+  }],
   latency_ms: 1,
   status: "complete",
   recommended_action: "keep"
@@ -38,6 +43,16 @@ describe("classifyLegacyProviderResult", () => {
     expect(classifyLegacyProviderResult({
       ...baseResult,
       recommended_action: "remove"
+    })).toEqual({
+      classification: "uncertain",
+      reason: "legacy_provider_uncertain"
+    });
+  });
+
+  it("keeps a provider keep result without human evidence masked as uncertain", () => {
+    expect(classifyLegacyProviderResult({
+      ...baseResult,
+      labels: []
     })).toEqual({
       classification: "uncertain",
       reason: "legacy_provider_uncertain"
