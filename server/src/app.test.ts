@@ -11738,7 +11738,7 @@ describe("server", () => {
     });
   });
 
-  it("rejects gender identity, trans status, and crowd selection changes within the 14 day lock window", async () => {
+  it("rejects gender identity, trans status, and crowd selection changes within the 7 day lock window", async () => {
     const existingSensitiveProfile = encryptSensitiveProfile(app.config, {
       is_trans: true,
       crowds: ["T4T"],
@@ -11777,7 +11777,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
-        message: "Gender identity, trans status, and crowd selection can only be changed once every 14 days.",
+        message: "Gender identity, trans status, and crowd selection can only be changed once every 7 days.",
         details: null
       }
     });
