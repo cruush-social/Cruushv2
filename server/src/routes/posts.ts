@@ -9,7 +9,6 @@ import { createCrowdTokens } from "../profile-sensitive.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { getRelationshipPermissions } from "../match-relationships.js";
-import { userHasOwnerFullAccess } from "../owner-access.js";
 
 type PostRow = {
   id: string;
@@ -148,7 +147,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       name: row.display_name?.trim() || "cruush user",
       pronouns: row.pronouns?.join(", ") ?? "",
       photo: row.photos?.[0] ?? null,
-      ...(row.photo_explicit === true ? { photoExplicit: true } : {}),
+      photoExplicit: row.photo_explicit !== false,
       ...(row.attending_launch_party === true ? { attendingLaunchParty: true } : {}),
       ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
     }
@@ -159,14 +158,14 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
 // same explicit_classification the profile endpoints expose for the first photo.
 function feedAuthorPhotoExplicitSelect(postAlias: string, profileAlias: string) {
   return `coalesce((
-    select media.explicit_classification = 'explicit'
+    select media.explicit_classification is distinct from 'non_explicit'
     from media_objects media
     where media.owner_user_id = ${postAlias}.user_id
       and media.public_url = ${profileAlias}.photos[1]
       and media.surface = 'profile_photo'
       and media.deleted_at is null
     limit 1
-  ), false) as photo_explicit`;
+  ), true) as photo_explicit`;
 }
 
 const POST_COLUMNS = `
@@ -251,7 +250,7 @@ const postParamsSchema = z.object({
 
 const feedPostQuerySchema = z.object({
   within: z.enum(["1h", "3h", "6h", "24h"]).default("24h"),
-  distanceMiles: z.coerce.number().min(1).max(15).default(5),
+  distanceMiles: z.coerce.number().min(1).max(15).default(15),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   before: z.string().datetime().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
@@ -378,46 +377,19 @@ export async function registerPostRoutes(app: FastifyInstance) {
   app.post("/api/posts", async (request, reply) => {
     const userId = await getActiveAccountUserId(request);
     const payload = createPostPayloadSchema.parse(request.body);
-    await requireCruushPlus(app, userId, "Upgrade to cruush+ to post on the local feed.");
-    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
-    const crowdTargetTokenRows = payload.crowdTargets.flatMap((crowd) => createCrowdTokens(app.config, [crowd]).map((token) => ({
-      crowd,
-      token_hash: token.token_hash,
-      token_key_version: token.token_key_version
-    })));
-
-    // The insert below silently drops posts targeting crowds the author is not in.
-    // Check first so the author gets a message naming the crowds instead of a bare 403.
-    if (crowdTargetTokenRows.length > 0) {
-      const unmatchedCrowds = await app.db.query<{ crowd: string }>(
-        `select distinct token.crowd
-         from jsonb_to_recordset($2::jsonb) as token(crowd text, token_hash text, token_key_version text)
-         where not exists (
-           select 1
-           from profile_sensitive_tokens author_crowd_token
-           where author_crowd_token.user_id = $1
-             and author_crowd_token.token_hash = token.token_hash
-             and author_crowd_token.token_key_version = token.token_key_version
-         )`,
-        [userId, JSON.stringify(crowdTargetTokenRows)]
-      );
-
-      if (unmatchedCrowds.rows.length > 0) {
-        const missing = unmatchedCrowds.rows.map((row) => row.crowd);
-        throw new ApiError(
-          400,
-          "CROWD_TARGET_NOT_MEMBER",
-          `You can only post to crowds you belong to. Add ${missing.join(", ")} to your profile, or remove ${missing.length === 1 ? "it" : "them"} from this post.`
-        );
-      }
-    }
-
+    const entitlement = await requireCruushPlus(app, userId, "Upgrade to cruush+ to post on the local feed.");
+    const ownerFullAccess = entitlement.ownerFullAccess === true;
     const moderation = await moderateTextOrReject(app, {
       userId,
       surface: "feed",
       text: payload.content
     });
     const encryptedContent = encryptTextContent(app.config, "feed", payload.content);
+    const crowdTargetTokenRows = payload.crowdTargets.flatMap((crowd) => createCrowdTokens(app.config, [crowd]).map((token) => ({
+      crowd,
+      token_hash: token.token_hash,
+      token_key_version: token.token_key_version
+    })));
 
     const result = await app.db.query<PostRow>(
       `with eligible_user as (

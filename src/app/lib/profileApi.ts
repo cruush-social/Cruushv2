@@ -30,9 +30,15 @@ export type KinkInterest = {
   category?: string;
 };
 
+export type ProfilePhotoMetadata = {
+  url: string;
+  explicit: boolean;
+};
+
 export type ProfilePayload = {
   display_name: string;
   photos: string[];
+  photo_metadata?: ProfilePhotoMetadata[];
   bio: string;
   signal: string;
   pronouns: string[];
@@ -77,11 +83,6 @@ export type ProfilePayload = {
   custom_mpox_vaccine: string;
   substance_boundaries: string[];
   visibility_rules: ProfileVisibilityRules;
-};
-
-export type ProfilePhotoMetadata = {
-  url: string;
-  explicit: boolean;
 };
 
 export type ProfileRecord = ProfilePayload & {

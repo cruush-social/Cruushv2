@@ -80,6 +80,7 @@ vi.mock('./components/OnboardingPreview', () => ({
 vi.mock('./components/MobileInstallPrompt', () => ({
   default: () => null
 }));
+
 vi.mock('./components/FiltersPanel', () => ({
   default: () => <div>Mock Filters</div>
 }));

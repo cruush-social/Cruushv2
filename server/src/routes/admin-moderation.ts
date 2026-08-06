@@ -73,6 +73,12 @@ const contentRemovalSchema = z.object({
   notes: multilineTextSchema({ min: 1, max: 2000 })
 }).strict();
 
+const mediaClassificationSchema = z.object({
+  classification: z.enum(["non_explicit", "explicit", "uncertain"]),
+  reasonCode: singleLineTextSchema({ min: 1, max: 120 }),
+  notes: multilineTextSchema({ max: 2000 }).optional().default("")
+}).strict();
+
 type ReportAdminRow = {
   id: string;
   reporter_user_id: string;
@@ -1327,6 +1333,76 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
       metadata: { endpoint: "media_preview" }
     });
     return sendEncryptedPreview(app, reply, media);
+  });
+
+  app.patch("/api/admin/moderation/media/:mediaObjectId/classification", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    const { mediaObjectId } = mediaParamsSchema.parse(request.params);
+    const payload = mediaClassificationSchema.parse(request.body);
+    const result = await withTransaction(app.db, async (db) => {
+      const currentResult = await db.query<{
+        id: string;
+        owner_user_id: string;
+        explicit_classification: string;
+        explicit_classification_source: string;
+      }>(
+        `select id::text, owner_user_id::text as owner_user_id,
+                explicit_classification, explicit_classification_source
+         from media_objects
+         where id = $1 and deleted_at is null
+         limit 1
+         for update`,
+        [mediaObjectId]
+      );
+      const current = currentResult.rows[0];
+      if (!current) {
+        throw new ApiError(404, "NOT_FOUND", "Media object not found.");
+      }
+
+      const updatedResult = await db.query<{ id: string; explicit_classification: string; explicit_classification_source: string }>(
+        `update media_objects
+         set explicit_classification = $2,
+             explicit_classification_source = 'moderator',
+             explicit_classification_updated_by = $3,
+             explicit_classification_updated_at = now(),
+             explicit_classification_reason = $4
+         where id = $1 and deleted_at is null
+         returning id::text, explicit_classification, explicit_classification_source`,
+        [mediaObjectId, payload.classification, moderator.userId, `${payload.reasonCode}: ${payload.notes}`.trim()]
+      );
+      const updated = updatedResult.rows[0];
+      if (!updated) {
+        throw new ApiError(404, "NOT_FOUND", "Media object not found.");
+      }
+
+      const moderationAction = await createModerationAction(db, {
+        actorUserId: moderator.userId,
+        targetUserId: current.owner_user_id,
+        action: "note",
+        reasonCode: payload.reasonCode,
+        notes: payload.notes,
+        metadata: {
+          mediaObjectId,
+          action: "override_media_classification",
+          previousClassification: current.explicit_classification,
+          previousSource: current.explicit_classification_source,
+          classification: payload.classification
+        }
+      });
+
+      return { updated, moderationAction };
+    });
+
+    return reply.send({
+      data: {
+        media: {
+          id: result.updated.id,
+          explicitClassification: result.updated.explicit_classification,
+          explicitClassificationSource: result.updated.explicit_classification_source
+        },
+        moderationAction: result.moderationAction
+      }
+    });
   });
 
   app.get("/api/admin/moderation/reviews/:reviewId/preview", async (request, reply) => {

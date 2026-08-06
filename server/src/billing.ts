@@ -1,8 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
 import { getCruushEntitlement } from "./match-relationships.js";
-import { userHasOwnerFullAccess } from "./owner-access.js";
-import { bankActivePromotionForPaidSubscription } from "./rewards-service.js";
+import { bankActivePromotionForPaidSubscription, grantFirstLoginCruushPlus } from "./rewards-service.js";
 
 export type CruushPlusPlanId =
   | "plus_weekly"
@@ -238,13 +237,6 @@ export function hasPremiumDiscoveryFilters(query: Record<string, unknown>) {
 }
 
 export async function requireCruushPlus(app: FastifyInstance, userId: string, message: string) {
-  if (await userHasOwnerFullAccess(app, userId)) {
-    return {
-      cruushPlus: true,
-      expiresAt: null
-    };
-  }
-
   const entitlement = await getCruushEntitlement(app, userId);
 
   if (!entitlement.cruushPlus) {
@@ -277,8 +269,9 @@ export async function getPlanAvailability(app: FastifyInstance) {
 }
 
 export async function getUserBillingStatus(app: FastifyInstance, userId: string) {
-  const [ownerFullAccess, entitlement, badges] = await Promise.all([
-    userHasOwnerFullAccess(app, userId),
+  await grantFirstLoginCruushPlus(app, userId);
+
+  const [entitlement, badges] = await Promise.all([
     getCruushEntitlement(app, userId),
     safeRows<BadgeRow>(
       app,
@@ -291,8 +284,8 @@ export async function getUserBillingStatus(app: FastifyInstance, userId: string)
   ]);
 
   return {
-    cruushPlus: ownerFullAccess ? true : entitlement.cruushPlus,
-    expiresAt: ownerFullAccess ? null : entitlement.expiresAt,
+    cruushPlus: entitlement.cruushPlus,
+    expiresAt: entitlement.expiresAt,
     badges: badges.map((row) => row.badge_key),
     processor: "fake" as const,
     testCheckout: true

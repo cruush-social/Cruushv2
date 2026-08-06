@@ -3825,11 +3825,58 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("role = 'admin'");
   });
 
-  it("requires a mutual cruush before opening a new dm conversation", async () => {
-    query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+  it("allows a direct conversation before a mutual cruush", async () => {
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from encrypted_relationship_records")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("from user_blocks")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("from app_users")) {
+        return { rows: [{ id: dmPartnerId }] };
+      }
+
+      if (text.includes("insert into conversations")) {
+        return { rows: [{ id: conversationId }] };
+      }
+
+      if (text.includes("insert into conversation_members")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("from conversation_members cm")) {
+        return {
+          rows: [{
+            id: conversationId,
+            kind: "dm",
+            title: null,
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: dmPartnerId,
+            other_user_name: "Alex",
+            other_user_pronouns: ["they/them"],
+            other_user_photo: null,
+            other_user_photo_explicit: true,
+            member_count: 2
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -3842,12 +3889,14 @@ describe("server", () => {
       }
     });
 
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toEqual({
-      error: {
-        code: "MUTUAL_CRUUSH_REQUIRED",
-        message: "You can message after a mutual cruush.",
-        details: null
+    expect(response.statusCode).toBe(201);
+    expect(response.json().data).toMatchObject({
+      id: conversationId,
+      kind: "dm",
+      mutual: false,
+      user: {
+        id: dmPartnerId,
+        name: "Alex"
       }
     });
   });
@@ -4344,6 +4393,7 @@ describe("server", () => {
       .mockRejectedValueOnce(privacyDecryptError)
       .mockResolvedValueOnce({ rows: [matchToken] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ email: "member@example.com" }] })
       .mockResolvedValueOnce({
         rows: [{
           id: "msg-privacy-unreadable",
@@ -4385,7 +4435,7 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[4]?.[0]).toContain("encrypted_relationship_tokens");
-    expect(query.mock.calls[6]?.[0]).toContain("insert into messages");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into messages"))).toBe(true);
     expect(response.json().data).toEqual(expect.objectContaining({
       id: "msg-privacy-unreadable",
       content: "still sending"
@@ -5100,29 +5150,37 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("insert into suspensions"))).toBe(true);
   });
 
-  it("requires a mutual cruush before sending a dm message", async () => {
-    query
-      .mockResolvedValueOnce({
-        rows: [{
-          id: conversationId,
-          kind: "dm",
-          title: null,
-          tags: [],
-          updated_at: "2026-04-29T12:00:00.000Z",
-          last_message: "",
-          unread_count: 0,
-          pinned: false,
-          muted: false,
-          other_user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
-          other_user_name: "Alex",
-          other_user_pronouns: ["they/them"],
-          other_user_photo: null,
-          member_count: 2
-        }]
-      })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+  it("blocks a dm message when either participant has blocked the other", async () => {
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from conversation_members cm")) {
+        return {
+          rows: [{
+            id: conversationId,
+            kind: "dm",
+            title: null,
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: dmPartnerId,
+            other_user_name: "Alex",
+            other_user_pronouns: ["they/them"],
+            other_user_photo: null,
+            member_count: 2
+          }]
+        };
+      }
+
+      if (text.includes("from user_blocks")) {
+        return { rows: [{ exists: true }] };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -5139,8 +5197,8 @@ describe("server", () => {
     expect(response.statusCode).toBe(403);
     expect(response.json()).toEqual({
       error: {
-        code: "MUTUAL_CRUUSH_REQUIRED",
-        message: "You can message after a mutual cruush.",
+        code: "FORBIDDEN",
+        message: "You cannot message this user.",
         details: null
       }
     });
@@ -7392,6 +7450,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledTimes(9);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
+    expect(query.mock.calls[1]?.[0]).toContain("lower(btrim(candidate.value))");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
     expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
@@ -8329,7 +8388,8 @@ describe("server", () => {
           id: userId,
           name: "Cruusher",
           pronouns: "they/them",
-          photo: "https://example.com/photo.jpg"
+          photo: "https://example.com/photo.jpg",
+          photoExplicit: true
         }
       }]
     });
@@ -8488,7 +8548,8 @@ describe("server", () => {
           id: userId,
           name: "Cruusher",
           pronouns: "they/them",
-          photo: null
+          photo: null,
+          photoExplicit: true
         }
       }
     });
@@ -8587,6 +8648,7 @@ describe("server", () => {
   });
 
   it("rejects prohibited feed content before storing a post", async () => {
+    query.mockResolvedValue({ rows: [] });
     query.mockResolvedValueOnce({
       rows: [{
         cruush_plus_enabled: true,
@@ -8623,6 +8685,7 @@ describe("server", () => {
   });
 
   it("rejects public coded drug language before storing a feed post", async () => {
+    query.mockResolvedValue({ rows: [] });
     query.mockResolvedValueOnce({
       rows: [{
         cruush_plus_enabled: true,

@@ -516,6 +516,7 @@ describe('MapView', () => {
             approximateLatitude: 40.73,
             approximateLongitude: -73.99,
             photo: 'https://example.com/me.jpg',
+            photoExplicit: false,
             isCurrentUser: true,
             lastActiveLabel: 'Now',
             badge: createMapMarkerBadge(['Vers'], []),
@@ -526,6 +527,7 @@ describe('MapView', () => {
             approximateLatitude: 40.72,
             approximateLongitude: -74.01,
             photo: 'https://example.com/kai.jpg',
+            photoExplicit: false,
             lastActiveLabel: '12m ago',
           },
         ]}
@@ -557,6 +559,7 @@ describe('MapView', () => {
             approximateLatitude: 40.73,
             approximateLongitude: -73.99,
             photo: 'https://example.com/me.jpg',
+            photoExplicit: false,
             isCurrentUser: true,
             relationship: {
               kind: 'mutual_cruush',
@@ -583,6 +586,7 @@ describe('MapView', () => {
             approximateLatitude: 40.72,
             approximateLongitude: -74.01,
             photo: 'https://example.com/river.jpg',
+            photoExplicit: false,
             badge: createMapMarkerBadge(['Bottom'], []),
             relationship: {
               kind: 'mutual_cruush',

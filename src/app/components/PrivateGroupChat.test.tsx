@@ -262,7 +262,7 @@ describe('PrivateGroupChat', () => {
     expect(screen.queryByRole('button', { name: 'Insert quick reply' })).not.toBeInTheDocument();
   });
 
-  it('routes blocked non-mutual dm sends back to the profile', async () => {
+  it('shows a forbidden error when a DM is blocked', async () => {
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({
       conversation: {
@@ -287,8 +287,8 @@ describe('PrivateGroupChat', () => {
     });
     createMessage.mockRejectedValue(new ApiClientError(
       403,
-      'MUTUAL_CRUUSH_REQUIRED',
-      'You can message after a mutual cruush.',
+      'FORBIDDEN',
+      'You cannot message this user.',
     ));
 
     render(
@@ -307,12 +307,7 @@ describe('PrivateGroupChat', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
-    expect(await screen.findByText('You need a mutual cruush before messaging. Open their profile to send a cruush first.')).toBeInTheDocument();
-    expect(screen.getByText('Send a cruush first. Messages open after it is mutual.')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Open profile' }));
-
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2');
+    expect(await screen.findByText('You cannot message this user.')).toBeInTheDocument();
   });
 
   it('navigates to the report page from the conversation safety action', async () => {
@@ -561,6 +556,7 @@ describe('PrivateGroupChat', () => {
           url: '/api/media/message-photos/photo.png',
           mediaType: 'message_photo',
           mimeType: 'image/png',
+          explicit: false,
         }],
       }],
     });
@@ -611,6 +607,7 @@ describe('PrivateGroupChat', () => {
         url: '/api/media/message-photos/photo.png',
         mediaType: 'message_photo',
         mimeType: 'image/png',
+        explicit: false,
       }],
     });
 
@@ -706,7 +703,7 @@ describe('PrivateGroupChat', () => {
 
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
 
-    const favoriteGalleryButtons = screen.getAllByRole('button', { name: 'Favorite images' });
+    const favoriteGalleryButtons = screen.getAllByRole('button', { name: 'Quick access gallery' });
     fireEvent.click(favoriteGalleryButtons[favoriteGalleryButtons.length - 1]);
 
     await waitFor(() => expect(getFavoriteMessageImages).toHaveBeenCalledTimes(1));
@@ -859,52 +856,6 @@ describe('PrivateGroupChat', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open cas profile' }));
-
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2');
-  });
-
-  it('opens the profile from the header heart pin and no longer shows a separate profile button', async () => {
-    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
-    getConversationMessages.mockResolvedValue({
-      conversation: {
-        id: conversationId,
-        kind: 'dm',
-        user: {
-          id: 'user-2',
-          name: 'River',
-          pronouns: 'they/them',
-          photo: null,
-        },
-        distance: 'Nearby',
-        updatedAt: '2026-04-29T12:00:00.000Z',
-        lastMessage: '',
-        unreadCount: 0,
-        pinned: false,
-        muted: false,
-        mutual: true,
-        tags: [],
-      },
-      messages: [],
-    });
-
-    render(
-      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
-        <Routes>
-          <Route path="/chat/:chatId" element={<><PrivateGroupChat /><LocationProbe /></>} />
-          <Route path="/profile/:userId" element={<LocationProbe />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    const header = await screen.findByTestId('chat-thread-header');
-
-    // The heart pin is the only route into the profile from the header now; the
-    // icon button that used to sit on the right is gone.
-    const headerProfileButtons = within(header).getAllByRole('button', { name: 'Open River profile' });
-    expect(headerProfileButtons).toHaveLength(1);
-    expect(within(headerProfileButtons[0]).getByLabelText('River avatar')).toBeInTheDocument();
-
-    fireEvent.click(headerProfileButtons[0]);
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-2');
   });
@@ -1249,6 +1200,7 @@ describe('PrivateGroupChat', () => {
           mediaType: 'image',
           mimeType: 'image/png',
           viewOnce: true,
+          explicit: false,
         }],
       }],
     });

@@ -1,4 +1,5 @@
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from './persistentNotice';
+import { useEffect, useState } from 'react';
 
 const DL_MODE_STORAGE_KEY = 'cruush:dl-mode-enabled';
 const DL_MODE_CHANGED_EVENT = 'cruush:dl-mode-changed';
@@ -64,4 +65,17 @@ export function addDlModeChangedListener(listener: (enabled: boolean) => void) {
     window.removeEventListener(DL_MODE_CHANGED_EVENT, handleCustomEvent);
     window.removeEventListener('storage', handleStorageEvent);
   };
+}
+
+export function useDlMode() {
+  const [enabled, setEnabled] = useState(() => isDlModeEnabled());
+
+  useEffect(() => addDlModeChangedListener(setEnabled), []);
+
+  return enabled;
+}
+
+/** Missing classification is unsafe and therefore remains masked. */
+export function shouldMaskPhoto(dlModeActive: boolean, explicit: boolean | null | undefined) {
+  return explicit !== false && (dlModeActive || explicit == null);
 }

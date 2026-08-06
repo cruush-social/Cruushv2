@@ -4,6 +4,7 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon } from './CruushIconImage';
 import { resolveMediaUrl } from '../lib/apiClient';
+import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { getPrivacyAudit, revokePrivacyAccess, type PrivacyAuditAccess } from '../lib/privacyApi';
 
 function formatAuditTime(value: number) {
@@ -19,6 +20,7 @@ export default function PrivacyAudit() {
   const [items, setItems] = useState<PrivacyAuditAccess[]>([]);
   const [status, setStatus] = useState<'loading' | 'idle' | 'saving'>('loading');
   const [error, setError] = useState<string | null>(null);
+  const dlModeActive = useDlMode();
 
   useEffect(() => {
     let active = true;
@@ -104,7 +106,7 @@ export default function PrivacyAudit() {
           {items.map((item) => (
             <div key={item.revoke_action_token} className="rounded-lg border border-white/10 bg-card p-4">
               <div className="flex items-start gap-3">
-                {item.viewer.photo ? (
+                {item.viewer.photo && !shouldMaskPhoto(dlModeActive, item.viewer.photoExplicit) ? (
                   <img alt="" className="h-12 w-12 rounded-full object-cover" src={resolveMediaUrl(item.viewer.photo)} />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'var(--cruush-gradient)' }}>

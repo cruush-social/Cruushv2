@@ -257,7 +257,12 @@ function addTextArrayFilter(where: string[], values: unknown[], column: string, 
   }
 
   values.push(selectedValues);
-  where.push(`${column} && $${values.length}::text[]`);
+  where.push(`exists (
+           select 1
+           from unnest(coalesce(${column}, '{}'::text[])) as candidate(value)
+           join unnest($${values.length}::text[]) as selected(value)
+             on lower(btrim(candidate.value)) = lower(btrim(selected.value))
+         )`);
 }
 
 function addVibeFilter(where: string[], values: unknown[], selectedValues: string[]) {
@@ -266,11 +271,19 @@ function addVibeFilter(where: string[], values: unknown[], selectedValues: strin
   }
 
   values.push(selectedValues);
-  const selectedValuesPlaceholder = `$${values.length}`;
   where.push(`(
-           vibes && ${selectedValuesPlaceholder}::text[]
-           or scenes && ${selectedValuesPlaceholder}::text[]
-           or archetypes && ${selectedValuesPlaceholder}::text[]
+           exists (
+             select 1
+             from (
+               select unnest(coalesce(vibes, '{}'::text[])) as value
+               union all
+               select unnest(coalesce(scenes, '{}'::text[])) as value
+               union all
+               select unnest(coalesce(archetypes, '{}'::text[])) as value
+             ) as candidate
+             join unnest($${values.length}::text[]) as selected(value)
+               on lower(btrim(candidate.value)) = lower(btrim(selected.value))
+           )
          )`);
 }
 
@@ -561,7 +574,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          hosting_travel,
          photos,
          coalesce((
-           select media.explicit_classification = 'explicit'
+           select media.explicit_classification is distinct from 'non_explicit'
            from unnest(coalesce(profiles.photos, '{}'::text[])) with ordinality as photo(photo_url, ordinality)
            left join media_objects media
              on media.owner_user_id = profiles.id
@@ -570,7 +583,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
             and media.deleted_at is null
            order by photo.ordinality
            limit 1
-         ), false) as primary_photo_explicit,
+        ), true) as primary_photo_explicit,
          identities,
          presentation,
          sexuality,
@@ -830,7 +843,7 @@ async function mapModernDiscoveryRow(
     role: coerceStringArray(row.role),
     hostingTravel: coerceStringArray(row.hosting_travel),
     photo: row.photos?.[0] ?? null,
-    photoExplicit: row.primary_photo_explicit === true,
+    photoExplicit: row.primary_photo_explicit !== false,
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {}),
     relationship: relationship?.isMutualCruush
       ? {

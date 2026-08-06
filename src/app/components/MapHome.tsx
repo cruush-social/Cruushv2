@@ -1,9 +1,9 @@
 // Vite env type declaration for TypeScript
 /// <reference types="vite/client" />
-import type { CSSProperties, MouseEvent, PointerEvent, WheelEvent } from 'react';
+import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { Building2, ExternalLink, Filter, Flame, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ExternalLink, Eye, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -51,8 +51,6 @@ import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from '../lib/mapMarkers';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
-import dlModeIconColored from '../assets/ui-icons/dl-mode-colored.png';
-import dlModeIconWhite from '../assets/ui-icons/dl-mode-white.png';
 import ghostIconColored from '../assets/ui-icons/ghost-colored.svg';
 import ghostIconWhite from '../assets/ui-icons/ghost-white.svg';
 import crowdIconColored from '../assets/ui-icons/crowds-colored.svg';
@@ -61,10 +59,7 @@ import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
 import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
 import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 
-const DISCOVERY_MAP_LIMIT = 50;
-const logoGlassMaskStyle = {
-  '--cruush-map-logo-mask': `url("${cruushLogo}")`,
-} as CSSProperties;
+const DISCOVERY_MAP_LIMIT = 500;
 const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
 const CROWD_NOTICE_LABELS: Record<string, string> = {
   Dyke: 'Dyke',
@@ -215,10 +210,6 @@ function profileRecordToOwnDiscoveryUser(profile: ProfileRecord, location: Appro
   };
 }
 
-function getDlModeSafeMarkerPhoto(photo: string | null | undefined, explicit: boolean | undefined, dlModeActive: boolean) {
-  return dlModeActive && explicit === true ? null : photo ?? null;
-}
-
 function getAvailableCrowdModes(profile: ProfileRecord | null) {
   const profileCrowds = new Set(normalizeCrowdValues(profile?.crowds ?? []));
 
@@ -328,37 +319,6 @@ const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
 export const MAP_CONTROLS_INTRO_STORAGE_KEY = 'cruush:map-controls-intro-seen';
-const MAP_3D_MODE_STORAGE_KEY = 'cruush:map-3d-mode-enabled';
-
-function isEnabledEnvFlag(value: string | undefined) {
-  return ['1', 'true', 'yes', 'on'].includes(value?.trim().toLowerCase() ?? '');
-}
-
-function getInitial3dMapMode() {
-  try {
-    const storedValue = window.localStorage.getItem(MAP_3D_MODE_STORAGE_KEY);
-
-    if (storedValue === 'true') {
-      return true;
-    }
-
-    if (storedValue === 'false') {
-      return false;
-    }
-  } catch {
-    return isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS);
-  }
-
-  return isEnabledEnvFlag(import.meta.env.VITE_MAP_ENABLE_3D_BUILDINGS);
-}
-
-function persist3dMapMode(enabled: boolean) {
-  try {
-    window.localStorage.setItem(MAP_3D_MODE_STORAGE_KEY, String(enabled));
-  } catch {
-    // Preference persistence is best effort; the control should still work.
-  }
-}
 
 function toRadians(degrees: number) {
   return degrees * Math.PI / 180;
@@ -433,9 +393,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [emailingEventPass, setEmailingEventPass] = useState(false);
   const [joiningEventChat, setJoiningEventChat] = useState(false);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
-  const [is3dMapModeEnabled, setIs3dMapModeEnabled] = useState(getInitial3dMapMode);
-  const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(true);
-  const [isHeatmapAvailable, setIsHeatmapAvailable] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [mapControlsIntroOpen, setMapControlsIntroOpen] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
@@ -456,13 +413,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
   const hasCruushPlus = billingStatus?.cruushPlus !== false;
 
-  const handleToggle3dMapMode = () => {
-    setIs3dMapModeEnabled((currentValue) => {
-      const nextValue = !currentValue;
-      persist3dMapMode(nextValue);
-      return nextValue;
-    });
-  };
+  const dlModeEyeStyle = dlModeActive ? { stroke: 'url(#cruush-dl-eye-gradient)' } : undefined;
 
   const syncApproximateMapLocation = (approximateLocation: ApproximateCoordinates) => {
     void syncMyLocation({
@@ -636,22 +587,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const handleBlockedUser = (blockedUserId: string) => {
     setUsers((currentUsers) => currentUsers.filter((user) => user.id !== blockedUserId));
     setSelectedUser((currentUser) => currentUser?.id === blockedUserId ? null : currentUser);
-  };
-
-  const handleMutualCruushRevoked = (revokedUserId: string) => {
-    setUsers((currentUsers) => currentUsers
-      .filter((user) => !(isMutualMapMode && user.id === revokedUserId))
-      .map((user) => user.id === revokedUserId
-        ? {
-            ...user,
-            relationship: {
-              ...user.relationship,
-              mutualCruush: false,
-              canMessage: false,
-            },
-          }
-        : user));
-    setSelectedUser((currentUser) => currentUser?.id === revokedUserId ? null : currentUser);
   };
 
   useEffect(() => {
@@ -1305,8 +1240,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         approximateLatitude: user.lat,
         approximateLongitude: user.lng,
         lastActiveLabel: user.lastActive,
-        photo: getDlModeSafeMarkerPhoto(user.photo, user.photoExplicit, dlModeActive),
-        photoExplicit: user.photoExplicit === true,
+        photo: user.photo,
         badge: createMapMarkerBadge(user.position, user.hostingTravel),
         animationHint: user.animationHint,
         displayMode: user.displayMode,
@@ -1351,12 +1285,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         approximateLatitude: currentUserMapLocation.approximateLatitude,
         approximateLongitude: currentUserMapLocation.approximateLongitude,
         lastActiveLabel: 'Now',
-        photo: getDlModeSafeMarkerPhoto(
-          currentProfile?.photos[0],
-          currentProfile?.photo_metadata?.[0]?.explicit,
-          dlModeActive,
-        ),
-        photoExplicit: currentProfile?.photo_metadata?.[0]?.explicit === true,
+        photo: currentProfile?.photos[0] ?? null,
         isCurrentUser: true,
         badge: createMapMarkerBadge(currentProfile?.position ?? []),
         displayMode: privacySettings.ghostModeEnabled ? 'GHOST' : 'PRECISE',
@@ -1365,7 +1294,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       ...nearbyMarkers,
       ...eventMarkers,
     ];
-  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, dlModeActive, privacySettings, userApproximateLocation]);
+  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, privacySettings, userApproximateLocation]);
 
   const focusedMapLocation = useMemo(() => {
     if (!focusUserId) {
@@ -1490,38 +1419,38 @@ export default function MapHome(_props: MapHomeProps = {}) {
       className={`cruush-map-shell ${isMobile ? 'fixed inset-0' : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
     >
+      <svg aria-hidden="true" className="absolute h-0 w-0">
+        <defs>
+          <linearGradient id="cruush-dl-eye-gradient" x1="0" x2="24" y1="0" y2="24" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FF0072" />
+            <stop offset="46%" stopColor="#6F00FF" />
+            <stop offset="72%" stopColor="#004BFF" />
+            <stop offset="100%" stopColor="#1181FF" />
+          </linearGradient>
+        </defs>
+      </svg>
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
         data-testid="map-top-chrome"
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 shrink-0 flex-col items-center gap-1.5 sm:gap-2">
+          <div className="flex min-w-0 shrink-0 flex-col items-center gap-1">
             <h1 className="sr-only">cruush</h1>
-            <span
-              className="cruush-map-logo-shell h-[4.35rem] w-[4.2rem] shrink-0 sm:h-[5rem] sm:w-[4.82rem]"
-              data-testid="map-brand-glass"
-              style={logoGlassMaskStyle}
-            >
-              <img
-                alt=""
-                aria-hidden="true"
-                className="cruush-map-logo-glass h-full w-full shrink-0 object-contain"
-                data-testid="map-brand-logo"
-                draggable={false}
-                src={cruushLogo}
-              />
-            </span>
-            <div
-              className="cruush-glass-soft inline-flex max-w-[7.5rem] shrink-0 items-center rounded-full border border-white/12 bg-background/45 px-2 py-1 text-[9px] lowercase leading-none tracking-[0.09em] text-white/78 backdrop-blur-md sm:max-w-none sm:px-2.5 sm:text-[10px] sm:tracking-[0.1em]"
-              data-testid="map-beta-tag"
-            >
+            <img
+              alt=""
+              aria-hidden="true"
+              className="h-14 w-auto shrink-0 object-contain sm:h-16"
+              draggable={false}
+              src={cruushLogo}
+            />
+            <div className="inline-flex max-w-[5.75rem] shrink-0 items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]">
               {isMutualMapMode ? 'mutual cruushes' : 'nyc open beta'}
             </div>
           </div>
 
           <div
-            className="cruush-glass-bar pointer-events-auto mt-0 flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-background/25 p-0.5 backdrop-blur-md sm:gap-1 sm:p-1"
+            className="pointer-events-auto mt-0 flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-background/25 p-0.5 backdrop-blur-md sm:gap-1 sm:p-1"
             data-testid="map-top-actions"
           >
             <Button
@@ -1529,7 +1458,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               onClick={() => navigate('/rewards')}
               aria-label="cruush+ rewards"
               title="cruush+ rewards"
-              className="cruush-plus-shimmer-button cruush-logo-font h-8 rounded-full px-2 text-sm font-normal leading-none tracking-normal normal-case text-white sm:h-9 sm:px-2.5 sm:text-base"
+              className="cruush-logo-font h-8 rounded-full px-2 text-sm font-normal leading-none tracking-normal normal-case text-white sm:h-9 sm:px-2.5 sm:text-base"
               style={{ background: 'var(--cruush-gradient)' }}
             >
               <CruushPlusWord />
@@ -1549,12 +1478,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
               size="icon"
               onClick={() => navigate('/privacy/ghost-mode')}
               aria-label="Ghost Mode Settings"
-              aria-pressed={privacySettings.ghostModeEnabled}
               title="Ghost Mode Settings"
-              className={[
-                'size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9',
-                privacySettings.ghostModeEnabled ? 'bg-white/10 ring-1 ring-white/15' : '',
-              ].join(' ')}
+              className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
             >
               <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} className="h-4 w-4" />
             </Button>
@@ -1566,7 +1491,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
             >
-              <CruushIconImage src={dlModeActive ? dlModeIconColored : dlModeIconWhite} className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Eye className="h-4 w-4 sm:h-5 sm:w-5" style={dlModeEyeStyle} strokeWidth={2.35} />
             </Button>
             <Button
               variant="ghost"
@@ -1606,7 +1531,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         <Suspense
           fallback={(
             <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">
-              <div className="cruush-glass-soft pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
+              <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-md bg-background/82 px-3 py-2 text-xs text-white/70 backdrop-blur-md">
                 Loading NYC map...
               </div>
             </div>
@@ -1619,10 +1544,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
               setSelectedEventSlug(null);
             }}
             markers={mapMarkers}
-            mobileSignalPreview={isMobile}
-            enable3dBuildings={is3dMapModeEnabled}
-            heatmapEnabled={isHeatmapEnabled}
-            onHeatmapAvailabilityChange={setIsHeatmapAvailable}
             fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
             focusCoordinates={
               focusedMapLocation ??
@@ -1648,13 +1569,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         {locationError ? (
-          <div className="cruush-glass-soft absolute left-4 right-20 top-40 z-20 rounded-md border border-white/10 bg-background/82 p-3 text-sm text-white/72 backdrop-blur-md">
+          <div className="absolute left-4 right-20 top-40 z-20 rounded-md border border-white/10 bg-background/82 p-3 text-sm text-white/72 backdrop-blur-md">
             {locationError}
           </div>
         ) : null}
 
         {loading ? (
-          <div className="cruush-glass-soft absolute inset-x-4 top-28 z-20 rounded-md bg-card/90 p-3 text-sm text-muted-foreground backdrop-blur-sm">
+          <div className="absolute inset-x-4 top-28 z-20 rounded-md bg-card/90 p-3 text-sm text-muted-foreground backdrop-blur-sm">
             Loading nearby people...
           </div>
         ) : null}
@@ -1684,7 +1605,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
             fixed={selectedUser.isCurrentUser === true}
             isOwnProfile={selectedUser.isCurrentUser === true}
             onBlockedUser={handleBlockedUser}
-            onMutualCruushRevoked={handleMutualCruushRevoked}
             onProfileSaved={(savedProfile) => {
               const nextProfile = {
                 ...emptyProfilePayload,
@@ -1702,7 +1622,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
         {selectedEvent ? (
           <div
-            className={`cruush-glass-panel pointer-events-auto absolute z-[45] rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
+            className={`pointer-events-auto absolute z-[45] rounded-xl border border-white/10 bg-black/88 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl ${
               isMobile
                 ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3'
                 : 'left-4 top-[8.75rem] w-[22rem]'
@@ -1874,13 +1794,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-[4.5rem] z-30 flex flex-col items-end gap-2 sm:right-4 sm:top-[4.75rem]"
+          className="pointer-events-auto absolute right-3 top-14 z-40 flex flex-col items-end gap-2 sm:right-4 sm:top-16"
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (
             <button
               type="button"
-              className="cruush-glass-pill inline-flex h-8 items-center gap-2 rounded-full border border-white/15 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+              className="inline-flex h-8 items-center gap-2 rounded-full border border-white/15 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
               style={{ background: 'var(--cruush-gradient)' }}
               onClick={() => {
                 setVisibilityError(null);
@@ -1892,11 +1812,18 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </button>
           ) : null}
 
+          {privacySettings.ghostModeEnabled ? (
+            <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
+              <CruushIconImage src={ghostIconColored} className="h-4 w-4" />
+              Ghost Mode Active
+            </div>
+          ) : null}
+
           <Button
             className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] shadow-[0_12px_35px_rgba(0,0,0,0.25)] ${
               hasActiveFilters
                 ? 'border-white/15 text-white'
-                : 'cruush-glass-pill border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
+                : 'border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
             }`}
             style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
             onClick={() => setIsFiltersOpen(true)}
@@ -1914,7 +1841,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] has-[>img]:px-3 ${
               hasActiveVisibility
                 ? 'border-white/15'
-                : 'cruush-glass-pill border-white/10 bg-background/68 backdrop-blur-md hover:bg-white/10'
+                : 'border-white/10 bg-background/68 backdrop-blur-md hover:bg-white/10'
             }`}
             style={hasActiveVisibility ? { background: 'var(--cruush-gradient)' } : undefined}
           >
@@ -1926,41 +1853,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <Button
               size="icon"
               variant="secondary"
-              onClick={handleToggle3dMapMode}
-              aria-label={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
-              aria-pressed={is3dMapModeEnabled}
-              title={is3dMapModeEnabled ? 'Turn 3D map off' : 'Turn 3D map on'}
-              data-state={is3dMapModeEnabled ? 'active' : 'inactive'}
-              className={`cruush-map-3d-toggle cruush-glass-control rounded-full border text-white ${
-                is3dMapModeEnabled ? 'border-white/30' : 'border-white/10'
-              }`}
-            >
-              <Building2 className="h-4 w-4" />
-            </Button>
-            {isHeatmapAvailable ? (
-              <Button
-                size="icon"
-                variant="secondary"
-                onClick={() => setIsHeatmapEnabled((enabled) => !enabled)}
-                aria-label={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
-                aria-pressed={isHeatmapEnabled}
-                title={isHeatmapEnabled ? 'Hide heat map' : 'Show heat map'}
-                data-state={isHeatmapEnabled ? 'active' : 'inactive'}
-                className={`cruush-map-heatmap-toggle cruush-glass-control rounded-full border text-white ${
-                  isHeatmapEnabled ? 'border-white/30' : 'border-white/10'
-                }`}
-              >
-                <Flame aria-hidden="true" className="h-4 w-4" strokeWidth={2.35} />
-              </Button>
-            ) : null}
-            <Button
-              size="icon"
-              variant="secondary"
               onClick={handleCenterMyLocation}
               disabled={locationStatus === 'locating' || !mapInstance}
               aria-label={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
               title={locationStatus === 'locating' ? 'Finding your location' : 'Center your location'}
-              className="cruush-glass-control rounded-full border border-white/10 text-white"
+              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
             >
               <MapPin className="h-4 w-4" />
             </Button>
@@ -1969,7 +1866,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               variant="secondary"
               onClick={() => mapInstance?.zoomIn()}
               disabled={!mapInstance}
-              className="cruush-glass-control rounded-full border border-white/10 text-white"
+              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
             >
               <ZoomIn className="w-4 h-4" />
             </Button>
@@ -1978,7 +1875,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               variant="secondary"
               onClick={() => mapInstance?.zoomOut()}
               disabled={!mapInstance}
-              className="cruush-glass-control rounded-full border border-white/10 text-white"
+              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
             >
               <ZoomOut className="w-4 h-4" />
             </Button>
@@ -1999,8 +1896,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
               className={`mx-auto ${
                 isRecentlyActiveOpen
                   ? isMobile
-                    ? 'cruush-glass-panel w-full max-w-full rounded-2xl border border-white/10 bg-background/50 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
-                    : 'cruush-glass-panel w-fit max-w-[29.5rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                    ? 'w-full max-w-full rounded-2xl border border-white/10 bg-background/50 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                    : 'w-fit max-w-[29.5rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
                   : 'max-w-max p-0'
               } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''} pointer-events-auto`}
               data-testid="recently-active-panel"
@@ -2011,9 +1908,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   aria-controls="recently-active-tray"
                   aria-expanded={isRecentlyActiveOpen}
                   aria-label={isRecentlyActiveOpen ? 'Hide recently active bar' : 'Show recently active bar'}
-                  className="cruush-glass-pill h-8 rounded-full border border-white/10 px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                  className="h-8 rounded-full border border-white/10 px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
                   onClick={() => setIsRecentlyActiveOpen((open) => !open)}
-                  style={isRecentlyActiveOpen ? { background: 'var(--cruush-gradient)' } : undefined}
+                  style={{
+                    background: isRecentlyActiveOpen ? 'var(--cruush-gradient)' : 'rgba(0,0,0,0.82)',
+                  }}
                 >
                   Recently Active
                 </button>
@@ -2048,7 +1947,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       data-testid={`recently-active-tile-${user.id}`}
                     >
                       <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">
-                        {user.photo && !(dlModeActive && user.photoExplicit === true) ? (
+                        {user.photo && !shouldMaskPhoto(dlModeActive, user.photoExplicit) ? (
                           <img
                             alt=""
                             aria-hidden="true"
@@ -2128,7 +2027,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               <p><span className="text-white">Seeking:</span> filter nearby people by what you want to find.</p>
               <p><span className="text-white">Visibility:</span> hide yourself from selected audiences.</p>
               <p><span className="text-white">Crowds:</span> use Dyke, Gay, and T4T modes when you only want those active crowds to see you.</p>
-              <p><span className="text-white">DL Mode:</span> tap the mask in the top menu to mask or reveal NSFW images.</p>
+              <p><span className="text-white">DL Mode:</span> tap the eye in the top menu to mask or reveal NSFW images.</p>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
               <Button

@@ -228,6 +228,7 @@ describe('LocalFeed', () => {
         name: 'sky',
         pronouns: 'she/her',
         photo: '/media/sky.jpg',
+        photoExplicit: false,
       },
     }]);
 

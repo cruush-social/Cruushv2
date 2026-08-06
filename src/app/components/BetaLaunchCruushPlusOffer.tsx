@@ -170,7 +170,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
               'Your beta launch week is active. Press Done to close this card.'
             ) : (
               <>
-                Claim one free week of <CruushPlusWord className="beta-launch-plus-dialog__inline-word" />, active until August 7 at 12:00 AM.
+                Everyone gets one free seven-day <CruushPlusWord className="beta-launch-plus-dialog__inline-word" /> trial on first login.
               </>
             )}
           </DialogDescription>

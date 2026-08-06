@@ -4,7 +4,7 @@ import CruushIconImage from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { PROFILE_HERO_ASPECT_STYLE, PROFILE_HERO_MEDIA_STYLE, PROFILE_HERO_VIEWPORT_STYLE } from '../lib/photoLayout';
-import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import type { ProfilePhotoMetadata } from '../lib/profileApi';
 import type { HeartPinTheme } from '../lib/heartPin';
@@ -35,10 +35,8 @@ export default function ProfilePhotoGallery({
   const visiblePhotos = useMemo(() => photos.slice(0, 4), [photos]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
-  const explicitPhotoUrls = useMemo(() => new Set(
-    photoMetadata
-      .filter((metadata) => metadata.explicit)
-      .map((metadata) => metadata.url)
+  const photoMetadataByUrl = useMemo(() => new Map(
+    photoMetadata.map((metadata) => [metadata.url, metadata.explicit]),
   ), [photoMetadata]);
 
   useEffect(() => {
@@ -49,7 +47,7 @@ export default function ProfilePhotoGallery({
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const activePhoto = visiblePhotos[activeIndex] ?? null;
-  const activePhotoMasked = Boolean(activePhoto && dlModeActive && explicitPhotoUrls.has(activePhoto));
+  const activePhotoMasked = Boolean(activePhoto && shouldMaskPhoto(dlModeActive, photoMetadataByUrl.get(activePhoto)));
   const previewPhotos = visiblePhotos
     .map((photo, index) => ({
       index,
@@ -118,7 +116,7 @@ export default function ProfilePhotoGallery({
             >
               <HeartPhoto
                 label={`${fallbackLabel} ${index + 1}`}
-                masked={dlModeActive && explicitPhotoUrls.has(photo)}
+                masked={shouldMaskPhoto(dlModeActive, photoMetadataByUrl.get(photo))}
                 photo={photo}
                 className="h-full w-full"
                 theme={theme}

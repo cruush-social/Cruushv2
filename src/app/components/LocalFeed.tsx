@@ -19,7 +19,7 @@ import {
 } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
-import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import {
   createFeedPost,
   deleteFeedPost,
@@ -252,7 +252,8 @@ export default function LocalFeed() {
 
   const handlePost = async () => {
     if (!newPost.trim()) return;
-    if (billingStatus && !billingStatus.cruushPlus) {
+    if (!billingStatus) return;
+    if (!billingStatus.cruushPlus) {
       navigate('/rewards');
       return;
     }
@@ -276,7 +277,7 @@ export default function LocalFeed() {
     }
   };
 
-  const canPost = billingStatus?.cruushPlus !== false;
+  const canPost = billingStatus?.cruushPlus === true;
 
   const toggleCrowdTarget = (crowd: string) => {
     if (!canPost) {
@@ -482,11 +483,15 @@ export default function LocalFeed() {
           <Textarea
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
-            placeholder={canPost ? 'Share something with nearby people...' : 'Upgrade to post on the local feed.'}
+            placeholder={billingStatus === null
+              ? 'Checking cruush+ access...'
+              : canPost
+                ? 'Share something with nearby people...'
+                : 'Upgrade to post on the local feed.'}
             className="bg-input-background mb-3 min-h-[100px]"
             disabled={!canPost}
           />
-          {!canPost ? (
+          {billingStatus !== null && !canPost ? (
             <div
               className="mb-3 flex flex-col gap-3 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-white/78 sm:flex-row sm:items-center sm:justify-between"
               data-testid="local-feed-cruush-plus-notice"
@@ -585,7 +590,7 @@ export default function LocalFeed() {
                     <HeartPhoto
                       className="w-20 flex-shrink-0"
                       label={`${post.user.name} preview`}
-                      masked={dlModeActive && post.user.photoExplicit === true}
+                      masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)}
                       photo={post.user?.photo}
                       theme={currentUserId && post.user.id === currentUserId ? 'current' : 'nearby'}
                       userId={post.user.id}

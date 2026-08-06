@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { ChevronRight, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
-import { useDlMode } from '../lib/useDlMode';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
@@ -16,7 +15,9 @@ import {
   type ConversationTimer,
 } from '../lib/messagesApi';
 import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
+import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { openConversationOrInbox } from '../lib/openConversation';
+import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -58,6 +59,7 @@ function normalizeConversation(raw: any): ConversationThread {
       name: raw?.user?.name ?? 'cruush user',
       pronouns: raw?.user?.pronouns ?? '',
       photo: raw?.user?.photo ?? null,
+      photoExplicit: raw?.user?.photoExplicit,
     },
     distance: raw?.distance ?? 'Nearby',
     updatedAt: raw?.updatedAt ?? raw?.timestamp ?? new Date().toISOString(),
@@ -94,7 +96,6 @@ export default function DirectMessages() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
   const [loading, setLoading] = useState(true);
-  const dlModeActive = useDlMode();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'groups'>('all');
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +106,7 @@ export default function DirectMessages() {
   const [groupTimer, setGroupTimer] = useState<ConversationTimer>('24h');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [mutualOptions, setMutualOptions] = useState<MutualCruushActivityItem[]>([]);
+  const [directOptions, setDirectOptions] = useState<DiscoveryUser[]>([]);
   const [groupError, setGroupError] = useState<string | null>(null);
   const [groupLoading, setGroupLoading] = useState(false);
   const [directError, setDirectError] = useState<string | null>(null);
@@ -112,6 +114,7 @@ export default function DirectMessages() {
   const [groupCreating, setGroupCreating] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const dlModeActive = useDlMode();
 
   useEffect(() => {
     void fetchConversations();
@@ -197,10 +200,19 @@ export default function DirectMessages() {
     setComposeChooserOpen(false);
     setGroupComposerOpen(false);
     setDirectComposerOpen(true);
-    await loadMessageableMutuals({
-      setComposerError: setDirectError,
-      setComposerLoading: setDirectLoading,
-    });
+    setDirectError(null);
+    setDirectLoading(true);
+
+    try {
+      const nearbyUsers = await getNearbyUsers(null, undefined, { limit: 100 });
+      setDirectOptions(nearbyUsers.filter((user) => user.relationship?.canMessage !== false));
+    } catch (error) {
+      console.error('Error loading people available for direct messaging:', error);
+      setDirectOptions([]);
+      setDirectError(error instanceof Error ? error.message : 'Failed to load people to message.');
+    } finally {
+      setDirectLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -355,10 +367,10 @@ export default function DirectMessages() {
       ) : null}
 
       {directComposerOpen ? (
-        <MutualDirectOverlay
+        <DirectUserOverlay
           error={directError}
           loading={directLoading}
-          mutuals={mutualOptions}
+          users={directOptions}
           onClose={resetDirectComposer}
           onMessage={handleStartDirectChat}
         />
@@ -433,7 +445,7 @@ export default function DirectMessages() {
                     <HeartPhoto
                       className="w-10 shrink-0"
                       label={`${item.user.name} avatar`}
-                      masked={dlModeActive && item.user.photoExplicit === true}
+                      masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
                       photo={item.user.photo}
                       userId={item.user.id}
                       fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
@@ -477,7 +489,7 @@ export default function DirectMessages() {
                     <HeartPhoto
                       className="w-12"
                       label={`${conversation.user.name} avatar`}
-                      masked={dlModeActive && conversation.user.photoExplicit === true}
+                      masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
                       photo={conversation.user.photo}
                       userId={conversation.user.id}
                       theme={getConversationHeartTheme(conversation)}
@@ -533,7 +545,7 @@ export default function DirectMessages() {
                     <HeartPhoto
                       className="w-20 shrink-0"
                       label={`${conversation.user.name} avatar`}
-                      masked={dlModeActive && conversation.user.photoExplicit === true}
+                      masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
                       photo={conversation.user.photo}
                       userId={conversation.user.id}
                       theme={getConversationHeartTheme(conversation)}
@@ -695,8 +707,8 @@ function ComposeChoiceOverlay({
             className="w-full rounded-2xl border border-border bg-card/80 p-4 text-left transition-colors hover:bg-accent/60"
             onClick={onStartDirect}
           >
-            <span className="block">Start chat with mutual</span>
-            <span className="mt-1 block text-sm text-muted-foreground">Pick one mutual cruush and open a direct chat.</span>
+            <span className="block">Start chat with someone</span>
+            <span className="mt-1 block text-sm text-muted-foreground">Pick someone nearby and open a direct chat.</span>
           </button>
           <button
             type="button"
@@ -712,16 +724,16 @@ function ComposeChoiceOverlay({
   );
 }
 
-function MutualDirectOverlay({
+function DirectUserOverlay({
   error,
   loading,
-  mutuals,
+  users,
   onClose,
   onMessage,
 }: {
   error: string | null;
   loading: boolean;
-  mutuals: MutualCruushActivityItem[];
+  users: DiscoveryUser[];
   onClose: () => void;
   onMessage: (userId: string) => void;
 }) {
@@ -732,8 +744,8 @@ function MutualDirectOverlay({
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">mutual chat</p>
-            <h3 className="text-2xl">Choose a mutual</h3>
+            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">public chat</p>
+            <h3 className="text-2xl">Choose someone to message</h3>
           </div>
           <Button type="button" variant="ghost" size="icon" aria-label="Close mutual picker" onClick={onClose}>
             <X className="size-4" />
@@ -748,35 +760,35 @@ function MutualDirectOverlay({
 
         {loading ? (
           <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
-            Loading mutuals...
+            Loading people...
           </div>
         ) : null}
 
-        {!loading && mutuals.length === 0 ? (
+        {!loading && users.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-            No mutual cruushes available.
+            No nearby people are available right now.
           </div>
         ) : null}
 
         <div className="space-y-2">
-          {mutuals.map((item) => (
+          {users.map((user) => (
             <button
-              key={item.user.id}
+              key={user.id}
               type="button"
               className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card/70 p-3 text-left transition-colors hover:bg-accent/60"
-              onClick={() => onMessage(item.user.id)}
+              onClick={() => onMessage(user.id)}
             >
               <HeartPhoto
                 className="w-14 shrink-0"
-                label={`${item.user.name} avatar`}
-                masked={dlModeActive && item.user.photoExplicit === true}
-                photo={item.user.photo}
-                userId={item.user.id}
-                fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
+                label={`${user.name} avatar`}
+                masked={shouldMaskPhoto(dlModeActive, user.photoExplicit)}
+                photo={user.photo}
+                userId={user.id}
+                fallback={<div className="text-xs text-white/80">{getConversationInitials(user.name)}</div>}
               />
               <span className="min-w-0">
-                <span className="block truncate">{item.user.name}</span>
-                <span className="block text-xs text-muted-foreground">{item.distance}</span>
+                <span className="block truncate">{user.name}</span>
+                <span className="block text-xs text-muted-foreground">{user.distance}</span>
               </span>
             </button>
           ))}

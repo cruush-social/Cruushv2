@@ -43,7 +43,7 @@ import {
 } from '../lib/messagesApi';
 import { getMyCruushActivity, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
-import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
 
@@ -91,6 +91,7 @@ function normalizeRemoteMessage(message: RemoteChatMessage, activeUserId: string
           name: String(message.user.name ?? 'cruush user'),
           pronouns: String(message.user.pronouns ?? ''),
           photo: message.user.photo ?? null,
+          photoExplicit: message.user.photoExplicit,
         }
       : undefined,
   };
@@ -147,11 +148,12 @@ function getMessageSender(
       name: groupMember.name,
       pronouns: groupMember.pronouns,
       photo: groupMember.photo,
+      photoExplicit: groupMember.photoExplicit,
     };
   }
 
   return message.userId
-    ? { id: message.userId, name: 'cruush user', pronouns: '', photo: null }
+    ? { id: message.userId, name: 'cruush user', pronouns: '', photo: null, photoExplicit: true }
     : null;
 }
 
@@ -192,6 +194,46 @@ export default function PrivateGroupChat() {
   const favoriteFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
+  useEffect(() => {
+    const reevaluateExpiredMessages = () => {
+      const now = Date.now();
+      setMessages((currentMessages) => currentMessages.filter((item) => {
+        if (!item.expiresAt) {
+          return true;
+        }
+
+        const expiresAt = new Date(item.expiresAt).getTime();
+        return !Number.isFinite(expiresAt) || expiresAt > now;
+      }));
+    };
+
+    reevaluateExpiredMessages();
+    const timer = window.setInterval(reevaluateExpiredMessages, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const activeAttachmentKeys = new Set(
+      messages.flatMap((item) => (item.attachments ?? []).map((attachment) => `${item.id}:${attachment.id}`)),
+    );
+
+    setViewedAttachmentUrls((currentUrls) => {
+      let changed = false;
+      const nextUrls: Record<string, string> = {};
+
+      for (const [key, url] of Object.entries(currentUrls)) {
+        if (activeAttachmentKeys.has(key)) {
+          nextUrls[key] = url;
+        } else {
+          changed = true;
+          URL.revokeObjectURL(url);
+        }
+      }
+
+      return changed ? nextUrls : currentUrls;
+    });
+  }, [messages]);
 
   useEffect(() => {
     const visualViewport = window.visualViewport;
@@ -390,13 +432,11 @@ export default function PrivateGroupChat() {
       });
       setMessages((prev) => [...prev, normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)]);
       setMessage('');
-      setPhotoViewOnce(false);
       setError(null);
     } catch (error) {
       console.error('Error sending favorite image:', error);
-      if (error instanceof ApiClientError && error.code === 'MUTUAL_CRUUSH_REQUIRED') {
-        setMutualRequiredConversationId(chatId);
-        setError('You need a mutual cruush before messaging. Open their profile to send a cruush first.');
+      if (error instanceof ApiClientError && error.code === 'FORBIDDEN') {
+        setError(error.message || 'You cannot message this user.');
       } else {
         setError(error instanceof Error ? error.message : 'Failed to send favorite image.');
       }
@@ -595,6 +635,11 @@ export default function PrivateGroupChat() {
   const handleViewOnceAttachment = async (messageId: string, attachment: MessageAttachment) => {
     const attachmentKey = `${messageId}:${attachment.id}`;
 
+    if (shouldMaskPhoto(dlModeActive, attachment.explicit)) {
+      setError('Turn off DL Mode to open this explicit view-once photo. It has not been consumed.');
+      return;
+    }
+
     if (viewingAttachmentIds[attachmentKey]) {
       return;
     }
@@ -653,9 +698,8 @@ export default function PrivateGroupChat() {
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages((prev) => prev.filter((item) => item.id !== optimisticId));
-      if (error instanceof ApiClientError && error.code === 'MUTUAL_CRUUSH_REQUIRED') {
-        setMutualRequiredConversationId(chatId);
-        setError('You need a mutual cruush before messaging. Open their profile to send a cruush first.');
+      if (error instanceof ApiClientError && error.code === 'FORBIDDEN') {
+        setError(error.message || 'You cannot message this user.');
       } else {
         setError(error instanceof Error ? error.message : 'Failed to send message.');
       }
@@ -685,9 +729,8 @@ export default function PrivateGroupChat() {
       setComposerError(null);
     } catch (error) {
       console.error('Error sending message photo:', error);
-      if (error instanceof ApiClientError && error.code === 'MUTUAL_CRUUSH_REQUIRED') {
-        setMutualRequiredConversationId(chatId);
-        setError('You need a mutual cruush before messaging. Open their profile to send a cruush first.');
+      if (error instanceof ApiClientError && error.code === 'FORBIDDEN') {
+        setError(error.message || 'You cannot message this user.');
         setComposerError(null);
       } else {
         const errorMessage = error instanceof Error ? error.message : 'Failed to send photo.';
@@ -738,30 +781,18 @@ export default function PrivateGroupChat() {
             </Button>
 
             {conversation ? (
-              conversation.kind === 'dm' ? (
-                <button
-                  type="button"
-                  className="w-12 shrink-0 rounded-full p-0 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  aria-label={`Open ${conversation.user.name} profile`}
-                  onClick={openDmProfile}
-                >
-                  <HeartPhoto
-                    className="w-12"
-                    label={`${conversation.user.name} avatar`}
-                    photo={conversation.user.photo}
-                    userId={conversation.user.id}
-                    fallback={<div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>}
-                  />
-                </button>
-              ) : (
-                <HeartPhoto
-                  className="w-12 shrink-0"
-                  label={`${conversation.user.name} avatar`}
-                  photo={conversation.user.photo}
-                  userId={conversation.user.id}
-                  fallback={<CruushIcon name="profile" className="size-5 opacity-80" />}
-                />
-              )
+              <HeartPhoto
+                className="w-12 shrink-0"
+                label={`${conversation.user.name} avatar`}
+                masked={shouldMaskPhoto(dlModeActive, conversation.user.photoExplicit)}
+                photo={conversation.user.photo}
+                userId={conversation.user.id}
+                fallback={
+                  conversation.kind === 'group'
+                    ? <CruushIcon name="profile" className="size-5 opacity-80" />
+                    : <div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>
+                }
+              />
             ) : (
               <div className="h-12 w-12 shrink-0 rounded-full bg-card" />
             )}
@@ -804,13 +835,24 @@ export default function PrivateGroupChat() {
             <Button
               variant="ghost"
               size="icon"
-              title="Favorite images"
-              aria-label="Favorite images"
+              title="Quick access gallery"
+              aria-label="Quick access gallery"
               disabled={!conversation}
               onClick={toggleFavoriteGallery}
             >
               <Star className="w-5 h-5" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
             </Button>
+            {conversation?.kind === 'dm' ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Open profile"
+                aria-label={`Open ${conversation.user.name} profile`}
+                onClick={openDmProfile}
+              >
+                <CruushIcon name="profile" className="h-5 w-5" />
+              </Button>
+            ) : null}
             {conversation ? (
               <ReportAction
                 targetType="conversation"
@@ -1080,6 +1122,7 @@ export default function PrivateGroupChat() {
                     <HeartPhoto
                       className="w-9"
                       label={`${messageSender.name} avatar`}
+                      masked={shouldMaskPhoto(dlModeActive, messageSender.photoExplicit)}
                       photo={messageSender.photo}
                       userId={messageSender.id}
                       fallback={<div className="text-[10px] text-white/75">{getConversationInitials(messageSender.name)}</div>}
@@ -1092,8 +1135,26 @@ export default function PrivateGroupChat() {
                     const attachmentKey = `${msg.id}:${attachment.id}`;
                     const openedViewOnceUrl = viewedAttachmentUrls[attachmentKey];
                     if (attachment.viewOnce) {
+                      if (isOwn && !openedViewOnceUrl) {
+                        return shouldMaskPhoto(dlModeActive, attachment.explicit) ? (
+                          <ExplicitMessagePhotoShield key={attachment.id} attachmentKey={attachmentKey} />
+                        ) : (
+                          <div
+                            key={attachment.id}
+                            className="overflow-hidden rounded-[22px] border border-primary/30 bg-primary/10"
+                          >
+                            <img
+                              alt="Your view-once photo"
+                              src={resolveMediaUrl(attachment.url)}
+                              className="block max-h-80 w-full max-w-xs object-cover"
+                            />
+                            <p className="px-3 py-2 text-[11px] text-white/68">View-once photo sent</p>
+                          </div>
+                        );
+                      }
+
                       if (openedViewOnceUrl) {
-                        if (dlModeActive && attachment.explicit) {
+                        if (shouldMaskPhoto(dlModeActive, attachment.explicit)) {
                           return <ExplicitMessagePhotoShield key={attachment.id} attachmentKey={attachmentKey} />;
                         }
 
@@ -1147,7 +1208,7 @@ export default function PrivateGroupChat() {
                           isOwn ? 'border-primary/30 bg-primary/10' : 'border-border bg-card'
                         }`}
                       >
-                        {dlModeActive && attachment.explicit ? (
+                        {shouldMaskPhoto(dlModeActive, attachment.explicit) ? (
                           <ExplicitMessagePhotoShield attachmentKey={attachmentKey} />
                         ) : (
                           <img
@@ -1221,7 +1282,7 @@ export default function PrivateGroupChat() {
 
               {composerDisabled ? (
                 <div className="rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-muted-foreground">
-                  {dmMessagingBlocked ? 'Send a cruush first. Messages open after it is mutual.' : 'This group is closed.'}
+                  {dmMessagingBlocked ? 'Messaging is unavailable for this conversation.' : 'This group is closed.'}
                 </div>
               ) : null}
 
@@ -1238,6 +1299,7 @@ export default function PrivateGroupChat() {
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
+                <span className="text-xs text-muted-foreground">Applies to new messages.</span>
               </div>
 
               <div className="max-w-full rounded-[28px] border border-border bg-card/85 p-3 shadow-lg shadow-black/20">
@@ -1246,7 +1308,7 @@ export default function PrivateGroupChat() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <Star className="size-4 text-primary" fill="currentColor" />
-                        <p className="text-sm font-medium">Favorite images</p>
+                        <p className="text-sm font-medium">Quick access gallery</p>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <input
@@ -1273,7 +1335,7 @@ export default function PrivateGroupChat() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          aria-label="Close favorite images"
+                          aria-label="Close quick access gallery"
                           onClick={() => setFavoriteGalleryOpen(false)}
                         >
                           <X className="size-4" />
@@ -1297,7 +1359,7 @@ export default function PrivateGroupChat() {
                       <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
                         {favoriteImages.map((favorite) => {
                           const favoriteBusy = favoriteSendingId === favorite.id || favoriteRemovingId === favorite.id;
-                          const hiddenByDlMode = dlModeActive && favorite.explicit;
+                          const hiddenByDlMode = shouldMaskPhoto(dlModeActive, favorite.explicit);
 
                           return (
                             <div key={favorite.id} className="overflow-hidden rounded-2xl border border-border bg-background/70">
@@ -1388,15 +1450,34 @@ export default function PrivateGroupChat() {
                         checked={photoViewOnce}
                         disabled={composerDisabled || photoUploading}
                         className="size-4 rounded-full"
-                        onCheckedChange={(checked) => setPhotoViewOnce(checked === true)}
+                        onCheckedChange={(checked) => {
+                          const next = checked === true;
+                          setPhotoViewOnce(next);
+                          if (next) {
+                            openFileInput(fileInputRef, messagePhotoControlDisabled);
+                          }
+                        }}
                       />
-                      <span>once</span>
+                      <span
+                        role="button"
+                        tabIndex={composerDisabled || photoUploading ? -1 : 0}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setPhotoViewOnce((current) => !current);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setPhotoViewOnce((current) => !current);
+                          }
+                        }}
+                      >once</span>
                     </label>
                     <Button
                       variant="ghost"
                       size="icon"
-                      title="Favorite images"
-                      aria-label="Favorite images"
+                      title="Quick access gallery"
+                      aria-label="Quick access gallery"
                       disabled={composerDisabled}
                       onClick={toggleFavoriteGallery}
                     >

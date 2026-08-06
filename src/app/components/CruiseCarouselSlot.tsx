@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import { resolveMediaUrl } from '../lib/apiClient';
-import { addDlModeChangedListener, isDlModeEnabled } from '../lib/dlMode';
+import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import type { DiscoveryUser } from '../lib/usersApi';
 
 export type CruiseCarouselSlotMode = 'profile' | 'locked' | 'empty';
@@ -101,7 +101,7 @@ function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolea
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   if (item.kind === 'profile') {
-    const photo = item.user.photo && !(dlModeActive && item.user.photoExplicit === true)
+    const photo = item.user.photo && !shouldMaskPhoto(dlModeActive, item.user.photoExplicit)
       ? resolveMediaUrl(item.user.photo)
       : null;
     const initial = item.user.name.trim().charAt(0).toUpperCase() || '?';

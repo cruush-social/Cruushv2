@@ -1,7 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router';
 import { CheckCircle2, MessageCircleWarning } from 'lucide-react';
 import { createSupportRequest } from '../lib/supportApi';
+import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 import { Button } from './ui/button';
@@ -173,6 +175,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
   const [error, setError] = useState('');
   const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
+  const dockSlot = useSyncExternalStore(subscribeToBugButtonSlot, getBugButtonSlot, () => null);
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -254,6 +257,21 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
     }
   };
 
+  const trigger = (
+    <DialogTrigger asChild>
+      <button
+        aria-label="Report bug"
+        className={dockSlot
+          ? 'inline-flex size-8 shrink-0 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:size-9'
+          : `cruush-glass-pill fixed z-[40] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary pointer-events-auto ${getBugButtonPlacement(location.pathname)}`}
+        title="Report bug"
+        type="button"
+      >
+        <MessageCircleWarning className="h-5 w-5" />
+      </button>
+    </DialogTrigger>
+  );
+
   return (
     <Dialog
       open={open}
@@ -268,7 +286,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
         }
       }}
     >
-      {showTip ? (
+      {showTip && !dockSlot ? (
         <div className={`cruush-glass-panel fixed z-[40] w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
           <p className="leading-snug">Tap the bug icon to report anything broken.</p>
           <button
@@ -280,15 +298,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
           </button>
         </div>
       ) : null}
-      <DialogTrigger asChild>
-        <button
-          aria-label="Report bug"
-          className={`cruush-glass-pill fixed z-[40] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary pointer-events-auto ${getBugButtonPlacement(location.pathname)}`}
-          type="button"
-        >
-          <MessageCircleWarning className="h-5 w-5" />
-        </button>
-      </DialogTrigger>
+      {dockSlot ? createPortal(trigger, dockSlot) : trigger}
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
           <DialogTitle>Report bug</DialogTitle>

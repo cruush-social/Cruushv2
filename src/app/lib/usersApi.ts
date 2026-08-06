@@ -151,7 +151,10 @@ export async function getNearbyUsers(
   const response = await requestApi<NearbyUsersResponse | DiscoveryUser[]>(path);
 
   if (Array.isArray(response)) {
-    return response;
+    return response.map((user) => ({
+      ...user,
+      photoExplicit: user.photoExplicit !== false,
+    }));
   }
 
   return Promise.all(response.profiles.map(async (profile): Promise<DiscoveryUser> => {
@@ -177,7 +180,7 @@ export async function getNearbyUsers(
       role: profile.role,
       hostingTravel: profile.hostingTravel,
       photo: profile.photo,
-      photoExplicit: profile.photoExplicit === true,
+      photoExplicit: profile.photoExplicit !== false,
       badges: profile.badges,
       displayMode: displayPayload.displayMode,
       animationHint: profile.animationHint ?? displayPayload.animationHint,

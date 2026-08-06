@@ -10,6 +10,10 @@ const { createGroupConversation, deleteConversationForEveryone, getConversations
   getMyCruushActivity: vi.fn(),
 }));
 
+const { getNearbyUsers } = vi.hoisted(() => ({
+  getNearbyUsers: vi.fn(),
+}));
+
 const { openConversationOrInbox } = vi.hoisted(() => ({
   openConversationOrInbox: vi.fn(),
 }));
@@ -34,6 +38,15 @@ vi.mock('../lib/cruushApi', async () => {
   };
 });
 
+vi.mock('../lib/usersApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/usersApi')>('../lib/usersApi');
+
+  return {
+    ...actual,
+    getNearbyUsers,
+  };
+});
+
 vi.mock('../lib/openConversation', () => ({
   openConversationOrInbox,
 }));
@@ -44,6 +57,7 @@ describe('DirectMessages', () => {
     deleteConversationForEveryone.mockReset();
     getConversations.mockReset();
     getMyCruushActivity.mockReset();
+    getNearbyUsers.mockReset();
     openConversationOrInbox.mockReset();
   });
 
@@ -221,6 +235,27 @@ describe('DirectMessages', () => {
 
   it('starts a direct chat with a mutual from the plus menu', async () => {
     getConversations.mockResolvedValue([]);
+    getNearbyUsers.mockResolvedValue([{
+      id: '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97',
+      name: 'River',
+      display_name: 'River',
+      age: 29,
+      pronouns: 'they/them',
+      lat: 40.71,
+      lng: -73.92,
+      lastActive: 'now',
+      distance: 'Nearby',
+      lookingFor: [],
+      vibes: [],
+      position: [],
+      role: [],
+      hostingTravel: [],
+      photo: null,
+      relationship: {
+        mutualCruush: false,
+        canMessage: true,
+      },
+    }]);
     getMyCruushActivity.mockResolvedValue({
       mutual: [{
         id: 'mutual-row-1',
@@ -250,7 +285,7 @@ describe('DirectMessages', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Start chat with mutual/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
     fireEvent.click(await screen.findByRole('button', { name: /River/ }));
 
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');

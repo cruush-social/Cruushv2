@@ -112,6 +112,7 @@ describe('ProfileEdit', () => {
     saveMyProfile.mockResolvedValue(profile);
     uploadProfilePhoto.mockResolvedValue({
       url: uploadedProfilePhoto,
+      explicit: false,
     });
   });
 
@@ -185,6 +186,7 @@ describe('ProfileEdit', () => {
     });
     uploadProfilePhoto.mockResolvedValueOnce({
       url: uploadedPhoto,
+      explicit: false,
     });
 
     render(
@@ -270,6 +272,7 @@ describe('ProfileEdit', () => {
     const uploadedPhoto = uploadedProfilePhoto;
     uploadProfilePhoto.mockResolvedValueOnce({
       url: uploadedPhoto,
+      explicit: false,
     });
 
     render(
@@ -301,6 +304,40 @@ describe('ProfileEdit', () => {
 
     fireEvent.click(photosTab);
     expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
+  });
+
+  it('masks explicit and unknown profile photos in the editor while DL Mode is on', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+    const explicitPhoto = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';
+    const safePhoto = '/api/media/assets/22222222-2222-4222-8222-222222222222/display';
+    const unknownPhoto = '/api/media/assets/33333333-3333-4333-8333-333333333333/display';
+
+    getMyProfile.mockResolvedValueOnce({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: 'Jordan',
+      year_of_birth: 1998,
+      photos: [explicitPhoto, safePhoto, unknownPhoto],
+      photo_metadata: [
+        { url: explicitPhoto, explicit: true },
+        { url: safePhoto, explicit: false },
+      ],
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    expect(await screen.findByAltText('Profile photo 2')).toHaveAttribute('src', expect.stringContaining(safePhoto));
+    expect(screen.queryByAltText('Primary profile photo')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('Profile photo 3')).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Primary profile photo hidden by DL Mode' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Profile photo 3 hidden by DL Mode' })).toBeInTheDocument();
+    expect(document.body.innerHTML).not.toContain(explicitPhoto);
   });
 
   it('closes the crop dialog and immediately reveals the upload rejection reason', async () => {

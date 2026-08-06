@@ -269,7 +269,7 @@ function profilePhotoMetadataSelect(profileAlias = "profiles") {
               select jsonb_agg(
                 jsonb_build_object(
                   'url', photo.photo_url,
-                  'explicit', coalesce(media.explicit_classification = 'explicit', false)
+                  'explicit', coalesce(media.explicit_classification is distinct from 'non_explicit', true)
                 )
                 order by photo.ordinality
               )
@@ -485,7 +485,7 @@ function mapProfileRow(
   );
   const photoMetadata = photos.map((photo) => ({
     url: photo,
-    explicit: metadataByUrl.get(photo) === true
+    explicit: metadataByUrl.get(photo) !== false
   }));
 
   return {
