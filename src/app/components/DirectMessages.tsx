@@ -1,12 +1,13 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ChevronRight, Pin, Plus, Search, Trash2, X } from 'lucide-react';
+import { ChevronRight, Clock3, MapPin, Pin, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import {
   createGroupConversation,
   deleteConversationForEveryone,
@@ -91,7 +92,9 @@ function getConversationHeartTheme(conversation: ConversationThread) {
   return 'nearby';
 }
 
-type DirectSortMode = 'seeking' | 'distance' | 'lastOnline';
+type DirectSortMode = 'distance' | 'lastOnline';
+
+const ALL_SEEKING_FILTER = '__all__';
 
 function parseDistanceMiles(distance: string) {
   if (/nearby/i.test(distance)) {
@@ -121,6 +124,10 @@ function seekingSortScore(user: DiscoveryUser) {
     (user.vibes?.length ?? 0) * 2 +
     (user.hasSharedCrowd ? 6 : 0)
   );
+}
+
+function normalizeSeekingValue(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function describeDiscoveryUser(user: DiscoveryUser) {
@@ -794,22 +801,53 @@ function DirectUserOverlay({
 }) {
   const dlModeActive = useDlMode();
   const [activeComposerTab, setActiveComposerTab] = useState<'public' | 'mutuals'>('public');
-  const [sortMode, setSortMode] = useState<DirectSortMode>('seeking');
+  const [sortMode, setSortMode] = useState<DirectSortMode>('lastOnline');
+  const [seekingFilter, setSeekingFilter] = useState(ALL_SEEKING_FILTER);
   const [requestingUserId, setRequestingUserId] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const publicUsers = useMemo(() => users.filter((user) => user.relationship?.mutualCruush !== true), [users]);
+  const seekingOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    for (const user of publicUsers) {
+      for (const value of user.lookingFor ?? []) {
+        const trimmed = value.trim();
+        if (trimmed) {
+          options.set(normalizeSeekingValue(trimmed), trimmed);
+        }
+      }
+    }
+
+    return Array.from(options.values()).sort((a, b) => a.localeCompare(b));
+  }, [publicUsers]);
+  const filteredPublicUsers = useMemo(() => {
+    if (seekingFilter === ALL_SEEKING_FILTER) {
+      return publicUsers;
+    }
+
+    return publicUsers.filter((user) => (
+      user.lookingFor?.some((value) => normalizeSeekingValue(value) === seekingFilter)
+    ));
+  }, [publicUsers, seekingFilter]);
   const sortedPublicUsers = useMemo(() => {
-    return [...publicUsers].sort((a, b) => {
+    return [...filteredPublicUsers].sort((a, b) => {
       if (sortMode === 'distance') {
         return parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
       }
-      if (sortMode === 'lastOnline') {
-        return parseLastActiveRank(a.lastActive) - parseLastActiveRank(b.lastActive);
-      }
 
-      return seekingSortScore(b) - seekingSortScore(a) || parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
+      return parseLastActiveRank(a.lastActive) - parseLastActiveRank(b.lastActive)
+        || seekingSortScore(b) - seekingSortScore(a)
+        || parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
     });
-  }, [publicUsers, sortMode]);
+  }, [filteredPublicUsers, sortMode]);
+
+  useEffect(() => {
+    if (
+      seekingFilter !== ALL_SEEKING_FILTER &&
+      !seekingOptions.some((option) => normalizeSeekingValue(option) === seekingFilter)
+    ) {
+      setSeekingFilter(ALL_SEEKING_FILTER);
+    }
+  }, [seekingFilter, seekingOptions]);
 
   const requestMutual = async (user: DiscoveryUser) => {
     if (requestingUserId || requestedCruushIds.includes(user.id)) {
@@ -853,23 +891,51 @@ function DirectUserOverlay({
         </Tabs>
 
         {activeComposerTab === 'public' ? (
-          <div className="flex flex-wrap gap-2">
-            {([
-              ['seeking', 'Seeking filters'],
-              ['distance', 'Distance'],
-              ['lastOnline', 'Last online'],
-            ] as const).map(([value, label]) => (
-              <Button
-                key={value}
-                type="button"
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-card/58 p-2">
+            <Select value={seekingFilter} onValueChange={setSeekingFilter}>
+              <SelectTrigger
+                aria-label="Seeking filter"
                 size="sm"
-                variant={sortMode === value ? 'default' : 'outline'}
-                className="rounded-full"
-                onClick={() => setSortMode(value)}
+                className="h-9 w-auto min-w-40 rounded-full border-white/12 bg-background/70 px-3 text-xs text-foreground"
               >
-                {label}
-              </Button>
-            ))}
+                <SlidersHorizontal className="size-3.5 text-primary" />
+                <SelectValue placeholder="All seeking" />
+              </SelectTrigger>
+              <SelectContent
+                align="start"
+                className="min-w-44 rounded-2xl border-white/12 bg-card/95 p-1 text-foreground shadow-[0_18px_52px_rgba(0,0,0,0.46)] backdrop-blur-xl"
+              >
+                <SelectItem value={ALL_SEEKING_FILTER} className="rounded-xl px-3 py-2 text-sm">All seeking</SelectItem>
+                {seekingOptions.map((option) => (
+                  <SelectItem
+                    key={option}
+                    value={normalizeSeekingValue(option)}
+                    className="rounded-xl px-3 py-2 text-sm"
+                  >
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex items-center gap-1 rounded-full border border-white/10 bg-background/55 p-1" role="group" aria-label="Sort people by">
+              {([
+                ['lastOnline', 'Recently online', Clock3],
+                ['distance', 'Distance', MapPin],
+              ] as const).map(([value, label, Icon]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={sortMode === value ? 'default' : 'ghost'}
+                  className="h-7 rounded-full px-2.5 text-xs"
+                  onClick={() => setSortMode(value)}
+                >
+                  <Icon className="size-3.5" />
+                  {label}
+                </Button>
+              ))}
+            </div>
           </div>
         ) : null}
 

@@ -1108,9 +1108,8 @@ describe('PrivateGroupChat', () => {
 
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Message disappearing timer'), {
-      target: { value: '1h' },
-    });
+    fireEvent.click(screen.getByLabelText('Message disappearing timer'));
+    fireEvent.click(await screen.findByRole('option', { name: '1 hour' }));
 
     await waitFor(() => {
       expect(setConversationDisappearingTimer).toHaveBeenCalledWith(conversationId, '1h');

@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties, ChangeEvent, RefObject } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, MoreHorizontal, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Clock3, Eye, Image as ImageIcon, ImagePlus, MoreHorizontal, Timer, Star, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
 import { CruushIcon } from './CruushIconImage';
@@ -1184,14 +1185,21 @@ export default function PrivateGroupChat() {
                         ) : (
                           <div
                             key={attachment.id}
-                            className="overflow-hidden rounded-[22px] border border-primary/30 bg-primary/10"
+                            className="relative aspect-[3/4] w-[min(72vw,19rem)] overflow-hidden rounded-[1.7rem] border border-primary/45 bg-black shadow-[0_18px_46px_rgba(0,0,0,0.38)]"
                           >
                             <img
                               alt="Your view-once photo"
                               src={resolveMediaUrl(attachment.url)}
-                              className="block max-h-80 w-full max-w-xs object-cover"
+                              className="h-full w-full object-cover"
                             />
-                            <p className="px-3 py-2 text-[11px] text-white/68">View-once photo sent</p>
+                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/82 via-black/40 to-transparent px-4 pb-4 pt-16">
+                              <div className="flex items-center gap-2 text-xs font-medium text-white/88">
+                                <span className="flex size-7 items-center justify-center rounded-full border border-white/24 bg-white/12">
+                                  <Eye className="size-3.5" />
+                                </span>
+                                <span>View-once photo sent</span>
+                              </div>
+                            </div>
                           </div>
                         );
                       }
@@ -1204,14 +1212,14 @@ export default function PrivateGroupChat() {
                         return (
                           <div
                             key={attachment.id}
-                            className={`overflow-hidden rounded-[22px] border ${
-                              isOwn ? 'border-primary/30 bg-primary/10' : 'border-border bg-card'
+                            className={`relative aspect-[3/4] w-[min(72vw,19rem)] overflow-hidden rounded-[1.7rem] border shadow-[0_18px_46px_rgba(0,0,0,0.38)] ${
+                              isOwn ? 'border-primary/45 bg-black' : 'border-white/14 bg-black'
                             }`}
                           >
                             <img
                               alt="View-once photo"
                               src={openedViewOnceUrl}
-                              className="block max-h-80 w-full max-w-xs object-cover"
+                              className="h-full w-full object-cover"
                             />
                           </div>
                         );
@@ -1221,26 +1229,35 @@ export default function PrivateGroupChat() {
                         return (
                           <div
                             key={attachment.id}
-                            className="rounded-[22px] border border-border bg-card px-4 py-3 text-sm text-muted-foreground"
+                            className="flex min-h-24 w-[min(72vw,19rem)] items-center gap-3 rounded-[1.7rem] border border-white/12 bg-card/82 px-4 py-4 text-sm text-muted-foreground"
                           >
-                            View-once photo viewed
+                            <span className="flex size-9 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/72">
+                              <Eye className="size-4" />
+                            </span>
+                            <span>View-once photo viewed</span>
                           </div>
                         );
                       }
 
                       return (
-                        <Button
+                        <button
                           key={attachment.id}
                           type="button"
-                          variant="outline"
-                          className="rounded-[22px] px-4 py-3"
+                          className="group flex min-h-28 w-[min(72vw,19rem)] items-center gap-3 overflow-hidden rounded-[1.7rem] border border-white/14 bg-card/82 px-4 py-4 text-left shadow-[0_18px_46px_rgba(0,0,0,0.28)] transition-colors hover:border-primary/45 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
                           aria-label="Open view-once photo"
                           disabled={viewingAttachmentIds[attachmentKey]}
                           onClick={() => void handleViewOnceAttachment(msg.id, attachment)}
                         >
-                          <Eye className="size-4" />
-                          Open view-once photo
-                        </Button>
+                          <span className="flex size-12 shrink-0 items-center justify-center rounded-full border border-primary/35 bg-primary/12 text-primary transition-colors group-hover:bg-primary/18">
+                            <Eye className="size-5" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium text-foreground">
+                              {viewingAttachmentIds[attachmentKey] ? 'Opening photo...' : 'Open view-once photo'}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-muted-foreground">Tap to reveal once.</span>
+                          </span>
+                        </button>
                       );
                     }
 
@@ -1332,19 +1349,36 @@ export default function PrivateGroupChat() {
                 </div>
               ) : null}
 
-              <div className="flex items-center gap-2">
-                <Clock3 className="size-4 text-muted-foreground" />
-                <select
-                  aria-label="Message disappearing timer"
+              <div className="flex flex-wrap items-center gap-2">
+                <Clock3 className="size-4 shrink-0 text-muted-foreground" />
+                <Select
                   value={conversation.disappearingTimer ?? 'off'}
                   disabled={!canManageConversation || settingsSaving || composerDisabled}
-                  onChange={(event) => void handleTimerChange(event.target.value as ConversationTimer)}
-                  className="h-9 rounded-md border border-border bg-card/85 px-2 text-sm text-muted-foreground disabled:opacity-60"
+                  onValueChange={(value) => void handleTimerChange(value as ConversationTimer)}
                 >
-                  {timerOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    aria-label="Message disappearing timer"
+                    size="sm"
+                    className="h-9 w-auto min-w-28 rounded-full border-white/12 bg-card/82 px-3 text-xs text-foreground shadow-[0_10px_24px_rgba(0,0,0,0.24)] hover:border-primary/30 hover:bg-card disabled:opacity-60"
+                  >
+                    <Timer className="size-3.5 text-primary" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent
+                    align="start"
+                    className="min-w-36 rounded-2xl border-white/12 bg-card/95 p-1 text-foreground shadow-[0_18px_52px_rgba(0,0,0,0.46)] backdrop-blur-xl"
+                  >
+                    {timerOptions.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="rounded-xl px-3 py-2 text-sm text-foreground focus:bg-primary/14 focus:text-foreground data-[state=checked]:bg-primary/16"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <span className="text-xs text-muted-foreground">Applies to new messages.</span>
               </div>
 

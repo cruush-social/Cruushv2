@@ -290,4 +290,94 @@ describe('DirectMessages', () => {
 
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
   });
+
+  it('filters public message options by seeking and sorts by online recency or distance', async () => {
+    getConversations.mockResolvedValue([]);
+    getMyCruushActivity.mockResolvedValue({ mutual: [] });
+    getNearbyUsers.mockResolvedValue([
+      {
+        id: 'river',
+        name: 'River',
+        display_name: 'River',
+        age: 29,
+        pronouns: 'they/them',
+        lat: 40.71,
+        lng: -73.92,
+        lastActive: '2h ago',
+        distance: '0.2 mi',
+        lookingFor: ['dates'],
+        vibes: [],
+        position: [],
+        role: [],
+        hostingTravel: [],
+        photo: null,
+        relationship: { mutualCruush: false, canMessage: true },
+      },
+      {
+        id: 'alex',
+        name: 'Alex',
+        display_name: 'Alex',
+        age: 31,
+        pronouns: 'he/him',
+        lat: 40.72,
+        lng: -73.93,
+        lastActive: 'now',
+        distance: '5 mi',
+        lookingFor: ['right now'],
+        vibes: [],
+        position: [],
+        role: [],
+        hostingTravel: [],
+        photo: null,
+        relationship: { mutualCruush: false, canMessage: true },
+      },
+      {
+        id: 'blake',
+        name: 'Blake',
+        display_name: 'Blake',
+        age: 27,
+        pronouns: 'he/him',
+        lat: 40.73,
+        lng: -73.94,
+        lastActive: '5m ago',
+        distance: '1 mi',
+        lookingFor: ['right now'],
+        vibes: [],
+        position: [],
+        role: [],
+        hostingTravel: [],
+        photo: null,
+        relationship: { mutualCruush: false, canMessage: true },
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <DirectMessages />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
+
+    expect(await screen.findByText('Alex')).toBeInTheDocument();
+    expect(screen.getByText('River')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Seeking filters' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Seeking filter'));
+    fireEvent.click(await screen.findByRole('option', { name: 'right now' }));
+
+    expect(screen.queryByText('River')).not.toBeInTheDocument();
+    const alex = screen.getByText('Alex');
+    const blake = screen.getByText('Blake');
+    expect(alex.compareDocumentPosition(blake) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Distance/ }));
+
+    await waitFor(() => {
+      const sortedBlake = screen.getByText('Blake');
+      const sortedAlex = screen.getByText('Alex');
+      expect(sortedBlake.compareDocumentPosition(sortedAlex) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+  });
 });
