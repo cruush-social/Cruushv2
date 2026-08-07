@@ -918,7 +918,7 @@ function DirectUserOverlay({
               </SelectContent>
             </Select>
 
-            <div className="flex max-w-full flex-wrap items-center gap-1 rounded-full border border-white/10 bg-background/55 p-1" role="group" aria-label="Sort people by">
+            <div className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-full border border-white/10 bg-background/55 p-1 sm:w-auto" role="group" aria-label="Sort people by">
               {([
                 ['lastOnline', 'Recently online', Clock3],
                 ['distance', 'Distance', MapPin],
@@ -928,7 +928,7 @@ function DirectUserOverlay({
                   type="button"
                   size="sm"
                   variant={sortMode === value ? 'default' : 'ghost'}
-                  className="h-7 rounded-full px-2.5 text-xs"
+                  className="h-7 min-w-0 flex-1 rounded-full px-2.5 text-xs sm:flex-none"
                   onClick={() => setSortMode(value)}
                 >
                   <Icon className="size-3.5" />
