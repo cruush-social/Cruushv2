@@ -73,6 +73,11 @@ function findChrome() {
 
 async function launchChrome() {
   const userDataDir = mkdtempSync(path.join(tmpdir(), 'cruush-layout-'));
+  // Chrome refuses to start as root without this, which is every CI container and the
+  // remote agent sandbox. Gated on uid so a normal developer machine keeps the sandbox.
+  const rootFlags = typeof process.getuid === 'function' && process.getuid() === 0
+    ? ['--no-sandbox', '--disable-dev-shm-usage']
+    : [];
   const child = spawn(findChrome(), [
     '--headless=new',
     '--disable-gpu',
@@ -80,6 +85,7 @@ async function launchChrome() {
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-extensions',
+    ...rootFlags,
     '--remote-debugging-port=0',
     `--user-data-dir=${userDataDir}`,
     'about:blank',
@@ -171,7 +177,11 @@ const CHECKER = `(() => {
     capsule: '[data-testid="launch-login-auth-beta-capsule"]',
     panel: '[data-testid="launch-login-auth-panel"]',
     footer: '[data-testid="launch-login-auth-footer"], [data-testid="reset-password-footer"]',
-    bugButton: '[aria-label="Report bug"]',
+    // AlphaBugButton renders aria-label="Report alpha bug". The old selector said
+    // "Report bug", matched nothing, and D1 silently passed on every run - which is how a
+    // misplaced bug button shipped under a rule that is supposed to make that impossible.
+    // data-testid is the stable hook; the aria-labels are belt and braces.
+    bugButton: '[data-testid="alpha-bug-button"], [aria-label="Report alpha bug"], [aria-label="Report bug"]',
     bottomNav: '[data-testid="bottom-nav-pill"]',
     markers: '.maplibregl-marker, [data-testid*="heart-pin"], [data-testid*="map-pin"]',
   };
