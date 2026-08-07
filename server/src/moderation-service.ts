@@ -278,6 +278,29 @@ function hasHumanProof(providerResult: ProviderModerationResult) {
   );
 }
 
+// "human_present" is only ever emitted by detectProfilePhotoHuman, and Stream under a
+// No Action config rarely produces "adult_human_body" - it needs a label carrying both an
+// adult signal and a human signal. So Rekognition is in practice the sole source of the
+// proof the adult-human gate demands.
+//
+// If that detector failed or is switched off, the gate has nothing to read and rejects
+// every profile photo with "Profile photo must be of you." Refusing for missing evidence
+// when the evidence source itself never ran is the same mistake the merge used to make,
+// one layer further down.
+export function humanProofSourceUnavailable(providerResult: ProviderModerationResult) {
+  const rawResult = providerResult.raw_result ?? {};
+
+  if (rawResult.safety_leg_failed === true) {
+    return true;
+  }
+
+  const safety = rawResult.rekognition_safety;
+
+  return typeof safety === "object" &&
+    safety !== null &&
+    (safety as Record<string, unknown>).skipped === true;
+}
+
 // Kept as the fallback-chain trigger: both a failed provider and one that is still working
 // leave us without a verdict, and both should let Rekognition or the local text rules have
 // a go. Use providerResultFailed / providerResultAsyncPending where the distinction matters.
@@ -490,6 +513,23 @@ export function resolveProfilePhotoAdultHumanGate(
         reason_code: "bank_profile_photo_manual_review_required",
         user_message_code: "content_pending_review"
       }
+    };
+  }
+
+  // The gate can only reject for missing proof when the detector that supplies that proof
+  // actually ran. Otherwise every profile photo is refused the moment Rekognition hiccups
+  // or is switched off - which is the failure this whole change set exists to remove.
+  if (humanProofSourceUnavailable(providerResult)) {
+    return {
+      status: "resolved",
+      providerResult: {
+        ...providerResult,
+        raw_result: {
+          ...(providerResult.raw_result ?? {}),
+          cruush_profile_photo_gate: "skipped_no_proof_source"
+        }
+      },
+      decision
     };
   }
 

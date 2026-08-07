@@ -396,6 +396,15 @@ export function safetyLegSkipped(safetyResult: ProviderModerationResult) {
   return safetyResult.status?.toLowerCase() === "skipped";
 }
 
+// A real scanner that finished and reached a conclusion. The mock provider is excluded on
+// purpose: it returns "keep" for anything whose filename it does not recognise, so treating
+// it as a verdict would turn "no classifier configured" into "approved".
+export function primaryVerdictUsable(primaryResult: ProviderModerationResult) {
+  return primaryResult.provider !== "mock" &&
+    !primaryResult.error &&
+    ["complete", "completed"].includes((primaryResult.status ?? "").toLowerCase());
+}
+
 export function safetyLegFailed(safetyResult: ProviderModerationResult) {
   return !safetyLegSkipped(safetyResult) &&
     (safetyResult.status?.toLowerCase() !== "complete" || Boolean(safetyResult.error));
@@ -423,6 +432,22 @@ export function mergeProfilePhotoSafetyResults(
   safetyResult: ProviderModerationResult
 ): ProviderModerationResult {
   if (safetyLegSkipped(safetyResult)) {
+    // Same guard as the failed case: detection being switched off is only harmless when
+    // some other scanner actually reached a verdict.
+    if (!primaryVerdictUsable(streamResult)) {
+      return {
+        ...streamResult,
+        status: "error",
+        recommended_action: streamResult.recommended_action ?? "remove",
+        raw_result: {
+          ...(streamResult.raw_result ?? {}),
+          rekognition_safety: { skipped: true },
+          nothing_screened_the_image: true
+        },
+        error: streamResult.error ?? "No image classifier is configured."
+      };
+    }
+
     return {
       ...streamResult,
       raw_result: {
@@ -435,6 +460,28 @@ export function mergeProfilePhotoSafetyResults(
   const safetyFailed = safetyLegFailed(safetyResult);
 
   if (safetyFailed) {
+    // Keeping the primary verdict is only defensible when a real scanner produced one.
+    // The mock provider answers "keep" unconditionally - it is a stub, not a verdict - so
+    // mock plus a dead safety leg means nothing looked at this image at all. That is the
+    // one case where publishing really would be publishing blind, and it stays refused.
+    if (!primaryVerdictUsable(streamResult)) {
+      return {
+        ...streamResult,
+        provider: `${streamResult.provider}+${safetyResult.provider}`,
+        provider_request_id: `${streamResult.provider_request_id}:${safetyResult.provider_request_id}`,
+        labels: [...streamResult.labels, ...safetyResult.labels],
+        latency_ms: streamResult.latency_ms + safetyResult.latency_ms,
+        status: "error",
+        recommended_action: safetyResult.recommended_action ?? "remove",
+        raw_result: {
+          stream: streamResult.raw_result ?? {},
+          rekognition_safety: safetyResult.raw_result ?? {},
+          nothing_screened_the_image: true
+        },
+        error: safetyResult.error ?? "Image age-safety detection failed."
+      };
+    }
+
     return {
       ...streamResult,
       provider: `${streamResult.provider}+${safetyResult.provider}`,

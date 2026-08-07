@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { mergeProfilePhotoSafetyResults } from "./profile-photo-human-detection.js";
 import { mapProviderResultToPolicy } from "./policy-mapper.js";
+import {
+  humanProofSourceUnavailable,
+  resolveProfilePhotoAdultHumanGate
+} from "./moderation-service.js";
 import type { ModerationSurface, ProviderModerationResult } from "./moderation-types.js";
 
 // Which scanners actually run, per surface. Written after a 2026-08-06 incident that was
@@ -192,6 +196,161 @@ describe("merging the Rekognition safety leg", () => {
 
     expect(merged.recommended_action).toBe("remove");
     expect(merged.labels).toHaveLength(1);
+    expect(mapProviderResultToPolicy({
+      surface: "profile_photo",
+      contentType: "image",
+      providerResult: merged
+    }).decision).not.toBe("allow");
+  });
+});
+
+// The adult-human gate reads labels that only Rekognition produces in practice:
+// "human_present" comes solely from detectProfilePhotoHuman, and Stream under a No Action
+// config rarely emits "adult_human_body". So when the safety leg fails or is switched off,
+// the gate has no evidence to read - and rejecting for missing evidence when the evidence
+// source never ran refuses every profile photo with "Profile photo must be of you."
+describe("the adult-human gate needs its evidence source to have run", () => {
+  const allow = {
+    decision: "allow",
+    severity: "none",
+    confidence: 0,
+    create_evidence_event: false,
+    evidence_value: 0,
+    trust_impact: 0,
+    penalty_decays: true,
+    moderation_history_required: false,
+    reason_code: "content_allowed"
+  } as const;
+
+  it("detects a failed safety leg as a missing proof source", () => {
+    const merged = mergeProfilePhotoSafetyResults(
+      streamResult(),
+      rekognitionResult({ status: "error", error: "timeout" })
+    );
+
+    expect(humanProofSourceUnavailable(merged)).toBe(true);
+  });
+
+  it("detects a skipped safety leg as a missing proof source", () => {
+    const merged = mergeProfilePhotoSafetyResults(
+      streamResult(),
+      rekognitionResult({ status: "skipped", recommended_action: undefined })
+    );
+
+    expect(humanProofSourceUnavailable(merged)).toBe(true);
+  });
+
+  it("does not treat a working safety leg as missing", () => {
+    const merged = mergeProfilePhotoSafetyResults(streamResult(), rekognitionResult());
+
+    expect(humanProofSourceUnavailable(merged)).toBe(false);
+  });
+
+  it.each([
+    ["failed", { status: "error", error: "timeout" }],
+    ["skipped", { status: "skipped", recommended_action: undefined }]
+  ] as const)(
+    "does not reject a profile photo when the proof source %s",
+    (_label, safetyOverrides) => {
+      const merged = mergeProfilePhotoSafetyResults(
+        streamResult(),
+        rekognitionResult(safetyOverrides)
+      );
+      const gate = resolveProfilePhotoAdultHumanGate(merged, { ...allow }, {
+        allowManualReview: false
+      });
+
+      expect(gate.status).toBe("resolved");
+      expect(gate.decision.decision).toBe("allow");
+      expect(gate.providerResult.raw_result?.cruush_profile_photo_gate)
+        .toBe("skipped_no_proof_source");
+    }
+  );
+
+  // With a working detector and still no human in the photo, the gate must still bite -
+  // that is G2, profile photos are of the account holder.
+  it("still rejects a photo with no human when the detector did run", () => {
+    const merged = mergeProfilePhotoSafetyResults(streamResult(), rekognitionResult());
+    const gate = resolveProfilePhotoAdultHumanGate(merged, { ...allow }, {
+      allowManualReview: false
+    });
+
+    expect(gate.decision.decision).toBe("reject");
+    expect(gate.decision.reason_code).toBe("profile_photo_not_adult_human");
+  });
+
+  it("still passes a photo the detector confirmed a human in", () => {
+    const merged = mergeProfilePhotoSafetyResults(
+      streamResult(),
+      rekognitionResult({
+        labels: [{
+          provider_label: "Amazon Rekognition: Person",
+          normalized_label: "human_present",
+          confidence: 0.99,
+          severity: "none"
+        }]
+      })
+    );
+    const gate = resolveProfilePhotoAdultHumanGate(merged, { ...allow }, {
+      allowManualReview: false
+    });
+
+    expect(gate.status).toBe("resolved");
+    expect(gate.decision.decision).toBe("allow");
+  });
+});
+
+// The unblocking work above rests on "a real scanner already approved this image". When no
+// real scanner ran, that premise is gone and refusing is correct. The mock provider returns
+// "keep" for any filename it does not recognise, so it is a stub rather than a verdict -
+// treating it as one would turn "no classifier configured" into "approved".
+describe("nothing screened the image", () => {
+  function mockPrimary(overrides: Partial<ProviderModerationResult> = {}): ProviderModerationResult {
+    return {
+      provider: "mock",
+      provider_request_id: "mock-image",
+      labels: [],
+      latency_ms: 1,
+      status: "completed",
+      recommended_action: "keep",
+      ...overrides
+    };
+  }
+
+  it("refuses when the mock primary is paired with a failed safety leg", () => {
+    const merged = mergeProfilePhotoSafetyResults(
+      mockPrimary(),
+      rekognitionResult({ status: "error", error: "AccessDeniedException" })
+    );
+
+    expect(merged.raw_result?.nothing_screened_the_image).toBe(true);
+    expect(mapProviderResultToPolicy({
+      surface: "profile_photo",
+      contentType: "image",
+      providerResult: merged
+    }).decision).not.toBe("allow");
+  });
+
+  it("refuses when the mock primary is paired with a skipped safety leg", () => {
+    const merged = mergeProfilePhotoSafetyResults(
+      mockPrimary(),
+      rekognitionResult({ status: "skipped", recommended_action: undefined })
+    );
+
+    expect(merged.raw_result?.nothing_screened_the_image).toBe(true);
+    expect(mapProviderResultToPolicy({
+      surface: "profile_photo",
+      contentType: "image",
+      providerResult: merged
+    }).decision).not.toBe("allow");
+  });
+
+  it("refuses when an unusable primary is paired with a failed safety leg", () => {
+    const merged = mergeProfilePhotoSafetyResults(
+      streamResult({ status: "partial", recommended_action: undefined }),
+      rekognitionResult({ status: "error", error: "timeout" })
+    );
+
     expect(mapProviderResultToPolicy({
       surface: "profile_photo",
       contentType: "image",
