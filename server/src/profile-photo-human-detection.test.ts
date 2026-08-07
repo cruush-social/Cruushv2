@@ -156,7 +156,12 @@ describe("image child-face and profile-photo human detection", () => {
     });
   });
 
-  it("fails the combined decision closed when Rekognition is unavailable", () => {
+  // This used to fail the combined decision closed. It was changed deliberately on
+  // 2026-08-07: refusing on a Rekognition hiccup blocked every photo upload while Stream
+  // was healthy, and at current scale a blocked user is the greater harm. The primary
+  // verdict now stands and moderateImageOrReject records an age_safety_detection_unavailable
+  // review so a human still sees anything that skipped the age check.
+  it("keeps the Stream verdict and marks the image when Rekognition is unavailable", () => {
     const merged = mergeProfilePhotoSafetyResults(streamKeep(), {
       provider: "aws_rekognition",
       provider_request_id: "rekognition-error-1",
@@ -168,9 +173,13 @@ describe("image child-face and profile-photo human detection", () => {
 
     expect(merged).toMatchObject({
       provider: "stream+aws_rekognition",
-      status: "error",
-      recommended_action: "remove",
-      error: "timeout"
+      status: "complete",
+      recommended_action: "keep"
+    });
+    expect(merged.error).toBeUndefined();
+    expect(merged.raw_result).toMatchObject({
+      safety_leg_failed: true,
+      safety_leg_error: "timeout"
     });
   });
 

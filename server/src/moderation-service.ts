@@ -319,6 +319,14 @@ function canUseMessagePhotoRekognitionFallback(app: FastifyInstance, surface: Mo
     app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
 }
 
+// The feed had no second scanner at all, so any Stream response that was not "complete"
+// refused the upload outright - the /feed photo failure in the 2026-08-06 screenshots.
+// G5 wants the fallback chain live everywhere, and this was the surface where it was not.
+function canUseFeedPhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
+  return surface === "feed" &&
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+}
+
 function isPhotoUploadSurface(surface: ModerationSurface) {
   return surface === "profile_photo" || isMessagePhotoSurface(surface);
 }
@@ -632,7 +640,12 @@ export async function moderateTextOrReject(app: FastifyInstance, input: Moderate
         ...input,
         text: prepareTextForModerationProvider(input.text)
       });
-  const providerResult = (input.surface === "feed" || input.surface === "profile") && providerResultUnavailable(providerResultFromPrimary)
+  // Every text surface falls back to the local rule engine. Message text used to have no
+  // fallback, so a Stream outage refused exactly the messages the keyword prefilter had
+  // already singled out as worth checking. The rules are surface-aware via the policy
+  // mapper - adult and PnP talk still resolve to allow on private message surfaces, so
+  // this does not start rejecting ordinary NSFW DMs.
+  const providerResult = providerResultUnavailable(providerResultFromPrimary)
     ? await moderateTextWithLocalFallback(app, input, providerResultFromPrimary)
     : providerResultFromPrimary;
   const decision = mapProviderResultToPolicy({
@@ -687,7 +700,10 @@ export async function moderateImageOrReject(
   const provider = createModerationProvider(app.config);
   const useProfilePhotoRekognitionFallback = canUseProfilePhotoRekognitionFallback(app, input.surface);
   const useMessagePhotoRekognitionFallback = canUseMessagePhotoRekognitionFallback(app, input.surface);
-  const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback || useMessagePhotoRekognitionFallback;
+  const useFeedPhotoRekognitionFallback = canUseFeedPhotoRekognitionFallback(app, input.surface);
+  const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback ||
+    useMessagePhotoRekognitionFallback ||
+    useFeedPhotoRekognitionFallback;
   const startedAt = Date.now();
   let providerResult: ProviderModerationResult;
 
@@ -766,6 +782,35 @@ export async function moderateImageOrReject(
 
     decision = gate.decision;
     gatedProviderResult = gate.providerResult;
+  }
+
+  // The primary provider screened the image and approved it, but the age-safety leg was
+  // meant to run and could not. The upload is no longer refused for that - refusing was
+  // blocking real users whenever Rekognition hiccuped - so record it instead. G5 still
+  // wants a human to see anything that skipped the age check.
+  if (decision.decision === "allow" && gatedProviderResult.raw_result?.safety_leg_failed === true) {
+    app.log.warn(
+      {
+        provider: gatedProviderResult.provider,
+        surface: input.surface,
+        userId: input.userId,
+        safetyLegError: gatedProviderResult.raw_result?.safety_leg_error ?? null
+      },
+      "age-safety detection failed; publishing on the primary verdict and flagging for review"
+    );
+
+    await recordContentReview(app, {
+      userId: input.userId,
+      surface: input.surface,
+      contentType: "image",
+      status: "allowed",
+      moderationStatus: "flagged",
+      flaggedReason: "age_safety_detection_unavailable",
+      contentId: input.contentId,
+      contentRef: input.contentRef,
+      providerResult: gatedProviderResult,
+      decision
+    });
   }
 
   return handlePolicyDecision(app, input.userId, input.surface, "image", gatedProviderResult, decision, {

@@ -37,7 +37,7 @@ function rekognitionResult(overrides: Partial<ProviderModerationResult> = {}): P
 // Mirrors canUseProfilePhotoRekognitionFallback / canUseMessagePhotoRekognitionFallback in
 // moderation-service.ts. If those gain or lose a surface, this table has to move with them.
 function rekognitionFallbackSurfaces(): ModerationSurface[] {
-  return ["profile_photo", "direct_message", "group_message"];
+  return ["profile_photo", "direct_message", "group_message", "feed"];
 }
 
 describe("which scanner covers which surface", () => {
@@ -45,7 +45,7 @@ describe("which scanner covers which surface", () => {
     ["profile_photo", true],
     ["direct_message", true],
     ["group_message", true],
-    ["feed", false],
+    ["feed", true],
     ["private_photo", false]
   ] as const)(
     "%s image has a Rekognition fallback: %s",
@@ -54,18 +54,17 @@ describe("which scanner covers which surface", () => {
     }
   );
 
-  // The feed photo in the incident screenshots. Only Stream is consulted here, so there was
-  // never a second provider to fail - one unusable response is the whole outage.
-  it("leaves a feed image with a single point of failure", () => {
-    const decision = mapProviderResultToPolicy({
-      surface: "feed",
-      contentType: "image",
-      providerResult: streamResult({ status: "partial", recommended_action: undefined })
-    });
+  // The feed photo in the incident screenshots had no second scanner at all, so one
+  // unusable Stream response was the whole outage. Rekognition now covers it: a partial
+  // Stream leg plus a complete safety leg resolves instead of refusing.
+  it("resolves a feed image from the safety leg when Stream is still pending", () => {
+    const merged = mergeProfilePhotoSafetyResults(
+      streamResult({ status: "partial", recommended_action: undefined }),
+      rekognitionResult()
+    );
 
-    expect(rekognitionFallbackSurfaces()).not.toContain("feed");
-    expect(decision.decision).toBe("quarantine");
-    expect(decision.category).toBe("provider_pending");
+    expect(rekognitionFallbackSurfaces()).toContain("feed");
+    expect(merged.raw_result?.safety_leg_failed).toBeUndefined();
   });
 
   // Text never reaches Rekognition at all - it is an image detector. The profile-save
@@ -94,43 +93,68 @@ describe("merging the Rekognition safety leg", () => {
     }).decision).toBe("allow");
   });
 
-  // BUG - not fixed here, needs a policy call before the behaviour changes.
-  //
-  // The merge stamps status "error" onto the combined result whenever the safety leg did
-  // not return "complete", discarding the fact that Stream answered fine. One failing leg
-  // therefore presents as a total outage. detectImageChildFaces returns exactly this shape
-  // when PROFILE_PHOTO_REKOGNITION_ENABLED is off, so a single config flag can make a
-  // perfectly healthy Stream look like "every provider is down".
-  //
-  // These assertions document what happens today so the fix has something to flip.
-  it("currently reports a total outage when only the safety leg fails", () => {
+  // A failing safety leg used to stamp status "error" and recommended_action "remove" onto
+  // the merged result, discarding a healthy Stream verdict and refusing the upload. That
+  // blocked real users whenever Rekognition hiccuped, so the primary verdict now stands and
+  // the image is marked for review instead.
+  it("keeps the Stream verdict when only the safety leg fails", () => {
     const merged = mergeProfilePhotoSafetyResults(
       streamResult(),
       rekognitionResult({ status: "error", error: "Image age-safety detection failed." })
     );
 
-    expect(merged.status).toBe("error");
+    expect(merged.status).toBe("complete");
+    expect(merged.recommended_action).toBe("keep");
+    expect(merged.raw_result?.safety_leg_failed).toBe(true);
     expect(mapProviderResultToPolicy({
       surface: "profile_photo",
       contentType: "image",
       providerResult: merged
-    }).category).toBe("provider_unavailable");
+    }).decision).toBe("allow");
   });
 
-  it("currently reports a total outage when age-safety detection is merely disabled", () => {
+  // Switching detection off is a configuration choice, not an incident. It used to return
+  // an error result, so PROFILE_PHOTO_REKOGNITION_ENABLED=false blocked every photo upload
+  // on the app while reporting that every provider was down.
+  it("treats disabled age-safety detection as no opinion, not an outage", () => {
     const disabled = rekognitionResult({
       provider_request_id: "rekognition-disabled",
-      status: "error",
-      error: "Image age-safety detection is disabled."
+      status: "skipped",
+      recommended_action: undefined
     });
     const merged = mergeProfilePhotoSafetyResults(streamResult(), disabled);
 
-    expect(merged.status).toBe("error");
+    expect(merged.status).toBe("complete");
+    expect(merged.recommended_action).toBe("keep");
+    expect(merged.raw_result?.safety_leg_failed).toBeUndefined();
     expect(mapProviderResultToPolicy({
       surface: "profile_photo",
       contentType: "image",
       providerResult: merged
-    }).category).toBe("provider_unavailable");
+    }).decision).toBe("allow");
+  });
+
+  // A skipped leg must not silently swallow a rejection the primary already made.
+  it("does not rescue an image the primary provider rejected", () => {
+    const disabled = rekognitionResult({ status: "skipped", recommended_action: undefined });
+    const merged = mergeProfilePhotoSafetyResults(
+      streamResult({
+        recommended_action: "remove",
+        labels: [{
+          provider_label: "stream_gore",
+          normalized_label: "gore",
+          confidence: 0.95,
+          severity: "high"
+        }]
+      }),
+      disabled
+    );
+
+    expect(mapProviderResultToPolicy({
+      surface: "profile_photo",
+      contentType: "image",
+      providerResult: merged
+    }).decision).not.toBe("allow");
   });
 
   // A pending Stream leg must stay pending after the merge rather than being upgraded to an

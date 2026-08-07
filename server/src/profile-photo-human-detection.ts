@@ -315,8 +315,7 @@ export async function detectImageChildFaces(
       provider_request_id: "rekognition-disabled",
       labels: [],
       latency_ms: 0,
-      status: "error",
-      error: "Image age-safety detection is disabled."
+      status: "skipped"
     };
   }
 
@@ -354,8 +353,7 @@ export async function detectProfilePhotoHuman(
       provider_request_id: "rekognition-disabled",
       labels: [],
       latency_ms: 0,
-      status: "error",
-      error: "Profile-photo safety detection is disabled."
+      status: "skipped"
     };
   }
 
@@ -394,11 +392,63 @@ export async function detectProfilePhotoHuman(
   }
 }
 
+export function safetyLegSkipped(safetyResult: ProviderModerationResult) {
+  return safetyResult.status?.toLowerCase() === "skipped";
+}
+
+export function safetyLegFailed(safetyResult: ProviderModerationResult) {
+  return !safetyLegSkipped(safetyResult) &&
+    (safetyResult.status?.toLowerCase() !== "complete" || Boolean(safetyResult.error));
+}
+
+// The safety leg is a veto, not a second vote: it can reject an image the primary provider
+// was happy with, which is what keeps G5 holding. What it must not do is overwrite a good
+// primary verdict when the leg itself did not run.
+//
+// This used to stamp status "error" and recommended_action "remove" onto the merged result
+// whenever the leg was anything other than a clean "complete". A healthy Stream verdict was
+// discarded, the combined result read as provider_unavailable, and the upload was refused.
+// Because the detectors also reported "disabled" as an error, turning
+// PROFILE_PHOTO_REKOGNITION_ENABLED off blocked every photo upload on the app while
+// reporting that every provider was down.
+//
+// Three cases now:
+//   skipped   - detection is switched off. No opinion; the primary verdict stands as-is.
+//   failed    - detection was meant to run and could not. The primary verdict stands, but
+//               the image is marked unscreened for age so it can be reviewed. The caller
+//               reads safety_leg_failed to decide what to do about that.
+//   complete  - merge as before, veto included.
 export function mergeProfilePhotoSafetyResults(
   streamResult: ProviderModerationResult,
   safetyResult: ProviderModerationResult
 ): ProviderModerationResult {
-  const safetyFailed = safetyResult.status?.toLowerCase() !== "complete" || Boolean(safetyResult.error);
+  if (safetyLegSkipped(safetyResult)) {
+    return {
+      ...streamResult,
+      raw_result: {
+        ...(streamResult.raw_result ?? {}),
+        rekognition_safety: { skipped: true }
+      }
+    };
+  }
+
+  const safetyFailed = safetyLegFailed(safetyResult);
+
+  if (safetyFailed) {
+    return {
+      ...streamResult,
+      provider: `${streamResult.provider}+${safetyResult.provider}`,
+      provider_request_id: `${streamResult.provider_request_id}:${safetyResult.provider_request_id}`,
+      latency_ms: streamResult.latency_ms + safetyResult.latency_ms,
+      raw_result: {
+        stream: streamResult.raw_result ?? {},
+        rekognition_safety: safetyResult.raw_result ?? {},
+        safety_leg_failed: true,
+        safety_leg_error: safetyResult.error ?? "Image age-safety detection failed."
+      }
+    };
+  }
+
   const safetyRejected = safetyResult.recommended_action?.toLowerCase() !== "keep";
 
   return {
@@ -407,12 +457,11 @@ export function mergeProfilePhotoSafetyResults(
     provider_request_id: `${streamResult.provider_request_id}:${safetyResult.provider_request_id}`,
     labels: [...streamResult.labels, ...safetyResult.labels],
     latency_ms: streamResult.latency_ms + safetyResult.latency_ms,
-    status: safetyFailed ? "error" : streamResult.status,
+    status: streamResult.status,
     recommended_action: safetyRejected ? safetyResult.recommended_action ?? "remove" : streamResult.recommended_action,
     raw_result: {
       stream: streamResult.raw_result ?? {},
       rekognition_safety: safetyResult.raw_result ?? {}
-    },
-    ...(safetyFailed ? { error: safetyResult.error ?? "Image age-safety detection failed." } : {})
+    }
   };
 }
