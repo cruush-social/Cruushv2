@@ -168,7 +168,7 @@ function appTargets(target) {
       label: 'production frontend',
       uuid: requireEnv('COOLIFY_PRODUCTION_FRONTEND_UUID'),
       expectedHost: 'cruush.app',
-      smokeUrl: 'https://www.cruush.app/',
+      smokeUrl: 'https://cruush.app/',
       expectsHtml: true,
       build: FRONTEND_BUILD,
     },

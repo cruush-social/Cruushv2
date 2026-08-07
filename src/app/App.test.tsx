@@ -336,6 +336,54 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toBeInTheDocument();
   });
 
+  it('renders signed-in profile deep links without exposing the profile id in the browser URL', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    window.history.replaceState({}, '', '/profile/other-user-123');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Profile')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('renders signed-in chat deep links without exposing the chat id in the browser URL', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    window.history.replaceState({}, '', '/chat/96bab72b-48db-4aee-9f85-e37face83625');
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Group Chat')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+  });
+
   it('keeps the alpha bug button on token-link routes for active alpha testers', async () => {
     loadCurrentSession.mockResolvedValue({
       user: {
@@ -361,7 +409,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toBeInTheDocument();
   });
 
-  it('redirects to /map after login', async () => {
+  it('renders the map after login without changing the browser URL', async () => {
     loadCurrentSession.mockResolvedValue(null);
     window.history.replaceState({}, '', '/feed');
 
@@ -370,7 +418,7 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Mock Auth' }));
 
     expect(await screen.findByText('Mock Map')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/map');
+    expect(window.location.pathname).toBe('/');
   });
 
   it('renders the reset password route while signed out', async () => {
@@ -536,7 +584,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Rewards')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/rewards');
+    expect(window.location.pathname).toBe('/');
   });
 
   it('redirects fake cruush+ checkout routes to rewards while signed in', async () => {
@@ -560,14 +608,14 @@ describe('App', () => {
     const { unmount } = render(<App />);
 
     expect(await screen.findByText('Mock Rewards')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/rewards');
+    expect(window.location.pathname).toBe('/');
 
     unmount();
     window.history.replaceState({}, '', '/checkout/success');
     render(<App />);
 
     expect(await screen.findByText('Mock Rewards')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/rewards');
+    expect(window.location.pathname).toBe('/');
   });
 
   it('renders the public safety page for signed-in users', async () => {
@@ -632,7 +680,7 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Complete onboarding to rewards' }));
 
     expect(await screen.findByText('Mock Rewards')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/rewards');
+    expect(window.location.pathname).toBe('/');
   });
 
   it('returns to the map after onboarding without a post-login affiliate prompt', async () => {

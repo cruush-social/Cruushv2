@@ -19,7 +19,7 @@ import process from 'node:process';
 
 const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 const API_BUILD_URL = process.env.CRUUSH_API_BUILD_URL ?? 'https://api.cruush.app/api/build';
-const FRONTEND_URL = process.env.CRUUSH_FRONTEND_URL ?? 'https://www.cruush.app/';
+const FRONTEND_URL = process.env.CRUUSH_FRONTEND_URL ?? 'https://cruush.app/';
 const VERIFY_TIMEOUT_MS = Number(process.env.CRUUSH_SHIP_TIMEOUT_MS ?? 15 * 60 * 1000);
 const POLL_INTERVAL_MS = 15_000;
 

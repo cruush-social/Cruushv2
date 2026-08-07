@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import Auth from './components/Auth';
 import VerifyEmail from './components/VerifyEmail';
@@ -79,6 +79,20 @@ function redirectToMap() {
 
 function redirectToRewards() {
   window.history.replaceState({}, '', '/rewards');
+}
+
+function getInitialAppRoute() {
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function CanonicalAppAddressBar() {
+  useEffect(() => {
+    if (window.location.pathname !== '/' || window.location.search || window.location.hash) {
+      window.history.replaceState(window.history.state ?? {}, '', '/');
+    }
+  }, []);
+
+  return null;
 }
 
 function RouteLoading() {
@@ -326,7 +340,8 @@ export default function App({
   }
 
   return (
-    <BrowserRouter key="app-router">
+    <MemoryRouter key="app-router" initialEntries={[getInitialAppRoute()]}>
+      <CanonicalAppAddressBar />
       <GoogleAnalyticsPageTracker />
       <AppErrorBoundary>
         <div className="min-h-screen bg-background text-foreground">
@@ -390,6 +405,6 @@ export default function App({
           <Toaster closeButton position="top-center" richColors />
         </div>
       </AppErrorBoundary>
-    </BrowserRouter>
+    </MemoryRouter>
   );
 }

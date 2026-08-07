@@ -1349,7 +1349,7 @@ export default function PrivateGroupChat() {
                 </div>
               ) : null}
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <Clock3 className="size-4 shrink-0 text-muted-foreground" />
                 <Select
                   value={conversation.disappearingTimer ?? 'off'}
@@ -1379,7 +1379,52 @@ export default function PrivateGroupChat() {
                     ))}
                   </SelectContent>
                 </Select>
-                <span className="text-xs text-muted-foreground">Applies to new messages.</span>
+                <label
+                  className={[
+                    'inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card/72 px-2.5 text-xs text-muted-foreground transition-colors',
+                    photoViewOnce ? 'border-primary/40 bg-primary/10 text-primary' : '',
+                    composerDisabled || photoUploading ? 'opacity-60' : '',
+                  ].join(' ')}
+                >
+                  <Checkbox
+                    aria-label="Send photo view once"
+                    checked={photoViewOnce}
+                    disabled={composerDisabled || photoUploading}
+                    className="size-4 rounded-full"
+                    onCheckedChange={(checked) => {
+                      const next = checked === true;
+                      setPhotoViewOnce(next);
+                      if (next) {
+                        openFileInput(fileInputRef, messagePhotoControlDisabled);
+                      }
+                    }}
+                  />
+                  <span
+                    role="button"
+                    tabIndex={composerDisabled || photoUploading ? -1 : 0}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setPhotoViewOnce((current) => !current);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setPhotoViewOnce((current) => !current);
+                      }
+                    }}
+                  >once</span>
+                </label>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Quick access gallery"
+                  aria-label="Quick access gallery"
+                  disabled={composerDisabled}
+                  onClick={toggleFavoriteGallery}
+                >
+                  <Star className="size-4" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
+                </Button>
+                <span className="basis-full text-xs text-muted-foreground sm:basis-auto">Applies to new messages.</span>
               </div>
 
               <div className="max-w-full rounded-[28px] border border-border bg-card/85 p-3 shadow-lg shadow-black/20">
@@ -1518,51 +1563,6 @@ export default function PrivateGroupChat() {
                       disabled={messagePhotoControlDisabled}
                       onChange={(event) => void handlePhotoSelected(event)}
                     />
-                    <label
-                      className={[
-                        'inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-background/55 px-2.5 text-xs text-muted-foreground transition-colors',
-                        photoViewOnce ? 'border-primary/40 bg-primary/10 text-primary' : '',
-                        composerDisabled || photoUploading ? 'opacity-60' : '',
-                      ].join(' ')}
-                    >
-                      <Checkbox
-                        aria-label="Send photo view once"
-                        checked={photoViewOnce}
-                        disabled={composerDisabled || photoUploading}
-                        className="size-4 rounded-full"
-                        onCheckedChange={(checked) => {
-                          const next = checked === true;
-                          setPhotoViewOnce(next);
-                          if (next) {
-                            openFileInput(fileInputRef, messagePhotoControlDisabled);
-                          }
-                        }}
-                      />
-                      <span
-                        role="button"
-                        tabIndex={composerDisabled || photoUploading ? -1 : 0}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          setPhotoViewOnce((current) => !current);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            setPhotoViewOnce((current) => !current);
-                          }
-                        }}
-                      >once</span>
-                    </label>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="Quick access gallery"
-                      aria-label="Quick access gallery"
-                      disabled={composerDisabled}
-                      onClick={toggleFavoriteGallery}
-                    >
-                      <Star className="size-4" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
-                    </Button>
                     <Button
                       type="button"
                       variant="ghost"

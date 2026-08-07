@@ -6,7 +6,7 @@
 // (Node 22 ships a global WebSocket).
 //
 //   node scripts/check-layout-invariants.mjs                      # localhost:5173
-//   node scripts/check-layout-invariants.mjs --url https://www.cruush.app
+//   node scripts/check-layout-invariants.mjs --url https://cruush.app
 //   node scripts/check-layout-invariants.mjs --path / --path /login --json
 //
 // Invariants checked (see docs/CRUUSH-RULES.md section D):
@@ -306,7 +306,7 @@ async function main() {
     if (probe.status >= 500) throw new Error(`${args.url} returned ${probe.status}`);
   } catch (error) {
     console.error(`Cannot reach ${args.url}: ${error.message}`);
-    console.error('Start the dev server (pnpm dev) or pass --url https://www.cruush.app');
+    console.error('Start the dev server (pnpm dev) or pass --url https://cruush.app');
     process.exit(2);
   }
 

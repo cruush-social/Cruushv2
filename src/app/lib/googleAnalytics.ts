@@ -17,7 +17,7 @@ const SAFE_ANALYTICS_QUERY_PARAMS = new Set(['mode']);
 
 function getAnalyticsOrigin() {
   if (typeof window === 'undefined') {
-    return 'https://www.cruush.app';
+    return 'https://cruush.app';
   }
 
   return window.location.origin;

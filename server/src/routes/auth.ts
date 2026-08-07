@@ -363,16 +363,16 @@ function getPublicAppUrl(request: FastifyRequest) {
   const requestOrigin = typeof request.headers.origin === "string" ? request.headers.origin : "";
 
   if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
-    return requestOrigin;
+    return canonicalizePublicAppUrl(requestOrigin);
   }
 
   const appUrl = request.server.config.APP_URL;
 
   if (allowedOrigins.length > 0 && !allowedOrigins.includes(appUrl) && hasSameHostAsRequest(appUrl, request)) {
-    return allowedOrigins[0];
+    return canonicalizePublicAppUrl(allowedOrigins[0]);
   }
 
-  return appUrl;
+  return canonicalizePublicAppUrl(appUrl);
 }
 
 function getAllowedCorsOrigins(request: FastifyRequest) {
@@ -380,6 +380,20 @@ function getAllowedCorsOrigins(request: FastifyRequest) {
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
+}
+
+function canonicalizePublicAppUrl(origin: string) {
+  try {
+    const url = new URL(origin);
+    if (url.hostname === "www.cruush.app") {
+      url.hostname = "cruush.app";
+      return url.origin;
+    }
+  } catch {
+    return origin;
+  }
+
+  return origin;
 }
 
 function getFirstHeaderValue(value: string | string[] | undefined) {
