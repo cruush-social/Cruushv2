@@ -950,8 +950,11 @@ export async function createUserReport(app: FastifyInstance, input: UserReportIn
       }
     },
     decision: {
+      // A person reported this. It has nothing to do with provider availability - the
+      // category was a copy-paste that stamped provider_unavailable onto every user
+      // report, poisoning the same policy_decision->>'category' column the CSAM
+      // exclusion and the system-error filter both read.
       decision: "quarantine",
-      category: "provider_unavailable",
       severity: "medium",
       confidence: 1,
       create_evidence_event: false,

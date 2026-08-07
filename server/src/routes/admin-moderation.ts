@@ -32,7 +32,10 @@ const reportListQuerySchema = z.object({
 }).strict();
 
 const queueListQuerySchema = z.object({
-  source: z.enum(["all", "reports", "automod"]).optional().default("all"),
+  // "system" surfaces infrastructure rows - a provider failing or still working - which are
+  // not moderation decisions and are excluded from every other view. They used to sit in
+  // "automod" alongside real reports, one row per failed check, and buried them.
+  source: z.enum(["all", "reports", "automod", "system"]).optional().default("all"),
   state: z.enum(["open", "closed", "all"]).optional().default("open"),
   limit: z.coerce.number().int().min(1).max(100).optional().default(25),
   offset: z.coerce.number().int().min(0).optional().default(0)
@@ -773,7 +776,19 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
            review.id::text as id,
            review.moderation_status as queue_status,
            review.flagged_reason as reason,
-           coalesce(review.policy_decision ->> 'reason_code', review.flagged_reason, 'Automated moderation review') as summary,
+           -- An infrastructure row carries the detail a moderator would otherwise have to
+           -- dig for: which provider, what it said, and which asset. Every one of these
+           -- used to read "provider unavailable" and nothing else.
+           case
+             when coalesce(review.policy_decision ->> 'category', '') in ('provider_unavailable', 'provider_pending')
+               then concat_ws(' · ',
+                 coalesce(review.moderation_provider, review.provider, 'unknown provider'),
+                 coalesce(review.moderation_raw_result ->> 'provider_status', review.policy_decision ->> 'reason_code'),
+                 nullif(review.moderation_raw_result ->> 'provider_error', ''),
+                 concat('content ', coalesce(nullif(review.content_id, ''), 'unknown'))
+               )
+             else coalesce(review.policy_decision ->> 'reason_code', review.flagged_reason, 'Automated moderation review')
+           end as summary,
            review.created_at,
            coalesce(review.completed_at, review.created_at) as updated_at,
            case review.surface
@@ -816,7 +831,15 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
        ), filtered as (
          select *
          from queue_items item
-         where ($1::text = 'all'
+         -- Infrastructure rows only ever appear under source=system. "all" means all
+         -- moderation work, not all rows - a provider outage is an ops problem and does
+         -- not belong in front of a human reviewer, one row per failed check.
+         where ($1::text = 'system') = (
+                 item.item_kind = 'review'
+                 and coalesce(item.policy_decision ->> 'category', '') in ('provider_unavailable', 'provider_pending')
+               )
+           and ($1::text = 'all'
+                or $1 = 'system'
                 or ($1 = 'reports' and item.item_kind = 'report')
                 or ($1 = 'automod' and item.item_kind = 'review'))
            and ($2::text = 'all'

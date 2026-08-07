@@ -73,7 +73,7 @@ export type ChangeAccountStatusResult = {
   moderationAction: ModerationActionReceipt;
 };
 
-export type ModerationQueueSource = 'all' | 'reports' | 'automod';
+export type ModerationQueueSource = 'all' | 'reports' | 'automod' | 'system';
 export type ModerationQueueState = 'open' | 'closed' | 'all';
 
 export type ModerationQueueItem = {

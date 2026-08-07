@@ -796,6 +796,7 @@ export default function ModeratorReview() {
                 <option value="all">Reports and automod</option>
                 <option value="reports">User reports</option>
                 <option value="automod">Automod reviews</option>
+                <option value="system">Provider errors</option>
               </select>
               <select aria-label="Queue state" value={state} onChange={(event) => changeFilter(event.target.value as ModerationQueueState, 'state')} className="h-9 rounded-md border border-border bg-input-background px-3 text-sm">
                 <option value="open">Open</option>
