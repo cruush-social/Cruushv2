@@ -1269,7 +1269,6 @@ export async function registerMessageRoutes(app: FastifyInstance) {
            where media.id = $2
              and media.owner_user_id = $1
              and media.surface = 'message_photo'
-             and media.moderation_status = 'pending'
              and media.deleted_at is null
            returning media.id
          ), ${approvedContentReviewCte({

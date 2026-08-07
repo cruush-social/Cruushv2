@@ -5042,6 +5042,7 @@ describe("server", () => {
 
     expect(response.statusCode, response.body).toBe(201);
     expect(favoriteInsert?.[0]).not.toContain("feature_restrictions");
+    expect(favoriteInsert?.[0]).not.toContain("media.moderation_status = 'pending'");
     expect(favoriteInsert?.[1]?.[12]).toBe("go-to");
     expect(response.json()).toEqual({
       data: {
