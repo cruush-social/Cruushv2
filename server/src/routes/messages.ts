@@ -168,6 +168,62 @@ function toMessagePhotoUploadError(error: unknown) {
   return error;
 }
 
+async function assertCanSaveFavoriteMessageImage(app: FastifyInstance, userId: string, ownerFullAccess: boolean) {
+  if (ownerFullAccess) {
+    return;
+  }
+
+  const result = await app.db.query<{
+    account_status: string;
+    suspended: boolean;
+    trust_score: number;
+    suspensions: number;
+    owner_email: boolean;
+    admin: boolean;
+  }>(
+    `select
+       u.account_status,
+       coalesce(trust.is_suspended, false) as suspended,
+       coalesce(trust.trust_score, 50) as trust_score,
+       lower(trim(coalesce(u.email, ''))) = $2 as owner_email,
+       exists (
+         select 1
+         from moderator_users moderator
+         where moderator.user_id = u.id
+           and moderator.role = 'admin'
+       ) as admin,
+       (select count(*)::int from suspensions suspension
+         where suspension.user_id = u.id
+           and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())) as suspensions
+     from app_users u
+     left join user_trust_profiles trust on trust.user_id = u.id
+     where u.id = $1`,
+    [userId, OWNER_FULL_ACCESS_EMAIL]
+  );
+
+  const row = result.rows[0];
+
+  if (!row) {
+    throw new ApiError(403, "FORBIDDEN", "Account not found.");
+  }
+
+  if (row.owner_email || row.admin) {
+    return;
+  }
+
+  if (row.account_status !== "active") {
+    throw new ApiError(403, "FEATURE_RESTRICTED", "Your account is not active.");
+  }
+
+  if (row.suspended || row.suspensions > 0) {
+    throw new ApiError(403, "FEATURE_RESTRICTED", "Your account is suspended.");
+  }
+
+  if (row.trust_score <= 20) {
+    throw new ApiError(403, "FEATURE_RESTRICTED", "Favorite image uploads are unavailable while your trust score is low.");
+  }
+}
+
 function normalizeMessageAttachments(value: MessageRow["attachments"]): MessageAttachment[] {
   if (!value) {
     return [];
@@ -1195,35 +1251,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       const isAdultExplicit = mediaAsset.moderation.labels.some((label) =>
         label.normalized_label === "adult_nudity" || label.normalized_label === "adult_explicit"
       );
+      await assertCanSaveFavoriteMessageImage(app, userId, ownerFullAccess);
+
       const result = await app.db.query<FavoriteMessageImageRow>(
-        `with eligible_owner as (
-           select u.id
-           from app_users u
-           left join user_trust_profiles trust on trust.user_id = u.id
-           where u.id = $1
-             and (
-               $14::boolean
-               or lower(coalesce(u.email, '')) = $15
-               or (
-                 u.account_status = 'active'
-                 and coalesce(trust.is_suspended, false) = false
-                 and coalesce(trust.trust_score, 50) > 20
-                 and not exists (
-                   select 1
-                   from suspensions suspension
-                   where suspension.user_id = u.id
-                     and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())
-                 )
-                 and not exists (
-                   select 1
-                   from feature_restrictions restriction
-                   where restriction.user_id = u.id
-                     and restriction.feature in ('direct_messages', 'group_messages')
-                     and (restriction.ends_at is null or restriction.ends_at > now())
-                 )
-               )
-             )
-         ), approved_media as (
+        `with approved_media as (
            update media_objects media
            set public_url = $3,
                moderation_status = 'approved',
@@ -1235,11 +1266,11 @@ export async function registerMessageRoutes(app: FastifyInstance) {
                explicit_classification = case when $12 then 'explicit' else 'non_explicit' end,
                photodna_status = $10,
                photodna_provider_request_id = $11
-           from eligible_owner
            where media.id = $2
-             and media.owner_user_id = eligible_owner.id
+             and media.owner_user_id = $1
              and media.surface = 'message_photo'
              and media.moderation_status = 'pending'
+             and media.deleted_at is null
            returning media.id
          ), ${approvedContentReviewCte({
            userIdParam: "$1",
@@ -1299,15 +1330,13 @@ export async function registerMessageRoutes(app: FastifyInstance) {
           mediaAsset.moderation.photoDnaStatus,
           mediaAsset.moderation.photoDnaProviderRequestId,
           isAdultExplicit,
-          payload.label.trim(),
-          ownerFullAccess,
-          OWNER_FULL_ACCESS_EMAIL
+          payload.label.trim()
         ]
       );
       const favorite = result.rows[0];
 
       if (!favorite) {
-        throw new ApiError(403, "FEATURE_RESTRICTED", "Favorite image uploads are unavailable for this account.");
+        throw new ApiError(500, "INTERNAL_ERROR", "Favorite image could not be saved.");
       }
 
       const refreshedFavorite = await app.db.query<FavoriteMessageImageRow>(

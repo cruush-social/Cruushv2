@@ -4990,20 +4990,16 @@ describe("server", () => {
       }
 
       if (text.includes("select email") && text.includes("from app_users")) {
-        return { rows: [{ email: "not-the-owner@example.com" }] };
+        return { rows: [{ email: "julienlenazny@gmail.com" }] };
       }
 
       if (text.includes("with inserted_media as")) {
         return { rows: [{ id: ownerMediaId }] };
       }
 
-      if (text.includes("with eligible_owner as")) {
-        const ownerFullAccess = params[13];
-        const ownerEmailFallback = params[14];
-
+      if (text.includes("with approved_media as")) {
         return {
-          rows: ownerFullAccess === true || ownerEmailFallback === "julienlenazny@gmail.com"
-            ? [{
+          rows: [{
               id: "favorite-owner-image",
               media_object_id: ownerMediaId,
               label: "go-to",
@@ -5015,7 +5011,6 @@ describe("server", () => {
               created_at: "2026-04-29T12:10:00.000Z",
               updated_at: "2026-04-29T12:10:00.000Z"
             }]
-            : []
         };
       }
 
@@ -5043,13 +5038,11 @@ describe("server", () => {
       },
       payload: multipart.payload
     });
-    const favoriteInsert = query.mock.calls.find(([sql]) => String(sql).includes("with eligible_owner as"));
+    const favoriteInsert = query.mock.calls.find(([sql]) => String(sql).includes("with approved_media as"));
 
     expect(response.statusCode, response.body).toBe(201);
-    expect(favoriteInsert?.[0]).toContain("$14::boolean");
-    expect(favoriteInsert?.[0]).toContain("lower(coalesce(u.email, '')) = $15");
-    expect(favoriteInsert?.[1]?.[13]).toBe(false);
-    expect(favoriteInsert?.[1]?.[14]).toBe("julienlenazny@gmail.com");
+    expect(favoriteInsert?.[0]).not.toContain("feature_restrictions");
+    expect(favoriteInsert?.[1]?.[12]).toBe("go-to");
     expect(response.json()).toEqual({
       data: {
         id: "favorite-owner-image",
