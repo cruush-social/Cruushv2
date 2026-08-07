@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { decryptTextContentOrFallback, encryptTextContent } from "../content-encryption.js";
+import { runTransaction } from "../db.js";
 import { decryptMediaBytes } from "../media-encryption.js";
 import { readEncryptedMediaObject } from "../media-storage.js";
 import { createPendingMediaAsset, deletePendingMediaAsset, moderatePendingMediaAsset } from "../media-assets.js";
@@ -1253,9 +1254,9 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       );
       await assertCanSaveFavoriteMessageImage(app, userId, ownerFullAccess);
 
-      const result = await app.db.query<FavoriteMessageImageRow>(
-        `with approved_media as (
-           update media_objects media
+      const favorite = await runTransaction(app.db, async (db) => {
+        const approved = await db.query<{ id: string }>(
+          `update media_objects media
            set public_url = $3,
                moderation_status = 'approved',
                moderation_provider = $4,
@@ -1270,73 +1271,123 @@ export async function registerMessageRoutes(app: FastifyInstance) {
              and media.owner_user_id = $1
              and media.surface = 'message_photo'
              and media.deleted_at is null
-           returning media.id
-         ), ${approvedContentReviewCte({
-           userIdParam: "$1",
-           surface: "direct_message",
-           contentType: "image",
-           fromCte: "approved_media",
-           providerParam: "$4",
-           providerRequestIdParam: "$6",
-           normalizedLabelsParam: "$7",
-           policyDecisionParam: "$8",
-           moderationStatusParam: "'allowed'",
-           moderationRawResultParam: "$9",
-           contentIdParam: "$2",
-           contentRefParam: "jsonb_build_object('assetId', $2, 'surface', 'message_photo', 'favorite', true)"
-         })}, linked_media as (
-           update media_objects media
-           set content_review_id = moderation_review.id
-           from moderation_review
-           where media.id = $2
-           returning media.id
-         ), favorite as (
-           insert into message_favorite_images (user_id, media_object_id, label)
-           select $1, linked_media.id, $13
-           from linked_media
-           on conflict (user_id, media_object_id) do update
-           set label = excluded.label,
-               updated_at = now()
-           returning id::text, media_object_id::text, label, created_at, updated_at
-         )
-         select
-           favorite.id,
-           favorite.media_object_id,
-           favorite.label,
-           media.public_url as url,
-           '/api/media/assets/' || media.id::text || '/thumbnail' as thumbnail_url,
-           media.media_type,
-           coalesce(display_variant.mime_type, media.mime_type) as mime_type,
-           media.explicit_classification is distinct from 'non_explicit' as explicit,
-           favorite.created_at,
-           favorite.updated_at
-         from favorite
-         join media_objects media on media.id::text = favorite.media_object_id
-         left join media_variants display_variant
-           on display_variant.media_object_id = media.id
-          and display_variant.variant_type = 'display'
-          and display_variant.deleted_at is null`,
-        [
-          userId,
-          mediaAsset.id,
-          mediaAsset.displayUrl,
-          mediaAsset.moderation.provider,
-          mediaAsset.moderation.providerVersion,
-          mediaAsset.moderation.providerRequestId,
-          JSON.stringify(mediaAsset.moderation.labels),
-          JSON.stringify(mediaAsset.moderation.decision),
-          JSON.stringify(mediaAsset.moderation.rawResult),
-          mediaAsset.moderation.photoDnaStatus,
-          mediaAsset.moderation.photoDnaProviderRequestId,
-          isAdultExplicit,
-          payload.label.trim()
-        ]
-      );
-      const favorite = result.rows[0];
+           returning media.id::text as id`,
+          [
+            userId,
+            mediaAsset.id,
+            mediaAsset.displayUrl,
+            mediaAsset.moderation.provider,
+            mediaAsset.moderation.providerVersion,
+            mediaAsset.moderation.providerRequestId,
+            JSON.stringify(mediaAsset.moderation.labels),
+            JSON.stringify(mediaAsset.moderation.decision),
+            JSON.stringify(mediaAsset.moderation.rawResult),
+            mediaAsset.moderation.photoDnaStatus,
+            mediaAsset.moderation.photoDnaProviderRequestId,
+            isAdultExplicit
+          ]
+        );
 
-      if (!favorite) {
-        throw new ApiError(500, "INTERNAL_ERROR", "Favorite image could not be saved.");
-      }
+        if (!approved.rows[0]) {
+          throw new ApiError(500, "INTERNAL_ERROR", "Favorite image media could not be saved.");
+        }
+
+        const review = await db.query<{ id: string }>(
+          `insert into content_reviews (
+             user_id,
+             surface,
+             content_type,
+             status,
+             content_id,
+             content_ref,
+             provider,
+             provider_request_id,
+             normalized_labels,
+             policy_decision,
+             moderation_status,
+             flagged_reason,
+             moderation_provider,
+             moderation_raw_result,
+             completed_at
+           ) values (
+             $1,
+             'direct_message',
+             'image',
+             'allowed',
+             $2,
+             jsonb_build_object('assetId', $2, 'surface', 'message_photo', 'favorite', true),
+             $3,
+             $4,
+             $5::jsonb,
+             $6::jsonb,
+             'allowed',
+             null,
+             $3,
+             $7::jsonb,
+             now()
+           )
+           returning id::text as id`,
+          [
+            userId,
+            mediaAsset.id,
+            mediaAsset.moderation.provider,
+            mediaAsset.moderation.providerRequestId,
+            JSON.stringify(mediaAsset.moderation.labels),
+            JSON.stringify(mediaAsset.moderation.decision),
+            JSON.stringify(mediaAsset.moderation.rawResult)
+          ]
+        );
+        const reviewId = review.rows[0]?.id;
+
+        if (!reviewId) {
+          throw new ApiError(500, "INTERNAL_ERROR", "Favorite image review could not be saved.");
+        }
+
+        await db.query(
+          `update media_objects
+           set content_review_id = $2
+           where id = $1
+             and owner_user_id = $3
+             and deleted_at is null`,
+          [mediaAsset.id, reviewId, userId]
+        );
+
+        const savedFavorite = await db.query<FavoriteMessageImageRow>(
+          `with favorite as (
+             insert into message_favorite_images (user_id, media_object_id, label)
+             values ($1, $2, $3)
+             on conflict (user_id, media_object_id) do update
+             set label = excluded.label,
+                 updated_at = now()
+             returning id::text, media_object_id::text, label, created_at, updated_at
+           )
+           select
+             favorite.id,
+             favorite.media_object_id,
+             favorite.label,
+             media.public_url as url,
+             '/api/media/assets/' || media.id::text || '/thumbnail' as thumbnail_url,
+             media.media_type,
+             coalesce(display_variant.mime_type, media.mime_type) as mime_type,
+             media.explicit_classification is distinct from 'non_explicit' as explicit,
+             favorite.created_at,
+             favorite.updated_at
+           from favorite
+           join media_objects media on media.id::text = favorite.media_object_id
+           left join media_variants display_variant
+             on display_variant.media_object_id = media.id
+            and display_variant.variant_type = 'display'
+            and display_variant.deleted_at is null`,
+          [userId, mediaAsset.id, payload.label.trim()]
+        );
+        const saved = savedFavorite.rows[0];
+
+        if (!saved) {
+          throw new ApiError(500, "INTERNAL_ERROR", "Favorite image could not be saved.");
+        }
+
+        return saved;
+      });
 
       const refreshedFavorite = await app.db.query<FavoriteMessageImageRow>(
         `select

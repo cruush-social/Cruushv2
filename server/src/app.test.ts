@@ -4997,7 +4997,19 @@ describe("server", () => {
         return { rows: [{ id: ownerMediaId }] };
       }
 
-      if (text.includes("with approved_media as")) {
+      if (text.includes("update media_objects media") && text.includes("moderation_status = 'approved'")) {
+        return { rows: [{ id: ownerMediaId }] };
+      }
+
+      if (text.includes("insert into content_reviews")) {
+        return { rows: [{ id: "review-favorite-image" }] };
+      }
+
+      if (text.includes("update media_objects") && text.includes("content_review_id")) {
+        return { rows: [{ id: ownerMediaId }] };
+      }
+
+      if (text.includes("insert into message_favorite_images")) {
         return {
           rows: [{
               id: "favorite-owner-image",
@@ -5038,12 +5050,13 @@ describe("server", () => {
       },
       payload: multipart.payload
     });
-    const favoriteInsert = query.mock.calls.find(([sql]) => String(sql).includes("with approved_media as"));
+    const favoriteMediaApprove = query.mock.calls.find(([sql]) => String(sql).includes("update media_objects media") && String(sql).includes("moderation_status = 'approved'"));
+    const favoriteInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into message_favorite_images"));
 
     expect(response.statusCode, response.body).toBe(201);
+    expect(favoriteMediaApprove?.[0]).not.toContain("media.moderation_status = 'pending'");
     expect(favoriteInsert?.[0]).not.toContain("feature_restrictions");
-    expect(favoriteInsert?.[0]).not.toContain("media.moderation_status = 'pending'");
-    expect(favoriteInsert?.[1]?.[12]).toBe("go-to");
+    expect(favoriteInsert?.[1]?.[2]).toBe("go-to");
     expect(response.json()).toEqual({
       data: {
         id: "favorite-owner-image",
