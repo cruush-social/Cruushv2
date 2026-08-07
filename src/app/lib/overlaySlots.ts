@@ -73,8 +73,9 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     source: 'src/app/components/MobileInstallPrompt.tsx',
     z: 40,
     transient: true,
-    // Narrowed on mobile so it clears the bug button's column on the right edge.
-    mobile: { bottom: 6, left: 1, right: 4.5, height: 10 },
+    // Narrowed below `lg` so it clears the bug button's column on the left edge, where
+    // the button lives until it moves to the top of the screen at `lg`.
+    mobile: { bottom: 6, left: 4.5, right: 1, height: 10 },
     desktop: { bottom: 6, left: 1, right: 1, height: 10 },
   },
   {
@@ -87,11 +88,22 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     desktop: { bottom: 0.75, left: 28.5, right: 28.5, height: 4 },
   },
   {
+    // 6b7f55f ("Revert unwanted UI changes", 2026-08-06) moved this from the right
+    // edge back to the left, on purpose - undoing an unwanted change, not introducing
+    // one. This registry was never updated to match, so `declared geometry matches the
+    // components` has been red since that commit, and the collision check below was
+    // silently checking the old right-anchored position instead of the live one.
+    // AlphaBugButton renders into MapHome's own slot (registerBugButtonSlot) whenever
+    // MapHome is mounted, instead of using this fixed position - and map-header-row,
+    // map-zoom-stack and recently-active-panel only exist inside MapHome. The two
+    // families are architecturally incapable of coexisting: wherever one set of geometry
+    // applies, the other cannot be on screen at all.
     id: 'alpha-bug-button',
     source: 'src/app/components/AlphaBugButton.tsx',
     z: 50,
-    mobile: { bottom: 14, right: 1, width: 2.75, height: 2.75 },
-    desktop: { bottom: 1, right: 1, width: 2.75, height: 2.75 },
+    exclusiveWith: ['map-header-row', 'map-zoom-stack', 'recently-active-panel'],
+    mobile: { left: 1, bottom: 6.75, width: 2.75, height: 2.75 },
+    desktop: { left: 1.25, top: 0.75, width: 2.75, height: 2.75 },
   },
   {
     id: 'alpha-bug-tip',
@@ -99,12 +111,10 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     z: 50,
     // A one-time coach mark anchored near the button, dismissed on first tap.
     // Deliberately NOT marked transient: nothing belonging to the bug reporter may sit
-    // on top of another control. On desktop it goes to the left of the button along the
-    // bottom edge, the only space clear of the install prompt, the Recently Active
-    // panel and the nav pill.
-    exclusiveWith: ['alpha-bug-button'],
-    mobile: { bottom: 17.25, right: 1, width: 18, height: 5 },
-    desktop: { bottom: 0.5, right: 7, width: 18, height: 5 },
+    // on top of another control.
+    exclusiveWith: ['alpha-bug-button', 'map-header-row', 'map-zoom-stack', 'recently-active-panel'],
+    mobile: { left: 1, bottom: 10, width: 18, height: 5 },
+    desktop: { left: 1.25, top: 4.5, width: 18, height: 5 },
   },
 ];
 

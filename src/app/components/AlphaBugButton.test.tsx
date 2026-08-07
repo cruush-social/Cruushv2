@@ -61,7 +61,9 @@ describe('AlphaBugButton', () => {
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
     expect(reportButton).toHaveClass('left-4', 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]');
-    expect(reportButton).toHaveClass('z-20');
+    // z-50, not z-20: this button must outrank ordinary page chrome (see
+    // overlaySlots.ts) so it can never end up buried under it again.
+    expect(reportButton).toHaveClass('z-50');
     expect(reportButton).not.toHaveClass('right-4', 'top-[calc(0.75rem+env(safe-area-inset-top))]');
 
     fireEvent.click(reportButton);
@@ -89,7 +91,7 @@ describe('AlphaBugButton', () => {
     expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
       'left-4',
       'bottom-[calc(19rem+env(safe-area-inset-bottom))]',
-      'z-20',
+      'z-50',
     );
   });
 
