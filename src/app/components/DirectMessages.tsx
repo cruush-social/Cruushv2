@@ -896,7 +896,7 @@ function DirectUserOverlay({
               <SelectTrigger
                 aria-label="Seeking filter"
                 size="sm"
-                className="h-9 w-auto min-w-40 rounded-full border-white/12 bg-background/70 px-3 text-xs text-foreground"
+                className="h-9 w-auto min-w-40 max-w-full rounded-full border-white/12 bg-background/70 px-3 text-xs text-foreground"
               >
                 <SlidersHorizontal className="size-3.5 text-primary" />
                 <SelectValue placeholder="All seeking" />
@@ -918,7 +918,7 @@ function DirectUserOverlay({
               </SelectContent>
             </Select>
 
-            <div className="flex items-center gap-1 rounded-full border border-white/10 bg-background/55 p-1" role="group" aria-label="Sort people by">
+            <div className="flex max-w-full flex-wrap items-center gap-1 rounded-full border border-white/10 bg-background/55 p-1" role="group" aria-label="Sort people by">
               {([
                 ['lastOnline', 'Recently online', Clock3],
                 ['distance', 'Distance', MapPin],
