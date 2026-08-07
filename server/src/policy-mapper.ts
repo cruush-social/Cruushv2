@@ -9,7 +9,11 @@ import type {
   ProviderLabel,
   ProviderModerationResult
 } from "./moderation-types.js";
-import { ALLOW_POLICY_DECISION } from "./moderation-types.js";
+import {
+  ALLOW_POLICY_DECISION,
+  providerResultAsyncPending,
+  providerResultFailed
+} from "./moderation-types.js";
 
 type PolicyMapperInput = {
   surface: ModerationSurface;
@@ -456,10 +460,26 @@ function chooseDecision(current: PolicyDecision, next: PolicyDecision) {
 export function mapProviderResultToPolicy(input: PolicyMapperInput): PolicyDecision {
   const recommendedAction = input.providerResult.recommended_action?.toLowerCase();
 
-  if (
-    input.providerResult.error ||
-    ["partial", "pending", "provider_processing", "error"].includes((input.providerResult.status ?? "").toLowerCase())
-  ) {
+  // Two different things used to collapse into provider_unavailable: the provider actually
+  // failing, and the provider still working. They quarantine identically - no unscreened
+  // content publishes either way - but they are not the same incident, and only the first
+  // one is an outage worth alerting or paging on.
+  if (providerResultAsyncPending(input.providerResult)) {
+    return baseDecision({
+      decision: "quarantine",
+      category: "provider_pending",
+      severity: "medium",
+      confidence: 1,
+      create_evidence_event: false,
+      evidence_value: 0,
+      trust_impact: 0,
+      moderation_history_required: true,
+      reason_code: "provider_pending",
+      user_message_code: "moderation_delayed"
+    });
+  }
+
+  if (providerResultFailed(input.providerResult)) {
     return baseDecision({
       decision: "quarantine",
       category: "provider_unavailable",

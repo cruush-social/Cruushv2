@@ -369,6 +369,7 @@ export class MockModerationProvider implements ModerationProvider {
 type StreamConfig = Pick<
   AppConfig,
   | "MODERATION_TIMEOUT_MS"
+  | "MODERATION_IMAGE_TIMEOUT_MS"
   | "STREAM_MODERATION_ENABLED"
   | "STREAM_API_KEY"
   | "STREAM_API_SECRET"
@@ -643,8 +644,9 @@ function sanitizeStreamResponse(response: StreamCheckResponse): Record<string, u
 
 export class StreamModerationProvider implements ModerationProvider {
   readonly name = "stream";
-  readonly version = "2026-06-26";
+  readonly version = "2026-08-07";
   private readonly client: StreamClient;
+  private readonly imageClient: StreamClient;
   private readonly configKey: string;
 
   constructor(private readonly config: StreamConfig) {
@@ -652,8 +654,15 @@ export class StreamModerationProvider implements ModerationProvider {
       throw new Error("STREAM_API_KEY, STREAM_API_SECRET, and STREAM_MODERATION_CONFIG_KEY are required when Stream moderation is enabled.");
     }
 
+    // A text check is a single round trip. A force_sync image check has to fetch the image
+    // from our signed URL and run AI analysis on it, which Stream puts at 15-30s. Sharing
+    // one 5s budget meant nearly every image check came back "partial" - Stream still
+    // working - and we billed that to the user as a failure.
     this.client = new StreamClient(config.STREAM_API_KEY, config.STREAM_API_SECRET, {
       timeout: config.MODERATION_TIMEOUT_MS ?? 5000
+    });
+    this.imageClient = new StreamClient(config.STREAM_API_KEY, config.STREAM_API_SECRET, {
+      timeout: config.MODERATION_IMAGE_TIMEOUT_MS ?? 20_000
     });
     this.configKey = config.STREAM_MODERATION_CONFIG_KEY;
   }
@@ -671,8 +680,10 @@ export class StreamModerationProvider implements ModerationProvider {
     const startedAt = Date.now();
     const entityId = input.contentId ?? `${input.surface}-${input.contentType}-${Date.now().toString(36)}`;
 
+    const client = input.contentType === "image" ? this.imageClient : this.client;
+
     try {
-      const response = await this.client.moderation.check({
+      const response = await client.moderation.check({
         entity_type: streamEntityType(input.surface, input.contentType),
         entity_id: entityId,
         entity_creator_id: input.userId,
@@ -685,15 +696,28 @@ export class StreamModerationProvider implements ModerationProvider {
       }) as StreamCheckResponse;
 
       if (input.contentType === "image" && !isCompleteStreamImageResponse(response)) {
+        // Stream documents exactly two check statuses: "complete" and "partial". "partial"
+        // means the synchronous leg returned and async image analysis is still running, with
+        // a task_id to poll - it is the normal shape when sync and async moderation are both
+        // configured, not a failure. Attaching an `error` here made the policy mapper call it
+        // provider_unavailable, which 503'd the upload and wrote a bogus row into the human
+        // moderation queue for every image that outran MODERATION_IMAGE_TIMEOUT_MS.
+        //
+        // A "complete" response missing recommended_action is a different animal: that one
+        // really is malformed, and it keeps the error.
+        const asyncStillRunning = response.status?.toLowerCase() === "partial";
+
         return {
           provider: this.name,
           provider_request_id: response.item?.id ?? response.task_id ?? `stream-partial-${Date.now().toString(36)}`,
           labels: [],
           latency_ms: Date.now() - startedAt,
           recommended_action: response.recommended_action,
-          status: "partial",
+          status: asyncStillRunning ? "partial" : "error",
           raw_result: sanitizeStreamResponse(response),
-          error: "Stream returned an incomplete image moderation response."
+          ...(asyncStillRunning
+            ? {}
+            : { error: "Stream returned an incomplete image moderation response." })
         };
       }
 

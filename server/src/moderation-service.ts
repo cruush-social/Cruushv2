@@ -9,6 +9,9 @@ import {
 } from "./message-keyword-prefilter.js";
 import { createModerationProvider, MockModerationProvider } from "./moderation-provider.js";
 import {
+  providerResultAsyncPending,
+  providerResultFailed,
+  providerResultUnusable,
   type ModerationContentType,
   type ModerationSurface,
   type PolicyDecision,
@@ -275,9 +278,11 @@ function hasHumanProof(providerResult: ProviderModerationResult) {
   );
 }
 
+// Kept as the fallback-chain trigger: both a failed provider and one that is still working
+// leave us without a verdict, and both should let Rekognition or the local text rules have
+// a go. Use providerResultFailed / providerResultAsyncPending where the distinction matters.
 function providerResultUnavailable(providerResult: ProviderModerationResult) {
-  return Boolean(providerResult.error) ||
-    ["partial", "pending", "provider_processing", "error"].includes((providerResult.status ?? "").toLowerCase());
+  return providerResultUnusable(providerResult);
 }
 
 function providerResultComplete(providerResult: ProviderModerationResult) {
@@ -381,6 +386,17 @@ function alphaPhotoUploadBypassResult(providerResult: ProviderModerationResult):
 function isProviderUnavailableDecision(decision: PolicyDecision) {
   return decision.decision === "quarantine" &&
     (decision.category === "provider_unavailable" || decision.reason_code === "provider_unavailable");
+}
+
+function isProviderPendingDecision(decision: PolicyDecision) {
+  return decision.decision === "quarantine" &&
+    (decision.category === "provider_pending" || decision.reason_code === "provider_pending");
+}
+
+// Either way the image was never screened and is refused. Kept as one predicate so the
+// refusal path cannot drift apart from the two categories that reach it.
+function isUnscreenedImageDecision(decision: PolicyDecision) {
+  return isProviderUnavailableDecision(decision) || isProviderPendingDecision(decision);
 }
 
 function rejectProfilePhotoWithoutAdultHuman(providerResult: ProviderModerationResult): {
@@ -708,20 +724,33 @@ export async function moderateImageOrReject(
   });
   const resolvedProviderResult = providerResult;
 
-  // Every provider is unreachable, including the Rekognition fallback, so the image was
-  // never actually screened. Refuse it rather than publishing something no scanner has
-  // looked at. `handlePolicyDecision` turns this into a 503 whose message tells the user
-  // to try again or contact reports@cruush.app.
-  if (isProviderUnavailableDecision(decision)) {
-    app.log.error(
-      {
-        provider: providerResult.provider,
-        surface: input.surface,
-        userId: input.userId,
-        providerError: providerResult.error ?? null
-      },
-      "photo moderation unavailable, refusing upload"
-    );
+  // No scanner produced a verdict, including the Rekognition fallback, so the image was
+  // never actually screened. Refuse it rather than publishing something nothing looked at.
+  // `handlePolicyDecision` turns this into a 503 whose message tells the user to try again
+  // or contact reports@cruush.app.
+  //
+  // The refusal is the same for both cases; the log is not. A provider that failed is an
+  // outage. A provider still chewing on the image is normal async work that outran our
+  // timeout, and paging on it is how the moderation queue filled up with phantom incidents.
+  if (isUnscreenedImageDecision(decision)) {
+    const stillRunning = isProviderPendingDecision(decision);
+    const logDetail = {
+      provider: providerResult.provider,
+      surface: input.surface,
+      userId: input.userId,
+      providerStatus: providerResult.status ?? null,
+      providerError: providerResult.error ?? null,
+      providerRequestId: providerResult.provider_request_id
+    };
+
+    if (stillRunning) {
+      app.log.warn(
+        logDetail,
+        "photo moderation still running when the request timed out, refusing upload"
+      );
+    } else {
+      app.log.error(logDetail, "photo moderation unavailable, refusing upload");
+    }
   }
 
   let gatedProviderResult = resolvedProviderResult;

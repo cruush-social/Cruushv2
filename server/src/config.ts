@@ -104,6 +104,9 @@ const configSchema = z.object({
   MEDIA_S3_SECRET_ACCESS_KEY: z.string().optional().default(""),
   MODERATION_PROVIDER: z.enum(["mock"]).optional().default("mock"),
   MODERATION_TIMEOUT_MS: z.coerce.number().int().positive().optional().default(5000),
+  // Stream puts a force_sync image check at 15-30s end to end, because it includes fetching
+  // the image from our signed URL plus AI analysis. Text stays on MODERATION_TIMEOUT_MS.
+  MODERATION_IMAGE_TIMEOUT_MS: z.coerce.number().int().positive().min(5000).max(60_000).optional().default(20_000),
   STREAM_MODERATION_ENABLED: booleanEnvSchema,
   HUMAN_MODERATION_ENABLED: booleanEnvSchema,
   STREAM_IMAGE_BRIDGE_ENABLED: booleanEnvSchema,
@@ -661,6 +664,7 @@ type ModerationConfigKey =
   | "MEDIA_S3_SECRET_ACCESS_KEY"
   | "MODERATION_PROVIDER"
   | "MODERATION_TIMEOUT_MS"
+  | "MODERATION_IMAGE_TIMEOUT_MS"
   | "STREAM_MODERATION_ENABLED"
   | "HUMAN_MODERATION_ENABLED"
   | "STREAM_IMAGE_BRIDGE_ENABLED"

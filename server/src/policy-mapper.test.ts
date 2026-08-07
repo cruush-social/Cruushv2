@@ -243,9 +243,16 @@ describe("policy mapper", () => {
     }
   );
 
-  it.each(["partial", "pending", "provider_processing", "error"])(
+  // All four fail closed. The reason code splits them: "error" is an outage,
+  // the rest are Stream still working on the async image leg.
+  it.each([
+    ["partial", "provider_pending"],
+    ["pending", "provider_pending"],
+    ["provider_processing", "provider_pending"],
+    ["error", "provider_unavailable"]
+  ])(
     "fails closed for a %s image moderation response",
-    (status) => {
+    (status, reasonCode) => {
       const decision = mapProviderResultToPolicy({
         surface: "profile_photo",
         contentType: "image",
@@ -260,7 +267,7 @@ describe("policy mapper", () => {
       });
 
       expect(decision.decision).toBe("quarantine");
-      expect(decision.reason_code).toBe("provider_unavailable");
+      expect(decision.reason_code).toBe(reasonCode);
     }
   );
 

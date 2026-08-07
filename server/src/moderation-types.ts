@@ -39,7 +39,10 @@ export type NormalizedModerationLabel =
   | "spam"
   | "chaser_fetishization";
 
-export type ModerationCategory = NormalizedModerationLabel | "provider_unavailable";
+export type ModerationCategory =
+  | NormalizedModerationLabel
+  | "provider_unavailable"
+  | "provider_pending";
 
 export type ModerationSeverity = "none" | "low" | "medium" | "high" | "critical";
 
@@ -119,3 +122,27 @@ export const ALLOW_POLICY_DECISION: PolicyDecision = {
   moderation_history_required: false,
   reason_code: "content_allowed"
 };
+
+// Stream's check endpoint documents two statuses: "complete" (sync work finished, no async
+// work outstanding) and "partial" (sync results are back, async image analysis is still
+// running, task_id returned). "pending" and "provider_processing" are kept for older
+// records and any provider that reports in-flight work under a different name.
+const ASYNC_PENDING_STATUSES = ["partial", "pending", "provider_processing"];
+
+// The provider is still working. No verdict yet, but nothing has gone wrong.
+export function providerResultAsyncPending(result: ProviderModerationResult) {
+  return !result.error &&
+    ASYNC_PENDING_STATUSES.includes((result.status ?? "").toLowerCase());
+}
+
+// The provider genuinely failed: transport error, timeout, or a malformed response.
+export function providerResultFailed(result: ProviderModerationResult) {
+  return Boolean(result.error) || (result.status ?? "").toLowerCase() === "error";
+}
+
+// No usable verdict, for either reason. Both cases quarantine and both trigger the
+// fallback chain - callers that need to tell an outage from normal async work should use
+// the two predicates above rather than this one.
+export function providerResultUnusable(result: ProviderModerationResult) {
+  return providerResultFailed(result) || providerResultAsyncPending(result);
+}
