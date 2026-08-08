@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { ApiClientError } from '../lib/apiClient';
-import MapHome, { canUseDeveloperMapToolsEmail } from './MapHome';
+import MapHome, { canUseDeveloperMapToolsEmail, readStoredMapViewport, storeMapViewportForRestore } from './MapHome';
 
 const { getNearbyUsers } = vi.hoisted(() => ({
   getNearbyUsers: vi.fn(),
@@ -75,6 +75,8 @@ const { mapControls } = vi.hoisted(() => ({
   mapControls: {
     setCenter: vi.fn(),
     setZoom: vi.fn(),
+    getCenter: vi.fn(),
+    getZoom: vi.fn(),
     zoomIn: vi.fn(),
     zoomOut: vi.fn(),
   },
@@ -183,6 +185,7 @@ vi.mock('./MapView', async () => {
       markers,
       fitToMarkers,
       focusCoordinates,
+      initialViewport,
       radiusCircle,
       demoRadiusCircles = [],
       onPinClick,
@@ -192,6 +195,10 @@ vi.mock('./MapView', async () => {
       markers: any[];
       fitToMarkers?: boolean;
       focusCoordinates?: { approximateLatitude: number; approximateLongitude: number } | null;
+      initialViewport?: {
+        center: { approximateLatitude: number; approximateLongitude: number };
+        zoom: number;
+      };
       radiusCircle?: {
         center: { approximateLatitude: number; approximateLongitude: number };
         radiusMeters: number;
@@ -214,6 +221,9 @@ vi.mock('./MapView', async () => {
             data-testid="map-focus"
             data-lat={focusCoordinates ? String(focusCoordinates.approximateLatitude) : ''}
             data-lng={focusCoordinates ? String(focusCoordinates.approximateLongitude) : ''}
+            data-initial-lat={initialViewport ? String(initialViewport.center.approximateLatitude) : ''}
+            data-initial-lng={initialViewport ? String(initialViewport.center.approximateLongitude) : ''}
+            data-initial-zoom={initialViewport ? String(initialViewport.zoom) : ''}
             data-fit-to-markers={String(Boolean(fitToMarkers))}
             data-radius-circle={radiusCircle ? String(radiusCircle.radiusMeters) : ''}
             data-radius-lat={radiusCircle ? String(radiusCircle.center.approximateLatitude) : ''}
@@ -314,6 +324,8 @@ describe('MapHome', () => {
     useIsMobile.mockReset();
     mapControls.setCenter.mockReset();
     mapControls.setZoom.mockReset();
+    mapControls.getCenter.mockReset();
+    mapControls.getZoom.mockReset();
     mapControls.zoomIn.mockReset();
     mapControls.zoomOut.mockReset();
     toastSuccess.mockReset();
@@ -569,6 +581,24 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
   });
 
+  it('stores and consumes the one-time map viewport restore payload', () => {
+    mapControls.getCenter.mockReturnValue({ lat: 40.7812, lng: -73.9665 });
+    mapControls.getZoom.mockReturnValue(13.75);
+    storeMapViewportForRestore(mapControls);
+
+    expect(JSON.parse(window.sessionStorage.getItem('cruush:map-viewport-restore') ?? 'null')).toEqual({
+      latitude: 40.7812,
+      longitude: -73.9665,
+      zoom: 13.75,
+    });
+    expect(readStoredMapViewport()).toEqual({
+      latitude: 40.7812,
+      longitude: -73.9665,
+      zoom: 13.75,
+    });
+    expect(window.sessionStorage.getItem('cruush:map-viewport-restore')).toBeNull();
+  });
+
   it('keeps the recently active button visible above the mobile bottom nav', async () => {
     useIsMobile.mockReturnValue(true);
 
@@ -600,6 +630,8 @@ describe('MapHome', () => {
 
   it('does not show a saved launch pass icon outside the one-mile live radius or duplicate the chat invite', async () => {
     useIsMobile.mockReturnValue(false);
+    mapControls.getCenter.mockReturnValue({ lat: 40.7345, lng: -73.9901 });
+    mapControls.getZoom.mockReturnValue(13.25);
     getActiveEvents.mockResolvedValue([{
       ...launchEvent,
       attendeeCount: 3,
