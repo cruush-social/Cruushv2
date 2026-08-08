@@ -36,13 +36,13 @@ Core copy rules:
 - Avoid gay-male-only slang as the dominant voice.
 - Keep text short on high-intent surfaces like map cards, pins, sheets, and chat.
 
-Cruush copy examples:
+cruush copy examples:
 
 - `{displayName} has a cruush on you!`
 - `You have a cruush on {displayName}.`
 - `It's mutual. You and {displayName} have a cruush on each other.`
 - `Send a cruush`
-- `Cruush back`
+- `cruush back`
 - `New cruush`
 - `Mutual cruush`
 
@@ -390,7 +390,7 @@ Feed requirements:
 - Empty states
 - Map-adjacent behavior
 
-### Cruush Interaction
+### cruush Interaction
 
 A `cruush` is a one-tap, low-friction signal of interest. The interaction is built around the phrase `has a cruush on you`, which should be treated as a core brand mechanic, not a throwaway notification line.
 
@@ -454,7 +454,7 @@ Account:
 - Place detail, place feed, and who-is-here
 - Private group chat
 - DMs
-- Cruush activity
+- cruush activity
 - Auth
 - Settings
 - Lucky discovery state
@@ -509,7 +509,7 @@ Tradeoff:
 - Treat Sniffies as inspiration for map-first cruising immediacy, not as a design ceiling or clone target.
 - Keep map-first cruising behavior central.
 - Keep local feed unified by default.
-- Use cruush-specific interaction copy: `{displayName} has a cruush on you!`, `Cruush back`, and `Mutual cruush`.
+- Use cruush-specific interaction copy: `{displayName} has a cruush on you!`, `cruush back`, and `Mutual cruush`.
 - Do not call cruushes likes, taps, matches, or crushes in user-facing UI.
 - Use `Vibes`, not `Tribes`.
 - Preserve dense profile and filter architecture.

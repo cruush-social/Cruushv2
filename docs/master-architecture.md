@@ -988,7 +988,7 @@ Future report work:
 - Internal audit route for report/trust signals.
 - Abuse-pattern dashboards can be built later, but not as a human moderation queue unless product direction changes.
 
-## Cruush Interaction And Relationships
+## cruush Interaction And Relationships
 
 Product language:
 
@@ -997,7 +997,7 @@ Product language:
 
 Current backend:
 
-- Cruush routes own interaction state.
+- cruush routes own interaction state.
 - Mutual cruush unlocks DM permission.
 - Relationship/match records are encrypted/indexed where implemented.
 

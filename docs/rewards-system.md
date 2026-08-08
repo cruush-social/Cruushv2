@@ -1,12 +1,12 @@
-# Cruush rewards system
+# cruush rewards system
 
 For the implementation rationale and tradeoffs, see
 [`rewards-design-decisions.md`](./rewards-design-decisions.md).
 
 ## Overview
 
-Cruush rewards legitimate daily participation and qualified referrals with
-promotional Cruush+ access. Promotional access is separate from paid billing,
+cruush rewards legitimate daily participation and qualified referrals with
+promotional cruush+ access. Promotional access is separate from paid billing,
 auditable, capped, reversible, and idempotent. Optional TOTP two-factor
 authentication protects accounts, adds trust once, and is required before a
 referred account can qualify.
@@ -42,7 +42,7 @@ provider records, PhotoDNA, Rekognition, age estimation, or moderation policy.
   old, has enabled 2FA, has a complete required profile, and is in good standing.
 - Suspended/deleted accounts and active suspensions are rejected. Accounts under
   review and suspicious signup patterns are flagged for human review.
-- A qualified referral grants seven promotional Cruush+ days to the referrer and
+- A qualified referral grants seven promotional cruush+ days to the referrer and
   one trust point, up to 20 referral-derived trust points.
 - One unique ledger grant can exist per referral. Reruns do not duplicate it.
 
@@ -98,7 +98,7 @@ Important database protections include:
 
 `reward_grants.user_id`, `reward_grants.referral_id`, and reversal user IDs are
 intentionally retained as opaque UUID audit identifiers rather than cascading
-foreign keys. Cruush currently hard-deletes accounts; a cascading FK would
+foreign keys. cruush currently hard-deletes accounts; a cascading FK would
 either erase immutable audit history or block account deletion. Operational
 tables retain normal user foreign keys and are deleted with the account.
 
@@ -107,7 +107,7 @@ tables retain normal user foreign keys and are deleted with the account.
 1. A milestone/referral produces a deterministic idempotency key.
 2. The service locks the recipient user/promo state, checks rolling/source caps
    and the 90-day maximum, then inserts the immutable grant.
-3. If paid/lifetime/legacy Cruush+ is active, seconds are added to the promo bank.
+3. If paid/lifetime/legacy cruush+ is active, seconds are added to the promo bank.
 4. Otherwise, promo access starts at `max(now, active_until)` and is extended.
 5. Entitlement reads combine paid, lifetime, legacy, and active promo access.
 6. After paid access expires, the next entitlement/summary read atomically
@@ -141,7 +141,7 @@ constraints, and grant idempotency prevent duplicate rewards.
 
 ## Two-factor authentication
 
-Cruush uses internal password authentication, so optional TOTP is implemented
+cruush uses internal password authentication, so optional TOTP is implemented
 with `otplib` (RFC 6238/4226 compatible).
 
 - Setup requires the current password.
@@ -272,7 +272,7 @@ No external billing migration or payment-provider edit is required.
    token, and store the displayed recovery codes.
 3. Sign out/in and confirm the second-factor prompt.
 4. Use one recovery code once and confirm reuse fails.
-5. Complete one Cruush/message action and confirm one activity row; repeat the
+5. Complete one cruush/message action and confirm one activity row; repeat the
    action and confirm no second row for that date.
 6. In a staging database, backdate activity/referral rows to verify milestone
    and qualification processing.

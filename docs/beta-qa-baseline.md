@@ -1,4 +1,4 @@
-# Cruush Beta QA Baseline
+# cruush Beta QA Baseline
 
 Last updated: 2026-07-08
 

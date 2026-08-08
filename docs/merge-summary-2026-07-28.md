@@ -54,7 +54,7 @@ Hazel added referral links and qualification logic. This is closer to an
 affiliate/referral system than a generic affiliate dashboard: users can share a
 referral link, signups can carry a `?ref=` code, and the backend qualifies
 referrals based on account age, 2FA, profile completion, and account standing
-before awarding promotional Cruush+ access.
+before awarding promotional cruush+ access.
 
 Key surfaces:
 

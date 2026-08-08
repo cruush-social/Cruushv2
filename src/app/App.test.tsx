@@ -114,7 +114,7 @@ vi.mock('./components/ModeratorReview', () => ({
 }));
 
 vi.mock('./components/CruushActivity', () => ({
-  default: () => <div>Mock Cruush</div>
+  default: () => <div>Mock cruush</div>
 }));
 
 vi.mock('./components/Auth', () => ({

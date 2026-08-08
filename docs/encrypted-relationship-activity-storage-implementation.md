@@ -4,7 +4,7 @@ This document explains the encrypted relationship and activity storage implement
 
 ## Summary
 
-Cruush relationship edges are now stored through a generic encrypted ledger instead of being read and written through plaintext relationship tables at runtime.
+cruush relationship edges are now stored through a generic encrypted ledger instead of being read and written through plaintext relationship tables at runtime.
 
 The protected ledger supports:
 

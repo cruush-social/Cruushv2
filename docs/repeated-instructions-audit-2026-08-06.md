@@ -1,7 +1,7 @@
 # What Julien Repeats: A Full Audit of Three Months of Agent Sessions
 
 **Generated:** 2026-08-06
-**Scope:** every human-authored message to Claude Code, Codex (CLI + Desktop + Claude Octopus reviewer sessions), and Antigravity, from the first Cruush session to now.
+**Scope:** every human-authored message to Claude Code, Codex (CLI + Desktop + Claude Octopus reviewer sessions), and Antigravity, from the first cruush session to now.
 **Purpose:** you said you shouldn't have to repeat yourself. This document proves what you repeat, how often, in what words, and — for each one — the reason the agent keeps failing it and the exact rule that would stop it.
 
 ---
@@ -98,7 +98,7 @@ Your actual working model is the opposite: **for this project, main is the deplo
 
 ### The rule
 
-> **R1.** For the Cruush repos, "done" means committed and pushed to `main` unless the user said otherwise in the same message. Do not end a turn on a green build with an unpushed tree. If a push is unsafe (dirty tree from another session, unmerged branch, failing safety test), say so in one line and state what you need — do not silently stop.
+> **R1.** For the cruush repos, "done" means committed and pushed to `main` unless the user said otherwise in the same message. Do not end a turn on a green build with an unpushed tree. If a push is unsafe (dirty tree from another session, unmerged branch, failing safety test), say so in one line and state what you need — do not silently stop.
 >
 > **R2.** After pushing, state the pushed SHA and the deploy URL, and confirm the deployed commit matches. That kills the "does this deploy have the latest commit?" question permanently.
 
@@ -440,21 +440,21 @@ The purest example of an avoidable repeat in the entire corpus.
 
 > `Design a mobile-first queer cruising app and website called cruush (always lowercase). The logo text must always be exactly cruush (all lowercase).` — 2026-04-28, the very first design brief
 
-> `its cruush+ not Cruush+ cruush is always lowercase` — 2026-06-02
+> `its cruush+ not cruush+ cruush is always lowercase` — 2026-06-02
 
 > `remember cruush is always lowercase.` — 2026-07-10
 
-> `Cruush is all lowercase always make a note so you dont forget` — 2026-07-28
+> `cruush is all lowercase always make a note so you dont forget` — 2026-07-28
 
-> `Stop saying Cruush remember always cruush make a note for yourself` — 2026-07-28
+> `Stop saying cruush remember always cruush make a note for yourself` — 2026-07-28
 
-> `Cruush should always be lowercase` — 2026-07-28
+> `cruush should always be lowercase` — 2026-07-28
 
 > `Always lowercase cruush update your docs so you dont forget` — 2026-07-28
 
 Four separate corrections **on the same day**, plus a first-message instruction three months earlier. And in July you noted the regression precisely:
 
-> `you disobeyed the design doc okay the last model kept to it … yoru old model after i wrote it in the docs stopped using Cruush like tis always lowercasse this is the docs this kind of lkaziness si what im talking about`
+> `you disobeyed the design doc okay the last model kept to it … yoru old model after i wrote it in the docs stopped using cruush like tis always lowercasse this is the docs this kind of lkaziness si what im talking about`
 
 ### The rule
 
@@ -549,7 +549,7 @@ These are not agent failures so much as knowledge that was never centralised. Ea
 | HIV status / trans status / ethnicity are **never** filters or visibility predicates | 3 | `HIV status will never be a filter or visibility control lets put this in the master design doc if its unclear so you stop recommending it - its the same reason we dont have an ethicnity filter/control` |
 | NSFW is allowed (favorites gallery, messages); photos must be of yourself | 4 | `remember nsfw is allowed in favorite gallery and messages` |
 | We will never be in an app store — we host NSFW | 2 | `we wont ever be in an app store we host nsfw photos` |
-| Cruush = mutual match semantics (one-sided vs mutual) | 3 | `do you really need to tell you if i want it be both approve A MUTUAL CRUUSH or ONE SIDED its called. MUTUAL CRUSH` |
+| cruush = mutual match semantics (one-sided vs mutual) | 3 | `do you really need to tell you if i want it be both approve A MUTUAL cruush or ONE SIDED its called. MUTUAL CRUSH` |
 | Auto-moderation must reject obvious minors regardless of provider | 6+ | `whatevr it takes for that to happen` |
 | Never add a paid third-party service without explicit confirmation | 2 explicit, strongly worded | `dont ever install anything that requries a paid service ever again without explictly asking and confirming that i have that subscription` |
 | Free tier: up to 3 seeking filters, 3 visibility controls | 1 | — |
@@ -659,7 +659,7 @@ Ranked by messages-saved per hour of work:
 Everything below is drawn from your own words. It is written for an agent to obey, not for a human to enjoy.
 
 ```markdown
-# CRUUSH — STANDING RULES FOR ALL AGENTS
+# cruush — STANDING RULES FOR ALL AGENTS
 Read this file completely before doing anything. It overrides your defaults.
 Applies to Claude Code, Codex, Antigravity, and any subagent.
 

@@ -1,10 +1,10 @@
-# Cruush Architecture Whiteboard
+# cruush Architecture Whiteboard
 
 This is a source-of-truth whiteboard for the current app shape. It reflects the Vite React client, the self-hosted Fastify API, and the Postgres-backed data model that replaced the older Supabase runtime path.
 
 Rendered version of the main graph:
 
-![Cruush architecture whiteboard](./architecture-whiteboard-main.png)
+![cruush architecture whiteboard](./architecture-whiteboard-main.png)
 
 Editable SVG source: [architecture-whiteboard-main.svg](./architecture-whiteboard-main.svg)
 
@@ -12,7 +12,7 @@ Editable SVG source: [architecture-whiteboard-main.svg](./architecture-whiteboar
 flowchart LR
   subgraph Browser["Browser"]
     UI["React app\nsrc/app/App.tsx"]
-    Screens["Map, Feed, Profiles,\nMessages, Cruush, Settings"]
+    Screens["Map, Feed, Profiles,\nMessages, cruush, Settings"]
     ApiClient["API wrappers\nsrc/app/lib/*Api.ts"]
     LocalState["Local browser state\nsession cache + preview URLs"]
     MapLibre["MapLibre UI\nOpenFreeMap/CARTO tiles"]
@@ -34,7 +34,7 @@ flowchart LR
     UserRoutes["Discovery routes\nserver/src/routes/users.ts"]
     MessageRoutes["Conversation/message routes\nserver/src/routes/messages.ts"]
     PostRoutes["Feed post routes\nserver/src/routes/posts.ts"]
-    CruushRoutes["Cruush routes\nserver/src/routes/cruush.ts"]
+    CruushRoutes["cruush routes\nserver/src/routes/cruush.ts"]
     Schemas["Zod boundary schemas\nserver/src/*-schema.ts"]
     Mailer["Email delivery / preview\nserver/src/mailer.ts"]
     Turnstile["Turnstile verification\nserver/src/turnstile.ts"]
@@ -187,16 +187,16 @@ Key files:
 - `docs/sensitive-data-encryption-plan.md`
 - `docs/rotating-encrypted-token-system-white-paper.md`
 
-### Messaging, Feed, And Cruush Activity
+### Messaging, Feed, And cruush Activity
 
 ```mermaid
 flowchart LR
   Client["React screens"] --> Messages["/api/conversations\n/api/messages"]
   Client --> Posts["/api/posts"]
-  Client --> Cruush["/api/cruush"]
+  Client --> cruush["/api/cruush"]
   Messages --> MsgTables["conversations\nconversation_members\nmessages"]
   Posts --> PostTable["posts"]
-  Cruush --> CruushTable["cruushes"]
+  cruush --> CruushTable["cruushes"]
   MsgTables --> Client
   PostTable --> Client
   CruushTable --> Client

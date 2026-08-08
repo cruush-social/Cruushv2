@@ -15,8 +15,8 @@
 
 ## Rewards and optional 2FA
 
-Cruush supports server-confirmed daily activity streaks, qualified referrals,
-separate promotional Cruush+ banking, and optional authenticator-app 2FA. See
+cruush supports server-confirmed daily activity streaks, qualified referrals,
+separate promotional cruush+ banking, and optional authenticator-app 2FA. See
 [docs/rewards-system.md](docs/rewards-system.md) for product rules, architecture,
 configuration, APIs, deployment, testing, and grant reversal operations. The
 reasoning and tradeoffs behind the implementation are in
@@ -189,7 +189,7 @@ startup migration creates the rewards schema and default database settings.
   npm run dev:local
   ```
 
-  Map tiles default to a custom dark MapLibre vector style backed by OpenFreeMap. Map labels use the app's loaded Cormorant Garamond CSS font through MapLibre local glyph rendering, because the public OpenMapTiles glyph server does not provide real Cormorant Garamond PBFs. The style uses a high-contrast grey/black palette so NYC roads and street names stay readable without changing the Cruush map UI. You can override the map source in `.env.local`:
+  Map tiles default to a custom dark MapLibre vector style backed by OpenFreeMap. Map labels use the app's loaded Cormorant Garamond CSS font through MapLibre local glyph rendering, because the public OpenMapTiles glyph server does not provide real Cormorant Garamond PBFs. The style uses a high-contrast grey/black palette so NYC roads and street names stay readable without changing the cruush map UI. You can override the map source in `.env.local`:
 
   ```bash
   VITE_MAP_STYLE_URL=

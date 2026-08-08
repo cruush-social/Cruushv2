@@ -33,3 +33,13 @@ branch's context. Do not ask Julien to repeat anything documented in either file
   NOT hit the Secrets Manager Agent daemon directly. MUST use
   `{{resolve:secretsmanager:secret-id:SecretString:json-key}}` with
   `asm-exec` so the secret resolves at runtime without entering context.
+
+
+# Product naming
+
+- The product name is always `cruush`, all lowercase, in UI, copy, docs,
+  tests, comments, commit messages, and agent responses.
+- Do not capitalize or title-case the product name. Preserve legal entity names
+  exactly as legally written when they are explicitly provided.
+- Before finalizing work, run `pnpm check:cruush-casing` and correct any
+  product-name casing errors it reports.

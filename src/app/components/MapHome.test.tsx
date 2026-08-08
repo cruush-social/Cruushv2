@@ -1080,7 +1080,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('pointer-events-auto');
   });
 
-  it('only shows the Cruush gradient on active seeking and visibility controls', async () => {
+  it('only shows the cruush gradient on active seeking and visibility controls', async () => {
     useIsMobile.mockReturnValue(false);
 
     const { unmount } = render(

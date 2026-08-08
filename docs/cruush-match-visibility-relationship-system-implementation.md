@@ -1,4 +1,4 @@
-# Cruush Match, Visibility, and Relationship System Implementation
+# cruush Match, Visibility, and Relationship System Implementation
 
 This document explains the v1.1 match, visibility, and relationship-system implementation: what changed, why the system was shaped this way, and how the new behavior is verified.
 
@@ -90,7 +90,7 @@ The helper returns resolved relationship permissions such as:
 
 This keeps the API routes from duplicating relationship logic and makes the privacy behavior easier to audit.
 
-## Cruush API Changes
+## cruush API Changes
 
 `server/src/routes/cruush.ts` was extended substantially.
 

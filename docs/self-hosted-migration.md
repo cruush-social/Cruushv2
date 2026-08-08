@@ -75,7 +75,7 @@ Current migration status:
 
 - Profiles are app-owned through `GET /api/profiles/me` and `PUT /api/profiles/me`.
 - Posts are app-owned through `GET /api/posts` and `POST /api/posts`.
-- Cruush activity/actions are app-owned through `GET /api/cruush/:userId` and `POST /api/cruush`.
+- cruush activity/actions are app-owned through `GET /api/cruush/:userId` and `POST /api/cruush`.
 - Users/discovery is app-owned through `GET /api/users`.
 - Conversations/messages are app-owned through:
   - `POST /api/conversations/dm`

@@ -31,7 +31,7 @@ function validProductionEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEn
     MEDIA_S3_ACCESS_KEY_ID: "test-access-key",
     MEDIA_S3_SECRET_ACCESS_KEY: "test-secret-key",
     RESEND_API_KEY: "resend-key",
-    MAIL_FROM: "Cruush <hello@cruush.app>",
+    MAIL_FROM: "cruush <hello@cruush.app>",
     LOCATION_ENCRYPTION_KEY: strongSecret,
     LOCATION_INDEX_KEY: strongSecret,
     VISIBILITY_POLICY_ENCRYPTION_KEY: strongSecret,

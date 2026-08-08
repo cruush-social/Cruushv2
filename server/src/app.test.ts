@@ -7973,7 +7973,7 @@ describe("server", () => {
       return {
         id: `00000000-0000-4000-8000-${String(seedNumber).padStart(12, "0")}`,
         email: `test-cruush-${String(seedNumber).padStart(2, "0")}@cruush.local`,
-        display_name: `Test Cruush ${seedNumber}`,
+        display_name: `Test cruush ${seedNumber}`,
         year_of_birth: 1998,
         pronouns: ["they/them"],
         looking_for: ["Testing"],
@@ -8113,7 +8113,7 @@ describe("server", () => {
     const evenNpcRow = {
       id: "00000000-0000-4000-8000-000000000002",
       email: "test-cruush-02@cruush.local",
-      display_name: "Test Cruush 2",
+      display_name: "Test cruush 2",
       year_of_birth: 1998,
       pronouns: ["they/them"],
       looking_for: ["Testing"],
@@ -8211,7 +8211,7 @@ describe("server", () => {
     const evenNpcRow = {
       id: "00000000-0000-4000-8000-000000000002",
       email: "test-cruush-02@cruush.local",
-      display_name: "Test Cruush 2",
+      display_name: "Test cruush 2",
       year_of_birth: 1998,
       pronouns: ["they/them"],
       looking_for: ["Testing"],

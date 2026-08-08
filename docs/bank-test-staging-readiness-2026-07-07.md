@@ -36,7 +36,7 @@ PHOTODNA_ENABLED=false
 
 Route `https://moderation-media-staging.cruush.app` to the API without cookies or CDN caching. Configure a private five-minute scheduler to run `pnpm --dir server cleanup:moderation-media-grants` from the repository root. Confirm Coolify ingress, proxy, CDN/WAF, and APM logs do not retain raw request paths for this hostname. Rejected and expired ciphertext is deleted, while photos receiving a complete Stream `keep` remain on tester profiles normally. Public production uses the same decision path with a separate `https://moderation-media.cruush.app` origin after staging proof; neither environment should enable the legacy manual-review flag.
 
-Do not describe the newer Rekognition layer as verified age. The accurate statement after the 2026-07-18 branch is deployed and tested is: “Cruush combines PhotoDNA known-hash matching, Stream content-safety moderation, and Rekognition estimated face-age ranges before photo publication. A definite child-face estimate is rejected with permanent enforcement; a range overlapping 18 is accepted to avoid blocking an 18+ user.” Until deployment proof is complete, describe that behavior as implemented locally, not active on staging.
+Do not describe the newer Rekognition layer as verified age. The accurate statement after the 2026-07-18 branch is deployed and tested is: “cruush combines PhotoDNA known-hash matching, Stream content-safety moderation, and Rekognition estimated face-age ranges before photo publication. A definite child-face estimate is rejected with permanent enforcement; a range overlapping 18 is accepted to avoid blocking an 18+ user.” Until deployment proof is complete, describe that behavior as implemented locally, not active on staging.
 
 ## Completed Checks
 

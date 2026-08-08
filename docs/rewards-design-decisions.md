@@ -1,10 +1,10 @@
-# Cruush rewards: implementation and design decisions
+# cruush rewards: implementation and design decisions
 
 ## Purpose
 
-This document explains what changed to add Cruush rewards, why the system was
+This document explains what changed to add cruush rewards, why the system was
 designed this way, which alternatives were avoided, and which decisions should
-be revisited as Cruush grows.
+be revisited as cruush grows.
 
 For product rules, configuration, endpoints, and deployment procedures, see
 [`rewards-system.md`](./rewards-system.md).
@@ -17,7 +17,7 @@ The repository already used:
 - a Fastify TypeScript API
 - PostgreSQL with numbered SQL migrations
 - cookie-backed server sessions and internal password authentication
-- existing paid, lifetime, and legacy Cruush+ entitlement sources
+- existing paid, lifetime, and legacy cruush+ entitlement sources
 - an existing trust-event ledger, rate limiter, and notification system
 - in-process API deployment without a separate job queue
 
@@ -39,10 +39,10 @@ flowchart TD
     H --> I["2FA, profile, age, standing, and risk checks"]
     I --> E
 
-    E --> J{"Paid Cruush+ active?"}
+    E --> J{"Paid cruush+ active?"}
     J -->|No| K["Active promotional entitlement"]
     J -->|Yes| L["Banked promotional seconds"]
-    K --> M["Effective Cruush+ access"]
+    K --> M["Effective cruush+ access"]
     L --> M
     N["Paid, lifetime, and legacy access"] --> M
 
@@ -67,7 +67,7 @@ flowchart TD
 
 ### Reward only successful server-side domain actions
 
-Activity is recorded from existing Cruush, message, and post routes after the
+Activity is recorded from existing cruush, message, and post routes after the
 underlying action succeeds.
 
 This proves that the user completed a real domain action and avoids spoofable
@@ -76,7 +76,7 @@ The database permits only one activity credit per user and local calendar date,
 so sending more messages cannot produce more reward credit.
 
 Reward recording is secondary to the social action: a temporary reward-service
-failure is logged but does not undo a successfully sent message or Cruush.
+failure is logged but does not undo a successfully sent message or cruush.
 
 ### Store the calendar date and timezone used
 
@@ -115,7 +115,7 @@ Database uniqueness protects:
 Application checks improve error handling, but the database remains the final
 concurrency boundary.
 
-### Keep promotional and paid Cruush+ independent
+### Keep promotional and paid cruush+ independent
 
 Promotional state lives in
 `promotional_cruush_plus_entitlements`. Existing paid, lifetime, and legacy
@@ -152,7 +152,7 @@ Operational reward tables use normal user foreign keys. Immutable ledger user
 and referral identifiers remain opaque UUIDs rather than cascading foreign
 keys.
 
-Cruush currently hard-deletes accounts. Cascading would erase audit history,
+cruush currently hard-deletes accounts. Cascading would erase audit history,
 while restrictive foreign keys could block deletion. Opaque identifiers
 preserve grant and reversal history without retaining a live user relationship.
 A formal privacy-safe audit tombstone would be a useful future improvement.
@@ -274,7 +274,7 @@ The primary onboarding completion action leads to the rewards and 2FA
 experience. A visible "Skip 2FA for now" action still completes onboarding.
 
 This reflects the product decision that 2FA materially improves account and
-referral trust but is not required for general Cruush access. The UI does not
+referral trust but is not required for general cruush access. The UI does not
 claim a reward before the backend confirms a ledger grant.
 
 ## Failure and retry behavior

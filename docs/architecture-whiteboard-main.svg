@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1600" viewBox="0 0 1600 1600" role="img" aria-labelledby="title desc">
-  <title id="title">Cruush Architecture Whiteboard</title>
+  <title id="title">cruush Architecture Whiteboard</title>
   <desc id="desc">Rendered architecture diagram showing Browser, Vite frontend, Fastify API, and Postgres database layers.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -24,7 +24,7 @@
 
   <rect class="canvas" x="0" y="0" width="1600" height="1600"/>
 
-  <text x="80" y="68" style="font: 800 34px Inter, ui-sans-serif, system-ui; fill: #0f172a;">Cruush Architecture Whiteboard</text>
+  <text x="80" y="68" style="font: 800 34px Inter, ui-sans-serif, system-ui; fill: #0f172a;">cruush Architecture Whiteboard</text>
   <text x="80" y="96" style="font: 500 16px Inter, ui-sans-serif, system-ui; fill: #475569;">Vite React client -> Fastify API -> Postgres, with app-owned session auth and profile privacy controls.</text>
 
   <rect class="cluster" x="70" y="135" width="320" height="690"/>
@@ -37,7 +37,7 @@
   <rect class="node browser" x="105" y="325" width="250" height="92"/>
   <text class="node-text" x="230" y="356" text-anchor="middle">Screens</text>
   <text class="small" x="230" y="379" text-anchor="middle">Map, Feed, Profiles</text>
-  <text class="small" x="230" y="400" text-anchor="middle">Messages, Cruush, Settings</text>
+  <text class="small" x="230" y="400" text-anchor="middle">Messages, cruush, Settings</text>
 
   <rect class="node browser" x="105" y="455" width="250" height="72"/>
   <text class="node-text" x="230" y="486" text-anchor="middle">API wrappers</text>
@@ -106,7 +106,7 @@
   <text class="small" x="927" y="737" text-anchor="middle">posts.ts</text>
 
   <rect class="node api" x="1030" y="685" width="145" height="64"/>
-  <text class="node-text" x="1102" y="715" text-anchor="middle">Cruush</text>
+  <text class="node-text" x="1102" y="715" text-anchor="middle">cruush</text>
   <text class="small" x="1102" y="737" text-anchor="middle">cruush.ts</text>
 
   <rect class="node api" x="875" y="780" width="280" height="64"/>

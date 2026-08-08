@@ -18,7 +18,7 @@ rule F1 says `cruush` is always lowercase and this document was breaking it.
 ## What this document is
 
 This is the single source of truth for the work outstanding on the liquid-glass
-line of the Cruush app: the glass system, the landing page, the map pins, the
+line of the cruush app: the glass system, the landing page, the map pins, the
 teaser, and the application-logic asks that arrived alongside them.
 
 It exists because a long working session produced repeated regressions, several
@@ -126,7 +126,7 @@ These are not suggestions to interpret. Run them. All five exist in
 | --- | --- | --- |
 | `pnpm ship -m "message"` | A1, A2, A3, F1, I5 | Commits, pushes to `main`, deploys, and polls until the deployed commit matches the pushed SHA. This is what "push to main" means. |
 | `pnpm check:layout` | D1, D2, D5, D6, D7 | Drives the installed Chrome over the DevTools Protocol at 375/768/1280 and measures real bounding boxes. `--url https://www.cruush.app` checks production. |
-| `pnpm check:copy` | F1 | Fails on user-facing `Cruush`. `--fix` rewrites it. |
+| `pnpm check:copy` | F1 | Fails on user-facing `cruush`. `--fix` rewrites it. |
 | `pnpm docs:worktrees` | J1 | Regenerates `docs/worktrees.md`. |
 | `pnpm docs:env` | I1, I2 | Regenerates `docs/env-matrix.md` and lists variables the code reads that `server/.env.example` does not document. |
 | `pnpm security:check` | I5 | Staged-secret scan before commit. |
@@ -2298,7 +2298,7 @@ must not be compensated for by raising the scale.
 | `docs/env-matrix.md` | Every environment variable the code reads, and where it is set. Regenerate with `pnpm docs:env` |
 | `scripts/ship.mjs` | `pnpm ship` — commit, push, deploy, poll until the deployed SHA matches |
 | `scripts/check-layout-invariants.mjs` | `pnpm check:layout` — real bounding boxes at 375/768/1280 |
-| `scripts/check-lowercase-cruush.mjs` | `pnpm check:copy` — fails on user-facing `Cruush`; `--fix` rewrites |
+| `scripts/check-lowercase-cruush.mjs` | `pnpm check:copy` — fails on user-facing `cruush`; `--fix` rewrites |
 | `scripts/security-check.sh` | `pnpm security:check` — staged-secret scan before commit |
 
 ---

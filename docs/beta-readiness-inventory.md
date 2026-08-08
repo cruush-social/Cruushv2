@@ -1,4 +1,4 @@
-# Cruush Beta Readiness Inventory
+# cruush Beta Readiness Inventory
 
 > 2026-07-24 policy update: the explicit-profile-photo preference work described in this older inventory is no longer planned. Nude or sexually explicit photos are rejected outside authenticated direct and group messages.
 
@@ -6,7 +6,7 @@
 
 Last updated: 2026-07-08
 
-This inventory reflects the current Fastify/Vite/Postgres runtime. The older whiteboard note that targets NudeNet for photo moderation is stale for the current beta path. The active target is Stream moderation plus PhotoDNA plus Cruush-owned encrypted S3/R2 media storage.
+This inventory reflects the current Fastify/Vite/Postgres runtime. The older whiteboard note that targets NudeNet for photo moderation is stale for the current beta path. The active target is Stream moderation plus PhotoDNA plus cruush-owned encrypted S3/R2 media storage.
 
 ## Implemented
 

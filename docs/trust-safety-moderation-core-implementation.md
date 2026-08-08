@@ -11,7 +11,7 @@ This document summarizes the implementation pass based on `Cruush_Trust_Safety_M
 - Backfilled `user_trust_profiles` for existing users and created trust profiles during sign-up.
 - Added moderation environment variables to `.env.example` and server config.
 - Added a replaceable moderation provider interface with a launch-safe mock provider.
-- Added a policy mapper that converts normalized provider labels into Cruush decisions instead of letting provider labels directly change trust.
+- Added a policy mapper that converts normalized provider labels into cruush decisions instead of letting provider labels directly change trust.
 - Added a trust engine that writes evidence, moderation history, trust events, caps, suspensions, feature restrictions, and recalculates trust from events.
 - Added a protected internal endpoint: `GET /api/internal/users/:userId/trust`, enabled only when `INTERNAL_API_SECRET` is configured.
 - Added report weighting and report-driven evidence events for existing report creation.
