@@ -85,6 +85,10 @@ function isPreferenceEnabledForType(preferences: NotificationPreferences, type: 
     return false;
   }
 
+  if (type === "nearby_activity") {
+    return true;
+  }
+
   if (type === "incoming_cruush" || type === "mutual_cruush") {
     return preferences.cruushEnabled;
   }
@@ -115,6 +119,13 @@ function genericPushCopy(type: AppNotificationType) {
     return {
       title: "New group update",
       body: "Open cruush to check it."
+    };
+  }
+
+  if (type === "nearby_activity") {
+    return {
+      title: "Someone nearby",
+      body: "Someone within your radar may be in your area."
     };
   }
 

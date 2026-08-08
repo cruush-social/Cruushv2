@@ -18,6 +18,7 @@ import {
   type ProfilePayload
 } from "../profile-schema.js";
 import { moderateProfileOrReject } from "../moderation-service.js";
+import { notifyNearbyUsersForLocationUpdate } from "../nearby-notifications.js";
 import {
   canSubjectViewProfile,
   countVisibilityExclusionFilters,
@@ -1707,6 +1708,16 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         displayMode: "PRECISE",
         forceSelfPrecise: true
       });
+
+      try {
+        await notifyNearbyUsersForLocationUpdate(app, {
+          sourceUserId: userId,
+          location,
+          visibilityPolicy: policy
+        });
+      } catch (error) {
+        app.log.warn({ err: error, userId }, "nearby notification dispatch failed");
+      }
 
       return reply.send({
         data: {

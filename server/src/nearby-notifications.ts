@@ -1,0 +1,274 @@
+import type { FastifyInstance } from "fastify";
+import { canSubjectViewProfile, type VisibilityCoordinates, type VisibilitySubjectProfile } from "./profile-visibility.js";
+import { decryptProfileVisibility, decryptSensitiveProfile, type ProfileVisibilityRules } from "./profile-sensitive.js";
+import { createAppNotificationAndPush } from "./notification-service.js";
+import { distanceMiles, loadLocationEnvelopes, locationPayloadToCoordinates, type LocationPayload, type VisibilityPolicyPayload } from "./location-privacy.js";
+
+type NearbyNotificationSourceRow = {
+  year_of_birth: number | null;
+  identities: string[] | null;
+  presentation: string[] | null;
+  looking_for: string[] | null;
+  availability: string[] | null;
+  hosting_travel: string[] | null;
+  vibes: string[] | null;
+  scenes: string[] | null;
+  archetypes: string[] | null;
+  hobbies: string[] | null;
+  position: string[] | null;
+  role: string[] | null;
+  kinks: string[] | null;
+  body_type: string[] | null;
+  sexuality: string[] | null;
+  substance_boundaries: string[] | null;
+  lat: number | null;
+  lng: number | null;
+  fuzzy_lat: number | null;
+  fuzzy_lng: number | null;
+  profile_sensitive_ciphertext: string | null;
+  profile_sensitive_nonce: string | null;
+  profile_sensitive_auth_tag: string | null;
+  profile_sensitive_key_version: string | null;
+};
+
+type NearbyNotificationRecipientRow = {
+  id: string;
+  year_of_birth: number | null;
+  identities: string[] | null;
+  presentation: string[] | null;
+  looking_for: string[] | null;
+  availability: string[] | null;
+  hosting_travel: string[] | null;
+  vibes: string[] | null;
+  scenes: string[] | null;
+  archetypes: string[] | null;
+  hobbies: string[] | null;
+  position: string[] | null;
+  role: string[] | null;
+  kinks: string[] | null;
+  body_type: string[] | null;
+  sexuality: string[] | null;
+  substance_boundaries: string[] | null;
+  lat: number | null;
+  lng: number | null;
+  fuzzy_lat: number | null;
+  fuzzy_lng: number | null;
+  profile_visibility_ciphertext: string | null;
+  profile_visibility_nonce: string | null;
+  profile_visibility_auth_tag: string | null;
+  profile_visibility_key_version: string | null;
+  updated_at: string | Date;
+};
+
+type CoordinateRow = {
+  lat: number | null;
+  lng: number | null;
+  fuzzy_lat: number | null;
+  fuzzy_lng: number | null;
+};
+
+function asVisibilityCoordinates(row: CoordinateRow): VisibilityCoordinates {
+  return {
+    lat: row.fuzzy_lat ?? row.lat ?? null,
+    lng: row.fuzzy_lng ?? row.lng ?? null
+  };
+}
+
+function toVisibilitySubject(
+  app: FastifyInstance,
+  row: NearbyNotificationSourceRow,
+  coordinates: VisibilityCoordinates
+): VisibilitySubjectProfile {
+  const sensitiveProfile = decryptSensitiveProfile(app.config, row);
+
+  return {
+    year_of_birth: row.year_of_birth,
+    identities: row.identities ?? [],
+    presentations: row.presentation ?? [],
+    looking_for: row.looking_for ?? [],
+    timing: row.availability ?? [],
+    hosting: row.hosting_travel ?? [],
+    vibes: row.vibes ?? [],
+    scenes: row.scenes ?? [],
+    archetypes: row.archetypes ?? [],
+    crowds: sensitiveProfile?.crowds ?? [],
+    hobbies: row.hobbies ?? [],
+    positions: row.position ?? [],
+    roles: row.role ?? [],
+    kinks: sensitiveProfile?.kink_interests.length
+      ? sensitiveProfile.kink_interests.map((interest) => interest.label ?? interest.kink_id)
+      : sensitiveProfile?.kinks ?? row.kinks ?? [],
+    body_types: row.body_type ?? [],
+    sexuality: row.sexuality ?? [],
+    substance_boundaries: row.substance_boundaries ?? [],
+    coordinates
+  };
+}
+
+function recipientRules(app: FastifyInstance, row: NearbyNotificationRecipientRow): ProfileVisibilityRules | null {
+  return decryptProfileVisibility(app.config, row);
+}
+
+async function loadSourceProfile(app: FastifyInstance, sourceUserId: string) {
+  const result = await app.db.query<NearbyNotificationSourceRow>(
+    `select
+       year_of_birth,
+       identities,
+       presentation,
+       looking_for,
+       availability,
+       hosting_travel,
+       vibes,
+       scenes,
+       archetypes,
+       hobbies,
+       position,
+       role,
+       kinks,
+       body_type,
+       sexuality,
+       substance_boundaries,
+       lat,
+       lng,
+       fuzzy_lat,
+       fuzzy_lng,
+       profile_sensitive_ciphertext,
+       profile_sensitive_nonce,
+       profile_sensitive_auth_tag,
+       profile_sensitive_key_version
+     from profiles
+     where id = $1`,
+    [sourceUserId]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+async function loadNearbyNotificationRecipients(app: FastifyInstance, sourceUserId: string) {
+  const result = await app.db.query<NearbyNotificationRecipientRow>(
+    `select
+       p.id::text as id,
+       p.year_of_birth,
+       p.identities,
+       p.presentation,
+       p.looking_for,
+       p.availability,
+       p.hosting_travel,
+       p.vibes,
+       p.scenes,
+       p.archetypes,
+       p.hobbies,
+       p.position,
+       p.role,
+       p.kinks,
+       p.body_type,
+       p.sexuality,
+       p.substance_boundaries,
+       p.lat,
+       p.lng,
+       p.fuzzy_lat,
+       p.fuzzy_lng,
+       p.profile_visibility_ciphertext,
+       p.profile_visibility_nonce,
+       p.profile_visibility_auth_tag,
+       p.profile_visibility_key_version,
+       p.updated_at
+     from profiles p
+     join app_users u on u.id = p.id
+     join notification_preferences preferences
+       on preferences.user_id = p.id
+      and preferences.push_enabled = true
+     where p.id <> $1
+       and coalesce(u.account_status, 'active') = 'active'
+       and p.location_updated_at >= now() - interval '4 days'
+       and exists (
+         select 1
+         from push_subscriptions subscription
+         where subscription.user_id = p.id
+           and subscription.revoked_at is null
+       )
+       and not exists (
+         select 1
+         from user_blocks block
+         where (block.blocker_user_id = $1 and block.blocked_user_id = p.id)
+            or (block.blocker_user_id = p.id and block.blocked_user_id = $1)
+       )`,
+    [sourceUserId]
+  );
+
+  return result.rows;
+}
+
+export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, input: {
+  sourceUserId: string;
+  location: LocationPayload;
+  visibilityPolicy: VisibilityPolicyPayload;
+}) {
+  if (input.visibilityPolicy.baseMode === "STEALTH") {
+    return {
+      attempted: false,
+      sent: 0
+    };
+  }
+
+  const sourceRow = await loadSourceProfile(app, input.sourceUserId);
+  if (!sourceRow) {
+    return {
+      attempted: false,
+      sent: 0
+    };
+  }
+
+  const sourceCoordinates = locationPayloadToCoordinates(input.location);
+  const sourceSubject = toVisibilitySubject(app, sourceRow, sourceCoordinates);
+  const sourceLocationUpdatedBucket = Math.floor(input.location.collectedAtMs / 3_600_000);
+  const recipients = await loadNearbyNotificationRecipients(app, input.sourceUserId);
+  const recipientLocationEnvelopes = await loadLocationEnvelopes(app, recipients.map((row) => row.id));
+  let sent = 0;
+
+  for (const recipient of recipients) {
+    const envelope = recipientLocationEnvelopes.get(recipient.id);
+    const recipientCoordinates = envelope
+      ? locationPayloadToCoordinates(envelope)
+      : asVisibilityCoordinates(recipient);
+
+    if (recipientCoordinates.lat == null || recipientCoordinates.lng == null) {
+      continue;
+    }
+
+    const distance = distanceMiles(
+      sourceCoordinates.lat,
+      sourceCoordinates.lng,
+      recipientCoordinates.lat,
+      recipientCoordinates.lng
+    );
+
+    if (distance > 10) {
+      continue;
+    }
+
+    const rules = recipientRules(app, recipient);
+    if (rules && !canSubjectViewProfile(rules, sourceSubject, sourceCoordinates)) {
+      continue;
+    }
+
+    await createAppNotificationAndPush(app, {
+      userId: recipient.id,
+      type: "nearby_activity",
+      title: "Someone nearby",
+      body: "Someone within your radar may be in your area.",
+      linkUrl: "/map?layer=nearby",
+      dedupeKey: `nearby:${input.sourceUserId}:${recipient.id}:${sourceLocationUpdatedBucket}`,
+      metadata: {
+        sourceUserId: input.sourceUserId,
+        distanceMiles: Number(distance.toFixed(2))
+      }
+    });
+    sent += 1;
+  }
+
+  return {
+    attempted: true,
+    sent
+  };
+}

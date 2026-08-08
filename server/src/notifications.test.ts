@@ -214,6 +214,64 @@ describe("notification service", () => {
     expect(query.mock.calls[3]?.[0]).toContain("revoked_at = now()");
     expect(warn).toHaveBeenCalled();
   });
+
+  it("uses generic nearby copy for nearby activity pushes", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [notificationRow({
+          type: "nearby_activity",
+          title: "Someone nearby",
+          body: "Someone within your radar may be in your area.",
+          link_url: "/map?layer=nearby"
+        })]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          push_enabled: true,
+          cruush_enabled: true,
+          messages_enabled: true,
+          groups_enabled: true
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "push-sub-1",
+          endpoint: "https://push.example/sub",
+          p256dh: "p256dh-key",
+          auth: "auth-key"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await expect(createAppNotificationAndPush({
+      config: {
+        ...baseConfig,
+        WEB_PUSH_ENABLED: true,
+        WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
+        WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
+      },
+      db: { query, end },
+      log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
+    } as never, {
+      userId: recipientUserId,
+      type: "nearby_activity",
+      title: "Someone nearby",
+      body: "Someone within your radar may be in your area.",
+      linkUrl: "/map?layer=nearby",
+      dedupeKey: `nearby:${notificationId}:${recipientUserId}`,
+      metadata: {
+        sourceUserId: actorUserId
+      }
+    })).resolves.toMatchObject({
+      id: notificationId,
+      type: "nearby_activity"
+    });
+
+    const pushPayload = JSON.parse(sendNotification.mock.calls[0]?.[1] as string);
+    expect(pushPayload.title).toBe("Someone nearby");
+    expect(pushPayload.body).toBe("Someone within your radar may be in your area.");
+    expect(JSON.stringify(pushPayload)).not.toContain("Alex");
+  });
 });
 
 describe("notification routes", () => {

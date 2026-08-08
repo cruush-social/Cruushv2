@@ -27,6 +27,12 @@ describe("createPostPayloadSchema", () => {
     }).expiresIn).toBe("never");
   });
 
+  it("defaults new feed posts to never expire", () => {
+    expect(createPostPayloadSchema.parse({
+      content: "Default expiry"
+    }).expiresIn).toBe("never");
+  });
+
   it("keeps T4T as an explicit crowd target value for server-side membership enforcement", () => {
     expect(createPostPayloadSchema.parse({
       content: "T4T post",

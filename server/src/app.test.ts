@@ -8788,7 +8788,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("from user_blocks block");
     expect(query.mock.calls[1]?.[0]).toContain("blocker_user_id = $1");
     expect(query.mock.calls[1]?.[0]).toContain("blocked_user_id = p.user_id");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, "24h", null, null, 1, null, 30]);
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "never", null, null, 1, null, 30]);
   });
 
   it("filters crowd-targeted posts by the reader's crowd memberships at the query boundary", async () => {
@@ -12036,10 +12036,7 @@ describe("server", () => {
   });
 
   it("stores the authenticated profile location on PUT /api/profiles/me/location", async () => {
-    query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+    query.mockImplementation(async () => ({ rows: [] }));
 
     const response = await app.inject({
       method: "PUT",
@@ -12055,7 +12052,6 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(3);
     expect(query.mock.calls[0]?.[0]).toContain("insert into profiles");
     expect(query.mock.calls[0]?.[0]).toContain("location_updated_at");
     expect(query.mock.calls[0]?.[1]?.[0]).toBe(userId);
