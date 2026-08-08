@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   ArrowLeft,
+  Bell,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Mail,
   RefreshCw,
   Search,
   ShieldAlert,
@@ -17,12 +19,17 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import {
   changeModeratedAccountStatus,
   decideContentReview,
+  getAdminNotifications,
   getModeratedUser,
   getModerationQueue,
   getModerationQueueItem,
+  getSupportRequests,
   moderateReport,
   removeReportedContent,
   searchModeratedUsers,
+  updateSupportRequestStatus,
+  type AdminNotification,
+  type AdminNotificationFilter,
   type ModeratedAccountStatus,
   type ModeratedUser,
   type ModeratedUserDetail,
@@ -32,6 +39,9 @@ import {
   type ModerationQueueItem,
   type ModerationQueueSource,
   type ModerationQueueState,
+  type SupportRequest,
+  type SupportRequestStatus,
+  type SupportRequestStatusFilter,
 } from '../lib/moderationApi';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -48,7 +58,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 
 type AccessState = 'checking' | 'ready' | 'denied' | 'error';
-type ModeratorView = 'queue' | 'users';
+type ModeratorView = 'queue' | 'users' | 'notifications' | 'email';
 type ActionDialogState =
   | { kind: 'report'; status: 'resolved' | 'dismissed' }
   | { kind: 'review'; action: 'approve' | 'reject' }
@@ -87,6 +97,7 @@ const accountDescriptions: Record<ModeratedAccountStatus, string> = {
 };
 
 const accountStatusOrder: ModeratedAccountStatus[] = ['active', 'under_review', 'suspended', 'banned'];
+const supportStatusOrder: SupportRequestStatus[] = ['open', 'in_progress', 'closed', 'dismissed'];
 
 const accountActionLabels: Record<ModeratedAccountStatus, string> = {
   active: 'Restore',
@@ -100,6 +111,13 @@ const accountStatusReasonCodes: Record<ModeratedAccountStatus, string> = {
   under_review: 'needs_manual_review',
   suspended: 'abuse_confirmed',
   banned: 'severe_abuse_permanent_ban',
+};
+
+const supportStatusLabels: Record<SupportRequestStatus, string> = {
+  open: 'Open',
+  in_progress: 'In progress',
+  closed: 'Closed',
+  dismissed: 'Dismissed',
 };
 
 function formatDateTime(value: string) {
@@ -291,6 +309,19 @@ export default function ModeratorReview() {
   const [userDetail, setUserDetail] = useState<ModeratedUserDetail | null>(null);
   const [userDetailLoading, setUserDetailLoading] = useState(false);
   const [userDetailError, setUserDetailError] = useState<string | null>(null);
+  const [notificationFilter, setNotificationFilter] = useState<AdminNotificationFilter>('all');
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [notificationOffset, setNotificationOffset] = useState(0);
+  const [notificationPage, setNotificationPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [supportStatusFilter, setSupportStatusFilter] = useState<SupportRequestStatusFilter>('open');
+  const [supportRequests, setSupportRequests] = useState<SupportRequest[]>([]);
+  const [supportOffset, setSupportOffset] = useState(0);
+  const [supportPage, setSupportPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [supportError, setSupportError] = useState<string | null>(null);
+  const [supportUpdatingId, setSupportUpdatingId] = useState<string | null>(null);
 
   const loadQueue = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (mode === 'initial' && accessState !== 'ready') setAccessState('checking');
@@ -379,6 +410,62 @@ export default function ModeratorReview() {
     void loadUsers();
   }, [accessState, loadUsers, view]);
 
+  const loadNotifications = useCallback(async () => {
+    setNotificationsLoading(true);
+    setNotificationsError(null);
+    try {
+      const data = await getAdminNotifications({
+        filter: notificationFilter,
+        limit: PAGE_SIZE,
+        offset: notificationOffset,
+      });
+      setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+      setNotificationPage(data.page);
+    } catch (error) {
+      if (isAccessDenied(error)) {
+        setNotifications([]);
+        setAccessState('denied');
+      } else {
+        setNotificationsError('Unable to load notifications right now.');
+      }
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [notificationFilter, notificationOffset]);
+
+  useEffect(() => {
+    if (view !== 'notifications' || accessState !== 'ready') return;
+    void loadNotifications();
+  }, [accessState, loadNotifications, view]);
+
+  const loadSupportRequests = useCallback(async () => {
+    setSupportLoading(true);
+    setSupportError(null);
+    try {
+      const data = await getSupportRequests({
+        status: supportStatusFilter,
+        limit: PAGE_SIZE,
+        offset: supportOffset,
+      });
+      setSupportRequests(Array.isArray(data.requests) ? data.requests : []);
+      setSupportPage(data.page);
+    } catch (error) {
+      if (isAccessDenied(error)) {
+        setSupportRequests([]);
+        setAccessState('denied');
+      } else {
+        setSupportError('Unable to load email requests right now.');
+      }
+    } finally {
+      setSupportLoading(false);
+    }
+  }, [supportOffset, supportStatusFilter]);
+
+  useEffect(() => {
+    if (view !== 'email' || accessState !== 'ready') return;
+    void loadSupportRequests();
+  }, [accessState, loadSupportRequests, view]);
+
   const loadUserDetail = useCallback(async (userId: string) => {
     setUserDetailLoading(true);
     setUserDetailError(null);
@@ -423,6 +510,10 @@ export default function ModeratorReview() {
   const copy = dialogCopy(actionDialog);
   const userPageStart = userPage.total === 0 ? 0 : userPage.offset + 1;
   const userPageEnd = Math.min(userPage.offset + users.length, userPage.total);
+  const notificationPageStart = notificationPage.total === 0 ? 0 : notificationPage.offset + 1;
+  const notificationPageEnd = Math.min(notificationPage.offset + notifications.length, notificationPage.total);
+  const supportPageStart = supportPage.total === 0 ? 0 : supportPage.offset + 1;
+  const supportPageEnd = Math.min(supportPage.offset + supportRequests.length, supportPage.total);
 
   const changeFilter = (next: ModerationQueueSource | ModerationQueueState, kind: 'source' | 'state') => {
     setOffset(0);
@@ -436,6 +527,20 @@ export default function ModeratorReview() {
     setActionDialog(null);
     setNotes('');
     setValidationError(null);
+  };
+
+  const changeSupportRequestStatus = async (requestId: string, status: SupportRequestStatus) => {
+    setSupportUpdatingId(requestId);
+    setSupportError(null);
+    try {
+      await updateSupportRequestStatus(requestId, status);
+      toast.success(`Request marked ${supportStatusLabels[status].toLowerCase()}.`);
+      await loadSupportRequests();
+    } catch {
+      setSupportError('Unable to update this email request right now.');
+    } finally {
+      setSupportUpdatingId(null);
+    }
   };
 
   const performAction = async (event: FormEvent) => {
@@ -576,20 +681,191 @@ export default function ModeratorReview() {
                 <Users className="h-4 w-4" />
                 Accounts
               </Button>
+              <Button
+                role="tab"
+                aria-selected={view === 'notifications'}
+                size="sm"
+                variant={view === 'notifications' ? 'default' : 'ghost'}
+                onClick={() => setView('notifications')}
+              >
+                <Bell className="h-4 w-4" />
+                Notifications
+              </Button>
+              <Button
+                role="tab"
+                aria-selected={view === 'email'}
+                size="sm"
+                variant={view === 'email' ? 'default' : 'ghost'}
+                onClick={() => setView('email')}
+              >
+                <Mail className="h-4 w-4" />
+                Email
+              </Button>
             </div>
             <Button
               variant="outline"
-              disabled={refreshing || usersLoading}
-              onClick={() => { if (view === 'users') void loadUsers(); else void loadQueue('refresh'); }}
+              disabled={refreshing || usersLoading || notificationsLoading || supportLoading}
+              onClick={() => {
+                if (view === 'users') void loadUsers();
+                else if (view === 'notifications') void loadNotifications();
+                else if (view === 'email') void loadSupportRequests();
+                else void loadQueue('refresh');
+              }}
             >
-              <RefreshCw className={refreshing || usersLoading ? 'animate-spin' : ''} />
-              {refreshing || usersLoading ? 'Refreshing...' : 'Refresh'}
+              <RefreshCw className={refreshing || usersLoading || notificationsLoading || supportLoading ? 'animate-spin' : ''} />
+              {refreshing || usersLoading || notificationsLoading || supportLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
         </div>
       </header>
 
-      {view === 'users' ? (
+      {view === 'notifications' ? (
+        <main className="mx-auto max-w-7xl px-4 py-6">
+          <section aria-labelledby="notifications-heading" className="min-w-0">
+            <div className="space-y-4 border-b border-border pb-4">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <h2 id="notifications-heading" className="text-lg">Notifications</h2>
+                  <p className="text-sm text-muted-foreground">{notificationPageStart}-{notificationPageEnd} of {notificationPage.total}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button size="icon" variant="outline" aria-label="Previous notification page" disabled={notificationOffset === 0} onClick={() => setNotificationOffset(Math.max(0, notificationOffset - PAGE_SIZE))}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" aria-label="Next notification page" disabled={!notificationPage.hasMore} onClick={() => setNotificationOffset(notificationOffset + PAGE_SIZE)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <select
+                aria-label="Notification filter"
+                value={notificationFilter}
+                onChange={(event) => { setNotificationOffset(0); setNotificationFilter(event.target.value as AdminNotificationFilter); }}
+                className="h-9 rounded-md border border-border bg-input-background px-3 text-sm"
+              >
+                <option value="all">All notifications</option>
+                <option value="unread">Unread only</option>
+              </select>
+            </div>
+
+            {notificationsError ? (
+              <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{notificationsError}</div>
+            ) : null}
+
+            {notifications.length === 0 && !notificationsLoading ? (
+              <div className="py-14 text-center text-sm text-muted-foreground">No notifications match this filter.</div>
+            ) : (
+              <div className="divide-y divide-border">
+                {notifications.map((notification) => (
+                  <article key={notification.id} className="grid gap-3 px-2 py-4 md:grid-cols-[minmax(0,1fr)_14rem]">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={notification.readAt ? 'outline' : 'default'}>{notification.readAt ? 'Read' : 'Unread'}</Badge>
+                        <Badge variant="secondary">{formatCode(notification.type)}</Badge>
+                        <span className="text-xs text-muted-foreground">{formatDateTime(notification.createdAt)}</span>
+                      </div>
+                      <p className="mt-2 font-medium">{notification.title}</p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{notification.body || 'No body text.'}</p>
+                      {notification.linkUrl ? <p className="mt-1 truncate text-xs text-muted-foreground">Link {notification.linkUrl}</p> : null}
+                    </div>
+                    <div className="min-w-0 text-sm">
+                      <p className="truncate font-medium">{notification.user.displayName}</p>
+                      {notification.user.email ? <p className="truncate text-muted-foreground">{notification.user.email}</p> : null}
+                      <p className="mt-1 truncate text-xs text-muted-foreground">User ID {notification.user.userId}</p>
+                      {notification.actor ? <p className="mt-2 truncate text-xs text-muted-foreground">Actor {notification.actor.displayName}</p> : null}
+                      {notification.conversationId ? <p className="mt-1 truncate text-xs text-muted-foreground">Conversation {notification.conversationId}</p> : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </main>
+      ) : view === 'email' ? (
+        <main className="mx-auto max-w-7xl px-4 py-6">
+          <section aria-labelledby="email-heading" className="min-w-0">
+            <div className="space-y-4 border-b border-border pb-4">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <h2 id="email-heading" className="text-lg">Email inbox</h2>
+                  <p className="text-sm text-muted-foreground">{supportPageStart}-{supportPageEnd} of {supportPage.total}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button size="icon" variant="outline" aria-label="Previous email page" disabled={supportOffset === 0} onClick={() => setSupportOffset(Math.max(0, supportOffset - PAGE_SIZE))}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" aria-label="Next email page" disabled={!supportPage.hasMore} onClick={() => setSupportOffset(supportOffset + PAGE_SIZE)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <select
+                aria-label="Email status filter"
+                value={supportStatusFilter}
+                onChange={(event) => { setSupportOffset(0); setSupportStatusFilter(event.target.value as SupportRequestStatusFilter); }}
+                className="h-9 rounded-md border border-border bg-input-background px-3 text-sm"
+              >
+                <option value="open">Open</option>
+                <option value="in_progress">In progress</option>
+                <option value="closed">Closed</option>
+                <option value="dismissed">Dismissed</option>
+                <option value="all">All statuses</option>
+              </select>
+            </div>
+
+            {supportError ? (
+              <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{supportError}</div>
+            ) : null}
+
+            {supportRequests.length === 0 && !supportLoading ? (
+              <div className="py-14 text-center text-sm text-muted-foreground">No email requests match this filter.</div>
+            ) : (
+              <div className="divide-y divide-border">
+                {supportRequests.map((request) => (
+                  <article key={request.id} className="grid gap-4 px-2 py-5 lg:grid-cols-[minmax(0,1fr)_16rem]">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={request.status === 'open' ? 'default' : 'outline'}>{supportStatusLabels[request.status]}</Badge>
+                        <Badge variant="secondary">{formatCode(request.category)}</Badge>
+                        <Badge variant="outline">{formatCode(request.aiTriageStatus)}</Badge>
+                        <span className="text-xs text-muted-foreground">{formatDateTime(request.createdAt)}</span>
+                      </div>
+                      <h3 className="mt-3 font-medium">{request.subject}</h3>
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{request.message}</p>
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>Source {formatCode(request.source)}</span>
+                        {request.pageUrl ? <span className="truncate">Page {request.pageUrl}</span> : null}
+                        {request.githubIssueNumber ? <span>GitHub #{request.githubIssueNumber}</span> : null}
+                        {request.triagePrUrl ? <span className="truncate">PR {request.triagePrUrl}</span> : null}
+                      </div>
+                    </div>
+                    <div className="min-w-0 space-y-3">
+                      <div className="text-sm">
+                        <p className="font-medium">{request.requester?.displayName ?? 'Signed-out user'}</p>
+                        {request.requester?.email ? <p className="truncate text-muted-foreground">{request.requester.email}</p> : null}
+                        {request.contactEmail ? <p className="truncate text-muted-foreground">{request.contactEmail}</p> : null}
+                        {request.requester?.userId ? <p className="mt-1 truncate text-xs text-muted-foreground">User ID {request.requester.userId}</p> : null}
+                      </div>
+                      <select
+                        aria-label={`Status for ${request.subject}`}
+                        value={request.status}
+                        disabled={supportUpdatingId === request.id}
+                        onChange={(event) => void changeSupportRequestStatus(request.id, event.target.value as SupportRequestStatus)}
+                        className="h-9 w-full rounded-md border border-border bg-input-background px-3 text-sm"
+                      >
+                        {supportStatusOrder.map((status) => (
+                          <option key={status} value={status}>{supportStatusLabels[status]}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground">Updated {formatDateTime(request.updatedAt)}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </main>
+      ) : view === 'users' ? (
         <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(25rem,1fr)]">
           <section aria-labelledby="accounts-heading" className="min-w-0">
             <div className="space-y-4 border-b border-border pb-4">

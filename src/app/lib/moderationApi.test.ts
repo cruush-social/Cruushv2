@@ -2,12 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   changeModeratedAccountStatus,
   decideContentReview,
+  getAdminNotifications,
   getModerationQueue,
   getModerationQueueItem,
   getModerationReport,
   getModerationReports,
+  getSupportRequests,
   moderateReport,
   removeReportedContent,
+  updateSupportRequestStatus,
 } from './moderationApi';
 
 function apiResponse(data: unknown) {
@@ -106,6 +109,31 @@ describe('moderationApi', () => {
       '/api/admin/moderation/queue/review/review%2F1',
       expect.objectContaining({ credentials: 'include' }),
     );
+  });
+
+  it('loads the admin notification dashboard with filters and pagination', async () => {
+    await getAdminNotifications({ filter: 'unread', limit: 25, offset: 50 });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/admin/moderation/notifications?filter=unread&limit=25&offset=50',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
+
+  it('loads and updates the support request email dashboard', async () => {
+    await getSupportRequests({ status: 'in_progress', limit: 25, offset: 75 });
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      '/api/admin/moderation/support-requests?status=in_progress&limit=25&offset=75',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+
+    await updateSupportRequestStatus('support/1', 'closed');
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/admin/moderation/support-requests/support%2F1', expect.objectContaining({
+      method: 'PATCH',
+      credentials: 'include',
+      body: JSON.stringify({ status: 'closed' }),
+    }));
   });
 
   it('decides an automated review and removes reported content with audit notes', async () => {

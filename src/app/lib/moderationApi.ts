@@ -75,6 +75,9 @@ export type ChangeAccountStatusResult = {
 
 export type ModerationQueueSource = 'all' | 'reports' | 'automod';
 export type ModerationQueueState = 'open' | 'closed' | 'all';
+export type AdminNotificationFilter = 'all' | 'unread';
+export type SupportRequestStatus = 'open' | 'in_progress' | 'closed' | 'dismissed';
+export type SupportRequestStatusFilter = SupportRequestStatus | 'all';
 
 export type ModerationQueueItem = {
   key: string;
@@ -176,6 +179,72 @@ export type ModerationQueueDetail = {
 
 export type ModerationQueueResponse = {
   items: ModerationQueueItem[];
+  page: {
+    limit: number;
+    offset: number;
+    total: number;
+    hasMore: boolean;
+  };
+};
+
+export type SupportRequest = {
+  id: string;
+  requester: {
+    userId: string;
+    displayName: string;
+    email: string | null;
+  } | null;
+  contactEmail: string | null;
+  category: string;
+  subject: string;
+  message: string;
+  source: string;
+  pageUrl: string;
+  aiTriageStatus: string;
+  status: SupportRequestStatus;
+  githubIssueNumber: number | null;
+  triageBranch: string | null;
+  triagePrUrl: string | null;
+  triageAttempts: number;
+  triageClaimedAt: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SupportRequestListResponse = {
+  requests: SupportRequest[];
+  page: {
+    limit: number;
+    offset: number;
+    total: number;
+    hasMore: boolean;
+  };
+};
+
+export type AdminNotification = {
+  id: string;
+  user: {
+    userId: string;
+    displayName: string;
+    email: string | null;
+  };
+  actor: {
+    userId: string;
+    displayName: string;
+  } | null;
+  type: string;
+  title: string;
+  body: string;
+  linkUrl: string;
+  conversationId: string | null;
+  metadata: Record<string, unknown>;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type AdminNotificationListResponse = {
+  notifications: AdminNotification[];
   page: {
     limit: number;
     offset: number;
@@ -300,6 +369,39 @@ export function getModerationQueueItem(kind: 'report' | 'review', id: string) {
   return requestApi<ModerationQueueDetail>(
     `/api/admin/moderation/queue/${kind}/${encodeURIComponent(id)}`,
   );
+}
+
+export function getAdminNotifications(options: {
+  filter?: AdminNotificationFilter;
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const searchParams = new URLSearchParams({
+    filter: options.filter ?? 'all',
+    limit: String(options.limit ?? 25),
+    offset: String(options.offset ?? 0),
+  });
+  return requestApi<AdminNotificationListResponse>(`/api/admin/moderation/notifications?${searchParams.toString()}`);
+}
+
+export function getSupportRequests(options: {
+  status?: SupportRequestStatusFilter;
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const searchParams = new URLSearchParams({
+    status: options.status ?? 'open',
+    limit: String(options.limit ?? 25),
+    offset: String(options.offset ?? 0),
+  });
+  return requestApi<SupportRequestListResponse>(`/api/admin/moderation/support-requests?${searchParams.toString()}`);
+}
+
+export function updateSupportRequestStatus(requestId: string, status: SupportRequestStatus) {
+  return requestApi<{ request: SupportRequest }>(`/api/admin/moderation/support-requests/${encodeURIComponent(requestId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
 }
 
 export function decideContentReview(reviewId: string, payload: {

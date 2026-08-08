@@ -62,6 +62,28 @@ const userSearchQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).optional().default(0)
 }).strict();
 
+const supportRequestStatuses = ["open", "in_progress", "closed", "dismissed"] as const;
+
+const supportRequestListQuerySchema = z.object({
+  status: z.enum(["all", ...supportRequestStatuses]).optional().default("open"),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(25),
+  offset: z.coerce.number().int().min(0).optional().default(0)
+}).strict();
+
+const supportRequestParamsSchema = z.object({
+  requestId: uuidSchema
+}).strict();
+
+const supportRequestStatusSchema = z.object({
+  status: z.enum(supportRequestStatuses)
+}).strict();
+
+const adminNotificationListQuerySchema = z.object({
+  filter: z.enum(["all", "unread"]).optional().default("all"),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(25),
+  offset: z.coerce.number().int().min(0).optional().default(0)
+}).strict();
+
 const reviewDecisionSchema = z.object({
   action: z.enum(["approve", "reject"]),
   reasonCode: singleLineTextSchema({ min: 1, max: 120 }),
@@ -180,6 +202,48 @@ type ModeratedUserRow = {
   moderator_role: string | null;
   open_report_count: string | number;
   total_report_count: string | number;
+  total_count?: string | number;
+};
+
+type SupportRequestRow = {
+  id: string;
+  requester_user_id: string | null;
+  requester_display_name: string | null;
+  requester_email: string | null;
+  contact_email: string | null;
+  category: string;
+  subject: string;
+  message: string;
+  source: string;
+  page_url: string;
+  ai_triage_status: string;
+  status: string;
+  github_issue_number: number | null;
+  triage_branch: string | null;
+  triage_pr_url: string | null;
+  triage_attempts: number;
+  triage_claimed_at: string | Date | null;
+  metadata: Record<string, unknown> | string | null;
+  created_at: string | Date;
+  updated_at: string | Date;
+  total_count?: string | number;
+};
+
+type AdminNotificationRow = {
+  id: string;
+  user_id: string;
+  user_display_name: string | null;
+  user_email: string | null;
+  actor_user_id: string | null;
+  actor_display_name: string | null;
+  type: string;
+  title: string;
+  body: string;
+  link_url: string;
+  conversation_id: string | null;
+  metadata: Record<string, unknown> | string | null;
+  read_at: string | Date | null;
+  created_at: string | Date;
   total_count?: string | number;
 };
 
@@ -386,6 +450,59 @@ function mapModeratedUser(row: ModeratedUserRow, role: ModeratorRole) {
     isOwner: isOwnerFullAccessEmail(row.email),
     openReportCount: Number(row.open_report_count ?? 0),
     totalReportCount: Number(row.total_report_count ?? 0)
+  };
+}
+
+function mapSupportRequestRow(row: SupportRequestRow, role: ModeratorRole) {
+  const contactEmail = row.contact_email?.trim() || null;
+  const requesterEmail = row.requester_email?.trim() || null;
+  return {
+    id: row.id,
+    requester: row.requester_user_id ? {
+      userId: row.requester_user_id,
+      displayName: row.requester_display_name?.trim() || "cruush user",
+      email: requesterEmail ? (role === "admin" ? requesterEmail : maskEmail(requesterEmail)) : null
+    } : null,
+    contactEmail: contactEmail ? (role === "admin" ? contactEmail : maskEmail(contactEmail)) : null,
+    category: row.category,
+    subject: row.subject,
+    message: row.message,
+    source: row.source,
+    pageUrl: row.page_url,
+    aiTriageStatus: row.ai_triage_status,
+    status: row.status,
+    githubIssueNumber: row.github_issue_number,
+    triageBranch: row.triage_branch,
+    triagePrUrl: row.triage_pr_url,
+    triageAttempts: Number(row.triage_attempts ?? 0),
+    triageClaimedAt: row.triage_claimed_at ? new Date(row.triage_claimed_at).toISOString() : null,
+    metadata: parseJson(row.metadata, {} as Record<string, unknown>),
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString()
+  };
+}
+
+function mapAdminNotificationRow(row: AdminNotificationRow, role: ModeratorRole) {
+  const userEmail = row.user_email?.trim() || null;
+  return {
+    id: row.id,
+    user: {
+      userId: row.user_id,
+      displayName: row.user_display_name?.trim() || "cruush user",
+      email: userEmail ? (role === "admin" ? userEmail : maskEmail(userEmail)) : null
+    },
+    actor: row.actor_user_id ? {
+      userId: row.actor_user_id,
+      displayName: row.actor_display_name?.trim() || "cruush user"
+    } : null,
+    type: row.type,
+    title: row.title,
+    body: row.body,
+    linkUrl: row.link_url,
+    conversationId: row.conversation_id,
+    metadata: parseJson(row.metadata, {} as Record<string, unknown>),
+    readAt: row.read_at ? new Date(row.read_at).toISOString() : null,
+    createdAt: new Date(row.created_at).toISOString()
   };
 }
 
@@ -914,6 +1031,140 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
       [query.status ?? null, query.limit, query.offset]
     );
     return reply.send({ data: { reports: result.rows.map(mapReportRow) } });
+  });
+
+  app.get("/api/admin/moderation/support-requests", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    const query = supportRequestListQuerySchema.parse(request.query);
+    const status = query.status === "all" ? null : query.status;
+    const result = await app.db.query<SupportRequestRow>(
+      `select
+         support.id::text as id,
+         support.requester_user_id::text as requester_user_id,
+         coalesce(profile.display_name, requester.display_name, 'cruush user') as requester_display_name,
+         requester.email as requester_email,
+         support.contact_email,
+         support.category,
+         support.subject,
+         support.message,
+         support.source,
+         support.page_url,
+         support.ai_triage_status,
+         support.status,
+         support.github_issue_number,
+         support.triage_branch,
+         support.triage_pr_url,
+         support.triage_attempts,
+         support.triage_claimed_at,
+         support.metadata,
+         support.created_at,
+         support.updated_at,
+         count(*) over() as total_count
+       from support_requests support
+       left join app_users requester on requester.id = support.requester_user_id
+       left join profiles profile on profile.id = requester.id
+       where ($1::text is null or support.status = $1)
+       order by support.created_at desc, support.id desc
+       limit $2 offset $3`,
+      [status, query.limit, query.offset]
+    );
+    const total = Number(result.rows[0]?.total_count ?? 0);
+    return reply.send({
+      data: {
+        requests: result.rows.map((row) => mapSupportRequestRow(row, moderator.role)),
+        page: {
+          limit: query.limit,
+          offset: query.offset,
+          total,
+          hasMore: query.offset + result.rows.length < total
+        }
+      }
+    });
+  });
+
+  app.patch("/api/admin/moderation/support-requests/:requestId", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    const { requestId } = supportRequestParamsSchema.parse(request.params);
+    const payload = supportRequestStatusSchema.parse(request.body);
+    const result = await app.db.query<SupportRequestRow>(
+      `update support_requests
+       set status = $2, updated_at = now()
+       where id = $1
+       returning
+         id::text as id,
+         requester_user_id::text as requester_user_id,
+         null::text as requester_display_name,
+         null::text as requester_email,
+         contact_email,
+         category,
+         subject,
+         message,
+         source,
+         page_url,
+         ai_triage_status,
+         status,
+         github_issue_number,
+         triage_branch,
+         triage_pr_url,
+         triage_attempts,
+         triage_claimed_at,
+         metadata,
+         created_at,
+         updated_at`,
+      [requestId, payload.status]
+    );
+    const row = result.rows[0];
+    if (!row) throw new ApiError(404, "NOT_FOUND", "Support request not found.");
+    await recordModeratorAccess(app.db, {
+      actorUserId: moderator.userId,
+      accessType: "queue_detail",
+      metadata: { itemKind: "support_request", requestId, status: payload.status }
+    });
+    return reply.send({ data: { request: mapSupportRequestRow(row, moderator.role) } });
+  });
+
+  app.get("/api/admin/moderation/notifications", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    const query = adminNotificationListQuerySchema.parse(request.query);
+    const result = await app.db.query<AdminNotificationRow>(
+      `select
+         notification.id::text as id,
+         notification.user_id::text as user_id,
+         coalesce(profile.display_name, users.display_name, 'cruush user') as user_display_name,
+         users.email as user_email,
+         notification.actor_user_id::text as actor_user_id,
+         coalesce(actor_profile.display_name, actor.display_name, 'cruush user') as actor_display_name,
+         notification.type,
+         notification.title,
+         notification.body,
+         notification.link_url,
+         notification.conversation_id::text as conversation_id,
+         notification.metadata,
+         notification.read_at,
+         notification.created_at,
+         count(*) over() as total_count
+       from app_notifications notification
+       join app_users users on users.id = notification.user_id
+       left join profiles profile on profile.id = users.id
+       left join app_users actor on actor.id = notification.actor_user_id
+       left join profiles actor_profile on actor_profile.id = actor.id
+       where ($1::text = 'all' or notification.read_at is null)
+       order by notification.created_at desc, notification.id desc
+       limit $2 offset $3`,
+      [query.filter, query.limit, query.offset]
+    );
+    const total = Number(result.rows[0]?.total_count ?? 0);
+    return reply.send({
+      data: {
+        notifications: result.rows.map((row) => mapAdminNotificationRow(row, moderator.role)),
+        page: {
+          limit: query.limit,
+          offset: query.offset,
+          total,
+          hasMore: query.offset + result.rows.length < total
+        }
+      }
+    });
   });
 
   app.get("/api/admin/moderation/reports/:reportId", async (request, reply) => {

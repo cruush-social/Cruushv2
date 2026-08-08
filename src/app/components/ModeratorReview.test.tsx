@@ -7,21 +7,27 @@ import ModeratorReview from './ModeratorReview';
 const {
   changeModeratedAccountStatus,
   decideContentReview,
+  getAdminNotifications,
   getModeratedUser,
   getModerationQueue,
   getModerationQueueItem,
+  getSupportRequests,
   moderateReport,
   removeReportedContent,
   searchModeratedUsers,
+  updateSupportRequestStatus,
 } = vi.hoisted(() => ({
   changeModeratedAccountStatus: vi.fn(),
   decideContentReview: vi.fn(),
+  getAdminNotifications: vi.fn(),
   getModeratedUser: vi.fn(),
   getModerationQueue: vi.fn(),
   getModerationQueueItem: vi.fn(),
+  getSupportRequests: vi.fn(),
   moderateReport: vi.fn(),
   removeReportedContent: vi.fn(),
   searchModeratedUsers: vi.fn(),
+  updateSupportRequestStatus: vi.fn(),
 }));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
@@ -35,12 +41,15 @@ vi.mock('../lib/moderationApi', async () => {
     ...actual,
     changeModeratedAccountStatus,
     decideContentReview,
+    getAdminNotifications,
     getModeratedUser,
     getModerationQueue,
     getModerationQueueItem,
+    getSupportRequests,
     moderateReport,
     removeReportedContent,
     searchModeratedUsers,
+    updateSupportRequestStatus,
   };
 });
 
@@ -163,6 +172,41 @@ const moderatedUser = {
   totalReportCount: 3,
 };
 
+const notification = {
+  id: 'notification-1',
+  user: { userId: 'user-2', displayName: 'Jordan', email: 'jordan@example.com' },
+  actor: { userId: 'user-3', displayName: 'Casey' },
+  type: 'direct_message',
+  title: 'New message',
+  body: 'Casey sent you a message.',
+  linkUrl: '/messages/conversation-1',
+  conversationId: 'conversation-1',
+  metadata: {},
+  readAt: null,
+  createdAt: report.createdAt,
+};
+
+const supportRequest = {
+  id: 'support-1',
+  requester: { userId: 'user-2', displayName: 'Jordan', email: 'jordan@example.com' },
+  contactEmail: 'jordan@example.com',
+  category: 'bug',
+  subject: 'Messages are missing',
+  message: 'The chat screen is blank.',
+  source: 'settings',
+  pageUrl: '/messages',
+  aiTriageStatus: 'complete',
+  status: 'open' as const,
+  githubIssueNumber: 42,
+  triageBranch: 'bug/messages',
+  triagePrUrl: null,
+  triageAttempts: 1,
+  triageClaimedAt: null,
+  metadata: {},
+  createdAt: report.createdAt,
+  updatedAt: report.updatedAt,
+};
+
 function queue(items = [reportItem], page = { limit: 25, offset: 0, total: items.length, hasMore: false }) {
   return { items, page };
 }
@@ -210,6 +254,15 @@ describe('ModeratorReview', () => {
       page: { limit: 25, offset: 0, total: 1, hasMore: false },
     });
     getModeratedUser.mockResolvedValue({ user: moderatedUser, history: [], reports: [] });
+    getAdminNotifications.mockResolvedValue({
+      notifications: [notification],
+      page: { limit: 25, offset: 0, total: 1, hasMore: false },
+    });
+    getSupportRequests.mockResolvedValue({
+      requests: [supportRequest],
+      page: { limit: 25, offset: 0, total: 1, hasMore: false },
+    });
+    updateSupportRequestStatus.mockResolvedValue({ request: { ...supportRequest, status: 'closed' } });
   });
 
   it('shows the authorization loading state while the queue request is pending', () => {
@@ -333,6 +386,25 @@ describe('ModeratorReview', () => {
       reasonCode: 'severe_abuse_permanent_ban',
     })));
     expect(changeModeratedAccountStatus).toHaveBeenCalledWith('user-2', expect.not.objectContaining({ reportId: expect.anything() }));
+  });
+
+  it('loads the notification dashboard from the moderator tools', async () => {
+    renderReview();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Notifications' }));
+    expect(await screen.findByText('New message')).toBeInTheDocument();
+    expect(screen.getByText('Casey sent you a message.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Notification filter'), { target: { value: 'unread' } });
+    await waitFor(() => expect(getAdminNotifications).toHaveBeenLastCalledWith(expect.objectContaining({ filter: 'unread' })));
+  });
+
+  it('loads the email inbox dashboard and lets moderators change request status', async () => {
+    renderReview();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Email' }));
+    expect(await screen.findByText('Messages are missing')).toBeInTheDocument();
+    expect(screen.getByText('The chat screen is blank.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Status for Messages are missing'), { target: { value: 'closed' } });
+    await waitFor(() => expect(updateSupportRequestStatus).toHaveBeenCalledWith('support-1', 'closed'));
+    expect(toastSuccess).toHaveBeenCalledWith('Request marked closed.');
   });
 
   it('does not expose the dashboard to unauthorized users', async () => {

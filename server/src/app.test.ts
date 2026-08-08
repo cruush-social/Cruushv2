@@ -6139,6 +6139,150 @@ describe("server", () => {
     expect(response.json().data.items.map((item: { kind: string }) => item.kind)).toEqual(["report", "review"]);
   });
 
+  it("returns moderator notification history with masked emails", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "notification-1",
+          user_id: targetUserId,
+          user_display_name: "Jordan",
+          user_email: "jordan@example.com",
+          actor_user_id: userId,
+          actor_display_name: "River",
+          type: "direct_message",
+          title: "New message",
+          body: "River sent you a message.",
+          link_url: "/messages/conversation-1",
+          conversation_id: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+          metadata: {},
+          read_at: null,
+          created_at: "2026-04-29T12:00:00.000Z",
+          total_count: "1"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/moderation/notifications?filter=unread&limit=25",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("from app_notifications");
+    expect(query.mock.calls[1]?.[1]).toEqual(["unread", 25, 0]);
+    expect(response.json().data).toMatchObject({
+      page: { limit: 25, offset: 0, total: 1, hasMore: false },
+      notifications: [{
+        title: "New message",
+        readAt: null,
+        user: {
+          displayName: "Jordan",
+          email: "j*****@example.com"
+        },
+        actor: {
+          displayName: "River"
+        }
+      }]
+    });
+  });
+
+  it("returns and updates support requests from the email dashboard", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const requestId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: requestId,
+          requester_user_id: targetUserId,
+          requester_display_name: "Jordan",
+          requester_email: "jordan@example.com",
+          contact_email: "contact@example.com",
+          category: "bug",
+          subject: "Messages are missing",
+          message: "The chat screen is blank.",
+          source: "settings",
+          page_url: "/messages",
+          ai_triage_status: "complete",
+          status: "open",
+          github_issue_number: 42,
+          triage_branch: "bug/messages",
+          triage_pr_url: null,
+          triage_attempts: 1,
+          triage_claimed_at: null,
+          metadata: {},
+          created_at: "2026-04-29T12:00:00.000Z",
+          updated_at: "2026-04-29T12:00:00.000Z",
+          total_count: "1"
+        }]
+      });
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/api/admin/moderation/support-requests?status=open&limit=25",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("from support_requests");
+    expect(listResponse.json().data.requests[0]).toMatchObject({
+      subject: "Messages are missing",
+      contactEmail: "c******@example.com",
+      githubIssueNumber: 42,
+      requester: {
+        displayName: "Jordan",
+        email: "j*****@example.com"
+      }
+    });
+
+    query.mockReset();
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: requestId,
+          requester_user_id: targetUserId,
+          requester_display_name: null,
+          requester_email: null,
+          contact_email: "contact@example.com",
+          category: "bug",
+          subject: "Messages are missing",
+          message: "The chat screen is blank.",
+          source: "settings",
+          page_url: "/messages",
+          ai_triage_status: "complete",
+          status: "closed",
+          github_issue_number: 42,
+          triage_branch: "bug/messages",
+          triage_pr_url: null,
+          triage_attempts: 1,
+          triage_claimed_at: null,
+          metadata: {},
+          created_at: "2026-04-29T12:00:00.000Z",
+          updated_at: "2026-04-29T12:30:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const updateResponse = await app.inject({
+      method: "PATCH",
+      url: `/api/admin/moderation/support-requests/${requestId}`,
+      headers: { "x-user-id": userId },
+      payload: { status: "closed" }
+    });
+
+    expect(updateResponse.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("update support_requests");
+    expect(query.mock.calls[1]?.[1]).toEqual([requestId, "closed"]);
+    expect(query.mock.calls[2]?.[0]).toContain("insert into moderation_access_events");
+    expect(updateResponse.json().data.request).toMatchObject({
+      id: requestId,
+      status: "closed"
+    });
+  });
+
   it("returns decrypted reported content and full moderation history in queue detail", async () => {
     const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
     const reportId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
