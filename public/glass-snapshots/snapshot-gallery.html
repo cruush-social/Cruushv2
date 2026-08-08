@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cruush glass snapshot gallery</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #050507;
+        color: #f7f7fb;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 18% 20%, rgba(255, 56, 164, 0.12), transparent 32rem),
+          radial-gradient(circle at 82% 10%, rgba(0, 132, 255, 0.12), transparent 34rem),
+          #050507;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        padding: 18px 22px;
+        border-bottom: 1px solid rgba(255,255,255,.14);
+        background: rgba(5,5,7,.84);
+        backdrop-filter: blur(18px);
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: clamp(22px, 3vw, 38px);
+        letter-spacing: -0.04em;
+      }
+      p {
+        margin: 0;
+        color: rgba(247,247,251,.72);
+      }
+      .section-title {
+        padding: 28px 22px 10px;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+      .bottom-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 720px), 1fr));
+        gap: 22px;
+        padding: 14px 22px 38px;
+      }
+      .shot {
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 22px;
+        overflow: hidden;
+        background: #09090e;
+        box-shadow: 0 20px 70px rgba(0,0,0,.38);
+      }
+      .shot h2 {
+        position: sticky;
+        top: 83px;
+        z-index: 2;
+        margin: 0;
+        padding: 14px 18px;
+        background: rgba(0,0,0,.72);
+        border-bottom: 1px solid rgba(255,255,255,.12);
+        font-size: 24px;
+        letter-spacing: -0.03em;
+      }
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .full-stack {
+        display: grid;
+        gap: 28px;
+        padding: 14px 22px 60px;
+      }
+      .full-stack .shot {
+        max-width: 1280px;
+        margin: 0 auto;
+        width: 100%;
+      }
+      .jump {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .jump a {
+        color: white;
+        text-decoration: none;
+        padding: 8px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.2);
+        background: rgba(255,255,255,.08);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>cruush glass snapshots</h1>
+      <p>Top section: enlarged bottom/nav crops. Bottom section: full screenshots at readable size.</p>
+      <nav class="jump">
+        <a href="#bottom-crops">bottom crops</a>
+        <a href="#full-screenshots">full screenshots</a>
+        <a href="#s001">001</a><a href="#s007">007</a><a href="#s012">012</a><a href="#s016">016</a>
+        <a href="#s020">020</a><a href="#s024">024</a><a href="#s028">028</a><a href="#s031">031</a>
+        <a href="#s035">035</a><a href="#s042">042</a><a href="#s048">048</a><a href="#s052">052</a>
+      </nav>
+    </header>
+
+    <main>
+      <div id="bottom-crops" class="section-title">Enlarged bottom/nav crops</div>
+      <section class="bottom-grid">
+        <article class="shot"><h2>snapshot 001</h2><img src="gallery-assets/001-bottom.png" alt="snapshot 001 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 007</h2><img src="gallery-assets/007-bottom.png" alt="snapshot 007 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 012</h2><img src="gallery-assets/012-bottom.png" alt="snapshot 012 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 016</h2><img src="gallery-assets/016-bottom.png" alt="snapshot 016 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 020</h2><img src="gallery-assets/020-bottom.png" alt="snapshot 020 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 024</h2><img src="gallery-assets/024-bottom.png" alt="snapshot 024 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 028</h2><img src="gallery-assets/028-bottom.png" alt="snapshot 028 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 031</h2><img src="gallery-assets/031-bottom.png" alt="snapshot 031 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 035</h2><img src="gallery-assets/035-bottom.png" alt="snapshot 035 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 042</h2><img src="gallery-assets/042-bottom.png" alt="snapshot 042 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 048</h2><img src="gallery-assets/048-bottom.png" alt="snapshot 048 bottom crop" /></article>
+        <article class="shot"><h2>snapshot 052</h2><img src="gallery-assets/052-bottom.png" alt="snapshot 052 bottom crop" /></article>
+      </section>
+
+      <div id="full-screenshots" class="section-title">Full screenshots</div>
+      <section class="full-stack">
+        <article id="s001" class="shot"><h2>snapshot 001</h2><img src="batch-002/001.png" alt="snapshot 001 full screenshot" /></article>
+        <article id="s007" class="shot"><h2>snapshot 007</h2><img src="batch-002/007.png" alt="snapshot 007 full screenshot" /></article>
+        <article id="s012" class="shot"><h2>snapshot 012</h2><img src="batch-002/012.png" alt="snapshot 012 full screenshot" /></article>
+        <article id="s016" class="shot"><h2>snapshot 016</h2><img src="batch-002/016.png" alt="snapshot 016 full screenshot" /></article>
+        <article id="s020" class="shot"><h2>snapshot 020</h2><img src="batch-002/020.png" alt="snapshot 020 full screenshot" /></article>
+        <article id="s024" class="shot"><h2>snapshot 024</h2><img src="batch-002/024.png" alt="snapshot 024 full screenshot" /></article>
+        <article id="s028" class="shot"><h2>snapshot 028</h2><img src="batch-002/028.png" alt="snapshot 028 full screenshot" /></article>
+        <article id="s031" class="shot"><h2>snapshot 031</h2><img src="batch-002/031.png" alt="snapshot 031 full screenshot" /></article>
+        <article id="s035" class="shot"><h2>snapshot 035</h2><img src="batch-002/035.png" alt="snapshot 035 full screenshot" /></article>
+        <article id="s042" class="shot"><h2>snapshot 042</h2><img src="batch-002/042.png" alt="snapshot 042 full screenshot" /></article>
+        <article id="s048" class="shot"><h2>snapshot 048</h2><img src="batch-002/048.png" alt="snapshot 048 full screenshot" /></article>
+        <article id="s052" class="shot"><h2>snapshot 052</h2><img src="batch-002/052.png" alt="snapshot 052 full screenshot" /></article>
+      </section>
+    </main>
+  </body>
+</html>

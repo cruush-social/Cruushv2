@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "job": "Preserve the uncommitted state from the corrupt Cruush checkout in a separate good-side worktree for later review and merge.",
+  "allowed_files": [
+    "AI_TASK.json",
+    "all tracked paths changed in /Volumes/corrupt/Cruushv2-1",
+    "all untracked paths listed by git ls-files --others --exclude-standard in /Volumes/corrupt/Cruushv2-1"
+  ],
+  "preserved_behavior": [
+    "Both original checkouts remain untouched.",
+    "No commit, merge, push, deployment, or source deletion is performed.",
+    "The target worktree is based on the good checkout HEAD before transfer."
+  ],
+  "non_goals": [
+    "No PostHog SDK removal or replacement.",
+    "No dependency installation or test execution during transfer.",
+    "No resolution of semantic conflicts between the two dirty checkouts."
+  ],
+  "required_proof": [
+    "Verify source HEAD, target HEAD, tracked diff inventory, untracked inventory, and target status.",
+    "Report any patch conflicts or files that could not be transferred."
+  ],
+  "publication_target": "none"
+}

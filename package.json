@@ -15,6 +15,9 @@
     "test:profile-photo-apis": "node scripts/smoke-real-profile-photo-upload.mjs",
     "smoke:profile-photo": "node scripts/smoke-real-profile-photo-upload.mjs",
     "security:check": "bash scripts/security-check.sh",
+    "check:cruush-casing": "node scripts/check-cruush-casing.mjs",
+    "image": "node scripts/generate-image.mjs",
+    "pretest": "node scripts/check-cruush-casing.mjs",
     "test": "vitest run"
   },
   "dependencies": {

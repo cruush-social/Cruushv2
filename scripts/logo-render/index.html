@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>cruush logo render</title>
+    <style>
+      body { margin: 0; background: #0d0d12; color: #eee; font: 13px system-ui; }
+      #status { position: fixed; top: 8px; left: 8px; z-index: 2; }
+      #stage { width: 100vw; height: auto; display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="status">booting…</div>
+    <canvas id="stage"></canvas>
+    <script type="module" src="./logoRender.ts"></script>
+  </body>
+</html>
