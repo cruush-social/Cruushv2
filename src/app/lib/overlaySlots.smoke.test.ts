@@ -85,22 +85,14 @@ describe('smoke: declared overlay geometry matches the components', () => {
     [
       'alpha-bug-button',
       'src/app/components/AlphaBugButton.tsx',
-      ['bottom-[calc(14rem+env(safe-area-inset-bottom))]', 'sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]', 'fixed z-50'],
-    ],
-    [
-      'alpha-bug-tip',
-      'src/app/components/AlphaBugButton.tsx',
-      ['bottom-[calc(17.25rem+env(safe-area-inset-bottom))]', 'sm:right-28', 'sm:bottom-[calc(0.5rem+env(safe-area-inset-bottom))]'],
-    ],
-    [
-      'mobile-install-prompt',
-      'src/app/components/MobileInstallPrompt.tsx',
-      ['bottom-24', 'right-[4.5rem]', 'sm:right-4', 'z-40'],
+      // Docked, not fixed: the nav row lays it out. The fixed classes below are only the
+      // signed-out fallback, and they must stay pinned to the empty top-right corner.
+      ['h-11 w-11 shrink-0', 'right-4 top-[calc(0.75rem+env(safe-area-inset-top))]'],
     ],
     [
       'bottom-nav',
       'src/app/components/BottomNav.tsx',
-      ['fixed bottom-0', 'z-50'],
+      ['fixed bottom-0', 'z-50', 'max-w-[26rem]', 'data-testid="bottom-nav-bug-slot"'],
     ],
   ];
 

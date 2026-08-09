@@ -12,7 +12,11 @@ import {
 } from "@aws-sdk/client-rekognition";
 import sharp from "sharp";
 import type { AppConfig } from "./config.js";
-import type { ProviderLabel, ProviderModerationResult } from "./moderation-types.js";
+import type {
+  NormalizedModerationLabel,
+  ProviderLabel,
+  ProviderModerationResult
+} from "./moderation-types.js";
 
 type RekognitionSendOptions = { abortSignal?: AbortSignal };
 type RekognitionImageClient = {
@@ -385,6 +389,141 @@ export async function detectProfilePhotoHuman(
       }), { abortSignal: controller.signal }) as Promise<DetectModerationLabelsCommandOutput>
     ]);
     const result = classifyProfilePhotoSafety(labelsOutput, facesOutput, moderationOutput, config);
+
+    return { ...result, latency_ms: Date.now() - startedAt };
+  } catch (error) {
+    return detectorError(startedAt, error);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// Rekognition's public-image taxonomy, mapped to the labels the policy mapper already
+// understands. Only the families cruush rejects on a public surface are listed; anything
+// absent here is deliberately allowed and is recorded in raw_result for audit.
+//
+// Swimwear, underwear, barechested, non-explicit nudity and kissing are NOT rejected: on a
+// queer cruising app those are ordinary feed photos, and Stream does not reject them either
+// (`normalizeStreamLabel` maps them to nothing actionable). Keeping the two providers in
+// agreement is the point - a Stream outage must not silently tighten what the feed allows.
+const PUBLIC_IMAGE_REJECT_RULES: Array<{
+  pattern: RegExp;
+  normalizedLabel: NormalizedModerationLabel;
+  severity: ProviderLabel["severity"];
+}> = [
+  { pattern: /\bsexual activity\b/i, normalizedLabel: "adult_explicit", severity: "high" },
+  { pattern: /\bsex toys?\b/i, normalizedLabel: "adult_explicit", severity: "high" },
+  // The lookbehind is load-bearing: Rekognition's "Non-Explicit Nudity" family covers
+  // ordinary shirtless and swimwear photos and must not be caught by the explicit rule.
+  { pattern: /(?<!non[- ])\bexplicit nudity\b/i, normalizedLabel: "adult_nudity", severity: "high" },
+  { pattern: /\bgraphic violence\b/i, normalizedLabel: "gore", severity: "high" },
+  { pattern: /\bself[- ]harm\b/i, normalizedLabel: "gore", severity: "high" },
+  { pattern: /\b(?:corpses|emaciated bodies)\b/i, normalizedLabel: "gore", severity: "high" },
+  { pattern: /\bvisually disturbing\b/i, normalizedLabel: "gore", severity: "high" },
+  { pattern: /\b(?:weapon violence|physical violence)\b/i, normalizedLabel: "threat", severity: "high" },
+  { pattern: /\b(?:hate symbols?|nazi party|white supremacy|extremist)\b/i, normalizedLabel: "hate_symbol", severity: "high" }
+];
+
+function publicImageModerationLabels(labels: ModerationLabel[]): ProviderLabel[] {
+  return labels.flatMap((label) => {
+    const signals = moderationSignalNames(label);
+    const joinedSignals = signals.join(" > ");
+    const rule = PUBLIC_IMAGE_REJECT_RULES.find(({ pattern }) =>
+      signals.some((signal) => pattern.test(signal))
+    );
+
+    if (!rule) {
+      return [];
+    }
+
+    return [{
+      provider_label: `Amazon Rekognition moderation: ${joinedSignals}`,
+      normalized_label: rule.normalizedLabel,
+      confidence: Math.max(Math.min((label.Confidence ?? 0) / 100, 0.99), 0.9),
+      severity: rule.severity
+    }];
+  });
+}
+
+export function classifyPublicImageSafety(
+  moderationOutput: Pick<DetectModerationLabelsCommandOutput, "ModerationLabels" | "$metadata"> | null,
+  facesOutput: Pick<DetectFacesCommandOutput, "FaceDetails" | "$metadata">,
+  config: RekognitionSafetyConfig
+): ProviderModerationResult {
+  const faces = facesOutput.FaceDetails ?? [];
+  const detectedModerationLabels = moderationOutput?.ModerationLabels ?? [];
+  const rejectLabels = publicImageModerationLabels(detectedModerationLabels);
+  const childGate = childFaceLabels(faces, config);
+  const normalizedLabels: ProviderLabel[] = [...childGate.labels, ...rejectLabels];
+
+  return {
+    provider: "aws_rekognition",
+    provider_request_id: [moderationOutput?.$metadata?.requestId, facesOutput.$metadata?.requestId]
+      .filter(Boolean)
+      .join(":") || `rekognition-public-image-${Date.now().toString(36)}`,
+    labels: normalizedLabels,
+    latency_ms: 0,
+    status: "complete",
+    recommended_action: childGate.outcome === "minor" || rejectLabels.length > 0 ? "remove" : "keep",
+    raw_result: {
+      child_face_outcome: childGate.outcome,
+      face_count: faces.length,
+      considered_faces: safeFaceSummary(highConfidenceFaces(
+        faces,
+        config.PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE ?? 90
+      )),
+      minimum_age: config.PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE ?? 18,
+      moderation_label_count: detectedModerationLabels.length,
+      // Every label Rekognition returned, including the ones deliberately not rejected,
+      // so a moderator can see what the fallback saw.
+      moderation_labels: detectedModerationLabels.map((label) => ({
+        name: label.Name ?? null,
+        parent: label.ParentName ?? null,
+        confidence: label.Confidence ?? null
+      })),
+      rejected_label_count: rejectLabels.length
+    }
+  };
+}
+
+// The feed has no equivalent of the profile-photo adult-human gate: a public post may be a
+// landscape, a flyer, or a dog. This screens for what the feed forbids and nothing else.
+export async function detectPublicImageSafety(
+  config: DetectorConfig,
+  imageBytes: Buffer,
+  client?: RekognitionImageClient
+): Promise<ProviderModerationResult> {
+  if (!config.PROFILE_PHOTO_REKOGNITION_ENABLED) {
+    return {
+      provider: "aws_rekognition",
+      provider_request_id: "rekognition-disabled",
+      labels: [],
+      latency_ms: 0,
+      status: "error",
+      error: "Public-image safety detection is disabled."
+    };
+  }
+
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS ?? 5000);
+
+  try {
+    const rekognition = client ?? new RekognitionClient({
+      region: config.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1"
+    });
+    const compatibleImageBytes = await rekognitionJpeg(imageBytes);
+    const [moderationOutput, facesOutput] = await Promise.all([
+      rekognition.send(new DetectModerationLabelsCommand({
+        Image: { Bytes: compatibleImageBytes },
+        MinConfidence: REKOGNITION_MODERATION_MIN_CONFIDENCE
+      }), { abortSignal: controller.signal }) as Promise<DetectModerationLabelsCommandOutput>,
+      rekognition.send(new DetectFacesCommand({
+        Image: { Bytes: compatibleImageBytes },
+        Attributes: ["ALL"]
+      }), { abortSignal: controller.signal }) as Promise<DetectFacesCommandOutput>
+    ]);
+    const result = classifyPublicImageSafety(moderationOutput, facesOutput, config);
 
     return { ...result, latency_ms: Date.now() - startedAt };
   } catch (error) {

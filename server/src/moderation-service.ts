@@ -7,7 +7,10 @@ import {
   prepareTextForModerationProvider,
   shouldModerateMessageTextWithProvider
 } from "./message-keyword-prefilter.js";
-import { createModerationProvider, MockModerationProvider } from "./moderation-provider.js";
+import {
+  createModerationProviderOrUnavailable,
+  MockModerationProvider
+} from "./moderation-provider.js";
 import {
   type ModerationContentType,
   type ModerationSurface,
@@ -18,6 +21,7 @@ import { mapProviderResultToPolicy } from "./policy-mapper.js";
 import {
   detectImageChildFaces,
   detectProfilePhotoHuman,
+  detectPublicImageSafety,
   mergeProfilePhotoSafetyResults
 } from "./profile-photo-human-detection.js";
 import {
@@ -25,6 +29,7 @@ import {
 } from "./photo-upload-availability.js";
 import { applyPolicyDecision } from "./trust-engine.js";
 import {
+  persistSevereAccessBan,
   type SevereAccessBanIdentity
 } from "./severe-access-bans.js";
 
@@ -233,8 +238,8 @@ export function userMessageForDecision(
   decision: PolicyDecision,
   contentType: ModerationContentType = "image"
 ) {
-  if (decision.user_message_code === "minor_face_review_suspension") {
-    return "A minor face was detected. This account has been suspended for human review.";
+  if (decision.user_message_code === "minor_face_permanent_ban") {
+    return "A child face was detected. This account has been permanently banned.";
   }
 
   if (decision.user_message_code === "profile_photo_not_adult_human") {
@@ -294,7 +299,7 @@ function providerErrorResult(providerName: string, startedAt: number, error: unk
     raw_result: {
       error_name: error instanceof Error ? error.name : "UnknownError"
     },
-    error: error instanceof Error ? error.message : "Image moderation failed."
+    error: error instanceof Error ? error.message : "Moderation provider call failed."
   };
 }
 
@@ -311,6 +316,11 @@ function isMessagePhotoSurface(surface: ModerationSurface) {
 
 function canUseMessagePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
   return isMessagePhotoSurface(surface) &&
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+}
+
+function canUseFeedImageRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
+  return surface === "feed" &&
     app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
 }
 
@@ -549,6 +559,15 @@ async function handlePolicyDecision(
     }
   });
 
+  if (decision.reason_code === "minor_face_detected") {
+    await persistSevereAccessBan(
+      app.db,
+      userId,
+      decision.reason_code,
+      options.severeAccessBanIdentity
+    );
+  }
+
   throw new ApiError(
     decision.enforcement_action?.type === "suspend" ? 403 : 400,
     "CONTENT_REJECTED",
@@ -556,6 +575,11 @@ async function handlePolicyDecision(
   );
 }
 
+// Text has a complete local classifier (the rule set in MockModerationProvider plus the
+// racial-slur list), so when Stream is unreachable the text is still screened rather than
+// refused. This is not a fail-open: every rule still runs, and the feed/profile-only rules
+// still apply on those surfaces. Images have no equivalent local classifier, which is why
+// they still fail closed above.
 export async function moderateTextWithLocalFallback(
   app: FastifyInstance,
   input: ModerateTextInput,
@@ -574,6 +598,7 @@ export async function moderateTextWithLocalFallback(
       ...(fallbackResult.raw_result ?? {}),
       fallback: {
         reason: "stream_text_moderation_unavailable",
+        surface: input.surface,
         provider: unavailableProviderResult.provider,
         providerRequestId: unavailableProviderResult.provider_request_id,
         status: unavailableProviderResult.status ?? null,
@@ -583,7 +608,6 @@ export async function moderateTextWithLocalFallback(
   };
 
   app.log?.warn({
-    fallbackSurface: input.surface,
     surface: input.surface,
     provider: unavailableProviderResult.provider,
     providerRequestId: unavailableProviderResult.provider_request_id,
@@ -594,29 +618,48 @@ export async function moderateTextWithLocalFallback(
   return providerResult;
 }
 
-export const moderateFeedTextWithLocalFallback = moderateTextWithLocalFallback;
+async function primaryTextProviderResult(
+  app: FastifyInstance,
+  input: ModerateTextInput
+): Promise<ProviderModerationResult> {
+  if (containsBlockedRacialSlur(input.text)) {
+    return {
+      provider: "local_text_policy",
+      provider_request_id: "local-text-policy-blocked-racial-slur",
+      labels: [{
+        provider_label: "blocked_hard_r_racial_slur",
+        normalized_label: "hate_speech",
+        confidence: 1,
+        severity: "high"
+      }],
+      latency_ms: 0,
+      raw_result: {
+        matchedCategories: ["hate_or_extremism"]
+      }
+    };
+  }
+
+  const provider = createModerationProviderOrUnavailable(app.config);
+  const startedAt = Date.now();
+
+  try {
+    return await provider.moderateText({
+      ...input,
+      text: prepareTextForModerationProvider(input.text)
+    });
+  } catch (error) {
+    app.log?.error(
+      { err: error, provider: provider.name, surface: input.surface },
+      "text moderation provider failed"
+    );
+
+    return providerErrorResult(provider.name, startedAt, error);
+  }
+}
 
 export async function moderateTextOrReject(app: FastifyInstance, input: ModerateTextInput) {
-  const providerResultFromPrimary: ProviderModerationResult = containsBlockedRacialSlur(input.text)
-    ? {
-        provider: "local_text_policy",
-        provider_request_id: "local-text-policy-blocked-racial-slur",
-        labels: [{
-          provider_label: "blocked_hard_r_racial_slur",
-          normalized_label: "hate_speech",
-          confidence: 1,
-          severity: "high"
-        }],
-        latency_ms: 0,
-        raw_result: {
-          matchedCategories: ["hate_or_extremism"]
-        }
-      }
-    : await createModerationProvider(app.config).moderateText({
-        ...input,
-        text: prepareTextForModerationProvider(input.text)
-      });
-  const providerResult = (input.surface === "feed" || input.surface === "profile") && providerResultUnavailable(providerResultFromPrimary)
+  const providerResultFromPrimary = await primaryTextProviderResult(app, input);
+  const providerResult = providerResultUnavailable(providerResultFromPrimary)
     ? await moderateTextWithLocalFallback(app, input, providerResultFromPrimary)
     : providerResultFromPrimary;
   const decision = mapProviderResultToPolicy({
@@ -668,10 +711,13 @@ export async function moderateImageOrReject(
   input: ModerateImageInput,
   options: { allowProfilePhotoManualReview?: boolean } = {}
 ) {
-  const provider = createModerationProvider(app.config);
+  const provider = createModerationProviderOrUnavailable(app.config);
   const useProfilePhotoRekognitionFallback = canUseProfilePhotoRekognitionFallback(app, input.surface);
   const useMessagePhotoRekognitionFallback = canUseMessagePhotoRekognitionFallback(app, input.surface);
-  const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback || useMessagePhotoRekognitionFallback;
+  const useFeedImageRekognitionFallback = canUseFeedImageRekognitionFallback(app, input.surface);
+  const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback ||
+    useMessagePhotoRekognitionFallback ||
+    useFeedImageRekognitionFallback;
   const startedAt = Date.now();
   let providerResult: ProviderModerationResult;
 
@@ -690,12 +736,19 @@ export async function moderateImageOrReject(
   }
 
   if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true || usePhotoRekognitionFallback) {
+    const streamUnusable = providerResultUnavailable(providerResult) || providerResult.provider === "mock";
+    // A feed image standing on Rekognition alone needs the full public-image screen
+    // (explicit content, gore, weapons, hate symbols) rather than only the child-face
+    // gate. While Stream is answering, the feed keeps the cheaper child-face check so a
+    // working pipeline behaves exactly as before.
     const safetyResult = input.surface === "profile_photo"
       ? await detectProfilePhotoHuman(app.config, input.bytes)
-      : await detectImageChildFaces(app.config, input.bytes);
+      : useFeedImageRekognitionFallback && streamUnusable
+        ? await detectPublicImageSafety(app.config, input.bytes)
+        : await detectImageChildFaces(app.config, input.bytes);
 
     providerResult = usePhotoRekognitionFallback &&
-      (providerResultUnavailable(providerResult) || providerResult.provider === "mock") &&
+      streamUnusable &&
       providerResultComplete(safetyResult)
       ? photoRekognitionFallbackResult(providerResult, safetyResult)
       : mergeProfilePhotoSafetyResults(providerResult, safetyResult);

@@ -218,6 +218,23 @@ describe('ModeratorReview', () => {
     expect(screen.getByText('Checking moderator access...')).toBeInTheDocument();
   });
 
+  // Regression: the header was a single non-wrapping row, so on a phone the view
+  // controls sat on top of the title and the description.
+  it('wraps the header instead of stacking the view controls over the title', async () => {
+    getModerationQueue.mockResolvedValue(queue([]));
+    renderReview();
+
+    const title = await screen.findByRole('heading', { name: 'Moderation dashboard' });
+    const headerRow = title.closest('header')?.firstElementChild;
+    const controls = screen.getByRole('tablist', { name: 'Moderation views' }).parentElement;
+
+    expect(headerRow?.className).toContain('flex-wrap');
+    expect(title.className).toContain('truncate');
+    expect(title.parentElement?.className).toContain('min-w-0');
+    expect(controls?.className).toContain('w-full');
+    expect(controls?.className).toContain('sm:w-auto');
+  });
+
   it('shows the empty unified queue and supports refresh', async () => {
     getModerationQueue.mockResolvedValue(queue([]));
     renderReview();

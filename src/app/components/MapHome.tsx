@@ -30,8 +30,7 @@ import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type E
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto, setDlModeEnabled } from '../lib/dlMode';
-import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
-import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
+import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation } from '../lib/locationApi';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
@@ -48,7 +47,6 @@ import {
 } from '../lib/locationPrivacy';
 import { decryptDisplayLocationToken } from '../lib/displayLocationTokens';
 import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
-import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from '../lib/mapMarkers';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import ghostIconColored from '../assets/ui-icons/ghost-colored.svg';
@@ -395,6 +393,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [mapControlsIntroOpen, setMapControlsIntroOpen] = useState(false);
+  const [mapControlsNoticeOffline, setMapControlsNoticeOffline] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
   const lastEventCenterRequestKeyRef = useRef<string | null>(null);
@@ -439,8 +438,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   const dismissMapControlsIntro = () => {
     setMapControlsIntroOpen(false);
-    setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
-    void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
+    markNoticeDismissed(MAP_CONTROLS_INTRO_STORAGE_KEY, { offline: mapControlsNoticeOffline });
   };
 
   useEffect(() => {
@@ -474,33 +472,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     let isMounted = true;
 
-    if (hasPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY)) {
-      void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
-      setMapControlsIntroOpen(false);
-      return;
-    }
+    void resolveNoticeDismissal(MAP_CONTROLS_INTRO_STORAGE_KEY).then((notice) => {
+      if (!isMounted) {
+        return;
+      }
 
-    getUserNoticeDismissal(MAP_CONTROLS_INTRO_STORAGE_KEY)
-      .then((notice) => {
-        if (!isMounted) {
-          return;
-        }
-
-        if (notice.dismissed) {
-          setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
-          setMapControlsIntroOpen(false);
-          return;
-        }
-
-        setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
-        void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
-        setMapControlsIntroOpen(true);
-      })
-      .catch(() => {
-        if (isMounted) {
-          setMapControlsIntroOpen(false);
-        }
-      });
+      setMapControlsNoticeOffline(notice.offline);
+      setMapControlsIntroOpen(!notice.dismissed);
+    });
 
     return () => {
       isMounted = false;
@@ -1486,6 +1465,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <Button
               variant="ghost"
               size="icon"
+              data-testid="map-dl-mode-toggle"
               onClick={handleToggleDlMode}
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
@@ -1518,11 +1498,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
               >
                 <CruushIconImage src={settingsIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
               </Button>
-              <div
-                className="contents"
-                data-testid="map-bug-button-slot"
-                ref={registerBugButtonSlot}
-              />
             </div>
           </div>
         </div>
@@ -1826,6 +1801,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 : 'border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
             }`}
             style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
+            data-testid="map-seeking-button"
             onClick={() => setIsFiltersOpen(true)}
           >
             <Filter className="w-4 h-4 mr-2" />
@@ -1834,6 +1810,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
           <Button
             type="button"
+            data-testid="map-visibility-button"
             onClick={() => {
               setVisibilityError(null);
               setIsVisibilityOpen(true);
@@ -2016,7 +1993,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             }
           }}
         >
-          <DialogContent className="max-w-md rounded-lg border-white/10 bg-background text-white">
+          <DialogContent className="max-w-md rounded-lg border-white/10 bg-background text-white" data-testid="map-controls-intro" dismissible={false}>
             <DialogHeader>
               <DialogTitle>Map controls</DialogTitle>
               <DialogDescription>

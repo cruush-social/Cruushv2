@@ -34,9 +34,7 @@ const Settings = lazy(() => import('./components/Settings'));
 const BlockedUsersPage = lazy(() => import('./components/BlockedUsersPage'));
 const DlModeSettings = lazy(() => import('./components/DlModeSettings'));
 const MapPresenceSettings = lazy(() => import('./components/MapPresenceSettings'));
-const DlModeDefaultNotice = lazy(() => import('./components/DlModeDefaultNotice'));
-const BetaLaunchCruushPlusOffer = lazy(() => import('./components/BetaLaunchCruushPlusOffer'));
-const FirstFeedPostPrompt = lazy(() => import('./components/FirstFeedPostPrompt'));
+const FirstRunTutorial = lazy(() => import('./components/FirstRunTutorial'));
 const OnboardingPreview = lazy(() => import('./components/OnboardingPreview'));
 const SupportPage = lazy(() => import('./components/SupportPage'));
 const GhostModeSettings = lazy(() => import('./components/GhostModeSettings'));
@@ -68,9 +66,19 @@ const PUBLIC_INFO_ROUTES = [
 ] as const;
 
 function renderPublicInfoRoutes() {
-  return PUBLIC_INFO_ROUTES.map((route) => (
-    <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
-  ));
+  return [
+    // Reachable whether or not you are signed in, verified, onboarded or past the code of
+    // conduct. Every router below has a catch-all gate, so a route declared in only one of
+    // them silently redirects everywhere else.
+    <Route
+      key="/dev/onboarding-preview"
+      path="/dev/onboarding-preview"
+      element={<OnboardingPreview />}
+    />,
+    ...PUBLIC_INFO_ROUTES.map((route) => (
+      <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
+    )),
+  ];
 }
 
 function redirectToMap() {
@@ -382,9 +390,6 @@ export default function App({
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />
               <Route path="/privacy/map-presence" element={<MapPresenceSettings />} />
               <Route path="/privacy/audit" element={<PrivacyAudit />} />
-              {import.meta.env.DEV ? (
-                <Route path="/dev/onboarding-preview" element={<OnboardingPreview />} />
-              ) : null}
               <Route path="/lucky" element={<FeelingLucky />} />
               <Route path="/requests" element={<RequestsDashboard />} />
               <Route path="/upgrade" element={<Navigate to="/rewards" replace />} />
@@ -394,9 +399,7 @@ export default function App({
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
             <MobileInstallPrompt />
-            <DlModeDefaultNotice />
-            <BetaLaunchCruushPlusOffer userId={session.user.id} />
-            <FirstFeedPostPrompt userId={session.user.id} />
+            <FirstRunTutorial />
             <BottomNav />
             <ForegroundNotifications />
             <DebugCruushPlusToggle />

@@ -791,6 +791,51 @@ export function buildStreamImageCheckRequest(input: {
   };
 }
 
+// Stands in for a provider that could not be constructed at all - missing or rotated-out
+// Stream credentials, or an unknown MODERATION_PROVIDER. It answers like a provider that
+// is down, so callers reach their fallback chain instead of a bare 500. Constructing the
+// real provider throws, and during a credential rotation that throw is guaranteed.
+export class UnavailableModerationProvider implements ModerationProvider {
+  readonly version = "unavailable";
+
+  constructor(readonly name: string, private readonly reason: string) {}
+
+  private unavailable(): ProviderModerationResult {
+    return {
+      provider: this.name,
+      provider_request_id: `${this.name}-unavailable-${Date.now().toString(36)}`,
+      labels: [],
+      latency_ms: 0,
+      status: "error",
+      raw_result: {
+        error_name: "ModerationProviderUnavailable"
+      },
+      error: this.reason
+    };
+  }
+
+  async moderateText(): Promise<ProviderModerationResult> {
+    return this.unavailable();
+  }
+
+  async moderateImage(): Promise<ProviderModerationResult> {
+    return this.unavailable();
+  }
+}
+
+export function createModerationProviderOrUnavailable(
+  config: Pick<AppConfig, "MODERATION_PROVIDER"> & StreamConfig
+): ModerationProvider {
+  try {
+    return createModerationProvider(config);
+  } catch (error) {
+    return new UnavailableModerationProvider(
+      config.STREAM_MODERATION_ENABLED ? "stream" : config.MODERATION_PROVIDER ?? "mock",
+      error instanceof Error ? error.message : "Moderation provider could not be created."
+    );
+  }
+}
+
 export function createModerationProvider(config: Pick<AppConfig, "MODERATION_PROVIDER"> & StreamConfig): ModerationProvider {
   if (config.STREAM_MODERATION_ENABLED) {
     return new StreamModerationProvider(config);

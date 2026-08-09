@@ -1,12 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router';
 import { Bug, CheckCircle2 } from 'lucide-react';
 import { ApiClientError } from '../lib/apiClient';
 import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 import { createSupportRequest } from '../lib/supportApi';
-import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
-import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -23,8 +20,6 @@ type AlphaBugButtonProps = {
   enabled?: boolean;
 };
 
-export const ALPHA_BUG_TIP_STORAGE_KEY = 'cruush:alpha-bug-tip-seen';
-
 type ScreenshotAttachment = {
   filename: string;
   contentType: 'image/jpeg';
@@ -39,22 +34,11 @@ function getCurrentPageUrl() {
   return `${window.location.pathname}${window.location.search}` || '/';
 }
 
-function getBugButtonPlacement(pathname: string) {
-  if (pathname.startsWith('/chat/')) {
-    return 'left-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
-  }
-
-  return 'left-4 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
-}
-
-function getBugTipPlacement(pathname: string) {
-  if (pathname.startsWith('/chat/')) {
-    return 'left-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
-  }
-
-  return 'left-4 bottom-[calc(10rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
-}
-
+// Wherever the bottom nav renders, the button docks into it and these do not apply. They
+// are the fallback for the handful of signed-out routes that have no nav - the verify-email
+// and reset-password cards - where the top-right corner is empty on every viewport.
+const FALLBACK_BUTTON_PLACEMENT =
+  'right-4 top-[calc(0.75rem+env(safe-area-inset-top))]';
 function waitForVideoMetadata(video: HTMLVideoElement) {
   return new Promise<void>((resolve, reject) => {
     const timeout = window.setTimeout(() => reject(new Error('Screenshot timed out.')), 5000);
@@ -131,68 +115,20 @@ async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined>
 }
 
 export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps) {
-  const location = useLocation();
-  const [buttonSlot, setButtonSlot] = useState<HTMLElement | null>(() => getBugButtonSlot());
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [error, setError] = useState('');
   const [errorCode, setErrorCode] = useState('');
-  const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
-
-  useEffect(() => subscribeToBugButtonSlot(() => setButtonSlot(getBugButtonSlot())), []);
-
-  useEffect(() => {
-    if (!enabled || typeof window === 'undefined') {
-      return;
-    }
-
-    let isMounted = true;
-
-    if (hasPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY)) {
-      void dismissUserNotice(ALPHA_BUG_TIP_STORAGE_KEY).catch(() => {});
-      setShowTip(false);
-      return;
-    }
-
-    getUserNoticeDismissal(ALPHA_BUG_TIP_STORAGE_KEY)
-      .then((notice) => {
-        if (!isMounted) {
-          return;
-        }
-
-        if (notice.dismissed) {
-          setPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
-          setShowTip(false);
-          return;
-        }
-
-        setPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
-        void dismissUserNotice(ALPHA_BUG_TIP_STORAGE_KEY).catch(() => {});
-        setShowTip(true);
-      })
-      .catch(() => {
-        if (isMounted) {
-          setShowTip(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [enabled]);
+  // useSyncExternalStore, not useState+useEffect: the nav registers its slot during the
+  // same commit, before any effect runs, so a state initializer read at render time
+  // always saw null and the button fell back to floating over the page.
+  const buttonSlot = useSyncExternalStore(subscribeToBugButtonSlot, getBugButtonSlot, () => null);
 
   if (!enabled) {
     return null;
   }
-
-  const dismissTip = () => {
-    setShowTip(false);
-
-    setPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
-    void dismissUserNotice(ALPHA_BUG_TIP_STORAGE_KEY).catch(() => {});
-  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -231,8 +167,8 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       <button
         aria-label="Report alpha bug"
         className={buttonSlot
-          ? 'inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive sm:size-9'
-          : `fixed z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${getBugButtonPlacement(location.pathname)}`}
+          ? 'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-background/68 text-white/90 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          : `fixed z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${FALLBACK_BUTTON_PLACEMENT}`}
         data-testid="alpha-bug-button"
         title="Report a bug"
         type="button"
@@ -247,27 +183,12 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
-        if (nextOpen) {
-          dismissTip();
-        }
         if (!nextOpen) {
           setError('');
           setStatus('idle');
         }
       }}
     >
-      {showTip ? (
-        <div className={`fixed z-30 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
-          <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
-          <button
-            className="mt-2 text-xs font-semibold text-primary"
-            onClick={dismissTip}
-            type="button"
-          >
-            Got it
-          </button>
-        </div>
-      ) : null}
       {buttonSlot && typeof document !== 'undefined' ? createPortal(trigger, buttonSlot) : trigger}
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>

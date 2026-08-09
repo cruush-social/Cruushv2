@@ -108,6 +108,8 @@ function profileFeedCoordinates(profile: ProfileRecord): FeedCoordinates | null 
     : null;
 }
 
+export const FEED_POST_CREATED_EVENT = 'cruush:feed-post-created';
+
 export default function LocalFeed() {
   const navigate = useNavigate();
   const [newPost, setNewPost] = useState('');
@@ -281,6 +283,7 @@ export default function LocalFeed() {
       setNewPost('');
       setSelectedCrowdTargets([]);
       setPosts((prev) => [createdPost, ...prev]);
+      window.dispatchEvent(new CustomEvent(FEED_POST_CREATED_EVENT, { detail: createdPost }));
     } catch (error) {
       console.error('Error posting:', error);
       setError(error instanceof Error ? error.message : 'Failed to create post.');
@@ -557,6 +560,7 @@ export default function LocalFeed() {
               ) : null}
             </div>
             <Button
+              data-testid="local-feed-post-button"
               onClick={handlePost}
               disabled={!canPost || !newPost.trim() || posting}
               style={{

@@ -12,9 +12,8 @@ import CruushPlusWord from './CruushPlusWord';
 import './BetaLaunchCruushPlusOffer.css';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
-import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { claimBetaLaunchCruushPlus } from '../lib/rewardsApi';
-import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
+import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
 
 const BETA_LAUNCH_OFFER_STORAGE_KEY = 'cruush:beta-launch-plus-offer-seen';
 
@@ -37,10 +36,10 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
   const [error, setError] = useState('');
   const activeDialogKey = dialogKey(userId);
 
-  const markSeen = () => {
-    const key = offerStorageKey(userId);
-    setPersistentNoticeFlag(key);
-    void dismissUserNotice(key).catch(() => {});
+  const [noticeOffline, setNoticeOffline] = useState(false);
+
+  const markSeen = (offline = noticeOffline) => {
+    markNoticeDismissed(offerStorageKey(userId), { offline });
   };
 
   useEffect(() => {
@@ -57,7 +56,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
       removeDialogWaiter = null;
     };
 
-    const openWhenAvailable = () => {
+    const openWhenAvailable = (offline: boolean) => {
       clearDialogWaiter();
 
       if (!isMounted) {
@@ -65,39 +64,28 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
       }
 
       if (acquireOneTimeDialog(activeDialogKey)) {
-        markSeen();
+        markSeen(offline);
         setOpen(true);
         return;
       }
 
-      removeDialogWaiter = onOneTimeDialogReleased(openWhenAvailable);
+      removeDialogWaiter = onOneTimeDialogReleased(() => openWhenAvailable(offline));
     };
 
-    if (hasPersistentNoticeFlag(key)) {
-      void dismissUserNotice(key).catch(() => {});
-      setOpen(false);
-      return;
-    }
+    void resolveNoticeDismissal(key).then((notice) => {
+      if (!isMounted) {
+        return;
+      }
 
-    getUserNoticeDismissal(key)
-      .then((notice) => {
-        if (!isMounted) {
-          return;
-        }
+      setNoticeOffline(notice.offline);
 
-        if (notice.dismissed) {
-          setPersistentNoticeFlag(key);
-          setOpen(false);
-          return;
-        }
+      if (notice.dismissed) {
+        setOpen(false);
+        return;
+      }
 
-        openWhenAvailable();
-      })
-      .catch(() => {
-        if (isMounted) {
-          setOpen(false);
-        }
-      });
+      openWhenAvailable(notice.offline);
+    });
 
     return () => {
       isMounted = false;
@@ -136,7 +124,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="beta-launch-plus-dialog max-w-sm rounded-lg">
+      <DialogContent className="beta-launch-plus-dialog max-w-sm rounded-lg" dismissible={false}>
         <div className="beta-launch-plus-card-scene">
           <div className="beta-launch-plus-card" data-testid="beta-launch-cruush-plus-card">
             <div className="beta-launch-plus-card__moire" />

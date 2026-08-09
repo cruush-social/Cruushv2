@@ -16,14 +16,22 @@ import {
   setDlModeEnabled,
   shouldShowDlModeDefaultNotice,
 } from '../lib/dlMode';
-import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
+import { dismissUserNotice, resolveNoticeDismissal } from '../lib/userNoticesApi';
 
-export default function DlModeDefaultNotice() {
+type DlModeDefaultNoticeProps = {
+  // The onboarding preview renders this outside the map route and passes the path it
+  // should pretend to be on. Everything else reads the real location.
+  pathname?: string;
+};
+
+export default function DlModeDefaultNotice({ pathname }: DlModeDefaultNoticeProps = {}) {
   const location = useLocation();
+  const activePathname = pathname ?? location.pathname;
   const [open, setOpen] = useState(false);
+  const [noticeOffline, setNoticeOffline] = useState(false);
 
   useEffect(() => {
-    if (!location.pathname.startsWith('/map')) {
+    if (!activePathname.startsWith('/map')) {
       return;
     }
 
@@ -35,38 +43,44 @@ export default function DlModeDefaultNotice() {
       return;
     }
 
-    getUserNoticeDismissal(DL_MODE_DEFAULT_NOTICE_KEY)
-      .then((notice) => {
-        if (!isMounted) {
-          return;
-        }
+    void resolveNoticeDismissal(DL_MODE_DEFAULT_NOTICE_KEY).then((notice) => {
+      if (!isMounted) {
+        return;
+      }
 
-        if (notice.dismissed) {
-          markDlModeDefaultNoticeSeen();
-          setOpen(false);
-          return;
-        }
+      setNoticeOffline(notice.offline);
 
-        setDlModeEnabled(true);
+      if (notice.dismissed) {
         markDlModeDefaultNoticeSeen();
+        setOpen(false);
+        return;
+      }
+
+      // Unlike the other notices this one is marked seen as soon as it shows, not on
+      // dismiss, because showing it flips DL Mode on. Re-showing it after a reload would
+      // re-enable DL Mode for someone who had just turned it off.
+      setDlModeEnabled(true);
+      markDlModeDefaultNoticeSeen();
+
+      if (!notice.offline) {
         void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
-        setOpen(true);
-      })
-      .catch(() => {
-        if (isMounted) {
-          setOpen(false);
-        }
-      });
+      }
+
+      setOpen(true);
+    });
 
     return () => {
       isMounted = false;
     };
-  }, [location.pathname]);
+  }, [activePathname]);
 
   const closeNotice = () => {
     setOpen(false);
     markDlModeDefaultNoticeSeen();
-    void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
+
+    if (!noticeOffline) {
+      void dismissUserNotice(DL_MODE_DEFAULT_NOTICE_KEY).catch(() => {});
+    }
   };
 
   return (
@@ -78,7 +92,7 @@ export default function DlModeDefaultNotice() {
         }
       }}
     >
-      <DialogContent className="max-w-sm rounded-lg border-white/10 bg-background">
+      <DialogContent className="max-w-sm rounded-lg border-white/10 bg-background" dismissible={false}>
         <DialogHeader>
           <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.045]">
             <Eye className="h-5 w-5 text-primary" strokeWidth={2.35} />

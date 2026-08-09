@@ -9,6 +9,10 @@
 //
 // Adding a new floating overlay means adding it here. If the test fails, the two overlays
 // really do collide on a real screen — move one, do not widen the tolerance.
+//
+// Blocking modals are deliberately absent: they are centred, they dim the whole screen and
+// nothing can be used behind them, so "does it overlap" is not a question worth asking.
+// Only things that float over a usable page belong here.
 
 export type OverlayBox = {
   // Distances from the named viewport edge, in rem. Give either an edge pair
@@ -69,42 +73,27 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     desktop: { bottom: 6.25, right: 1, width: 29.5, height: 7 },
   },
   {
-    id: 'mobile-install-prompt',
-    source: 'src/app/components/MobileInstallPrompt.tsx',
-    z: 40,
-    transient: true,
-    // Narrowed on mobile so it clears the bug button's column on the right edge.
-    mobile: { bottom: 6, left: 1, right: 4.5, height: 10 },
-    desktop: { bottom: 6, left: 1, right: 1, height: 10 },
-  },
-  {
     id: 'bottom-nav',
     source: 'src/app/components/BottomNav.tsx',
     z: 50,
-    // The nav wrapper is full width and pointer-events-none; the pill inside is
-    // mx-auto with max-w-[23rem], so on desktop it leaves both edges free.
-    mobile: { bottom: 0.75, left: 0.22, right: 0.22, height: 4 },
-    desktop: { bottom: 0.75, left: 28.5, right: 28.5, height: 4 },
+    // The nav wrapper is full width and pointer-events-none. Inside it, one mx-auto row
+    // (max-w-[26rem]) holds the pill and, at its right end, the docked bug button. This
+    // box is the PILL only - the button has its own slot below, so the collision check
+    // proves the pill gave up enough width for it instead of the two stacking.
+    mobile: { bottom: 0.75, left: 0.75, right: 4, height: 4 },
+    desktop: { bottom: 0.75, left: 27, right: 30.25, height: 4 },
   },
   {
     id: 'alpha-bug-button',
     source: 'src/app/components/AlphaBugButton.tsx',
     z: 50,
-    mobile: { bottom: 14, right: 1, width: 2.75, height: 2.75 },
-    desktop: { bottom: 1, right: 1, width: 2.75, height: 2.75 },
-  },
-  {
-    id: 'alpha-bug-tip',
-    source: 'src/app/components/AlphaBugButton.tsx',
-    z: 50,
-    // A one-time coach mark anchored near the button, dismissed on first tap.
-    // Deliberately NOT marked transient: nothing belonging to the bug reporter may sit
-    // on top of another control. On desktop it goes to the left of the button along the
-    // bottom edge, the only space clear of the install prompt, the Recently Active
-    // panel and the nav pill.
-    exclusiveWith: ['alpha-bug-button'],
-    mobile: { bottom: 17.25, right: 1, width: 18, height: 5 },
-    desktop: { bottom: 0.5, right: 7, width: 18, height: 5 },
+    // Docked inside the bottom-nav row on every screen that renders the nav, which is
+    // every signed-in route. It is laid out by that row rather than positioned over the
+    // page, so it cannot land on top of a card, a photo tile or a delete button the way
+    // a fixed floating button did. The band the nav occupies is the one strip every page
+    // already reserves and never draws content into.
+    mobile: { bottom: 1.15, right: 0.75, width: 2.75, height: 2.75 },
+    desktop: { bottom: 1.15, right: 27, width: 2.75, height: 2.75 },
   },
 ];
 

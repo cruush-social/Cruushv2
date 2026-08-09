@@ -1,61 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
 import { Button } from './ui/button';
 import ProfileOnboarding from './ProfileOnboarding';
-import { previewableNotices, resetPreviewableNotices } from '../lib/onboardingPreview';
-import { getCurrentUserId } from '../lib/sessionUser';
+import { FIRST_RUN_TUTORIAL_KEY } from './FirstRunTutorial';
+import { resetPreviewableNotices } from '../lib/onboardingPreview';
 
-// DEV ONLY: a harness for reviewing onboarding and the one-time explainer
-// dialogs without deleting the account they are attached to.
+// Replays the first run against the real app. Deliberately renders no screens of its own:
+// it clears the seen-flag and sends you to the map, so what you review is the actual map,
+// feed and rewards pages with the tutorial over them. A mock-up here would only ever show
+// what someone imagined the app looked like.
 export default function OnboardingPreview() {
   const navigate = useNavigate();
-  const previewEnabled = import.meta.env.DEV;
-  const [userId, setUserId] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const [resetting, setResetting] = useState(false);
 
-  useEffect(() => {
-    if (!previewEnabled) {
-      return undefined;
-    }
-
-    let active = true;
-
-    void getCurrentUserId()
-      .then((id) => {
-        if (active) {
-          setUserId(id ?? '');
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setUserId('');
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [previewEnabled]);
-
-  if (!previewEnabled) {
-    return null;
-  }
-
-  const notices = previewableNotices(userId ?? '');
-
-  const handleReset = async (noticeKeys: string[], label: string) => {
+  const replayTutorial = async () => {
     setResetting(true);
-    setStatus(null);
+    setError('');
 
     try {
-      await resetPreviewableNotices(noticeKeys);
-      setStatus(`${label} reset. Reload the app to see it again.`);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Reset failed.');
-    } finally {
+      await resetPreviewableNotices([FIRST_RUN_TUTORIAL_KEY]);
+      navigate('/map');
+    } catch (resetError) {
+      setError(resetError instanceof Error ? resetError.message : 'Could not reset the tutorial.');
       setResetting(false);
     }
   };
@@ -82,73 +51,51 @@ export default function OnboardingPreview() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h2 className="text-xl">Onboarding preview</h2>
-          <p className="text-xs text-muted-foreground">Dev-only harness for onboarding and explainer dialogs</p>
+          <h2 className="text-xl">Replay the first run</h2>
+          <p className="text-xs text-muted-foreground">Runs against the real app, not a mock-up</p>
         </div>
       </header>
 
       <div className="mx-auto max-w-2xl space-y-6 p-6">
-        {status ? (
-          <div className="rounded-md border border-primary/30 bg-primary/10 p-3 text-sm text-primary" role="status">
-            {status}
+        {error ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+            {error}
           </div>
         ) : null}
 
         <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
           <div>
-            <p>Run onboarding</p>
+            <p>First-run tutorial</p>
             <p className="text-sm text-muted-foreground">
-              Steps through the full rite list including the code of conduct, Signal broadcast, 2FA, and affiliate share.
-              Finishing returns you here instead of writing a new session.
+              Marks the tutorial unseen and drops you on the map, where it starts by itself. Every
+              step is the real screen it is about.
             </p>
           </div>
-          <Button onClick={() => setShowOnboarding(true)} style={{ background: 'var(--cruush-gradient)' }}>
-            Start onboarding preview
+          <Button
+            disabled={resetting}
+            onClick={() => void replayTutorial()}
+            style={{ background: 'var(--cruush-gradient)' }}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            {resetting ? 'Starting...' : 'Replay tutorial'}
           </Button>
         </div>
 
         <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p>Explainer dialogs</p>
-              <p className="text-sm text-muted-foreground">Reset a dialog, then reload the app to see it fire again.</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={resetting}
-              onClick={() => void handleReset(notices.map((notice) => notice.key), 'All dialogs')}
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Reset all
-            </Button>
+          <div>
+            <p>Profile onboarding</p>
+            <p className="text-sm text-muted-foreground">
+              The full rite list including the code of conduct, Signal broadcast, 2FA and affiliate
+              share. Finishing returns you here instead of writing a session.
+            </p>
           </div>
-
-          <div className="space-y-2">
-            {notices.map((notice) => (
-              <div
-                key={notice.key}
-                className="flex items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.025] p-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate">{notice.label}</p>
-                  <p className="text-sm text-muted-foreground">{notice.description}</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={resetting}
-                  onClick={() => void handleReset([notice.key], notice.label)}
-                >
-                  Reset
-                </Button>
-              </div>
-            ))}
-          </div>
+          <Button variant="outline" onClick={() => setShowOnboarding(true)}>
+            Start onboarding
+          </Button>
         </div>
       </div>
     </div>

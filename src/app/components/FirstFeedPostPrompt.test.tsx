@@ -8,7 +8,39 @@ const userNoticesApi = vi.hoisted(() => ({
   getUserNoticeDismissal: vi.fn(),
 }));
 
-vi.mock('../lib/userNoticesApi', () => userNoticesApi);
+// resolveNoticeDismissal/markNoticeDismissed keep their real behaviour, layered over the
+// two mocked calls, so these tests still drive the notices API directly.
+vi.mock('../lib/userNoticesApi', async () => {
+  const { hasPersistentNoticeFlag, setPersistentNoticeFlag } = await import('../lib/persistentNotice');
+
+  return {
+    ...userNoticesApi,
+    resolveNoticeDismissal: async (key: string) => {
+      if (hasPersistentNoticeFlag(key)) {
+        return { dismissed: true, offline: false };
+      }
+
+      try {
+        const notice = await userNoticesApi.getUserNoticeDismissal(key);
+
+        if (notice.dismissed) {
+          setPersistentNoticeFlag(key);
+        }
+
+        return { dismissed: notice.dismissed, offline: false };
+      } catch {
+        return { dismissed: false, offline: true };
+      }
+    },
+    markNoticeDismissed: (key: string, options: { offline?: boolean } = {}) => {
+      setPersistentNoticeFlag(key);
+
+      if (!options.offline) {
+        void userNoticesApi.dismissUserNotice(key).catch(() => {});
+      }
+    },
+  };
+});
 
 function clearCookies() {
   document.cookie.split(';').forEach((cookie) => {
@@ -80,5 +112,39 @@ describe('FirstFeedPostPrompt', () => {
 
     await waitFor(() => expect(userNoticesApi.getUserNoticeDismissal).toHaveBeenCalled());
     expect(screen.queryByRole('heading', { name: 'Say something to the block' })).not.toBeInTheDocument();
+  });
+});
+
+// Regression: the lookup ended in `.catch(() => setOpen(false))`, so any error from the
+// notices API silently suppressed the prompt instead of failing that one request.
+describe('FirstFeedPostPrompt when the notices API is down', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    clearCookies();
+    userNoticesApi.dismissUserNotice.mockReset();
+    userNoticesApi.getUserNoticeDismissal.mockReset();
+    userNoticesApi.getUserNoticeDismissal.mockRejectedValue(new Error('notices API down'));
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('still shows a prompt this device has never seen', async () => {
+    renderPrompt();
+
+    expect(await screen.findByRole('heading', { name: 'Say something to the block' })).toBeInTheDocument();
+    // The device flag keeps it one-time; no server write is attempted while it is down.
+    expect(window.localStorage.getItem('cruush:first-feed-post-prompt-seen:user-123')).toBe('true');
+    expect(userNoticesApi.dismissUserNotice).not.toHaveBeenCalled();
+  });
+
+  it('stays closed when this device already saw it', async () => {
+    window.localStorage.setItem('cruush:first-feed-post-prompt-seen:user-123', 'true');
+
+    renderPrompt();
+
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Say something to the block' })).not.toBeInTheDocument());
+    expect(userNoticesApi.getUserNoticeDismissal).not.toHaveBeenCalled();
   });
 });

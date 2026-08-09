@@ -545,17 +545,17 @@ export default function ModeratorReview() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button variant="ghost" size="icon" aria-label="Return to settings" onClick={() => navigate('/settings')}>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <Button className="shrink-0" variant="ghost" size="icon" aria-label="Return to settings" onClick={() => navigate('/settings')}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="text-xl">Moderation dashboard</h1>
-              <p className="text-xs text-muted-foreground">Reports, automated reviews, and account enforcement</p>
+            <div className="min-w-0">
+              <h1 className="truncate text-xl">Moderation dashboard</h1>
+              <p className="truncate text-xs text-muted-foreground">Reports, automated reviews, and account enforcement</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
             <div className="flex rounded-md border border-border p-0.5" role="tablist" aria-label="Moderation views">
               <Button
                 role="tab"
