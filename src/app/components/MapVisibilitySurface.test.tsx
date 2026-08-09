@@ -57,14 +57,14 @@ describe('MapVisibilitySurface', () => {
     expect(screen.queryByText('You can use up to 3 hidden filters. Remove one before adding another.')).not.toBeInTheDocument();
   });
 
-  it('keeps dropdown options inside the visibility sheet so mobile taps register', () => {
+  it('portals dropdown options above the visibility sheet so mobile taps register', () => {
     render(<VisibilityHarness hasCruushPlus />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
 
     const option = screen.getByRole('option', { name: 'man' });
 
-    expect(option.closest('[data-slot="sheet-content"]')).not.toBeNull();
+    expect(option.closest('[data-slot="sheet-content"]')).toBeNull();
 
     fireEvent.click(option);
 

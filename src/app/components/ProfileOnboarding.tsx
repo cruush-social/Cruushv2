@@ -77,8 +77,8 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   },
   crowds: {
     rite: 'find your crowd',
-    title: 'Which crowds should know you are here?',
-    detail: 'Pick up to three.',
+    title: 'Which communities should see you on the map?',
+    detail: 'Choose up to three map communities. This is separate from your gender identity.',
   },
   lookingFor: {
     rite: 'declare your hunger',
@@ -715,7 +715,7 @@ export default function ProfileOnboarding({
             case 'crowds':
               return (
                 <div>
-                  <label className="text-sm mb-2 block text-white/82">Crowds</label>
+                  <label className="text-sm mb-2 block text-white/82">Map communities</label>
                   <MultiSelect
                     ariaLabel="Crowds"
                     maxSelections={3}

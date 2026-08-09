@@ -732,7 +732,6 @@ export default function PrivateGroupChat() {
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
-    setMessage('');
     setComposerError(null);
     setComposerErrorCode(null);
     setError(null);
@@ -744,6 +743,7 @@ export default function PrivateGroupChat() {
           ? normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)
           : item
       )));
+      setMessage((currentMessage) => currentMessage === trimmedMessage ? '' : currentMessage);
       setError(null);
     } catch (error) {
       console.error('Error sending message:', error);

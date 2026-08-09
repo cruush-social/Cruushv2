@@ -247,6 +247,27 @@ describe('MapView', () => {
     expect(secondOnMapReady).not.toHaveBeenCalled();
   });
 
+  it('starts at a restored viewport when one is supplied', async () => {
+    render(
+      <MapView
+        onMapClick={vi.fn()}
+        onMapReady={vi.fn()}
+        onPinClick={vi.fn()}
+        initialViewport={{
+          center: { approximateLatitude: 40.71, approximateLongitude: -74.02 },
+          zoom: 13.25,
+        }}
+        markers={[]}
+      />,
+    );
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
+    expect(MockMap.calls[0]).toEqual(expect.objectContaining({
+      center: [-74.02, 40.71],
+      zoom: 13.25,
+    }));
+  });
+
   it('fits the discovery marker set when requested', async () => {
     render(
       <MapView

@@ -647,15 +647,76 @@ export class StreamModerationProvider implements ModerationProvider {
   private readonly client: StreamClient;
   private readonly configKey: string;
 
+  private static readonly maxAttempts = 3;
+  private static readonly retryDelayMs = 100;
+  private static readonly circuitFailureThreshold = 3;
+  private static readonly circuitOpenMs = 30_000;
+
+  private static readonly circuits = new Map<string, {
+    consecutiveFailures: number;
+    openedUntil: number;
+  }>();
+
   constructor(private readonly config: StreamConfig) {
     if (!config.STREAM_API_KEY || !config.STREAM_API_SECRET || !config.STREAM_MODERATION_CONFIG_KEY) {
       throw new Error("STREAM_API_KEY, STREAM_API_SECRET, and STREAM_MODERATION_CONFIG_KEY are required when Stream moderation is enabled.");
     }
 
     this.client = new StreamClient(config.STREAM_API_KEY, config.STREAM_API_SECRET, {
-      timeout: config.MODERATION_TIMEOUT_MS ?? 5000
+      timeout: Math.max(config.MODERATION_TIMEOUT_MS ?? 15_000, 15_000)
     });
     this.configKey = config.STREAM_MODERATION_CONFIG_KEY;
+  }
+
+  private circuitState() {
+    const key = `${this.configKey}:${this.name}`;
+    const existing = StreamModerationProvider.circuits.get(key);
+
+    if (existing) {
+      return { key, state: existing };
+    }
+
+    const state = { consecutiveFailures: 0, openedUntil: 0 };
+    StreamModerationProvider.circuits.set(key, state);
+    return { key, state };
+  }
+
+  private recordSuccess(state: { consecutiveFailures: number; openedUntil: number }) {
+    state.consecutiveFailures = 0;
+    state.openedUntil = 0;
+  }
+
+  private recordFailure(state: { consecutiveFailures: number; openedUntil: number }) {
+    state.consecutiveFailures += 1;
+
+    if (state.consecutiveFailures >= StreamModerationProvider.circuitFailureThreshold) {
+      state.openedUntil = Date.now() + StreamModerationProvider.circuitOpenMs;
+    }
+  }
+
+  private static isRetryableError(error: unknown) {
+    const candidate = error as { code?: unknown; status?: unknown; statusCode?: unknown } | null;
+    const status = Number(candidate?.statusCode ?? candidate?.status);
+
+    if (status === 408 || status === 425 || status === 429 || status >= 500) {
+      return true;
+    }
+
+    if (status >= 400) {
+      return false;
+    }
+
+    const code = typeof candidate?.code === "string" ? candidate.code.toUpperCase() : "";
+    if (!Number.isFinite(status)) {
+      return true;
+    }
+
+    return ["ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EAI_AGAIN", "ENETUNREACH", "UND_ERR_CONNECT_TIMEOUT"]
+      .includes(code) || status === 0;
+  }
+
+  private static wait(delayMs: number) {
+    return new Promise<void>((resolve) => setTimeout(resolve, delayMs));
   }
 
   private async check(input: {
@@ -670,55 +731,83 @@ export class StreamModerationProvider implements ModerationProvider {
   }): Promise<ProviderModerationResult> {
     const startedAt = Date.now();
     const entityId = input.contentId ?? `${input.surface}-${input.contentType}-${Date.now().toString(36)}`;
+    const { state } = this.circuitState();
 
-    try {
-      const response = await this.client.moderation.check({
-        entity_type: streamEntityType(input.surface, input.contentType),
-        entity_id: entityId,
-        entity_creator_id: input.userId,
-        config_key: this.configKey,
-        moderation_payload: input.moderationPayload,
-        options: {
-          force_sync: true
-        },
-        user_id: input.userId
-      }) as StreamCheckResponse;
-
-      if (input.contentType === "image" && !isCompleteStreamImageResponse(response)) {
-        return {
-          provider: this.name,
-          provider_request_id: response.item?.id ?? response.task_id ?? `stream-partial-${Date.now().toString(36)}`,
-          labels: [],
-          latency_ms: Date.now() - startedAt,
-          recommended_action: response.recommended_action,
-          status: "partial",
-          raw_result: sanitizeStreamResponse(response),
-          error: "Stream returned an incomplete image moderation response."
-        };
-      }
-
+    if (state.openedUntil > Date.now()) {
       return {
         provider: this.name,
-        provider_request_id: response.item?.id ?? response.task_id ?? response.metadata?.clientRequestId ?? `stream-${Date.now().toString(36)}`,
-        labels: streamLabelsFromResponse(response, input.surface),
-        latency_ms: Date.now() - startedAt,
-        recommended_action: response.recommended_action,
-        status: response.status,
-        raw_result: sanitizeStreamResponse(response)
-      };
-    } catch (error) {
-      return {
-        provider: this.name,
-        provider_request_id: `stream-error-${Date.now().toString(36)}`,
+        provider_request_id: `stream-circuit-open-${Date.now().toString(36)}`,
         labels: [],
-        latency_ms: Date.now() - startedAt,
+        latency_ms: 0,
         status: "error",
-        raw_result: {
-          error_name: error instanceof Error ? error.name : "UnknownError"
-        },
-        error: error instanceof Error ? error.message : "Stream moderation request failed."
+        raw_result: { error_name: "ModerationCircuitOpen" },
+        error: "Stream moderation is temporarily unavailable."
       };
     }
+
+    for (let attempt = 1; attempt <= StreamModerationProvider.maxAttempts; attempt += 1) {
+      try {
+        const response = await this.client.moderation.check({
+          entity_type: streamEntityType(input.surface, input.contentType),
+          entity_id: entityId,
+          entity_creator_id: input.userId,
+          config_key: this.configKey,
+          moderation_payload: input.moderationPayload,
+          options: {
+            force_sync: true
+          },
+          user_id: input.userId
+        }) as StreamCheckResponse;
+
+        // Stream's partial image result is a normal asynchronous response. It is not a
+        // provider failure for circuit purposes; callers still fail closed until a
+        // complete result or a configured safety fallback is available.
+        this.recordSuccess(state);
+
+        if (input.contentType === "image" && !isCompleteStreamImageResponse(response)) {
+          return {
+            provider: this.name,
+            provider_request_id: response.item?.id ?? response.task_id ?? `stream-partial-${Date.now().toString(36)}`,
+            labels: [],
+            latency_ms: Date.now() - startedAt,
+            recommended_action: response.recommended_action,
+            status: "partial",
+            raw_result: sanitizeStreamResponse(response),
+            error: "Stream returned an incomplete image moderation response."
+          };
+        }
+
+        return {
+          provider: this.name,
+          provider_request_id: response.item?.id ?? response.task_id ?? response.metadata?.clientRequestId ?? `stream-${Date.now().toString(36)}`,
+          labels: streamLabelsFromResponse(response, input.surface),
+          latency_ms: Date.now() - startedAt,
+          recommended_action: response.recommended_action,
+          status: response.status,
+          raw_result: sanitizeStreamResponse(response)
+        };
+      } catch (error) {
+        if (attempt < StreamModerationProvider.maxAttempts && StreamModerationProvider.isRetryableError(error)) {
+          await StreamModerationProvider.wait(StreamModerationProvider.retryDelayMs * attempt);
+          continue;
+        }
+
+        this.recordFailure(state);
+        return {
+          provider: this.name,
+          provider_request_id: `stream-error-${Date.now().toString(36)}`,
+          labels: [],
+          latency_ms: Date.now() - startedAt,
+          status: "error",
+          raw_result: {
+            error_name: error instanceof Error ? error.name : "UnknownError"
+          },
+          error: error instanceof Error ? error.message : "Stream moderation request failed."
+        };
+      }
+    }
+
+    throw new Error("Stream moderation retry loop exited unexpectedly.");
   }
 
   async moderateText(input: TextModerationInput): Promise<ProviderModerationResult> {
@@ -789,6 +878,50 @@ export function buildStreamImageCheckRequest(input: {
     },
     user_id: pseudonym
   };
+}
+
+// Treat construction failures (for example during a Stream credential rotation) as a
+// provider outage so the moderation service can execute its normal fallback and return a
+// useful user-facing error instead of a bare 500.
+export class UnavailableModerationProvider implements ModerationProvider {
+  readonly version = "unavailable";
+
+  constructor(readonly name: string, private readonly reason: string) {}
+
+  private unavailable(): ProviderModerationResult {
+    return {
+      provider: this.name,
+      provider_request_id: `${this.name}-unavailable-${Date.now().toString(36)}`,
+      labels: [],
+      latency_ms: 0,
+      status: "error",
+      raw_result: {
+        error_name: "ModerationProviderUnavailable"
+      },
+      error: this.reason
+    };
+  }
+
+  async moderateText(): Promise<ProviderModerationResult> {
+    return this.unavailable();
+  }
+
+  async moderateImage(): Promise<ProviderModerationResult> {
+    return this.unavailable();
+  }
+}
+
+export function createModerationProviderOrUnavailable(
+  config: Pick<AppConfig, "MODERATION_PROVIDER"> & StreamConfig
+): ModerationProvider {
+  try {
+    return createModerationProvider(config);
+  } catch (error) {
+    return new UnavailableModerationProvider(
+      config.STREAM_MODERATION_ENABLED ? "stream" : config.MODERATION_PROVIDER ?? "mock",
+      error instanceof Error ? error.message : "Moderation provider could not be created."
+    );
+  }
 }
 
 export function createModerationProvider(config: Pick<AppConfig, "MODERATION_PROVIDER"> & StreamConfig): ModerationProvider {

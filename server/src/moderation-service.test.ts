@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   moderateFeedTextWithLocalFallback,
+  moderateImageOrReject,
   moderateMessageTextOrAllowByKeyword,
   moderateProfileOrReject,
   moderateTextOrReject,
@@ -19,6 +20,12 @@ const { streamModerationCheck } = vi.hoisted(() => ({
   streamModerationCheck: vi.fn()
 }));
 
+const { detectImageChildFaces, detectProfilePhotoHuman, detectPublicImageSafety } = vi.hoisted(() => ({
+  detectImageChildFaces: vi.fn(),
+  detectProfilePhotoHuman: vi.fn(),
+  detectPublicImageSafety: vi.fn()
+}));
+
 vi.mock("@stream-io/node-sdk", () => ({
   StreamClient: class {
     moderation = {
@@ -26,6 +33,14 @@ vi.mock("@stream-io/node-sdk", () => ({
     };
   }
 }));
+
+vi.mock("./profile-photo-human-detection.js", async () => {
+  const actual = await vi.importActual<typeof import("./profile-photo-human-detection.js")>(
+    "./profile-photo-human-detection.js"
+  );
+
+  return { ...actual, detectImageChildFaces, detectProfilePhotoHuman, detectPublicImageSafety };
+});
 
 function createApp() {
   return {
@@ -131,6 +146,9 @@ function streamResult(overrides: Partial<ProviderModerationResult> = {}): Provid
 
 beforeEach(() => {
   streamModerationCheck.mockReset();
+  detectImageChildFaces.mockReset();
+  detectProfilePhotoHuman.mockReset();
+  detectPublicImageSafety.mockReset();
 });
 
 describe("moderation error messages", () => {
@@ -142,8 +160,10 @@ describe("moderation error messages", () => {
       user_message_code: "moderation_delayed"
     };
 
+    expect(userMessageForDecision(decision, "text")).toContain("Nothing was saved");
     expect(userMessageForDecision(decision, "text")).toContain("check this text");
     expect(userMessageForDecision(decision, "text")).not.toContain("check this photo");
+    expect(userMessageForDecision(decision, "image")).toContain("Nothing was saved");
     expect(userMessageForDecision(decision, "image")).toContain("check this photo");
   });
 
@@ -274,5 +294,61 @@ describe("profile-photo adult-human gate", () => {
       status: "resolved",
       decision: { reason_code: "profile_photo_not_adult_human" }
     });
+  });
+});
+
+describe("feed image moderation fallback", () => {
+  it("uses public-image safety when the primary provider is unavailable", async () => {
+    const app = createApp();
+    Object.assign(app.config, {
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE: 90,
+      PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE: 18,
+      PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS: 5000
+    });
+    detectPublicImageSafety.mockResolvedValue({
+      provider: "aws_rekognition",
+      provider_request_id: "rekognition-feed-1",
+      labels: [],
+      latency_ms: 4,
+      status: "complete",
+      recommended_action: "keep",
+      raw_result: {}
+    });
+
+    await expect(moderateImageOrReject(app, {
+      userId: "user-1",
+      surface: "feed",
+      mimeType: "image/jpeg",
+      bytes: Buffer.from("feed-image")
+    })).resolves.toMatchObject({
+      decision: { decision: "allow" },
+      providerResult: { provider: "mock+aws_rekognition" }
+    });
+
+    expect(detectPublicImageSafety).toHaveBeenCalledOnce();
+    expect(detectImageChildFaces).not.toHaveBeenCalled();
+  });
+
+  it("fails a Stream partial image response without creating a provider outage queue row", async () => {
+    const app = createStreamApp();
+    streamModerationCheck.mockResolvedValue({
+      status: "partial",
+      recommended_action: "keep",
+      task_id: "stream-async-image-1"
+    });
+
+    await expect(moderateImageOrReject(app, {
+      userId: "user-1",
+      surface: "feed",
+      mimeType: "image/jpeg",
+      imageUrl: "https://example.com/moderation-image.jpg",
+      bytes: Buffer.from("feed-image")
+    })).rejects.toMatchObject({
+      statusCode: 503,
+      code: "MODERATION_UNAVAILABLE"
+    });
+
+    expect((app.db.query as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
   });
 });

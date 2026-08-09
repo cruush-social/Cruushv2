@@ -30,8 +30,7 @@ import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type E
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto, setDlModeEnabled } from '../lib/dlMode';
-import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
-import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
+import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation } from '../lib/locationApi';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
@@ -66,6 +65,7 @@ const CROWD_NOTICE_LABELS: Record<string, string> = {
   Gay: 'Gay',
   T4T: 'T4T',
 };
+const MAP_VIEWPORT_RESTORE_STORAGE_KEY = 'cruush:map-viewport-restore';
 
 const MapView = lazy(() => import('./MapView'));
 
@@ -304,6 +304,12 @@ type MapRouteState = {
   focusUserId?: string;
 } | null;
 
+type StoredMapViewport = {
+  latitude: number;
+  longitude: number;
+  zoom: number;
+};
+
 type LuckySlotState =
   | {
       mode: 'profile';
@@ -318,7 +324,64 @@ type LuckySlotState =
 const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
-export const MAP_CONTROLS_INTRO_STORAGE_KEY = 'cruush:map-controls-intro-seen';
+export const MAP_CONTROLS_INTRO_STORAGE_KEY = 'cruush:tutorial-v1-seen';
+
+export function readStoredMapViewport() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const rawViewport = window.sessionStorage.getItem(MAP_VIEWPORT_RESTORE_STORAGE_KEY);
+
+  if (!rawViewport) {
+    return null;
+  }
+
+  let parsedViewport: StoredMapViewport | null = null;
+
+  try {
+    const candidateViewport = JSON.parse(rawViewport) as StoredMapViewport;
+
+    if (
+      Number.isFinite(candidateViewport.latitude) &&
+      Number.isFinite(candidateViewport.longitude) &&
+      Number.isFinite(candidateViewport.zoom)
+    ) {
+      parsedViewport = candidateViewport;
+    }
+  } catch {
+    // Ignore malformed restore payloads and keep the default map camera.
+  }
+
+  window.sessionStorage.removeItem(MAP_VIEWPORT_RESTORE_STORAGE_KEY);
+  return parsedViewport;
+}
+
+export function storeMapViewportForRestore(map: CruushMapInstance | null) {
+  if (typeof window === 'undefined' || !map) {
+    return;
+  }
+
+  const viewportMap = map as CruushMapInstance & {
+    getCenter?: () => { lat: number; lng: number };
+    getZoom?: () => number;
+  };
+  const center = viewportMap.getCenter?.();
+  const zoom = viewportMap.getZoom?.();
+
+  if (!center || !Number.isFinite(center.lat) || !Number.isFinite(center.lng) || !Number.isFinite(zoom)) {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    MAP_VIEWPORT_RESTORE_STORAGE_KEY,
+    JSON.stringify({
+      latitude: center.lat,
+      longitude: center.lng,
+      zoom,
+    } satisfies StoredMapViewport),
+  );
+}
 
 function toRadians(degrees: number) {
   return degrees * Math.PI / 180;
@@ -365,6 +428,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     approximateLatitude: number;
     approximateLongitude: number;
   } | null>(null);
+  const [restoredMapViewport] = useState<StoredMapViewport | null>(() => readStoredMapViewport());
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'ready' | 'error'>('idle');
   const [locationError, setLocationError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -395,6 +459,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [mapControlsIntroOpen, setMapControlsIntroOpen] = useState(false);
+  const [mapControlsNoticeOffline, setMapControlsNoticeOffline] = useState(false);
   const hasFetchedInitialUsersRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
   const lastEventCenterRequestKeyRef = useRef<string | null>(null);
@@ -439,8 +504,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   const dismissMapControlsIntro = () => {
     setMapControlsIntroOpen(false);
-    setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
-    void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
+    markNoticeDismissed(MAP_CONTROLS_INTRO_STORAGE_KEY, { offline: mapControlsNoticeOffline });
   };
 
   useEffect(() => {
@@ -474,33 +538,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     let isMounted = true;
 
-    if (hasPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY)) {
-      void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
-      setMapControlsIntroOpen(false);
-      return;
-    }
+    void resolveNoticeDismissal(MAP_CONTROLS_INTRO_STORAGE_KEY).then((notice) => {
+      if (!isMounted) {
+        return;
+      }
 
-    getUserNoticeDismissal(MAP_CONTROLS_INTRO_STORAGE_KEY)
-      .then((notice) => {
-        if (!isMounted) {
-          return;
-        }
-
-        if (notice.dismissed) {
-          setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
-          setMapControlsIntroOpen(false);
-          return;
-        }
-
-        setPersistentNoticeFlag(MAP_CONTROLS_INTRO_STORAGE_KEY);
-        void dismissUserNotice(MAP_CONTROLS_INTRO_STORAGE_KEY).catch(() => {});
-        setMapControlsIntroOpen(true);
-      })
-      .catch(() => {
-        if (isMounted) {
-          setMapControlsIntroOpen(false);
-        }
-      });
+      setMapControlsNoticeOffline(notice.offline);
+      setMapControlsIntroOpen(!notice.dismissed);
+    });
 
     return () => {
       isMounted = false;
@@ -560,6 +605,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
+    storeMapViewportForRestore(mapInstance);
     navigate(`/profile/${user.id}`, {
       state: {
         distance: user.distance,
@@ -1241,6 +1287,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         approximateLongitude: user.lng,
         lastActiveLabel: user.lastActive,
         photo: user.photo,
+        photoExplicit: user.photoExplicit,
         badge: createMapMarkerBadge(user.position, user.hostingTravel),
         animationHint: user.animationHint,
         displayMode: user.displayMode,
@@ -1552,12 +1599,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
               setSelectedEventSlug(null);
             }}
             markers={mapMarkers}
-            fitToMarkers={!currentUserMapLocation && !isMutualMapMode && !focusUserId}
+            fitToMarkers={!restoredMapViewport && !currentUserMapLocation && !isMutualMapMode && !focusUserId}
             focusCoordinates={
               focusedMapLocation ??
               browserFocusCoordinates ??
-              (focusUserId ? undefined : currentUserMapLocation)
+              (restoredMapViewport || focusUserId ? undefined : currentUserMapLocation)
             }
+            initialViewport={restoredMapViewport ? {
+              center: {
+                approximateLatitude: restoredMapViewport.latitude,
+                approximateLongitude: restoredMapViewport.longitude,
+              },
+              zoom: restoredMapViewport.zoom,
+            } : undefined}
             denseVenue={denseVenue}
             radiusCircle={privacySettings.ghostModeEnabled && currentUserMapLocation
               ? {

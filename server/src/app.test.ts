@@ -4154,6 +4154,11 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("join conversations c");
     expect(query.mock.calls.some(([sql]) => String(sql).includes("from messages m"))).toBe(true);
+    expect(query.mock.calls.some(([sql, params]) =>
+      String(sql).includes("update conversation_members")
+      && String(sql).includes("last_read_at = now()")
+      && JSON.stringify(params) === JSON.stringify([userId, conversationId])
+    )).toBe(true);
     expect(query.mock.calls.some(([sql]) => String(sql).includes("sender_profile.photos[1] as sender_photo"))).toBe(true);
     expect(response.json()).toEqual({
       data: {
@@ -5762,6 +5767,8 @@ describe("server", () => {
       "spam_scam",
       ""
     ]);
+    const contentReviewCall = query.mock.calls.find(([sql]) => String(sql).includes("insert into content_reviews"));
+    expect(JSON.stringify(contentReviewCall?.[1] ?? [])).toContain('"category":"user_report"');
   });
 
   it("creates a post report on POST /api/reports", async () => {

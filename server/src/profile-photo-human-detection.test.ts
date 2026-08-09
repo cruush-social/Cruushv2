@@ -7,6 +7,7 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 import {
   classifyImageChildFaces,
+  classifyPublicImageSafety,
   classifyProfilePhotoSafety,
   detectProfilePhotoHuman,
   mergeProfilePhotoSafetyResults
@@ -153,6 +154,30 @@ describe("image child-face and profile-photo human detection", () => {
         expect.objectContaining({ normalized_label: "profile_photo_not_adult_human" })
       ]),
       raw_result: { outcome: "animal_detected" }
+    });
+  });
+
+  it("maps public-image safety labels without rejecting ordinary non-explicit nudity", () => {
+    expect(classifyPublicImageSafety({
+      ModerationLabels: [{ Name: "Explicit Nudity", Confidence: 96 }],
+      $metadata: { requestId: "rekognition-public-explicit" }
+    }, {
+      FaceDetails: [],
+      $metadata: { requestId: "rekognition-public-faces" }
+    }, config)).toMatchObject({
+      recommended_action: "remove",
+      labels: [{ normalized_label: "adult_nudity", confidence: 0.96 }]
+    });
+
+    expect(classifyPublicImageSafety({
+      ModerationLabels: [{ Name: "Non-Explicit Nudity", Confidence: 96 }],
+      $metadata: { requestId: "rekognition-public-non-explicit" }
+    }, {
+      FaceDetails: [],
+      $metadata: { requestId: "rekognition-public-faces" }
+    }, config)).toMatchObject({
+      recommended_action: "keep",
+      labels: []
     });
   });
 

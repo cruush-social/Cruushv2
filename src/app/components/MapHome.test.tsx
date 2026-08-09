@@ -85,9 +85,11 @@ const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastError: vi.fn(),
 }));
 
-const { dismissUserNotice, getUserNoticeDismissal } = vi.hoisted(() => ({
+const { dismissUserNotice, getUserNoticeDismissal, markNoticeDismissed, resolveNoticeDismissal } = vi.hoisted(() => ({
   dismissUserNotice: vi.fn(),
   getUserNoticeDismissal: vi.fn(),
+  markNoticeDismissed: vi.fn(),
+  resolveNoticeDismissal: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({
@@ -165,6 +167,8 @@ vi.mock('../lib/eventsApi', () => ({
 vi.mock('../lib/userNoticesApi', () => ({
   dismissUserNotice,
   getUserNoticeDismissal,
+  markNoticeDismissed,
+  resolveNoticeDismissal,
 }));
 
 vi.mock('./ui/use-mobile', () => ({
@@ -311,6 +315,8 @@ describe('MapHome', () => {
     joinEventChat.mockReset();
     dismissUserNotice.mockReset();
     getUserNoticeDismissal.mockReset();
+    markNoticeDismissed.mockReset();
+    resolveNoticeDismissal.mockReset();
     useIsMobile.mockReset();
     mapControls.setCenter.mockReset();
     mapControls.setZoom.mockReset();
@@ -324,6 +330,11 @@ describe('MapHome', () => {
     window.localStorage.setItem('cruush:map-controls-intro-seen', 'true');
     dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
+    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
+    markNoticeDismissed.mockImplementation((key: string) => {
+      window.localStorage.setItem(key, 'true');
+      void dismissUserNotice(key);
+    });
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -971,8 +982,8 @@ describe('MapHome', () => {
 
   it('shows the map controls intro once and dismisses it permanently', async () => {
     useIsMobile.mockReturnValue(false);
-    window.localStorage.removeItem('cruush:map-controls-intro-seen');
-    getUserNoticeDismissal.mockResolvedValue({ dismissed: false, dismissedAt: null });
+    window.localStorage.removeItem('cruush:tutorial-v1-seen');
+    resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
 
     const { unmount } = render(
       <MemoryRouter initialEntries={['/map']}>
@@ -989,8 +1000,8 @@ describe('MapHome', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
 
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Map controls' })).not.toBeInTheDocument());
-    expect(window.localStorage.getItem('cruush:map-controls-intro-seen')).toBe('true');
-    expect(dismissUserNotice).toHaveBeenCalledWith('cruush:map-controls-intro-seen');
+    expect(window.localStorage.getItem('cruush:tutorial-v1-seen')).toBe('true');
+    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:tutorial-v1-seen', { offline: false });
 
     unmount();
 

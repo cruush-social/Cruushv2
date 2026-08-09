@@ -6,6 +6,7 @@ import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.
 import { getReferralInfo } from "../referrals-service.js";
 import {
   claimBetaLaunchCruushPlus,
+  getBetaLaunchCruushPlusClaimStatus,
   getRewardSummary,
   normalizeTimeZone,
   redeemCruushPlusPromoCode,
@@ -132,6 +133,13 @@ export async function registerRewardRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     return reply.send({
       data: await claimBetaLaunchCruushPlus(app, userId)
+    });
+  });
+
+  app.get("/api/rewards/beta-launch/status", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    return reply.send({
+      data: await getBetaLaunchCruushPlusClaimStatus(app, userId)
     });
   });
 

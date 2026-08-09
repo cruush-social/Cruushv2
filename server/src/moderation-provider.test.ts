@@ -1,12 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildStreamImageCheckRequest,
   createModerationProvider,
+  createModerationProviderOrUnavailable,
   isCompleteStreamImageResponse,
   MockModerationProvider,
   normalizeStreamLabel,
+  StreamModerationProvider,
   streamLabelsFromResponse
 } from "./moderation-provider.js";
+
+const { streamModerationCheck } = vi.hoisted(() => ({
+  streamModerationCheck: vi.fn()
+}));
+
+vi.mock("@stream-io/node-sdk", () => ({
+  StreamClient: class {
+    moderation = {
+      check: streamModerationCheck
+    };
+  }
+}));
 
 describe("moderation provider", () => {
   it("allows safe queer and dating profile language", async () => {
@@ -336,6 +350,78 @@ describe("moderation provider", () => {
       STREAM_API_SECRET: "",
       STREAM_MODERATION_CONFIG_KEY: ""
     })).toThrow(/STREAM_API_KEY/);
+  });
+
+  it("turns provider construction failures into an unavailable provider result", async () => {
+    const provider = createModerationProviderOrUnavailable({
+      MODERATION_PROVIDER: "mock",
+      MODERATION_TIMEOUT_MS: 5000,
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "",
+      STREAM_API_SECRET: "",
+      STREAM_MODERATION_CONFIG_KEY: ""
+    });
+
+    await expect(provider.moderateText({
+      userId: "user-1",
+      surface: "feed",
+      text: "hello"
+    })).resolves.toMatchObject({
+      provider: "stream",
+      status: "error",
+      error: expect.stringContaining("STREAM_API_KEY")
+    });
+  });
+
+  it("retries transient Stream failures before returning a result", async () => {
+    streamModerationCheck
+      .mockRejectedValueOnce(new Error("temporary network failure"))
+      .mockResolvedValueOnce({ status: "complete", recommended_action: "keep" });
+
+    const provider = new StreamModerationProvider({
+      MODERATION_TIMEOUT_MS: 5000,
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "retry-key",
+      STREAM_API_SECRET: "retry-secret",
+      STREAM_MODERATION_CONFIG_KEY: "retry-config"
+    });
+
+    await expect(provider.moderateText({
+      userId: "user-1",
+      surface: "feed",
+      text: "hello"
+    })).resolves.toMatchObject({ status: "complete" });
+    expect(streamModerationCheck).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens a circuit after repeated Stream failures", async () => {
+    streamModerationCheck.mockRejectedValue(new Error("stream is down"));
+    const provider = new StreamModerationProvider({
+      MODERATION_TIMEOUT_MS: 5000,
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "circuit-key",
+      STREAM_API_SECRET: "circuit-secret",
+      STREAM_MODERATION_CONFIG_KEY: "circuit-config"
+    });
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await expect(provider.moderateText({
+        userId: "user-1",
+        surface: "feed",
+        text: "hello"
+      })).resolves.toMatchObject({ status: "error" });
+    }
+
+    const callsBeforeOpenCircuit = streamModerationCheck.mock.calls.length;
+    await expect(provider.moderateText({
+      userId: "user-1",
+      surface: "feed",
+      text: "hello"
+    })).resolves.toMatchObject({
+      status: "error",
+      error: "Stream moderation is temporarily unavailable."
+    });
+    expect(streamModerationCheck).toHaveBeenCalledTimes(callsBeforeOpenCircuit);
   });
 
   it("builds Stream image checks with only a capability URL and pseudonymous identifiers", () => {

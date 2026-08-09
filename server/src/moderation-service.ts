@@ -7,7 +7,10 @@ import {
   prepareTextForModerationProvider,
   shouldModerateMessageTextWithProvider
 } from "./message-keyword-prefilter.js";
-import { createModerationProvider, MockModerationProvider } from "./moderation-provider.js";
+import {
+  createModerationProviderOrUnavailable,
+  MockModerationProvider
+} from "./moderation-provider.js";
 import {
   type ModerationContentType,
   type ModerationSurface,
@@ -18,6 +21,7 @@ import { mapProviderResultToPolicy } from "./policy-mapper.js";
 import {
   detectImageChildFaces,
   detectProfilePhotoHuman,
+  detectPublicImageSafety,
   mergeProfilePhotoSafetyResults
 } from "./profile-photo-human-detection.js";
 import {
@@ -247,10 +251,10 @@ export function userMessageForDecision(
 
   if (decision.user_message_code === "moderation_delayed") {
     if (contentType === "text") {
-      return "We could not check this text for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
+      return "Nothing was saved because we could not check this text for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
     }
 
-    return "We could not check this photo for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
+    return "Nothing was saved because we could not check this photo for harmful content. Try again in a few minutes, or contact reports@cruush.app if it keeps happening.";
   }
 
   if (decision.user_message_code === "feed_content_rejected") {
@@ -311,6 +315,11 @@ function isMessagePhotoSurface(surface: ModerationSurface) {
 
 function canUseMessagePhotoRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
   return isMessagePhotoSurface(surface) &&
+    app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+}
+
+function canUseFeedImageRekognitionFallback(app: FastifyInstance, surface: ModerationSurface) {
+  return surface === "feed" &&
     app.config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
 }
 
@@ -513,6 +522,22 @@ async function handlePolicyDecision(
   }
 
   if (decision.decision === "quarantine") {
+    // Provider outages are infrastructure failures, not human moderation decisions. Do
+    // not put one queue row per failed request in front of moderators; the content was
+    // not persisted and the client receives a retryable error instead.
+    if (isProviderUnavailableDecision(decision)) {
+      app.log?.error?.({
+        provider: providerResult.provider,
+        providerRequestId: providerResult.provider_request_id,
+        surface,
+        contentType,
+        contentId: options.contentId ?? null,
+        error: providerResult.error ?? null
+      }, "moderation provider unavailable; content was not saved");
+
+      throw new ApiError(503, "MODERATION_UNAVAILABLE", userMessageForDecision(decision, contentType));
+    }
+
     await recordContentReview(app, {
       userId,
       surface,
@@ -612,7 +637,7 @@ export async function moderateTextOrReject(app: FastifyInstance, input: Moderate
           matchedCategories: ["hate_or_extremism"]
         }
       }
-    : await createModerationProvider(app.config).moderateText({
+    : await createModerationProviderOrUnavailable(app.config).moderateText({
         ...input,
         text: prepareTextForModerationProvider(input.text)
       });
@@ -668,10 +693,13 @@ export async function moderateImageOrReject(
   input: ModerateImageInput,
   options: { allowProfilePhotoManualReview?: boolean } = {}
 ) {
-  const provider = createModerationProvider(app.config);
+  const provider = createModerationProviderOrUnavailable(app.config);
   const useProfilePhotoRekognitionFallback = canUseProfilePhotoRekognitionFallback(app, input.surface);
   const useMessagePhotoRekognitionFallback = canUseMessagePhotoRekognitionFallback(app, input.surface);
-  const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback || useMessagePhotoRekognitionFallback;
+  const useFeedImageRekognitionFallback = canUseFeedImageRekognitionFallback(app, input.surface);
+  const usePhotoRekognitionFallback = useProfilePhotoRekognitionFallback ||
+    useMessagePhotoRekognitionFallback ||
+    useFeedImageRekognitionFallback;
   const startedAt = Date.now();
   let providerResult: ProviderModerationResult;
 
@@ -690,15 +718,42 @@ export async function moderateImageOrReject(
   }
 
   if (app.config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true || usePhotoRekognitionFallback) {
+    const streamUnusable = providerResultUnavailable(providerResult) || providerResult.provider === "mock";
     const safetyResult = input.surface === "profile_photo"
       ? await detectProfilePhotoHuman(app.config, input.bytes)
-      : await detectImageChildFaces(app.config, input.bytes);
+      : useFeedImageRekognitionFallback && streamUnusable
+        ? await detectPublicImageSafety(app.config, input.bytes)
+        : await detectImageChildFaces(app.config, input.bytes);
 
     providerResult = usePhotoRekognitionFallback &&
-      (providerResultUnavailable(providerResult) || providerResult.provider === "mock") &&
+      streamUnusable &&
       providerResultComplete(safetyResult)
       ? photoRekognitionFallbackResult(providerResult, safetyResult)
       : mergeProfilePhotoSafetyResults(providerResult, safetyResult);
+  }
+
+  // Stream can legitimately return an asynchronous image result. Do not turn that normal
+  // state into a provider-unavailable review row; the image has not been persisted, so the
+  // safe outcome is a retryable 503 until a complete provider or fallback result exists.
+  if (providerResult.status?.toLowerCase() === "partial") {
+    app.log?.warn?.({ surface: input.surface, userId: input.userId }, "image moderation is still pending");
+    throw new ApiError(
+      503,
+      "MODERATION_UNAVAILABLE",
+      userMessageForDecision({
+        decision: "quarantine",
+        category: "provider_unavailable",
+        severity: "medium",
+        confidence: 1,
+        create_evidence_event: false,
+        evidence_value: 0,
+        trust_impact: 0,
+        penalty_decays: true,
+        moderation_history_required: true,
+        reason_code: "moderation_pending",
+        user_message_code: "moderation_delayed"
+      }, "image")
+    );
   }
 
   let decision = mapProviderResultToPolicy({
@@ -837,7 +892,7 @@ export async function createUserReport(app: FastifyInstance, input: UserReportIn
     },
     decision: {
       decision: "quarantine",
-      category: "provider_unavailable",
+      category: "user_report",
       severity: "medium",
       confidence: 1,
       create_evidence_event: false,

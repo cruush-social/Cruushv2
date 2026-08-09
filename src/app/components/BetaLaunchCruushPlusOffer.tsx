@@ -12,9 +12,8 @@ import CruushPlusWord from './CruushPlusWord';
 import './BetaLaunchCruushPlusOffer.css';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
-import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
-import { claimBetaLaunchCruushPlus } from '../lib/rewardsApi';
-import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
+import { claimBetaLaunchCruushPlus, getBetaLaunchCruushPlusClaimStatus } from '../lib/rewardsApi';
+import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
 
 const BETA_LAUNCH_OFFER_STORAGE_KEY = 'cruush:beta-launch-plus-offer-seen';
 
@@ -39,8 +38,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
 
   const markSeen = () => {
     const key = offerStorageKey(userId);
-    setPersistentNoticeFlag(key);
-    void dismissUserNotice(key).catch(() => {});
+    void markNoticeDismissed(key, { offline: false });
   };
 
   useEffect(() => {
@@ -65,7 +63,6 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
       }
 
       if (acquireOneTimeDialog(activeDialogKey)) {
-        markSeen();
         setOpen(true);
         return;
       }
@@ -73,20 +70,17 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
       removeDialogWaiter = onOneTimeDialogReleased(openWhenAvailable);
     };
 
-    if (hasPersistentNoticeFlag(key)) {
-      void dismissUserNotice(key).catch(() => {});
-      setOpen(false);
-      return;
-    }
-
-    getUserNoticeDismissal(key)
-      .then((notice) => {
+    Promise.all([resolveNoticeDismissal(key), getBetaLaunchCruushPlusClaimStatus()])
+      .then(([notice, claimStatus]) => {
         if (!isMounted) {
           return;
         }
 
-        if (notice.dismissed) {
-          setPersistentNoticeFlag(key);
+        if (notice.dismissed || claimStatus.claimed) {
+          if (claimStatus.claimed) {
+            setClaimed(true);
+          }
+          markSeen();
           setOpen(false);
           return;
         }
@@ -95,7 +89,9 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
       })
       .catch(() => {
         if (isMounted) {
-          setOpen(false);
+          // A status outage must not permanently hide the offer. The claim
+          // endpoint is idempotent, so the user can still resolve the state.
+          openWhenAvailable();
         }
       });
 
@@ -115,6 +111,7 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
     setOpen(nextOpen);
 
     if (!nextOpen) {
+      markSeen();
       releaseOneTimeDialog(activeDialogKey);
     }
   };
@@ -126,7 +123,10 @@ export default function BetaLaunchCruushPlusOffer({ userId }: BetaLaunchCruushPl
     try {
       const claim = await claimBetaLaunchCruushPlus();
       window.dispatchEvent(new CustomEvent(CRUUSH_PLUS_CHANGED_EVENT, { detail: claim }));
-      setClaimed(true);
+      setClaimed(claim.claimed || claim.alreadyRedeemed === true);
+      if (claim.claimed || claim.alreadyRedeemed === true) {
+        markSeen();
+      }
     } catch (claimError) {
       setError(claimError instanceof Error ? claimError.message : 'Unable to activate cruush+.');
     } finally {

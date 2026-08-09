@@ -172,6 +172,25 @@ describe('ProfileEdit', () => {
     expect(savedPayload.kink_interests[0]).not.toHaveProperty('visibility');
   }, 10000);
 
+  it('keeps edited profile fields when moderation rejects the save', async () => {
+    saveMyProfile.mockRejectedValueOnce(new Error(
+      'Nothing was saved because we could not check this text for harmful content.'
+    ));
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    const displayName = await screen.findByPlaceholderText('Your display name');
+    fireEvent.change(displayName, { target: { value: 'Still here' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Nothing was saved because we could not check this text for harmful content.')).toBeInTheDocument();
+    expect(displayName).toHaveValue('Still here');
+  });
+
   it('crops, uploads, promotes, removes, and saves profile photos', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const uploadedPhoto = uploadedProfilePhoto;

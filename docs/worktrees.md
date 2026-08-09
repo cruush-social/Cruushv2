@@ -10,6 +10,7 @@ the branch name.
 | Branch | Worktree path | Last commit | State | Ahead/behind main | Purpose |
 | --- | --- | --- | --- | --- | --- |
 | `feature/moderation-dashboard-full-access` | `/Volumes/corrupt/Cruushv2-1` | 2026-08-06 a12e45f6 Fix messages settings and recently active touch crash | dirty (95 files) | +82/-65 |  |
+| `codex/github-issues-20260808` | `/Volumes/good/Cruushv2-github-issues-20260808` | 2026-08-08 b2f728e3 origin/main baseline | dirty (27 files) | +0/-0 | GitHub issue bug fixes; approved bounded scope; Codex; in progress |
 | `codex/bug-report-replies` | `/private/tmp/cruush-bug-replies` | 2026-08-05 7592aa5a fix: stop collecting tests from agent worktrees | dirty (12 files) | +81/-65 |  |
 | `codex/bug-report-replies-main` | `/private/tmp/cruush-bug-replies-main` | 2026-08-06 3e2ddfc0 Add bug report replies | clean | +0/-6 |  |
 | `(detached)` | `/private/tmp/cruush-feed-errors.zDObNd` | 2026-08-06 b7e10b90 Add feed posting failure error codes | clean | +1/-4 |  |

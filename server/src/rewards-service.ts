@@ -418,6 +418,23 @@ export async function claimBetaLaunchCruushPlus(
   return grantFirstLoginCruushPlus(app, userId);
 }
 
+export async function getBetaLaunchCruushPlusClaimStatus(
+  app: Pick<FastifyInstance, "db">,
+  userId: string
+) {
+  const result = await app.db.query<{ claimed: boolean }>(
+    `select exists(
+       select 1
+       from reward_grants
+       where user_id = $1
+         and idempotency_key = $2
+    ) as claimed`,
+    [userId, `first-login-cruush-plus-7d:${userId}`]
+  );
+
+  return { claimed: Boolean(result.rows[0]?.claimed) };
+}
+
 export async function redeemCruushPlusPromoCode(
   app: Pick<FastifyInstance, "db">,
   input: { userId: string; code: string }

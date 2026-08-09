@@ -358,6 +358,7 @@ describe('PrivateGroupChat', () => {
     const composerError = await within(screen.getByTestId('chat-composer-bar')).findByRole('alert');
     expect(composerError).toHaveTextContent('This text message was rejected by text safety checks. No photo was attached.');
     expect(composerError).toHaveTextContent('Error code: TEXT_CONTENT_REJECTED');
+    expect(screen.getByPlaceholderText('Drop the plan...')).toHaveValue('text only');
     expect(createMessage).toHaveBeenCalledWith(conversationId, 'text only');
     expect(createMessagePhoto).not.toHaveBeenCalled();
   });

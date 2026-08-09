@@ -1,0 +1,65 @@
+{
+  "product": "cruush",
+  "objective": "Fix actionable bugs represented by the current GitHub issues, preserving existing product, privacy, moderation, and asset invariants.",
+  "repository": "cruush-social/Cruushv2",
+  "base": "origin/main",
+  "baseSha": "b2f728e392cec1a3329de8387307acf79207696d",
+  "branch": "codex/github-issues-20260808",
+  "allowedIssueScope": [
+    20,
+    21,
+    22,
+    23,
+    27,
+    28,
+    29,
+    50,
+    53,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64
+  ],
+  "allowedPaths": [
+    "src/app/**",
+    "src/main.tsx",
+    "src/serviceWorkerUpdate.test.ts",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "index.html",
+    "server/src/**",
+    "server/sql/**",
+    "server/package.json",
+    "package.json",
+    "docs/worktrees.md"
+  ],
+  "preserved": [
+    "The dirty feature checkout and unrelated user work",
+    "Existing supplied visual assets",
+    "Fail-closed CSAM and minor-face safety enforcement",
+    "Lowercase cruush product naming",
+    "No new paid providers, secrets, or frontend credentials"
+  ],
+  "nonGoals": [
+    "Implementing broad feature epics #1-#14",
+    "Changing deployment or provider configuration",
+    "Publishing to origin/main without a separate request",
+    "Weakening profile-photo identity or image safety policy"
+  ],
+  "verification": {
+    "required": [
+      "Focused frontend and server regression tests for every changed bug path",
+      "Frontend and server builds",
+      "Rendered route-specific browser checks at mobile and desktop viewports",
+      "Authenticated interaction checks for map, profile, messaging, and moderation-affecting flows when credentials/runtime permit"
+    ],
+    "unverifiedMustBeReported": true
+  },
+  "publication": "isolated branch only"
+}

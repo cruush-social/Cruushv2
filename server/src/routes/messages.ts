@@ -1777,6 +1777,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       [conversationId, userId]
     );
 
+    await app.db.query(
+      `update conversation_members
+       set last_read_at = now()
+       where conversation_id::text = $1
+         and user_id = $2`,
+      [conversationId, userId]
+    );
+
     return reply.send({
       data: {
         conversation: mapConversationRow(app, {

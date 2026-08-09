@@ -39,7 +39,7 @@ export type NormalizedModerationLabel =
   | "spam"
   | "chaser_fetishization";
 
-export type ModerationCategory = NormalizedModerationLabel | "provider_unavailable";
+export type ModerationCategory = NormalizedModerationLabel | "provider_unavailable" | "user_report";
 
 export type ModerationSeverity = "none" | "low" | "medium" | "high" | "critical";
 

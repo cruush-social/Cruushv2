@@ -80,6 +80,10 @@ export function claimBetaLaunchCruushPlus() {
   });
 }
 
+export function getBetaLaunchCruushPlusClaimStatus() {
+  return requestApi<{ claimed: boolean }>('/api/rewards/beta-launch/status');
+}
+
 export function redeemCruushPlusPromoCode(code: string) {
   return requestApi<PromotionalClaim>('/api/rewards/promo-codes/redeem', {
     method: 'POST',
