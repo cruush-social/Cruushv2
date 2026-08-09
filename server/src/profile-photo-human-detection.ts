@@ -509,9 +509,9 @@ export async function detectPublicImageSafety(
   const timeout = setTimeout(() => controller.abort(), config.PROFILE_PHOTO_REKOGNITION_TIMEOUT_MS ?? 5000);
 
   try {
-    const rekognition = client ?? new RekognitionClient({
-      region: config.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1"
-    });
+    const rekognition = client ?? createRekognitionImageClient(
+      config.PROFILE_PHOTO_REKOGNITION_REGION ?? "us-east-1"
+    );
     const compatibleImageBytes = await rekognitionJpeg(imageBytes);
     const [moderationOutput, facesOutput] = await Promise.all([
       rekognition.send(new DetectModerationLabelsCommand({
