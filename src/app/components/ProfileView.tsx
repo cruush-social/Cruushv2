@@ -265,6 +265,7 @@ export default function ProfileView() {
 
   const isAlreadyMutual = cruushBecameMutual || profileView?.relationship?.mutual_cruush === true;
   const hasSentCruush = !isAlreadyMutual && (cruushed || profileView?.relationship?.outgoing_cruush === true);
+  const canMessage = profileView?.relationship?.can_message !== false;
   const cruushDisabled = sendingCruush || revokingMutual || hasSentCruush;
   const heartTheme = isOwnProfile ? 'current' : isAlreadyMutual ? 'mutual' : 'nearby';
 
@@ -325,7 +326,7 @@ export default function ProfileView() {
       return;
     }
 
-    if (profileView?.relationship && !profileView.relationship.can_message) {
+    if (!canMessage) {
       notifyMutualCruushRequired();
       return;
     }
@@ -489,14 +490,15 @@ export default function ProfileView() {
                   onClick={() => {
                     void handleMessage();
                   }}
-                  disabled={openingMessage || Boolean(profileView.relationship && !profileView.relationship.can_message)}
+                  disabled={openingMessage || !canMessage}
+                  aria-label={canMessage ? 'Message' : 'Mutuals only'}
                   style={{
                     borderColor: 'var(--cruush-purple)',
                     color: 'var(--cruush-purple)',
                   }}
                 >
                   <CruushIcon name="send" className="mr-2 h-4 w-4" variant="colored" />
-                  {openingMessage ? 'Opening...' : 'Message'}
+                  {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
                 </Button>
               </div>
             ) : null}

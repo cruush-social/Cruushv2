@@ -418,6 +418,7 @@ describe('ProfileView', () => {
     expect(cruushButton).toBeDisabled();
     expect(cruushButton).toHaveTextContent('sent');
     expect(screen.queryByRole('button', { name: 'mutual cruush' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mutuals only' })).toBeDisabled();
 
     fireEvent.click(cruushButton);
     expect(sendCruush).not.toHaveBeenCalled();
