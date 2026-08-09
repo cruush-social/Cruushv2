@@ -57,6 +57,11 @@ export type RemoteChatMessage = {
   user?: MessageSender;
 };
 
+export type PendingPhotoReview = {
+  status: 'pending_review';
+  assetId: string;
+};
+
 export type MessageAttachment = {
   id: string;
   url: string;
@@ -216,7 +221,7 @@ export function createMessagePhoto(
   body.set('viewOnce', options.viewOnce ? 'true' : 'false');
   body.set('photo', photo);
 
-  return requestApi<RemoteChatMessage>('/api/messages/photos', {
+  return requestApi<RemoteChatMessage | PendingPhotoReview>('/api/messages/photos', {
     method: 'POST',
     body,
   });
@@ -231,7 +236,7 @@ export function uploadFavoriteMessageImage(photo: File, label = '') {
   body.set('photo', photo);
   body.set('label', label);
 
-  return requestApi<FavoriteMessageImage>('/api/messages/favorite-images', {
+  return requestApi<FavoriteMessageImage | PendingPhotoReview>('/api/messages/favorite-images', {
     method: 'POST',
     body,
   });

@@ -13,27 +13,25 @@ const productionConfig = {
   PHOTODNA_ENABLED: false
 };
 
-describe("smoke: photo uploads stay switched on in production", () => {
-  it("enables uploads when Rekognition alone is configured", () => {
-    // This is the exact production shape that had uploads switched off: Stream is not
-    // configured, the alpha test is over, and Rekognition is the only live scanner.
+describe("smoke: photo uploads require both production safety signals", () => {
+  it("keeps uploads closed when Rekognition alone is configured", () => {
     expect(photoUploadAvailability({
       ...productionConfig,
       PROFILE_PHOTO_REKOGNITION_ENABLED: true
     })).toEqual({
-      profilePhotos: true,
-      messagePhotos: true
+      profilePhotos: false,
+      messagePhotos: false
     });
   });
 
-  it("enables uploads when the Stream stack alone is configured", () => {
+  it("keeps uploads closed when the Stream stack alone is configured", () => {
     expect(photoUploadAvailability({
       ...productionConfig,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true
     })).toEqual({
-      profilePhotos: true,
-      messagePhotos: true
+      profilePhotos: false,
+      messagePhotos: false
     });
   });
 

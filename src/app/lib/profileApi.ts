@@ -265,7 +265,10 @@ export async function uploadProfilePhoto(photo: File) {
   const formData = new FormData();
   formData.set('photo', photo);
 
-  return requestApi<{ url: string; explicit?: boolean; status?: 'pending_review' }>('/api/profile-photos', {
+  return requestApi<
+    | { url: string; explicit?: boolean; status?: undefined }
+    | { status: 'pending_review'; assetId: string }
+  >('/api/profile-photos', {
     method: 'POST',
     body: formData,
   });

@@ -47,10 +47,14 @@ export function photoUploadAvailability(
     config.PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED === true;
   const messagePhotoStreamReady = streamImageBridgeReady;
   const rekognitionReady = config.PROFILE_PHOTO_REKOGNITION_ENABLED === true;
+  // The moderation implementation needs both independent signals. Stream supplies
+  // content policy; Rekognition supplies the face/age gate and the image fallback.
+  // Reporting either scanner as sufficient made the UI offer an upload that the
+  // server could not safely publish after the other check was reached.
   const deployedProfilePhotoSafetyReady =
-    rekognitionReady || profilePhotoStreamReady;
+    rekognitionReady && profilePhotoStreamReady;
   const deployedMessagePhotoSafetyReady =
-    rekognitionReady || messagePhotoStreamReady;
+    rekognitionReady && messagePhotoStreamReady;
   const alphaPhotoUploadBypass = activeAlphaPhotoUploadBypass(config);
   const profilePhotosAvailable =
     !deployed || deployedProfilePhotoSafetyReady || alphaPhotoUploadBypass;

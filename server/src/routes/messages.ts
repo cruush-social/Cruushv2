@@ -5,7 +5,12 @@ import { decryptTextContentOrFallback, encryptTextContent } from "../content-enc
 import { runTransaction } from "../db.js";
 import { decryptMediaBytes } from "../media-encryption.js";
 import { readEncryptedMediaObject } from "../media-storage.js";
-import { createPendingMediaAsset, deletePendingMediaAsset, moderatePendingMediaAsset } from "../media-assets.js";
+import {
+  createPendingMediaAsset,
+  deletePendingMediaAsset,
+  isPhotoModerationUnavailable,
+  moderatePendingMediaAsset
+} from "../media-assets.js";
 import { MAX_IMAGE_BYTES, processUploadedImage } from "../media-image.js";
 import { sendApprovedPhotoMessage } from "../message-photo-send.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
@@ -169,7 +174,7 @@ function toMessagePhotoUploadError(error: unknown) {
   return error;
 }
 
-async function assertCanSaveFavoriteMessageImage(app: FastifyInstance, userId: string, ownerFullAccess: boolean) {
+export async function assertCanSaveFavoriteMessageImage(app: FastifyInstance, userId: string, ownerFullAccess: boolean) {
   if (ownerFullAccess) {
     return;
   }
@@ -412,7 +417,7 @@ function mapFavoriteMessageImage(row: FavoriteMessageImageRow) {
   };
 }
 
-async function notifyConversationMessageRecipients(
+export async function notifyConversationMessageRecipients(
   app: FastifyInstance,
   input: {
     conversationId: string;
@@ -1241,7 +1246,11 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const pendingAsset = await createPendingMediaAsset(app, request, {
       ownerUserId: userId,
       surface: "message_photo",
-      processed
+      processed,
+      moderationHold: {
+        kind: "favorite_image",
+        label: payload.label.trim()
+      }
     });
 
     try {
@@ -1264,6 +1273,9 @@ export async function registerMessageRoutes(app: FastifyInstance) {
                moderation_scores = $7::jsonb,
                moderation_decided_at = now(),
                moderation_failure_reason = null,
+               moderation_attempts = 0,
+               moderation_next_retry_at = null,
+               moderation_hold = null,
                explicit_classification = case when $12 then 'explicit' else 'non_explicit' end,
                photodna_status = $10,
                photodna_provider_request_id = $11
@@ -1418,6 +1430,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         data: mapFavoriteMessageImage(committedFavorite)
       });
     } catch (error) {
+      if (isPhotoModerationUnavailable(error)) {
+        return reply.code(202).send({
+          data: {
+            status: "pending_review",
+            assetId: pendingAsset.id
+          }
+        });
+      }
       await deletePendingMediaAsset(app, request, pendingAsset);
       throw error;
     }
@@ -2029,10 +2049,24 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       });
     }
 
+    const encryptedContent = encryptTextContent(app.config, "message", payload.content);
+    const disappearingTimer = conversation.disappearing_timer ?? "off";
+    const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
+
     const pendingAsset = await createPendingMediaAsset(app, request, {
       ownerUserId: userId,
       surface: "message_photo",
-      processed
+      processed,
+      moderationHold: {
+        kind: "message_photo",
+        conversationId: payload.conversationId,
+        content: encryptedContent,
+        viewOnce: payload.viewOnce,
+        disappearingTimer,
+        restrictedFeature,
+        moderationSurface,
+        ownerFullAccess
+      }
     });
 
     try {
@@ -2051,9 +2085,6 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         });
       }
 
-      const encryptedContent = encryptTextContent(app.config, "message", payload.content);
-      const disappearingTimer = conversation.disappearing_timer ?? "off";
-      const ownerFullAccess = await userHasOwnerFullAccess(app, userId);
       const created = await sendApprovedPhotoMessage(app, request, {
         conversationId: payload.conversationId,
         senderUserId: userId,
@@ -2087,6 +2118,14 @@ export async function registerMessageRoutes(app: FastifyInstance) {
         data: mapMessageRow(app, created)
       });
     } catch (error) {
+      if (isPhotoModerationUnavailable(error)) {
+        return reply.code(202).send({
+          data: {
+            status: "pending_review",
+            assetId: pendingAsset.id
+          }
+        });
+      }
       await deletePendingMediaAsset(app, request, pendingAsset);
       throw error;
     }

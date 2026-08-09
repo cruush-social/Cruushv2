@@ -31,6 +31,10 @@ import { applyPolicyDecision } from "./trust-engine.js";
 import {
   type SevereAccessBanIdentity
 } from "./severe-access-bans.js";
+import {
+  recordModerationSystemError,
+  resolveModerationSystemErrors
+} from "./moderation-system-errors.js";
 
 type ModerateTextInput = {
   userId: string;
@@ -514,6 +518,18 @@ async function handlePolicyDecision(
     severeAccessBanIdentity?: SevereAccessBanIdentity;
   } = {}
 ) {
+  if (!isProviderUnavailableDecision(decision)) {
+    try {
+      await resolveModerationSystemErrors(app.db, {
+        provider: providerResult.provider.split("+")[0] ?? providerResult.provider,
+        surface,
+        contentType
+      });
+    } catch (error) {
+      app.log?.warn?.({ err: error, provider: providerResult.provider, surface, contentType }, "moderation system-error recovery update failed");
+    }
+  }
+
   if (decision.decision === "allow") {
     return {
       decision,
@@ -523,9 +539,20 @@ async function handlePolicyDecision(
 
   if (decision.decision === "quarantine") {
     // Provider outages are infrastructure failures, not human moderation decisions. Do
-    // not put one queue row per failed request in front of moderators; the content was
-    // not persisted and the client receives a retryable error instead.
+    // not put one queue row per failed request in front of moderators; photo routes
+    // retain the encrypted pending asset and retry it when provider health returns.
     if (isProviderUnavailableDecision(decision)) {
+      try {
+        await recordModerationSystemError(app.db, {
+          provider: providerResult.provider.split("+")[0] ?? providerResult.provider,
+          surface,
+          contentType,
+          errorCode: decision.reason_code,
+          error: providerResult.error ?? decision.reason_code
+        });
+      } catch (error) {
+        app.log?.error?.({ err: error, provider: providerResult.provider, surface, contentType }, "moderation system-error recording failed");
+      }
       app.log?.error?.({
         provider: providerResult.provider,
         providerRequestId: providerResult.provider_request_id,
@@ -533,7 +560,7 @@ async function handlePolicyDecision(
         contentType,
         contentId: options.contentId ?? null,
         error: providerResult.error ?? null
-      }, "moderation provider unavailable; content was not saved");
+      }, "moderation provider unavailable; content was not published");
 
       throw new ApiError(503, "MODERATION_UNAVAILABLE", userMessageForDecision(decision, contentType));
     }

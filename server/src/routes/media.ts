@@ -5,6 +5,7 @@ import { toReportablePhotoUploadError } from "../photo-upload-incident.js";
 import {
   createPendingMediaAsset,
   deletePendingMediaAsset,
+  isPhotoModerationUnavailable,
   moderatePendingMediaAsset,
   removeOwnedNonPublicMediaAsset
 } from "../media-assets.js";
@@ -492,7 +493,8 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       pendingAsset = await createPendingMediaAsset(app, request, {
         ownerUserId: userId,
         surface: "profile_photo",
-        processed
+        processed,
+        moderationHold: { kind: "profile_photo" }
       });
       const asset = await moderatePendingMediaAsset(app, request, pendingAsset, {
         filename: upload.filename,
@@ -557,6 +559,9 @@ export async function registerMediaRoutes(app: FastifyInstance) {
                moderation_scores = $7::jsonb,
                moderation_decided_at = now(),
                moderation_failure_reason = null,
+               moderation_attempts = 0,
+               moderation_next_retry_at = null,
+               moderation_hold = null,
                explicit_classification = case when $12 then 'explicit' else 'non_explicit' end,
                photodna_status = $10,
                photodna_provider_request_id = $11,
@@ -604,6 +609,14 @@ export async function registerMediaRoutes(app: FastifyInstance) {
         }
       });
     } catch (error) {
+      if (pendingAsset && isPhotoModerationUnavailable(error)) {
+        return reply.code(202).send({
+          data: {
+            status: "pending_review",
+            assetId: pendingAsset.id
+          }
+        });
+      }
       if (pendingAsset) {
         await deletePendingMediaAsset(app, request, pendingAsset);
       }

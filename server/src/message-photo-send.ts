@@ -153,6 +153,9 @@ export async function sendApprovedPhotoMessage(
            moderation_scores = $5::jsonb,
            moderation_decided_at = now(),
            moderation_failure_reason = null,
+           moderation_attempts = 0,
+           moderation_next_retry_at = null,
+           moderation_hold = null,
            explicit_classification = case when $6 then 'explicit' else 'non_explicit' end,
            photodna_status = $7,
            photodna_provider_request_id = $8

@@ -46,6 +46,33 @@ export type PendingMediaAsset = {
   grant?: PendingModerationGrant;
 };
 
+export function isPhotoModerationUnavailable(error: unknown) {
+  return error instanceof ApiError && error.code === "MODERATION_UNAVAILABLE";
+}
+
+export async function retainPendingMediaAssetForRetry(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  asset: PendingMediaAsset
+) {
+  try {
+    await app.db.query(
+      `update media_objects
+       set moderation_failure_reason = 'provider_unavailable',
+           moderation_attempts = moderation_attempts + 1,
+           moderation_next_retry_at = now() + (least(300, power(2, moderation_attempts + 1)) * interval '1 second')
+       where id = $1
+         and owner_user_id = $2
+         and moderation_status = 'pending'
+         and deleted_at is null`,
+      [asset.id, asset.ownerUserId]
+    );
+  } catch (error) {
+    request.log.error({ err: error, assetId: asset.id, stage: "moderation_retry_hold" }, "could not retain photo for moderation retry");
+    throw error;
+  }
+}
+
 export type ApprovedMediaCandidate = PendingMediaAsset & {
   moderation: {
     provider: string;
@@ -132,6 +159,7 @@ export async function createPendingMediaAsset(
     ownerUserId: string;
     surface: MediaSurface;
     processed: ProcessedImage;
+    moderationHold?: Record<string, unknown>;
   }
 ): Promise<PendingMediaAsset> {
   const id = randomUUID();
@@ -189,10 +217,11 @@ export async function createPendingMediaAsset(
            content_auth_tag,
            key_version,
            moderation_status,
-           explicit_classification
+           explicit_classification,
+           moderation_hold
          ) values (
            $1, $2, $3, $4, null, 'image', $5, $6, $7, $8,
-           $9, $10, $11, $12, $13, $14, 'pending', 'unknown'
+           $9, $10, $11, $12, $13, $14, 'pending', 'unknown', $37::jsonb
          )
          returning id
        ), inserted_variants as (
@@ -260,7 +289,8 @@ export async function createPendingMediaAsset(
         display.encrypted.dataKeyAuthTag,
         display.encrypted.nonce,
         display.encrypted.authTag,
-        display.encrypted.keyVersion
+        display.encrypted.keyVersion,
+        input.moderationHold ? JSON.stringify(input.moderationHold) : null
       ]
     );
 
@@ -451,7 +481,15 @@ export async function moderatePendingMediaAsset(
       }
     };
   } catch (error) {
-    await deletePendingMediaAsset(app, request, asset);
+    if (isPhotoModerationUnavailable(error)) {
+      try {
+        await retainPendingMediaAssetForRetry(app, request, asset);
+      } catch (retentionError) {
+        request.log.error({ err: retentionError, assetId: asset.id, stage: "moderation_retry_hold" }, "photo retry hold update failed");
+      }
+    } else {
+      await deletePendingMediaAsset(app, request, asset);
+    }
     throw error;
   }
 }

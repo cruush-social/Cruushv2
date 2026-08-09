@@ -172,6 +172,19 @@ async function uploadProfilePhoto({ apiBase, origin, cookie, imagePath }) {
     throw new Error(`Upload failed: HTTP ${response.status} ${JSON.stringify(responseBody)}`);
   }
 
+  if (response.status === 202 && responseBody?.data?.status === "pending_review") {
+    if (typeof responseBody.data.assetId !== "string") {
+      throw new Error(`Pending upload did not return an asset id: ${JSON.stringify(responseBody)}`);
+    }
+
+    return {
+      pending: true,
+      assetId: responseBody.data.assetId,
+      inputBytes: fileStat.size,
+      responseBody
+    };
+  }
+
   const url = responseBody?.data?.url;
   if (typeof url !== "string" || !url.startsWith("/api/media/assets/")) {
     throw new Error(`Upload did not return a cruush media asset URL: ${JSON.stringify(responseBody)}`);
@@ -211,20 +224,24 @@ async function main() {
   const meta = await assertProfileUploadsOpen({ apiBase });
   const cookie = await resolveCookie({ apiBase, origin });
   const upload = await uploadProfilePhoto({ apiBase, origin, cookie, imagePath });
-  const display = await assertUploadedImageServes({
-    apiBase,
-    cookie,
-    uploadedUrl: upload.url
-  });
+  const display = upload.pending
+    ? { pending: true }
+    : await assertUploadedImageServes({
+        apiBase,
+        cookie,
+        uploadedUrl: upload.url
+      });
 
   console.log(JSON.stringify({
     ok: true,
     apiBase,
     providerPathRequired: REQUIRED_PROVIDER_PATH,
-    providerPathProof: "The deployed /api/profile-photos route accepted and served the upload. With profileUploadsOpen=true in a deployed environment, this route requires Stream image moderation and Amazon Rekognition before publication; provider errors fail the upload.",
+    providerPathProof: upload.pending
+      ? "The deployed /api/profile-photos route retained the encrypted upload as pending_review for automatic moderation retry."
+      : "The deployed /api/profile-photos route accepted and served the upload after Stream image moderation and Amazon Rekognition.",
     profileUploadsOpen: meta.photoUploads.profilePhotos,
     messageUploadsOpen: meta.photoUploads.messagePhotos,
-    uploadedUrl: upload.url,
+    ...(upload.pending ? { pendingAssetId: upload.assetId } : { uploadedUrl: upload.url }),
     inputBytes: upload.inputBytes,
     display
   }, null, 2));

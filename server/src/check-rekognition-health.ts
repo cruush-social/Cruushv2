@@ -11,14 +11,20 @@
 // even if email delivery is itself broken.
 
 import {
+  DetectFacesCommand,
   DetectLabelsCommand,
+  DetectModerationLabelsCommand,
   RekognitionClient,
-  type DetectLabelsCommandOutput
+  type DetectFacesCommandOutput,
+  type DetectLabelsCommandOutput,
+  type DetectModerationLabelsCommandOutput
 } from "@aws-sdk/client-rekognition";
 import sharp from "sharp";
 
 type RekognitionHealthClient = {
+  send(command: DetectFacesCommand): Promise<DetectFacesCommandOutput>;
   send(command: DetectLabelsCommand): Promise<DetectLabelsCommandOutput>;
+  send(command: DetectModerationLabelsCommand): Promise<DetectModerationLabelsCommandOutput>;
 };
 
 // Deliberately reads process.env directly rather than going through loadConfig(). A
@@ -92,12 +98,23 @@ async function main() {
   const startedAt = Date.now();
 
   try {
-    await client.send(new DetectLabelsCommand({
-      Image: { Bytes: await probeImage() },
-      MaxLabels: 1,
-      MinConfidence: 99
-    }));
-    console.log(`Rekognition OK in ${region} (${Date.now() - startedAt}ms).`);
+    const Image = { Bytes: await probeImage() };
+    const checks = await Promise.allSettled([
+      client.send(new DetectLabelsCommand({ Image, MaxLabels: 1, MinConfidence: 99 })),
+      client.send(new DetectFacesCommand({ Image, Attributes: ["ALL"] })),
+      client.send(new DetectModerationLabelsCommand({ Image, MinConfidence: 50 }))
+    ]);
+    const actionNames = ["rekognition:DetectLabels", "rekognition:DetectFaces", "rekognition:DetectModerationLabels"];
+    const failures = checks.flatMap((check, index) => {
+      if (check.status === "fulfilled") return [];
+      const error = check.reason;
+      const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+      return [`${actionNames[index]} failed: ${message}`];
+    });
+    if (failures.length > 0) {
+      throw new Error(failures.join("; "));
+    }
+    console.log(`Rekognition OK for labels, faces, and moderation labels in ${region} (${Date.now() - startedAt}ms).`);
   } catch (error) {
     const name = error instanceof Error ? error.name : "UnknownError";
     const message = error instanceof Error ? error.message : String(error);
@@ -113,7 +130,8 @@ async function main() {
       `Elapsed: ${Date.now() - startedAt}ms`,
       "",
       "Most likely causes: the AWS access key was rotated and only half the pair was",
-      "updated, the key was disabled, or the IAM user lost rekognition:DetectLabels.",
+      "updated, the key was disabled, the region is wrong, or the IAM user lost one of",
+      "rekognition:DetectLabels, rekognition:DetectFaces, or rekognition:DetectModerationLabels.",
       "Check AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY on the cruush-api application."
     ].join("\n");
 

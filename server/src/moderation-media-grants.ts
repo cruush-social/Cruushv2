@@ -202,6 +202,12 @@ export async function cleanupModerationMediaGrants(
          media_grant.expires_at as cleanup_at
        from moderation_media_grants media_grant
        where media_grant.expires_at <= now()
+         and not exists (
+           select 1
+           from media_objects held_media
+           where held_media.id = media_grant.media_object_id
+             and held_media.moderation_failure_reason = 'provider_unavailable'
+         )
        union all
        select
          media.id,
@@ -212,6 +218,7 @@ export async function cleanupModerationMediaGrants(
        where media.moderation_status = 'pending'
          and media.deleted_at is null
          and media.created_at <= now() - interval '5 minutes'
+         and media.moderation_failure_reason is distinct from 'provider_unavailable'
          and not exists (
            select 1
            from moderation_media_grants media_grant

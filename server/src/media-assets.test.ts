@@ -5,7 +5,11 @@ import sharp from "sharp";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "./config.js";
 import { decryptMediaBytes } from "./media-encryption.js";
-import { createPendingMediaAsset, moderatePendingMediaAsset } from "./media-assets.js";
+import {
+  createPendingMediaAsset,
+  moderatePendingMediaAsset,
+  retainPendingMediaAssetForRetry
+} from "./media-assets.js";
 import { processUploadedImage } from "./media-image.js";
 import { readEncryptedMediaObject } from "./media-storage.js";
 
@@ -127,6 +131,31 @@ describe("privacy-hardened media assets", () => {
       String(sql).includes("delete from media_objects") &&
       params?.[0] === asset.id
     ))).toBe(true);
+  });
+
+  it("retains pending ciphertext when moderation is temporarily unavailable", async () => {
+    const { app, query, request } = await setup(false);
+    const asset = {
+      id: mediaObjectId,
+      ownerUserId,
+      surface: "profile_photo" as const,
+      mimeType: "image/jpeg" as const,
+      width: 240,
+      height: 160,
+      byteSize: 12,
+      displayUrl: `/api/media/assets/${mediaObjectId}/display`,
+      thumbnailUrl: `/api/media/assets/${mediaObjectId}/thumbnail`,
+      canonicalBytes: Buffer.from("canonical"),
+      objectKeys: ["originals/photo.enc"]
+    };
+
+    await expect(retainPendingMediaAssetForRetry(app, request, asset)).resolves.toBeUndefined();
+    expect(query.mock.calls.some(([sql, params]) => (
+      String(sql).includes("moderation_failure_reason = 'provider_unavailable'") &&
+      params?.[0] === mediaObjectId &&
+      params?.[1] === ownerUserId
+    ))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from media_objects"))).toBe(false);
   });
 
   it("applies the active alpha PhotoDNA bypass to message-photo assets", async () => {

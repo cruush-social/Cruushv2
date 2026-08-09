@@ -38,6 +38,11 @@ const queueListQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).optional().default(0)
 }).strict();
 
+const systemErrorsListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  offset: z.coerce.number().int().min(0).optional().default(0)
+}).strict();
+
 const reportResolutionSchema = z.object({
   status: z.enum(["resolved", "dismissed"]),
   reasonCode: singleLineTextSchema({ min: 1, max: 120 }),
@@ -956,6 +961,46 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
           total,
           hasMore: query.offset + result.rows.length < total
         }
+      }
+    });
+  });
+
+  app.get("/api/admin/moderation/system-errors", async (request, reply) => {
+    await getModeratorUser(request);
+    const query = systemErrorsListQuerySchema.parse(request.query);
+    const result = await app.db.query<{
+      id: string;
+      provider: string;
+      surface: string;
+      content_type: string;
+      error_code: string;
+      error_message: string;
+      occurrences: number;
+      first_seen_at: string | Date;
+      last_seen_at: string | Date;
+    }>(
+      `select id::text, provider, surface, content_type, error_code, error_message,
+              occurrences, first_seen_at, last_seen_at
+       from moderation_system_errors
+       where resolved_at is null
+       order by last_seen_at desc
+       limit $1 offset $2`,
+      [query.limit, query.offset]
+    );
+
+    return reply.send({
+      data: {
+        errors: result.rows.map((row) => ({
+          id: row.id,
+          provider: row.provider,
+          surface: row.surface,
+          contentType: row.content_type,
+          errorCode: row.error_code,
+          errorMessage: row.error_message,
+          occurrences: row.occurrences,
+          firstSeenAt: new Date(row.first_seen_at).toISOString(),
+          lastSeenAt: new Date(row.last_seen_at).toISOString()
+        }))
       }
     });
   });
