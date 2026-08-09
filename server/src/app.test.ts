@@ -7870,6 +7870,50 @@ describe("server", () => {
     expect(body.data.profiles[0].lastActive).toMatch(/ago$/);
   });
 
+  it("does not expose Ghost Mode profiles in nearby discovery", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const targetLocation = await encryptedLocationEnvelopeRow({
+      subjectUserId: targetUserId,
+      lat: 40.711,
+      lng: -74.002,
+      accuracyM: 50
+    });
+    const targetPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: targetUserId,
+      baseMode: "GHOST"
+    });
+
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: targetUserId,
+          display_name: "Alex",
+          year_of_birth: 1998,
+          pronouns: ["they/them"],
+          photos: ["https://example.com/alex.jpg"],
+          lat: 40.711,
+          lng: -74.002,
+          fuzzy_lat: 40.7115,
+          fuzzy_lng: -74.0025,
+          updated_at: "2026-04-28T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [targetLocation] })
+      .mockResolvedValueOnce({ rows: [targetPolicy] });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.profiles).toEqual([]);
+  });
+
   it("allows free users to apply up to three seeking filter categories", async () => {
     query
       .mockResolvedValueOnce({ rows: [] })

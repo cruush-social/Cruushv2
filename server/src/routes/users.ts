@@ -787,7 +787,10 @@ async function mapModernDiscoveryRow(
   const preciseCoordinates = locationPayloadToCoordinates(location);
   const storedPolicy = await loadPolicyOrDefault(app, row.id);
 
-  if (storedPolicy.baseMode === "STEALTH") {
+  if (storedPolicy.baseMode === "STEALTH" || (
+    storedPolicy.baseMode === "GHOST" &&
+    options.npcGhostDemoRadiusMeters == null
+  )) {
     return null;
   }
 
