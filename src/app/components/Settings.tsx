@@ -231,7 +231,7 @@ export default function Settings() {
         {
           icon: History,
           label: 'Changelog',
-          description: 'See what changed in cruush v1.1.',
+          description: 'See what is new in cruush.',
           action: () => navigate('/settings/changelog'),
         },
         {

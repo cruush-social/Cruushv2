@@ -29,6 +29,8 @@ describe('MapControlsTutorial', () => {
 
     expect(screen.getByRole('heading', { name: 'Seeking' })).toBeInTheDocument();
     expect(screen.getByTestId('tutorial-spotlight')).toHaveStyle({ left: '252px', top: '30px' });
+    expect(screen.getByTestId('map-controls-tutorial-card').style.bottom)
+      .toBe('calc(6.25rem + env(safe-area-inset-bottom))');
 
     fireEvent.click(screen.getByTestId('tutorial-try-step'));
     expect(onActivateStep).toHaveBeenCalledWith('seeking');

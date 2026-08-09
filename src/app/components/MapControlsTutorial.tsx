@@ -133,7 +133,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
 
     const targetIsAboveCenter = targetRect.top + targetRect.height / 2 < window.innerHeight / 2;
     return targetIsAboveCenter
-      ? { left: '50%', transform: 'translateX(-50%)', bottom: '1.5rem' }
+      ? { left: '50%', transform: 'translateX(-50%)', bottom: 'calc(6.25rem + env(safe-area-inset-bottom))' }
       : { left: '50%', transform: 'translateX(-50%)', top: '1.5rem' };
   }, [targetRect]);
 

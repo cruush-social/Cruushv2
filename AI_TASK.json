@@ -1,78 +1,60 @@
 {
+  "status": "active",
   "product": "cruush",
-  "objective": "Fix actionable bugs represented by the current GitHub issues, including immediate Ghost Mode location and messaging privacy, while preserving existing product, moderation, and asset invariants.",
   "repository": "cruush-social/Cruushv2",
+  "job": "Keep the interactive map tutorial card above the bottom navigation, publish a public-safe v1.2 changelog, and send that summary with the existing Resend site-wide announcement template.",
   "base": "origin/main",
-  "baseSha": "b2f728e392cec1a3329de8387307acf79207696d",
-  "branch": "codex/github-issues-20260808",
-  "allowedIssueScope": [
-    20,
-    21,
-    22,
-    23,
-    27,
-    28,
-    29,
-    50,
-    53,
-    55,
-    56,
-    57,
-    58,
-    59,
-    60,
-    61,
-    62,
-    63,
-    64
-  ],
+  "baseSha": "8d5e7df967aff56d685899ea103fe216ddd33a7f",
+  "branch": "agent/tutorial-above-bottom-nav",
   "allowedPaths": [
-    ".env.example",
-    "src/app/**",
-    "src/main.tsx",
-    "vite.config.ts",
-    "vitest.config.ts",
-    "src/serviceWorkerUpdate.test.ts",
-    "public/sw.js",
-    "public/service-worker-recovery.js",
-    "index.html",
-    "server/src/**",
-    "server/sql/**",
-    "server/.env.example",
-    "server/package.json",
-    "package.json",
-    "pnpm-lock.yaml",
-    "docs/ghost-mode-v1-core-implementation.md",
-    "docs/moderation.md",
-    "docs/worktrees.md",
-    "playwright.config.ts",
-    "scripts/dev-local.mjs",
-    "e2e/**",
-    ".gitignore"
+    "AI_TASK.json",
+    "src/app/components/Changelog.test.tsx",
+    "src/app/components/Changelog.tsx",
+    "src/app/components/MapControlsTutorial.tsx",
+    "src/app/components/MapControlsTutorial.test.tsx",
+    "src/app/components/Settings.test.tsx",
+    "src/app/components/Settings.tsx"
   ],
   "preserved": [
-    "The dirty feature checkout and unrelated user work",
-    "Existing supplied visual assets",
-    "Fail-closed CSAM and minor-face safety enforcement",
-    "Ghost Mode keeps users visible at shifted coordinates unless the viewer has an explicit precise-location grant from the user's saved settings",
-    "Lowercase cruush product naming",
-    "No new paid providers, secrets, or frontend credentials"
+    "Tutorial copy, sequence, controls, target spotlight, and replay behavior",
+    "Bottom navigation appearance, geometry, behavior, and stacking",
+    "Map controls, vector style, labels, filters, and visibility behavior",
+    "The existing v1.1 changelog remains available below v1.2",
+    "The existing Resend site-wide announcement template design, sender, suppression, and unsubscribe behavior",
+    "Existing supplied visual assets and unrelated user work",
+    "Lowercase cruush product naming"
   ],
   "nonGoals": [
-    "Implementing broad feature epics #1-#14",
-    "Changing deployment or provider configuration before all required tests pass",
-    "Weakening profile-photo identity or image safety policy"
+    "Do not redesign the tutorial or bottom navigation.",
+    "Do not change tutorial wording, steps, targets, or interaction flow.",
+    "Do not change landing, V2/glass, map styling, provider, secret, or environment configuration.",
+    "Do not publish precise addresses, coordinates, radii, thresholds, retention or refresh intervals, provider internals, moderation internals, security internals, administrator tooling, analytics internals, or unreleased features.",
+    "Do not create a new email design or change transactional mail code."
   ],
-  "verification": {
-    "required": [
-      "Focused frontend and server regression tests for every changed bug path",
-      "Frontend and server builds",
-      "Rendered route-specific browser checks at mobile and desktop viewports",
-      "Authenticated interaction checks for map, profile, messaging, and moderation-affecting flows when credentials/runtime permit",
-      "Two-account Ghost Mode proof covering shifted unauthorized pins, saved precise-location exceptions, and non-mutual DM denial",
-      "Reusable Playwright E2E with persisted authenticated storage state"
+  "proofTarget": {
+    "route": "/map?replayTutorial=1",
+    "state": "Authenticated interactive map tutorial with a measured gap between the tutorial card and bottom navigation",
+    "viewports": [
+      "375x812",
+      "1280x800"
     ],
-    "unverifiedMustBeReported": true
+    "requiredEvidence": [
+      "Focused MapControlsTutorial regression test passes",
+      "Production build and cruush casing check pass",
+      "Full-viewport mobile and desktop screenshots show the tutorial card above the bottom navigation",
+      "Hard-reloaded authenticated replay flow advances through the real tutorial",
+      "Authenticated v1.2 changelog renders above the preserved v1.1 history",
+      "Only allowed paths are staged and no secrets are staged",
+      "origin/main resolves to the pushed commit",
+      "Deployed build SHA matches the pushed commit and live authenticated replay is verified",
+      "The existing site-wide announcement template with alias cruush-site-wide-announcement is previewed with public-safe v1.2 content before its broadcast is sent",
+      "Resend reports the intended broadcast as sent without disclosing recipient data"
+    ]
   },
-  "publication": "origin/main after all required tests pass, followed by live verification"
+  "externalActions": [
+    "Use the existing Resend template with alias cruush-site-wide-announcement.",
+    "Send one v1.2 announcement broadcast only after the changelog is live and the audience, template variables, unsubscribe URL, and preview are verified."
+  ],
+  "publicationTarget": "origin/main",
+  "environmentChanges": []
 }

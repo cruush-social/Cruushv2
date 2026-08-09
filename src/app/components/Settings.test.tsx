@@ -183,6 +183,21 @@ describe('Settings', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/admin/moderation');
   });
 
+  it('opens the current changelog without version-coupled settings copy', async () => {
+    render(
+      <MemoryRouter initialEntries={['/settings']}>
+        <Settings />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    const changelogButton = await screen.findByRole('button', { name: /Changelog/i });
+
+    expect(changelogButton).toHaveTextContent('See what is new in cruush.');
+    fireEvent.click(changelogButton);
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings/changelog');
+  });
+
   it('opens blocked users from settings and lets users unblock there', async () => {
     getBlockedUsers.mockResolvedValue({
       blockedUsers: [{
