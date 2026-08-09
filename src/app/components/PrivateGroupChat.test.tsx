@@ -363,6 +363,63 @@ describe('PrivateGroupChat', () => {
     expect(createMessagePhoto).not.toHaveBeenCalled();
   });
 
+  it('keeps send disabled for control-character-only text and normalizes mixed input', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+    createMessage.mockResolvedValue({
+      id: 'msg-1',
+      userId: 'user-1',
+      content: 'hello',
+      timestamp: '2026-04-29T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Drop the plan...'), {
+      target: { value: '\u0007\u0008' },
+    });
+    expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
+    expect(createMessage).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByPlaceholderText('Drop the plan...'), {
+      target: { value: ' \u0007hello\u0008 ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    await waitFor(() => {
+      expect(createMessage).toHaveBeenCalledWith(conversationId, 'hello');
+    });
+  });
+
   it('navigates to the report page from the conversation safety action', async () => {
     getConversationMessages.mockResolvedValue({
       conversation: {

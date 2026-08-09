@@ -57,6 +57,11 @@ const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
 ];
 
 const KEYBOARD_INSET_THRESHOLD_PX = 120;
+const UNSAFE_CONTROL_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+
+function normalizeMessageForSend(value: string) {
+  return value.replace(UNSAFE_CONTROL_CHARACTERS, '').trim();
+}
 
 function describeTextMessageError(error: unknown) {
   if (error instanceof ApiClientError) {
@@ -719,15 +724,14 @@ export default function PrivateGroupChat() {
   };
 
   const handleSend = async () => {
-    if (!message.trim() || !chatId || !conversation || composerDisabled) return;
+    if (!normalizedComposerMessage || !chatId || !conversation || composerDisabled) return;
 
-    const trimmedMessage = message.trim();
     const optimisticId = `local-${Date.now()}`;
     const optimisticMessage: ChatMessageRecord = {
       id: optimisticId,
       userId: currentUserId ?? undefined,
       author: 'self',
-      content: trimmedMessage,
+      content: normalizedComposerMessage,
       timestamp: new Date().toISOString(),
     };
 
@@ -737,7 +741,7 @@ export default function PrivateGroupChat() {
     setError(null);
 
     try {
-      const createdMessage = await createMessage(chatId, trimmedMessage);
+      const createdMessage = await createMessage(chatId, normalizedComposerMessage);
       setMessages((prev) => prev.map((item) => (
         item.id === optimisticId
           ? normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)
@@ -817,6 +821,8 @@ export default function PrivateGroupChat() {
   const groupMemberIds = new Set(groupMembers.map((member) => member.id));
   const availableAddOptions = mutualOptions.filter((item) => !groupMemberIds.has(item.user.id));
   const messagePhotoControlDisabled = photoUploading || composerDisabled;
+  const normalizedComposerMessage = normalizeMessageForSend(message);
+  const canSendMessage = normalizedComposerMessage.length > 0;
   const favoriteUploadControlDisabled = favoriteUploading || composerDisabled;
   const composerBarStyle = {
     '--chat-composer-bottom': keyboardInset > 0
@@ -1600,12 +1606,12 @@ export default function PrivateGroupChat() {
                     </Button>
                     <Button
                       onClick={() => void handleSend()}
-                      disabled={!message.trim() || composerDisabled}
+                      disabled={!canSendMessage || composerDisabled}
                       size="icon"
                       className="rounded-full"
                       aria-label="Send message"
                       style={{
-                        background: message.trim()
+                        background: canSendMessage
                           ? 'var(--cruush-gradient)'
                           : undefined,
                       }}
