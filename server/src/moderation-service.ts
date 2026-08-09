@@ -29,7 +29,6 @@ import {
 } from "./photo-upload-availability.js";
 import { applyPolicyDecision } from "./trust-engine.js";
 import {
-  persistSevereAccessBan,
   type SevereAccessBanIdentity
 } from "./severe-access-bans.js";
 
@@ -238,8 +237,8 @@ export function userMessageForDecision(
   decision: PolicyDecision,
   contentType: ModerationContentType = "image"
 ) {
-  if (decision.user_message_code === "minor_face_permanent_ban") {
-    return "A child face was detected. This account has been permanently banned.";
+  if (decision.user_message_code === "minor_face_review_suspension") {
+    return "A minor face was detected. This account has been suspended for human review.";
   }
 
   if (decision.user_message_code === "profile_photo_not_adult_human") {
@@ -558,15 +557,6 @@ async function handlePolicyDecision(
       providerRequestId: providerResult.provider_request_id
     }
   });
-
-  if (decision.reason_code === "minor_face_detected") {
-    await persistSevereAccessBan(
-      app.db,
-      userId,
-      decision.reason_code,
-      options.severeAccessBanIdentity
-    );
-  }
 
   throw new ApiError(
     decision.enforcement_action?.type === "suspend" ? 403 : 400,
