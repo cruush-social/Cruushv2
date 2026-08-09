@@ -162,10 +162,14 @@ vi.mock('../lib/eventsApi', () => ({
   joinEventChat,
 }));
 
-vi.mock('../lib/userNoticesApi', () => ({
-  dismissUserNotice,
-  getUserNoticeDismissal,
-}));
+vi.mock('../lib/userNoticesApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/userNoticesApi')>('../lib/userNoticesApi');
+  return {
+    ...actual,
+    dismissUserNotice,
+    getUserNoticeDismissal,
+  };
+});
 
 vi.mock('./ui/use-mobile', () => ({
   useIsMobile,
