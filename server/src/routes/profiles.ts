@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { requireCruushPlus } from "../billing.js";
+import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { ApiError } from "../errors.js";
 import {
   getRelationshipPermissions,
@@ -442,6 +443,7 @@ function mapProfileRow(
     visibilityRules?: ProfileVisibilityRules | null;
     showKinks?: boolean;
     visibleCrowds?: string[];
+    canMessage?: boolean;
   } = {}
 ) {
   const includePrivateSensitive = options.includePrivateSensitive ?? true;
@@ -551,7 +553,7 @@ function mapProfileRow(
         match_id: options.relationship.matchId,
         mutual_cruush: options.relationship.isMutualCruush,
         outgoing_cruush: options.relationship.hasOutgoingCruush,
-        can_message: options.relationship.canMessage,
+        can_message: options.canMessage ?? options.relationship.canMessage,
         can_reveal_precise_location: options.relationship.canRevealPreciseLocation
       }
     } : {})
@@ -1247,6 +1249,10 @@ async function loadProfileData(
     await recordProfileView(app, options.viewerUserId, userId, relationship);
   }
 
+  const canMessage = relationship && options.viewerUserId
+    ? await canStartDirectMessage(app, options.viewerUserId, userId)
+    : undefined;
+
   const showKinks =
     options.includePrivateSensitive ||
     (row.kinks_visibility ?? "public") === "public" ||
@@ -1264,7 +1270,8 @@ async function loadProfileData(
     sensitiveProfile,
     visibilityRules,
     showKinks,
-    visibleCrowds
+    visibleCrowds,
+    canMessage
   });
 
   if (options.includePrivateSensitive && options.request) {
