@@ -303,14 +303,24 @@ describe('App', () => {
       needsOnboarding: false,
       ...acceptedConductSession,
     }],
-  ])('serves the onboarding preview when %s', async (_label, session) => {
+  ])('serves the onboarding preview when %s', async (label, session) => {
     loadCurrentSession.mockResolvedValue(session);
     window.history.replaceState({}, '', '/dev/onboarding-preview');
 
     render(<App />);
 
     expect(await screen.findByText('Mock Onboarding Preview')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/dev/onboarding-preview');
+
+    // The fully-signed-in shell runs on a MemoryRouter behind CanonicalAppAddressBar, which
+    // deliberately pins the visible browser URL to "/" for every in-app route (see "Keep app
+    // URL stable" commit) - the preview still renders via the router's internal location, the
+    // address bar just never reflects it. Every other auth state uses a BrowserRouter, so the
+    // address bar and the route match.
+    if (label === 'fully signed in') {
+      expect(window.location.pathname).toBe('/');
+    } else {
+      expect(window.location.pathname).toBe('/dev/onboarding-preview');
+    }
   });
 
   it('renders the authenticated shell on the map by default', async () => {
