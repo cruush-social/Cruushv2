@@ -20,6 +20,7 @@ import {
   changeModeratedAccountStatus,
   decideContentReview,
   getAdminNotifications,
+  getModerationSystemErrors,
   getModeratedUser,
   getModerationQueue,
   getModerationQueueItem,
@@ -39,6 +40,7 @@ import {
   type ModerationQueueItem,
   type ModerationQueueSource,
   type ModerationQueueState,
+  type ModerationSystemError,
   type SupportRequest,
   type SupportRequestStatus,
   type SupportRequestStatusFilter,
@@ -58,7 +60,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 
 type AccessState = 'checking' | 'ready' | 'denied' | 'error';
-type ModeratorView = 'queue' | 'users' | 'notifications' | 'email';
+type ModeratorView = 'queue' | 'users' | 'notifications' | 'system-errors' | 'email';
 type ActionDialogState =
   | { kind: 'report'; status: 'resolved' | 'dismissed' }
   | { kind: 'review'; action: 'approve' | 'reject' }
@@ -315,6 +317,9 @@ export default function ModeratorReview() {
   const [notificationPage, setNotificationPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [systemErrors, setSystemErrors] = useState<ModerationSystemError[]>([]);
+  const [systemErrorsLoading, setSystemErrorsLoading] = useState(false);
+  const [systemErrorsError, setSystemErrorsError] = useState<string | null>(null);
   const [supportStatusFilter, setSupportStatusFilter] = useState<SupportRequestStatusFilter>('open');
   const [supportRequests, setSupportRequests] = useState<SupportRequest[]>([]);
   const [supportOffset, setSupportOffset] = useState(0);
@@ -437,6 +442,29 @@ export default function ModeratorReview() {
     if (view !== 'notifications' || accessState !== 'ready') return;
     void loadNotifications();
   }, [accessState, loadNotifications, view]);
+
+  const loadSystemErrors = useCallback(async () => {
+    setSystemErrorsLoading(true);
+    setSystemErrorsError(null);
+    try {
+      const data = await getModerationSystemErrors({ limit: 50 });
+      setSystemErrors(Array.isArray(data.errors) ? data.errors : []);
+    } catch (error) {
+      if (isAccessDenied(error)) {
+        setSystemErrors([]);
+        setAccessState('denied');
+      } else {
+        setSystemErrorsError('Unable to load moderation system errors right now.');
+      }
+    } finally {
+      setSystemErrorsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (view !== 'system-errors' || accessState !== 'ready') return;
+    void loadSystemErrors();
+  }, [accessState, loadSystemErrors, view]);
 
   const loadSupportRequests = useCallback(async () => {
     setSupportLoading(true);
@@ -693,6 +721,16 @@ export default function ModeratorReview() {
               </Button>
               <Button
                 role="tab"
+                aria-selected={view === 'system-errors'}
+                size="sm"
+                variant={view === 'system-errors' ? 'default' : 'ghost'}
+                onClick={() => setView('system-errors')}
+              >
+                <ShieldAlert className="h-4 w-4" />
+                System errors
+              </Button>
+              <Button
+                role="tab"
                 aria-selected={view === 'email'}
                 size="sm"
                 variant={view === 'email' ? 'default' : 'ghost'}
@@ -704,22 +742,63 @@ export default function ModeratorReview() {
             </div>
             <Button
               variant="outline"
-              disabled={refreshing || usersLoading || notificationsLoading || supportLoading}
+              disabled={refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading}
               onClick={() => {
                 if (view === 'users') void loadUsers();
                 else if (view === 'notifications') void loadNotifications();
+                else if (view === 'system-errors') void loadSystemErrors();
                 else if (view === 'email') void loadSupportRequests();
                 else void loadQueue('refresh');
               }}
             >
-              <RefreshCw className={refreshing || usersLoading || notificationsLoading || supportLoading ? 'animate-spin' : ''} />
-              {refreshing || usersLoading || notificationsLoading || supportLoading ? 'Refreshing...' : 'Refresh'}
+              <RefreshCw className={refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading ? 'animate-spin' : ''} />
+              {refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
         </div>
       </header>
 
-      {view === 'notifications' ? (
+      {view === 'system-errors' ? (
+        <main className="mx-auto max-w-7xl px-4 py-6">
+          <section aria-labelledby="system-errors-heading" className="min-w-0">
+            <div className="border-b border-border pb-4">
+              <h2 id="system-errors-heading" className="text-lg">Moderation system errors</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Open provider failures are grouped so held photos can be diagnosed without flooding the review queue.</p>
+            </div>
+
+            {systemErrorsError ? (
+              <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{systemErrorsError}</div>
+            ) : null}
+
+            {systemErrors.length === 0 && !systemErrorsLoading ? (
+              <div className="py-14 text-center text-sm text-muted-foreground">No open moderation system errors.</div>
+            ) : (
+              <div className="divide-y divide-border">
+                {systemErrors.map((systemError) => (
+                  <article key={systemError.id} className="grid gap-3 px-2 py-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">{formatCode(systemError.provider)}</Badge>
+                        <Badge variant="outline">{formatCode(systemError.surface)}</Badge>
+                        <Badge variant="outline">{formatCode(systemError.contentType)}</Badge>
+                        <Badge variant="outline">{formatCode(systemError.errorCode)}</Badge>
+                        <span className="text-xs text-muted-foreground">{systemError.occurrences} occurrence{systemError.occurrences === 1 ? '' : 's'}</span>
+                      </div>
+                      <p className="mt-2 break-words text-sm text-muted-foreground">{systemError.errorMessage}</p>
+                    </div>
+                    <div className="min-w-0 space-y-1 text-xs text-muted-foreground">
+                      <p>Last seen {formatDateTime(systemError.lastSeenAt)}</p>
+                      <p>First seen {formatDateTime(systemError.firstSeenAt)}</p>
+                      {systemError.lastContentId ? <p className="break-all">Asset {systemError.lastContentId}</p> : null}
+                      {systemError.lastProviderRequestId ? <p className="break-all">Provider request {systemError.lastProviderRequestId}</p> : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </main>
+      ) : view === 'notifications' ? (
         <main className="mx-auto max-w-7xl px-4 py-6">
           <section aria-labelledby="notifications-heading" className="min-w-0">
             <div className="space-y-4 border-b border-border pb-4">

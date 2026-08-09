@@ -292,12 +292,6 @@ describe('Auth', () => {
       },
       betaAccess: {
         enabled: true,
-        center: {
-          lat: 40.70982,
-          lng: -73.92256,
-        },
-        radiusMiles: 15,
-        venueName: '70 Scott Ave',
       },
     });
 
@@ -311,7 +305,7 @@ describe('Auth', () => {
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
-    expect(screen.getByText('Beta access opens within 15 miles of 70 Scott Ave.')).toBeInTheDocument();
+    expect(screen.getByText('Beta access is available within 15 miles of NYC.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Launch rave tickets' })).not.toBeInTheDocument();
   });
 
@@ -327,7 +321,7 @@ describe('Auth', () => {
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
-    expect(screen.getByText('Beta access opens within 15 miles of 70 Scott Ave.')).toBeInTheDocument();
+    expect(screen.getByText('Beta access is available within 15 miles of NYC.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Launch rave tickets' })).not.toBeInTheDocument();
   });
 

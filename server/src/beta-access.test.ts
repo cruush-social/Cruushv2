@@ -1,17 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { checkBetaAccess } from "./beta-access.js";
+import { checkBetaAccess, isWithinBetaLaunchArea } from "./beta-access.js";
 import type { AppConfig } from "./config.js";
 
 describe("beta access geofence", () => {
   const config = {
-    BETA_ACCESS_GEOFENCE_ENABLED: true,
-    BETA_ACCESS_CENTER_LATITUDE: 40.70982,
-    BETA_ACCESS_CENTER_LONGITUDE: -73.92256,
-    BETA_ACCESS_RADIUS_MILES: 15,
-    BETA_ACCESS_VENUE_NAME: "70 Scott Ave"
+    BETA_ACCESS_GEOFENCE_ENABLED: true
   } as AppConfig;
 
-  it("allows locations inside 15 miles of 70 Scott Ave and blocks outside locations", () => {
+  it("allows locations inside the launch area and blocks outside locations", () => {
     expect(checkBetaAccess(config, { lat: 40.7128, lng: -74.0060 })).toMatchObject({
       allowed: true,
       radiusMiles: 15
@@ -20,5 +16,11 @@ describe("beta access geofence", () => {
       allowed: false,
       radiusMiles: 15
     });
+  });
+
+  it("keeps discovery data within the same launch area", () => {
+    expect(isWithinBetaLaunchArea({ lat: 40.6832265, lng: -73.9520496 })).toBe(true);
+    expect(isWithinBetaLaunchArea({ lat: 40.899, lng: -73.9520496 })).toBe(true);
+    expect(isWithinBetaLaunchArea({ lat: 40.901, lng: -73.9520496 })).toBe(false);
   });
 });

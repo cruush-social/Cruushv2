@@ -253,6 +253,24 @@ export type AdminNotificationListResponse = {
   };
 };
 
+export type ModerationSystemError = {
+  id: string;
+  provider: string;
+  surface: string;
+  contentType: string;
+  errorCode: string;
+  errorMessage: string;
+  lastContentId: string | null;
+  lastProviderRequestId: string | null;
+  occurrences: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+};
+
+export type ModerationSystemErrorListResponse = {
+  errors: ModerationSystemError[];
+};
+
 export function getModerationReports(options: {
   status?: ModerationReportStatus;
   limit?: number;
@@ -382,6 +400,17 @@ export function getAdminNotifications(options: {
     offset: String(options.offset ?? 0),
   });
   return requestApi<AdminNotificationListResponse>(`/api/admin/moderation/notifications?${searchParams.toString()}`);
+}
+
+export function getModerationSystemErrors(options: {
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const searchParams = new URLSearchParams({
+    limit: String(options.limit ?? 50),
+    offset: String(options.offset ?? 0),
+  });
+  return requestApi<ModerationSystemErrorListResponse>(`/api/admin/moderation/system-errors?${searchParams.toString()}`);
 }
 
 export function getSupportRequests(options: {

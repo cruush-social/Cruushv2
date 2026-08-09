@@ -837,6 +837,91 @@ describe('PrivateGroupChat', () => {
     expect(await screen.findByAltText('favorite')).toHaveAttribute('src', '/api/media/assets/media-favorite-1/thumbnail');
   });
 
+  it('keeps a retained favorite image out of the gallery until automatic moderation retry approves it', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: { id: 'group-1', name: 'Beta crew', pronouns: '', photo: null },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+    uploadFavoriteMessageImage.mockResolvedValue({ status: 'pending_review', assetId: 'asset-favorite-pending' });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Quick access gallery' }).at(-1)!);
+    await waitFor(() => expect(getFavoriteMessageImages).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText('Choose favorite image'), {
+      target: { files: [new File(['image-bytes'], 'favorite.png', { type: 'image/png' })] },
+    });
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Photo submitted for review. It will appear in your quick access gallery automatically.',
+    );
+    expect(screen.queryByAltText('favorite')).not.toBeInTheDocument();
+  });
+
+  it('does not render a phantom message when a photo is retained for automatic moderation retry', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: { id: 'group-1', name: 'Beta crew', pronouns: '', photo: null },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+    createMessagePhoto.mockResolvedValue({ status: 'pending_review', assetId: 'asset-message-pending' });
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('Drop the plan...'), { target: { value: 'meet here' } });
+    fireEvent.change(screen.getByLabelText('Choose message photo'), {
+      target: { files: [new File(['image-bytes'], 'photo.png', { type: 'image/png' })] },
+    });
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Photo submitted for review. It will send automatically after safety checks complete.',
+    );
+    expect(screen.getByPlaceholderText('Drop the plan...')).toHaveValue('');
+    expect(screen.queryByAltText('Message photo')).not.toBeInTheDocument();
+  });
+
   it('shows photo upload failures next to the composer controls', async () => {
     const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
     getConversationMessages.mockResolvedValue({

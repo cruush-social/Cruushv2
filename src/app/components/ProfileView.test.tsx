@@ -252,6 +252,7 @@ describe('ProfileView', () => {
   });
 
   it('renders heart previews and swaps the active profile photo without saving order', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'false');
     getProfileById.mockResolvedValue(createProfileFixture({
       photos: [
         'https://example.com/main.jpg',

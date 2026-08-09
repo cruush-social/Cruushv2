@@ -177,13 +177,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
       build: buildMetadata(config),
       alphaTest: getAlphaTestState(config),
       betaAccess: {
-        enabled: Boolean(config.BETA_ACCESS_GEOFENCE_ENABLED),
-        center: {
-          lat: config.BETA_ACCESS_CENTER_LATITUDE ?? 40.70982,
-          lng: config.BETA_ACCESS_CENTER_LONGITUDE ?? -73.92256
-        },
-        radiusMiles: config.BETA_ACCESS_RADIUS_MILES ?? 15,
-        venueName: config.BETA_ACCESS_VENUE_NAME ?? "70 Scott Ave"
+        enabled: Boolean(config.BETA_ACCESS_GEOFENCE_ENABLED)
       },
       photoUploads: photoUploadAvailability(config),
       moderation: moderationRuntimeStatus(config)

@@ -5,12 +5,14 @@ describe("moderation system errors", () => {
   it("deduplicates open provider failures by provider, surface, content type, and code", async () => {
     const query = vi.fn(async () => ({ rows: [] }));
 
-    await recordModerationSystemError(query as never, {
+    await recordModerationSystemError({ query } as never, {
       provider: "stream",
       surface: "feed",
       contentType: "image",
       errorCode: "provider_unavailable",
-      error: new Error("gateway timeout\nwith details")
+      error: new Error("gateway timeout\nwith details"),
+      contentId: "media-123",
+      providerRequestId: "stream-request-123"
     });
 
     const calls = query.mock.calls as unknown as Array<[string, unknown[]?]>;
@@ -18,12 +20,14 @@ describe("moderation system errors", () => {
     expect(sql).toContain("on conflict (fingerprint) where resolved_at is null");
     expect(params[0]).toMatch(/^[0-9a-f]{64}$/);
     expect(params[5]).toBe("gateway timeout with details");
+    expect(params[6]).toBe("media-123");
+    expect(params[7]).toBe("stream-request-123");
   });
 
   it("resolves open failures after provider recovery", async () => {
     const query = vi.fn(async () => ({ rows: [] }));
 
-    await resolveModerationSystemErrors(query as never, {
+    await resolveModerationSystemErrors({ query } as never, {
       provider: "stream",
       surface: "profile",
       contentType: "text"

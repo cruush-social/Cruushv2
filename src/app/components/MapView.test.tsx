@@ -3,6 +3,8 @@ import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, {
   MARKER_CLEARANCE_PX,
+  MAX_DISCOVERY_ZOOM,
+  MIN_DISCOVERY_ZOOM,
   createCruushVectorStyle,
   createMapMarkerBadge,
   getMapStyle,
@@ -167,13 +169,11 @@ describe('MapView', () => {
           }),
         }),
       }),
-      minZoom: 10.5,
-      maxBounds: [
-        [-74.65, 40.35],
-        [-73.45, 41.08],
-      ],
+      minZoom: MIN_DISCOVERY_ZOOM,
+      maxZoom: MAX_DISCOVERY_ZOOM,
       renderWorldCopies: false,
     }));
+    expect(MockMap.calls[0]).not.toHaveProperty('maxBounds');
     expect(onMapReady).toHaveBeenCalledWith(mapInstances[0]);
 
     mapInstances[0].trigger('click');
@@ -197,9 +197,9 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('border-[#FF0072]/80');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
     expect(Array.from(screen.getByTestId('marker-heart-me').querySelectorAll('stop')).map((stop) => stop.getAttribute('stop-color'))).toEqual([
-      '#00B8FF',
-      '#0A7DF4',
-      '#3236D4',
+      '#3826FF',
+      '#004BFF',
+      '#1181FF',
     ]);
     expect(screen.getByTestId('marker-heart-user-1')).toHaveAttribute('data-marker-theme', 'nearby');
     expect(screen.getByTestId('marker-current-fallback-me')).toBeInTheDocument();
@@ -305,7 +305,7 @@ describe('MapView', () => {
         [-73.983, 40.7398],
       ],
       expect.objectContaining({
-        maxZoom: 14,
+        maxZoom: 15,
         padding: expect.objectContaining({
           bottom: 170,
           top: 140,
@@ -558,7 +558,7 @@ describe('MapView', () => {
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
-    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#004BFF');
     expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-photo-fill-user-photo')).toHaveAttribute('href', 'https://example.com/kai.jpg');
     expect(screen.getByTestId('marker-heart-user-photo')).toHaveAttribute('data-has-photo', 'true');
@@ -593,7 +593,7 @@ describe('MapView', () => {
 
     expect(await screen.findByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
-    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-heart-me').querySelector('path[stroke]')).toHaveAttribute('stroke', '#004BFF');
   });
 
   it('renders mutual markers with the stable grey heart state', async () => {

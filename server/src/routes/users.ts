@@ -29,6 +29,7 @@ import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import { DEFAULT_MAP_PRESENCE_DAYS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
+import { isWithinBetaLaunchArea } from "../beta-access.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   createCoarseIndexTokens,
@@ -785,12 +786,14 @@ async function mapModernDiscoveryRow(
   }
 
   const preciseCoordinates = locationPayloadToCoordinates(location);
+
+  if (!isWithinBetaLaunchArea(preciseCoordinates)) {
+    return null;
+  }
+
   const storedPolicy = await loadPolicyOrDefault(app, row.id);
 
-  if (storedPolicy.baseMode === "STEALTH" || (
-    storedPolicy.baseMode === "GHOST" &&
-    options.npcGhostDemoRadiusMeters == null
-  )) {
+  if (storedPolicy.baseMode === "STEALTH") {
     return null;
   }
 
@@ -872,7 +875,7 @@ async function mapModernDiscoveryRow(
     relationship: relationship
       ? {
           mutualCruush: relationship.isMutualCruush,
-          canMessage: await canStartDirectMessage(app, viewerUserId, row.id),
+          canMessage: await canStartDirectMessage(app, viewerUserId, row.id, relationship ?? undefined),
           ...(relationship.isMutualCruush
             ? { precision: displayMode === "PRECISE" ? "precise" as const : "fuzzy" as const }
             : {})
@@ -1001,7 +1004,15 @@ export async function registerUserRoutes(app: FastifyInstance) {
           .filter((row): row is NonNullable<typeof row> => row !== null)
       : await Promise.all(discoveryRows.rows.map(async (row, index) => {
           usedIds.add(row.id);
+          const storedLatitude = row.fuzzy_lat ?? row.lat;
+          const storedLongitude = row.fuzzy_lng ?? row.lng;
+          if (storedLatitude == null || storedLongitude == null) {
+            return null;
+          }
           const legacy = mapLegacyDiscoveryRow(row, centerLat, centerLng, index);
+          if (!isWithinBetaLaunchArea({ lat: legacy.lat, lng: legacy.lng })) {
+            return null;
+          }
           const location = locationPayloadFromCoordinates({
             subjectUserId: legacy.id,
             lat: legacy.lat,
@@ -1039,7 +1050,7 @@ export async function registerUserRoutes(app: FastifyInstance) {
             photo: legacy.photo,
             relationship: null
           };
-        }));
+        })).then((rows) => rows.filter((row): row is NonNullable<typeof row> => row !== null));
 
     return reply.send({
       data: {

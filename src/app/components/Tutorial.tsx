@@ -19,6 +19,20 @@ export default function Tutorial() {
 
       <main className="mx-auto max-w-2xl space-y-4 p-4">
         <section className="rounded-xl border border-white/10 bg-card/80 p-4">
+          <h3 className="text-base">Interactive map tutorial</h3>
+          <p className="mt-1 text-sm text-white/58">
+            Replay the step-by-step tour and try the real Seeking, Visibility, and Zoom controls.
+          </p>
+          <Button
+            className="mt-4 rounded-full"
+            style={{ background: 'var(--cruush-gradient)' }}
+            onClick={() => navigate('/map?replayTutorial=1')}
+          >
+            Replay tutorial
+          </Button>
+        </section>
+
+        <section className="rounded-xl border border-white/10 bg-card/80 p-4">
           <div className="flex items-start gap-3">
             <MessageCircle className="mt-1 h-5 w-5 text-primary" />
             <div>

@@ -13,12 +13,6 @@ export type AppMetaPayload = {
   };
   betaAccess?: {
     enabled: boolean;
-    center: {
-      lat: number;
-      lng: number;
-    };
-    radiusMiles: number;
-    venueName: string;
   };
   photoUploads?: {
     profilePhotos: boolean;

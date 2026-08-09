@@ -10,8 +10,9 @@ import {
   streamLabelsFromResponse
 } from "./moderation-provider.js";
 
-const { streamModerationCheck } = vi.hoisted(() => ({
-  streamModerationCheck: vi.fn()
+const { streamModerationCheck, streamGetTask } = vi.hoisted(() => ({
+  streamModerationCheck: vi.fn(),
+  streamGetTask: vi.fn()
 }));
 
 vi.mock("@stream-io/node-sdk", () => ({
@@ -19,6 +20,8 @@ vi.mock("@stream-io/node-sdk", () => ({
     moderation = {
       check: streamModerationCheck
     };
+
+    getTask = streamGetTask;
   }
 }));
 
@@ -424,6 +427,32 @@ describe("moderation provider", () => {
     expect(streamModerationCheck).toHaveBeenCalledTimes(callsBeforeOpenCircuit);
   });
 
+  it("preserves the final provider status for moderation diagnostics", async () => {
+    const error = Object.assign(new Error("service unavailable"), { statusCode: 503, code: "STREAM_UNAVAILABLE" });
+    streamModerationCheck.mockRejectedValue(error);
+    const provider = new StreamModerationProvider({
+      MODERATION_TIMEOUT_MS: 5000,
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "diagnostic-key",
+      STREAM_API_SECRET: "diagnostic-secret",
+      STREAM_MODERATION_CONFIG_KEY: "diagnostic-config"
+    });
+
+    await expect(provider.moderateImage({
+      userId: "user-1",
+      surface: "profile_photo",
+      bytes: Buffer.from("image"),
+      mimeType: "image/jpeg",
+      imageUrl: "https://moderation-media.cruush.app/test-capability"
+    })).resolves.toMatchObject({
+      status: "error",
+      raw_result: {
+        status_code: 503,
+        error_code: "STREAM_UNAVAILABLE"
+      }
+    });
+  });
+
   it("builds Stream image checks with only a capability URL and pseudonymous identifiers", () => {
     const request = buildStreamImageCheckRequest({
       userId: "d271f6da-c51d-4d73-a322-d9c56f45d4fa",
@@ -463,5 +492,102 @@ describe("moderation provider", () => {
       recommended_action: "keep",
       status: "complete"
     })).toBe(true);
+  });
+
+  it("retrieves an existing asynchronous Stream image task instead of starting another check", async () => {
+    const checksBefore = streamModerationCheck.mock.calls.length;
+    streamGetTask.mockResolvedValueOnce({
+      task_id: "stream-async-image-1",
+      status: "completed",
+      result: {
+        status: "complete",
+        recommended_action: "keep",
+        item: { flags: [] }
+      }
+    });
+    const provider = new StreamModerationProvider({
+      MODERATION_TIMEOUT_MS: 5000,
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "async-resume-key",
+      STREAM_API_SECRET: "async-resume-secret",
+      STREAM_MODERATION_CONFIG_KEY: "async-resume-config"
+    });
+
+    await expect(provider.moderateImage({
+      userId: "user-1",
+      surface: "profile_photo",
+      bytes: Buffer.from("image"),
+      mimeType: "image/jpeg",
+      providerTaskId: "stream-async-image-1"
+    })).resolves.toMatchObject({
+      status: "complete",
+      recommended_action: "keep",
+      raw_result: {
+        task_id: "stream-async-image-1",
+        task_status: "completed",
+        resumed_async_task: true
+      }
+    });
+    expect(streamGetTask).toHaveBeenLastCalledWith({ id: "stream-async-image-1" });
+    expect(streamModerationCheck.mock.calls.length).toBe(checksBefore);
+  });
+
+  it("keeps a running asynchronous Stream image task retryable", async () => {
+    streamGetTask.mockResolvedValueOnce({
+      task_id: "stream-async-image-running",
+      status: "running"
+    });
+    const provider = new StreamModerationProvider({
+      MODERATION_TIMEOUT_MS: 5000,
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "async-running-key",
+      STREAM_API_SECRET: "async-running-secret",
+      STREAM_MODERATION_CONFIG_KEY: "async-running-config"
+    });
+
+    await expect(provider.moderateImage({
+      userId: "user-1",
+      surface: "profile_photo",
+      bytes: Buffer.from("image"),
+      mimeType: "image/jpeg",
+      providerTaskId: "stream-async-image-running"
+    })).resolves.toMatchObject({
+      status: "partial",
+      raw_result: {
+        task_id: "stream-async-image-running",
+        task_status: "running",
+        resumed_async_task: true
+      }
+    });
+  });
+
+  it("marks a failed asynchronous Stream task terminal so a later retry can start fresh", async () => {
+    streamGetTask.mockResolvedValueOnce({
+      task_id: "stream-async-image-failed",
+      status: "failed",
+      error: { message: "image URL expired" }
+    });
+    const provider = new StreamModerationProvider({
+      MODERATION_TIMEOUT_MS: 5000,
+      STREAM_MODERATION_ENABLED: true,
+      STREAM_API_KEY: "async-failed-key",
+      STREAM_API_SECRET: "async-failed-secret",
+      STREAM_MODERATION_CONFIG_KEY: "async-failed-config"
+    });
+
+    await expect(provider.moderateImage({
+      userId: "user-1",
+      surface: "profile_photo",
+      bytes: Buffer.from("image"),
+      mimeType: "image/jpeg",
+      providerTaskId: "stream-async-image-failed"
+    })).resolves.toMatchObject({
+      status: "error",
+      error: "image URL expired",
+      raw_result: {
+        task_id: "stream-async-image-failed",
+        async_task_terminal: true
+      }
+    });
   });
 });

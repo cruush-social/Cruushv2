@@ -3,6 +3,7 @@ import {
   changeModeratedAccountStatus,
   decideContentReview,
   getAdminNotifications,
+  getModerationSystemErrors,
   getModerationQueue,
   getModerationQueueItem,
   getModerationReport,
@@ -116,6 +117,15 @@ describe('moderationApi', () => {
 
     expect(fetch).toHaveBeenCalledWith(
       '/api/admin/moderation/notifications?filter=unread&limit=25&offset=50',
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
+
+  it('loads unresolved moderation system errors for the dedicated moderator view', async () => {
+    await getModerationSystemErrors({ limit: 25, offset: 50 });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/admin/moderation/system-errors?limit=25&offset=50',
       expect.objectContaining({ credentials: 'include' }),
     );
   });

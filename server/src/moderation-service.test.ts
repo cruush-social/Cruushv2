@@ -54,6 +54,10 @@ function createApp() {
     },
     db: {
       query: vi.fn().mockResolvedValue({ rows: [] })
+    },
+    log: {
+      error: vi.fn(),
+      warn: vi.fn()
     }
   } as unknown as FastifyInstance;
 }
@@ -146,6 +150,11 @@ function streamResult(overrides: Partial<ProviderModerationResult> = {}): Provid
 
 beforeEach(() => {
   streamModerationCheck.mockReset();
+  streamModerationCheck.mockResolvedValue({
+    status: "complete",
+    recommended_action: "keep",
+    item: { id: "stream-test-item" }
+  });
   detectImageChildFaces.mockReset();
   detectProfilePhotoHuman.mockReset();
   detectPublicImageSafety.mockReset();
@@ -237,28 +246,50 @@ describe("moderation error messages", () => {
       })
     });
 
-    expect(streamModerationCheck).toHaveBeenCalledTimes(1);
+    expect(streamModerationCheck).toHaveBeenCalledTimes(3);
+  });
+
+  it("uses the local fallback for direct-message text instead of leaving it pending when Stream is unavailable", async () => {
+    streamModerationCheck.mockRejectedValue(new Error("Stream unavailable"));
+
+    await expect(moderateMessageTextOrAllowByKeyword(createStreamApp(), {
+      userId: "user-1",
+      surface: "direct_message",
+      text: "faggot tranny nigga"
+    })).resolves.toMatchObject({
+      decision: expect.objectContaining({ decision: "allow" }),
+      providerResult: expect.objectContaining({ provider: "local_text_fallback" })
+    });
+  });
+
+  it("still rejects a direct-message threat through the local fallback when Stream is unavailable", async () => {
+    streamModerationCheck.mockRejectedValue(new Error("Stream unavailable"));
+
+    await expect(moderateMessageTextOrAllowByKeyword(createStreamApp(), {
+      userId: "user-1",
+      surface: "direct_message",
+      text: "I am going to hurt you."
+    })).rejects.toMatchObject({ code: "CONTENT_REJECTED" });
   });
 });
 
 describe("profile-photo adult-human gate", () => {
-  it("does not treat a complete Stream keep as proof that a profile photo contains a human", () => {
+  it("accepts a complete Stream keep when Rekognition is unavailable", () => {
     expect(resolveProfilePhotoAdultHumanGate(
       streamResult({ status: "completed" }),
       ALLOW_POLICY_DECISION,
       { allowManualReview: false }
     )).toMatchObject({
       status: "resolved",
-      decision: {
-        decision: "reject",
-        reason_code: "profile_photo_not_adult_human"
-      }
+      decision: { decision: "allow" }
     });
   });
 
-  it("allows a Stream keep only when an independent human label is present", () => {
+  it("accepts an independent Rekognition human result when Stream is unavailable", () => {
     expect(resolveProfilePhotoAdultHumanGate(
       streamResult({
+        provider: "mock+aws_rekognition",
+        status: "complete",
         labels: [{
           provider_label: "Amazon Rekognition: Person",
           normalized_label: "human_present",
@@ -276,7 +307,7 @@ describe("profile-photo adult-human gate", () => {
 
   it("retains the dormant manual fallback only when explicitly allowed", () => {
     expect(resolveProfilePhotoAdultHumanGate(
-      streamResult(),
+      streamResult({ provider: "mock" }),
       ALLOW_POLICY_DECISION,
       { allowManualReview: true }
     )).toMatchObject({
@@ -287,12 +318,169 @@ describe("profile-photo adult-human gate", () => {
 
   it("fails closed without adult-human proof when neither shared automod nor manual fallback is enabled", () => {
     expect(resolveProfilePhotoAdultHumanGate(
-      streamResult(),
+      streamResult({ provider: "mock" }),
       ALLOW_POLICY_DECISION,
       { allowManualReview: false }
     )).toMatchObject({
       status: "resolved",
       decision: { reason_code: "profile_photo_not_adult_human" }
+    });
+  });
+});
+
+describe("independent photo-provider diagnostics", () => {
+  it("records Stream independently when Rekognition keeps the profile-photo upload available", async () => {
+    const app = createStreamApp();
+    Object.assign(app.config, {
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      STREAM_MODERATION_CONFIG_KEY: "stream-diagnostic-fallback"
+    });
+    const streamFailure = Object.assign(new Error("Stream service unavailable"), { statusCode: 503, code: "STREAM_UNAVAILABLE" });
+    streamModerationCheck.mockRejectedValue(streamFailure);
+    detectProfilePhotoHuman.mockResolvedValue(streamResult({
+      provider: "aws_rekognition",
+      provider_request_id: "rekognition-healthy-1",
+      labels: [{
+        provider_label: "Amazon Rekognition: Person",
+        normalized_label: "human_present",
+        confidence: 0.99,
+        severity: "none"
+      }],
+      status: "complete",
+      raw_result: {}
+    }));
+
+    await expect(moderateImageOrReject(app, {
+      userId: "user-1",
+      surface: "profile_photo",
+      mimeType: "image/jpeg",
+      imageUrl: "https://moderation-media.cruush.app/photo-1",
+      contentId: "media-123",
+      bytes: Buffer.from("profile-photo")
+    })).resolves.toMatchObject({
+      decision: { decision: "allow" },
+      providerResult: { provider: "stream+aws_rekognition" }
+    });
+
+    const records = (app.db.query as ReturnType<typeof vi.fn>).mock.calls
+      .filter(([sql]) => String(sql).includes("insert into moderation_system_errors"));
+    expect(records).toHaveLength(1);
+    expect(records[0]?.[1]).toEqual(expect.arrayContaining([
+      "stream",
+      "profile_photo",
+      "image",
+      "http_503",
+      "media-123"
+    ]));
+  });
+
+  it("records both providers when neither can screen a profile photo", async () => {
+    const app = createStreamApp();
+    Object.assign(app.config, {
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      STREAM_MODERATION_CONFIG_KEY: "stream-diagnostic-total-outage"
+    });
+    streamModerationCheck.mockRejectedValue(Object.assign(new Error("Stream service unavailable"), { statusCode: 503 }));
+    detectProfilePhotoHuman.mockResolvedValue(streamResult({
+      provider: "aws_rekognition",
+      provider_request_id: "rekognition-error-1",
+      status: "error",
+      error: "Rekognition service unavailable",
+      raw_result: { status_code: 504, error_name: "TimeoutError" }
+    }));
+
+    await expect(moderateImageOrReject(app, {
+      userId: "user-1",
+      surface: "profile_photo",
+      mimeType: "image/jpeg",
+      imageUrl: "https://moderation-media.cruush.app/photo-2",
+      contentId: "media-456",
+      bytes: Buffer.from("profile-photo")
+    })).rejects.toMatchObject({ code: "MODERATION_UNAVAILABLE" });
+
+    const records = (app.db.query as ReturnType<typeof vi.fn>).mock.calls
+      .filter(([sql]) => String(sql).includes("insert into moderation_system_errors"));
+    expect(records.map(([, params]) => (params as unknown[])[1])).toEqual(["stream", "aws_rekognition"]);
+    expect(records.map(([, params]) => (params as unknown[])[4])).toEqual(["http_503", "http_504"]);
+    expect(records.every(([, params]) => (params as unknown[])[6] === "media-456")).toBe(true);
+  });
+
+  it("keeps a profile-photo upload available through Stream when Rekognition is unavailable", async () => {
+    const app = createStreamApp();
+    Object.assign(app.config, {
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      STREAM_MODERATION_CONFIG_KEY: "stream-healthy-rekognition-outage"
+    });
+    streamModerationCheck.mockResolvedValue({
+      status: "complete",
+      recommended_action: "keep"
+    });
+    detectProfilePhotoHuman.mockResolvedValue(streamResult({
+      provider: "aws_rekognition",
+      provider_request_id: "rekognition-error-2",
+      status: "error",
+      error: "Rekognition service unavailable",
+      raw_result: { status_code: 503, error_name: "ServiceUnavailableException" }
+    }));
+
+    await expect(moderateImageOrReject(app, {
+      userId: "user-1",
+      surface: "profile_photo",
+      mimeType: "image/jpeg",
+      imageUrl: "https://moderation-media.cruush.app/photo-3",
+      contentId: "media-789",
+      bytes: Buffer.from("profile-photo")
+    })).resolves.toMatchObject({
+      decision: { decision: "allow" },
+      providerResult: {
+        status: "complete",
+        recommended_action: "keep"
+      }
+    });
+
+    const records = (app.db.query as ReturnType<typeof vi.fn>).mock.calls
+      .filter(([sql]) => String(sql).includes("insert into moderation_system_errors"));
+    expect(records).toHaveLength(1);
+    expect(records[0]?.[1]).toEqual(expect.arrayContaining([
+      "aws_rekognition",
+      "profile_photo",
+      "image",
+      "http_503",
+      "media-789"
+    ]));
+  });
+
+  it("keeps a message-photo upload available through Stream when Rekognition is unavailable", async () => {
+    const app = createStreamApp();
+    Object.assign(app.config, {
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true,
+      STREAM_MODERATION_CONFIG_KEY: "stream-message-healthy-rekognition-outage"
+    });
+    streamModerationCheck.mockResolvedValue({
+      status: "complete",
+      recommended_action: "keep"
+    });
+    detectImageChildFaces.mockResolvedValue(streamResult({
+      provider: "aws_rekognition",
+      provider_request_id: "rekognition-message-error-1",
+      status: "error",
+      error: "Rekognition service unavailable",
+      raw_result: { status_code: 503, error_name: "ServiceUnavailableException" }
+    }));
+
+    await expect(moderateImageOrReject(app, {
+      userId: "user-1",
+      surface: "direct_message",
+      mimeType: "image/jpeg",
+      imageUrl: "https://moderation-media.cruush.app/message-photo-1",
+      contentId: "message-media-1",
+      bytes: Buffer.from("message-photo")
+    })).resolves.toMatchObject({
+      decision: { decision: "allow" },
+      providerResult: {
+        status: "complete",
+        recommended_action: "keep"
+      }
     });
   });
 });
@@ -349,6 +537,8 @@ describe("feed image moderation fallback", () => {
       code: "MODERATION_UNAVAILABLE"
     });
 
-    expect((app.db.query as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    const queries = (app.db.query as ReturnType<typeof vi.fn>).mock.calls.map(([sql]) => String(sql));
+    expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("insert into moderation_system_errors"))).toBe(true);
   });
 });

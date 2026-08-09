@@ -60,6 +60,18 @@ describe("migration runner", () => {
     expect(rewardsSql).toContain("('referral_reward_cap_days', 'null'::jsonb)");
   });
 
+  it("revokes only post-August-7 automatic first-login trials while preserving earned rewards", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const revocationSql = await readFile(path.join(serverRoot, "sql", "073_revoke_post_aug7_automatic_cruush_plus_trials.sql"), "utf8");
+
+    expect(migrateSource).toContain('"073_revoke_post_aug7_automatic_cruush_plus_trials.sql"');
+    expect(revocationSql).toContain("first-login-cruush-plus-7d:%");
+    expect(revocationSql).toContain("app_user.created_at >= timestamptz '2026-08-07 00:00:00-04'");
+    expect(revocationSql).toContain("Automatic first-login cruush+ trial discontinued");
+    expect(revocationSql).not.toContain("reward.source = 'activity_recurring'");
+    expect(revocationSql).not.toContain("reward.source = 'referral'");
+  });
+
   it("adds the launch party and crowd feed schema after rewards and 2FA", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const launchSql = await readFile(path.join(serverRoot, "sql", "043_launch_party_crowd_feed.sql"), "utf8");

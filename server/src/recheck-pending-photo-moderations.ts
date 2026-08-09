@@ -134,6 +134,10 @@ async function toPendingAsset(app: FastifyInstance, row: PendingPhotoRow): Promi
     dataKeyAuthTag: row.data_key_auth_tag,
     keyVersion: row.key_version
   });
+  const providerTaskId = typeof row.moderation_hold?.streamModerationTaskId === "string" &&
+    row.moderation_hold.streamModerationTaskId.length > 0
+    ? row.moderation_hold.streamModerationTaskId
+    : undefined;
 
   return {
     id: row.id,
@@ -146,7 +150,8 @@ async function toPendingAsset(app: FastifyInstance, row: PendingPhotoRow): Promi
     displayUrl: `/api/media/assets/${row.id}/display`,
     thumbnailUrl: `/api/media/assets/${row.id}/thumbnail`,
     canonicalBytes,
-    objectKeys: [row.object_key, ...row.variant_keys]
+    objectKeys: [row.object_key, ...row.variant_keys],
+    ...(providerTaskId ? { providerTaskId } : {})
   };
 }
 

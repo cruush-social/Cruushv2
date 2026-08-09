@@ -181,6 +181,7 @@ export const GHOST_RADIUS_OPTIONS = [
 ] as const;
 
 export const DEFAULT_GHOST_RADIUS_METERS = 1609;
+export const GHOST_MIN_OFFSET_RATIO = 0.5;
 export const DISPLAY_TOKEN_TTL_MS = 180 * 1000;
 export const LOCATION_DISCOVERY_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
 const LOCATION_TTL_MS = LOCATION_DISCOVERY_WINDOW_MS;
@@ -976,7 +977,13 @@ export function deriveGhostCoordinate(input: {
     .digest();
   const u1 = randomFloatFromSeed(seed.subarray(0, 8));
   const u2 = randomFloatFromSeed(seed.subarray(8, 16));
-  const radius = input.radiusMeters * Math.sqrt(u1);
+  // Sample uniformly from an annulus instead of from the exact center. Ghost
+  // Mode must never render an ungranted viewer at the subject's real pin, even
+  // when the configured radius is the smallest option.
+  const minimumRadiusRatioSquared = GHOST_MIN_OFFSET_RATIO ** 2;
+  const radius = input.radiusMeters * Math.sqrt(
+    minimumRadiusRatioSquared + (1 - minimumRadiusRatioSquared) * u1
+  );
   const theta = 2 * Math.PI * u2;
   const northMeters = radius * Math.cos(theta);
   const eastMeters = radius * Math.sin(theta);

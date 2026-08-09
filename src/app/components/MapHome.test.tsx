@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { ApiClientError } from '../lib/apiClient';
@@ -77,6 +77,8 @@ const { mapControls } = vi.hoisted(() => ({
     setZoom: vi.fn(),
     zoomIn: vi.fn(),
     zoomOut: vi.fn(),
+    getCenter: vi.fn(() => ({ lat: 40.73, lng: -73.97 })),
+    getZoom: vi.fn(() => 13.75),
   },
 }));
 
@@ -322,12 +324,16 @@ describe('MapHome', () => {
     mapControls.setZoom.mockReset();
     mapControls.zoomIn.mockReset();
     mapControls.zoomOut.mockReset();
+    mapControls.getCenter.mockReset();
+    mapControls.getZoom.mockReset();
+    mapControls.getCenter.mockReturnValue({ lat: 40.73, lng: -73.97 });
+    mapControls.getZoom.mockReturnValue(13.75);
     toastSuccess.mockReset();
     toastError.mockReset();
     window.sessionStorage.clear();
     window.localStorage.clear();
     window.localStorage.setItem('cruush:ghost-mode-intro-seen', 'true');
-    window.localStorage.setItem('cruush:map-controls-intro-seen', 'true');
+    window.localStorage.setItem('cruush:tutorial-v2-seen', 'true');
     dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
@@ -557,6 +563,58 @@ describe('MapHome', () => {
     );
   });
 
+  it('wires the visible zoom controls to the live map instance', async () => {
+    useIsMobile.mockReturnValue(false);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const zoomIn = await screen.findByRole('button', { name: 'Zoom in on map' });
+    const zoomOut = screen.getByRole('button', { name: 'Zoom out on map' });
+
+    await waitFor(() => {
+      expect(zoomIn).toBeEnabled();
+      expect(zoomOut).toBeEnabled();
+    });
+    fireEvent.click(zoomIn);
+    fireEvent.click(zoomOut);
+
+    expect(mapControls.zoomIn).toHaveBeenCalledTimes(1);
+    expect(mapControls.zoomOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('silently refreshes an already-open map so Ghost Mode changes replace stale pins', async () => {
+    useIsMobile.mockReturnValue(false);
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+    const callsBeforeRefresh = getNearbyUsers.mock.calls.length;
+    const privacyRefresh = setIntervalSpy.mock.calls.find(([, delay]) => delay === 10_000)?.[0];
+
+    expect(privacyRefresh).toEqual(expect.any(Function));
+    act(() => {
+      (privacyRefresh as () => void)();
+    });
+
+    await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(callsBeforeRefresh));
+    expect(screen.getByRole('button', { name: 'Pin Jordan' })).toBeInTheDocument();
+
+    setIntervalSpy.mockRestore();
+  });
+
   it('navigates directly to the full profile on mobile', async () => {
     useIsMobile.mockReturnValue(true);
 
@@ -575,9 +633,16 @@ describe('MapHome', () => {
     expect(screen.getByText('nyc open beta')).toHaveClass('lowercase');
     expect(screen.getByText('nyc open beta').parentElement).toHaveClass('flex-col', 'items-center');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
+    const profilePin = await screen.findByRole('button', { name: 'Pin Jordan' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Zoom in on map' })).toBeEnabled());
+    fireEvent.click(profilePin);
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
+    expect(JSON.parse(window.sessionStorage.getItem('cruush:map-viewport-restore') ?? 'null')).toEqual({
+      latitude: 40.73,
+      longitude: -73.97,
+      zoom: 13.75,
+    });
   });
 
   it('keeps the recently active button visible above the mobile bottom nav', async () => {
@@ -770,7 +835,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
     expect(topActions).toHaveClass('pointer-events-auto', 'mt-0', 'gap-0.5', 'p-0.5');
     expect(topActions).not.toHaveClass('mt-11');
-    expect(rightActions).toHaveClass('right-3', 'top-12', 'sm:right-4');
+    expect(rightActions).toHaveClass('right-3', 'top-14', 'sm:right-4', 'sm:top-16');
     expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-5', 'w-5');
@@ -982,7 +1047,7 @@ describe('MapHome', () => {
 
   it('shows the map controls intro once and dismisses it permanently', async () => {
     useIsMobile.mockReturnValue(false);
-    window.localStorage.removeItem('cruush:tutorial-v1-seen');
+    window.localStorage.removeItem('cruush:tutorial-v2-seen');
     resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
 
     const { unmount } = render(
@@ -993,17 +1058,27 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('heading', { name: 'Map controls' })).toBeInTheDocument();
-    expect(screen.getByText(/Seeking and Visibility live on the right side of the map/i)).toBeInTheDocument();
-    expect(screen.getByText(/bug report button stays above the bottom nav and behind open sheets/i)).toBeInTheDocument();
+    expect(await screen.findByTestId('map-controls-tutorial')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Seeking' })).toBeInTheDocument();
+    expect(screen.getByText(/filters the people you see on the map/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'DL Mode' })).toBeInTheDocument();
+    expect(screen.getByText(/replaces explicit or NSFW photos with gradients/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-try-step'));
+    expect(screen.getByRole('button', { name: 'Turn DL Mode on' })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Zoom' })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-next'));
 
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Map controls' })).not.toBeInTheDocument());
-    expect(window.localStorage.getItem('cruush:tutorial-v1-seen')).toBe('true');
-    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:tutorial-v1-seen', { offline: false });
-
+    await waitFor(() => expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument());
+    expect(window.localStorage.getItem('cruush:tutorial-v2-seen')).toBe('true');
+    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:tutorial-v2-seen', { offline: false });
     unmount();
+
+    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
 
     render(
       <MemoryRouter initialEntries={['/map']}>
@@ -1014,7 +1089,7 @@ describe('MapHome', () => {
     );
 
     await screen.findByRole('button', { name: /^seeking$/i });
-    expect(screen.queryByRole('heading', { name: 'Map controls' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
   });
 
   it('keeps visibility controls manual without saved-set affordances', async () => {
@@ -1317,7 +1392,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-last-active', 'Now');
   });
 
-  it('explains Ghost Mode once after onboarding reaches the map', async () => {
+  it('keeps Ghost Mode settings available on the map', async () => {
     useIsMobile.mockReturnValue(false);
     window.localStorage.removeItem('cruush:ghost-mode-intro-seen');
 
@@ -1330,10 +1405,11 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Ghost Mode protects your map location')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Ghost Mode settings' }));
+    expect(await screen.findByRole('button', { name: 'Ghost Mode Settings' })).toBeInTheDocument();
+    expect(screen.queryByText('Ghost Mode protects your map location')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ghost Mode Settings' }));
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/ghost-mode');
-    expect(window.localStorage.getItem('cruush:ghost-mode-intro-seen')).toBe('true');
+    expect(window.localStorage.getItem('cruush:ghost-mode-intro-seen')).toBeNull();
   });
 
   it('requests geolocation again after a same-session reload when no saved location exists', async () => {
@@ -1834,7 +1910,7 @@ describe('MapHome', () => {
     expect(await screen.findByRole('button', { name: 'Pin River' })).toBeInTheDocument();
     expect(getMutualCruushMap).toHaveBeenCalledTimes(1);
     expect(getNearbyUsers).not.toHaveBeenCalled();
-    expect(screen.getByText('Mutual cruushes')).toBeInTheDocument();
+    expect(screen.getByText('mutual cruushes')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /MUTUALS/ })).toBeInTheDocument();
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-precision', 'precise');

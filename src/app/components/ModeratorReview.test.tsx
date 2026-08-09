@@ -8,6 +8,7 @@ const {
   changeModeratedAccountStatus,
   decideContentReview,
   getAdminNotifications,
+  getModerationSystemErrors,
   getModeratedUser,
   getModerationQueue,
   getModerationQueueItem,
@@ -20,6 +21,7 @@ const {
   changeModeratedAccountStatus: vi.fn(),
   decideContentReview: vi.fn(),
   getAdminNotifications: vi.fn(),
+  getModerationSystemErrors: vi.fn(),
   getModeratedUser: vi.fn(),
   getModerationQueue: vi.fn(),
   getModerationQueueItem: vi.fn(),
@@ -42,6 +44,7 @@ vi.mock('../lib/moderationApi', async () => {
     changeModeratedAccountStatus,
     decideContentReview,
     getAdminNotifications,
+    getModerationSystemErrors,
     getModeratedUser,
     getModerationQueue,
     getModerationQueueItem,
@@ -258,6 +261,21 @@ describe('ModeratorReview', () => {
       notifications: [notification],
       page: { limit: 25, offset: 0, total: 1, hasMore: false },
     });
+    getModerationSystemErrors.mockResolvedValue({
+      errors: [{
+        id: 'system-error-1',
+        provider: 'stream',
+        surface: 'profile_photo',
+        contentType: 'image',
+        errorCode: 'http_503',
+        errorMessage: 'Gateway timeout',
+        lastContentId: 'media-123',
+        lastProviderRequestId: 'stream-request-123',
+        occurrences: 3,
+        firstSeenAt: '2026-08-09T10:00:00.000Z',
+        lastSeenAt: '2026-08-09T10:05:00.000Z',
+      }],
+    });
     getSupportRequests.mockResolvedValue({
       requests: [supportRequest],
       page: { limit: 25, offset: 0, total: 1, hasMore: false },
@@ -395,6 +413,15 @@ describe('ModeratorReview', () => {
     expect(screen.getByText('Casey sent you a message.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Notification filter'), { target: { value: 'unread' } });
     await waitFor(() => expect(getAdminNotifications).toHaveBeenLastCalledWith(expect.objectContaining({ filter: 'unread' })));
+  });
+
+  it('loads grouped provider failures in their own moderator view', async () => {
+    renderReview();
+    fireEvent.click(await screen.findByRole('tab', { name: 'System errors' }));
+    expect(await screen.findByText('Gateway timeout')).toBeInTheDocument();
+    expect(screen.getByText('Asset media-123')).toBeInTheDocument();
+    expect(screen.getByText('Provider request stream-request-123')).toBeInTheDocument();
+    expect(getModerationSystemErrors).toHaveBeenCalledWith({ limit: 50 });
   });
 
   it('loads the email inbox dashboard and lets moderators change request status', async () => {

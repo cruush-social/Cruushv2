@@ -24,6 +24,7 @@ const providerState = vi.hoisted(() => ({
     AgeRange: { Low: 25, High: 35 }
   }],
   rekognitionModerationLabels: [] as Array<{ Name: string; ParentName?: string; Confidence: number }>,
+  rekognitionError: null as Error | null,
   lastImageUrl: null as string | null
 }));
 
@@ -39,6 +40,10 @@ vi.mock("@aws-sdk/client-rekognition", () => ({
   },
   RekognitionClient: class RekognitionClient {
     async send(command: { constructor: { name: string } }) {
+      if (providerState.rekognitionError) {
+        throw providerState.rekognitionError;
+      }
+
       if (command.constructor.name === "DetectFacesCommand") {
         return {
           FaceDetails: providerState.rekognitionFaces,
@@ -61,8 +66,8 @@ vi.mock("@aws-sdk/client-rekognition", () => ({
   }
 }));
 
-vi.mock("./moderation-provider.js", () => ({
-  createModerationProvider: () => ({
+vi.mock("./moderation-provider.js", () => {
+  const provider = {
     name: "stream",
     version: "test",
     moderateText: vi.fn(),
@@ -70,8 +75,13 @@ vi.mock("./moderation-provider.js", () => ({
       providerState.lastImageUrl = input.imageUrl ?? null;
       return providerState.result;
     })
-  })
-}));
+  };
+
+  return {
+    createModerationProvider: () => provider,
+    createModerationProviderOrUnavailable: () => provider
+  };
+});
 
 import { buildServer } from "./app.js";
 import type { AppConfig } from "./config.js";
@@ -185,6 +195,7 @@ describe("shared Stream profile-photo automod route", () => {
       AgeRange: { Low: 25, High: 35 }
     }];
     providerState.rekognitionModerationLabels = [];
+    providerState.rekognitionError = null;
     providerState.lastImageUrl = null;
   });
 
@@ -418,6 +429,38 @@ describe("shared Stream profile-photo automod route", () => {
     expect(sql.some((text) => text.includes("insert into profile_photo_manual_reviews"))).toBe(false);
     expect(sql.some((text) => text.includes("delete from media_objects"))).toBe(false);
     expect(JSON.stringify(query.mock.calls)).toContain("rekognition_fallback");
+    await Promise.all([
+      mediaCall?.[1]?.[3],
+      mediaCall?.[1]?.[14],
+      mediaCall?.[1]?.[25]
+    ].map((objectKey) => deleteEncryptedMediaObject(app.config, objectKey as string)));
+
+    await app.close();
+  });
+
+  it("publishes through Stream when Rekognition is unavailable", async () => {
+    providerState.rekognitionError = Object.assign(new Error("Rekognition unavailable"), {
+      name: "ServiceUnavailableException",
+      $metadata: { httpStatusCode: 503, requestId: "rekognition-outage-1" }
+    });
+    const { app, query } = createTestApp();
+    const multipart = multipartFilePayload(validPng());
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/profile-photos",
+      headers: {
+        "x-user-id": userId,
+        "content-type": multipart.contentType
+      },
+      payload: multipart.payload
+    });
+    const sql = query.mock.calls.map(([text]) => String(text));
+    const mediaCall = query.mock.calls.find(([text]) => String(text).includes("insert into media_objects"));
+
+    expect(response.statusCode, response.body).toBe(201);
+    expect(sql.some((text) => text.includes("insert into profiles"))).toBe(true);
+    expect(sql.some((text) => text.includes("delete from media_objects"))).toBe(false);
+    expect(JSON.stringify(query.mock.calls)).toContain("Rekognition unavailable");
     await Promise.all([
       mediaCall?.[1]?.[3],
       mediaCall?.[1]?.[14],

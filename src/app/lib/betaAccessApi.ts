@@ -4,13 +4,6 @@ import type { BetaAccessLocationPayload } from './authApi';
 export type BetaAccessCheckPayload = {
   enabled: boolean;
   allowed: boolean;
-  radiusMiles: number;
-  distanceMiles: number | null;
-  venueName: string;
-  center: {
-    lat: number;
-    lng: number;
-  };
 };
 
 export type BetaCityRequestPayload = {

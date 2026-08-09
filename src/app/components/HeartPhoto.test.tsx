@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import HeartPhoto from './HeartPhoto';
+import { HEART_PIN_THEMES } from '../lib/heartPin';
 import { getProfileGradientStops } from '../lib/profileGradient';
 
 describe('HeartPhoto', () => {
@@ -26,8 +27,8 @@ describe('HeartPhoto', () => {
     const stops = Array.from(heart.querySelectorAll('stop'))
       .map((stop) => stop.getAttribute('stop-color'));
 
-    expect(stops).toEqual(['#00B8FF', '#0A7DF4', '#3236D4']);
-    expect(heart.querySelector('path')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(stops).toEqual(HEART_PIN_THEMES.current.stops);
+    expect(heart.querySelector('path')).toHaveAttribute('stroke', HEART_PIN_THEMES.current.border);
   });
 
   it('keeps current-user no-photo hearts blue even with a user id', () => {
@@ -37,7 +38,7 @@ describe('HeartPhoto', () => {
     const stops = Array.from(heart.querySelectorAll('stop'))
       .map((stop) => stop.getAttribute('stop-color'));
 
-    expect(stops).toEqual(['#00B8FF', '#0A7DF4', '#3236D4']);
+    expect(stops).toEqual(HEART_PIN_THEMES.current.stops);
     expect(stops).not.toEqual(getProfileGradientStops('user-a'));
   });
 

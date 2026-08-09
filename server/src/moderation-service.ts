@@ -51,10 +51,25 @@ type ModerateImageInput = {
   filename?: string;
   imageUrl?: string;
   contentId?: string;
+  providerTaskId?: string;
   contentRef?: Record<string, unknown>;
   bytes: Buffer;
   severeAccessBanIdentity?: SevereAccessBanIdentity;
 };
+
+class ModerationUnavailableError extends ApiError {
+  readonly providerResult: ProviderModerationResult;
+
+  constructor(message: string, providerResult: ProviderModerationResult) {
+    super(503, "MODERATION_UNAVAILABLE", message);
+    this.name = "ModerationUnavailableError";
+    this.providerResult = providerResult;
+  }
+}
+
+export function providerResultFromModerationUnavailableError(error: unknown) {
+  return error instanceof ModerationUnavailableError ? error.providerResult : undefined;
+}
 
 type ModerateProfileInput = {
   userId: string;
@@ -283,6 +298,22 @@ function hasHumanProof(providerResult: ProviderModerationResult) {
   );
 }
 
+function hasCompleteStreamKeep(providerResult: ProviderModerationResult) {
+  const raw = providerResult.raw_result;
+  const streamRaw = asRecord(raw?.stream) ?? asRecord(raw?.primary);
+  const provider = asStringOrNull(raw?.stream_provider) ??
+    asStringOrNull(raw?.primary_provider) ??
+    providerResult.provider;
+  const status = asStringOrNull(raw?.stream_status) ??
+    asStringOrNull(raw?.primary_status) ??
+    providerResult.status ?? null;
+  const action = asStringOrNull(streamRaw?.recommended_action) ?? providerResult.recommended_action ?? null;
+
+  return provider === "stream" &&
+    ["complete", "completed"].includes(status?.toLowerCase() ?? "") &&
+    action?.toLowerCase() === "keep";
+}
+
 function providerResultUnavailable(providerResult: ProviderModerationResult) {
   return Boolean(providerResult.error) ||
     ["partial", "pending", "provider_processing", "error"].includes((providerResult.status ?? "").toLowerCase());
@@ -292,6 +323,17 @@ function providerResultComplete(providerResult: ProviderModerationResult) {
   return !providerResult.error && ["complete", "completed"].includes((providerResult.status ?? "").toLowerCase());
 }
 
+function providerErrorMetadata(error: unknown) {
+  const candidate = error as { code?: unknown; status?: unknown; statusCode?: unknown } | null;
+  const status = Number(candidate?.statusCode ?? candidate?.status);
+  const code = typeof candidate?.code === "string" ? candidate.code : null;
+  return {
+    error_name: error instanceof Error ? error.name : "UnknownError",
+    ...(Number.isFinite(status) ? { status_code: status } : {}),
+    ...(code ? { error_code: code } : {})
+  };
+}
+
 function providerErrorResult(providerName: string, startedAt: number, error: unknown): ProviderModerationResult {
   return {
     provider: providerName,
@@ -299,11 +341,109 @@ function providerErrorResult(providerName: string, startedAt: number, error: unk
     labels: [],
     latency_ms: Date.now() - startedAt,
     status: "error",
-    raw_result: {
-      error_name: error instanceof Error ? error.name : "UnknownError"
-    },
+    raw_result: providerErrorMetadata(error),
     error: error instanceof Error ? error.message : "Image moderation failed."
   };
+}
+
+function providerFailureCode(raw: Record<string, unknown> | undefined, fallback: string) {
+  const status = raw && typeof raw.status_code === "number" ? raw.status_code : null;
+  const code = raw && typeof raw.error_code === "string" ? raw.error_code : null;
+  const name = raw && typeof raw.error_name === "string" ? raw.error_name : null;
+  const candidate = status !== null ? `http_${status}` : code ?? name ?? fallback;
+  return candidate.replace(/[^a-zA-Z0-9_.:-]/g, "_").slice(0, 120) || fallback;
+}
+
+type ProviderHealthOutcome = {
+  provider: string;
+  status: string | null;
+  error: string | null;
+  rawResult: Record<string, unknown> | undefined;
+  providerRequestId: string | null;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function asStringOrNull(value: unknown) {
+  return typeof value === "string" && value ? value : null;
+}
+
+function providerHealthOutcomes(providerResult: ProviderModerationResult): ProviderHealthOutcome[] {
+  const raw = providerResult.raw_result;
+  const primaryProvider = asStringOrNull(raw?.primary_provider);
+  const streamProvider = asStringOrNull(raw?.stream_provider);
+  const primaryOrStream = primaryProvider ?? streamProvider;
+
+  if (primaryOrStream) {
+    const primary = primaryProvider ? "primary" : "stream";
+    return [
+      {
+        provider: primaryOrStream,
+        status: asStringOrNull(raw?.[`${primary}_status`]),
+        error: asStringOrNull(raw?.[`${primary}_error`]),
+        rawResult: asRecord(raw?.[primary]),
+        providerRequestId: asStringOrNull(raw?.[`${primary}_provider_request_id`])
+      },
+      {
+        provider: asStringOrNull(raw?.rekognition_provider) ?? "aws_rekognition",
+        status: asStringOrNull(raw?.rekognition_status),
+        error: asStringOrNull(raw?.rekognition_error),
+        rawResult: asRecord(raw?.rekognition_safety),
+        providerRequestId: asStringOrNull(raw?.rekognition_provider_request_id)
+      }
+    ];
+  }
+
+  return [{
+    provider: providerResult.provider,
+    status: providerResult.status ?? null,
+    error: providerResult.error ?? null,
+    rawResult: raw,
+    providerRequestId: providerResult.provider_request_id
+  }];
+}
+
+async function syncModerationSystemErrors(
+  app: FastifyInstance,
+  input: {
+    surface: ModerationSurface;
+    contentType: ModerationContentType;
+    contentId?: string | null;
+    providerResult: ProviderModerationResult;
+  }
+) {
+  for (const outcome of providerHealthOutcomes(input.providerResult)) {
+    const status = outcome.status?.toLowerCase();
+    // A partial Stream image response is normal asynchronous work. The asset stays held
+    // for retry, but it is not an infrastructure incident and should not flood this view.
+    if (status === "partial" || status === "pending" || status === "provider_processing") continue;
+
+    try {
+      if (status === "error" || outcome.error) {
+        await recordModerationSystemError(app.db, {
+          provider: outcome.provider,
+          surface: input.surface,
+          contentType: input.contentType,
+          errorCode: providerFailureCode(outcome.rawResult, "provider_unavailable"),
+          error: outcome.error ?? "Moderation provider unavailable.",
+          contentId: input.contentId ?? null,
+          providerRequestId: outcome.providerRequestId
+        });
+      } else {
+        await resolveModerationSystemErrors(app.db, {
+          provider: outcome.provider,
+          surface: input.surface,
+          contentType: input.contentType
+        });
+      }
+    } catch (error) {
+      app.log?.warn?.({ err: error, provider: outcome.provider, surface: input.surface, contentType: input.contentType }, "moderation system-error health update failed");
+    }
+  }
 }
 
 // Rekognition backs Stream up whenever it is enabled. Previously this also required the
@@ -362,6 +502,11 @@ function photoRekognitionFallbackResult(
       primary_provider: primaryResult.provider,
       primary_status: primaryResult.status ?? null,
       primary_error: primaryResult.error ?? null,
+      primary_provider_request_id: primaryResult.provider_request_id,
+      rekognition_provider: safetyResult.provider,
+      rekognition_status: safetyResult.status ?? null,
+      rekognition_error: safetyResult.error ?? null,
+      rekognition_provider_request_id: safetyResult.provider_request_id,
       rekognition_safety: safetyResult.raw_result ?? {},
       rekognition_fallback: true
     }
@@ -444,7 +589,11 @@ export function resolveProfilePhotoAdultHumanGate(
   decision: PolicyDecision,
   options: { allowManualReview: boolean }
 ): ProfilePhotoAdultHumanGateOutcome {
-  if (decision.decision !== "allow" || hasHumanProof(providerResult)) {
+  if (
+    decision.decision !== "allow" ||
+    hasHumanProof(providerResult) ||
+    hasCompleteStreamKeep(providerResult)
+  ) {
     return {
       status: "resolved",
       providerResult,
@@ -518,17 +667,12 @@ async function handlePolicyDecision(
     severeAccessBanIdentity?: SevereAccessBanIdentity;
   } = {}
 ) {
-  if (!isProviderUnavailableDecision(decision)) {
-    try {
-      await resolveModerationSystemErrors(app.db, {
-        provider: providerResult.provider.split("+")[0] ?? providerResult.provider,
-        surface,
-        contentType
-      });
-    } catch (error) {
-      app.log?.warn?.({ err: error, provider: providerResult.provider, surface, contentType }, "moderation system-error recovery update failed");
-    }
-  }
+  await syncModerationSystemErrors(app, {
+    surface,
+    contentType,
+    contentId: options.contentId,
+    providerResult
+  });
 
   if (decision.decision === "allow") {
     return {
@@ -542,17 +686,6 @@ async function handlePolicyDecision(
     // not put one queue row per failed request in front of moderators; photo routes
     // retain the encrypted pending asset and retry it when provider health returns.
     if (isProviderUnavailableDecision(decision)) {
-      try {
-        await recordModerationSystemError(app.db, {
-          provider: providerResult.provider.split("+")[0] ?? providerResult.provider,
-          surface,
-          contentType,
-          errorCode: decision.reason_code,
-          error: providerResult.error ?? decision.reason_code
-        });
-      } catch (error) {
-        app.log?.error?.({ err: error, provider: providerResult.provider, surface, contentType }, "moderation system-error recording failed");
-      }
       app.log?.error?.({
         provider: providerResult.provider,
         providerRequestId: providerResult.provider_request_id,
@@ -562,7 +695,10 @@ async function handlePolicyDecision(
         error: providerResult.error ?? null
       }, "moderation provider unavailable; content was not published");
 
-      throw new ApiError(503, "MODERATION_UNAVAILABLE", userMessageForDecision(decision, contentType));
+      const message = userMessageForDecision(decision, contentType);
+      throw contentType === "image"
+        ? new ModerationUnavailableError(message, providerResult)
+        : new ApiError(503, "MODERATION_UNAVAILABLE", message);
     }
 
     await recordContentReview(app, {
@@ -668,7 +804,10 @@ export async function moderateTextOrReject(app: FastifyInstance, input: Moderate
         ...input,
         text: prepareTextForModerationProvider(input.text)
       });
-  const providerResult = (input.surface === "feed" || input.surface === "profile") && providerResultUnavailable(providerResultFromPrimary)
+  // Text is either screened synchronously or not saved. The local policy fallback is
+  // deliberately available on every text surface, including DMs and group chats, so a
+  // Stream outage cannot turn a text message into a pending-review item or an outage error.
+  const providerResult = providerResultUnavailable(providerResultFromPrimary)
     ? await moderateTextWithLocalFallback(app, input, providerResultFromPrimary)
     : providerResultFromPrimary;
   const decision = mapProviderResultToPolicy({
@@ -764,9 +903,7 @@ export async function moderateImageOrReject(
   // safe outcome is a retryable 503 until a complete provider or fallback result exists.
   if (providerResult.status?.toLowerCase() === "partial") {
     app.log?.warn?.({ surface: input.surface, userId: input.userId }, "image moderation is still pending");
-    throw new ApiError(
-      503,
-      "MODERATION_UNAVAILABLE",
+    throw new ModerationUnavailableError(
       userMessageForDecision({
         decision: "quarantine",
         category: "provider_unavailable",
@@ -779,7 +916,8 @@ export async function moderateImageOrReject(
         moderation_history_required: true,
         reason_code: "moderation_pending",
         user_message_code: "moderation_delayed"
-      }, "image")
+      }, "image"),
+      providerResult
     );
   }
 

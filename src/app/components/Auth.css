@@ -397,8 +397,8 @@
   position: relative;
   z-index: 20;
   grid-row: 2;
-  width: min(20rem, calc(100vw - 3rem));
-  width: min(20rem, calc(100dvw - 3rem));
+  width: min(34rem, calc(100vw - 2rem));
+  width: min(34rem, calc(100dvw - 2rem));
   max-width: 100%;
   margin-inline: auto;
   margin-bottom: clamp(0.08rem, 0.8dvh, 0.45rem);

@@ -60,7 +60,7 @@ describe('AlphaBugButton', () => {
     renderAlphaBugButton();
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
-    expect(reportButton).toHaveClass('left-4', 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))]');
+    expect(reportButton).toHaveClass('left-4', 'top-[calc(4rem+env(safe-area-inset-top))]');
     expect(reportButton).toHaveClass('z-20');
     expect(reportButton).not.toHaveClass('right-4', 'top-[calc(0.75rem+env(safe-area-inset-top))]');
 

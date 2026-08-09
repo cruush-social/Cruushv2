@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ApiError } from "./errors.js";
-import { getRelationshipPermissions } from "./match-relationships.js";
+import { getRelationshipPermissions, type RelationshipPermissions } from "./match-relationships.js";
 import { userHasOwnerFullAccess } from "./owner-access.js";
 import { decryptSensitiveProfile } from "./profile-sensitive.js";
 
@@ -231,10 +231,26 @@ function sharesCrowd(sourceCrowds: string[], targetCrowds: string[]) {
   return sourceCrowds.some((crowd) => targetCrowdSet.has(crowd.trim().toLowerCase()));
 }
 
-export async function canStartDirectMessage(app: FastifyInstance, senderUserId: string, recipientUserId: string) {
-  const relationship = await getRelationshipPermissions(app, senderUserId, recipientUserId);
+export async function canStartDirectMessage(
+  app: FastifyInstance,
+  senderUserId: string,
+  recipientUserId: string,
+  relationshipOverride?: RelationshipPermissions
+) {
+  const relationship = relationshipOverride ?? await getRelationshipPermissions(app, senderUserId, recipientUserId);
 
   if (!relationship.canMessage) {
+    return false;
+  }
+
+  // Mutual cruushes remain messageable in Ghost Mode. Everyone else must wait
+  // for a mutual cruush even if the recipient previously selected Public or
+  // Crowd, so nearby discovery cannot be used to contact a Ghost profile.
+  if (relationship.isMutualCruush) {
+    return true;
+  }
+
+  if (relationship.targetGhostMode) {
     return false;
   }
 
@@ -255,8 +271,13 @@ export async function canStartDirectMessage(app: FastifyInstance, senderUserId: 
   );
 }
 
-export async function assertCanStartDirectMessage(app: FastifyInstance, senderUserId: string, recipientUserId: string) {
-  if (await canStartDirectMessage(app, senderUserId, recipientUserId)) {
+export async function assertCanStartDirectMessage(
+  app: FastifyInstance,
+  senderUserId: string,
+  recipientUserId: string,
+  relationshipOverride?: RelationshipPermissions
+) {
+  if (await canStartDirectMessage(app, senderUserId, recipientUserId, relationshipOverride)) {
     return;
   }
 

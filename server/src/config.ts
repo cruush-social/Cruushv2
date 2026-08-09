@@ -95,7 +95,7 @@ const configSchema = z.object({
   MEDIA_STORAGE_DIR: z.string().trim().min(1).optional().default("media"),
   MEDIA_PUBLIC_BASE_URL: z.string().url().optional().or(z.literal("")).default(""),
   MEDIA_MODERATION_URL_SECRET: z.string().optional().default(""),
-  MEDIA_MODERATION_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(300).optional().default(120),
+  MEDIA_MODERATION_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).optional().default(900),
   MEDIA_OBJECT_STORAGE_DRIVER: z.enum(["local", "s3"]).optional().default("local"),
   MEDIA_S3_BUCKET: z.string().trim().optional().default(""),
   MEDIA_S3_ENDPOINT: z.string().url().optional().or(z.literal("")).default(""),
@@ -161,10 +161,6 @@ const configSchema = z.object({
   LAUNCH_PARTY_CHAT_ADMIN_EMAIL: z.string().trim().email().optional().default("julienlenazny@gmail.com"),
   LAUNCH_PARTY_CHAT_MAX_MEMBERS: z.coerce.number().int().min(2).max(500).optional().default(500),
   BETA_ACCESS_GEOFENCE_ENABLED: booleanEnvSchema.optional().default(false),
-  BETA_ACCESS_CENTER_LATITUDE: z.coerce.number().min(-90).max(90).optional().default(40.70982),
-  BETA_ACCESS_CENTER_LONGITUDE: z.coerce.number().min(-180).max(180).optional().default(-73.92256),
-  BETA_ACCESS_RADIUS_MILES: z.coerce.number().positive().max(100).optional().default(15),
-  BETA_ACCESS_VENUE_NAME: z.string().trim().min(1).max(120).optional().default("70 Scott Ave"),
   TURNSTILE_SECRET_KEY: z.string().optional().default(""),
   PROFILE_ENCRYPTION_KEY: z.string().optional().default(""),
   PROFILE_TOKEN_KEY: z.string().optional().default(""),
@@ -725,11 +721,7 @@ type LaunchPartyConfigKey =
   | "LAUNCH_PARTY_CHAT_ADMIN_EMAIL"
   | "LAUNCH_PARTY_CHAT_MAX_MEMBERS";
 type BetaAccessConfigKey =
-  | "BETA_ACCESS_GEOFENCE_ENABLED"
-  | "BETA_ACCESS_CENTER_LATITUDE"
-  | "BETA_ACCESS_CENTER_LONGITUDE"
-  | "BETA_ACCESS_RADIUS_MILES"
-  | "BETA_ACCESS_VENUE_NAME";
+  | "BETA_ACCESS_GEOFENCE_ENABLED";
 type BugTriageConfigKey =
   | "GITHUB_BUG_TRIAGE_ENABLED"
   | "GITHUB_BUG_TRIAGE_REPO"

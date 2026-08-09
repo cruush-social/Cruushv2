@@ -13,7 +13,7 @@ const secret = "0123456789abcdef0123456789abcdef";
 const config = {
   MEDIA_PUBLIC_BASE_URL: "https://api.cruush.test",
   MEDIA_MODERATION_URL_SECRET: secret,
-  MEDIA_MODERATION_URL_TTL_SECONDS: 120
+  MEDIA_MODERATION_URL_TTL_SECONDS: 900
 } as AppConfig;
 
 function claimsFromUrl(value: string) {
@@ -30,10 +30,10 @@ function claimsFromUrl(value: string) {
 }
 
 describe("media moderation inspection URLs", () => {
-  it("creates a canonical two-minute signed display URL", () => {
+  it("creates a canonical fifteen-minute signed display URL", () => {
     const value = createMediaModerationInspectionUrl(config, assetId, nowMs);
     const url = new URL(value);
-    const expires = String(Math.floor(nowMs / 1000) + 120);
+    const expires = String(Math.floor(nowMs / 1000) + 900);
     const canonical = [
       "version=v1",
       "method=GET",
@@ -55,9 +55,9 @@ describe("media moderation inspection URLs", () => {
   it("rejects expired, excessively future-dated, and incorrectly signed URLs", () => {
     const value = createMediaModerationInspectionUrl(config, assetId, nowMs);
     const claims = claimsFromUrl(value);
-    const futureValue = createMediaModerationInspectionUrl(config, assetId, nowMs + 1_000_000);
+    const futureValue = createMediaModerationInspectionUrl(config, assetId, nowMs + 4_000_000);
 
-    expect(verifyMediaModerationInspectionSignature(config, claims, nowMs + 120_000)).toBe(false);
+    expect(verifyMediaModerationInspectionSignature(config, claims, nowMs + 900_000)).toBe(false);
     expect(verifyMediaModerationInspectionSignature(config, claimsFromUrl(futureValue), nowMs)).toBe(false);
     expect(verifyMediaModerationInspectionSignature(config, {
       ...claims,

@@ -39,6 +39,9 @@ logs/
 
 # Test coverage
 coverage/
+test-results/
+playwright-report/
+.playwright/
 
 # Misc
 *.sublime-workspace

@@ -18,7 +18,10 @@ import {
   writeEncryptedMediaObject
 } from "./media-storage.js";
 import { createModerationProvider } from "./moderation-provider.js";
-import { moderateImageOrReject } from "./moderation-service.js";
+import {
+  moderateImageOrReject,
+  providerResultFromModerationUnavailableError
+} from "./moderation-service.js";
 import type { PolicyDecision, ProviderModerationResult } from "./moderation-types.js";
 import type { PhotoDnaResult } from "./photodna.js";
 import { severeAccessBanIdentity } from "./severe-access-bans.js";
@@ -44,6 +47,7 @@ export type PendingMediaAsset = {
   canonicalBytes: Buffer;
   objectKeys: string[];
   grant?: PendingModerationGrant;
+  providerTaskId?: string;
 };
 
 export function isPhotoModerationUnavailable(error: unknown) {
@@ -53,24 +57,54 @@ export function isPhotoModerationUnavailable(error: unknown) {
 export async function retainPendingMediaAssetForRetry(
   app: FastifyInstance,
   request: FastifyRequest,
-  asset: PendingMediaAsset
+  asset: PendingMediaAsset,
+  providerResult?: ProviderModerationResult
 ) {
+  const taskState = streamTaskState(providerResult);
+
   try {
     await app.db.query(
       `update media_objects
        set moderation_failure_reason = 'provider_unavailable',
            moderation_attempts = moderation_attempts + 1,
-           moderation_next_retry_at = now() + (least(300, power(2, moderation_attempts + 1)) * interval '1 second')
+           moderation_next_retry_at = now() + (least(300, power(2, moderation_attempts + 1)) * interval '1 second'),
+           moderation_hold = case
+             when $3::boolean then coalesce(moderation_hold, '{}'::jsonb) - 'streamModerationTaskId'
+             when $4::text is not null then coalesce(moderation_hold, '{}'::jsonb) || jsonb_build_object('streamModerationTaskId', $4::text)
+             else moderation_hold
+           end
        where id = $1
          and owner_user_id = $2
          and moderation_status = 'pending'
          and deleted_at is null`,
-      [asset.id, asset.ownerUserId]
+      [asset.id, asset.ownerUserId, taskState.terminal, taskState.taskId]
     );
   } catch (error) {
     request.log.error({ err: error, assetId: asset.id, stage: "moderation_retry_hold" }, "could not retain photo for moderation retry");
     throw error;
   }
+}
+
+function recordFromUnknown(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function streamTaskState(providerResult: ProviderModerationResult | undefined) {
+  const raw = providerResult?.raw_result;
+  const candidates = [
+    raw,
+    recordFromUnknown(raw?.stream),
+    recordFromUnknown(raw?.primary),
+    recordFromUnknown(raw?.provider_result)
+  ].filter((candidate): candidate is Record<string, unknown> => candidate !== null && candidate !== undefined);
+  const terminal = candidates.some((candidate) => candidate.async_task_terminal === true);
+  const taskId = terminal
+    ? null
+    : candidates.map((candidate) => candidate.task_id).find((value): value is string => typeof value === "string" && value.length > 0) ?? null;
+
+  return { taskId, terminal };
 }
 
 export type ApprovedMediaCandidate = PendingMediaAsset & {
@@ -422,6 +456,7 @@ export async function moderatePendingMediaAsset(
         filename: useStreamImageUrl ? undefined : input.filename,
         imageUrl: useStreamImageUrl ? moderationMediaUrl(app, asset) : undefined,
         contentId: asset.id,
+        providerTaskId: asset.providerTaskId,
         contentRef: {
           assetId: asset.id,
           surface: asset.surface,
@@ -483,7 +518,12 @@ export async function moderatePendingMediaAsset(
   } catch (error) {
     if (isPhotoModerationUnavailable(error)) {
       try {
-        await retainPendingMediaAssetForRetry(app, request, asset);
+        await retainPendingMediaAssetForRetry(
+          app,
+          request,
+          asset,
+          providerResultFromModerationUnavailableError(error)
+        );
       } catch (retentionError) {
         request.log.error({ err: retentionError, assetId: asset.id, stage: "moderation_retry_hold" }, "photo retry hold update failed");
       }

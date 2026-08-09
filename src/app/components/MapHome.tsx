@@ -5,13 +5,6 @@ import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } fro
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ExternalLink, Eye, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from './ui/dialog';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
@@ -19,6 +12,11 @@ import MapProfilePopup from './MapProfilePopup';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
+import MapControlsTutorial, {
+  MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
+  notifyMapControlsTutorialCompleted,
+  type MapControlsTutorialStepId,
+} from './MapControlsTutorial';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMutualCruushMap, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } from '../lib/privacyApi';
@@ -59,6 +57,7 @@ import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
 import settingsIconWhite from '../assets/ui-icons/settings-white.png';
 
 const DISCOVERY_MAP_LIMIT = 500;
+const MAP_PRIVACY_REFRESH_INTERVAL_MS = 10_000;
 const CROWD_NOTICE_ORDER = ['Dyke', 'Gay', 'T4T'];
 const CROWD_NOTICE_LABELS: Record<string, string> = {
   Dyke: 'Dyke',
@@ -324,7 +323,9 @@ type LuckySlotState =
 const LAUNCH_EVENT_SLUG = 'the-chocolate-factory-launch';
 const METERS_PER_MILE = 1609.344;
 const EARTH_RADIUS_MILES = 3958.7613;
-export const MAP_CONTROLS_INTRO_STORAGE_KEY = 'cruush:tutorial-v1-seen';
+// Version the tutorial so the repaired interactive tour is shown once to users
+// who completed an older, non-interactive version. Settings can explicitly replay it.
+export const MAP_CONTROLS_INTRO_STORAGE_KEY = MAP_CONTROLS_TUTORIAL_STORAGE_KEY;
 
 export function readStoredMapViewport() {
   if (typeof window === 'undefined') {
@@ -460,7 +461,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [mapControlsIntroOpen, setMapControlsIntroOpen] = useState(false);
   const [mapControlsNoticeOffline, setMapControlsNoticeOffline] = useState(false);
+  const tutorialNoticeRequestKeyRef = useRef<string | null>(null);
   const hasFetchedInitialUsersRef = useRef(false);
+  const hasRequestedInitialLocationRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
   const lastEventCenterRequestKeyRef = useRef<string | null>(null);
   const shouldAlignRecentlyActiveWithPreview = !isMobile && Boolean(selectedUser || luckySlot);
@@ -473,10 +476,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
     startX: 0,
   });
   const isMutualMapMode = searchParams.get('mode') === 'mutuals';
+  const lastMutualMapModeRef = useRef(isMutualMapMode);
+  const shouldReplayTutorial = searchParams.get('replayTutorial') === '1';
   const routeState = location.state as MapRouteState;
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
   const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
   const hasCruushPlus = billingStatus?.cruushPlus !== false;
+
 
   const dlModeEyeStyle = dlModeActive ? { stroke: 'url(#cruush-dl-eye-gradient)' } : undefined;
 
@@ -488,13 +494,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
     })
       .then((syncedLocation) => {
         setCurrentProfile((profile) => profile
-          ? {
-              ...profile,
-              location: {
-                ...(profile.location ?? { id: profile.id, location_updated_at: null }),
+          ? (() => {
+              const currentLocation = profile.location ?? { id: profile.id, location_updated_at: null };
+              const nextLocation = {
+                ...currentLocation,
                 ...syncedLocation,
-              },
-            }
+              };
+              const locationChanged = Object.keys(nextLocation).some((key) => {
+                const currentValue = currentLocation[key as keyof typeof currentLocation];
+                const nextValue = nextLocation[key as keyof typeof nextLocation];
+                return JSON.stringify(currentValue) !== JSON.stringify(nextValue);
+              });
+
+              return locationChanged ? { ...profile, location: nextLocation } : profile;
+            })()
           : profile);
       })
       .catch((syncError) => {
@@ -505,6 +518,31 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const dismissMapControlsIntro = () => {
     setMapControlsIntroOpen(false);
     markNoticeDismissed(MAP_CONTROLS_INTRO_STORAGE_KEY, { offline: mapControlsNoticeOffline });
+    notifyMapControlsTutorialCompleted();
+
+    if (shouldReplayTutorial) {
+      navigate('/map', { replace: true });
+    }
+  };
+
+  const activateMapTutorialStep = (step: MapControlsTutorialStepId) => {
+    if (step === 'seeking') {
+      setIsFiltersOpen(true);
+      return;
+    }
+
+    if (step === 'visibility') {
+      setVisibilityError(null);
+      setIsVisibilityOpen(true);
+      return;
+    }
+
+    if (step === 'dl-mode') {
+      handleToggleDlMode();
+      return;
+    }
+
+    mapInstance?.zoomIn();
   };
 
   useEffect(() => {
@@ -536,6 +574,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
+    const requestKey = `${currentProfile.id}:${shouldReplayTutorial ? 'replay' : 'initial'}`;
+    if (tutorialNoticeRequestKeyRef.current === requestKey) {
+      return;
+    }
+    tutorialNoticeRequestKeyRef.current = requestKey;
+
     let isMounted = true;
 
     void resolveNoticeDismissal(MAP_CONTROLS_INTRO_STORAGE_KEY).then((notice) => {
@@ -543,14 +587,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
         return;
       }
 
-      setMapControlsNoticeOffline(notice.offline);
-      setMapControlsIntroOpen(!notice.dismissed);
+      setMapControlsNoticeOffline((currentOffline) => currentOffline === notice.offline ? currentOffline : notice.offline);
+      const shouldOpen = shouldReplayTutorial || !notice.dismissed;
+      setMapControlsIntroOpen((currentOpen) => currentOpen === shouldOpen ? currentOpen : shouldOpen);
     });
 
     return () => {
       isMounted = false;
     };
-  }, [currentProfile?.id, profileLoaded]);
+  }, [currentProfile?.id, profileLoaded, shouldReplayTutorial]);
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
@@ -711,9 +756,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }, []);
 
   useEffect(() => {
-    if (!hasFetchedInitialUsersRef.current) {
+    if (!hasFetchedInitialUsersRef.current || lastMutualMapModeRef.current === isMutualMapMode) {
       return;
     }
+
+    lastMutualMapModeRef.current = isMutualMapMode;
 
     void fetchUsers(getCurrentFetchCoordinates(), filters);
   }, [isMutualMapMode]);
@@ -725,9 +772,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const fetchUsers = async (
     coordinates: { lat: number; lng: number } | null,
     filterParams?: FilterState,
+    options: { background?: boolean } = {},
   ) => {
-    setLoading(true);
-    setError(null);
+    if (!options.background) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       if (isMutualMapMode) {
         const mutualMapItems = await getMutualCruushMap();
@@ -741,12 +791,60 @@ export default function MapHome(_props: MapHomeProps = {}) {
       }
     } catch (fetchError) {
       console.error('Error fetching users:', fetchError);
-      setUsers([]);
-      setError(fetchError instanceof Error ? fetchError.message : isMutualMapMode ? 'Failed to load mutual cruushes.' : 'Failed to load nearby people.');
+      if (options.background) {
+        // Never keep rendering an expired location token when a privacy refresh
+        // cannot reach the server. A foreground retry can restore valid pins.
+        setUsers((currentUsers) => currentUsers.filter((user) =>
+          user.displayExpiresAtMs == null || user.displayExpiresAtMs > Date.now()));
+      } else {
+        setUsers([]);
+        setError(fetchError instanceof Error ? fetchError.message : isMutualMapMode ? 'Failed to load mutual cruushes.' : 'Failed to load nearby people.');
+      }
     } finally {
-      setLoading(false);
+      if (!options.background) {
+        setLoading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    let refreshInFlight = false;
+
+    const refreshPrivacySensitivePins = async () => {
+      if (
+        refreshInFlight ||
+        !hasFetchedInitialUsersRef.current ||
+        document.visibilityState === 'hidden'
+      ) {
+        return;
+      }
+
+      refreshInFlight = true;
+      try {
+        await fetchUsers(getCurrentFetchCoordinates(), filters, { background: true });
+      } finally {
+        refreshInFlight = false;
+      }
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshPrivacySensitivePins();
+      }
+    };
+    const intervalId = window.setInterval(
+      () => void refreshPrivacySensitivePins(),
+      MAP_PRIVACY_REFRESH_INTERVAL_MS,
+    );
+
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [filters, isMutualMapMode, userApproximateLocation]);
 
   useEffect(() => {
     return addCruushChangedListener((payload) => {
@@ -863,11 +961,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
       isMutualMapMode ||
       userApproximateLocation ||
       savedProfileLocation ||
-      locationStatus !== 'idle'
+      locationStatus !== 'idle' ||
+      hasRequestedInitialLocationRef.current
     ) {
       return;
     }
 
+    hasRequestedInitialLocationRef.current = true;
     requestUserLocation();
   }, [currentProfile, isMutualMapMode, locationStatus, profileLoaded, userApproximateLocation]);
 
@@ -1542,6 +1642,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               variant="ghost"
               size="icon"
               onClick={handleToggleDlMode}
+              data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
@@ -1888,6 +1989,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 : 'border-white/10 bg-background/68 text-white backdrop-blur-md hover:bg-white/10'
             }`}
             style={hasActiveFilters ? { background: 'var(--cruush-gradient)' } : undefined}
+            data-testid="map-seeking-button"
+            data-tutorial-target="seeking"
             onClick={() => setIsFiltersOpen(true)}
           >
             <Filter className="w-4 h-4 mr-2" />
@@ -1896,6 +1999,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
           <Button
             type="button"
+            data-testid="map-visibility-button"
+            data-tutorial-target="visibility"
             onClick={() => {
               setVisibilityError(null);
               setIsVisibilityOpen(true);
@@ -1911,7 +2016,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
             VISIBILITY
           </Button>
 
-          <div className="flex flex-col gap-2">
+          <div
+            className="flex flex-col gap-2"
+            data-testid="map-zoom-controls"
+            data-tutorial-target="zoom"
+          >
             <Button
               size="icon"
               variant="secondary"
@@ -1924,19 +2033,25 @@ export default function MapHome(_props: MapHomeProps = {}) {
               <MapPin className="h-4 w-4" />
             </Button>
             <Button
+              type="button"
               size="icon"
               variant="secondary"
               onClick={() => mapInstance?.zoomIn()}
               disabled={!mapInstance}
+              aria-label="Zoom in on map"
+              title="Zoom in on map"
               className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
             >
               <ZoomIn className="w-4 h-4" />
             </Button>
             <Button
+              type="button"
               size="icon"
               variant="secondary"
               onClick={() => mapInstance?.zoomOut()}
               disabled={!mapInstance}
+              aria-label="Zoom out on map"
+              title="Zoom out on map"
               className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
             >
               <ZoomOut className="w-4 h-4" />
@@ -2070,61 +2185,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onApply={handleApplyVisibility}
         />
 
-        <Dialog
+        <MapControlsTutorial
           open={mapControlsIntroOpen}
-          onOpenChange={(open) => {
-            if (!open) {
-              dismissMapControlsIntro();
-            }
-          }}
-        >
-          <DialogContent className="max-w-md rounded-lg border-white/10 bg-background text-white">
-            <DialogHeader>
-              <DialogTitle>Map controls</DialogTitle>
-              <DialogDescription>
-                Seeking and Visibility live on the right side of the map. The bug report button stays above the bottom nav and behind open sheets.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-white/72">
-              <p><span className="text-white">Seeking:</span> filter nearby people by what you want to find.</p>
-              <p><span className="text-white">Visibility:</span> hide yourself from selected audiences.</p>
-              <p><span className="text-white">Crowds:</span> use Dyke, Gay, and T4T modes when you only want those active crowds to see you.</p>
-              <p><span className="text-white">DL Mode:</span> tap the eye in the top menu to mask or reveal NSFW images.</p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-lg border-white/12 bg-white/[0.035] text-white hover:bg-white/[0.08]"
-                onClick={dismissMapControlsIntro}
-              >
-                Got it
-              </Button>
-              <Button
-                type="button"
-                className="rounded-lg text-white"
-                style={{ background: 'var(--cruush-gradient)' }}
-                onClick={() => {
-                  dismissMapControlsIntro();
-                  setIsFiltersOpen(true);
-                }}
-              >
-                Seeking
-              </Button>
-              <Button
-                type="button"
-                className="rounded-lg text-white"
-                style={{ background: 'var(--cruush-gradient)' }}
-                onClick={() => {
-                  dismissMapControlsIntro();
-                  setIsVisibilityOpen(true);
-                }}
-              >
-                Visibility
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+          onActivateStep={activateMapTutorialStep}
+          onComplete={dismissMapControlsIntro}
+        />
       </div>
     </div>
   );

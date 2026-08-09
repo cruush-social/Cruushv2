@@ -13,25 +13,25 @@ const productionConfig = {
   PHOTODNA_ENABLED: false
 };
 
-describe("smoke: photo uploads require both production safety signals", () => {
-  it("keeps uploads closed when Rekognition alone is configured", () => {
+describe("smoke: either production photo scanner preserves upload availability", () => {
+  it("keeps uploads available when Rekognition alone is configured", () => {
     expect(photoUploadAvailability({
       ...productionConfig,
       PROFILE_PHOTO_REKOGNITION_ENABLED: true
     })).toEqual({
-      profilePhotos: false,
-      messagePhotos: false
+      profilePhotos: true,
+      messagePhotos: true
     });
   });
 
-  it("keeps uploads closed when the Stream stack alone is configured", () => {
+  it("keeps uploads available when the Stream stack alone is configured", () => {
     expect(photoUploadAvailability({
       ...productionConfig,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
       PROFILE_PHOTO_STREAM_AUTOMOD_ENABLED: true
     })).toEqual({
-      profilePhotos: false,
-      messagePhotos: false
+      profilePhotos: true,
+      messagePhotos: true
     });
   });
 

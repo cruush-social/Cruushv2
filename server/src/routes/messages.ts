@@ -16,7 +16,7 @@ import { sendApprovedPhotoMessage } from "../message-photo-send.js";
 import { photoUploadAvailability } from "../photo-upload-availability.js";
 import { ApiError } from "../errors.js";
 import { assertCanSendNsfwMessagePhoto, assertCanStartDirectMessage, canStartDirectMessage } from "../cruush-match-settings.js";
-import { getRelationshipPermissions } from "../match-relationships.js";
+import { getRelationshipPermissions, type RelationshipPermissions } from "../match-relationships.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
   conversationTimerSchema,
@@ -325,7 +325,20 @@ function mapConversationRow(app: FastifyInstance, row: ConversationRow, options:
   };
 }
 
-async function canReadConversation(app: FastifyInstance, userId: string, conversation: ConversationRow) {
+async function getConversationRelationship(app: FastifyInstance, userId: string, conversation: ConversationRow) {
+  if (conversation.kind !== "dm" || !conversation.other_user_id) {
+    return null;
+  }
+
+  return getRelationshipPermissions(app, userId, conversation.other_user_id);
+}
+
+async function canReadConversation(
+  app: FastifyInstance,
+  userId: string,
+  conversation: ConversationRow,
+  relationshipOverride?: RelationshipPermissions | null
+) {
   if (conversation.kind !== "dm") {
     return true;
   }
@@ -334,10 +347,16 @@ async function canReadConversation(app: FastifyInstance, userId: string, convers
     return false;
   }
 
-  return (await getRelationshipPermissions(app, userId, conversation.other_user_id)).canMessage;
+  const relationship = relationshipOverride ?? await getConversationRelationship(app, userId, conversation);
+  return relationship?.canMessage ?? false;
 }
 
-async function getDirectConversationOptions(app: FastifyInstance, userId: string, row: ConversationRow) {
+async function getDirectConversationOptions(
+  app: FastifyInstance,
+  userId: string,
+  row: ConversationRow,
+  relationshipOverride?: RelationshipPermissions | null
+) {
   if (row.kind !== "dm") {
     return {};
   }
@@ -349,9 +368,16 @@ async function getDirectConversationOptions(app: FastifyInstance, userId: string
     };
   }
 
-  const relationship = await getRelationshipPermissions(app, userId, row.other_user_id);
+  const relationship = relationshipOverride ?? await getConversationRelationship(app, userId, row);
+  if (!relationship) {
+    return {
+      canMessage: false,
+      mutual: false
+    };
+  }
+
   const canMessage = relationship.canMessage
-    ? await canStartDirectMessage(app, userId, row.other_user_id)
+    ? await canStartDirectMessage(app, userId, row.other_user_id, relationship)
     : false;
 
   return {
@@ -360,14 +386,31 @@ async function getDirectConversationOptions(app: FastifyInstance, userId: string
   };
 }
 
-async function mapReadableConversationRow(app: FastifyInstance, userId: string, row: ConversationRow) {
+async function mapReadableConversationRow(
+  app: FastifyInstance,
+  userId: string,
+  row: ConversationRow,
+  relationship?: RelationshipPermissions | null
+) {
   return mapConversationRow(app, row, {
-    ...await getDirectConversationOptions(app, userId, row)
+    ...await getDirectConversationOptions(app, userId, row, relationship)
   });
 }
 
-async function filterReadableConversationRows(app: FastifyInstance, userId: string, rows: ConversationRow[]) {
-  const readable = await Promise.all(rows.map((row) => canReadConversation(app, userId, row)));
+async function filterReadableConversationRows(
+  app: FastifyInstance,
+  userId: string,
+  rows: ConversationRow[],
+  relationshipsByConversationId?: Map<string, RelationshipPermissions>
+) {
+  const readable = await Promise.all(rows.map(async (row) => {
+    const relationship = await getConversationRelationship(app, userId, row);
+    if (relationship && relationshipsByConversationId) {
+      relationshipsByConversationId.set(row.id, relationship);
+    }
+
+    return canReadConversation(app, userId, row, relationship);
+  }));
 
   return rows.filter((_, index) => readable[index]);
 }
@@ -699,7 +742,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(400, "VALIDATION_ERROR", "You cannot create a direct conversation with yourself.");
     }
 
-    await assertCanStartDirectMessage(app, userId, payload.otherUserId);
+    const relationship = await getRelationshipPermissions(app, userId, payload.otherUserId);
+    await assertCanStartDirectMessage(app, userId, payload.otherUserId, relationship);
 
     const existingUser = await app.db.query<ExistingUserRow>(
       `select id::text as id
@@ -751,7 +795,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     }
 
     return reply.code(201).send({
-      data: mapConversationRow(app, conversation, await getDirectConversationOptions(app, userId, conversation))
+      data: mapConversationRow(app, conversation, await getDirectConversationOptions(app, userId, conversation, relationship))
     });
   });
 
@@ -1131,10 +1175,16 @@ export async function registerMessageRoutes(app: FastifyInstance) {
        order by greatest(c.updated_at, coalesce(last_message.created_at, c.updated_at)) desc`,
       [userId]
     );
-    const rows = await filterReadableConversationRows(app, userId, result.rows);
+    const relationshipsByConversationId = new Map<string, RelationshipPermissions>();
+    const rows = await filterReadableConversationRows(app, userId, result.rows, relationshipsByConversationId);
 
     return reply.send({
-      data: await Promise.all(rows.map((row) => mapReadableConversationRow(app, userId, row)))
+      data: await Promise.all(rows.map((row) => mapReadableConversationRow(
+        app,
+        userId,
+        row,
+        relationshipsByConversationId.get(row.id)
+      )))
     });
   });
 
@@ -1734,7 +1784,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
     }
 
-    if (!await canReadConversation(app, userId, conversation)) {
+    const relationship = await getConversationRelationship(app, userId, conversation);
+    if (!await canReadConversation(app, userId, conversation, relationship)) {
       throw new ApiError(404, "NOT_FOUND", "Conversation not found.");
     }
 
@@ -1815,7 +1866,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
           last_message_auth_tag: null,
           last_message_key_version: null,
           unread_count: 0
-        }, await getDirectConversationOptions(app, userId, conversation)),
+        }, await getDirectConversationOptions(app, userId, conversation, relationship)),
         messages: messagesResult.rows.map((row) => mapMessageRow(app, row))
       }
     });

@@ -35,7 +35,6 @@ const BlockedUsersPage = lazy(() => import('./components/BlockedUsersPage'));
 const DlModeSettings = lazy(() => import('./components/DlModeSettings'));
 const MapPresenceSettings = lazy(() => import('./components/MapPresenceSettings'));
 const DlModeDefaultNotice = lazy(() => import('./components/DlModeDefaultNotice'));
-const BetaLaunchCruushPlusOffer = lazy(() => import('./components/BetaLaunchCruushPlusOffer'));
 const FirstFeedPostPrompt = lazy(() => import('./components/FirstFeedPostPrompt'));
 const OnboardingPreview = lazy(() => import('./components/OnboardingPreview'));
 const SupportPage = lazy(() => import('./components/SupportPage'));
@@ -395,7 +394,6 @@ export default function App({
             </Routes>
             <MobileInstallPrompt />
             <DlModeDefaultNotice />
-            <BetaLaunchCruushPlusOffer userId={session.user.id} />
             <FirstFeedPostPrompt userId={session.user.id} />
             <BottomNav />
             <ForegroundNotifications />

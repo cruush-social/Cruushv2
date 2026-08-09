@@ -246,7 +246,7 @@ Ghost display coordinates are deterministic per:
 - rotation salt
 - Ghost radius
 
-The derivation samples uniformly inside the configured radius. Using viewer-specific seed material prevents all viewers from seeing the same Ghost point for a subject during an epoch, while still giving stable rendering during the epoch.
+The derivation samples uniformly between half of the selected radius and the selected radius. That minimum offset prevents an ungranted viewer from receiving a Ghost pin at, or visually on top of, the subject's real location. Using viewer-specific seed material prevents all viewers from seeing the same Ghost point for a subject during an epoch, while still giving stable rendering during the epoch.
 
 The selected radius values are:
 

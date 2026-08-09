@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Clock, MapPin, Settings2, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
@@ -110,9 +110,10 @@ function profileFeedCoordinates(profile: ProfileRecord): FeedCoordinates | null 
 
 export default function LocalFeed() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [newPost, setNewPost] = useState('');
   const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('24h');
+  const [expiresIn, setExpiresIn] = useState<FeedPostExpiry>('never');
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -131,6 +132,17 @@ export default function LocalFeed() {
   const [error, setError] = useState<string | null>(null);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const canPost = billingStatus?.cruushPlus === true;
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('compose') !== '1' || !canPost) {
+      return;
+    }
+
+    composerInputRef.current?.scrollIntoView?.({ block: 'center' });
+    composerInputRef.current?.focus();
+  }, [canPost, location.search]);
 
   const fetchPosts = useCallback(async (options: {
     append?: boolean;
@@ -288,8 +300,6 @@ export default function LocalFeed() {
       setPosting(false);
     }
   };
-
-  const canPost = billingStatus?.cruushPlus === true;
 
   const toggleCrowdTarget = (crowd: string) => {
     if (!canPost) {
@@ -493,6 +503,7 @@ export default function LocalFeed() {
             </div>
           ) : null}
           <Textarea
+            ref={composerInputRef}
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
             placeholder={billingStatus === null

@@ -1,13 +1,18 @@
 
   import { createRoot } from "react-dom/client";
-  import App from "./app/App.tsx";
-  import "./styles/index.css";
+import App from "./app/App.tsx";
+import { captureInstallPrompt } from "./app/lib/installPrompt";
+import "./styles/index.css";
 
   window.addEventListener("vite:preloadError", () => {
-    window.location.reload();
-  });
+  window.location.reload();
+});
 
-  createRoot(document.getElementById("root")!).render(<App />);
+// Capture this before authentication and lazy routes load. Browsers can emit
+// beforeinstallprompt while the login shell is still on screen.
+window.addEventListener("beforeinstallprompt", captureInstallPrompt);
+
+createRoot(document.getElementById("root")!).render(<App />);
 
 
 if ("serviceWorker" in navigator) {

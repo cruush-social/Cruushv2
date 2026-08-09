@@ -21,6 +21,7 @@ const devCertDirectory = path.resolve(__dirname, '.dev/certs')
 const devKeyPath = path.join(devCertDirectory, 'localhost-key.pem')
 const devCertPath = path.join(devCertDirectory, 'localhost-cert.pem')
 const useHttps = process.env.VITE_DEV_HTTPS !== '0' && process.env.VITE_DEV_HTTPS !== 'false'
+const configuredDevPort = Number(process.env.VITE_DEV_PORT ?? 5173)
 
 const httpsConfig =
   useHttps && fs.existsSync(devKeyPath) && fs.existsSync(devCertPath)
@@ -40,6 +41,8 @@ export default defineConfig({
   ],
   server: {
     https: httpsConfig,
+    port: configuredDevPort,
+    strictPort: Boolean(process.env.VITE_DEV_PORT),
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:3001',

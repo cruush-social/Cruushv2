@@ -1,5 +1,4 @@
 import { ALPHA_BUG_TIP_STORAGE_KEY } from '../components/AlphaBugButton';
-import { offerStorageKey } from '../components/BetaLaunchCruushPlusOffer';
 import { firstFeedPostPromptStorageKey } from '../components/FirstFeedPostPrompt';
 import { MAP_CONTROLS_INTRO_STORAGE_KEY } from '../components/MapHome';
 import { resetDebugNotices } from './debugApi';
@@ -25,11 +24,6 @@ export function previewableNotices(userId: string): PreviewableNotice[] {
       key: MAP_CONTROLS_INTRO_STORAGE_KEY,
       label: 'Map controls intro',
       description: 'Walks through the map controls on first load.',
-    },
-    {
-      key: offerStorageKey(userId),
-      label: 'Beta launch cruush+ gift',
-      description: 'Offers the free week of cruush+.',
     },
     {
       key: firstFeedPostPromptStorageKey(userId),

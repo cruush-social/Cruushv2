@@ -589,7 +589,7 @@ describe("loadConfig", () => {
       MEDIA_ENCRYPTION_KEY: strongSecret,
       MEDIA_PUBLIC_BASE_URL: "https://api-staging.cruush.app",
       MEDIA_MODERATION_URL_SECRET: strongSecret,
-      MEDIA_MODERATION_URL_TTL_SECONDS: 120,
+      MEDIA_MODERATION_URL_TTL_SECONDS: 900,
       MEDIA_OBJECT_STORAGE_DRIVER: "s3",
       RESEND_API_KEY: "resend-key",
       MAIL_FROM: "cruush <hello@cruush.app>",

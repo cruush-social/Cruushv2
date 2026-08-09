@@ -15,6 +15,8 @@ export async function recordModerationSystemError(
     contentType: ModerationContentType;
     errorCode: string;
     error: unknown;
+    contentId?: string | null;
+    providerRequestId?: string | null;
   }
 ) {
   const message = errorText(input.error);
@@ -24,14 +26,26 @@ export async function recordModerationSystemError(
 
   await db.query(
     `insert into moderation_system_errors (
-       fingerprint, provider, surface, content_type, error_code, error_message
-     ) values ($1, $2, $3, $4, $5, $6)
+       fingerprint, provider, surface, content_type, error_code, error_message,
+       last_content_id, last_provider_request_id
+     ) values ($1, $2, $3, $4, $5, $6, $7, $8)
      on conflict (fingerprint) where resolved_at is null
      do update set
        occurrences = moderation_system_errors.occurrences + 1,
        last_seen_at = now(),
-       error_message = excluded.error_message`,
-    [fingerprint, input.provider, input.surface, input.contentType, input.errorCode, message]
+       error_message = excluded.error_message,
+       last_content_id = excluded.last_content_id,
+       last_provider_request_id = excluded.last_provider_request_id`,
+    [
+      fingerprint,
+      input.provider,
+      input.surface,
+      input.contentType,
+      input.errorCode,
+      message,
+      input.contentId ?? null,
+      input.providerRequestId ?? null
+    ]
   );
 }
 

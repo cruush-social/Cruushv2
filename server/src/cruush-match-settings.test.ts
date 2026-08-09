@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppConfig } from "./config.js";
 import {
   assertCanSendNsfwMessagePhoto,
+  canStartDirectMessage,
   cruushMatchSettingsPayloadSchema
 } from "./cruush-match-settings.js";
+import type { RelationshipPermissions } from "./match-relationships.js";
 import { encryptSensitiveProfile, type SensitiveProfileData } from "./profile-sensitive.js";
 
 const senderUserId = "11111111-1111-4111-8111-111111111111";
@@ -38,6 +40,23 @@ function profileCrowdRow(id: string, crowds: SensitiveProfileData["crowds"]) {
       hiv_status: [],
       custom_hiv_status: ""
     })
+  };
+}
+
+function relationship(overrides: Partial<RelationshipPermissions> = {}): RelationshipPermissions {
+  return {
+    matchId: null,
+    isBlocked: false,
+    isMutualCruush: false,
+    hasOutgoingCruush: false,
+    canMessage: true,
+    canRevealMutualProtectedFields: false,
+    canRevealPreciseLocation: false,
+    shouldLogProfileView: true,
+    viewerGhostMode: false,
+    targetGhostMode: false,
+    targetPreciseLocationVisibility: "none",
+    ...overrides
   };
 }
 
@@ -102,6 +121,7 @@ describe("cruush match settings", () => {
       nsfwMessageVisibility: "mutual_crowds",
       nsfwSendVisibility: "mutual_crowds"
     })).toEqual({
+      messageVisibility: "mutual_cruushes",
       nsfwMessageVisibility: "mutual_crowds",
       nsfwSendVisibility: "mutual_crowds"
     });
@@ -113,9 +133,64 @@ describe("cruush match settings", () => {
       nsfwSendVisibility: "mutual_cruushes",
       updatedAt: "2026-07-31T05:57:00.000Z"
     })).toEqual({
+      messageVisibility: "mutual_cruushes",
       nsfwMessageVisibility: "public",
       nsfwSendVisibility: "mutual_cruushes"
     });
+  });
+
+  it("defaults new and schema-compatible accounts to mutual-only direct messages", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    await expect(canStartDirectMessage(
+      createApp(query),
+      senderUserId,
+      recipientUserId,
+      relationship()
+    )).resolves.toBe(false);
+  });
+
+  it("blocks non-mutual nearby messages while the recipient is in Ghost Mode", async () => {
+    await expect(canStartDirectMessage(
+      createApp(query),
+      senderUserId,
+      recipientUserId,
+      relationship({ targetGhostMode: true })
+    )).resolves.toBe(false);
+
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("keeps mutual cruush messages available while the recipient is in Ghost Mode", async () => {
+    await expect(canStartDirectMessage(
+      createApp(query),
+      senderUserId,
+      recipientUserId,
+      relationship({
+        isMutualCruush: true,
+        targetGhostMode: true
+      })
+    )).resolves.toBe(true);
+
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("honors an explicit Public setting when the recipient is not in Ghost Mode", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        message_visibility: "public",
+        nsfw_message_visibility: "public",
+        nsfw_send_visibility: "public",
+        updated_at: "2026-08-09T08:00:00.000Z"
+      }]
+    });
+
+    await expect(canStartDirectMessage(
+      createApp(query),
+      senderUserId,
+      recipientUserId,
+      relationship()
+    )).resolves.toBe(true);
   });
 
   it("allows NSFW message photos when the sender requires mutual crowds and all recipients share one", async () => {

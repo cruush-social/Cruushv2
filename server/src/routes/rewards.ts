@@ -5,8 +5,6 @@ import { getModeratorUser } from "../moderator-auth.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { getReferralInfo } from "../referrals-service.js";
 import {
-  claimBetaLaunchCruushPlus,
-  getBetaLaunchCruushPlusClaimStatus,
   getRewardSummary,
   normalizeTimeZone,
   redeemCruushPlusPromoCode,
@@ -127,20 +125,6 @@ export async function registerRewardRoutes(app: FastifyInstance) {
       [userId, timezone]
     );
     return reply.send({ data: { timezone } });
-  });
-
-  app.post("/api/rewards/beta-launch/claim", async (request, reply) => {
-    const userId = await getActiveAccountUserId(request);
-    return reply.send({
-      data: await claimBetaLaunchCruushPlus(app, userId)
-    });
-  });
-
-  app.get("/api/rewards/beta-launch/status", async (request, reply) => {
-    const userId = await getAuthenticatedUserId(request);
-    return reply.send({
-      data: await getBetaLaunchCruushPlusClaimStatus(app, userId)
-    });
   });
 
   app.post("/api/rewards/promo-codes/redeem", async (request, reply) => {

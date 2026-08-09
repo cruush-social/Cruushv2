@@ -1,6 +1,6 @@
 {
   "product": "cruush",
-  "objective": "Fix actionable bugs represented by the current GitHub issues, preserving existing product, privacy, moderation, and asset invariants.",
+  "objective": "Fix actionable bugs represented by the current GitHub issues, including immediate Ghost Mode location and messaging privacy, while preserving existing product, moderation, and asset invariants.",
   "repository": "cruush-social/Cruushv2",
   "base": "origin/main",
   "baseSha": "b2f728e392cec1a3329de8387307acf79207696d",
@@ -27,29 +27,40 @@
     64
   ],
   "allowedPaths": [
+    ".env.example",
     "src/app/**",
     "src/main.tsx",
+    "vite.config.ts",
+    "vitest.config.ts",
     "src/serviceWorkerUpdate.test.ts",
     "public/sw.js",
     "public/service-worker-recovery.js",
     "index.html",
     "server/src/**",
     "server/sql/**",
+    "server/.env.example",
     "server/package.json",
     "package.json",
-    "docs/worktrees.md"
+    "pnpm-lock.yaml",
+    "docs/ghost-mode-v1-core-implementation.md",
+    "docs/moderation.md",
+    "docs/worktrees.md",
+    "playwright.config.ts",
+    "scripts/dev-local.mjs",
+    "e2e/**",
+    ".gitignore"
   ],
   "preserved": [
     "The dirty feature checkout and unrelated user work",
     "Existing supplied visual assets",
     "Fail-closed CSAM and minor-face safety enforcement",
+    "Ghost Mode keeps users visible at shifted coordinates unless the viewer has an explicit precise-location grant from the user's saved settings",
     "Lowercase cruush product naming",
     "No new paid providers, secrets, or frontend credentials"
   ],
   "nonGoals": [
     "Implementing broad feature epics #1-#14",
-    "Changing deployment or provider configuration",
-    "Publishing to origin/main without a separate request",
+    "Changing deployment or provider configuration before all required tests pass",
     "Weakening profile-photo identity or image safety policy"
   ],
   "verification": {
@@ -57,9 +68,11 @@
       "Focused frontend and server regression tests for every changed bug path",
       "Frontend and server builds",
       "Rendered route-specific browser checks at mobile and desktop viewports",
-      "Authenticated interaction checks for map, profile, messaging, and moderation-affecting flows when credentials/runtime permit"
+      "Authenticated interaction checks for map, profile, messaging, and moderation-affecting flows when credentials/runtime permit",
+      "Two-account Ghost Mode proof covering shifted unauthorized pins, saved precise-location exceptions, and non-mutual DM denial",
+      "Reusable Playwright E2E with persisted authenticated storage state"
     ],
     "unverifiedMustBeReported": true
   },
-  "publication": "isolated branch only"
+  "publication": "origin/main after all required tests pass, followed by live verification"
 }

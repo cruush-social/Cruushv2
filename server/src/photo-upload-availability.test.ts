@@ -35,7 +35,7 @@ describe("deployed photo upload availability", () => {
       profilePhotos: true,
       messagePhotos: true
     });
-    // Stream must be paired with Rekognition: profile gate and image fallback use both.
+    // Stream remains an independent safety path during a Rekognition outage.
     expect(photoUploadAvailability({
       ...baseConfig,
       STREAM_MODERATION_ENABLED: true,
@@ -44,8 +44,8 @@ describe("deployed photo upload availability", () => {
       PROFILE_PHOTO_REKOGNITION_ENABLED: false,
       PHOTODNA_ENABLED: true
     })).toEqual({
-      profilePhotos: false,
-      messagePhotos: false
+      profilePhotos: true,
+      messagePhotos: true
     });
   });
 
@@ -58,11 +58,11 @@ describe("deployed photo upload availability", () => {
       PROFILE_PHOTO_REKOGNITION_ENABLED: false
     })).toEqual({
       profilePhotos: false,
-      messagePhotos: false
+      messagePhotos: true
     });
   });
 
-  it("keeps uploads closed when either scanner is configured on its own", () => {
+  it("keeps uploads available when either scanner is configured on its own", () => {
     expect(photoUploadAvailability({
       ...baseConfig,
       STREAM_MODERATION_ENABLED: true,
@@ -75,7 +75,7 @@ describe("deployed photo upload availability", () => {
       messagePhotos: true
     });
 
-    // Rekognition alone cannot satisfy Stream's image moderation path.
+    // Rekognition is also an independent safety path during a Stream outage.
     expect(photoUploadAvailability({
       ...baseConfig,
       STREAM_IMAGE_BRIDGE_ENABLED: true,
@@ -83,8 +83,8 @@ describe("deployed photo upload availability", () => {
       PROFILE_PHOTO_REKOGNITION_ENABLED: true,
       ALPHA_PROFILE_PHOTO_UPLOADS_WITHOUT_PHOTODNA_ENABLED: true
     })).toEqual({
-      profilePhotos: false,
-      messagePhotos: false
+      profilePhotos: true,
+      messagePhotos: true
     });
   });
 

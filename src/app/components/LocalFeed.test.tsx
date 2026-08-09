@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LocalFeed from './LocalFeed';
+import { HEART_PIN_THEMES } from '../lib/heartPin';
 
 const {
   createFeedPost,
@@ -179,6 +180,21 @@ describe('LocalFeed', () => {
     );
   });
 
+  it('focuses the composer when onboarding sends the user to write a post', async () => {
+    getFeedPosts.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter initialEntries={['/feed?compose=1']}>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    const composer = await screen.findByTestId('local-feed-composer');
+    const input = within(composer).getByPlaceholderText('Share something with nearby people...');
+
+    await waitFor(() => expect(input).toHaveFocus());
+  });
+
   it('keeps the feed settings menu scrollable and tappable on mobile', async () => {
     getFeedPosts.mockResolvedValue([]);
 
@@ -320,8 +336,8 @@ describe('LocalFeed', () => {
       const stops = Array.from(ownPreview.querySelectorAll('stop'))
         .map((stop) => stop.getAttribute('stop-color'));
 
-      expect(stops).toEqual(['#00B8FF', '#0A7DF4', '#3236D4']);
-      expect(ownPreview.querySelector('path')).toHaveAttribute('stroke', '#0BA8FF');
+      expect(stops).toEqual(HEART_PIN_THEMES.current.stops);
+      expect(ownPreview.querySelector('path')).toHaveAttribute('stroke', HEART_PIN_THEMES.current.border);
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete feed post: mine to delete' }));
@@ -541,7 +557,7 @@ describe('LocalFeed', () => {
 
     await waitFor(() => expect(createFeedPost).toHaveBeenCalledWith({
       content: 'hello crowd',
-      expiresIn: '24h',
+      expiresIn: 'never',
       crowdTargets: ['Dyke', 'Gay'],
     }));
   });

@@ -10,9 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
+import {
+  MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT,
+  MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
+} from './MapControlsTutorial';
 import { acquireOneTimeDialog, onOneTimeDialogReleased, releaseOneTimeDialog } from '../lib/oneTimeDialogQueue';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
-import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
+import { dismissUserNotice, getUserNoticeDismissal, resolveNoticeDismissal } from '../lib/userNoticesApi';
 
 const FIRST_FEED_POST_STORAGE_KEY = 'cruush:first-feed-post-prompt-seen';
 
@@ -68,36 +72,50 @@ export default function FirstFeedPostPrompt({ userId }: FirstFeedPostPromptProps
       removeDialogWaiter = onOneTimeDialogReleased(openWhenAvailable);
     };
 
-    if (hasPersistentNoticeFlag(key)) {
-      void dismissUserNotice(key).catch(() => {});
-      setOpen(false);
-      return;
-    }
+    const startPrompt = () => {
+      if (hasPersistentNoticeFlag(key)) {
+        void dismissUserNotice(key).catch(() => {});
+        setOpen(false);
+        return;
+      }
 
-    getUserNoticeDismissal(key)
-      .then((notice) => {
-        if (!isMounted) {
-          return;
-        }
+      getUserNoticeDismissal(key)
+        .then((notice) => {
+          if (!isMounted) {
+            return;
+          }
 
-        if (notice.dismissed) {
-          setPersistentNoticeFlag(key);
-          setOpen(false);
-          return;
-        }
+          if (notice.dismissed) {
+            setPersistentNoticeFlag(key);
+            setOpen(false);
+            return;
+          }
 
-        openWhenAvailable();
-      })
-      .catch(() => {
-        if (isMounted) {
-          setOpen(false);
+          openWhenAvailable();
+        })
+        .catch(() => {
+          if (isMounted) {
+            setOpen(false);
+          }
+        });
+    };
+
+    const startAfterTutorial = () => {
+      void resolveNoticeDismissal(MAP_CONTROLS_TUTORIAL_STORAGE_KEY).then((tutorialNotice) => {
+        if (isMounted && tutorialNotice.dismissed) {
+          startPrompt();
         }
       });
+    };
+
+    startAfterTutorial();
+    window.addEventListener(MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT, startPrompt);
 
     return () => {
       isMounted = false;
       clearDialogWaiter();
       releaseOneTimeDialog(activeDialogKey);
+      window.removeEventListener(MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT, startPrompt);
     };
   }, [activeDialogKey, userId]);
 
@@ -116,7 +134,7 @@ export default function FirstFeedPostPrompt({ userId }: FirstFeedPostPromptProps
 
   const handleWritePost = () => {
     close();
-    navigate('/feed');
+    navigate('/feed?compose=1');
   };
 
   return (
@@ -128,12 +146,12 @@ export default function FirstFeedPostPrompt({ userId }: FirstFeedPostPromptProps
           </div>
           <DialogTitle>Say something to the block</DialogTitle>
           <DialogDescription>
-            Your first local post tells nearby people you are around and what you are up for. Posts expire on their own, so keep it short.
+            Your first local post tells nearby people you are around and what you are up for. You choose how long it stays up.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="ghost" onClick={close}>
-            Later
+            Skip for now
           </Button>
           <Button
             onClick={handleWritePost}

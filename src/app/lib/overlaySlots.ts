@@ -89,22 +89,22 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
   {
     id: 'alpha-bug-button',
     source: 'src/app/components/AlphaBugButton.tsx',
-    z: 50,
-    mobile: { bottom: 14, right: 1, width: 2.75, height: 2.75 },
-    desktop: { bottom: 1, right: 1, width: 2.75, height: 2.75 },
+    z: 20,
+    mobile: { top: 4, left: 1, width: 2.75, height: 2.75 },
+    desktop: { top: 0.75, left: 1.25, width: 2.75, height: 2.75 },
   },
   {
     id: 'alpha-bug-tip',
     source: 'src/app/components/AlphaBugButton.tsx',
-    z: 50,
+    z: 30,
     // A one-time coach mark anchored near the button, dismissed on first tap.
     // Deliberately NOT marked transient: nothing belonging to the bug reporter may sit
     // on top of another control. On desktop it goes to the left of the button along the
     // bottom edge, the only space clear of the install prompt, the Recently Active
     // panel and the nav pill.
     exclusiveWith: ['alpha-bug-button'],
-    mobile: { bottom: 17.25, right: 1, width: 18, height: 5 },
-    desktop: { bottom: 0.5, right: 7, width: 18, height: 5 },
+    mobile: { top: 7.25, left: 1, width: 18, height: 5 },
+    desktop: { top: 4.5, left: 1.25, width: 18, height: 5 },
   },
 ];
 

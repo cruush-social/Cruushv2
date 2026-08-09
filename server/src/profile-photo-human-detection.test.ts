@@ -181,7 +181,7 @@ describe("image child-face and profile-photo human detection", () => {
     });
   });
 
-  it("fails the combined decision closed when Rekognition is unavailable", () => {
+  it("preserves a healthy Stream decision when Rekognition is unavailable", () => {
     const merged = mergeProfilePhotoSafetyResults(streamKeep(), {
       provider: "aws_rekognition",
       provider_request_id: "rekognition-error-1",
@@ -193,9 +193,34 @@ describe("image child-face and profile-photo human detection", () => {
 
     expect(merged).toMatchObject({
       provider: "stream+aws_rekognition",
+      status: "complete",
+      recommended_action: "keep",
+      raw_result: {
+        rekognition_status: "error",
+        rekognition_error: "timeout"
+      }
+    });
+    expect(merged).not.toHaveProperty("error");
+  });
+
+  it("fails the combined decision closed when both providers are unavailable", () => {
+    const merged = mergeProfilePhotoSafetyResults({
+      ...streamKeep(),
       status: "error",
-      recommended_action: "remove",
-      error: "timeout"
+      error: "Stream unavailable"
+    }, {
+      provider: "aws_rekognition",
+      provider_request_id: "rekognition-error-2",
+      labels: [],
+      latency_ms: 5,
+      status: "error",
+      error: "Rekognition unavailable"
+    });
+
+    expect(merged).toMatchObject({
+      provider: "stream+aws_rekognition",
+      status: "error",
+      error: "Rekognition unavailable"
     });
   });
 

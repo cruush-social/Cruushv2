@@ -7,6 +7,7 @@ import {
   createCoarseIndexTokens,
   deriveGhostCoordinate,
   distanceMiles,
+  GHOST_MIN_OFFSET_RATIO,
   issueBrowserDisplayKey,
   loadLocationEnvelope,
   loadLocationEnvelopes,
@@ -295,7 +296,9 @@ describe("location privacy", () => {
 
     expect(first).toEqual(again);
     expect(first).not.toEqual(otherViewer);
-    expect(distanceMiles(40.711, -74.002, first.lat, first.lng)).toBeLessThanOrEqual(1.01);
+    const offsetMiles = distanceMiles(40.711, -74.002, first.lat, first.lng);
+    expect(offsetMiles).toBeGreaterThanOrEqual(GHOST_MIN_OFFSET_RATIO - 0.01);
+    expect(offsetMiles).toBeLessThanOrEqual(1.01);
   });
 
   it("encrypts display tokens against the browser display key", async () => {

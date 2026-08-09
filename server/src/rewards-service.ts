@@ -9,7 +9,6 @@ import {
 } from "./reward-config.js";
 
 const DAY_SECONDS = 86_400;
-export const FIRST_LOGIN_CRUUSH_PLUS_DAYS = 7;
 
 type RewardSource = "activity_recurring" | "activity_long_bonus" | "referral" | "admin";
 
@@ -391,48 +390,6 @@ async function grantPromotionalAccessUntilInTransaction(
       createdAt: new Date(grant.created_at).toISOString()
     } : null
   };
-}
-
-export async function grantFirstLoginCruushPlus(
-  app: Pick<FastifyInstance, "db">,
-  userId: string
-) {
-  const activeUntil = new Date(Date.now() + FIRST_LOGIN_CRUUSH_PLUS_DAYS * DAY_SECONDS * 1000);
-
-  return runTransaction(app.db, (db) => grantPromotionalAccessUntilInTransaction(db, {
-    userId,
-    activeUntil,
-    days: FIRST_LOGIN_CRUUSH_PLUS_DAYS,
-    idempotencyKey: `first-login-cruush-plus-7d:${userId}`,
-    label: "First-login cruush+ trial",
-    auditMetadata: {
-      offer: "first_login_7_day_trial"
-    }
-  }));
-}
-
-export async function claimBetaLaunchCruushPlus(
-  app: Pick<FastifyInstance, "db">,
-  userId: string
-) {
-  return grantFirstLoginCruushPlus(app, userId);
-}
-
-export async function getBetaLaunchCruushPlusClaimStatus(
-  app: Pick<FastifyInstance, "db">,
-  userId: string
-) {
-  const result = await app.db.query<{ claimed: boolean }>(
-    `select exists(
-       select 1
-       from reward_grants
-       where user_id = $1
-         and idempotency_key = $2
-    ) as claimed`,
-    [userId, `first-login-cruush-plus-7d:${userId}`]
-  );
-
-  return { claimed: Boolean(result.rows[0]?.claimed) };
 }
 
 export async function redeemCruushPlusPromoCode(

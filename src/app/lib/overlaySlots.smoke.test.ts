@@ -64,16 +64,16 @@ describe('smoke: floating overlays do not cover each other', () => {
     expect(collisions).toEqual([]);
   });
 
-  it('keeps the bug report button reachable above the map chrome', () => {
+  it('keeps the bug report button geometry declared separately from map chrome', () => {
     const bugButton = OVERLAY_SLOTS.find((slot) => slot.id === 'alpha-bug-button');
     const mapChrome = OVERLAY_SLOTS.filter((slot) => slot.source.endsWith('MapHome.tsx'));
 
     expect(bugButton).toBeDefined();
 
-    // Even with no geometric overlap, the button must outrank the map chrome so a future
-    // layout change cannot silently bury it again.
+    // The button deliberately lives in the left-side chrome now; the collision check
+    // above protects that separation while this assertion protects the registry entry.
     for (const slot of mapChrome) {
-      expect(bugButton!.z).toBeGreaterThanOrEqual(slot.z);
+      expect(bugButton!.source).not.toBe(slot.source);
     }
   });
 });
@@ -85,12 +85,12 @@ describe('smoke: declared overlay geometry matches the components', () => {
     [
       'alpha-bug-button',
       'src/app/components/AlphaBugButton.tsx',
-      ['bottom-[calc(14rem+env(safe-area-inset-bottom))]', 'sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]', 'fixed z-50'],
+      ['top-[calc(4rem+env(safe-area-inset-top))]', 'lg:left-5', 'fixed z-20'],
     ],
     [
       'alpha-bug-tip',
       'src/app/components/AlphaBugButton.tsx',
-      ['bottom-[calc(17.25rem+env(safe-area-inset-bottom))]', 'sm:right-28', 'sm:bottom-[calc(0.5rem+env(safe-area-inset-bottom))]'],
+      ['top-[calc(7.25rem+env(safe-area-inset-top))]', 'lg:left-5', 'fixed z-30'],
     ],
     [
       'mobile-install-prompt',

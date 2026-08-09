@@ -975,12 +975,14 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
       content_type: string;
       error_code: string;
       error_message: string;
+      last_content_id: string | null;
+      last_provider_request_id: string | null;
       occurrences: number;
       first_seen_at: string | Date;
       last_seen_at: string | Date;
     }>(
       `select id::text, provider, surface, content_type, error_code, error_message,
-              occurrences, first_seen_at, last_seen_at
+              last_content_id, last_provider_request_id, occurrences, first_seen_at, last_seen_at
        from moderation_system_errors
        where resolved_at is null
        order by last_seen_at desc
@@ -997,6 +999,8 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
           contentType: row.content_type,
           errorCode: row.error_code,
           errorMessage: row.error_message,
+          lastContentId: row.last_content_id,
+          lastProviderRequestId: row.last_provider_request_id,
           occurrences: row.occurrences,
           firstSeenAt: new Date(row.first_seen_at).toISOString(),
           lastSeenAt: new Date(row.last_seen_at).toISOString()

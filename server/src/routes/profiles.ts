@@ -1250,7 +1250,7 @@ async function loadProfileData(
   }
 
   const canMessage = relationship && options.viewerUserId
-    ? await canStartDirectMessage(app, options.viewerUserId, userId)
+    ? await canStartDirectMessage(app, options.viewerUserId, userId, relationship)
     : undefined;
 
   const showKinks =

@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DbClient, DbQueryResult } from "./db.js";
 import {
   calendarDateInTimeZone,
-  grantFirstLoginCruushPlus,
   grantPromotionalDays,
   recordMeaningfulActivity,
   reverseRewardGrant
@@ -326,22 +325,6 @@ describe("rewards activity and promotional entitlement service", () => {
     });
     expect(db.bankedSeconds).toBe(7 * 86_400);
     expect(db.activeUntil?.toISOString()).toBe("2026-07-29T12:00:00.000Z");
-  });
-
-  it("grants the first-login trial once without extending it on later entitlement reads", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
-    const db = new RewardTestDb();
-
-    const first = await grantFirstLoginCruushPlus(appFor(db), userId);
-    const retry = await grantFirstLoginCruushPlus(appFor(db), userId);
-
-    expect(first).toMatchObject({ claimed: true, label: "First-login cruush+ trial" });
-    expect(first.grant).toMatchObject({ days: 7, source: "admin" });
-    expect(first.activeUntil).toBe("2026-08-12T12:00:00.000Z");
-    expect(retry).toMatchObject({ claimed: false, grant: null });
-    expect(db.grants).toHaveLength(1);
-    expect(db.activeUntil?.toISOString()).toBe("2026-08-12T12:00:00.000Z");
   });
 
   it("handles expired promo access and creates an auditable idempotent reversal without touching paid state", async () => {

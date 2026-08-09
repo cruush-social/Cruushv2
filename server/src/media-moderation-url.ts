@@ -3,8 +3,8 @@ import type { AppConfig } from "./config.js";
 
 export const MEDIA_MODERATION_PURPOSE = "moderation_inspection";
 export const MEDIA_MODERATION_VARIANT = "display";
-export const DEFAULT_MEDIA_MODERATION_URL_TTL_SECONDS = 120;
-export const MAX_MEDIA_MODERATION_URL_TTL_SECONDS = 300;
+export const DEFAULT_MEDIA_MODERATION_URL_TTL_SECONDS = 900;
+export const MAX_MEDIA_MODERATION_URL_TTL_SECONDS = 3600;
 const MIN_MEDIA_MODERATION_URL_TTL_SECONDS = 30;
 const SIGNATURE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 

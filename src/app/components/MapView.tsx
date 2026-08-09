@@ -71,11 +71,9 @@ interface MapViewProps {
 const DEFAULT_CENTER: LngLatLike = [-74.006, 40.7128];
 const DEFAULT_ZOOM = 12;
 const FOCUSED_ZOOM = 14;
-const MIN_DISCOVERY_ZOOM = 10.5;
-const NYC_METRO_MAX_BOUNDS: [[number, number], [number, number]] = [
-  [-74.65, 40.35],
-  [-73.45, 41.08],
-];
+export const MIN_DISCOVERY_ZOOM = 0;
+export const MAX_DISCOVERY_ZOOM = 22;
+const AUTO_FIT_MAX_ZOOM = 15;
 const DEFAULT_TILE_URLS = [
   'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
   'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
@@ -1261,7 +1259,7 @@ function MapView({
             : DEFAULT_CENTER,
           zoom: initialViewportRef.current?.zoom ?? DEFAULT_ZOOM,
           minZoom: MIN_DISCOVERY_ZOOM,
-          maxBounds: NYC_METRO_MAX_BOUNDS,
+          maxZoom: MAX_DISCOVERY_ZOOM,
           renderWorldCopies: false,
           attributionControl: false,
         });
@@ -1463,7 +1461,7 @@ function MapView({
             bottom: 170,
             left: 120,
           },
-          maxZoom: FOCUSED_ZOOM,
+          maxZoom: AUTO_FIT_MAX_ZOOM,
           duration: 500,
         }
       );

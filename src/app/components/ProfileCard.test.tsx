@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileCard from './ProfileCard';
 
-const { sendCruush } = vi.hoisted(() => ({
+const { revokeMutualCruush, sendCruush } = vi.hoisted(() => ({
+  revokeMutualCruush: vi.fn(),
   sendCruush: vi.fn(),
 }));
 
@@ -12,16 +13,19 @@ vi.mock('../lib/cruushApi', async () => {
 
   return {
     ...actual,
+    revokeMutualCruush,
     sendCruush,
   };
 });
 
 describe('ProfileCard', () => {
   beforeEach(() => {
+    revokeMutualCruush.mockReset();
     sendCruush.mockReset();
+    revokeMutualCruush.mockResolvedValue({ revoked: true });
   });
 
-  it('disables the cruush action for existing mutuals', () => {
+  it('lets users revoke an existing mutual from the profile card', async () => {
     render(
       <MemoryRouter>
         <ProfileCard
@@ -45,11 +49,12 @@ describe('ProfileCard', () => {
       </MemoryRouter>
     );
 
-    const cruushButton = screen.getByRole('button', { name: 'Already mutual' });
-    expect(cruushButton).toBeDisabled();
-    expect(cruushButton).toHaveTextContent('mutual');
+    const cruushButton = screen.getByRole('button', { name: 'Remove mutual cruush' });
+    expect(cruushButton).not.toBeDisabled();
+    expect(cruushButton).toHaveTextContent('remove');
 
     fireEvent.click(cruushButton);
+    await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));
     expect(sendCruush).not.toHaveBeenCalled();
   });
 

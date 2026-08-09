@@ -14,12 +14,6 @@ const metaPayload: AppMetaPayload = {
   },
   betaAccess: {
     enabled: false,
-    center: {
-      lat: 40.70982,
-      lng: -73.92256,
-    },
-    radiusMiles: 15,
-    venueName: '70 Scott Ave',
   },
   photoUploads: {
     profilePhotos: true,

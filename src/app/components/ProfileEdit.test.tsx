@@ -326,7 +326,7 @@ describe('ProfileEdit', () => {
     expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
   });
 
-  it('masks explicit and unknown profile photos in the editor while DL Mode is on', async () => {
+  it('masks explicit profile photos while treating unknown photos as safe in DL Mode', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const explicitPhoto = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';
     const safePhoto = '/api/media/assets/22222222-2222-4222-8222-222222222222/display';
@@ -354,9 +354,9 @@ describe('ProfileEdit', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
     expect(await screen.findByAltText('Profile photo 2')).toHaveAttribute('src', expect.stringContaining(safePhoto));
     expect(screen.queryByAltText('Primary profile photo')).not.toBeInTheDocument();
-    expect(screen.queryByAltText('Profile photo 3')).not.toBeInTheDocument();
+    expect(screen.getByAltText('Profile photo 3')).toHaveAttribute('src', expect.stringContaining(unknownPhoto));
     expect(screen.getByRole('img', { name: 'Primary profile photo hidden by DL Mode' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Profile photo 3 hidden by DL Mode' })).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Profile photo 3 hidden by DL Mode' })).not.toBeInTheDocument();
     expect(document.body.innerHTML).not.toContain(explicitPhoto);
   });
 

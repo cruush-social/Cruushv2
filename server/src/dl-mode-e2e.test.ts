@@ -48,8 +48,8 @@ vi.mock("@aws-sdk/client-rekognition", () => ({
 
 // No Stream credentials anywhere: this is the production shape that was broken.
 // Rekognition has to carry the classification on its own.
-vi.mock("./moderation-provider.js", () => ({
-  createModerationProvider: () => ({
+vi.mock("./moderation-provider.js", () => {
+  const provider = {
     name: "mock",
     version: "test",
     moderateText: vi.fn(),
@@ -62,8 +62,13 @@ vi.mock("./moderation-provider.js", () => ({
       recommended_action: "keep",
       raw_result: {}
     }))
-  })
-}));
+  };
+
+  return {
+    createModerationProvider: () => provider,
+    createModerationProviderOrUnavailable: () => provider
+  };
+});
 
 import { buildServer } from "./app.js";
 import type { AppConfig } from "./config.js";

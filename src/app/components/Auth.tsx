@@ -30,12 +30,6 @@ const FALLBACK_ALPHA_TEST = {
 } satisfies AppMetaPayload['alphaTest'];
 const FALLBACK_BETA_ACCESS = {
   enabled: true,
-  center: {
-    lat: 40.70982,
-    lng: -73.92256,
-  },
-  radiusMiles: 15,
-  venueName: '70 Scott Ave',
 } satisfies NonNullable<AppMetaPayload['betaAccess']>;
 
 export default function Auth({ onAuth }: AuthProps) {
@@ -174,7 +168,7 @@ export default function Auth({ onAuth }: AuthProps) {
     }
 
     if (isSignUp && betaAccessRequired && !betaAccessLocation) {
-      setError(`Beta access is currently available within ${betaAccess?.radiusMiles ?? 15} miles of ${betaAccess?.venueName ?? '70 Scott Ave'}. Check your location to continue.`);
+      setError('Beta access is currently available within 15 miles of NYC. Check your location to continue.');
       setIsLoading(false);
       return;
     }
@@ -476,7 +470,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 text-[#ff0072]" />
                   <p>
-                    Launch beta access is open within {betaAccess?.radiusMiles ?? 15} miles of {betaAccess?.venueName ?? '70 Scott Ave'}.
+                    Launch beta access is available within 15 miles of NYC.
                   </p>
                 </div>
                 <p className="text-white/50">Join the newsletter and request your city.</p>
@@ -486,7 +480,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 text-[#0ba8ff]" />
                   <p>
-                    Beta access opens within {betaAccess?.radiusMiles ?? 15} miles of {betaAccess?.venueName ?? '70 Scott Ave'}.
+                    Beta access is available within 15 miles of NYC.
                   </p>
                 </div>
                 <button
@@ -648,7 +642,7 @@ export default function Auth({ onAuth }: AuthProps) {
 	              <div className="flex items-start gap-2">
 	                <MapPin className="mt-0.5 h-4 w-4 text-[#0ba8ff]" />
 	                <p>
-	                  Beta access opens within {betaAccess?.radiusMiles ?? 15} miles of {betaAccess?.venueName ?? '70 Scott Ave'}.
+                  Beta access is available within 15 miles of NYC.
 	                </p>
 	              </div>
 	              <button

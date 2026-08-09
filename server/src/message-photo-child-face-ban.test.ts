@@ -23,8 +23,8 @@ vi.mock("@aws-sdk/client-rekognition", () => ({
   }
 }));
 
-vi.mock("./moderation-provider.js", () => ({
-  createModerationProvider: () => ({
+vi.mock("./moderation-provider.js", () => {
+  const provider = {
     name: "stream",
     version: "test",
     moderateText: vi.fn(),
@@ -38,8 +38,13 @@ vi.mock("./moderation-provider.js", () => ({
       raw_result: {},
       ...state.providerResult
     } satisfies ProviderModerationResult))
-  })
-}));
+  };
+
+  return {
+    createModerationProvider: () => provider,
+    createModerationProviderOrUnavailable: () => provider
+  };
+});
 
 import type { FastifyInstance } from "fastify";
 import { moderateImageOrReject } from "./moderation-service.js";

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MobileInstallPrompt from './MobileInstallPrompt';
+import { captureInstallPrompt, clearInstallPrompt } from '../lib/installPrompt';
 
 function installPromptEvent(prompt: ReturnType<typeof vi.fn>) {
   const event = new Event('beforeinstallprompt') as Event & {
@@ -30,6 +31,7 @@ describe('MobileInstallPrompt', () => {
   });
 
   afterEach(() => {
+    clearInstallPrompt();
     vi.unstubAllGlobals();
   });
 
@@ -50,6 +52,19 @@ describe('MobileInstallPrompt', () => {
     window.dispatchEvent(new Event('cruush:install-requested'));
 
     expect(await screen.findByText(/Safari share/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Not now' })).toBeInTheDocument();
+    expect(screen.getByText('Add cruush to Home Screen')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Got it' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Install cruush' })).not.toBeInTheDocument();
+  });
+
+  it('keeps a browser prompt captured before the component loads', async () => {
+    const prompt = vi.fn().mockResolvedValue(undefined);
+    captureInstallPrompt(installPromptEvent(prompt));
+
+    render(<MobileInstallPrompt />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Install cruush' }));
+
+    await waitFor(() => expect(prompt).toHaveBeenCalled());
   });
 });

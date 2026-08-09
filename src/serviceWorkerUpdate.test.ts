@@ -32,6 +32,7 @@ describe('service worker update delivery', () => {
     expect(appEntrySource).toContain('window.addEventListener("focus", refreshOnVisible)');
     expect(appEntrySource).toContain('document.addEventListener("visibilitychange", refreshOnVisible)');
     expect(appEntrySource).toContain('window.location.reload()');
+    expect(appEntrySource).toContain('window.addEventListener("beforeinstallprompt", captureInstallPrompt)');
     expect(appEntrySource).toContain('registration?.waiting?.postMessage({ type: "SKIP_WAITING" })');
     expect(appEntrySource).toContain('registration?.active?.postMessage({ type: "CLIENT_REFRESH_REQUESTED", refreshId: APP_SHELL_REFRESH_ID })');
     expect(indexSource).toContain('<script src="/service-worker-recovery.js?release=v21"></script>');

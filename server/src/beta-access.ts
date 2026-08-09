@@ -2,6 +2,11 @@ import type { AppConfig } from "./config.js";
 import { ApiError } from "./errors.js";
 
 const EARTH_RADIUS_MILES = 3958.7613;
+const BETA_LAUNCH_CENTER = {
+  lat: 40.6832265,
+  lng: -73.9520496
+};
+const BETA_LAUNCH_RADIUS_MILES = 15;
 
 export type BetaAccessLocation = {
   lat: number;
@@ -27,15 +32,15 @@ export function distanceMiles(
   return 2 * EARTH_RADIUS_MILES * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+export function isWithinBetaLaunchArea(location: { lat: number; lng: number }) {
+  return distanceMiles(location, BETA_LAUNCH_CENTER) <= BETA_LAUNCH_RADIUS_MILES;
+}
+
 export function getBetaAccessConfig(config: AppConfig) {
   return {
     enabled: Boolean(config.BETA_ACCESS_GEOFENCE_ENABLED),
-    center: {
-      lat: config.BETA_ACCESS_CENTER_LATITUDE ?? 40.70982,
-      lng: config.BETA_ACCESS_CENTER_LONGITUDE ?? -73.92256
-    },
-    radiusMiles: config.BETA_ACCESS_RADIUS_MILES ?? 15,
-    venueName: config.BETA_ACCESS_VENUE_NAME ?? "70 Scott Ave"
+    center: BETA_LAUNCH_CENTER,
+    radiusMiles: BETA_LAUNCH_RADIUS_MILES
   };
 }
 
@@ -78,12 +83,7 @@ export function assertBetaAccessAllowed(config: AppConfig, location: BetaAccessL
     throw new ApiError(
       403,
       "BETA_ACCESS_LOCATION_REQUIRED",
-      `Beta access is available within ${result.radiusMiles} miles of ${result.venueName}. Share location to continue.`,
-      {
-        radiusMiles: result.radiusMiles,
-        venueName: result.venueName,
-        center: result.center
-      }
+      "Beta access is available within 15 miles of NYC. Share location to continue."
     );
   }
 
@@ -91,13 +91,7 @@ export function assertBetaAccessAllowed(config: AppConfig, location: BetaAccessL
     throw new ApiError(
       403,
       "BETA_ACCESS_OUTSIDE_RADIUS",
-      `Beta access is currently available within ${result.radiusMiles} miles of ${result.venueName}.`,
-      {
-        radiusMiles: result.radiusMiles,
-        distanceMiles: result.distanceMiles,
-        venueName: result.venueName,
-        center: result.center
-      }
+      "Beta access is currently available within 15 miles of NYC."
     );
   }
 

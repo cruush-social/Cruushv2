@@ -37,6 +37,7 @@ import {
   type GroupMemberRecord,
   type MessageAttachment,
   type MessageSender,
+  type PendingPhotoReview,
   type RemoteChatMessage,
   updateGroupConversation,
   uploadFavoriteMessageImage,
@@ -137,6 +138,15 @@ function normalizeRemoteMessages(remoteMessages: RemoteChatMessage[], activeUser
   return remoteMessages.map((message) => normalizeRemoteMessage(message, activeUserId));
 }
 
+function isPendingPhotoReview(value: unknown): value is PendingPhotoReview {
+  return typeof value === 'object'
+    && value !== null
+    && 'status' in value
+    && value.status === 'pending_review'
+    && 'assetId' in value
+    && typeof value.assetId === 'string';
+}
+
 function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }) {
   return (
     <div
@@ -206,6 +216,7 @@ export default function PrivateGroupChat() {
   const [error, setError] = useState<string | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
   const [composerErrorCode, setComposerErrorCode] = useState<string | null>(null);
+  const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoViewOnce, setPhotoViewOnce] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -449,12 +460,20 @@ export default function PrivateGroupChat() {
 
     setError(null);
     setComposerError(null);
+    setPhotoUploadNotice(null);
     setFavoriteUploading(true);
 
     try {
       const label = file.name.replace(/\.[^.]+$/, '').slice(0, 80);
       const uploadFile = await prepareMessagePhotoForUpload(file);
       const favorite = await uploadFavoriteMessageImage(uploadFile, label);
+
+      if (isPendingPhotoReview(favorite)) {
+        setFavoriteGalleryOpen(true);
+        setPhotoUploadNotice('Photo submitted for review. It will appear in your quick access gallery automatically.');
+        return;
+      }
+
       setFavoriteImages((prev) => [favorite, ...prev.filter((item) => item.id !== favorite.id)]);
       setFavoriteGalleryOpen(true);
       setError(null);
@@ -464,6 +483,7 @@ export default function PrivateGroupChat() {
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload favorite image.';
       setError(errorMessage);
       setComposerError(errorMessage);
+      setPhotoUploadNotice(null);
     } finally {
       setFavoriteUploading(false);
     }
@@ -747,7 +767,7 @@ export default function PrivateGroupChat() {
           ? normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)
           : item
       )));
-      setMessage((currentMessage) => currentMessage === trimmedMessage ? '' : currentMessage);
+      setMessage((currentMessage) => currentMessage === normalizedComposerMessage ? '' : currentMessage);
       setError(null);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -774,11 +794,20 @@ export default function PrivateGroupChat() {
     const caption = message.trim();
     setError(null);
     setComposerError(null);
+    setPhotoUploadNotice(null);
     setPhotoUploading(true);
 
     try {
       const uploadFile = await prepareMessagePhotoForUpload(file);
       const createdMessage = await createMessagePhoto(chatId, uploadFile, caption, { viewOnce: photoViewOnce });
+
+      if (isPendingPhotoReview(createdMessage)) {
+        setMessage('');
+        setPhotoViewOnce(false);
+        setPhotoUploadNotice('Photo submitted for review. It will send automatically after safety checks complete.');
+        return;
+      }
+
       setMessages((prev) => [...prev, normalizeRemoteMessage(createdMessage, currentUserId ?? createdMessage.userId)]);
       setMessage('');
       setPhotoViewOnce(false);
@@ -794,6 +823,7 @@ export default function PrivateGroupChat() {
         setError(errorMessage);
         setComposerError(errorMessage);
       }
+      setPhotoUploadNotice(null);
     } finally {
       setPhotoUploading(false);
     }
@@ -1370,6 +1400,12 @@ export default function PrivateGroupChat() {
                   {composerErrorCode ? (
                     <p className="mt-1 text-xs text-destructive/80">Error code: {composerErrorCode}</p>
                   ) : null}
+                </div>
+              ) : null}
+
+              {photoUploadNotice ? (
+                <div role="status" className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground">
+                  {photoUploadNotice}
                 </div>
               ) : null}
 

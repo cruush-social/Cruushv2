@@ -149,11 +149,29 @@ describe("privacy-hardened media assets", () => {
       objectKeys: ["originals/photo.enc"]
     };
 
-    await expect(retainPendingMediaAssetForRetry(app, request, asset)).resolves.toBeUndefined();
+    await expect(retainPendingMediaAssetForRetry(app, request, asset, {
+      provider: "stream+aws_rekognition",
+      provider_request_id: "stream-async-image-1:rekognition-error-1",
+      labels: [],
+      latency_ms: 10,
+      status: "error",
+      raw_result: {
+        stream: {
+          status: "partial",
+          task_id: "stream-async-image-1"
+        },
+        stream_status: "partial",
+        rekognition_status: "error"
+      },
+      error: "AWS Rekognition unavailable"
+    })).resolves.toBeUndefined();
     expect(query.mock.calls.some(([sql, params]) => (
       String(sql).includes("moderation_failure_reason = 'provider_unavailable'") &&
+      String(sql).includes("streamModerationTaskId") &&
       params?.[0] === mediaObjectId &&
-      params?.[1] === ownerUserId
+      params?.[1] === ownerUserId &&
+      params?.[2] === false &&
+      params?.[3] === "stream-async-image-1"
     ))).toBe(true);
     expect(query.mock.calls.some(([sql]) => String(sql).includes("delete from media_objects"))).toBe(false);
   });

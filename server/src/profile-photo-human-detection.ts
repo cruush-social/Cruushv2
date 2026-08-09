@@ -528,7 +528,11 @@ export function mergeProfilePhotoSafetyResults(
   safetyResult: ProviderModerationResult
 ): ProviderModerationResult {
   const safetyFailed = safetyResult.status?.toLowerCase() !== "complete" || Boolean(safetyResult.error);
-  const safetyRejected = safetyResult.recommended_action?.toLowerCase() !== "keep";
+  const safetyRejected = !safetyFailed && safetyResult.recommended_action?.toLowerCase() !== "keep";
+  const streamCompletedSafely = !streamResult.error &&
+    ["complete", "completed"].includes(streamResult.status?.toLowerCase() ?? "") &&
+    streamResult.recommended_action?.toLowerCase() === "keep";
+  const noHealthyProvider = safetyFailed && !streamCompletedSafely;
 
   return {
     ...streamResult,
@@ -536,12 +540,20 @@ export function mergeProfilePhotoSafetyResults(
     provider_request_id: `${streamResult.provider_request_id}:${safetyResult.provider_request_id}`,
     labels: [...streamResult.labels, ...safetyResult.labels],
     latency_ms: streamResult.latency_ms + safetyResult.latency_ms,
-    status: safetyFailed ? "error" : streamResult.status,
+    status: noHealthyProvider ? "error" : streamResult.status,
     recommended_action: safetyRejected ? safetyResult.recommended_action ?? "remove" : streamResult.recommended_action,
     raw_result: {
       stream: streamResult.raw_result ?? {},
+      stream_provider: streamResult.provider,
+      stream_status: streamResult.status ?? null,
+      stream_error: streamResult.error ?? null,
+      stream_provider_request_id: streamResult.provider_request_id,
+      rekognition_provider: safetyResult.provider,
+      rekognition_status: safetyResult.status ?? null,
+      rekognition_error: safetyResult.error ?? null,
+      rekognition_provider_request_id: safetyResult.provider_request_id,
       rekognition_safety: safetyResult.raw_result ?? {}
     },
-    ...(safetyFailed ? { error: safetyResult.error ?? "Image age-safety detection failed." } : {})
+    ...(noHealthyProvider ? { error: safetyResult.error ?? "Image age-safety detection failed." } : {})
   };
 }

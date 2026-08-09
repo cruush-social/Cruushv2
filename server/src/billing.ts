@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
 import { getCruushEntitlement } from "./match-relationships.js";
-import { bankActivePromotionForPaidSubscription, grantFirstLoginCruushPlus } from "./rewards-service.js";
+import { bankActivePromotionForPaidSubscription } from "./rewards-service.js";
 
 export type CruushPlusPlanId =
   | "plus_weekly"
@@ -269,8 +269,6 @@ export async function getPlanAvailability(app: FastifyInstance) {
 }
 
 export async function getUserBillingStatus(app: FastifyInstance, userId: string) {
-  await grantFirstLoginCruushPlus(app, userId);
-
   const [entitlement, badges] = await Promise.all([
     getCruushEntitlement(app, userId),
     safeRows<BadgeRow>(

@@ -23,6 +23,7 @@ export type ImageModerationInput = {
   filename?: string;
   imageUrl?: string;
   contentId?: string;
+  providerTaskId?: string;
   bytes: Buffer;
 };
 
@@ -403,6 +404,63 @@ type StreamCheckResponse = {
   };
 };
 
+type StreamTaskResponse = {
+  status?: string;
+  task_id?: string;
+  result?: Record<string, unknown>;
+  error?: unknown;
+};
+
+function recordFromUnknown(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function streamCheckResponseFromTask(task: StreamTaskResponse): StreamCheckResponse | null {
+  const result = recordFromUnknown(task.result);
+
+  if (!result) {
+    return null;
+  }
+
+  const candidates = [
+    result,
+    recordFromUnknown(result.result),
+    recordFromUnknown(result.response),
+    recordFromUnknown(result.data),
+    recordFromUnknown(result.moderation)
+  ].filter((candidate): candidate is Record<string, unknown> => candidate !== null);
+  const candidate = candidates.find((value) =>
+    typeof value.recommended_action === "string" ||
+    recordFromUnknown(value.item) !== null
+  );
+
+  if (!candidate) {
+    return null;
+  }
+
+  return {
+    ...candidate,
+    status: typeof candidate.status === "string"
+      ? candidate.status
+      : task.status?.toLowerCase() === "completed"
+        ? "complete"
+        : task.status,
+    task_id: task.task_id
+  } as StreamCheckResponse;
+}
+
+function streamTaskErrorMessage(value: unknown) {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim().slice(0, 500);
+  }
+
+  const record = recordFromUnknown(value);
+  const message = record && typeof record.message === "string" ? record.message.trim() : "";
+  return message ? message.slice(0, 500) : "Stream image moderation task failed.";
+}
+
 export function isCompleteStreamImageResponse(response: StreamCheckResponse) {
   return response.status?.toLowerCase() === "complete" &&
     typeof response.recommended_action === "string" &&
@@ -715,8 +773,111 @@ export class StreamModerationProvider implements ModerationProvider {
       .includes(code) || status === 0;
   }
 
+  private static errorMetadata(error: unknown) {
+    const candidate = error as { code?: unknown; status?: unknown; statusCode?: unknown } | null;
+    const status = Number(candidate?.statusCode ?? candidate?.status);
+    const code = typeof candidate?.code === "string" ? candidate.code : null;
+    return {
+      error_name: error instanceof Error ? error.name : "UnknownError",
+      ...(Number.isFinite(status) ? { status_code: status } : {}),
+      ...(code ? { error_code: code } : {})
+    };
+  }
+
   private static wait(delayMs: number) {
     return new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  private async resumeImageTask(
+    taskId: string,
+    surface: ModerationSurface
+  ): Promise<ProviderModerationResult> {
+    const startedAt = Date.now();
+
+    try {
+      const task = await this.client.getTask({ id: taskId }) as StreamTaskResponse;
+      const taskStatus = task.status?.toLowerCase() ?? "unknown";
+
+      if (taskStatus === "pending" || taskStatus === "running") {
+        return {
+          provider: this.name,
+          provider_request_id: taskId,
+          labels: [],
+          latency_ms: Date.now() - startedAt,
+          status: "partial",
+          raw_result: {
+            task_id: taskId,
+            task_status: taskStatus,
+            resumed_async_task: true
+          },
+          error: "Stream image moderation is still processing."
+        };
+      }
+
+      if (taskStatus === "failed") {
+        return {
+          provider: this.name,
+          provider_request_id: taskId,
+          labels: [],
+          latency_ms: Date.now() - startedAt,
+          status: "error",
+          raw_result: {
+            task_id: taskId,
+            task_status: taskStatus,
+            async_task_terminal: true
+          },
+          error: streamTaskErrorMessage(task.error)
+        };
+      }
+
+      const response = streamCheckResponseFromTask({ ...task, task_id: taskId });
+
+      if (taskStatus === "completed" && response && isCompleteStreamImageResponse(response)) {
+        return {
+          provider: this.name,
+          provider_request_id: response.item?.id ?? taskId,
+          labels: streamLabelsFromResponse(response, surface),
+          latency_ms: Date.now() - startedAt,
+          recommended_action: response.recommended_action,
+          status: response.status,
+          raw_result: {
+            ...sanitizeStreamResponse(response),
+            task_status: taskStatus,
+            resumed_async_task: true
+          }
+        };
+      }
+
+      return {
+        provider: this.name,
+        provider_request_id: taskId,
+        labels: [],
+        latency_ms: Date.now() - startedAt,
+        status: "error",
+        raw_result: {
+          task_id: taskId,
+          task_status: taskStatus,
+          async_task_terminal: taskStatus === "completed"
+        },
+        error: taskStatus === "completed"
+          ? "Stream completed the image task without a usable moderation result."
+          : `Stream returned an unknown image moderation task status: ${taskStatus}.`
+      };
+    } catch (error) {
+      return {
+        provider: this.name,
+        provider_request_id: taskId,
+        labels: [],
+        latency_ms: Date.now() - startedAt,
+        status: "error",
+        raw_result: {
+          ...StreamModerationProvider.errorMetadata(error),
+          task_id: taskId,
+          async_task_lookup_failed: true
+        },
+        error: error instanceof Error ? error.message : "Stream moderation task lookup failed."
+      };
+    }
   }
 
   private async check(input: {
@@ -799,9 +960,7 @@ export class StreamModerationProvider implements ModerationProvider {
           labels: [],
           latency_ms: Date.now() - startedAt,
           status: "error",
-          raw_result: {
-            error_name: error instanceof Error ? error.name : "UnknownError"
-          },
+          raw_result: StreamModerationProvider.errorMetadata(error),
           error: error instanceof Error ? error.message : "Stream moderation request failed."
         };
       }
@@ -823,6 +982,10 @@ export class StreamModerationProvider implements ModerationProvider {
   }
 
   async moderateImage(input: ImageModerationInput): Promise<ProviderModerationResult> {
+    if (input.providerTaskId) {
+      return this.resumeImageTask(input.providerTaskId, input.surface);
+    }
+
     if (!input.imageUrl) {
       return {
         provider: this.name,

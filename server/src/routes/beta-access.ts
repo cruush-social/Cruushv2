@@ -24,11 +24,7 @@ export async function registerBetaAccessRoutes(app: FastifyInstance) {
     return {
       data: {
         enabled: result.enabled,
-        allowed: result.allowed,
-        radiusMiles: result.radiusMiles,
-        distanceMiles: result.distanceMiles,
-        venueName: result.venueName,
-        center: result.center
+        allowed: result.allowed
       }
     };
   });

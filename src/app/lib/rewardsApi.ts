@@ -74,15 +74,6 @@ export function updateRewardTimezone(timezone: string) {
   });
 }
 
-export function claimBetaLaunchCruushPlus() {
-  return requestApi<PromotionalClaim>('/api/rewards/beta-launch/claim', {
-    method: 'POST',
-  });
-}
-
-export function getBetaLaunchCruushPlusClaimStatus() {
-  return requestApi<{ claimed: boolean }>('/api/rewards/beta-launch/status');
-}
 
 export function redeemCruushPlusPromoCode(code: string) {
   return requestApi<PromotionalClaim>('/api/rewards/promo-codes/redeem', {
