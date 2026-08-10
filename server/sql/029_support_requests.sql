@@ -1,6 +1,7 @@
 create table if not exists support_requests (
   id uuid primary key default gen_random_uuid(),
   requester_user_id uuid references app_users(id) on delete set null,
+  requester_account_deleted_at timestamptz,
   contact_email text,
   category text not null check (category in ('bug', 'comment', 'question', 'policy')),
   subject text not null,
@@ -12,8 +13,23 @@ create table if not exists support_requests (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check (requester_user_id is not null or nullif(contact_email, '') is not null)
+  constraint support_requests_requester_required_check check (
+    (
+      requester_account_deleted_at is null and
+      (requester_user_id is not null or nullif(contact_email, '') is not null)
+    ) or
+    (
+      requester_account_deleted_at is not null and
+      requester_user_id is null and
+      contact_email is null
+    )
+  )
 );
+
+-- Migrations replay on every deploy. Existing databases need this column before
+-- the account-deletion integrity migration replaces the legacy requester check.
+alter table support_requests
+  add column if not exists requester_account_deleted_at timestamptz;
 
 create index if not exists idx_support_requests_status_created_at
   on support_requests (status, created_at desc);

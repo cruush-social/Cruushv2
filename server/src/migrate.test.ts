@@ -99,6 +99,35 @@ describe("migration runner", () => {
       .rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("keeps account deletion evidence valid across migration replays", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const reportsSql = await readFile(path.join(serverRoot, "sql", "021_reports.sql"), "utf8");
+    const supportSql = await readFile(path.join(serverRoot, "sql", "029_support_requests.sql"), "utf8");
+    const reportTargetsSql = await readFile(path.join(serverRoot, "sql", "033_user_blocks_and_report_targets.sql"), "utf8");
+    const moderationSql = await readFile(path.join(serverRoot, "sql", "036_beta_reporting_admin_moderation.sql"), "utf8");
+    const deletionIntegritySql = await readFile(path.join(serverRoot, "sql", "076_account_deletion_integrity.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"074_map_pings\.sql",\s*"076_account_deletion_integrity\.sql"/);
+    expect(reportsSql).toContain("add column if not exists target_account_deleted_at timestamptz");
+    expect(supportSql).toContain("add column if not exists requester_account_deleted_at timestamptz");
+    expect(reportTargetsSql).toContain("target_account_deleted_at is not null");
+    expect(reportTargetsSql).toContain("target_type = 'user'");
+    expect(moderationSql).toContain("target_account_deleted_at is not null");
+    expect(deletionIntegritySql).toContain("requester_account_deleted_at");
+    expect(deletionIntegritySql).toContain("target_account_deleted_at");
+    expect(deletionIntegritySql).toContain("idx_messages_user_id");
+    expect(deletionIntegritySql).toContain("preserve_account_deletion_evidence");
+    expect(deletionIntegritySql).toContain("guard_deleted_support_reply_recipient");
+    expect(deletionIntegritySql).toContain("support_request_replies_active_requester_check");
+    expect(deletionIntegritySql).toContain("for update of reply");
+    expect(deletionIntegritySql).toContain("request.requester_account_deleted_at = deleted_at");
+    expect(deletionIntegritySql).toContain("post.user_id = old.id");
+    expect(deletionIntegritySql).toContain("message.user_id = old.id");
+    expect(deletionIntegritySql).toContain("order by report.id");
+    expect(deletionIntegritySql).toContain("for update");
+    expect(deletionIntegritySql).toContain("before delete on app_users");
+  });
+
   it("adds the launch party and crowd feed schema after rewards and 2FA", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const launchSql = await readFile(path.join(serverRoot, "sql", "043_launch_party_crowd_feed.sql"), "utf8");

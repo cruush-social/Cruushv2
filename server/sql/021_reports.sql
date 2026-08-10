@@ -3,6 +3,7 @@ create table if not exists reports (
   reporter_user_id uuid not null references app_users(id) on delete cascade,
   target_type text not null check (target_type in ('profile', 'conversation', 'message')),
   target_user_id uuid references app_users(id) on delete set null,
+  target_account_deleted_at timestamptz,
   conversation_id uuid references conversations(id) on delete set null,
   message_id uuid references messages(id) on delete set null,
   reason text not null check (reason in (
@@ -24,11 +25,22 @@ create table if not exists reports (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (
-    (target_type = 'profile' and target_user_id is not null) or
-    (target_type = 'conversation' and conversation_id is not null) or
-    (target_type = 'message' and message_id is not null)
+    (
+      target_account_deleted_at is null and
+      (
+        (target_type = 'profile' and target_user_id is not null) or
+        (target_type = 'conversation' and conversation_id is not null) or
+        (target_type = 'message' and message_id is not null)
+      )
+    ) or
+    (target_account_deleted_at is not null and target_user_id is null)
   )
 );
+
+-- Migrations replay on every deploy. Existing databases need this column before
+-- later canonical report constraints reference it.
+alter table reports
+  add column if not exists target_account_deleted_at timestamptz;
 
 create index if not exists idx_reports_reporter_created_at
   on reports (reporter_user_id, created_at desc);

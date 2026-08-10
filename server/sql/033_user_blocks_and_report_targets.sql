@@ -23,6 +23,7 @@ begin
     select 1
     from pg_constraint
     where conname = 'reports_target_type_check'
+      and conrelid = 'reports'::regclass
   ) then
     alter table reports
       drop constraint reports_target_type_check;
@@ -32,6 +33,7 @@ begin
     select 1
     from pg_constraint
     where conname = 'reports_check'
+      and conrelid = 'reports'::regclass
   ) then
     alter table reports
       drop constraint reports_check;
@@ -41,6 +43,7 @@ begin
     select 1
     from pg_constraint
     where conname = 'reports_target_required_check'
+      and conrelid = 'reports'::regclass
   ) then
     alter table reports
       drop constraint reports_target_required_check;
@@ -49,19 +52,30 @@ end $$;
 
 alter table reports
   add constraint reports_target_type_check
-  check (target_type in ('profile', 'conversation', 'message', 'post', 'profile_photo'));
+  check (target_type in ('user', 'profile', 'conversation', 'message', 'post', 'profile_photo'));
 
 alter table reports
   add constraint reports_target_required_check
   check (
-    (target_type = 'profile' and target_user_id is not null) or
-    (target_type = 'conversation' and conversation_id is not null) or
-    (target_type = 'message' and message_id is not null) or
-    (target_type = 'post' and post_id is not null) or
     (
-      target_type = 'profile_photo' and
-      target_user_id is not null and
-      (nullif(profile_photo_url, '') is not null or media_object_id is not null)
+      target_account_deleted_at is not null and
+      target_user_id is null and
+      (target_type <> 'profile_photo' or profile_photo_url is null)
+    ) or
+    (
+      target_account_deleted_at is null and
+      (
+        (target_type = 'user' and target_user_id is not null) or
+        (target_type = 'profile' and target_user_id is not null) or
+        (target_type = 'conversation' and conversation_id is not null) or
+        (target_type = 'message' and message_id is not null) or
+        (target_type = 'post' and post_id is not null) or
+        (
+          target_type = 'profile_photo' and
+          target_user_id is not null and
+          (nullif(profile_photo_url, '') is not null or media_object_id is not null)
+        )
+      )
     )
   );
 

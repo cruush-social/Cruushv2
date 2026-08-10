@@ -116,6 +116,7 @@ type PasswordCredentialRow = {
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const AUTH_ATTEMPT_MAX = 5;
 const AUTH_ATTEMPT_WINDOW_MS = FIFTEEN_MINUTES_MS;
+const ACCOUNT_DELETION_TRANSACTION_ATTEMPTS = 2;
 // Failed verification attempts against one emailed link. A real user retries a
 // handful of times at most; anything past this is guessing at that token.
 const VERIFICATION_FAILURE_MAX = 10;
@@ -125,6 +126,13 @@ const VERIFICATION_FAILURE_MAX = 10;
 // above AUTH_ATTEMPT_MAX and only charge it for failures.
 const SHARED_IP_FAILURE_MAX = 200;
 const CURRENT_CODE_OF_CONDUCT_VERSION = "2026-07-07";
+
+function isPostgresDeadlock(error: unknown) {
+  return typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "40P01";
+}
 
 const acceptCodeOfConductPayloadSchema = z.object({
   version: z.string().min(1)
@@ -908,37 +916,47 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       throw new ApiError(401, "AUTH_REQUIRED", "Password is incorrect.");
     }
 
-    await runTransaction(app.db, async (db) => {
-      await db.query(
-        `insert into account_deletion_media_cleanup (object_key)
-         select object_key
-         from media_objects
-         where owner_user_id = $1
-         union
-         select variants.object_key
-         from media_variants variants
-         join media_objects media on media.id = variants.media_object_id
-         where media.owner_user_id = $1
-         on conflict (object_key) do nothing`,
-        [session.userId]
-      );
+    for (let attempt = 1; attempt <= ACCOUNT_DELETION_TRANSACTION_ATTEMPTS; attempt += 1) {
+      try {
+        await runTransaction(app.db, async (db) => {
+          await db.query(
+            `insert into account_deletion_media_cleanup (object_key)
+             select object_key
+             from media_objects
+             where owner_user_id = $1
+             union
+             select variants.object_key
+             from media_variants variants
+             join media_objects media on media.id = variants.media_object_id
+             where media.owner_user_id = $1
+             on conflict (object_key) do nothing`,
+            [session.userId]
+          );
 
-      await db.query(
-        "delete from app_sessions where user_id = $1",
-        [session.userId]
-      );
+          await db.query(
+            "delete from app_sessions where user_id = $1",
+            [session.userId]
+          );
 
-      const deletedUser = await db.query<{ id: string }>(
-        `delete from app_users
-         where id = $1
-         returning id`,
-        [session.userId]
-      );
+          const deletedUser = await db.query<{ id: string }>(
+            `delete from app_users
+             where id = $1
+             returning id`,
+            [session.userId]
+          );
 
-      if (!deletedUser.rows[0]) {
-        throw new ApiError(404, "NOT_FOUND", "Account not found.");
+          if (!deletedUser.rows[0]) {
+            throw new ApiError(404, "NOT_FOUND", "Account not found.");
+          }
+        });
+        break;
+      } catch (error) {
+        if (!isPostgresDeadlock(error) || attempt === ACCOUNT_DELETION_TRANSACTION_ATTEMPTS) {
+          throw error;
+        }
+        app.log.warn({ attempt }, "retrying account deletion after database deadlock");
       }
-    });
+    }
 
     clearSessionCookie(reply, request);
 
