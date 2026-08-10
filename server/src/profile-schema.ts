@@ -250,7 +250,8 @@ export type ProfilePayload = z.infer<typeof profilePayloadSchema>;
 export const profileLocationPayloadSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
-  fuzz_radius_meters: z.number().int().min(0).max(500).optional().default(0)
+  fuzz_radius_meters: z.number().int().min(0).max(500).optional().default(0),
+  sync_reason: z.literal("PING").optional()
 }).strict();
 
 export type ProfileLocationPayload = z.infer<typeof profileLocationPayloadSchema>;

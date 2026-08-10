@@ -18,8 +18,6 @@ export type MapMarker = {
   photoExplicit?: boolean;
   isCurrentUser?: boolean;
   displayMode?: 'PRECISE' | 'GHOST';
-  animationHint?: 'NONE' | 'FADE_LAST_MINUTE' | 'SIGNAL_LOSS' | 'REAPPEAR';
-  ghostRotationExpiresAtMs?: number;
   privacyRadiusMeters?: number;
   npcGhostDemo?: boolean;
   activePing?: {

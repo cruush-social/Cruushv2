@@ -2,7 +2,7 @@
   "status": "active",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Prepare the v1.2 map and messaging release locally for approval: add a privacy-safe Ping map activity that also creates a feed post but sends no in-app or push notification, match the approved V2 marker geometry and selected profile icon without the glass navigation redesign, use the Techno Sovereign green for Ping and all popup notifications, constrain the map to the NYC beta service area, make the tutorial target-aware with optional install and general push-permission steps, show senders live message-expiry countdowns, fix quick-access photo uploads, and prepare a public-safe changelog and existing-template announcement preview without publishing.",
+  "job": "Publish the verified v1.2 map and messaging release directly to origin/main, deploy it, and confirm the production SHA and affected live flows; include the privacy-safe Ping map activity and feed post with no Ping notifications, approved V2 marker geometry and profile icon without glass navigation, flat chartreuse accents, NYC beta service boundary, target-aware tutorial, sender expiry countdowns, quick-access upload fix, and public-safe changelog; do not send the announcement email.",
   "base": "origin/main",
   "baseSha": "8d5e7df967aff56d685899ea103fe216ddd33a7f",
   "branch": "agent/ping-feature",
@@ -44,6 +44,8 @@
     "server/src/push-service.test.ts",
     "server/src/push-service.ts",
     "server/src/post-schema.ts",
+    "server/src/profile-schema.test.ts",
+    "server/src/profile-schema.ts",
     "server/src/routes/cruush.ts",
     "server/src/routes/map-pings.ts",
     "server/src/routes/messages.ts",
@@ -78,6 +80,8 @@
     "src/app/components/MobileInstallPrompt.tsx",
     "src/app/components/NotificationSettings.test.tsx",
     "src/app/components/NotificationSettings.tsx",
+    "src/app/components/ProfileOnboarding.test.tsx",
+    "src/app/components/ProfileOnboarding.tsx",
     "src/app/components/ui/sonner.test.tsx",
     "src/app/components/ui/sonner.tsx",
     "src/app/components/PrivateGroupChat.test.tsx",
@@ -94,6 +98,7 @@
     "src/app/lib/bugButtonSlot.test.ts",
     "src/app/lib/bugButtonSlot.ts",
     "src/app/lib/heartPin.ts",
+    "src/app/lib/locationApi.ts",
     "src/app/lib/mapPingsApi.test.ts",
     "src/app/lib/mapPingsApi.ts",
     "src/app/lib/mapServiceArea.test.ts",
@@ -133,16 +138,17 @@
     "The Ping button sits directly below the NYC open beta capsule and remains the real control highlighted by the Ping tutorial step.",
     "V1.2 ships Ghost Mode without animation: Ghost markers remain static and no GhostRotationPulse, final-minute pulse, terminal puff, or rising Ghost runs in the app. Preserve the exact Ghost animation source for V2 only.",
     "The v1.2 announcement email must not promise or show a Ghost animation; reserve that preview for V2.",
+    "Profile onboarding keeps the Crowds prompt but uses explanatory copy only: 'Choose your crowds.' and 'Crowd Mode lets only the active crowds you choose see you on the map. Pick up to three.'; no map-community or gender-identity copy is included in the v1.2 release, and existing T4T filtering tied to 'I am trans' is preserved.",
     "Each successfully created Ping also creates exactly one encrypted feed post from the same moderated signal, uses the sender's last saved feed expiry choice, follows normal local-feed distance, block, and privacy rules, gives no activity reward, and remains idempotent on retries.",
     "Ping accepts no client coordinates, uses only a fresh encrypted server-side location, stores no source coordinates or recipient distances, exposes no delivery count or recipient list, and fails closed when privacy state cannot be verified.",
-    "Ping creates no app notification row, foreground popup, lock-screen push, sound request, or dedicated notification preference; eligible nearby viewers see active Ping styling only on the map, while the automatic post remains normal feed content.",
+    "Ping creates no app notification row, foreground popup, lock-screen push, sound request, or dedicated notification preference; the required fresh-location sync is explicitly marked as a Ping send so it does not trigger the separate nearby-location notification path; eligible nearby viewers see active Ping styling only on the map, while the automatic post remains normal feed content.",
     "Stealth Mode cannot Ping; Ghost Mode uses only each viewer's existing viewer-specific displayed heart location.",
     "Eligible Ping map viewers must have a server location updated within the last hour; expired Ping records are deleted after seven days by a fixed scheduler, while the feed post follows the sender's saved expiry choice; no new environment variables are added.",
     "No payment, checkout, top-up, subscription purchase, billing provider, or paid-credit code ships in this branch.",
     "The map is bounded to the fifteen-mile NYC beta service area around the approved operating center; public release copy never publishes the street address or internal coordinates.",
     "Install and notification tutorial steps are independently skippable; a dedicated Ping tutorial page spotlights and opens the real Ping control; all tutorial steps visibly highlight their actual action or map control, and the card never overlaps the target or bottom navigation.",
     "Only senders see a live remaining-time status on expiring messages; permanent and recipient messages remain unchanged.",
-    "Publication is paused: no commit or push to main and no Resend test-send or broadcast may occur until Julien explicitly approves the final rendered app and email previews."
+    "Julien authorized the verified v1.2 release to origin/main on 2026-08-10; all required tests must pass before push, production deployment and affected flows must be verified afterward, and no Resend test-send or broadcast is authorized."
   ],
   "nonGoals": [
     "Do not add payment, top-up, checkout, provider, or new subscription code; reserve those changes for V2 worktree branches.",
@@ -177,17 +183,17 @@
       "Mobile and desktop rendered tutorial screenshots prove every step highlights its target and the card overlaps neither target nor bottom navigation.",
       "Rendered map proof shows pan and zoom-out cannot expose beyond the approved fifteen-mile service boundary.",
       "Rendered chat proof shows a sender-only live expiry countdown for text and photo messages.",
-      "Only allowed paths are modified, no secrets are exposed, and .claude-octopus state files remain unstaged; no commit, push, deploy, email test-send, or broadcast occurs during this local approval task.",
+      "Only allowed paths are staged, no secrets are exposed, and .claude-octopus state files remain unstaged; commit and push occur only after every required pre-push check passes, and no email test-send or broadcast occurs.",
       "The site-wide announcement is rendered locally from the existing design with public-safe v1.2 copy, working CTA, mailto contact, and the Resend unsubscribe placeholder, then shown to Julien without sending it.",
-      "Final local evidence is shown to Julien and publication remains paused for a separate explicit approval."
+      "The pushed origin/main SHA, production deployment SHA, and affected authenticated production flows are verified independently."
     ]
   },
   "externalActions": [
-    "After explicit final approval, push the verified authorized commit directly to origin/main only after every required local test and scope check passes.",
+    "Push the verified authorized commit directly to origin/main only after every required local test and scope check passes.",
     "Confirm the production deployment SHA and authenticated rendered flows after push.",
     "Use the existing Resend template with alias cruush-site-wide-announcement as the visual source.",
     "Send one v1.2 All Contacts announcement only after the changelog and product changes are live and the audience, suppression, unsubscribe behavior, CTA, preview, and test email are verified."
   ],
-  "publicationTarget": "none",
+  "publicationTarget": "main",
   "environmentChanges": []
 }

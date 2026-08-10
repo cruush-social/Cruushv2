@@ -31,7 +31,7 @@ import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto, setDlModeEnabled } from '../lib/dlMode';
 import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
-import { syncMyLocation } from '../lib/locationApi';
+import { syncMyLocation, type ProfileLocationPayload } from '../lib/locationApi';
 import {
   getMapPingStatus,
   sendMapPing,
@@ -77,8 +77,6 @@ const CROWD_NOTICE_LABELS: Record<string, string> = {
 const MAP_VIEWPORT_RESTORE_STORAGE_KEY = 'cruush:map-viewport-restore';
 const MAP_PING_STATUS_REFRESH_INTERVAL_MS = 20_000;
 const MAP_PING_IDEMPOTENCY_RETRY_WINDOW_MS = 10 * 60 * 1000;
-const GHOST_ROTATION_EXIT_MS = 1_250;
-const GHOST_ROTATION_REFRESH_RETRY_MS = 5_000;
 
 const MapView = lazy(() => import('./MapView'));
 
@@ -297,8 +295,6 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
     photo: item.user.photo,
     badges: item.user.badges,
     displayMode: item.coordinates?.precision === 'precise' ? 'PRECISE' : 'GHOST',
-    animationHint: item.animationHint,
-    ghostRotationExpiresAtMs: item.ghostRotationExpiresAtMs,
     displayExpiresAtMs: item.displayExpiresAtMs,
     relationship: {
       mutualCruush: true,
@@ -488,7 +484,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const latestLocationSyncRef = useRef<Promise<unknown> | null>(null);
   const mapPingStatusRequestIdRef = useRef(0);
   const pendingMapPingRequestRef = useRef<{ idempotencyKey: string; createdAt: number } | null>(null);
-  const ghostExitMarkersRef = useRef(new Map<string, { deadlineMs: number; marker: MapMarker }>());
   const shouldAlignRecentlyActiveWithPreview = !isMobile && Boolean(selectedUser || luckySlot);
   const recentlyActiveDragRef = useRef({
     hasPointerCapture: false,
@@ -507,11 +502,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const hasCruushPlus = billingStatus?.cruushPlus !== false;
 
 
-  const syncApproximateMapLocation = (approximateLocation: ApproximateCoordinates) => {
+  const syncApproximateMapLocation = (
+    approximateLocation: ApproximateCoordinates,
+    syncReason?: ProfileLocationPayload['sync_reason'],
+  ) => {
     const syncPromise = syncMyLocation({
       lat: approximateLocation.approximateLatitude,
       lng: approximateLocation.approximateLongitude,
       fuzz_radius_meters: approximateLocation.privacyRadiusMeters,
+      ...(syncReason ? { sync_reason: syncReason } : {}),
     })
       .then((syncedLocation) => {
         setCurrentProfile((profile) => profile
@@ -623,49 +622,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
       window.removeEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadBillingStatus);
     };
   }, []);
-
-  useEffect(() => {
-    const expiresAtMs = privacySettings.ghostRotationExpiresAtMs;
-
-    if (!privacySettings.ghostModeEnabled || typeof expiresAtMs !== 'number') {
-      return;
-    }
-
-    let cancelled = false;
-    let refreshTimer: number | null = null;
-    const scheduleRefresh = (delayMs: number) => {
-      refreshTimer = window.setTimeout(() => {
-        void getMyPrivacySettings()
-          .then((nextSettings) => {
-            if (cancelled) {
-              return;
-            }
-
-            if (nextSettings.ghostModeEnabled && nextSettings.ghostRotationExpiresAtMs === expiresAtMs) {
-              scheduleRefresh(GHOST_ROTATION_REFRESH_RETRY_MS);
-              return;
-            }
-
-            setPrivacySettings(nextSettings);
-          })
-          .catch((refreshError) => {
-            console.warn('Error refreshing Ghost Mode rotation deadline:', refreshError);
-            if (!cancelled) {
-              scheduleRefresh(GHOST_ROTATION_REFRESH_RETRY_MS);
-            }
-          });
-      }, delayMs);
-    };
-
-    scheduleRefresh(Math.max(0, expiresAtMs - Date.now() + GHOST_ROTATION_EXIT_MS));
-
-    return () => {
-      cancelled = true;
-      if (refreshTimer != null) {
-        window.clearTimeout(refreshTimer);
-      }
-    };
-  }, [privacySettings.ghostModeEnabled, privacySettings.ghostRotationExpiresAtMs]);
 
   useEffect(() => {
     if (!profileLoaded || !currentProfile || typeof window === 'undefined') {
@@ -991,7 +947,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
     });
   }, [filters, isMutualMapMode, userApproximateLocation]);
 
-  const applyBrowserPositionToMap = (position: GeolocationPosition, centerAfterUpdate = false) => {
+  const applyBrowserPositionToMap = (
+    position: GeolocationPosition,
+    centerAfterUpdate = false,
+    syncReason?: ProfileLocationPayload['sync_reason'],
+  ) => {
     // Exact browser coordinates stay local here. They are only used as the
     // camera target when recentering yourself; shared map data stays approximate.
     const approximateLocation = approximateDisplayCoordinates({
@@ -1010,7 +970,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setEventPassCoordinates(browserCoordinates);
     setUserApproximateLocation(approximateLocation);
     setLocationStatus('ready');
-    syncApproximateMapLocation(approximateLocation);
+    syncApproximateMapLocation(approximateLocation, syncReason);
     if (centerAfterUpdate) {
       const exactCameraCoordinates = {
         approximateLatitude: browserCoordinates.latitude,
@@ -1092,7 +1052,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setLocationStatus('locating');
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        applyBrowserPositionToMap(position);
+        applyBrowserPositionToMap(position, false, 'PING');
         resolve();
       },
       () => {
@@ -1553,36 +1513,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
   };
 
   const mapMarkers = useMemo<MapMarker[]>(() => {
-    const nowMs = Date.now();
-    const preserveOutgoingGhostMarker = (marker: MapMarker) => {
-      const saved = ghostExitMarkersRef.current.get(marker.id);
-
-      if (
-        saved &&
-        nowMs >= saved.deadlineMs &&
-        nowMs < saved.deadlineMs + GHOST_ROTATION_EXIT_MS
-      ) {
-        return saved.marker;
-      }
-
-      if (marker.displayMode === 'GHOST' && typeof marker.ghostRotationExpiresAtMs === 'number') {
-        ghostExitMarkersRef.current.set(marker.id, {
-          deadlineMs: marker.ghostRotationExpiresAtMs,
-          marker,
-        });
-      } else {
-        ghostExitMarkersRef.current.delete(marker.id);
-      }
-
-      return marker;
-    };
     const activeReceivedPings = new Map(
       (mapPingStatus?.receivedPings ?? [])
         .filter((ping) => Date.parse(ping.expiresAt) > mapPingClock)
         .map((ping) => [ping.sourceUserId, { id: ping.id, expiresAt: ping.expiresAt }]),
     );
     const nearbyMarkers = displayedUsers.map((user) => {
-      return preserveOutgoingGhostMarker({
+      return {
         id: user.id,
         userId: user.id,
         kind: 'person',
@@ -1595,8 +1532,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
         photo: user.photo,
         photoExplicit: user.photoExplicit,
         badge: createMapMarkerBadge(user.position, user.hostingTravel),
-        animationHint: user.animationHint,
-        ghostRotationExpiresAtMs: user.ghostRotationExpiresAtMs,
         displayMode: user.displayMode,
         privacyRadiusMeters: user.privacyRadiusMeters,
         npcGhostDemo: user.npcGhostDemo,
@@ -1608,7 +1543,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               canMessage: user.relationship.canMessage,
             }
           : null,
-      });
+      };
     });
 
     const eventMarkers = activeEvents.map((event) => ({
@@ -1628,16 +1563,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }));
 
     if (!currentUserMapLocation) {
-      const visibleMarkerIds = new Set(nearbyMarkers.map((marker) => marker.id));
-      for (const markerId of ghostExitMarkersRef.current.keys()) {
-        if (!visibleMarkerIds.has(markerId)) {
-          ghostExitMarkersRef.current.delete(markerId);
-        }
-      }
       return [...nearbyMarkers, ...eventMarkers];
     }
 
-    const currentUserMarker = preserveOutgoingGhostMarker({
+    const currentUserMarker: MapMarker = {
       id: 'me',
       userId: currentProfile?.id ?? 'me',
       displayName: 'You',
@@ -1648,20 +1577,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
       photo: currentProfile?.photos[0] ?? null,
       isCurrentUser: true,
       badge: createMapMarkerBadge(currentProfile?.position ?? []),
-      animationHint: privacySettings.animationHint,
-      ghostRotationExpiresAtMs: privacySettings.ghostRotationExpiresAtMs,
       displayMode: privacySettings.ghostModeEnabled ? 'GHOST' : 'PRECISE',
       privacyRadiusMeters: privacySettings.ghostRadiusMeters,
       activePing: mapPingStatus?.activePing && Date.parse(mapPingStatus.activePing.expiresAt) > mapPingClock
         ? mapPingStatus.activePing
         : null,
-    });
-    const visibleMarkerIds = new Set(['me', ...nearbyMarkers.map((marker) => marker.id)]);
-    for (const markerId of ghostExitMarkersRef.current.keys()) {
-      if (!visibleMarkerIds.has(markerId)) {
-        ghostExitMarkersRef.current.delete(markerId);
-      }
-    }
+    };
 
     return [
       currentUserMarker,

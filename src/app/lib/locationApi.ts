@@ -5,6 +5,7 @@ export type ProfileLocationPayload = {
   lat: number;
   lng: number;
   fuzz_radius_meters?: number;
+  sync_reason?: 'PING';
 };
 
 export type ProfileLocationRecord = {

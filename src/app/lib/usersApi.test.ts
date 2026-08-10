@@ -113,10 +113,10 @@ describe('usersApi', () => {
       lat: 40.714,
       lng: -74.004,
       displayMode: 'GHOST',
-      animationHint: 'FADE_LAST_MINUTE',
-      ghostRotationExpiresAtMs: 1780520030000,
       privacyRadiusMeters: 1609,
       npcGhostDemo: true,
     });
+    expect(users[0]).not.toHaveProperty('animationHint');
+    expect(users[0]).not.toHaveProperty('ghostRotationExpiresAtMs');
   });
 });

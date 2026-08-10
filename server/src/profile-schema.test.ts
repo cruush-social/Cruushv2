@@ -1,7 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { ageFromDateOfBirth, emptyProfile, profilePayloadSchema } from "./profile-schema.js";
+import {
+  ageFromDateOfBirth,
+  emptyProfile,
+  profileLocationPayloadSchema,
+  profilePayloadSchema
+} from "./profile-schema.js";
 
 describe("profile schema", () => {
+  it("accepts only PING as the optional location sync reason", () => {
+    const ordinaryLocation = profileLocationPayloadSchema.parse({
+      lat: 40.711,
+      lng: -74.002,
+      fuzz_radius_meters: 50
+    });
+    const pingLocation = profileLocationPayloadSchema.parse({
+      lat: 40.711,
+      lng: -74.002,
+      fuzz_radius_meters: 50,
+      sync_reason: "PING"
+    });
+
+    expect(ordinaryLocation).not.toHaveProperty("sync_reason");
+    expect(pingLocation.sync_reason).toBe("PING");
+    expect(() => profileLocationPayloadSchema.parse({
+      lat: 40.711,
+      lng: -74.002,
+      sync_reason: "BACKGROUND"
+    })).toThrow();
+  });
+
   it("accepts app-owned uploaded profile photo paths", () => {
     const uploadedPhotoPath = "/api/media/assets/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2/display";
 

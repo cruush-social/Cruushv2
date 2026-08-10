@@ -272,8 +272,6 @@ vi.mock('./MapView', async () => {
               data-can-message={String(marker.relationship?.canMessage ?? '')}
               data-precision={marker.relationship?.precision ?? ''}
               data-display-mode={marker.displayMode ?? ''}
-              data-animation-hint={marker.animationHint ?? ''}
-              data-ghost-rotation-expires-at={marker.ghostRotationExpiresAtMs == null ? '' : String(marker.ghostRotationExpiresAtMs)}
               data-npc-ghost-demo={String(Boolean(marker.npcGhostDemo))}
               data-active-ping={marker.activePing?.id ?? ''}
               key={`marker-data-${marker.id}`}
@@ -717,6 +715,10 @@ describe('MapHome', () => {
       expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(2);
       expect(syncMyLocation).toHaveBeenCalledTimes(2);
     });
+    expect(syncMyLocation.mock.calls[0]?.[0]).not.toHaveProperty('sync_reason');
+    expect(syncMyLocation.mock.calls[1]?.[0]).toEqual(expect.objectContaining({
+      sync_reason: 'PING',
+    }));
     expect(sendMapPing).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -1117,7 +1119,7 @@ describe('MapHome', () => {
     expect(dlModeIcon?.getAttribute('src')).toContain('dl-mode-colored');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
-    expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
+    expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White'); // ai-contract-allow-product-example
     expect(locationButton).toHaveClass('rounded-full', 'bg-background/55');
     expect(locationButton.querySelector('svg')).toHaveClass('h-4', 'w-4');
     expect(screen.queryByText('DL Mode Active')).not.toBeInTheDocument();
@@ -1863,7 +1865,6 @@ describe('MapHome', () => {
   it('uses the saved display-token location for initial discovery', async () => {
     useIsMobile.mockReturnValue(false);
     window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
-    const ghostRotationExpiresAtMs = Date.now() + 15 * 60_000;
     const displayLocationToken = {
       version: 1 as const,
       tokenId: 'owner-token',
@@ -1904,12 +1905,10 @@ describe('MapHome', () => {
       longitude: -74.006,
     });
     getMyPrivacySettings.mockResolvedValueOnce({
-      animationHint: 'FADE_LAST_MINUTE',
       baseMode: 'GHOST',
       ghostModeEnabled: true,
       ghostRadiusMeters: 1609,
       ghostRadiusLabel: '1 mi',
-      ghostRotationExpiresAtMs,
       preciseToMutualCruushes: false,
       preciseToMutualCrowds: [],
       preciseLocationVisibility: 'none',
@@ -1936,8 +1935,8 @@ describe('MapHome', () => {
       { limit: 500 },
     ]);
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-display-mode', 'GHOST');
-    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-animation-hint', 'FADE_LAST_MINUTE');
-    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-ghost-rotation-expires-at', String(ghostRotationExpiresAtMs));
+    expect(screen.getByTestId('marker-me')).not.toHaveAttribute('data-animation-hint');
+    expect(screen.getByTestId('marker-me')).not.toHaveAttribute('data-ghost-rotation-expires-at');
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lat', '40.7128');
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lng', '-74.006');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '1609');
@@ -1947,190 +1946,6 @@ describe('MapHome', () => {
     expect(decodeURIComponent(screen.getByRole('button', { name: 'Ghost Mode Settings' }).querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
     expect(decodeURIComponent(screen.getByText('Ghost Mode Active').querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
-  });
-
-  it('refreshes the signed-in Ghost rotation deadline after it expires', async () => {
-    useIsMobile.mockReturnValue(false);
-    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
-    const expiredDeadline = Date.now() - 1_000;
-    const nextDeadline = Date.now() + 15 * 60_000;
-    const settings = {
-      baseMode: 'GHOST' as const,
-      ghostModeEnabled: true,
-      ghostRadiusMeters: 1609,
-      ghostRadiusLabel: '1 mi',
-      preciseToMutualCruushes: false,
-      preciseToMutualCrowds: [],
-      preciseLocationVisibility: 'none' as const,
-      updatedAtMs: Date.now(),
-    };
-
-    getMyProfile.mockResolvedValue({
-      photos: ['https://example.com/me.jpg'],
-      position: ['Bottom'],
-      location: {
-        id: 'me',
-        lat: 40.7128,
-        lng: -74.006,
-        fuzzy_lat: 40.713,
-        fuzzy_lng: -74.005,
-        fuzz_radius_meters: 250,
-        location_updated_at: '2026-06-02T12:00:00.000Z',
-      },
-    });
-    getMyPrivacySettings
-      .mockResolvedValueOnce({
-        ...settings,
-        animationHint: 'SIGNAL_LOSS',
-        ghostRotationExpiresAtMs: expiredDeadline,
-      })
-      .mockResolvedValueOnce({
-        ...settings,
-        animationHint: 'NONE',
-        ghostRotationExpiresAtMs: nextDeadline,
-      });
-
-    render(
-      <MemoryRouter initialEntries={['/map']}>
-        <Routes>
-          <Route path="/map" element={<MapHome />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => expect(getMyPrivacySettings).toHaveBeenCalledTimes(2));
-    await waitFor(() => {
-      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-animation-hint', 'NONE');
-      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-ghost-rotation-expires-at', String(nextDeadline));
-    });
-  });
-
-  it('retries the signed-in Ghost deadline refresh when the server returns the expired deadline', async () => {
-    useIsMobile.mockReturnValue(false);
-    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
-    const expiredDeadline = Date.now() - 2_000;
-    const nextDeadline = Date.now() + 15 * 60_000;
-    const settings = {
-      baseMode: 'GHOST' as const,
-      ghostModeEnabled: true,
-      ghostRadiusMeters: 1609,
-      ghostRadiusLabel: '1 mi',
-      preciseToMutualCruushes: false,
-      preciseToMutualCrowds: [],
-      preciseLocationVisibility: 'none' as const,
-      updatedAtMs: Date.now(),
-    };
-    const expiredSettings = {
-      ...settings,
-      animationHint: 'SIGNAL_LOSS' as const,
-      ghostRotationExpiresAtMs: expiredDeadline,
-    };
-    getMyPrivacySettings
-      .mockResolvedValueOnce(expiredSettings)
-      .mockResolvedValueOnce(expiredSettings)
-      .mockResolvedValueOnce({
-        ...settings,
-        animationHint: 'NONE',
-        ghostRotationExpiresAtMs: nextDeadline,
-      });
-    const timeoutSpy = vi.spyOn(window, 'setTimeout');
-
-    try {
-      render(
-        <MemoryRouter initialEntries={['/map']}>
-          <Routes>
-            <Route path="/map" element={<MapHome />} />
-          </Routes>
-        </MemoryRouter>,
-      );
-
-      await waitFor(() => expect(getMyPrivacySettings).toHaveBeenCalledTimes(2));
-      const retryCall = timeoutSpy.mock.calls.find(([, delayMs]) => delayMs === 5_000);
-      expect(retryCall).toBeDefined();
-
-      await act(async () => {
-        retryCall?.[0]();
-        await Promise.resolve();
-      });
-
-      await waitFor(() => expect(getMyPrivacySettings).toHaveBeenCalledTimes(3));
-      await waitFor(() => {
-        expect(screen.getByTestId('marker-me')).toHaveAttribute('data-animation-hint', 'NONE');
-        expect(screen.getByTestId('marker-me')).toHaveAttribute('data-ghost-rotation-expires-at', String(nextDeadline));
-      });
-    } finally {
-      timeoutSpy.mockRestore();
-    }
-  });
-
-  it('keeps an outgoing viewed Ghost marker through its one-shot exit before accepting the next deadline', async () => {
-    useIsMobile.mockReturnValue(false);
-    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
-    const baseNow = new Date('2026-08-09T16:00:00.000Z').getTime();
-    const oldDeadline = baseNow + 9_500;
-    const nextDeadline = baseNow + 15 * 60_000;
-    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(baseNow);
-    const oldGhost = {
-      id: 'ghost-rotating',
-      name: 'River',
-      display_name: 'River',
-      age: 29,
-      pronouns: 'they/them',
-      lat: 40.71,
-      lng: -73.91,
-      lastActive: 'Now',
-      distance: '1 mi',
-      lookingFor: [],
-      vibes: [],
-      position: ['Top'],
-      hostingTravel: [],
-      photo: null,
-      displayMode: 'GHOST' as const,
-      animationHint: 'FADE_LAST_MINUTE' as const,
-      ghostRotationExpiresAtMs: oldDeadline,
-    };
-    const nextGhost = {
-      ...oldGhost,
-      lat: 40.72,
-      lng: -73.92,
-      animationHint: 'NONE' as const,
-      ghostRotationExpiresAtMs: nextDeadline,
-    };
-    let currentGhost = oldGhost;
-    getNearbyUsers.mockImplementation(async () => [currentGhost]);
-
-    try {
-      render(
-        <MemoryRouter initialEntries={['/map']}>
-          <Routes>
-            <Route path="/map" element={<MapHome />} />
-          </Routes>
-        </MemoryRouter>,
-      );
-
-      const marker = await screen.findByTestId('marker-ghost-rotating');
-      expect(marker).toHaveAttribute('data-ghost-rotation-expires-at', String(oldDeadline));
-      expect(marker).toHaveAttribute('data-lat', '40.71');
-      const initialRequestCount = getNearbyUsers.mock.calls.length;
-
-      currentGhost = nextGhost;
-      nowSpy.mockReturnValue(oldDeadline + 600);
-      window.dispatchEvent(new Event('focus'));
-      await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(initialRequestCount));
-      expect(marker).toHaveAttribute('data-ghost-rotation-expires-at', String(oldDeadline));
-      expect(marker).toHaveAttribute('data-lat', '40.71');
-
-      const midExitRequestCount = getNearbyUsers.mock.calls.length;
-      nowSpy.mockReturnValue(oldDeadline + 1_300);
-      window.dispatchEvent(new Event('focus'));
-      await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(midExitRequestCount));
-      await waitFor(() => {
-        expect(marker).toHaveAttribute('data-ghost-rotation-expires-at', String(nextDeadline));
-        expect(marker).toHaveAttribute('data-lat', '40.72');
-      });
-    } finally {
-      nowSpy.mockRestore();
-    }
   });
 
   it('does not expose the retired NPC Ghost Test discovery path for developer tools sessions', async () => {

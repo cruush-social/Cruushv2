@@ -60,7 +60,7 @@ describe('cruushApi', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('keeps the server Ghost rotation deadline on mutual map profiles', async () => {
+  it('does not expose V2 Ghost animation metadata on mutual map profiles', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       text: vi.fn().mockResolvedValue(JSON.stringify({
@@ -95,13 +95,13 @@ describe('cruushApi', () => {
     const profiles = await getMutualCruushMap();
 
     expect(profiles[0]).toMatchObject({
-      animationHint: 'FADE_LAST_MINUTE',
-      ghostRotationExpiresAtMs: 1780520030000,
       coordinates: {
         lat: 40.714,
         lng: -74.004,
         precision: 'fuzzy',
       },
     });
+    expect(profiles[0]).not.toHaveProperty('animationHint');
+    expect(profiles[0]).not.toHaveProperty('ghostRotationExpiresAtMs');
   });
 });

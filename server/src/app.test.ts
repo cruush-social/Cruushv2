@@ -24,6 +24,14 @@ import {
 import { encryptMediaBytes } from "./media-encryption.js";
 import { deleteEncryptedMediaObject, readEncryptedMediaObject, writeEncryptedMediaObject } from "./media-storage.js";
 
+const { notifyNearbyUsersForLocationUpdate } = vi.hoisted(() => ({
+  notifyNearbyUsersForLocationUpdate: vi.fn()
+}));
+
+vi.mock("./nearby-notifications.js", () => ({
+  notifyNearbyUsersForLocationUpdate
+}));
+
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
 const rateLimiter = createMemoryRateLimiter();
@@ -31,7 +39,7 @@ const app = buildServer({
   NODE_ENV: "test",
   PORT: 3001,
   HOST: "127.0.0.1",
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  DATABASE_URL: "postgres://localhost:5432/cruush",
   CORS_ORIGIN: "http://localhost:5173",
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
@@ -67,7 +75,7 @@ const developmentApp = buildServer({
   NODE_ENV: "development",
   PORT: 3001,
   HOST: "127.0.0.1",
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  DATABASE_URL: "postgres://localhost:5432/cruush",
   CORS_ORIGIN: "http://localhost:5173",
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
@@ -99,7 +107,7 @@ const lockedDevelopmentApp = buildServer({
   NODE_ENV: "development",
   PORT: 3001,
   HOST: "127.0.0.1",
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  DATABASE_URL: "postgres://localhost:5432/cruush",
   CORS_ORIGIN: "http://localhost:5173",
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
@@ -131,7 +139,7 @@ const productionApp = buildServer({
   NODE_ENV: "production",
   PORT: 3001,
   HOST: "127.0.0.1",
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  DATABASE_URL: "postgres://localhost:5432/cruush",
   CORS_ORIGIN: "http://localhost:5173",
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
@@ -163,7 +171,7 @@ const corsApp = buildServer({
   NODE_ENV: "test",
   PORT: 3001,
   HOST: "127.0.0.1",
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  DATABASE_URL: "postgres://localhost:5432/cruush",
   CORS_ORIGIN: "https://www.cruush.app,https://staging.cruush.app",
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
@@ -195,7 +203,7 @@ const emailLinkApp = buildServer({
   NODE_ENV: "test",
   PORT: 3001,
   HOST: "127.0.0.1",
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  DATABASE_URL: "postgres://localhost:5432/cruush",
   CORS_ORIGIN: "https://www.cruush.app,https://staging.cruush.app",
   SESSION_SECRET: "test-secret",
   APP_URL: "https://api.cruush.test",
@@ -227,7 +235,7 @@ const turnstileApp = buildServer({
   NODE_ENV: "test",
   PORT: 3001,
   HOST: "127.0.0.1",
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  DATABASE_URL: "postgres://localhost:5432/cruush",
   CORS_ORIGIN: "http://localhost:5173",
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
@@ -267,6 +275,10 @@ afterAll(async () => {
 
 beforeEach(() => {
   query.mockReset().mockResolvedValue({ rows: [] });
+  notifyNearbyUsersForLocationUpdate.mockReset().mockResolvedValue({
+    attempted: false,
+    sent: 0
+  });
   end.mockClear();
   rateLimiter.reset?.();
 });
@@ -715,7 +727,7 @@ describe("server", () => {
       APP_BUILD_SHA: "f230afbcf9247390dfe5b3b0ce63d97d839ce6c4",
       PORT: 3001,
       HOST: "127.0.0.1",
-      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+      DATABASE_URL: "postgres://localhost:5432/cruush",
       CORS_ORIGIN: "http://localhost:5173",
       SESSION_SECRET: "test-secret",
       APP_URL: "https://cruush.test",
@@ -10471,77 +10483,15 @@ describe("server", () => {
     });
   });
 
-  it("returns only the current server deadline needed to animate the signed-in Ghost heart", async () => {
-    const nowMs = Date.parse("2026-08-09T16:00:00.000Z");
-    const anchorMs = nowMs - 14 * 60_000 - 30_000;
-    const rotationExpiresAtMs = nowMs + 30_000;
-    const policy = await encryptedVisibilityPolicyRow({
-      subjectUserId: userId,
-      baseMode: "GHOST"
-    });
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(nowMs);
-
-    query.mockImplementation(async (sql: string) => {
-      const text = String(sql);
-
-      if (text.includes("from encrypted_visibility_tokens")) {
-        return { rows: [policy] };
-      }
-
-      if (text.includes("select ghost_mode_anchor_ms, ghost_pulse_enabled")) {
-        return {
-          rows: [{
-            ghost_mode_anchor_ms: anchorMs,
-            ghost_pulse_enabled: true
-          }]
-        };
-      }
-
-      return { rows: [] };
-    });
-
-    try {
-      const response = await app.inject({
-        method: "GET",
-        url: "/api/profiles/me/privacy-settings",
-        headers: {
-          "x-user-id": userId
-        }
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(response.json().data).toEqual(expect.objectContaining({
-        baseMode: "GHOST",
-        ghostModeEnabled: true,
-        animationHint: "FADE_LAST_MINUTE",
-        ghostRotationExpiresAtMs: rotationExpiresAtMs
-      }));
-      expect(response.body).not.toContain("ghost_mode_anchor_ms");
-    } finally {
-      nowSpy.mockRestore();
-    }
-  });
-
-  it("omits a Ghost rotation deadline when the heartbeat preference is off", async () => {
+  it("returns static v1.2 Ghost privacy settings without animation metadata", async () => {
     const policy = await encryptedVisibilityPolicyRow({
       subjectUserId: userId,
       baseMode: "GHOST"
     });
 
     query.mockImplementation(async (sql: string) => {
-      const text = String(sql);
-
-      if (text.includes("from encrypted_visibility_tokens")) {
+      if (String(sql).includes("from encrypted_visibility_tokens")) {
         return { rows: [policy] };
-      }
-
-      if (text.includes("select ghost_mode_anchor_ms, ghost_pulse_enabled")) {
-        return {
-          rows: [{
-            ghost_mode_anchor_ms: Date.now(),
-            ghost_pulse_enabled: false
-          }]
-        };
       }
 
       return { rows: [] };
@@ -10558,95 +10508,58 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toEqual(expect.objectContaining({
       baseMode: "GHOST",
-      animationHint: "NONE"
+      ghostModeEnabled: true
     }));
+    expect(response.json().data).not.toHaveProperty("animationHint");
     expect(response.json().data).not.toHaveProperty("ghostRotationExpiresAtMs");
+    expect(query.mock.calls.some(([sql]) => /ghost_mode_anchor_ms|ghost_pulse_enabled/.test(String(sql)))).toBe(false);
   });
 
-  it("returns the new server rotation deadline when Ghost Mode is enabled", async () => {
-    const nowMs = Date.parse("2026-08-09T16:00:00.000Z");
+  it("keeps the Ghost privacy response static when Ghost Mode is enabled", async () => {
     const currentPolicy = await encryptedVisibilityPolicyRow({
       subjectUserId: userId,
       baseMode: "PUBLIC_PRECISE"
     });
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(nowMs);
 
     query.mockImplementation(async (sql: string) => {
-      const text = String(sql);
-
-      if (text.includes("from encrypted_visibility_tokens")) {
+      if (String(sql).includes("from encrypted_visibility_tokens")) {
         return { rows: [currentPolicy] };
-      }
-
-      if (text.includes("select ghost_mode_anchor_ms, ghost_pulse_enabled")) {
-        return {
-          rows: [{
-            ghost_mode_anchor_ms: nowMs,
-            ghost_pulse_enabled: true
-          }]
-        };
       }
 
       return { rows: [] };
     });
 
-    try {
-      const response = await app.inject({
-        method: "PUT",
-        url: "/api/profiles/me/privacy-settings",
-        headers: {
-          "x-user-id": userId
-        },
-        payload: {
-          baseMode: "GHOST",
-          ghostRadiusMeters: 1609
-        }
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(response.json().data).toEqual(expect.objectContaining({
-        baseMode: "GHOST",
-        animationHint: "NONE",
-        ghostRotationExpiresAtMs: nowMs + 15 * 60_000
-      }));
-      expect(response.body).not.toContain("ghost_mode_anchor_ms");
-    } finally {
-      nowSpy.mockRestore();
-    }
-  });
-
-  it("returns the saved Ghost Mode heartbeat preference and defaults missing rows to on", async () => {
-    query.mockResolvedValueOnce({ rows: [{ ghost_pulse_enabled: false }] });
-
-    const savedResponse = await app.inject({
-      method: "GET",
-      url: "/api/privacy/ghost-pulse",
-      headers: {
-        "x-user-id": userId
-      }
-    });
-
-    expect(savedResponse.statusCode).toBe(200);
-    expect(savedResponse.json()).toEqual({ data: { enabled: false } });
-    expect(query.mock.calls[0]?.[0]).toContain("select ghost_pulse_enabled");
-
-    query.mockReset().mockResolvedValue({ rows: [] });
-    const defaultResponse = await app.inject({
-      method: "GET",
-      url: "/api/privacy/ghost-pulse",
-      headers: {
-        "x-user-id": userId
-      }
-    });
-
-    expect(defaultResponse.statusCode).toBe(200);
-    expect(defaultResponse.json()).toEqual({ data: { enabled: true } });
-  });
-
-  it("saves the Ghost Mode heartbeat preference with a strict boolean payload", async () => {
-    query.mockResolvedValueOnce({ rows: [{ ghost_pulse_enabled: false }] });
-
     const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/privacy-settings",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        baseMode: "GHOST",
+        ghostRadiusMeters: 1609
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual(expect.objectContaining({
+      baseMode: "GHOST",
+      ghostModeEnabled: true
+    }));
+    expect(response.json().data).not.toHaveProperty("animationHint");
+    expect(response.json().data).not.toHaveProperty("ghostRotationExpiresAtMs");
+    expect(query.mock.calls.some(([sql]) => /ghost_mode_anchor_ms|ghost_pulse_enabled/.test(String(sql)))).toBe(false);
+  });
+
+  it("does not expose the V2-only Ghost pulse preference routes", async () => {
+    const getResponse = await app.inject({
+      method: "GET",
+      url: "/api/privacy/ghost-pulse",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const putResponse = await app.inject({
       method: "PUT",
       url: "/api/privacy/ghost-pulse",
       headers: {
@@ -10657,24 +10570,8 @@ describe("server", () => {
       }
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ data: { enabled: false } });
-    expect(query.mock.calls[0]?.[0]).toContain("insert into user_privacy_settings (user_id, ghost_pulse_enabled)");
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, false]);
-
-    query.mockReset().mockResolvedValue({ rows: [] });
-    const invalidResponse = await app.inject({
-      method: "PUT",
-      url: "/api/privacy/ghost-pulse",
-      headers: {
-        "x-user-id": userId
-      },
-      payload: {
-        enabled: "yes"
-      }
-    });
-
-    expect(invalidResponse.statusCode).toBe(400);
+    expect(getResponse.statusCode).toBe(404);
+    expect(putResponse.statusCode).toBe(404);
     expect(query).not.toHaveBeenCalled();
   });
 
@@ -13074,6 +12971,27 @@ describe("server", () => {
     });
     expect(response.json().data).not.toHaveProperty("lat");
     expect(response.json().data).not.toHaveProperty("lng");
+    expect(notifyNearbyUsersForLocationUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores a Ping location sync without dispatching nearby notifications", async () => {
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/location",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        lat: 40.711,
+        lng: -74.002,
+        fuzz_radius_meters: 50,
+        sync_reason: "PING"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls.some((call) => String(call[0]).includes("insert into encrypted_location_envelopes"))).toBe(true);
+    expect(notifyNearbyUsersForLocationUpdate).not.toHaveBeenCalled();
   });
 
   it("invalidates active sessions after resetting a password", async () => {

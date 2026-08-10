@@ -34,7 +34,6 @@ import {
   DEFAULT_GHOST_RADIUS_METERS,
   createCoarseIndexTokens,
   buildDefaultVisibilityPolicy,
-  describeGhostRotation,
   formatDistanceLabel,
   loadLocationEnvelopes,
   loadVisibilityPolicy,
@@ -822,9 +821,6 @@ async function mapModernDiscoveryRow(
     displayMode,
     relationshipGrantVersion: relationship?.isMutualCruush ? 1 : 0
   });
-  const ghostRotation = displayMode === "GHOST"
-    ? await describeGhostRotation(app, row.id)
-    : null;
   const latestFeedPostPreview = canViewLatestFeedPreview(row, viewerUserId, relationship)
     ? decryptTextContentOrFallback(app.config, "feed", {
         ciphertext: row.latest_feed_post_content_ciphertext ?? undefined,
@@ -852,10 +848,7 @@ async function mapModernDiscoveryRow(
     }),
     displayLocationToken,
     displayExpiresAtMs: displayLocationToken.expiresAtMs,
-    animationHint: ghostRotation?.animationHint ?? "NONE",
-    ...(ghostRotation?.rotationExpiresAtMs
-      ? { ghostRotationExpiresAtMs: ghostRotation.rotationExpiresAtMs }
-      : {}),
+    animationHint: "NONE" as const,
     ...(npcGhostDemoActive ? { demoDisplayMode: "NPC_GHOST_TEST" as const } : {}),
     relationshipContext: relationship?.isMutualCruush
       ? "MUTUAL_CRUUSH"

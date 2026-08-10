@@ -91,14 +91,12 @@ describe("migration runner", () => {
     expect(mapPingsSql).not.toMatch(/\b(lat|lng|longitude|latitude|distance_miles|recipient_count|recipient_id)\b/);
   });
 
-  it("adds per-user Ghost Mode rotation and the heartbeat preference after map Pings", async () => {
+  it("keeps the V2-only Ghost pulse migration out of v1.2", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
-    const ghostPulseSql = await readFile(path.join(serverRoot, "sql", "075_ghost_mode_pulse.sql"), "utf8");
 
-    expect(migrateSource).toMatch(/"074_map_pings\.sql",\s*"075_ghost_mode_pulse\.sql"/);
-    expect(ghostPulseSql).toContain("ghost_mode_anchor_ms bigint");
-    expect(ghostPulseSql).toContain("ghost_pulse_enabled boolean not null default true");
-    expect(ghostPulseSql).toContain("where ghost_mode_enabled = true");
+    expect(migrateSource).not.toContain("075_ghost_mode_pulse.sql");
+    await expect(readFile(path.join(serverRoot, "sql", "075_ghost_mode_pulse.sql"), "utf8"))
+      .rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("adds the launch party and crowd feed schema after rewards and 2FA", async () => {

@@ -526,7 +526,6 @@ describe('MapView', () => {
             approximateLatitude: 40.714,
             approximateLongitude: -74.004,
             displayMode: 'GHOST',
-            animationHint: 'FADE_LAST_MINUTE',
             npcGhostDemo: true,
           },
         ]}
@@ -575,8 +574,6 @@ describe('MapView', () => {
           approximateLatitude: 40.72,
           approximateLongitude: -74.01,
           displayMode: 'GHOST',
-          animationHint: 'FADE_LAST_MINUTE',
-          ghostRotationExpiresAtMs: Date.now() + 30_000,
         }]}
       />,
     );
@@ -584,6 +581,7 @@ describe('MapView', () => {
     const marker = await screen.findByTestId('marker-heart-ghost-static');
     const markerElement = marker.closest('[data-map-marker-pin="true"]');
     expect(markerElement).not.toHaveClass('opacity-45');
+    expect(markerElement).not.toHaveAttribute('data-animation-hint');
     expect(markerElement).not.toHaveAttribute('data-ghost-rotation-terminal');
     expect(screen.queryByTestId('marker-ghost-pulse-ghost-static')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-fly-icon-ghost-static')).not.toBeInTheDocument();

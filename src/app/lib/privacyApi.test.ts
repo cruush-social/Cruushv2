@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getMyGhostPulseSettings, getMyPrivacySettings, saveMyGhostPulseSettings, saveMyPrivacySettings } from './privacyApi';
+import * as privacyApi from './privacyApi';
+
+const { saveMyPrivacySettings } = privacyApi;
 
 describe('privacyApi', () => {
   beforeEach(() => {
@@ -24,12 +26,10 @@ describe('privacyApi', () => {
 
   it('does not send read-only privacy settings fields when saving', async () => {
     await saveMyPrivacySettings({
-      animationHint: 'FADE_LAST_MINUTE',
       baseMode: 'GHOST',
       ghostModeEnabled: true,
       ghostRadiusMeters: 1609,
       ghostRadiusLabel: '1 mi',
-      ghostRotationExpiresAtMs: 1786316460000,
       preciseToMutualCruushes: false,
       preciseToMutualCrowds: [],
       preciseLocationVisibility: 'none',
@@ -49,31 +49,10 @@ describe('privacyApi', () => {
     }));
   });
 
-  it('loads the server Ghost rotation deadline for the signed-in heart', async () => {
-    await expect(getMyPrivacySettings()).resolves.toEqual(expect.objectContaining({
-      animationHint: 'FADE_LAST_MINUTE',
-      ghostRotationExpiresAtMs: 1786316460000,
-    }));
-  });
-
-  it('loads and saves the Ghost Mode heartbeat preference through its dedicated route', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      text: vi.fn().mockResolvedValue(JSON.stringify({ data: { enabled: true } })),
-    } as unknown as Response);
-
-    await expect(getMyGhostPulseSettings()).resolves.toEqual({ enabled: true });
-    expect(fetch).toHaveBeenLastCalledWith('/api/privacy/ghost-pulse', expect.any(Object));
-
-    vi.mocked(fetch).mockResolvedValueOnce({
-      ok: true,
-      text: vi.fn().mockResolvedValue(JSON.stringify({ data: { enabled: false } })),
-    } as unknown as Response);
-
-    await expect(saveMyGhostPulseSettings(false)).resolves.toEqual({ enabled: false });
-    expect(fetch).toHaveBeenLastCalledWith('/api/privacy/ghost-pulse', expect.objectContaining({
-      method: 'PUT',
-      body: JSON.stringify({ enabled: false }),
-    }));
+  it('does not expose V2 Ghost heartbeat or deadline APIs in v1.2', () => {
+    expect(privacyApi.DEFAULT_PRIVACY_SETTINGS).not.toHaveProperty('animationHint');
+    expect(privacyApi).not.toHaveProperty('DEFAULT_GHOST_PULSE_SETTINGS');
+    expect(privacyApi).not.toHaveProperty('getMyGhostPulseSettings');
+    expect(privacyApi).not.toHaveProperty('saveMyGhostPulseSettings');
   });
 });

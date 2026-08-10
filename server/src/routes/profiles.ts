@@ -55,7 +55,6 @@ import { assertUsersNotBlocked } from "../user-blocks.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
-  describeGhostRotation,
   loadLocationEnvelope,
   loadVisibilityPolicy,
   makeDisplayLocationToken,
@@ -121,29 +120,6 @@ const privacySettingsPayloadSchema = z.object({
     });
   }
 });
-
-async function publicPrivacySettingsWithGhostRotation(
-  app: FastifyInstance,
-  userId: string,
-  settings: ReturnType<typeof publicPrivacySettings>
-) {
-  if (!settings.ghostModeEnabled) {
-    return {
-      ...settings,
-      animationHint: "NONE" as const
-    };
-  }
-
-  const rotation = await describeGhostRotation(app, userId);
-
-  return {
-    ...settings,
-    animationHint: rotation.animationHint,
-    ...(typeof rotation.rotationExpiresAtMs === "number"
-      ? { ghostRotationExpiresAtMs: rotation.rotationExpiresAtMs }
-      : {})
-  };
-}
 
 type ProfileRow = {
   id: string;
@@ -1431,7 +1407,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     });
 
     return reply.send({
-      data: await publicPrivacySettingsWithGhostRotation(app, userId, publicPrivacySettings(policy))
+      data: publicPrivacySettings(policy)
     });
   });
 
@@ -1479,7 +1455,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     });
 
     return reply.send({
-      data: await publicPrivacySettingsWithGhostRotation(app, userId, publicPrivacySettings(savedPolicy))
+      data: publicPrivacySettings(savedPolicy)
     });
   });
 
@@ -1833,14 +1809,16 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         forceSelfPrecise: true
       });
 
-      try {
-        await notifyNearbyUsersForLocationUpdate(app, {
-          sourceUserId: userId,
-          location,
-          visibilityPolicy: policy
-        });
-      } catch (error) {
-        app.log.warn({ err: error, userId }, "nearby notification dispatch failed");
+      if (payload.sync_reason !== "PING") {
+        try {
+          await notifyNearbyUsersForLocationUpdate(app, {
+            sourceUserId: userId,
+            location,
+            visibilityPolicy: policy
+          });
+        } catch (error) {
+          app.log.warn({ err: error, userId }, "nearby notification dispatch failed");
+        }
       }
 
       return reply.send({

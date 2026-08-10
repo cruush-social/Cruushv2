@@ -1134,13 +1134,8 @@ function createMarkerElement(
   const isInteractive = !isCurrentUser || marker.kind === 'event' || marker.kind === 'cluster';
   const element = document.createElement(isInteractive ? 'button' : 'div');
   const name = getDisplayName(marker);
-  const animationHint = marker.animationHint ?? 'NONE';
 
-  element.className = [
-    'group relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0 transition-opacity duration-700',
-    animationHint === 'REAPPEAR' ? 'opacity-100' : '',
-  ].filter(Boolean).join(' ');
-  element.dataset.animationHint = animationHint;
+  element.className = 'group relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0';
   element.dataset.displayMode = marker.displayMode ?? 'PRECISE';
   element.dataset.mapMarkerPin = 'true';
   element.dataset.mapMarkerKind = marker.kind ?? 'person';

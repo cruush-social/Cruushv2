@@ -3,7 +3,6 @@ import { requestApi } from './apiClient';
 import type { CruushBadge } from './billingApi';
 import {
   decryptDisplayLocationToken,
-  type DisplayAnimationHint,
   type DisplayLocationToken,
 } from './displayLocationTokens';
 
@@ -68,8 +67,6 @@ export type MutualCruushActivityItem = {
   canRevealPreciseLocation: boolean;
   displayLocationToken?: DisplayLocationToken;
   displayExpiresAtMs?: number;
-  animationHint?: DisplayAnimationHint;
-  ghostRotationExpiresAtMs?: number;
   distanceLabel?: string;
   coordinates: {
     lat: number;
@@ -83,8 +80,6 @@ type TokenizedMutualMapItem = Omit<MutualCruushActivityItem, 'id' | 'coordinates
   distanceLabel: string;
   displayLocationToken: DisplayLocationToken;
   displayExpiresAtMs: number;
-  animationHint: DisplayAnimationHint;
-  ghostRotationExpiresAtMs?: number;
   relationship?: {
     mutualCruush: boolean;
     canMessage: boolean;
@@ -186,13 +181,20 @@ export async function getMutualCruushMap() {
     const displayPayload = await decryptDisplayLocationToken(item.displayLocationToken);
 
     return {
-      ...item,
       id: item.profileToken,
+      matchId: item.matchId,
+      createdAt: item.createdAt,
+      locked: item.locked,
+      user: item.user,
+      mutualCrowds: item.mutualCrowds,
+      vibes: item.vibes,
       distance: item.distanceLabel,
+      lastActive: item.lastActive,
+      canMessage: item.canMessage,
+      canRevealPreciseLocation: item.canRevealPreciseLocation,
       displayLocationToken: item.displayLocationToken,
       displayExpiresAtMs: item.displayExpiresAtMs,
-      animationHint: item.animationHint ?? displayPayload.animationHint,
-      ghostRotationExpiresAtMs: item.ghostRotationExpiresAtMs,
+      distanceLabel: item.distanceLabel,
       coordinates: {
         lat: displayPayload.latitude,
         lng: displayPayload.longitude,

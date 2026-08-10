@@ -186,7 +186,6 @@ export const DISPLAY_TOKEN_TTL_MS = 180 * 1000;
 export const LOCATION_DISCOVERY_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
 const LOCATION_TTL_MS = LOCATION_DISCOVERY_WINDOW_MS;
 const ROTATION_INTERVAL_MS = 15 * 60 * 1000;
-const FADE_WINDOW_MS = 60 * 1000;
 const DISPLAY_KEY_TTL_MS = 30 * 60 * 1000;
 const COARSE_CELL_DEGREES = 0.02;
 
@@ -534,22 +533,6 @@ export async function saveVisibilityPolicy(
 ) {
   const currentPolicy = await loadVisibilityPolicy(context, subjectUserId);
   const policy = normalizeVisibilityPolicy(context.config, subjectUserId, input, currentPolicy);
-
-  // Each Ghost Mode profile rotates from the moment that mode is enabled.
-  // Preserve an active cycle while other privacy settings change, clear it on
-  // exit, and start a fresh cycle when Ghost Mode is enabled again.
-  await context.db.query(
-    `insert into user_privacy_settings (user_id, ghost_mode_anchor_ms)
-     values ($1, case when $2::boolean then $3::bigint else null end)
-     on conflict (user_id) do update
-     set ghost_mode_anchor_ms = case
-           when $2::boolean is not true then null
-           when user_privacy_settings.ghost_mode_anchor_ms is null then $3::bigint
-           else user_privacy_settings.ghost_mode_anchor_ms
-         end,
-         updated_at = now()`,
-    [subjectUserId, policy.baseMode === "GHOST", policy.updatedAtMs]
-  );
   const encrypted = encryptWithWrappedDataKey({
     plaintext: policy,
     aad: policyAad(subjectUserId, policy.policyVersion, policy.updatedAtMs),
@@ -832,89 +815,22 @@ export function locationPayloadToCoordinates(location: LocationPayload) {
   };
 }
 
-export function fallbackGhostAnchorMs(subjectUserId: string) {
-  const digest = createHash("sha256").update(`ghost-anchor:v1:${subjectUserId}`).digest();
-
-  return digest.readUInt32BE(0) % ROTATION_INTERVAL_MS;
+export function currentRotationEpoch(nowMs = Date.now()) {
+  return Math.floor(nowMs / ROTATION_INTERVAL_MS);
 }
 
-export async function loadGhostRotationSettings(context: LocationPrivacyContext, subjectUserId: string) {
-  const result = await context.db.query<{
-    ghost_mode_anchor_ms: string | number | null;
-    ghost_pulse_enabled: boolean | null;
-  }>(
-    `select ghost_mode_anchor_ms, ghost_pulse_enabled
-     from user_privacy_settings
-     where user_id = $1
-     limit 1`,
-    [subjectUserId]
-  );
-  const row = result.rows[0];
-  const anchor = row?.ghost_mode_anchor_ms;
-  const parsedAnchor = typeof anchor === "number"
-    ? anchor
-    : typeof anchor === "string" ? Number.parseInt(anchor, 10) : Number.NaN;
-
-  return {
-    anchorMs: Number.isFinite(parsedAnchor) ? parsedAnchor : fallbackGhostAnchorMs(subjectUserId),
-    pulseEnabled: row?.ghost_pulse_enabled !== false
-  };
-}
-
-export async function describeGhostRotation(
-  context: LocationPrivacyContext,
-  subjectUserId: string,
-  nowMs = Date.now()
-) {
-  const { anchorMs, pulseEnabled } = await loadGhostRotationSettings(context, subjectUserId);
-  const rotationEpoch = currentRotationEpoch(anchorMs, nowMs);
-
-  if (!pulseEnabled) {
-    return {
-      pulseEnabled,
-      rotationExpiresAtMs: null,
-      animationHint: "NONE" as DisplayAnimationHint
-    };
-  }
-
-  return {
-    pulseEnabled,
-    rotationExpiresAtMs: rotationExpiresAtMs(rotationEpoch, anchorMs),
-    animationHint: animationHintForEpoch(rotationEpoch, anchorMs, nowMs)
-  };
-}
-
-export function currentRotationEpoch(anchorMs: number, nowMs = Date.now()) {
-  return Math.floor((nowMs - anchorMs) / ROTATION_INTERVAL_MS);
-}
-
-function rotationExpiresAtMs(rotationEpoch: number, anchorMs: number) {
-  return anchorMs + (rotationEpoch + 1) * ROTATION_INTERVAL_MS;
-}
-
-function animationHintForEpoch(
-  rotationEpoch: number,
-  anchorMs: number,
-  nowMs = Date.now()
-): DisplayAnimationHint {
-  const remainingMs = rotationExpiresAtMs(rotationEpoch, anchorMs) - nowMs;
-
-  if (remainingMs <= 0) {
-    return "SIGNAL_LOSS";
-  }
-
-  return remainingMs <= FADE_WINDOW_MS ? "FADE_LAST_MINUTE" : "NONE";
+function rotationExpiresAtMs(rotationEpoch: number) {
+  return (rotationEpoch + 1) * ROTATION_INTERVAL_MS;
 }
 
 async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input: {
   subjectUserId: string;
   policy: VisibilityPolicyPayload;
   location: LocationPayload;
-  anchorMs: number;
   nowMs?: number;
 }) {
   const nowMs = input.nowMs ?? Date.now();
-  const rotationEpoch = currentRotationEpoch(input.anchorMs, nowMs);
+  const rotationEpoch = currentRotationEpoch(nowMs);
   const loadActiveRotation = async () => (await context.db.query<EncryptedGhostRotationTokenRow>(
     `select
        subject_user_id::text as subject_user_id,
@@ -967,7 +883,7 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
     policyVersion: input.policy.policyVersion,
     centerLocationVersion: input.location.locationVersion,
     tokenCreatedAtMs: nowMs,
-    tokenExpiresAtMs: rotationExpiresAtMs(rotationEpoch, input.anchorMs) + 15_000
+    tokenExpiresAtMs: rotationExpiresAtMs(rotationEpoch) + 15_000
   };
   const encrypted = encryptWithWrappedDataKey({
     plaintext: payload,
@@ -1102,16 +1018,13 @@ export async function resolveViewerGhostCoordinate(context: LocationPrivacyConte
   policy: VisibilityPolicyPayload;
   location: LocationPayload;
   nowMs?: number;
-  rotationSettings?: Awaited<ReturnType<typeof loadGhostRotationSettings>>;
 }) {
   const nowMs = input.nowMs ?? Date.now();
   const center = locationPayloadToCoordinates(input.location);
-  const { anchorMs } = input.rotationSettings ?? await loadGhostRotationSettings(context, input.subjectUserId);
   const rotation = await loadOrCreateGhostRotation(context, {
     subjectUserId: input.subjectUserId,
     policy: input.policy,
     location: input.location,
-    anchorMs,
     nowMs
   });
 
@@ -1236,20 +1149,15 @@ export async function makeDisplayLocationToken(context: LocationPrivacyContext, 
   let accuracyDisplayM = input.location.accuracyM;
 
   if (input.displayMode === "GHOST" && !input.forceSelfPrecise) {
-    const rotationSettings = await loadGhostRotationSettings(context, input.subjectUserId);
     const ghost = await resolveViewerGhostCoordinate(context, {
       subjectUserId: input.subjectUserId,
       viewerUserId: input.viewerUserId,
       policy: input.policy,
       location: input.location,
-      nowMs,
-      rotationSettings
+      nowMs
     });
     coordinate = ghost.coordinate;
     rotationEpoch = ghost.rotationEpoch;
-    animationHint = rotationSettings.pulseEnabled
-      ? animationHintForEpoch(ghost.rotationEpoch, rotationSettings.anchorMs, nowMs)
-      : "NONE";
     accuracyDisplayM = ghost.radiusMeters;
   }
 

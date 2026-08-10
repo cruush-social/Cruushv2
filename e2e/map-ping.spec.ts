@@ -190,8 +190,7 @@ test.describe('authenticated map Ping', () => {
     }
   });
 
-  test('renders the escalating flat-blue Ghost marker without badge overlap', async ({ page }, testInfo) => {
-    const ghostExpiresAt = Date.now() + 30_000;
+  test('renders a static flat-blue Ghost marker without V2 animation or deadline metadata', async ({ page }, testInfo) => {
     await page.route((url) => url.pathname === '/api/users', async (route) => {
       await route.fulfill({
         contentType: 'application/json',
@@ -214,8 +213,6 @@ test.describe('authenticated map Ping', () => {
             hostingTravel: [],
             photo: '/uploads/ghost-preview.jpg',
             displayMode: 'GHOST',
-            animationHint: 'FADE_LAST_MINUTE',
-            ghostRotationExpiresAtMs: ghostExpiresAt,
             privacyRadiusMeters: 1609,
             relationship: {
               mutualCruush: true,
@@ -228,13 +225,20 @@ test.describe('authenticated map Ping', () => {
     });
 
     await page.goto('/map');
-    const pulse = page.getByTestId('marker-ghost-pulse-ghost-preview');
+    const markerButton = page.getByRole('button', { name: 'Open Ghost preview on map' });
+    const heartLayer = page.getByTestId('marker-heart-layer-ghost-preview');
     const heart = page.getByTestId('marker-heart-ghost-preview');
     const positionBadge = page.getByTestId('marker-badge-ghost-preview');
     const relationshipBadge = page.getByTestId('marker-relationship-ghost-preview');
     const signalStack = page.getByTestId('marker-signal-stack-ghost-preview');
-    await expect(pulse).toBeVisible();
-    await expect(pulse.getByTestId('marker-signal-stack-ghost-preview')).toHaveCount(1);
+    await expect(heartLayer).toBeVisible();
+    await expect(heartLayer.getByTestId('marker-signal-stack-ghost-preview')).toHaveCount(1);
+    await expect(markerButton).not.toHaveAttribute('data-animation-hint');
+    await expect(markerButton).not.toHaveAttribute('data-ghost-rotation-expires-at');
+    await expect(heartLayer).toHaveCSS('animation-name', 'none');
+    await expect(page.getByTestId('marker-ghost-pulse-ghost-preview')).toHaveCount(0);
+    await expect(page.getByTestId('marker-ghost-fly-icon-ghost-preview')).toHaveCount(0);
+    await expect(page.getByTestId('marker-ghost-puff-ghost-preview')).toHaveCount(0);
     await expect(heart).toHaveAttribute('data-has-photo', 'true');
     await expect(page.getByTestId('marker-photo-fill-ghost-preview')).toHaveCount(0);
     await expect(heart.locator('path[fill="#0BA8FF"][stroke="#0BA8FF"]')).toHaveCount(1);
@@ -256,12 +260,19 @@ test.describe('authenticated map Ping', () => {
       }).toBe(true);
     };
 
+    await expect(signalStack).toHaveCSS('opacity', '0');
+    if (testInfo.project.name === 'mobile-chromium') {
+      await markerButton.focus();
+    } else {
+      await markerButton.hover();
+    }
+    await expect(signalStack).toHaveCSS('opacity', '1');
     await assertGeometry();
     if (testInfo.project.name === 'chromium') {
       mkdirSync(previewDirectory, { recursive: true });
       for (const viewport of releaseViewports) {
         await page.setViewportSize(viewport);
-        await expect(pulse).toBeVisible();
+        await expect(heartLayer).toBeVisible();
         await assertGeometry();
         await page.screenshot({
           path: `${previewDirectory}/ghost-${viewport.width}x${viewport.height}.png`,
@@ -278,179 +289,4 @@ test.describe('authenticated map Ping', () => {
 
   });
 
-  test('plays the recovered Ghost terminal once with an 80px straight-rise Ghost', async ({ page }, testInfo) => {
-    const ghostExpiresAt = Date.now() + 4_000;
-    await page.route((url) => url.pathname === '/api/users', async (route) => {
-      await route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({ data: [
-          {
-            id: 'ghost-terminal-preview',
-            name: 'Ghost terminal preview',
-            display_name: 'Ghost terminal preview',
-            signal: 'Leaving now',
-            age: 30,
-            pronouns: 'they/them',
-            lat: 40.704,
-            lng: -73.904,
-            lastActive: 'Now',
-            distance: '2 mi',
-            lookingFor: [],
-            vibes: [],
-            position: ['top'],
-            role: [],
-            hostingTravel: [],
-            photo: '/uploads/ghost-terminal-preview.jpg',
-            displayMode: 'GHOST',
-            animationHint: 'FADE_LAST_MINUTE',
-            ghostRotationExpiresAtMs: ghostExpiresAt,
-            privacyRadiusMeters: 1609,
-            relationship: {
-              mutualCruush: true,
-              canMessage: true,
-              precision: 'fuzzy',
-            },
-          },
-        ] }),
-      });
-    });
-
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/map');
-
-    const heart = page.getByTestId('marker-heart-ghost-terminal-preview');
-    const heartLayer = page.getByTestId('marker-heart-layer-ghost-terminal-preview');
-    const heartUnit = heartLayer.locator('..');
-    const flyGhost = page.getByTestId('marker-ghost-fly-icon-ghost-terminal-preview');
-    const puff = page.getByTestId('marker-ghost-puff-ghost-terminal-preview');
-
-    await expect(heart).toBeVisible();
-    await expect(heartUnit).toHaveAttribute('data-ghost-rotation-exit', 'false');
-    await expect.poll(
-      () => heartUnit.getAttribute('data-ghost-rotation-exit'),
-      { intervals: [25], timeout: 10_000 },
-    ).toBe('active');
-    await expect(flyGhost).toHaveCount(1);
-    await expect(puff).toHaveCount(1);
-    await expect.poll(
-      async () => Number.parseFloat(await flyGhost.evaluate((node) => getComputedStyle(node).opacity)),
-      { intervals: [25], timeout: 1_000 },
-    ).toBeGreaterThan(0.5);
-    if (testInfo.project.name === 'chromium') {
-      mkdirSync(previewDirectory, { recursive: true });
-      await page.screenshot({ path: `${previewDirectory}/ghost-terminal-390x844.png` });
-    }
-
-    const animationProof = await flyGhost.evaluate((node) => {
-      const animation = node.getAnimations()[0];
-      const effect = animation?.effect as KeyframeEffect | null;
-      const timing = effect?.getComputedTiming();
-      const keyframes = effect?.getKeyframes().map((keyframe) => ({
-        computedOffset: keyframe.computedOffset,
-        opacity: String(keyframe.opacity),
-        transform: String(keyframe.transform),
-      })) ?? [];
-      const heartNode = document.querySelector<HTMLElement>('[data-testid="marker-heart-ghost-terminal-preview"]');
-      const style = getComputedStyle(node);
-      const puffNode = document.querySelector<HTMLElement>('[data-testid="marker-ghost-puff-ghost-terminal-preview"]');
-      const puffStyle = puffNode ? getComputedStyle(puffNode) : null;
-
-      return {
-        color: style.color,
-        duration: Number(timing?.duration),
-        flyFilter: style.filter,
-        flyWidth: Number.parseFloat(style.width),
-        heartWidth: heartNode ? Number.parseFloat(getComputedStyle(heartNode).width) : null,
-        iterations: timing?.iterations,
-        keyframes,
-        puffBackgroundImage: puffStyle?.backgroundImage,
-        puffFilter: puffStyle?.filter,
-      };
-    });
-
-    expect(animationProof.flyWidth).toBe(80);
-    expect(animationProof.heartWidth).toBe(80);
-    expect(animationProof.duration).toBe(1_250);
-    expect(animationProof.iterations).toBe(1);
-    expect(animationProof.color).toBe('rgb(11, 168, 255)');
-    expect(animationProof.flyFilter).toBe('none');
-    expect(animationProof.puffFilter).toBe('none');
-    expect(animationProof.puffBackgroundImage).toBe('none');
-    expect(animationProof.keyframes.map(({ computedOffset }) => computedOffset)).toEqual([0, 0.42, 0.58, 1]);
-    expect(animationProof.keyframes.every(({ transform }) => !/scale|rotate|translateX/.test(transform))).toBe(true);
-    const horizontalAnchors = animationProof.keyframes.map(({ transform }) => transform.replace(/\s*translateY\([^)]*\)\s*$/, ''));
-    expect(new Set(horizontalAnchors).size).toBe(1);
-    expect(animationProof.keyframes.at(-1)?.transform).toMatch(/translateY\(-(30px|1\.875rem)\)/);
-
-    await expect(heartUnit).toHaveAttribute('data-ghost-rotation-exit', 'complete', { timeout: 3_000 });
-    await expect(flyGhost).toHaveCount(0);
-    await expect(puff).toHaveCount(0);
-    await expect(heartLayer).toHaveCSS('opacity', '0');
-
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await page.waitForTimeout(1_400);
-    await expect(heartUnit).toHaveAttribute('data-ghost-rotation-exit', 'complete');
-    await expect(flyGhost).toHaveCount(0);
-    await expect(puff).toHaveCount(0);
-  });
-
-  test('skips the Ghost terminal motion when reduced motion is requested', async ({ page }) => {
-    const ghostExpiresAt = Date.now() + 3_000;
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.route((url) => url.pathname === '/api/users', async (route) => {
-      await route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({ data: [
-          {
-            id: 'ghost-terminal-reduced-motion',
-            name: 'Ghost reduced motion preview',
-            display_name: 'Ghost reduced motion preview',
-            signal: 'Leaving now',
-            age: 30,
-            pronouns: 'they/them',
-            lat: 40.704,
-            lng: -73.904,
-            lastActive: 'Now',
-            distance: '2 mi',
-            lookingFor: [],
-            vibes: [],
-            position: ['top'],
-            role: [],
-            hostingTravel: [],
-            photo: '/uploads/ghost-terminal-reduced-motion.jpg',
-            displayMode: 'GHOST',
-            animationHint: 'FADE_LAST_MINUTE',
-            ghostRotationExpiresAtMs: ghostExpiresAt,
-            privacyRadiusMeters: 1609,
-            relationship: {
-              mutualCruush: true,
-              canMessage: true,
-              precision: 'fuzzy',
-            },
-          },
-        ] }),
-      });
-    });
-
-    await page.goto('/map');
-
-    const heart = page.getByTestId('marker-heart-ghost-terminal-reduced-motion');
-    const heartLayer = page.getByTestId('marker-heart-layer-ghost-terminal-reduced-motion');
-    const heartUnit = heartLayer.locator('..');
-    const flyGhost = page.getByTestId('marker-ghost-fly-icon-ghost-terminal-reduced-motion');
-    const puff = page.getByTestId('marker-ghost-puff-ghost-terminal-reduced-motion');
-
-    await expect(heart).toBeVisible();
-    await expect(heartUnit).toHaveAttribute('data-ghost-rotation-exit', 'false');
-    await expect(heartUnit).toHaveAttribute('data-ghost-rotation-exit', 'complete', { timeout: 10_000 });
-    await expect(flyGhost).toHaveCount(0);
-    await expect(puff).toHaveCount(0);
-    await expect(heartLayer).toHaveCSS('opacity', '0');
-
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await page.waitForTimeout(1_400);
-    await expect(heartUnit).toHaveAttribute('data-ghost-rotation-exit', 'complete');
-    await expect(flyGhost).toHaveCount(0);
-    await expect(puff).toHaveCount(0);
-  });
 });

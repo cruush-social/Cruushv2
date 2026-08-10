@@ -34,14 +34,15 @@ describe('Changelog', () => {
       'cruush v1.2',
       'cruush v1.1',
     ]);
-    expect(screen.getByText(/Ping briefly marks your heart as active.*local feed.*saved post duration/i)).toBeInTheDocument();
-    expect(screen.getByText(/interactive tutorial now covers installing cruush/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ping briefly activates your map heart.*local feed.*saved post duration/i)).toBeInTheDocument();
+    expect(screen.getByText(/interactive tutorial highlights the real Install, Notifications/i)).toBeInTheDocument();
     expect(screen.getByText(/map now stays inside the NYC beta area/i)).toBeInTheDocument();
     expect(screen.getByText(/shows a live countdown on disappearing messages you send/i)).toBeInTheDocument();
     expect(screen.getByText(/Quick-access photos upload more reliably/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ghost Mode remains available as a static privacy mode/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Ghost Mode/i)).not.toBeInTheDocument();
     expect(screen.getByText(/winged-heart Profile icon stays white until selected/i)).toBeInTheDocument();
-    expect(screen.getByText(/bright chartreuse border/i)).toBeInTheDocument();
+    expect(screen.getByText(/flat chartreuse border treatment/i)).toBeInTheDocument();
+    expect(screen.getByText(/Feed post duration is yours to choose, with Never as the default/i)).toBeInTheDocument();
     expect(screen.getByText(/Messages now default to Mutuals/i)).toBeInTheDocument();
   });
 

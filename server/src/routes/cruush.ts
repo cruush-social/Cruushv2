@@ -31,7 +31,6 @@ import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.
 import { assertUsersNotBlocked, loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import {
   buildDefaultVisibilityPolicy,
-  describeGhostRotation,
   formatDistanceLabel,
   loadLocationEnvelope,
   loadVisibilityPolicy,
@@ -508,9 +507,6 @@ async function mapTokenizedMutualCruushRow(
     displayMode,
     relationshipGrantVersion: relationship.isMutualCruush ? 1 : 0
   });
-  const ghostRotation = displayMode === "GHOST"
-    ? await describeGhostRotation(app, row.other_user_id)
-    : null;
   const preciseCoordinates = locationPayloadToCoordinates(location);
   const sensitiveProfile = decryptSensitiveProfile(app.config, row);
   const otherCrowds = sensitiveProfile?.crowds ?? [];
@@ -551,10 +547,7 @@ async function mapTokenizedMutualCruushRow(
     canRevealPreciseLocation: relationship.canRevealPreciseLocation,
     displayLocationToken: token,
     displayExpiresAtMs: token.expiresAtMs,
-    animationHint: ghostRotation?.animationHint ?? "NONE",
-    ...(ghostRotation?.rotationExpiresAtMs
-      ? { ghostRotationExpiresAtMs: ghostRotation.rotationExpiresAtMs }
-      : {}),
+    animationHint: "NONE" as const,
     relationshipContext: "MUTUAL_CRUUSH",
     relationship: {
       mutualCruush: true,

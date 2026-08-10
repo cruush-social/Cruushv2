@@ -8,15 +8,11 @@ const {
   saveMyPrivacySettings,
   getMyMapPresenceSettings,
   saveMyMapPresenceSettings,
-  getMyGhostPulseSettings,
-  saveMyGhostPulseSettings,
 } = vi.hoisted(() => ({
   getMyPrivacySettings: vi.fn(),
   saveMyPrivacySettings: vi.fn(),
   getMyMapPresenceSettings: vi.fn(),
   saveMyMapPresenceSettings: vi.fn(),
-  getMyGhostPulseSettings: vi.fn(),
-  saveMyGhostPulseSettings: vi.fn(),
 }));
 
 vi.mock('../lib/privacyApi', async () => {
@@ -28,8 +24,6 @@ vi.mock('../lib/privacyApi', async () => {
     saveMyPrivacySettings,
     getMyMapPresenceSettings,
     saveMyMapPresenceSettings,
-    getMyGhostPulseSettings,
-    saveMyGhostPulseSettings,
   };
 });
 
@@ -44,8 +38,6 @@ describe('GhostModeSettings', () => {
     saveMyPrivacySettings.mockReset();
     getMyMapPresenceSettings.mockReset();
     saveMyMapPresenceSettings.mockReset();
-    getMyGhostPulseSettings.mockReset();
-    saveMyGhostPulseSettings.mockReset();
 
     getMyPrivacySettings.mockResolvedValue({
       ghostModeEnabled: false,
@@ -58,8 +50,6 @@ describe('GhostModeSettings', () => {
       minDays: 1,
       maxDays: 30,
     }));
-    getMyGhostPulseSettings.mockResolvedValue({ enabled: true });
-    saveMyGhostPulseSettings.mockImplementation((enabled: boolean) => Promise.resolve({ enabled }));
   });
 
   it('defaults map presence to seven days and saves a new duration', async () => {
@@ -133,7 +123,7 @@ describe('GhostModeSettings', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/audit');
   });
 
-  it('loads the V2 heartbeat countdown on by default and saves its independent toggle', async () => {
+  it('keeps v1.2 Ghost Mode static without V2 heartbeat controls', async () => {
     render(
       <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
         <Routes>
@@ -142,15 +132,11 @@ describe('GhostModeSettings', () => {
       </MemoryRouter>
     );
 
-    const pulseSwitch = await screen.findByRole('switch', {
+    expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
+    expect(screen.queryByRole('switch', {
       name: 'Show a countdown before your pin moves',
-    });
-
-    await waitFor(() => expect(pulseSwitch).toBeChecked());
-    expect(screen.getByText('Others can see your last minute')).toBeInTheDocument();
-    fireEvent.click(pulseSwitch);
-
-    await waitFor(() => expect(saveMyGhostPulseSettings).toHaveBeenCalledWith(false));
-    expect(await screen.findByText('Your pin moves without warning')).toBeInTheDocument();
+    })).not.toBeInTheDocument();
+    expect(screen.queryByText('Countdown before you move')).not.toBeInTheDocument();
+    expect(screen.queryByText(/heart beats faster/i)).not.toBeInTheDocument();
   });
 });

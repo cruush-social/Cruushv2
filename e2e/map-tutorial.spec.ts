@@ -20,6 +20,7 @@ async function retryLocalNavigation(action: () => Promise<unknown>) {
       lastError = error;
       const isRetryableLocalNavigation = error instanceof Error
         && (error.message.includes('net::ERR_TOO_MANY_RETRIES')
+          || error.message.includes('Not attached to an active page')
           || (error.message.includes('is interrupted by another navigation')
             && error.message.includes('chrome-error://chromewebdata')));
       if (!isRetryableLocalNavigation) {
@@ -132,7 +133,7 @@ test.describe('authenticated map tutorial', () => {
     await page.context().clearCookies({ name: 'cruush_tutorial-v3-seen' });
     await page.context().clearCookies({ name: /^cruush_first-feed-post-prompt-seen_/ });
     await page.evaluate((key) => localStorage.removeItem(key), tutorialStorageKey);
-    await retryLocalNavigation(() => page.reload());
+    await retryLocalNavigation(() => page.goto('/map'));
 
     await expect(page.getByRole('dialog', { name: 'Map controls tutorial' })).toBeVisible();
   });

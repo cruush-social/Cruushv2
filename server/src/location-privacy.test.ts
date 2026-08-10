@@ -6,10 +6,8 @@ import {
   decryptDisplayLocationTokenForTest,
   createCoarseIndexTokens,
   currentRotationEpoch,
-  describeGhostRotation,
   deriveGhostCoordinate,
   distanceMiles,
-  fallbackGhostAnchorMs,
   GHOST_MIN_OFFSET_RATIO,
   issueBrowserDisplayKey,
   loadLocationEnvelope,
@@ -26,7 +24,7 @@ const config: AppConfig = {
   NODE_ENV: "test",
   PORT: 3001,
   HOST: "127.0.0.1",
-  DATABASE_URL: "postgres://postgres:postgres@localhost:5432/cruush",
+  DATABASE_URL: "postgres://localhost:5432/cruush",
   CORS_ORIGIN: "http://localhost:5173",
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
@@ -161,9 +159,7 @@ describe("location privacy", () => {
       policyVersion: saved.policyVersion
     });
     expect(JSON.stringify(db.query.mock.calls)).not.toContain("GHOST");
-    const anchorWrite = db.query.mock.calls.find(([sql]) => String(sql).includes("ghost_mode_anchor_ms"));
-    expect(anchorWrite?.[1]).toEqual([subjectUserId, true, expect.any(Number)]);
-    expect(String(anchorWrite?.[0])).toContain("else user_privacy_settings.ghost_mode_anchor_ms");
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes("ghost_mode_anchor_ms"))).toBe(false);
   });
 
   it("fails closed when a strict visibility policy is missing", async () => {
@@ -339,54 +335,9 @@ describe("location privacy", () => {
     expect(offsetMiles).toBeLessThanOrEqual(1.01);
   });
 
-  it("anchors each Ghost Mode rotation to that profile instead of a shared wall clock", () => {
+  it("uses the existing shared Ghost rotation epoch without a per-profile anchor", () => {
     const nowMs = new Date("2026-08-09T16:00:00.000Z").getTime();
-    const firstAnchor = nowMs - 4 * 60_000;
-    const secondAnchor = nowMs - 11 * 60_000;
-
-    expect(currentRotationEpoch(firstAnchor, nowMs)).toBe(0);
-    expect(currentRotationEpoch(secondAnchor, nowMs)).toBe(0);
-    expect(fallbackGhostAnchorMs(subjectUserId)).toBe(fallbackGhostAnchorMs(subjectUserId));
-    expect(fallbackGhostAnchorMs(subjectUserId)).toBeGreaterThanOrEqual(0);
-    expect(fallbackGhostAnchorMs(subjectUserId)).toBeLessThan(15 * 60_000);
-  });
-
-  it("returns the real per-profile deadline only when the Ghost heartbeat is enabled", async () => {
-    const nowMs = new Date("2026-08-09T16:00:00.000Z").getTime();
-    const anchorMs = nowMs - (15 * 60_000 - 30_000);
-    const enabledQuery = vi.fn().mockResolvedValue({
-      rows: [{
-        ghost_mode_anchor_ms: String(anchorMs),
-        ghost_pulse_enabled: true
-      }]
-    });
-    const enabled = await describeGhostRotation({
-      config,
-      db: { query: enabledQuery } as unknown as Pick<DbClient, "query">
-    }, subjectUserId, nowMs);
-
-    expect(enabled).toEqual({
-      pulseEnabled: true,
-      rotationExpiresAtMs: nowMs + 30_000,
-      animationHint: "FADE_LAST_MINUTE"
-    });
-
-    const disabledQuery = vi.fn().mockResolvedValue({
-      rows: [{
-        ghost_mode_anchor_ms: String(anchorMs),
-        ghost_pulse_enabled: false
-      }]
-    });
-    const disabled = await describeGhostRotation({
-      config,
-      db: { query: disabledQuery } as unknown as Pick<DbClient, "query">
-    }, subjectUserId, nowMs);
-
-    expect(disabled).toEqual({
-      pulseEnabled: false,
-      rotationExpiresAtMs: null,
-      animationHint: "NONE"
-    });
+    expect(currentRotationEpoch(nowMs)).toBe(Math.floor(nowMs / (15 * 60_000)));
   });
 
   it("uses the shared Ghost coordinate resolver for viewer-specific display decisions", async () => {
@@ -436,6 +387,59 @@ describe("location privacy", () => {
         expect.stringContaining("ghost_rotation_tokens"),
         expect.any(Array)
       );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps v1.2 Ghost display tokens static without pulse settings", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-09T16:00:00.000Z"));
+
+    try {
+      const db = createDisplayTokenDb();
+      const request = requestWithSession();
+      const displayKey = issueBrowserDisplayKey(config, request, viewerUserId);
+      const policy = {
+        version: 1 as const,
+        subjectUserId,
+        policyVersion: 2,
+        baseMode: "GHOST" as const,
+        ghostRadiusMeters: 1609,
+        preciseToMutualCruushes: false,
+        preciseToMutualCrowds: [],
+        auditRequired: false,
+        updatedAtMs: Date.now(),
+        expiresAtMs: null,
+        keyVersion: "v1"
+      };
+      const location = {
+        version: 1 as const,
+        subjectUserId,
+        locationVersion: 1,
+        latE7: 407110000,
+        lonE7: -740020000,
+        accuracyM: 10,
+        source: "GPS" as const,
+        deviceReportedAtMs: Date.now(),
+        collectedAtMs: Date.now(),
+        expiresAtMs: Date.now() + 60_000,
+        keyVersion: "v1"
+      };
+      const token = await makeDisplayLocationToken({ config, db }, request, {
+        subjectUserId,
+        viewerUserId,
+        policy,
+        location,
+        displayMode: "GHOST"
+      });
+      const payload = decryptDisplayLocationTokenForTest({
+        key: displayKey.key,
+        token
+      });
+
+      expect(payload.animationHint).toBe("NONE");
+      expect(db.query.mock.calls.some(([sql]) => String(sql).includes("user_privacy_settings"))).toBe(false);
     } finally {
       vi.useRealTimers();
     }
@@ -503,15 +507,6 @@ describe("location privacy", () => {
           }
 
           return { rows: wonInsert ? [{ subject_user_id: candidate.subject_user_id }] : [] };
-        }
-
-        if (sql.includes("from user_privacy_settings")) {
-          return {
-            rows: [{
-              ghost_mode_anchor_ms: String(Date.now() - 5 * 60_000),
-              ghost_pulse_enabled: true
-            }]
-          };
         }
 
         return { rows: [] };

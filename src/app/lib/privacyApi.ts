@@ -10,12 +10,10 @@ export type CrowdPrecisionPolicy = {
 };
 
 export type PrivacySettings = {
-  animationHint?: 'NONE' | 'FADE_LAST_MINUTE' | 'SIGNAL_LOSS' | 'REAPPEAR';
   baseMode: 'PUBLIC_PRECISE' | 'GHOST' | 'STEALTH';
   ghostModeEnabled: boolean;
   ghostRadiusMeters: number;
   ghostRadiusLabel: string;
-  ghostRotationExpiresAtMs?: number;
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
   preciseLocationVisibility: 'none' | 'mutual_cruushes';
@@ -33,7 +31,6 @@ export type PrivacySettingsUpdate = Pick<
 >;
 
 export const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
-  animationHint: 'NONE',
   baseMode: 'PUBLIC_PRECISE',
   ghostModeEnabled: false,
   ghostRadiusMeters: 1609,
@@ -81,25 +78,6 @@ export function saveMyMapPresenceSettings(days: number) {
   return requestApi<MapPresenceSettings>('/api/privacy/map-presence', {
     method: 'PUT',
     body: JSON.stringify({ days }),
-  });
-}
-
-export type GhostPulseSettings = {
-  enabled: boolean;
-};
-
-export const DEFAULT_GHOST_PULSE_SETTINGS: GhostPulseSettings = {
-  enabled: true,
-};
-
-export function getMyGhostPulseSettings() {
-  return requestApi<GhostPulseSettings>('/api/privacy/ghost-pulse');
-}
-
-export function saveMyGhostPulseSettings(enabled: boolean) {
-  return requestApi<GhostPulseSettings>('/api/privacy/ghost-pulse', {
-    method: 'PUT',
-    body: JSON.stringify({ enabled }),
   });
 }
 
