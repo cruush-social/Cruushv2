@@ -32,6 +32,7 @@ describe("migration runner", () => {
     expect(rewardsSql).toContain("reward grant ledger is append-only");
     expect(rewardsSql).toContain("referral association is immutable");
     expect(rewardsSql).toContain("user_two_factor_recovery_codes");
+    expect(rewardsSql).toContain("'nearby_activity'");
     expect(billingSql).toContain("foreign key (user_id) references app_users(id) on delete cascade");
   });
 

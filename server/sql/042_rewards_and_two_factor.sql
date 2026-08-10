@@ -19,6 +19,7 @@ alter table app_notifications
     'direct_message',
     'group_message',
     'group_membership',
+    'nearby_activity',
     'reward'
   ));
 
