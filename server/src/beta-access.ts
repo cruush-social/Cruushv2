@@ -3,8 +3,8 @@ import { ApiError } from "./errors.js";
 
 const EARTH_RADIUS_MILES = 3958.7613;
 const BETA_LAUNCH_CENTER = {
-  lat: 40.6832265,
-  lng: -73.9520496
+  lat: 40.6828509,
+  lng: -73.9521325
 };
 const BETA_LAUNCH_RADIUS_MILES = 15;
 

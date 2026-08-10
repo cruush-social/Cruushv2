@@ -1,3 +1,4 @@
+import { type CSSProperties } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import cruushIconColored from '../assets/ui-icons/cruush-colored.png';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
@@ -7,24 +8,74 @@ import mapIconColored from '../assets/ui-icons/map-colored.png';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import messagesIconColored from '../assets/ui-icons/messages-colored.png';
 import messagesIconWhite from '../assets/ui-icons/messages-white.png';
-import profileIconColored from '../assets/ui-icons/profile-colored.png';
-import profileIconWhite from '../assets/ui-icons/profile-white.png';
+import humanityProfileIcon from '../assets/ui-icons/humanity-profile-selected-winged-heart.png';
 import { useIsMobile } from './ui/use-mobile';
+
+const CRUUSH_GRADIENT = 'linear-gradient(135deg, #ff0072 0%, #6f00ff 32%, #004bff 66%, #03ecfc 100%)';
 
 const navItems = [
   { path: '/map', icon: mapIconWhite, activeIcon: mapIconColored, label: 'Map' },
   { path: '/feed', icon: feedIconWhite, activeIcon: feedIconColored, label: 'Feed' },
   { path: '/cruush', icon: cruushIconWhite, activeIcon: cruushIconColored, label: 'cruush' },
   { path: '/messages', icon: messagesIconWhite, activeIcon: messagesIconColored, label: 'Messages' },
-  { path: '/profile', icon: profileIconWhite, activeIcon: profileIconColored, label: 'Profile' },
+  { path: '/profile', profile: true, label: 'Profile' },
 ];
+
+function ProfileNavIcon({ active }: { active: boolean }) {
+  if (!active) {
+    return (
+      <img
+        alt=""
+        aria-hidden="true"
+        className="h-11 w-11 object-contain"
+        data-testid="bottom-nav-profile-icon"
+        data-tone="white"
+        draggable={false}
+        src={humanityProfileIcon}
+      />
+    );
+  }
+
+  const maskStyle: CSSProperties = {
+    background: CRUUSH_GRADIENT,
+    maskImage: `url(${humanityProfileIcon})`,
+    maskPosition: 'center',
+    maskRepeat: 'no-repeat',
+    maskSize: 'contain',
+    WebkitMaskImage: `url(${humanityProfileIcon})`,
+    WebkitMaskPosition: 'center',
+    WebkitMaskRepeat: 'no-repeat',
+    WebkitMaskSize: 'contain',
+  };
+
+  return (
+    <span
+      aria-hidden="true"
+      className="h-11 w-11"
+      data-testid="bottom-nav-profile-icon"
+      data-tone="gradient"
+      style={maskStyle}
+    />
+  );
+}
 
 export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
+  const isOwnProfilePanelOpen = Boolean(
+    (location.state as { openOwnProfilePanel?: boolean } | null)?.openOwnProfilePanel
+  );
 
   const isActive = (path: string) => {
+    if (path === '/profile') {
+      return isOwnProfilePanelOpen || location.pathname === path || location.pathname.startsWith(`${path}/`);
+    }
+
+    if (path === '/map' && isOwnProfilePanelOpen) {
+      return false;
+    }
+
     return location.pathname === path || location.pathname.startsWith(path);
   };
   const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
@@ -67,13 +118,17 @@ export default function BottomNav() {
                   : 'text-white/52 hover:bg-white/[0.08] hover:text-white/78'
               }`}
             >
-              <img
-                alt=""
-                aria-hidden="true"
-                className="h-[3.6rem] w-[3.6rem] object-contain"
-                draggable={false}
-                src={active ? item.activeIcon : item.icon}
-              />
+              {'profile' in item ? (
+                <ProfileNavIcon active={active} />
+              ) : (
+                <img
+                  alt=""
+                  aria-hidden="true"
+                  className="h-[3.6rem] w-[3.6rem] object-contain"
+                  draggable={false}
+                  src={active ? item.activeIcon : item.icon}
+                />
+              )}
             </button>
           );
         })}

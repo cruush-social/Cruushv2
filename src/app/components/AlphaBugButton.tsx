@@ -52,6 +52,10 @@ function getBugTipPlacement(pathname: string) {
     return 'left-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
   }
 
+  if (pathname === '/map' || pathname.startsWith('/map/')) {
+    return 'left-4 top-[calc(19.5rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))] lg:left-5';
+  }
+
   return 'left-4 top-[calc(7.25rem+env(safe-area-inset-top))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
 }
 

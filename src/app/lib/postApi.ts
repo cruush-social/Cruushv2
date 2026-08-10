@@ -35,6 +35,7 @@ export type FeedPost = {
 export type FeedSettings = {
   locationPinVisibility: FeedLocationPinVisibility;
   showDistanceLabels: boolean;
+  postExpiryDefault: FeedPostExpiry;
 };
 
 export type FeedPostFilters = {

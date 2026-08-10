@@ -545,6 +545,9 @@ describe('PrivateGroupChat', () => {
   });
 
   it('renders expiring message metadata', async () => {
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+    const expirationDate = new Date(expiresAt).toLocaleDateString([], { month: 'short', day: 'numeric' });
+
     getConversationMessages.mockResolvedValue({
       conversation: {
         id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
@@ -570,7 +573,7 @@ describe('PrivateGroupChat', () => {
         userId: 'user-2',
         content: 'see you there',
         timestamp: '2026-04-29T12:00:00.000Z',
-        expiresAt: '2026-04-30T12:00:00.000Z',
+        expiresAt,
       }],
     });
 
@@ -583,7 +586,89 @@ describe('PrivateGroupChat', () => {
     );
 
     expect(await screen.findByText('see you there')).toBeInTheDocument();
-    expect(screen.getByText(/expires Apr 30/)).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes(`expires ${expirationDate}`))).toBeInTheDocument();
+  });
+
+  it('shows live remaining time for the sender\'s expiring text and view-once photo only', async () => {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 45_000).toISOString();
+
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: now.toISOString(),
+        lastMessage: 'sender text',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: '24h',
+      },
+      messages: [{
+        id: 'msg-sender-text',
+        userId: 'user-1',
+        content: 'sender text',
+        timestamp: now.toISOString(),
+        expiresAt,
+      }, {
+        id: 'msg-sender-photo',
+        userId: 'user-1',
+        content: '',
+        timestamp: now.toISOString(),
+        expiresAt,
+        attachments: [{
+          id: 'media-sender-photo',
+          url: '/api/media/message-photos/sender-photo.png',
+          mediaType: 'image',
+          mimeType: 'image/png',
+          viewOnce: true,
+          explicit: false,
+        }],
+      }, {
+        id: 'msg-recipient',
+        userId: 'user-2',
+        content: 'recipient text',
+        timestamp: now.toISOString(),
+        expiresAt,
+      }, {
+        id: 'msg-permanent',
+        userId: 'user-1',
+        content: 'permanent sender text',
+        timestamp: now.toISOString(),
+      }],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('sender text')).toBeInTheDocument();
+    expect(screen.getByText('View-once photo sent')).toBeInTheDocument();
+
+    const initialTimers = screen.getAllByRole('timer');
+    const initialLabel = initialTimers[0]?.getAttribute('aria-label');
+    expect(initialTimers).toHaveLength(2);
+    expect(initialLabel).toMatch(/^Expires in \d+s$/);
+    expect(initialTimers.every((timer) => timer.getAttribute('aria-label') === initialLabel)).toBe(true);
+
+    await waitFor(() => {
+      const updatedTimers = screen.getAllByRole('timer');
+      expect(updatedTimers).toHaveLength(2);
+      expect(updatedTimers.every((timer) => timer.getAttribute('aria-label') !== initialLabel)).toBe(true);
+    }, { timeout: 2_000 });
   });
 
   it('lets users report an individual incoming message', async () => {

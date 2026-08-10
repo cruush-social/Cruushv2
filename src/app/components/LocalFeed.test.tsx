@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LocalFeed from './LocalFeed';
 import { HEART_PIN_THEMES } from '../lib/heartPin';
+import type { FeedSettings } from '../lib/postApi';
 
 const {
   createFeedPost,
@@ -113,6 +114,7 @@ describe('LocalFeed', () => {
     getFeedSettings.mockResolvedValue({
       locationPinVisibility: 'mutuals',
       showDistanceLabels: true,
+      postExpiryDefault: 'never',
     });
     updateFeedSettings.mockImplementation(async (settings) => settings);
     getMyProfile.mockResolvedValue({
@@ -602,6 +604,7 @@ describe('LocalFeed', () => {
 
     const composer = await screen.findByTestId('local-feed-composer');
     const input = within(composer).getByPlaceholderText('Share something with nearby people...');
+    await waitFor(() => expect(within(composer).getByRole('button', { name: '7d' })).toBeEnabled());
 
     fireEvent.change(input, { target: { value: 'seven day post' } });
     fireEvent.click(within(composer).getByRole('button', { name: '7d' }));
@@ -624,6 +627,95 @@ describe('LocalFeed', () => {
     }));
     expect(await screen.findByText('never post')).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText('Never')).toHaveLength(2));
+  });
+
+  it('loads and saves the feed expiry choice used by future Pings', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    getFeedSettings.mockResolvedValue({
+      locationPinVisibility: 'mutuals',
+      showDistanceLabels: true,
+      postExpiryDefault: '24h',
+    });
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    const composer = await screen.findByTestId('local-feed-composer');
+    await waitFor(() => expect(within(composer).getByRole('button', { name: '24h' })).toHaveClass('bg-primary'));
+
+    fireEvent.click(within(composer).getByRole('button', { name: '7d' }));
+
+    await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledWith({
+      locationPinVisibility: 'mutuals',
+      showDistanceLabels: true,
+      postExpiryDefault: '7d',
+    }));
+    expect(within(composer).getByRole('button', { name: '7d' })).toHaveClass('bg-primary');
+  });
+
+  it('serializes rapid feed expiry saves so the last selection wins', async () => {
+    getFeedPosts.mockResolvedValue([]);
+    getFeedSettings.mockResolvedValue({
+      locationPinVisibility: 'mutuals',
+      showDistanceLabels: true,
+      postExpiryDefault: '24h',
+    });
+    let resolveFirst!: (settings: FeedSettings) => void;
+    let resolveSecond!: (settings: FeedSettings) => void;
+    updateFeedSettings
+      .mockImplementationOnce(() => new Promise<FeedSettings>((resolve) => {
+        resolveFirst = resolve;
+      }))
+      .mockImplementationOnce(() => new Promise<FeedSettings>((resolve) => {
+        resolveSecond = resolve;
+      }));
+
+    render(
+      <MemoryRouter>
+        <LocalFeed />
+      </MemoryRouter>,
+    );
+
+    const composer = await screen.findByTestId('local-feed-composer');
+    const sixHourButton = within(composer).getByRole('button', { name: '6h' });
+    const sevenDayButton = within(composer).getByRole('button', { name: '7d' });
+    await waitFor(() => expect(sixHourButton).toBeEnabled());
+
+    fireEvent.click(sixHourButton);
+    fireEvent.click(sevenDayButton);
+
+    await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledTimes(1));
+    expect(updateFeedSettings).toHaveBeenNthCalledWith(1, {
+      locationPinVisibility: 'mutuals',
+      showDistanceLabels: true,
+      postExpiryDefault: '6h',
+    });
+    expect(sevenDayButton).toHaveClass('bg-primary');
+
+    resolveFirst({
+      locationPinVisibility: 'mutuals',
+      showDistanceLabels: true,
+      postExpiryDefault: '6h',
+    });
+
+    await waitFor(() => expect(updateFeedSettings).toHaveBeenCalledTimes(2));
+    expect(updateFeedSettings).toHaveBeenNthCalledWith(2, {
+      locationPinVisibility: 'mutuals',
+      showDistanceLabels: true,
+      postExpiryDefault: '7d',
+    });
+    expect(sevenDayButton).toHaveClass('bg-primary');
+
+    resolveSecond({
+      locationPinVisibility: 'mutuals',
+      showDistanceLabels: true,
+      postExpiryDefault: '7d',
+    });
+
+    await waitFor(() => expect(sevenDayButton).toHaveClass('bg-primary'));
   });
 
   it('shows the party hat beside party member names without a venue tag', async () => {

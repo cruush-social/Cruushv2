@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import AlphaBugButton from './AlphaBugButton';
+import AlphaBugButton, { ALPHA_BUG_TIP_STORAGE_KEY } from './AlphaBugButton';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
+import { clearPersistentNoticeFlag } from '../lib/persistentNotice';
 
 const { createSupportRequest } = vi.hoisted(() => ({
   createSupportRequest: vi.fn(),
@@ -104,6 +105,20 @@ describe('AlphaBugButton', () => {
     expect(slot).toContainElement(reportButton);
     expect(reportButton).toHaveClass('size-8');
     expect(reportButton).not.toHaveClass('fixed', 'z-20');
+  });
+
+  it('moves the first-run map tip below the map controls and Ping button', async () => {
+    clearPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
+    getUserNoticeDismissal.mockResolvedValueOnce({ dismissed: false, dismissedAt: null });
+
+    renderAlphaBugButton();
+
+    const tipCopy = await screen.findByText('Alpha test: tap the bug icon to report anything broken.');
+    const tip = tipCopy.closest('div');
+    expect(tip).toHaveClass(
+      'top-[calc(19.5rem+env(safe-area-inset-top))]',
+      'sm:top-[calc(9.25rem+env(safe-area-inset-top))]',
+    );
   });
 
   it('shows an actionable error code when sending fails', async () => {

@@ -3,7 +3,9 @@ import { expect, test } from '@playwright/test';
 test.describe('install flow', () => {
   test('opens the browser install prompt from notification settings', async ({ page }) => {
     await page.addInitScript(() => {
-      window.localStorage.removeItem('cruush-install-prompt-dismissed');
+      // Keep the browser's automatic availability event from opening the prompt
+      // before this test exercises the explicit Settings action.
+      window.localStorage.setItem('cruush-install-prompt-dismissed', 'true');
     });
 
     await page.goto('/settings/notifications');

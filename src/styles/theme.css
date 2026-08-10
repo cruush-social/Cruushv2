@@ -269,6 +269,16 @@
     max-height: 100dvh;
   }
 
+  .cruush-marker-motion {
+    --marker-motion-scale: 1;
+    transform: scale(var(--marker-motion-scale));
+  }
+
+  [data-map-marker-pin="true"]:hover .cruush-marker-motion,
+  [data-map-marker-pin="true"]:focus-within .cruush-marker-motion {
+    --marker-motion-scale: 1.5;
+  }
+
   .cruush-logo-text {
     font-family: 'UnifrakturMaguntia', serif;
     background: var(--cruush-logo-gradient);
@@ -314,6 +324,20 @@
     }
   }
 
+  @keyframes cruush-map-ping-heart-pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.06);
+    }
+  }
+
+  .cruush-map-ping-heart {
+    animation: cruush-map-ping-heart-pulse 1.35s ease-in-out infinite;
+  }
+
+
   .animate-cruush-party-dance {
     animation: cruush-party-dance 1.05s ease-in-out infinite;
     transform-origin: 50% 82%;
@@ -321,6 +345,10 @@
 
   @media (prefers-reduced-motion: reduce) {
     .animate-cruush-party-dance {
+      animation: none;
+    }
+
+    .cruush-map-ping-heart {
       animation: none;
     }
   }

@@ -21,7 +21,7 @@ export default function Tutorial() {
         <section className="rounded-xl border border-white/10 bg-card/80 p-4">
           <h3 className="text-base">Interactive map tutorial</h3>
           <p className="mt-1 text-sm text-white/58">
-            Replay the step-by-step tour and try the real Seeking, Visibility, and Zoom controls.
+            Replay the step-by-step tour for installing cruush, enabling notifications, and trying the real Seeking, Visibility, DL Mode, Ping, and Zoom controls.
           </p>
           <Button
             className="mt-4 rounded-full"

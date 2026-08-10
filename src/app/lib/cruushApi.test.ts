@@ -1,8 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { sendCruush } from './cruushApi';
+import { getMutualCruushMap, sendCruush } from './cruushApi';
+
+const { decryptDisplayLocationToken } = vi.hoisted(() => ({
+  decryptDisplayLocationToken: vi.fn(),
+}));
+
+vi.mock('./displayLocationTokens', () => ({
+  decryptDisplayLocationToken,
+}));
 
 describe('cruushApi', () => {
   beforeEach(() => {
+    decryptDisplayLocationToken.mockReset();
+    decryptDisplayLocationToken.mockResolvedValue({
+      displayMode: 'GHOST',
+      latitude: 40.714,
+      longitude: -74.004,
+      animationHint: 'FADE_LAST_MINUTE',
+    });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       text: vi.fn().mockResolvedValue(JSON.stringify({
@@ -43,5 +58,50 @@ describe('cruushApi', () => {
     })).rejects.toThrow('This profile cannot receive cruushes.');
 
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps the server Ghost rotation deadline on mutual map profiles', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      text: vi.fn().mockResolvedValue(JSON.stringify({
+        data: {
+          mapEpochMs: 1780520000000,
+          profiles: [{
+            profileToken: '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97',
+            matchId: 'match-1',
+            createdAt: '2026-08-09T16:00:00.000Z',
+            locked: false,
+            user: {
+              id: '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97',
+              name: 'River',
+              pronouns: 'they/them',
+              photo: null,
+            },
+            mutualCrowds: [],
+            vibes: [],
+            distanceLabel: 'Nearby',
+            lastActive: 'Now',
+            canMessage: true,
+            canRevealPreciseLocation: false,
+            displayLocationToken: { tokenId: 'display-token' },
+            displayExpiresAtMs: 1780520060000,
+            animationHint: 'FADE_LAST_MINUTE',
+            ghostRotationExpiresAtMs: 1780520030000,
+          }],
+        },
+      })),
+    } as Response);
+
+    const profiles = await getMutualCruushMap();
+
+    expect(profiles[0]).toMatchObject({
+      animationHint: 'FADE_LAST_MINUTE',
+      ghostRotationExpiresAtMs: 1780520030000,
+      coordinates: {
+        lat: 40.714,
+        lng: -74.004,
+        precision: 'fuzzy',
+      },
+    });
   });
 });

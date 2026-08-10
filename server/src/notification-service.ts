@@ -177,9 +177,9 @@ export async function createAppNotificationAndPush(
 export async function getNotificationSummary(app: NotificationApp, userId: string): Promise<NotificationSummary> {
   const result = await app.db.query<{ unread_count: number }>(
     `select count(*)::int as unread_count
-     from app_notifications
-     where user_id = $1
-       and read_at is null`,
+     from app_notifications notification
+     where notification.user_id = $1
+       and notification.read_at is null`,
     [userId]
   );
 

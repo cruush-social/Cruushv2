@@ -36,6 +36,7 @@ export type DiscoveryUser = {
   displayMode?: DisplayMode;
   animationHint?: DisplayAnimationHint;
   displayExpiresAtMs?: number;
+  ghostRotationExpiresAtMs?: number;
   privacyRadiusMeters?: number;
   npcGhostDemo?: boolean;
   hasSharedCrowd?: boolean;
@@ -87,6 +88,7 @@ type TokenizedDiscoveryProfile = {
   displayLocationToken: DisplayLocationToken;
   displayExpiresAtMs: number;
   animationHint: DisplayAnimationHint;
+  ghostRotationExpiresAtMs?: number;
   demoDisplayMode?: 'NPC_GHOST_TEST';
   relationshipContext: 'PUBLIC' | 'MUTUAL_CRUUSH' | 'MUTUAL_CROWD';
   hasSharedCrowd?: boolean;
@@ -194,6 +196,7 @@ export async function getNearbyUsers(
       displayMode: displayPayload.displayMode,
       animationHint: profile.animationHint ?? displayPayload.animationHint,
       displayExpiresAtMs: profile.displayExpiresAtMs,
+      ghostRotationExpiresAtMs: profile.ghostRotationExpiresAtMs,
       privacyRadiusMeters: displayPayload.accuracyDisplayM,
       npcGhostDemo: profile.demoDisplayMode === 'NPC_GHOST_TEST',
       hasSharedCrowd: profile.hasSharedCrowd === true || profile.relationshipContext === 'MUTUAL_CROWD',

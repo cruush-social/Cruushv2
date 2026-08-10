@@ -97,7 +97,6 @@ beforeEach(() => {
   sendNotification.mockReset();
   setVapidDetails.mockReset();
 });
-
 afterEach(() => {
   vi.unstubAllGlobals();
 });

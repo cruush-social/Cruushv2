@@ -72,6 +72,35 @@ describe("migration runner", () => {
     expect(revocationSql).not.toContain("reward.source = 'referral'");
   });
 
+  it("adds privacy-safe map Pings after the automatic-trial revocation", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const mapPingsSql = await readFile(path.join(serverRoot, "sql", "074_map_pings.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"073_revoke_post_aug7_automatic_cruush_plus_trials\.sql",\s*"074_map_pings\.sql"/);
+    expect(mapPingsSql).toContain("create table if not exists map_pings");
+    expect(mapPingsSql).not.toContain("posts_expires_in_check");
+    expect(mapPingsSql).toContain("radius_miles in (1, 3, 5, 10, 15)");
+    expect(mapPingsSql).toContain("map_pings_user_idempotency_unique");
+    expect(mapPingsSql).toContain("map_ping_id uuid references map_pings(id) on delete set null");
+    expect(mapPingsSql).toContain("posts_map_ping_id_uidx");
+    expect(mapPingsSql).not.toContain("app_notifications_map_ping_id_idx");
+    expect(mapPingsSql).toContain("feed_post_expiry_default text not null default 'never'");
+    expect(mapPingsSql).toContain("user_privacy_settings_feed_post_expiry_default_check");
+    expect(mapPingsSql).not.toContain("map_pings_enabled");
+    expect(mapPingsSql).not.toContain("app_notifications");
+    expect(mapPingsSql).not.toMatch(/\b(lat|lng|longitude|latitude|distance_miles|recipient_count|recipient_id)\b/);
+  });
+
+  it("adds per-user Ghost Mode rotation and the heartbeat preference after map Pings", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const ghostPulseSql = await readFile(path.join(serverRoot, "sql", "075_ghost_mode_pulse.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"074_map_pings\.sql",\s*"075_ghost_mode_pulse\.sql"/);
+    expect(ghostPulseSql).toContain("ghost_mode_anchor_ms bigint");
+    expect(ghostPulseSql).toContain("ghost_pulse_enabled boolean not null default true");
+    expect(ghostPulseSql).toContain("where ghost_mode_enabled = true");
+  });
+
   it("adds the launch party and crowd feed schema after rewards and 2FA", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const launchSql = await readFile(path.join(serverRoot, "sql", "043_launch_party_crowd_feed.sql"), "utf8");

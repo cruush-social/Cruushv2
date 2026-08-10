@@ -36,11 +36,13 @@ type PostRow = {
     eventSlug?: string;
     label?: string;
   } | string | null;
+  map_ping_id?: string | null;
 };
 
 type FeedSettingsRow = {
   feed_location_pin_visibility: FeedLocationPinVisibility | null;
   feed_show_distance_labels: boolean | null;
+  feed_post_expiry_default: PostRow["expires_in"] | null;
 };
 
 function formatCoarseDistance(miles: number) {
@@ -176,6 +178,7 @@ const POST_COLUMNS = `
   p.content_nonce,
   p.content_auth_tag,
   p.content_key_version,
+  p.map_ping_id,
   p.expires_in,
   p.expires_at,
   p.created_at,
@@ -334,7 +337,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const row = (await app.db.query<FeedSettingsRow>(
       `select
          feed_location_pin_visibility,
-         feed_show_distance_labels
+         feed_show_distance_labels,
+         feed_post_expiry_default
        from user_privacy_settings
        where user_id = $1
        limit 1`,
@@ -344,7 +348,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
     return reply.send({
       data: {
         locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals",
-        showDistanceLabels: row?.feed_show_distance_labels ?? true
+        showDistanceLabels: row?.feed_show_distance_labels ?? true,
+        postExpiryDefault: row?.feed_post_expiry_default ?? "never"
       }
     });
   });
@@ -356,21 +361,32 @@ export async function registerPostRoutes(app: FastifyInstance) {
       `insert into user_privacy_settings (
          user_id,
          feed_location_pin_visibility,
-         feed_show_distance_labels
+         feed_show_distance_labels,
+         feed_post_expiry_default
        )
-       values ($1, $2, $3)
+       values ($1, $2, $3, coalesce($4::text, 'never'))
        on conflict (user_id) do update
        set feed_location_pin_visibility = excluded.feed_location_pin_visibility,
            feed_show_distance_labels = excluded.feed_show_distance_labels,
+           feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default),
            updated_at = now()
-       returning feed_location_pin_visibility, feed_show_distance_labels`,
-      [userId, payload.locationPinVisibility, payload.showDistanceLabels]
+       returning
+         feed_location_pin_visibility,
+         feed_show_distance_labels,
+         feed_post_expiry_default`,
+      [
+        userId,
+        payload.locationPinVisibility,
+        payload.showDistanceLabels,
+        payload.postExpiryDefault ?? null
+      ]
     )).rows[0];
 
     return reply.send({
       data: {
         locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals",
-        showDistanceLabels: row?.feed_show_distance_labels ?? true
+        showDistanceLabels: row?.feed_show_distance_labels ?? true,
+        postExpiryDefault: row?.feed_post_expiry_default ?? "never"
       }
     });
   });

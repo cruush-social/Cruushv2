@@ -90,6 +90,7 @@ describe('usersApi', () => {
             },
             displayExpiresAtMs: 1780520060000,
             animationHint: 'FADE_LAST_MINUTE',
+            ghostRotationExpiresAtMs: 1780520030000,
             demoDisplayMode: 'NPC_GHOST_TEST',
             relationshipContext: 'PUBLIC',
             lookingFor: ['Testing'],
@@ -113,6 +114,7 @@ describe('usersApi', () => {
       lng: -74.004,
       displayMode: 'GHOST',
       animationHint: 'FADE_LAST_MINUTE',
+      ghostRotationExpiresAtMs: 1780520030000,
       privacyRadiusMeters: 1609,
       npcGhostDemo: true,
     });

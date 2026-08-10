@@ -10,6 +10,10 @@ export const HEART_PIN_THEMES = {
     border: '#6f00ff',
     stops: ['#A64DFF', '#6f00ff', '#3B00A8'],
   },
+  ghost: {
+    border: '#0BA8FF',
+    stops: ['#0BA8FF', '#0BA8FF', '#0BA8FF'],
+  },
   nearby: {
     border: '#FF0072',
     stops: ['#FF0072', '#DA045D', '#B40849'],

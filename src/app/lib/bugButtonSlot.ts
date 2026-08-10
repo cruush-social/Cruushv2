@@ -18,6 +18,7 @@ export function registerBugButtonSlot(element: HTMLElement | null) {
 
 export function subscribeToBugButtonSlot(listener: BugButtonSlotListener) {
   listeners.add(listener);
+  listener();
 
   return () => {
     listeners.delete(listener);

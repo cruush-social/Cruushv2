@@ -140,7 +140,9 @@ describe("development profile seeding", () => {
     const result = await seedDevelopmentProfilesWithDb({ config, db });
     const encryptedLocationCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_location_envelopes"));
     const encryptedPolicyCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"));
-    const legacyPrivacyCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into user_privacy_settings"));
+    const legacyPrivacyCalls = query.mock.calls.filter(([sql]) => String(sql).includes(
+      "insert into user_privacy_settings (user_id, ghost_mode_enabled, precise_location_visibility)"
+    ));
     const adminDiscoveryTokens = new Set(createCoarseIndexTokens(
       config,
       DEVELOPMENT_ADMIN_LOCATION.lat,

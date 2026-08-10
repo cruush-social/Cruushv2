@@ -69,6 +69,7 @@ export type MutualCruushActivityItem = {
   displayLocationToken?: DisplayLocationToken;
   displayExpiresAtMs?: number;
   animationHint?: DisplayAnimationHint;
+  ghostRotationExpiresAtMs?: number;
   distanceLabel?: string;
   coordinates: {
     lat: number;
@@ -83,6 +84,7 @@ type TokenizedMutualMapItem = Omit<MutualCruushActivityItem, 'id' | 'coordinates
   displayLocationToken: DisplayLocationToken;
   displayExpiresAtMs: number;
   animationHint: DisplayAnimationHint;
+  ghostRotationExpiresAtMs?: number;
   relationship?: {
     mutualCruush: boolean;
     canMessage: boolean;
@@ -190,6 +192,7 @@ export async function getMutualCruushMap() {
       displayLocationToken: item.displayLocationToken,
       displayExpiresAtMs: item.displayExpiresAtMs,
       animationHint: item.animationHint ?? displayPayload.animationHint,
+      ghostRotationExpiresAtMs: item.ghostRotationExpiresAtMs,
       coordinates: {
         lat: displayPayload.latitude,
         lng: displayPayload.longitude,

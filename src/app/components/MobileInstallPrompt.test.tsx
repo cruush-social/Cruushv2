@@ -53,6 +53,8 @@ describe('MobileInstallPrompt', () => {
 
     expect(await screen.findByText(/Safari share/i)).toBeInTheDocument();
     expect(screen.getByText('Add cruush to Home Screen')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-install-prompt')).toHaveAttribute('data-tutorial-target', 'install');
+    expect(screen.getByTestId('mobile-install-prompt')).toHaveClass('z-[90]');
     expect(screen.getByRole('button', { name: 'Got it' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Install cruush' })).not.toBeInTheDocument();
   });

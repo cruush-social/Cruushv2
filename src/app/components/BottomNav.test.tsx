@@ -137,6 +137,43 @@ describe('BottomNav', () => {
     expect(inactiveMapIcon?.getAttribute('src')).toContain('map-white');
   });
 
+  it('uses the selected V2 humanity profile mark in white while inactive', () => {
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const profileIcon = screen.getByTestId('bottom-nav-profile-icon');
+
+    expect(profileIcon.tagName).toBe('IMG');
+    expect(profileIcon).toHaveAttribute('data-tone', 'white');
+    expect(profileIcon).toHaveAttribute('src', expect.stringContaining('humanity-profile-selected-winged-heart'));
+    expect(profileIcon).toHaveClass('h-11', 'w-11');
+  });
+
+  it('fills the selected V2 humanity profile mark with the cruush gradient', () => {
+    useIsMobile.mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const profileButton = screen.getByRole('button', { name: /profile/i });
+    const profileIcon = screen.getByTestId('bottom-nav-profile-icon');
+
+    expect(profileButton).toHaveAttribute('aria-current', 'page');
+    expect(profileIcon.tagName).toBe('SPAN');
+    expect(profileIcon).toHaveAttribute('data-tone', 'gradient');
+    expect(profileIcon).toHaveStyle({
+      background: 'linear-gradient(135deg, #ff0072 0%, #6f00ff 32%, #004bff 66%, #03ecfc 100%)',
+    });
+    expect(profileIcon).toHaveClass('h-11', 'w-11');
+    expect(profileIcon.getAttribute('style')).toContain('humanity-profile-selected-winged-heart');
+  });
+
   it('opens the desktop profile side panel from the profile icon on the map', () => {
     render(
       <MemoryRouter initialEntries={['/map']}>
@@ -148,6 +185,9 @@ describe('BottomNav', () => {
     fireEvent.click(screen.getByRole('button', { name: /profile/i }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map:{"openOwnProfilePanel":true}');
+    expect(screen.getByRole('button', { name: /profile/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: /map/i })).not.toHaveAttribute('aria-current');
+    expect(screen.getByTestId('bottom-nav-profile-icon')).toHaveAttribute('data-tone', 'gradient');
   });
 
   it('opens the desktop profile side panel from the profile icon on non-map pages', () => {

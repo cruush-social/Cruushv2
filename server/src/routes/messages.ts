@@ -1320,15 +1320,15 @@ export async function registerMessageRoutes(app: FastifyInstance) {
                moderation_status = 'approved',
                moderation_provider = $4,
                moderation_provider_version = $5,
-               moderation_scores = $7::jsonb,
+               moderation_scores = $6::jsonb,
                moderation_decided_at = now(),
                moderation_failure_reason = null,
                moderation_attempts = 0,
                moderation_next_retry_at = null,
                moderation_hold = null,
-               explicit_classification = case when $12 then 'explicit' else 'non_explicit' end,
-               photodna_status = $10,
-               photodna_provider_request_id = $11
+               explicit_classification = case when $7 then 'explicit' else 'non_explicit' end,
+               photodna_status = $8,
+               photodna_provider_request_id = $9
            where media.id = $2
              and media.owner_user_id = $1
              and media.surface = 'message_photo'
@@ -1340,13 +1340,10 @@ export async function registerMessageRoutes(app: FastifyInstance) {
             mediaAsset.displayUrl,
             mediaAsset.moderation.provider,
             mediaAsset.moderation.providerVersion,
-            mediaAsset.moderation.providerRequestId,
             JSON.stringify(mediaAsset.moderation.labels),
-            JSON.stringify(mediaAsset.moderation.decision),
-            JSON.stringify(mediaAsset.moderation.rawResult),
+            isAdultExplicit,
             mediaAsset.moderation.photoDnaStatus,
-            mediaAsset.moderation.photoDnaProviderRequestId,
-            isAdultExplicit
+            mediaAsset.moderation.photoDnaProviderRequestId
           ]
         );
 
@@ -1376,8 +1373,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
              'direct_message',
              'image',
              'allowed',
-             $2,
-             jsonb_build_object('assetId', $2, 'surface', 'message_photo', 'favorite', true),
+             $2::text,
+             jsonb_build_object('assetId', $2::text, 'surface', 'message_photo', 'favorite', true),
              $3,
              $4,
              $5::jsonb,

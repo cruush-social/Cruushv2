@@ -68,6 +68,12 @@ export function resolveNotificationNavigationPath(linkUrl: string | null | undef
   return linkUrl;
 }
 
+export function notificationPopupTheme() {
+  return {
+    popup: 'border-[#C8FF31]',
+  };
+}
+
 function getAudioContextConstructor() {
   return window.AudioContext ||
     (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -204,10 +210,12 @@ export default function ForegroundNotifications() {
   }, [navigate]);
 
   const showPopup = useCallback((notification: NotificationRecord) => {
+    const theme = notificationPopupTheme();
+
     toast.custom((toastId) => (
       <button
         type="button"
-        className="flex w-full max-w-[22rem] items-start gap-3 rounded-lg border border-white/12 bg-background/95 p-4 text-left text-white shadow-[0_18px_48px_rgba(0,0,0,0.46)] backdrop-blur-md transition-colors hover:bg-muted/80"
+        className={`flex w-full max-w-[22rem] items-start gap-3 rounded-lg border bg-background/95 p-4 text-left text-white shadow-[0_18px_48px_rgba(0,0,0,0.46)] backdrop-blur-md transition-colors hover:bg-muted/80 ${theme.popup}`}
         onClick={() => void openNotification(notification, toastId)}
         aria-label={`Open notification: ${notification.title}`}
       >

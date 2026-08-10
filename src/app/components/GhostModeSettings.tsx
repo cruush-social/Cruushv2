@@ -9,12 +9,15 @@ import {
   CROWDS,
 } from '../lib/profileOptions';
 import {
+  DEFAULT_GHOST_PULSE_SETTINGS,
   DEFAULT_MAP_PRESENCE_SETTINGS,
   DEFAULT_PRIVACY_SETTINGS,
   GHOST_RADIUS_OPTIONS,
   MAP_PRESENCE_OPTIONS,
+  getMyGhostPulseSettings,
   getMyMapPresenceSettings,
   getMyPrivacySettings,
+  saveMyGhostPulseSettings,
   saveMyMapPresenceSettings,
   saveMyPrivacySettings,
   type CrowdPrecisionPolicy,
@@ -29,6 +32,8 @@ export default function GhostModeSettings() {
   const [privacyError, setPrivacyError] = useState<string | null>(null);
   const [mapPresence, setMapPresence] = useState<MapPresenceSettings>(DEFAULT_MAP_PRESENCE_SETTINGS);
   const [mapPresenceSaving, setMapPresenceSaving] = useState(false);
+  const [ghostPulseEnabled, setGhostPulseEnabled] = useState(DEFAULT_GHOST_PULSE_SETTINGS.enabled);
+  const [ghostPulseSaving, setGhostPulseSaving] = useState(false);
 
   const normalizePrivacySettings = (settings: Partial<PrivacySettings>): PrivacySettings => ({
     ...DEFAULT_PRIVACY_SETTINGS,
@@ -96,10 +101,40 @@ export default function GhostModeSettings() {
         }
       });
 
+    getMyGhostPulseSettings()
+      .then((settings) => {
+        if (active) {
+          setGhostPulseEnabled(settings.enabled !== false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setGhostPulseEnabled(DEFAULT_GHOST_PULSE_SETTINGS.enabled);
+        }
+      });
+
     return () => {
       active = false;
     };
   }, []);
+
+  const persistGhostPulse = async (enabled: boolean) => {
+    const previousEnabled = ghostPulseEnabled;
+
+    setGhostPulseEnabled(enabled);
+    setGhostPulseSaving(true);
+
+    try {
+      const saved = await saveMyGhostPulseSettings(enabled);
+      setGhostPulseEnabled(saved.enabled !== false);
+      setPrivacyError(null);
+    } catch (error) {
+      setGhostPulseEnabled(previousEnabled);
+      setPrivacyError(error instanceof Error ? error.message : 'Failed to save the pin countdown setting.');
+    } finally {
+      setGhostPulseSaving(false);
+    }
+  };
 
   const persistMapPresenceDays = async (days: number) => {
     const previousPresence = mapPresence;
@@ -211,6 +246,30 @@ export default function GhostModeSettings() {
               ))}
             </div>
             <p className="text-sm text-muted-foreground">Larger radius gives you more cover; smaller radius keeps your public pin closer to where you are.</p>
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4" data-testid="ghost-pulse-setting">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p>Countdown before you move</p>
+                <p className="text-sm text-muted-foreground">
+                  {ghostPulseEnabled ? 'Others can see your last minute' : 'Your pin moves without warning'}
+                </p>
+              </div>
+              <Switch
+                aria-label="Show a countdown before your pin moves"
+                checked={ghostPulseEnabled}
+                disabled={privacyStatus === 'loading' || ghostPulseSaving}
+                onCheckedChange={(checked) => {
+                  void persistGhostPulse(checked === true);
+                }}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Ghost Mode moves your pin to a new spot inside your radius every 15 minutes, counting from when you turned
+              Ghost Mode on. For the last minute before it moves, your heart beats faster as time runs out. Turn this
+              off and your pin simply moves without a visible countdown.
+            </p>
           </div>
 
           <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4" data-testid="map-presence-duration">

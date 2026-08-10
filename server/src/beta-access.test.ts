@@ -19,8 +19,8 @@ describe("beta access geofence", () => {
   });
 
   it("keeps discovery data within the same launch area", () => {
-    expect(isWithinBetaLaunchArea({ lat: 40.6832265, lng: -73.9520496 })).toBe(true);
-    expect(isWithinBetaLaunchArea({ lat: 40.899, lng: -73.9520496 })).toBe(true);
-    expect(isWithinBetaLaunchArea({ lat: 40.901, lng: -73.9520496 })).toBe(false);
+    expect(isWithinBetaLaunchArea({ lat: 40.6828509, lng: -73.9521325 })).toBe(true);
+    expect(isWithinBetaLaunchArea({ lat: 40.898, lng: -73.9521325 })).toBe(true);
+    expect(isWithinBetaLaunchArea({ lat: 40.901, lng: -73.9521325 })).toBe(false);
   });
 });

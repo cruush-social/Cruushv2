@@ -19,8 +19,13 @@ export type MapMarker = {
   isCurrentUser?: boolean;
   displayMode?: 'PRECISE' | 'GHOST';
   animationHint?: 'NONE' | 'FADE_LAST_MINUTE' | 'SIGNAL_LOSS' | 'REAPPEAR';
+  ghostRotationExpiresAtMs?: number;
   privacyRadiusMeters?: number;
   npcGhostDemo?: boolean;
+  activePing?: {
+    id: string;
+    expiresAt: string;
+  } | null;
   badge?: MapMarkerBadge | null;
   relationship?: {
     kind: 'mutual_cruush';

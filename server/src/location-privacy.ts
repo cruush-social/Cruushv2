@@ -458,7 +458,10 @@ export function publicPrivacySettings(policy: VisibilityPolicyPayload) {
   };
 }
 
-export async function loadVisibilityPolicy(context: LocationPrivacyContext, subjectUserId: string) {
+async function loadEncryptedVisibilityPolicyRow(
+  context: LocationPrivacyContext,
+  subjectUserId: string
+) {
   const rows = await context.db.query<EncryptedVisibilityTokenRow>(
     `select
        subject_user_id::text as subject_user_id,
@@ -476,10 +479,18 @@ export async function loadVisibilityPolicy(context: LocationPrivacyContext, subj
      limit 1`,
     [subjectUserId]
   );
-  const row = rows?.rows?.[0];
+
+  return rows?.rows?.[0] ?? null;
+}
+
+export async function loadVisibilityPolicyStrict(
+  context: LocationPrivacyContext,
+  subjectUserId: string
+): Promise<VisibilityPolicyPayload | null> {
+  const row = await loadEncryptedVisibilityPolicyRow(context, subjectUserId);
 
   if (!row) {
-    return buildDefaultVisibilityPolicy(context.config, subjectUserId);
+    return null;
   }
 
   const policyVersion = toNumber(row.policy_version);
@@ -499,13 +510,18 @@ export async function loadVisibilityPolicy(context: LocationPrivacyContext, subj
     });
 
     if (policy.subjectUserId !== subjectUserId) {
-      return buildDefaultVisibilityPolicy(context.config, subjectUserId);
+      return null;
     }
 
     return policy;
-  } catch (error) {
-    return buildDefaultVisibilityPolicy(context.config, subjectUserId);
+  } catch {
+    return null;
   }
+}
+
+export async function loadVisibilityPolicy(context: LocationPrivacyContext, subjectUserId: string) {
+  return await loadVisibilityPolicyStrict(context, subjectUserId)
+    ?? buildDefaultVisibilityPolicy(context.config, subjectUserId);
 }
 
 export async function saveVisibilityPolicy(
@@ -518,6 +534,22 @@ export async function saveVisibilityPolicy(
 ) {
   const currentPolicy = await loadVisibilityPolicy(context, subjectUserId);
   const policy = normalizeVisibilityPolicy(context.config, subjectUserId, input, currentPolicy);
+
+  // Each Ghost Mode profile rotates from the moment that mode is enabled.
+  // Preserve an active cycle while other privacy settings change, clear it on
+  // exit, and start a fresh cycle when Ghost Mode is enabled again.
+  await context.db.query(
+    `insert into user_privacy_settings (user_id, ghost_mode_anchor_ms)
+     values ($1, case when $2::boolean then $3::bigint else null end)
+     on conflict (user_id) do update
+     set ghost_mode_anchor_ms = case
+           when $2::boolean is not true then null
+           when user_privacy_settings.ghost_mode_anchor_ms is null then $3::bigint
+           else user_privacy_settings.ghost_mode_anchor_ms
+         end,
+         updated_at = now()`,
+    [subjectUserId, policy.baseMode === "GHOST", policy.updatedAtMs]
+  );
   const encrypted = encryptWithWrappedDataKey({
     plaintext: policy,
     aad: policyAad(subjectUserId, policy.policyVersion, policy.updatedAtMs),
@@ -800,16 +832,72 @@ export function locationPayloadToCoordinates(location: LocationPayload) {
   };
 }
 
-export function currentRotationEpoch(nowMs = Date.now()) {
-  return Math.floor(nowMs / ROTATION_INTERVAL_MS);
+export function fallbackGhostAnchorMs(subjectUserId: string) {
+  const digest = createHash("sha256").update(`ghost-anchor:v1:${subjectUserId}`).digest();
+
+  return digest.readUInt32BE(0) % ROTATION_INTERVAL_MS;
 }
 
-function rotationExpiresAtMs(rotationEpoch: number) {
-  return (rotationEpoch + 1) * ROTATION_INTERVAL_MS;
+export async function loadGhostRotationSettings(context: LocationPrivacyContext, subjectUserId: string) {
+  const result = await context.db.query<{
+    ghost_mode_anchor_ms: string | number | null;
+    ghost_pulse_enabled: boolean | null;
+  }>(
+    `select ghost_mode_anchor_ms, ghost_pulse_enabled
+     from user_privacy_settings
+     where user_id = $1
+     limit 1`,
+    [subjectUserId]
+  );
+  const row = result.rows[0];
+  const anchor = row?.ghost_mode_anchor_ms;
+  const parsedAnchor = typeof anchor === "number"
+    ? anchor
+    : typeof anchor === "string" ? Number.parseInt(anchor, 10) : Number.NaN;
+
+  return {
+    anchorMs: Number.isFinite(parsedAnchor) ? parsedAnchor : fallbackGhostAnchorMs(subjectUserId),
+    pulseEnabled: row?.ghost_pulse_enabled !== false
+  };
 }
 
-function animationHintForEpoch(rotationEpoch: number, nowMs = Date.now()): DisplayAnimationHint {
-  const remainingMs = rotationExpiresAtMs(rotationEpoch) - nowMs;
+export async function describeGhostRotation(
+  context: LocationPrivacyContext,
+  subjectUserId: string,
+  nowMs = Date.now()
+) {
+  const { anchorMs, pulseEnabled } = await loadGhostRotationSettings(context, subjectUserId);
+  const rotationEpoch = currentRotationEpoch(anchorMs, nowMs);
+
+  if (!pulseEnabled) {
+    return {
+      pulseEnabled,
+      rotationExpiresAtMs: null,
+      animationHint: "NONE" as DisplayAnimationHint
+    };
+  }
+
+  return {
+    pulseEnabled,
+    rotationExpiresAtMs: rotationExpiresAtMs(rotationEpoch, anchorMs),
+    animationHint: animationHintForEpoch(rotationEpoch, anchorMs, nowMs)
+  };
+}
+
+export function currentRotationEpoch(anchorMs: number, nowMs = Date.now()) {
+  return Math.floor((nowMs - anchorMs) / ROTATION_INTERVAL_MS);
+}
+
+function rotationExpiresAtMs(rotationEpoch: number, anchorMs: number) {
+  return anchorMs + (rotationEpoch + 1) * ROTATION_INTERVAL_MS;
+}
+
+function animationHintForEpoch(
+  rotationEpoch: number,
+  anchorMs: number,
+  nowMs = Date.now()
+): DisplayAnimationHint {
+  const remainingMs = rotationExpiresAtMs(rotationEpoch, anchorMs) - nowMs;
 
   if (remainingMs <= 0) {
     return "SIGNAL_LOSS";
@@ -822,11 +910,12 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
   subjectUserId: string;
   policy: VisibilityPolicyPayload;
   location: LocationPayload;
+  anchorMs: number;
   nowMs?: number;
 }) {
   const nowMs = input.nowMs ?? Date.now();
-  const rotationEpoch = currentRotationEpoch(nowMs);
-  const existing = await context.db.query<EncryptedGhostRotationTokenRow>(
+  const rotationEpoch = currentRotationEpoch(input.anchorMs, nowMs);
+  const loadActiveRotation = async () => (await context.db.query<EncryptedGhostRotationTokenRow>(
     `select
        subject_user_id::text as subject_user_id,
        rotation_epoch,
@@ -848,22 +937,24 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
        and expires_at_ms > $4
      limit 1`,
     [input.subjectUserId, rotationEpoch, input.policy.policyVersion, nowMs]
-  );
-  const existingRow = existing.rows[0];
-
-  if (existingRow) {
-    return decryptWithWrappedDataKey<GhostRotationPayload>({
-      ciphertext: existingRow.token_ciphertext,
-      nonce: existingRow.token_nonce,
-      authTag: existingRow.token_auth_tag,
-      wrappedDek: existingRow.wrapped_token_dek,
-      dekNonce: existingRow.token_dek_nonce,
-      dekAuthTag: existingRow.token_dek_auth_tag,
+  )).rows[0];
+  const decryptRotation = (row: EncryptedGhostRotationTokenRow) =>
+    decryptWithWrappedDataKey<GhostRotationPayload>({
+      ciphertext: row.token_ciphertext,
+      nonce: row.token_nonce,
+      authTag: row.token_auth_tag,
+      wrappedDek: row.wrapped_token_dek,
+      dekNonce: row.token_dek_nonce,
+      dekAuthTag: row.token_dek_auth_tag,
       aad: rotationAad(input.subjectUserId, rotationEpoch, input.policy.policyVersion),
       secret: getGhostDerivationSecret(context.config),
       purpose: "ghost-rotation",
-      keyVersion: existingRow.key_version || getGhostDerivationKeyVersion(context.config)
+      keyVersion: row.key_version || getGhostDerivationKeyVersion(context.config)
     });
+  const existingRow = await loadActiveRotation();
+
+  if (existingRow) {
+    return decryptRotation(existingRow);
   }
 
   const keyVersion = getGhostDerivationKeyVersion(context.config);
@@ -876,7 +967,7 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
     policyVersion: input.policy.policyVersion,
     centerLocationVersion: input.location.locationVersion,
     tokenCreatedAtMs: nowMs,
-    tokenExpiresAtMs: rotationExpiresAtMs(rotationEpoch) + 15_000
+    tokenExpiresAtMs: rotationExpiresAtMs(rotationEpoch, input.anchorMs) + 15_000
   };
   const encrypted = encryptWithWrappedDataKey({
     plaintext: payload,
@@ -887,7 +978,7 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
     keyVersion
   });
 
-  await context.db.query(
+  const claimed = await context.db.query<{ subject_user_id: string }>(
     `insert into ghost_rotation_tokens (
        subject_user_id,
        rotation_epoch,
@@ -913,7 +1004,10 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
          key_version = excluded.key_version,
          created_at_ms = excluded.created_at_ms,
          expires_at_ms = excluded.expires_at_ms,
-         revoked_at_ms = null`,
+         revoked_at_ms = null
+     where ghost_rotation_tokens.revoked_at_ms is not null
+        or ghost_rotation_tokens.expires_at_ms <= $13
+     returning subject_user_id::text as subject_user_id`,
     [
       input.subjectUserId,
       rotationEpoch,
@@ -926,11 +1020,22 @@ async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input:
       encrypted.dekAuthTag,
       keyVersion,
       payload.tokenCreatedAtMs,
-      payload.tokenExpiresAtMs
+      payload.tokenExpiresAtMs,
+      nowMs
     ]
   );
 
-  return payload;
+  if (claimed.rows[0]) {
+    return payload;
+  }
+
+  const winningRotation = await loadActiveRotation();
+
+  if (!winningRotation) {
+    throw new Error("Ghost rotation could not be resolved after a concurrent update.");
+  }
+
+  return decryptRotation(winningRotation);
 }
 
 function randomFloatFromSeed(seed: Buffer) {
@@ -989,6 +1094,42 @@ export function deriveGhostCoordinate(input: {
   const eastMeters = radius * Math.sin(theta);
 
   return offsetCoordinate(input.centerLat, input.centerLng, northMeters, eastMeters);
+}
+
+export async function resolveViewerGhostCoordinate(context: LocationPrivacyContext, input: {
+  subjectUserId: string;
+  viewerUserId: string;
+  policy: VisibilityPolicyPayload;
+  location: LocationPayload;
+  nowMs?: number;
+  rotationSettings?: Awaited<ReturnType<typeof loadGhostRotationSettings>>;
+}) {
+  const nowMs = input.nowMs ?? Date.now();
+  const center = locationPayloadToCoordinates(input.location);
+  const { anchorMs } = input.rotationSettings ?? await loadGhostRotationSettings(context, input.subjectUserId);
+  const rotation = await loadOrCreateGhostRotation(context, {
+    subjectUserId: input.subjectUserId,
+    policy: input.policy,
+    location: input.location,
+    anchorMs,
+    nowMs
+  });
+
+  return {
+    coordinate: deriveGhostCoordinate({
+      config: context.config,
+      subjectUserId: input.subjectUserId,
+      viewerUserId: input.viewerUserId,
+      centerLat: center.lat,
+      centerLng: center.lng,
+      rotationEpoch: rotation.rotationEpoch,
+      derivationSalt: rotation.derivationSalt,
+      radiusMeters: rotation.radiusMeters,
+      policyVersion: input.policy.policyVersion
+    }),
+    rotationEpoch: rotation.rotationEpoch,
+    radiusMeters: rotation.radiusMeters
+  };
 }
 
 function displayKeyBinding(request: FastifyRequest, userId: string) {
@@ -1095,26 +1236,21 @@ export async function makeDisplayLocationToken(context: LocationPrivacyContext, 
   let accuracyDisplayM = input.location.accuracyM;
 
   if (input.displayMode === "GHOST" && !input.forceSelfPrecise) {
-    const rotation = await loadOrCreateGhostRotation(context, {
-      subjectUserId: input.subjectUserId,
-      policy: input.policy,
-      location: input.location,
-      nowMs
-    });
-    coordinate = deriveGhostCoordinate({
-      config: context.config,
+    const rotationSettings = await loadGhostRotationSettings(context, input.subjectUserId);
+    const ghost = await resolveViewerGhostCoordinate(context, {
       subjectUserId: input.subjectUserId,
       viewerUserId: input.viewerUserId,
-      centerLat: center.lat,
-      centerLng: center.lng,
-      rotationEpoch: rotation.rotationEpoch,
-      derivationSalt: rotation.derivationSalt,
-      radiusMeters: rotation.radiusMeters,
-      policyVersion: input.policy.policyVersion
+      policy: input.policy,
+      location: input.location,
+      nowMs,
+      rotationSettings
     });
-    rotationEpoch = rotation.rotationEpoch;
-    animationHint = animationHintForEpoch(rotation.rotationEpoch, nowMs);
-    accuracyDisplayM = rotation.radiusMeters;
+    coordinate = ghost.coordinate;
+    rotationEpoch = ghost.rotationEpoch;
+    animationHint = rotationSettings.pulseEnabled
+      ? animationHintForEpoch(ghost.rotationEpoch, rotationSettings.anchorMs, nowMs)
+      : "NONE";
+    accuracyDisplayM = ghost.radiusMeters;
   }
 
   const payload: DisplayLocationPayload = {

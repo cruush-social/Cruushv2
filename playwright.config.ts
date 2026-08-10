@@ -15,7 +15,7 @@ if (useLocalStack) {
   process.env.CRUUSH_E2E_PASSWORD ??= process.env.DEVELOPMENT_ADMIN_PASSWORD;
 }
 
-const baseURL = process.env.CRUUSH_E2E_BASE_URL ?? (useLocalStack ? 'http://localhost:5187' : 'https://cruush.app');
+const baseURL = process.env.CRUUSH_E2E_BASE_URL ?? (useLocalStack ? 'https://localhost:5173' : 'https://cruush.app');
 const storageState = path.resolve(process.env.CRUUSH_E2E_STORAGE_STATE ?? '.playwright/auth/user.json');
 
 export default defineConfig({
@@ -69,6 +69,7 @@ export default defineConfig({
     ? {
         command: 'pnpm dev:local:seeded',
         url: `${baseURL}/api/meta`,
+        ignoreHTTPSErrors: true,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
       }

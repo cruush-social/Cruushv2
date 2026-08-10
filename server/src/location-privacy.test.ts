@@ -5,14 +5,19 @@ import type { DbClient } from "./db.js";
 import {
   decryptDisplayLocationTokenForTest,
   createCoarseIndexTokens,
+  currentRotationEpoch,
+  describeGhostRotation,
   deriveGhostCoordinate,
   distanceMiles,
+  fallbackGhostAnchorMs,
   GHOST_MIN_OFFSET_RATIO,
   issueBrowserDisplayKey,
   loadLocationEnvelope,
   loadLocationEnvelopes,
   loadVisibilityPolicy,
+  loadVisibilityPolicyStrict,
   makeDisplayLocationToken,
+  resolveViewerGhostCoordinate,
   saveVisibilityPolicy,
   storeLocationEnvelope
 } from "./location-privacy.js";
@@ -156,6 +161,39 @@ describe("location privacy", () => {
       policyVersion: saved.policyVersion
     });
     expect(JSON.stringify(db.query.mock.calls)).not.toContain("GHOST");
+    const anchorWrite = db.query.mock.calls.find(([sql]) => String(sql).includes("ghost_mode_anchor_ms"));
+    expect(anchorWrite?.[1]).toEqual([subjectUserId, true, expect.any(Number)]);
+    expect(String(anchorWrite?.[0])).toContain("else user_privacy_settings.ghost_mode_anchor_ms");
+  });
+
+  it("fails closed when a strict visibility policy is missing", async () => {
+    const db = createPolicyDb();
+
+    await expect(loadVisibilityPolicyStrict({ config, db }, subjectUserId)).resolves.toBeNull();
+    await expect(loadVisibilityPolicy({ config, db }, subjectUserId)).resolves.toMatchObject({
+      subjectUserId,
+      baseMode: "PUBLIC_PRECISE"
+    });
+  });
+
+  it("fails closed when a strict visibility policy cannot be decrypted", async () => {
+    const query = vi.fn(async () => ({
+      rows: [{
+        subject_user_id: subjectUserId,
+        policy_version: 1,
+        policy_ciphertext: "not-valid-ciphertext",
+        policy_nonce: "not-valid-nonce",
+        policy_auth_tag: "not-valid-auth-tag",
+        wrapped_policy_dek: "not-valid-wrapped-key",
+        policy_dek_nonce: "not-valid-key-nonce",
+        policy_dek_auth_tag: "not-valid-key-auth-tag",
+        key_version: "v1",
+        updated_at_ms: Date.now()
+      }]
+    }));
+    const db = { query } as unknown as Pick<DbClient, "query">;
+
+    await expect(loadVisibilityPolicyStrict({ config, db }, subjectUserId)).resolves.toBeNull();
   });
 
   it("round-trips encrypted location envelopes without storing raw coordinate params", async () => {
@@ -299,6 +337,234 @@ describe("location privacy", () => {
     const offsetMiles = distanceMiles(40.711, -74.002, first.lat, first.lng);
     expect(offsetMiles).toBeGreaterThanOrEqual(GHOST_MIN_OFFSET_RATIO - 0.01);
     expect(offsetMiles).toBeLessThanOrEqual(1.01);
+  });
+
+  it("anchors each Ghost Mode rotation to that profile instead of a shared wall clock", () => {
+    const nowMs = new Date("2026-08-09T16:00:00.000Z").getTime();
+    const firstAnchor = nowMs - 4 * 60_000;
+    const secondAnchor = nowMs - 11 * 60_000;
+
+    expect(currentRotationEpoch(firstAnchor, nowMs)).toBe(0);
+    expect(currentRotationEpoch(secondAnchor, nowMs)).toBe(0);
+    expect(fallbackGhostAnchorMs(subjectUserId)).toBe(fallbackGhostAnchorMs(subjectUserId));
+    expect(fallbackGhostAnchorMs(subjectUserId)).toBeGreaterThanOrEqual(0);
+    expect(fallbackGhostAnchorMs(subjectUserId)).toBeLessThan(15 * 60_000);
+  });
+
+  it("returns the real per-profile deadline only when the Ghost heartbeat is enabled", async () => {
+    const nowMs = new Date("2026-08-09T16:00:00.000Z").getTime();
+    const anchorMs = nowMs - (15 * 60_000 - 30_000);
+    const enabledQuery = vi.fn().mockResolvedValue({
+      rows: [{
+        ghost_mode_anchor_ms: String(anchorMs),
+        ghost_pulse_enabled: true
+      }]
+    });
+    const enabled = await describeGhostRotation({
+      config,
+      db: { query: enabledQuery } as unknown as Pick<DbClient, "query">
+    }, subjectUserId, nowMs);
+
+    expect(enabled).toEqual({
+      pulseEnabled: true,
+      rotationExpiresAtMs: nowMs + 30_000,
+      animationHint: "FADE_LAST_MINUTE"
+    });
+
+    const disabledQuery = vi.fn().mockResolvedValue({
+      rows: [{
+        ghost_mode_anchor_ms: String(anchorMs),
+        ghost_pulse_enabled: false
+      }]
+    });
+    const disabled = await describeGhostRotation({
+      config,
+      db: { query: disabledQuery } as unknown as Pick<DbClient, "query">
+    }, subjectUserId, nowMs);
+
+    expect(disabled).toEqual({
+      pulseEnabled: false,
+      rotationExpiresAtMs: null,
+      animationHint: "NONE"
+    });
+  });
+
+  it("uses the shared Ghost coordinate resolver for viewer-specific display decisions", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-09T16:00:00.000Z"));
+
+    try {
+      const db = createDisplayTokenDb();
+      const policy = {
+        version: 1 as const,
+        subjectUserId,
+        policyVersion: 2,
+        baseMode: "GHOST" as const,
+        ghostRadiusMeters: 1609,
+        preciseToMutualCruushes: false,
+        preciseToMutualCrowds: [],
+        auditRequired: false,
+        updatedAtMs: Date.now(),
+        expiresAtMs: null,
+        keyVersion: "v1"
+      };
+      const location = {
+        version: 1 as const,
+        subjectUserId,
+        locationVersion: 1,
+        latE7: 407110000,
+        lonE7: -740020000,
+        accuracyM: 10,
+        source: "GPS" as const,
+        deviceReportedAtMs: Date.now(),
+        collectedAtMs: Date.now(),
+        expiresAtMs: Date.now() + 60_000,
+        keyVersion: "v1"
+      };
+
+      const resolved = await resolveViewerGhostCoordinate({ config, db }, {
+        subjectUserId,
+        viewerUserId,
+        policy,
+        location,
+        nowMs: Date.now()
+      });
+
+      expect(distanceMiles(40.711, -74.002, resolved.coordinate.lat, resolved.coordinate.lng))
+        .toBeLessThanOrEqual(1.01);
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining("ghost_rotation_tokens"),
+        expect.any(Array)
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reuses one Ghost rotation seed when first-time viewer resolutions race", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-09T16:00:00.000Z"));
+
+    try {
+      type RotationRow = {
+        subject_user_id: string;
+        rotation_epoch: number;
+        policy_version: number;
+        token_ciphertext: string;
+        token_nonce: string;
+        token_auth_tag: string;
+        wrapped_token_dek: string;
+        token_dek_nonce: string;
+        token_dek_auth_tag: string;
+        key_version: string;
+        expires_at_ms: number;
+        revoked_at_ms: null;
+      };
+      let storedRotation: RotationRow | null = null;
+      let initialSelects = 0;
+      let releaseInitialSelects!: () => void;
+      const bothInitialSelectsStarted = new Promise<void>((resolve) => {
+        releaseInitialSelects = resolve;
+      });
+      const query = vi.fn(async (sql: string, params: unknown[] = []) => {
+        if (sql.includes("select") && sql.includes("ghost_rotation_tokens")) {
+          initialSelects += 1;
+
+          if (initialSelects <= 2) {
+            if (initialSelects === 2) {
+              releaseInitialSelects();
+            }
+            await bothInitialSelectsStarted;
+            return { rows: [] };
+          }
+
+          return { rows: storedRotation ? [storedRotation] : [] };
+        }
+
+        if (sql.includes("insert into ghost_rotation_tokens")) {
+          const candidate: RotationRow = {
+            subject_user_id: String(params[0]),
+            rotation_epoch: Number(params[1]),
+            policy_version: Number(params[2]),
+            token_ciphertext: String(params[3]),
+            token_nonce: String(params[4]),
+            token_auth_tag: String(params[5]),
+            wrapped_token_dek: String(params[6]),
+            token_dek_nonce: String(params[7]),
+            token_dek_auth_tag: String(params[8]),
+            key_version: String(params[9]),
+            expires_at_ms: Number(params[11]),
+            revoked_at_ms: null
+          };
+          const wonInsert = storedRotation === null;
+
+          if (wonInsert || sql.includes("do update") && !sql.includes("where ghost_rotation_tokens")) {
+            storedRotation = candidate;
+          }
+
+          return { rows: wonInsert ? [{ subject_user_id: candidate.subject_user_id }] : [] };
+        }
+
+        if (sql.includes("from user_privacy_settings")) {
+          return {
+            rows: [{
+              ghost_mode_anchor_ms: String(Date.now() - 5 * 60_000),
+              ghost_pulse_enabled: true
+            }]
+          };
+        }
+
+        return { rows: [] };
+      });
+      const db = { query } as unknown as Pick<DbClient, "query">;
+      const policy = {
+        version: 1 as const,
+        subjectUserId,
+        policyVersion: 2,
+        baseMode: "GHOST" as const,
+        ghostRadiusMeters: 1609,
+        preciseToMutualCruushes: false,
+        preciseToMutualCrowds: [],
+        auditRequired: false,
+        updatedAtMs: Date.now(),
+        expiresAtMs: null,
+        keyVersion: "v1"
+      };
+      const location = {
+        version: 1 as const,
+        subjectUserId,
+        locationVersion: 1,
+        latE7: 407110000,
+        lonE7: -740020000,
+        accuracyM: 10,
+        source: "GPS" as const,
+        deviceReportedAtMs: Date.now(),
+        collectedAtMs: Date.now(),
+        expiresAtMs: Date.now() + 60_000,
+        keyVersion: "v1"
+      };
+
+      const [first, second] = await Promise.all([
+        resolveViewerGhostCoordinate({ config, db }, {
+          subjectUserId,
+          viewerUserId,
+          policy,
+          location,
+          nowMs: Date.now()
+        }),
+        resolveViewerGhostCoordinate({ config, db }, {
+          subjectUserId,
+          viewerUserId,
+          policy,
+          location,
+          nowMs: Date.now()
+        })
+      ]);
+
+      expect(first.coordinate).toEqual(second.coordinate);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("encrypts display tokens against the browser display key", async () => {

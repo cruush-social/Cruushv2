@@ -1,8 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, {
   MARKER_CLEARANCE_PX,
+  MAP_SERVICE_MASK_LAYER_ID,
+  MAP_SERVICE_MASK_SOURCE_ID,
   MAX_DISCOVERY_ZOOM,
   MIN_DISCOVERY_ZOOM,
   createCruushVectorStyle,
@@ -10,6 +13,11 @@ import MapView, {
   getMapStyle,
   separateOverlappingMarkers,
 } from './MapView';
+import {
+  MAP_SERVICE_CENTER,
+  MAP_SERVICE_MAX_BOUNDS,
+  MAP_SERVICE_OUTSIDE_MASK,
+} from '../lib/mapServiceArea';
 
 const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
   const mapInstances: MockMapInstance[] = [];
@@ -39,6 +47,13 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
       this.layers.set(layer.id, layer);
     });
     getLayer = vi.fn((id: string) => this.layers.get(id));
+    moveLayer = vi.fn((id: string) => {
+      const layer = this.layers.get(id);
+      if (layer) {
+        this.layers.delete(id);
+        this.layers.set(id, layer);
+      }
+    });
     removeLayer = vi.fn((id: string) => {
       this.layers.delete(id);
     });
@@ -123,6 +138,7 @@ describe('MapView', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
@@ -171,9 +187,9 @@ describe('MapView', () => {
       }),
       minZoom: MIN_DISCOVERY_ZOOM,
       maxZoom: MAX_DISCOVERY_ZOOM,
+      maxBounds: MAP_SERVICE_MAX_BOUNDS,
       renderWorldCopies: false,
     }));
-    expect(MockMap.calls[0]).not.toHaveProperty('maxBounds');
     expect(onMapReady).toHaveBeenCalledWith(mapInstances[0]);
 
     mapInstances[0].trigger('click');
@@ -192,7 +208,12 @@ describe('MapView', () => {
     expect(screen.queryByLabelText('bottom')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
     expect(screen.getByLabelText('top')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]/80');
+    expect(screen.getByTestId('marker-badge-me')).toHaveClass(
+      'border-[#004BFF]/80',
+      'right-[-0.25rem]',
+      'top-[62%]',
+      '-translate-y-1/2',
+    );
     expect(screen.getByTestId('marker-badge-me').querySelector('svg')).toHaveClass('h-[1.0625rem]', 'w-[1.0625rem]');
     expect(screen.getByTestId('marker-badge-user-1')).toHaveClass('border-[#FF0072]/80');
     expect(screen.getByTestId('marker-heart-me')).toHaveAttribute('data-marker-theme', 'current');
@@ -207,11 +228,72 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-current-fallback-me').querySelector('svg')).toHaveClass('h-7', 'w-7', 'text-white');
     expect(screen.queryByTestId('marker-current-fallback-user-1')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-20', 'w-20');
+    expect(screen.getByTestId('marker-heart-layer-me')).toHaveClass('w-[103px]');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(markerInstances[0].element.className).not.toContain('drop-shadow');
     expect(markerInstances[1].element.className).not.toContain('drop-shadow');
     expect(screen.getByTestId('marker-heart-me').querySelector('filter')).toBeNull();
     expect(screen.getByTestId('marker-heart-user-1').querySelector('filter')).toBeNull();
+  });
+
+  it('starts inside the configured service boundary when no viewport is restored', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[]}
+      />
+    );
+
+    await waitFor(() => expect(MockMap.calls).toHaveLength(1));
+    expect(MockMap.calls[0]).toEqual(expect.objectContaining({
+      center: [MAP_SERVICE_CENTER.longitude, MAP_SERVICE_CENTER.latitude],
+      maxBounds: MAP_SERVICE_MAX_BOUNDS,
+    }));
+  });
+
+  it('masks map pixels outside the circular service area without decorating the inside', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[]}
+        radiusCircle={{
+          center: {
+            approximateLatitude: MAP_SERVICE_CENTER.latitude,
+            approximateLongitude: MAP_SERVICE_CENTER.longitude,
+          },
+          radiusMeters: 1609,
+        }}
+      />
+    );
+
+    await waitFor(() => expect(mapInstances[0]).toBeDefined());
+    act(() => {
+      mapInstances[0].trigger('style.load');
+      mapInstances[0].trigger('load');
+    });
+
+    expect(mapInstances[0].addSource).toHaveBeenCalledWith(MAP_SERVICE_MASK_SOURCE_ID, {
+      type: 'geojson',
+      data: MAP_SERVICE_OUTSIDE_MASK,
+    });
+    expect(mapInstances[0].addLayer).toHaveBeenCalledWith({
+      id: MAP_SERVICE_MASK_LAYER_ID,
+      type: 'fill',
+      source: MAP_SERVICE_MASK_SOURCE_ID,
+      paint: {
+        'fill-antialias': false,
+        'fill-color': '#080808',
+        'fill-opacity': 1,
+      },
+    });
+    expect(mapInstances[0].layers.get(MAP_SERVICE_MASK_LAYER_ID)).not.toHaveProperty('outline');
+    await waitFor(() => {
+      expect(mapInstances[0].moveLayer).toHaveBeenCalledWith(MAP_SERVICE_MASK_LAYER_ID);
+    });
+    expect(Array.from(mapInstances[0].layers.keys()).at(-1)).toBe(MAP_SERVICE_MASK_LAYER_ID);
+    expect(MockMap.calls[0]).toEqual(expect.objectContaining({
+      maxBounds: MAP_SERVICE_MAX_BOUNDS,
+    }));
   });
 
   it('does not recreate the map when the onMapReady callback identity changes', async () => {
@@ -463,8 +545,10 @@ describe('MapView', () => {
       mapInstances[0].trigger('load');
     });
 
-    expect(await screen.findByTestId('marker-npc-ghost-halo-npc-ghost')).toBeInTheDocument();
-    expect(screen.getByTestId('marker-heart-npc-ghost')).toHaveAttribute('data-marker-theme', 'npc-ghost-demo');
+    expect(screen.queryByTestId('marker-npc-ghost-halo-npc-ghost')).not.toBeInTheDocument();
+    const ghostHeart = screen.getByTestId('marker-heart-npc-ghost');
+    expect(ghostHeart).toHaveAttribute('data-marker-theme', 'npc-ghost-demo');
+    expect(ghostHeart.querySelector('path[fill="#0BA8FF"][stroke="#0BA8FF"]')).not.toBeNull();
     await waitFor(() => {
       expect(mapInstances[0].addSource).toHaveBeenCalledWith(
         'npc-ghost-demo-radii',
@@ -479,6 +563,33 @@ describe('MapView', () => {
         'line-color': '#0BA8FF',
       }),
     }));
+  });
+
+  it('keeps Ghost markers static in v1.2', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[{
+          id: 'ghost-static',
+          displayName: 'River',
+          approximateLatitude: 40.72,
+          approximateLongitude: -74.01,
+          displayMode: 'GHOST',
+          animationHint: 'FADE_LAST_MINUTE',
+          ghostRotationExpiresAtMs: Date.now() + 30_000,
+        }]}
+      />,
+    );
+
+    const marker = await screen.findByTestId('marker-heart-ghost-static');
+    const markerElement = marker.closest('[data-map-marker-pin="true"]');
+    expect(markerElement).not.toHaveClass('opacity-45');
+    expect(markerElement).not.toHaveAttribute('data-ghost-rotation-terminal');
+    expect(screen.queryByTestId('marker-ghost-pulse-ghost-static')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('marker-ghost-fly-icon-ghost-static')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('marker-ghost-puff-ghost-static')).not.toBeInTheDocument();
+    expect(marker.querySelector('path[fill="#0BA8FF"][stroke="#0BA8FF"]')).not.toBeNull();
+    expect(marker.querySelector('path[style*="transform"]')).toBeNull();
   });
 
   it('draws the owner Ghost Mode radius with a visible stroke on the dark map', async () => {
@@ -622,8 +733,19 @@ describe('MapView', () => {
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveAttribute('data-marker-theme', 'mutual');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('h-20', 'w-20');
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
-    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass('border-[#6f00ff]/80');
+    expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass(
+      'border-[#6f00ff]/80',
+      'right-[-0.25rem]',
+      'top-[62%]',
+      '-translate-y-1/2',
+    );
     expect(screen.getByLabelText('mutual cruush')).toBeInTheDocument();
+    expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass(
+      'border-[#6f00ff]/80',
+      'left-[-0.25rem]',
+      'top-[62%]',
+      '-translate-y-1/2',
+    );
     expect(screen.getByTestId('marker-relationship-user-mutual').querySelector('img')?.getAttribute('src')).toContain('safety-white');
   });
 
@@ -649,7 +771,92 @@ describe('MapView', () => {
     expect(markerInstances[0].element.className).not.toContain('transition-[filter]');
   });
 
-  it('retries a default vector style error with raster fallback before showing a map error', async () => {
+  it('uses the corrected V2 signal position above the marker frame', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'user-signal',
+            displayName: 'Noor',
+            signal: 'Around tonight',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            lastActiveLabel: '8m ago',
+          },
+        ]}
+      />,
+    );
+
+    const signalStack = await screen.findByTestId('marker-signal-stack-user-signal');
+    const heartLayer = screen.getByTestId('marker-heart-layer-user-signal');
+    expect(signalStack).toHaveAttribute('data-signal-position', 'v2-frame-top');
+    expect(signalStack).toHaveClass('left-1/2', 'top-0', '-translate-x-1/2', '-translate-y-full');
+    expect(heartLayer).toContainElement(signalStack);
+    expect(signalStack).toHaveClass('opacity-0', 'group-hover:opacity-100', 'group-focus-within:opacity-100');
+  });
+
+  it('keeps the signal visible and pulses the unchanged heart unit during an active Ping', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'user-pinging',
+            displayName: 'River',
+            signal: 'Come say hi',
+            latestFeedPostPreview: 'Latest post stays hover-only',
+            badge: createMapMarkerBadge(['Top'], []),
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            activePing: {
+              id: 'ping-1',
+              expiresAt: '2026-08-09T19:00:00.000Z',
+            },
+            relationship: {
+              kind: 'mutual_cruush',
+              precision: 'fuzzy',
+              canMessage: true,
+            },
+          },
+        ]}
+      />,
+    );
+
+    const signalStack = await screen.findByTestId('marker-signal-stack-user-pinging');
+    const heart = screen.getByTestId('marker-heart-user-pinging');
+    const heartLayer = screen.getByTestId('marker-heart-layer-user-pinging');
+    const signalBadge = screen.getByTestId('marker-signal-badge-user-pinging');
+    const positionBadge = screen.getByTestId('marker-badge-user-pinging');
+    const relationshipBadge = screen.getByTestId('marker-relationship-user-pinging');
+    const postPreview = screen.getByTestId('marker-post-preview-user-pinging');
+    expect(signalStack).toHaveClass('opacity-100');
+    expect(signalStack).not.toHaveClass('opacity-0');
+    expect(postPreview).toHaveClass(
+      'opacity-0',
+      'group-hover:opacity-100',
+      'group-focus-within:opacity-100',
+    );
+    expect(heart).toHaveClass('z-10');
+    expect(heart).not.toHaveClass('cruush-map-ping-heart');
+    expect(heartLayer).toHaveClass('cruush-map-ping-heart');
+    expect(heart.querySelector('path[stroke="#C8FF31"]')).not.toBeNull();
+    expect(signalBadge).toHaveClass('border-[#C8FF31]');
+    expect(signalBadge).toHaveClass('shadow-[0_12px_30px_rgba(0,0,0,0.45)]');
+    expect(positionBadge).toHaveClass('border-[#C8FF31]');
+    expect(relationshipBadge).toHaveClass('border-[#C8FF31]');
+    expect(heartLayer).toContainElement(positionBadge);
+    expect(heartLayer).toContainElement(relationshipBadge);
+    expect(heartLayer).not.toContainElement(postPreview);
+    expect(heartLayer).toContainElement(signalStack);
+    expect(markerInstances[0].element).toHaveAttribute('data-active-ping', 'true');
+    expect(screen.queryByTestId('marker-ping-rings-user-pinging')).not.toBeInTheDocument();
+    const unchangedFill = heart.querySelector('path[fill="url(#marker-fill-user-pinging)"]');
+    expect(unchangedFill).toHaveAttribute('fill-opacity', '1');
+    expect(heart.querySelector('path[fill="#C8FF31"]')).toBeNull();
+  });
+
+  it('retries the default vector style with raster fallback before showing a map error', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}

@@ -33,6 +33,11 @@ import {
 } from '../lib/mapMarkers';
 import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import {
+  MAP_SERVICE_CENTER,
+  MAP_SERVICE_MAX_BOUNDS,
+  MAP_SERVICE_OUTSIDE_MASK,
+} from '../lib/mapServiceArea';
 
 export { createMapMarkerBadge };
 
@@ -68,7 +73,7 @@ interface MapViewProps {
   denseVenue?: DenseVenueConfig | null;
 }
 
-const DEFAULT_CENTER: LngLatLike = [-74.006, 40.7128];
+const DEFAULT_CENTER: LngLatLike = [MAP_SERVICE_CENTER.longitude, MAP_SERVICE_CENTER.latitude];
 const DEFAULT_ZOOM = 12;
 const FOCUSED_ZOOM = 14;
 export const MIN_DISCOVERY_ZOOM = 0;
@@ -91,6 +96,8 @@ const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
+export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
+export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
 // Rendered footprint of a heart pin, so no two pins may sit inside one another.
 export const MARKER_CLEARANCE_PX = 64;
 // Markers sharing a spot to this many decimal places are treated as one place
@@ -155,6 +162,34 @@ function canFallbackToDefaultRasterStyle(style: ReturnType<typeof getMapStyle>) 
   }
 
   return Boolean(style.sources?.openmaptiles) && !style.sources?.osmRasterTiles;
+}
+
+function addMapServiceOutsideMask(map: MapLibreMap) {
+  if (!map.getSource(MAP_SERVICE_MASK_SOURCE_ID)) {
+    map.addSource(MAP_SERVICE_MASK_SOURCE_ID, {
+      type: 'geojson',
+      data: MAP_SERVICE_OUTSIDE_MASK,
+    });
+  }
+
+  if (!map.getLayer(MAP_SERVICE_MASK_LAYER_ID)) {
+    map.addLayer({
+      id: MAP_SERVICE_MASK_LAYER_ID,
+      type: 'fill',
+      source: MAP_SERVICE_MASK_SOURCE_ID,
+      paint: {
+        'fill-antialias': false,
+        'fill-color': '#080808',
+        'fill-opacity': 1,
+      },
+    });
+  }
+}
+
+function moveMapServiceOutsideMaskToTop(map: MapLibreMap) {
+  if (map.getLayer(MAP_SERVICE_MASK_LAYER_ID) && typeof map.moveLayer === 'function') {
+    map.moveLayer(MAP_SERVICE_MASK_LAYER_ID);
+  }
 }
 
 function isEnabledEnvFlag(value: string | undefined) {
@@ -808,6 +843,31 @@ function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {
   return POSITION_BADGE_ICONS[badge.iconName] ?? null;
 }
 
+function getHeartSideBadgeClass(side: 'left' | 'right') {
+  const edgeClass = side === 'left'
+    ? 'left-[-0.25rem]'
+    : 'right-[-0.25rem]';
+  return `${edgeClass} top-[62%] z-20 -translate-y-1/2`;
+}
+
+function getMarkerBorderClass(marker: MapMarker, isCurrentUser: boolean) {
+  if (marker.activePing) {
+    return 'border-[#C8FF31]';
+  }
+
+  if (marker.displayMode === 'GHOST') {
+    return 'border-[#0BA8FF]';
+  }
+
+  if (isCurrentUser || marker.npcGhostDemo) {
+    return 'border-[#004BFF]/80';
+  }
+
+  return marker.relationship?.kind === 'mutual_cruush'
+    ? 'border-[#6f00ff]/80'
+    : 'border-[#FF0072]/80';
+}
+
 function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
   const badge = marker.badge;
   const Icon = getBadgeIcon(badge);
@@ -816,17 +876,14 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     return null;
   }
 
-  const borderClass = isCurrentUser
-    ? 'border-[#0BA8FF]/80'
-    : marker.relationship?.kind === 'mutual_cruush'
-      ? 'border-[#6f00ff]/80'
-      : 'border-[#FF0072]/80';
+  const borderClass = getMarkerBorderClass(marker, isCurrentUser);
 
   return (
     <span
       aria-label={isCurrentUser ? 'Your profile' : badge?.label}
       className={[
-        'absolute right-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        getHeartSideBadgeClass('right'),
         borderClass,
       ].join(' ')}
       data-testid={`marker-badge-${marker.id}`}
@@ -842,7 +899,7 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   );
 }
 
-function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
+function MarkerRelationshipBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
   if (marker.relationship?.kind !== 'mutual_cruush') {
     return null;
   }
@@ -861,7 +918,11 @@ function MarkerRelationshipBadge({ marker }: { marker: MapMarker }) {
   return (
     <span
       aria-label={precisionLabel}
-      className="absolute left-1.5 top-8 flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border border-[#6f00ff]/80 bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm"
+      className={[
+        'absolute flex h-[1.5625rem] w-[1.5625rem] items-center justify-center rounded-full border bg-black/85 text-white/78 shadow-[0_4px_14px_rgba(0,0,0,0.55)] backdrop-blur-sm',
+        getHeartSideBadgeClass('left'),
+        getMarkerBorderClass(marker, isCurrentUser),
+      ].join(' ')}
       data-testid={`marker-relationship-${marker.id}`}
       role="img"
       title={title}
@@ -882,17 +943,24 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const clipId = `marker-photo-clip-${marker.id}`;
   const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
   const isNpcGhostDemo = marker.npcGhostDemo === true;
-  const theme = isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
+  const isGhostMode = marker.displayMode === 'GHOST';
+  const pingActive = Boolean(marker.activePing);
+  const theme = isGhostMode ? 'ghost' : isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
   const markerTheme = HEART_PIN_THEMES[theme];
-  const borderColor = markerTheme.border;
-  const [gradientFrom, gradientMiddle, gradientTo] = hasPhoto || isCurrentUser || isNpcGhostDemo
+  const borderColor = pingActive ? '#C8FF31' : markerTheme.border;
+  const gradientStops = isGhostMode || hasPhoto || isCurrentUser || isNpcGhostDemo
     ? markerTheme.stops
     : getProfileGradientStops(marker.userId ?? marker.id);
+  const gradientOffsets = gradientStops.length === 4
+    ? ['6%', '53%', '81%', '100%']
+    : ['0%', '52%', '100%'];
+  const borderPaint = borderColor;
+  const fillPaint = isGhostMode ? '#0BA8FF' : `url(#${gradientId})`;
 
   return (
     <svg
       aria-hidden="true"
-      className="h-20 w-20"
+      className="relative z-10 h-20 w-20"
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isNpcGhostDemo ? 'npc-ghost-demo' : theme}
@@ -903,15 +971,15 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     >
       <defs>
         <linearGradient id={gradientId} x1="10" x2="55" y1="9" y2="56" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={gradientFrom} />
-          <stop offset="52%" stopColor={gradientMiddle} />
-          <stop offset="100%" stopColor={gradientTo} />
+          {gradientStops.map((stopColor, index) => (
+            <stop key={`${gradientOffsets[index]}-${stopColor}`} offset={gradientOffsets[index]} stopColor={stopColor} />
+          ))}
         </linearGradient>
         <clipPath id={clipId}>
           <path d={HEART_PIN_PATH} />
         </clipPath>
       </defs>
-      {hasPhoto ? (
+      {hasPhoto && !isGhostMode ? (
         <>
           <image
             clipPath={`url(#${clipId})`}
@@ -921,11 +989,17 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             preserveAspectRatio="xMidYMid slice"
             width="64"
           />
-          <path d={HEART_PIN_PATH} fill="none" stroke={borderColor} strokeWidth="3.2" />
+          <path d={HEART_PIN_PATH} fill="none" stroke={borderPaint} strokeWidth={3.2} />
         </>
       ) : isCurrentUser && !isMutualCruush ? (
         <>
-          <path d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
+          <path
+            d={HEART_PIN_PATH}
+            fill={fillPaint}
+            fillOpacity={1}
+            stroke={borderPaint}
+            strokeWidth={3.2}
+          />
           <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
             <div className="flex h-9 w-9 items-center justify-center">
               <User aria-hidden="true" className="h-7 w-7 text-white" strokeWidth={2.4} />
@@ -933,7 +1007,13 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           </foreignObject>
         </>
       ) : (
-        <path d={HEART_PIN_PATH} fill={`url(#${gradientId})`} stroke={borderColor} strokeWidth="3.2" />
+        <path
+          d={HEART_PIN_PATH}
+          fill={fillPaint}
+          fillOpacity={1}
+          stroke={borderPaint}
+          strokeWidth={3.2}
+        />
       )}
     </svg>
   );
@@ -980,8 +1060,15 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
 
 function MapMarkerPin({ marker }: { marker: MapMarker }) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser === true;
-  const signalPreview = marker.kind === 'person' ? truncateMarkerPreview(marker.signal) : '';
-  const postPreview = marker.kind === 'person' ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
+  const isPerson = marker.kind == null || marker.kind === 'person';
+  const signalPreview = isPerson ? truncateMarkerPreview(marker.signal) : '';
+  const postPreview = isPerson ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
+  const pingActive = Boolean(marker.activePing);
+  const signalBorderClass = pingActive
+    ? 'border-[#C8FF31]'
+    : marker.displayMode === 'GHOST'
+      ? 'border-[#0BA8FF]'
+      : 'border-white/12';
 
   if (marker.kind === 'cluster') {
     return isPersonCluster(marker) ? <PeopleClusterMarker marker={marker} /> : <VenueClusterMarker marker={marker} />;
@@ -992,31 +1079,40 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   }
 
   return (
-    <span className="group pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible">
-      <span className="relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-150 group-focus-within:scale-150">
-        {marker.npcGhostDemo ? (
-          <span
-            aria-hidden="true"
-            className="absolute h-[5.625rem] w-[5.625rem] rounded-full border border-[#0BA8FF]/70 bg-[#0BA8FF]/10 shadow-[0_0_28px_rgba(11,168,255,0.42)]"
-            data-testid={`marker-npc-ghost-halo-${marker.id}`}
-          />
-        ) : null}
-        <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
-        <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
-        <MarkerRelationshipBadge marker={marker} />
+    <span
+      className="group pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible"
+      data-active-ping={pingActive ? 'true' : 'false'}
+    >
+      <span
+        className={`relative flex h-20 w-[103px] items-center justify-center ${pingActive ? 'cruush-map-ping-heart' : ''}`}
+        data-testid={`marker-heart-layer-${marker.id}`}
+      >
+            <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
+            <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
+            <MarkerRelationshipBadge marker={marker} isCurrentUser={isCurrentUser} />
+            {signalPreview ? (
+              <span
+                className={`absolute left-1/2 top-0 z-30 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-opacity duration-150 ${pingActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                data-signal-position="v2-frame-top"
+                data-testid={`marker-signal-stack-${marker.id}`}
+              >
+                <span
+                  className={`rounded-full border bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md ${signalBorderClass}`}
+                  data-testid={`marker-signal-badge-${marker.id}`}
+                >
+                  {signalPreview}
+                </span>
+              </span>
+            ) : null}
       </span>
-      {signalPreview || postPreview ? (
-        <span className="absolute left-1/2 top-0 z-20 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-          {signalPreview ? (
-            <span className="rounded-full border border-white/12 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
-              {signalPreview}
-            </span>
-          ) : null}
-          {postPreview ? (
-            <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
-              {postPreview}
-            </span>
-          ) : null}
+      {postPreview ? (
+        <span
+          className={`absolute left-1/2 top-0 z-20 w-max max-w-[16rem] -translate-x-1/2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${signalPreview ? '-translate-y-[calc(200%+0.25rem)]' : '-translate-y-full'}`}
+          data-testid={`marker-post-preview-${marker.id}`}
+        >
+          <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+            {postPreview}
+          </span>
         </span>
       ) : null}
     </span>
@@ -1042,14 +1138,13 @@ function createMarkerElement(
 
   element.className = [
     'group relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0 transition-opacity duration-700',
-    animationHint === 'FADE_LAST_MINUTE' ? 'opacity-45' : '',
-    animationHint === 'SIGNAL_LOSS' ? 'opacity-15 animate-pulse' : '',
     animationHint === 'REAPPEAR' ? 'opacity-100' : '',
   ].filter(Boolean).join(' ');
   element.dataset.animationHint = animationHint;
   element.dataset.displayMode = marker.displayMode ?? 'PRECISE';
   element.dataset.mapMarkerPin = 'true';
   element.dataset.mapMarkerKind = marker.kind ?? 'person';
+  element.dataset.activePing = marker.activePing ? 'true' : 'false';
 
   if (!isInteractive) {
     element.setAttribute('aria-label', 'Your approximate area');
@@ -1260,6 +1355,7 @@ function MapView({
           zoom: initialViewportRef.current?.zoom ?? DEFAULT_ZOOM,
           minZoom: MIN_DISCOVERY_ZOOM,
           maxZoom: MAX_DISCOVERY_ZOOM,
+          maxBounds: MAP_SERVICE_MAX_BOUNDS,
           renderWorldCopies: false,
           attributionControl: false,
         });
@@ -1328,6 +1424,19 @@ function MapView({
           }, MAP_RENDER_READY_TIMEOUT_MS);
         };
 
+        const handleMapStyleLoad = () => {
+          if (!isMounted || mapRef.current !== map) {
+            return;
+          }
+
+          addMapServiceOutsideMask(map);
+        };
+
+        const handleMapLoad = () => {
+          handleMapStyleLoad();
+          markMapReady();
+        };
+
         if (shouldFallbackToRaster && !isFallbackAttempt && !attemptedRasterFallback) {
           readyFallbackTimeout = window.setTimeout(() => {
             if (!isMounted || mapRef.current !== map || didLoad || attemptedRasterFallback) {
@@ -1352,7 +1461,8 @@ function MapView({
             setCurrentZoom(map.getZoom());
           }
         });
-        map.on('load', markMapReady);
+        map.on('style.load', handleMapStyleLoad);
+        map.on('load', handleMapLoad);
         map.on('idle', markMapReady);
         map.on('render', scheduleRenderedReady);
         map.on('error', (event) => {
@@ -1507,6 +1617,7 @@ function MapView({
 
     if (existingSource) {
       existingSource.setData(data);
+      moveMapServiceOutsideMaskToTop(map);
       return;
     }
 
@@ -1537,6 +1648,7 @@ function MapView({
         'line-width': 2.5,
       },
     });
+    moveMapServiceOutsideMaskToTop(map);
   }, [mapInstance, mapLoadStatus, radiusCircle]);
 
   useEffect(() => {
@@ -1573,6 +1685,7 @@ function MapView({
 
     if (existingSource) {
       existingSource.setData(data);
+      moveMapServiceOutsideMaskToTop(map);
       return;
     }
 
@@ -1603,6 +1716,7 @@ function MapView({
         'line-width': 1.2,
       },
     });
+    moveMapServiceOutsideMaskToTop(map);
   }, [demoRadiusCircleSignature, mapInstance, mapLoadStatus]);
 
   useEffect(() => {

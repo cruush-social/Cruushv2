@@ -49,15 +49,15 @@ export function registerNotificationRoutes(app: FastifyInstance) {
     const userId = await getAuthenticatedUserId(request);
     const query = notificationQuerySchema.parse(request.query);
     const values: unknown[] = [userId, query.limit];
-    const whereClauses = ["user_id = $1"];
+    const whereClauses = ["notification.user_id = $1"];
 
     if (query.filter === "unread") {
-      whereClauses.push("read_at is null");
+      whereClauses.push("notification.read_at is null");
     }
 
     if (query.cursor) {
       values.push(query.cursor);
-      whereClauses.push(`created_at < $${values.length}::timestamptz`);
+      whereClauses.push(`notification.created_at < $${values.length}::timestamptz`);
     }
 
     const result = await app.db.query<AppNotificationRow>(
@@ -73,9 +73,9 @@ export function registerNotificationRoutes(app: FastifyInstance) {
          metadata,
          read_at,
          created_at
-       from app_notifications
+       from app_notifications notification
        where ${whereClauses.join(" and ")}
-       order by created_at desc
+       order by notification.created_at desc
        limit $2`,
       values
     );
@@ -104,10 +104,10 @@ export function registerNotificationRoutes(app: FastifyInstance) {
     const { notificationId } = notificationParamsSchema.parse(request.params);
 
     await app.db.query(
-      `update app_notifications
+      `update app_notifications notification
        set read_at = coalesce(read_at, now())
-       where id::text = $1
-         and user_id = $2`,
+       where notification.id::text = $1
+         and notification.user_id = $2`,
       [notificationId, userId]
     );
 
@@ -120,16 +120,16 @@ export function registerNotificationRoutes(app: FastifyInstance) {
     const userId = await getAuthenticatedUserId(request);
     const result = await app.db.query<{ unread_count: number }>(
       `with updated as (
-         update app_notifications
+         update app_notifications notification
          set read_at = now()
-         where user_id = $1
-           and read_at is null
+         where notification.user_id = $1
+           and notification.read_at is null
          returning id
        )
        select count(*)::int as unread_count
-       from app_notifications
-       where user_id = $1
-         and read_at is null`,
+       from app_notifications notification
+       where notification.user_id = $1
+         and notification.read_at is null`,
       [userId]
     );
 

@@ -104,6 +104,39 @@ function formatExpirationTime(isoTimestamp: string) {
   return `expires ${expiresAt.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
 }
 
+function formatRemainingExpirationTime(isoTimestamp: string, nowMs: number) {
+  const expiresAtMs = new Date(isoTimestamp).getTime();
+
+  if (!Number.isFinite(expiresAtMs)) {
+    return null;
+  }
+
+  const remainingSeconds = Math.ceil((expiresAtMs - nowMs) / 1000);
+
+  if (remainingSeconds <= 0) {
+    return null;
+  }
+
+  const days = Math.floor(remainingSeconds / 86_400);
+  const hours = Math.floor((remainingSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((remainingSeconds % 3_600) / 60);
+  const seconds = remainingSeconds % 60;
+
+  if (days > 0) {
+    return `Expires in ${days}d${hours > 0 ? ` ${hours}h` : ''}`;
+  }
+
+  if (hours > 0) {
+    return `Expires in ${hours}h${minutes > 0 ? ` ${minutes}m` : ''}`;
+  }
+
+  if (minutes > 0) {
+    return `Expires in ${minutes}m${seconds > 0 ? ` ${seconds}s` : ''}`;
+  }
+
+  return `Expires in ${seconds}s`;
+}
+
 function getConversationInitials(name: string) {
   return name
     .split(/\s+/)
@@ -210,6 +243,7 @@ export default function PrivateGroupChat() {
   const favoriteImageInputId = useId();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessageRecord[]>([]);
+  const [expiryNowMs, setExpiryNowMs] = useState(() => Date.now());
   const [conversation, setConversation] = useState<ConversationThread | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -247,14 +281,19 @@ export default function PrivateGroupChat() {
   useEffect(() => {
     const reevaluateExpiredMessages = () => {
       const now = Date.now();
-      setMessages((currentMessages) => currentMessages.filter((item) => {
-        if (!item.expiresAt) {
-          return true;
-        }
+      setExpiryNowMs(now);
+      setMessages((currentMessages) => {
+        const activeMessages = currentMessages.filter((item) => {
+          if (!item.expiresAt) {
+            return true;
+          }
 
-        const expiresAt = new Date(item.expiresAt).getTime();
-        return !Number.isFinite(expiresAt) || expiresAt > now;
-      }));
+          const expiresAt = new Date(item.expiresAt).getTime();
+          return !Number.isFinite(expiresAt) || expiresAt > now;
+        });
+
+        return activeMessages.length === currentMessages.length ? currentMessages : activeMessages;
+      });
     };
 
     reevaluateExpiredMessages();
@@ -1196,6 +1235,9 @@ export default function PrivateGroupChat() {
           {!loading && messages.map((msg) => {
             const isOwn = msg.author === 'self';
             const isSystem = msg.author === 'system';
+            const remainingExpiration = isOwn && msg.expiresAt
+              ? formatRemainingExpirationTime(msg.expiresAt, expiryNowMs)
+              : null;
             const messageSender = !isOwn && conversation
               ? getMessageSender(msg, conversation, groupMembers)
               : null;
@@ -1352,10 +1394,22 @@ export default function PrivateGroupChat() {
                       {msg.content}
                     </div>
                   ) : null}
+                  {remainingExpiration ? (
+                    <div
+                      role="timer"
+                      aria-label={remainingExpiration}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/35 bg-primary/12 px-2.5 py-1 text-[11px] font-medium text-primary shadow-[0_8px_20px_rgba(0,0,0,0.2)]"
+                    >
+                      <span className="flex size-6 items-center justify-center rounded-full border border-primary/30 bg-primary/12">
+                        <Timer className="size-3" />
+                      </span>
+                      <span>{remainingExpiration}</span>
+                    </div>
+                  ) : null}
                   <div className="flex items-center gap-1 px-1">
                     <span className="text-[11px] text-muted-foreground">
                       {formatMessageTime(msg.timestamp)}
-                      {msg.expiresAt ? ` · ${formatExpirationTime(msg.expiresAt)}` : ''}
+                      {!isOwn && msg.expiresAt ? ` · ${formatExpirationTime(msg.expiresAt)}` : ''}
                     </span>
                     {(isOwn || (conversation?.kind === 'group' && canManageConversation)) ? (
                       <Button

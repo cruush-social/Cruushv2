@@ -3,7 +3,7 @@
 import type { MouseEvent, PointerEvent, WheelEvent } from 'react';
 import { lazy, Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { ExternalLink, Eye, Filter, Mail, MapPin, MessageCircle, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ExternalLink, Filter, Mail, MapPin, MessageCircle, Radio, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { useIsMobile } from './ui/use-mobile';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
@@ -12,6 +12,7 @@ import MapProfilePopup from './MapProfilePopup';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
+import MapPingSheet from './MapPingSheet';
 import MapControlsTutorial, {
   MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
   notifyMapControlsTutorialCompleted,
@@ -23,6 +24,7 @@ import { DEFAULT_PRIVACY_SETTINGS, getMyPrivacySettings, type PrivacySettings } 
 import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus, type BillingStatus } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
 import { addNotificationsChangedListener, getNotificationSummary } from '../lib/notificationsApi';
+import { enablePushNotifications } from '../lib/pushNotifications';
 import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { emailEventPass, getActiveEvents, joinEventChat, revealEventPass, type EventPassReveal, type LaunchEvent } from '../lib/eventsApi';
 import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
@@ -30,6 +32,12 @@ import { getProfileGradientCss } from '../lib/profileGradient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto, setDlModeEnabled } from '../lib/dlMode';
 import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
 import { syncMyLocation } from '../lib/locationApi';
+import {
+  getMapPingStatus,
+  sendMapPing,
+  type MapPingRadiusMiles,
+  type MapPingStatus,
+} from '../lib/mapPingsApi';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
   emptyProfilePayload,
@@ -55,6 +63,8 @@ import crowdIconWhite from '../assets/ui-icons/crowds-white.svg';
 import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
 import notificationsIconWhite from '../assets/ui-icons/notifications-white.png';
 import settingsIconWhite from '../assets/ui-icons/settings-white.png';
+import dlModeColored from '../assets/ui-icons/dl-mode-colored.png';
+import dlModeWhite from '../assets/ui-icons/dl-mode-white.png';
 
 const DISCOVERY_MAP_LIMIT = 500;
 const MAP_PRIVACY_REFRESH_INTERVAL_MS = 10_000;
@@ -65,6 +75,10 @@ const CROWD_NOTICE_LABELS: Record<string, string> = {
   T4T: 'T4T',
 };
 const MAP_VIEWPORT_RESTORE_STORAGE_KEY = 'cruush:map-viewport-restore';
+const MAP_PING_STATUS_REFRESH_INTERVAL_MS = 20_000;
+const MAP_PING_IDEMPOTENCY_RETRY_WINDOW_MS = 10 * 60 * 1000;
+const GHOST_ROTATION_EXIT_MS = 1_250;
+const GHOST_ROTATION_REFRESH_RETRY_MS = 5_000;
 
 const MapView = lazy(() => import('./MapView'));
 
@@ -284,6 +298,7 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
     badges: item.user.badges,
     displayMode: item.coordinates?.precision === 'precise' ? 'PRECISE' : 'GHOST',
     animationHint: item.animationHint,
+    ghostRotationExpiresAtMs: item.ghostRotationExpiresAtMs,
     displayExpiresAtMs: item.displayExpiresAtMs,
     relationship: {
       mutualCruush: true,
@@ -448,6 +463,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
+  const [mapPingStatus, setMapPingStatus] = useState<MapPingStatus | null>(null);
+  const [mapPingStatusLoading, setMapPingStatusLoading] = useState(true);
+  const [mapPingSheetOpen, setMapPingSheetOpen] = useState(false);
+  const [mapPingClock, setMapPingClock] = useState(() => Date.now());
   const [activeEvents, setActiveEvents] = useState<LaunchEvent[]>([]);
   const [selectedEventSlug, setSelectedEventSlug] = useState<string | null>(null);
   const [eventPass, setEventPass] = useState<EventPassReveal | null>(null);
@@ -466,6 +485,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const hasRequestedInitialLocationRef = useRef(false);
   const lastOwnProfilePanelRequestKeyRef = useRef<string | null>(null);
   const lastEventCenterRequestKeyRef = useRef<string | null>(null);
+  const latestLocationSyncRef = useRef<Promise<unknown> | null>(null);
+  const mapPingStatusRequestIdRef = useRef(0);
+  const pendingMapPingRequestRef = useRef<{ idempotencyKey: string; createdAt: number } | null>(null);
+  const ghostExitMarkersRef = useRef(new Map<string, { deadlineMs: number; marker: MapMarker }>());
   const shouldAlignRecentlyActiveWithPreview = !isMobile && Boolean(selectedUser || luckySlot);
   const recentlyActiveDragRef = useRef({
     hasPointerCapture: false,
@@ -484,10 +507,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const hasCruushPlus = billingStatus?.cruushPlus !== false;
 
 
-  const dlModeEyeStyle = dlModeActive ? { stroke: 'url(#cruush-dl-eye-gradient)' } : undefined;
-
   const syncApproximateMapLocation = (approximateLocation: ApproximateCoordinates) => {
-    void syncMyLocation({
+    const syncPromise = syncMyLocation({
       lat: approximateLocation.approximateLatitude,
       lng: approximateLocation.approximateLongitude,
       fuzz_radius_meters: approximateLocation.privacyRadiusMeters,
@@ -509,11 +530,30 @@ export default function MapHome(_props: MapHomeProps = {}) {
               return locationChanged ? { ...profile, location: nextLocation } : profile;
             })()
           : profile);
-      })
-      .catch((syncError) => {
-        console.warn('Error syncing map location:', syncError);
       });
+
+    latestLocationSyncRef.current = syncPromise;
+    void syncPromise.catch((syncError) => {
+      console.warn('Error syncing map location:', syncError);
+    });
+    return syncPromise;
   };
+
+  const refreshMapPingStatus = useCallback(async () => {
+    const requestId = mapPingStatusRequestIdRef.current + 1;
+    mapPingStatusRequestIdRef.current = requestId;
+    setMapPingStatusLoading(true);
+    try {
+      const nextStatus = await getMapPingStatus();
+      if (mapPingStatusRequestIdRef.current === requestId) {
+        setMapPingStatus(nextStatus);
+      }
+    } finally {
+      if (mapPingStatusRequestIdRef.current === requestId) {
+        setMapPingStatusLoading(false);
+      }
+    }
+  }, []);
 
   const dismissMapControlsIntro = () => {
     setMapControlsIntroOpen(false);
@@ -525,7 +565,22 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
   };
 
-  const activateMapTutorialStep = (step: MapControlsTutorialStepId) => {
+  const activateMapTutorialStep = async (step: MapControlsTutorialStepId) => {
+    if (step === 'install') {
+      window.dispatchEvent(new Event('cruush:install-requested'));
+      return;
+    }
+
+    if (step === 'notifications') {
+      await enablePushNotifications();
+      return;
+    }
+
+    if (step === 'ping') {
+      setMapPingSheetOpen(true);
+      return;
+    }
+
     if (step === 'seeking') {
       setIsFiltersOpen(true);
       return;
@@ -570,6 +625,49 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }, []);
 
   useEffect(() => {
+    const expiresAtMs = privacySettings.ghostRotationExpiresAtMs;
+
+    if (!privacySettings.ghostModeEnabled || typeof expiresAtMs !== 'number') {
+      return;
+    }
+
+    let cancelled = false;
+    let refreshTimer: number | null = null;
+    const scheduleRefresh = (delayMs: number) => {
+      refreshTimer = window.setTimeout(() => {
+        void getMyPrivacySettings()
+          .then((nextSettings) => {
+            if (cancelled) {
+              return;
+            }
+
+            if (nextSettings.ghostModeEnabled && nextSettings.ghostRotationExpiresAtMs === expiresAtMs) {
+              scheduleRefresh(GHOST_ROTATION_REFRESH_RETRY_MS);
+              return;
+            }
+
+            setPrivacySettings(nextSettings);
+          })
+          .catch((refreshError) => {
+            console.warn('Error refreshing Ghost Mode rotation deadline:', refreshError);
+            if (!cancelled) {
+              scheduleRefresh(GHOST_ROTATION_REFRESH_RETRY_MS);
+            }
+          });
+      }, delayMs);
+    };
+
+    scheduleRefresh(Math.max(0, expiresAtMs - Date.now() + GHOST_ROTATION_EXIT_MS));
+
+    return () => {
+      cancelled = true;
+      if (refreshTimer != null) {
+        window.clearTimeout(refreshTimer);
+      }
+    };
+  }, [privacySettings.ghostModeEnabled, privacySettings.ghostRotationExpiresAtMs]);
+
+  useEffect(() => {
     if (!profileLoaded || !currentProfile || typeof window === 'undefined') {
       return;
     }
@@ -598,6 +696,34 @@ export default function MapHome(_props: MapHomeProps = {}) {
   }, [currentProfile?.id, profileLoaded, shouldReplayTutorial]);
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const refresh = async () => {
+      try {
+        await refreshMapPingStatus();
+      } catch (pingError) {
+        if (isMounted) {
+          console.warn('Error loading map Ping status:', pingError);
+        }
+      }
+    };
+
+    void refresh();
+    const refreshIntervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refresh();
+      }
+    }, MAP_PING_STATUS_REFRESH_INTERVAL_MS);
+    const clockIntervalId = window.setInterval(() => setMapPingClock(Date.now()), 1000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(refreshIntervalId);
+      window.clearInterval(clockIntervalId);
+    };
+  }, [refreshMapPingStatus]);
 
   useEffect(() => {
     let isMounted = true;
@@ -953,6 +1079,31 @@ export default function MapHome(_props: MapHomeProps = {}) {
     );
   });
 
+  const requestFreshMapPingLocation = () => new Promise<void>((resolve, reject) => {
+    setLocationError(null);
+
+    if (!navigator.geolocation) {
+      setLocationStatus('error');
+      setLocationError('Your browser does not support location sharing.');
+      reject(new Error('Your browser does not support location sharing.'));
+      return;
+    }
+
+    setLocationStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        applyBrowserPositionToMap(position);
+        resolve();
+      },
+      () => {
+        setLocationStatus('error');
+        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
+        reject(new Error('Location permission is required to send a Ping.'));
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+    );
+  });
+
   useEffect(() => {
     const savedProfileLocation = profileLocationToApproximateCoordinates(currentProfile);
 
@@ -1102,6 +1253,33 @@ export default function MapHome(_props: MapHomeProps = {}) {
     () => userApproximateLocation ?? savedProfileMapLocation,
     [savedProfileMapLocation, userApproximateLocation],
   );
+  const handleSendMapPing = async (radiusMiles: MapPingRadiusMiles) => {
+    if (!currentUserMapLocation) {
+      throw new Error('Share your map location before sending a Ping.');
+    }
+
+    await requestFreshMapPingLocation();
+
+    try {
+      await latestLocationSyncRef.current;
+    } catch {
+      throw new Error('Your map location could not sync. Try again.');
+    }
+
+    const now = Date.now();
+    const pendingRequest = pendingMapPingRequestRef.current;
+    const request = pendingRequest && now - pendingRequest.createdAt < MAP_PING_IDEMPOTENCY_RETRY_WINDOW_MS
+      ? pendingRequest
+      : { idempotencyKey: crypto.randomUUID(), createdAt: now };
+    pendingMapPingRequestRef.current = request;
+
+    const nextStatus = await sendMapPing(radiusMiles, request.idempotencyKey);
+    pendingMapPingRequestRef.current = null;
+    mapPingStatusRequestIdRef.current += 1;
+    setMapPingStatus(nextStatus);
+    setMapPingStatusLoading(false);
+    setMapPingClock(Date.now());
+  };
   const launchPartyEvent = useMemo(
     () => activeEvents.find((event) => event.slug === LAUNCH_EVENT_SLUG) ?? activeEvents[0] ?? null,
     [activeEvents],
@@ -1375,8 +1553,36 @@ export default function MapHome(_props: MapHomeProps = {}) {
   };
 
   const mapMarkers = useMemo<MapMarker[]>(() => {
+    const nowMs = Date.now();
+    const preserveOutgoingGhostMarker = (marker: MapMarker) => {
+      const saved = ghostExitMarkersRef.current.get(marker.id);
+
+      if (
+        saved &&
+        nowMs >= saved.deadlineMs &&
+        nowMs < saved.deadlineMs + GHOST_ROTATION_EXIT_MS
+      ) {
+        return saved.marker;
+      }
+
+      if (marker.displayMode === 'GHOST' && typeof marker.ghostRotationExpiresAtMs === 'number') {
+        ghostExitMarkersRef.current.set(marker.id, {
+          deadlineMs: marker.ghostRotationExpiresAtMs,
+          marker,
+        });
+      } else {
+        ghostExitMarkersRef.current.delete(marker.id);
+      }
+
+      return marker;
+    };
+    const activeReceivedPings = new Map(
+      (mapPingStatus?.receivedPings ?? [])
+        .filter((ping) => Date.parse(ping.expiresAt) > mapPingClock)
+        .map((ping) => [ping.sourceUserId, { id: ping.id, expiresAt: ping.expiresAt }]),
+    );
     const nearbyMarkers = displayedUsers.map((user) => {
-      return {
+      return preserveOutgoingGhostMarker({
         id: user.id,
         userId: user.id,
         kind: 'person',
@@ -1390,9 +1596,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
         photoExplicit: user.photoExplicit,
         badge: createMapMarkerBadge(user.position, user.hostingTravel),
         animationHint: user.animationHint,
+        ghostRotationExpiresAtMs: user.ghostRotationExpiresAtMs,
         displayMode: user.displayMode,
         privacyRadiusMeters: user.privacyRadiusMeters,
         npcGhostDemo: user.npcGhostDemo,
+        activePing: activeReceivedPings.get(user.id) ?? null,
         relationship: user.relationship?.mutualCruush
           ? {
               kind: 'mutual_cruush',
@@ -1400,7 +1608,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               canMessage: user.relationship.canMessage,
             }
           : null,
-      };
+      });
     });
 
     const eventMarkers = activeEvents.map((event) => ({
@@ -1420,28 +1628,47 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }));
 
     if (!currentUserMapLocation) {
+      const visibleMarkerIds = new Set(nearbyMarkers.map((marker) => marker.id));
+      for (const markerId of ghostExitMarkersRef.current.keys()) {
+        if (!visibleMarkerIds.has(markerId)) {
+          ghostExitMarkersRef.current.delete(markerId);
+        }
+      }
       return [...nearbyMarkers, ...eventMarkers];
     }
 
+    const currentUserMarker = preserveOutgoingGhostMarker({
+      id: 'me',
+      userId: currentProfile?.id ?? 'me',
+      displayName: 'You',
+      signal: currentProfile?.signal ?? '',
+      approximateLatitude: currentUserMapLocation.approximateLatitude,
+      approximateLongitude: currentUserMapLocation.approximateLongitude,
+      lastActiveLabel: 'Now',
+      photo: currentProfile?.photos[0] ?? null,
+      isCurrentUser: true,
+      badge: createMapMarkerBadge(currentProfile?.position ?? []),
+      animationHint: privacySettings.animationHint,
+      ghostRotationExpiresAtMs: privacySettings.ghostRotationExpiresAtMs,
+      displayMode: privacySettings.ghostModeEnabled ? 'GHOST' : 'PRECISE',
+      privacyRadiusMeters: privacySettings.ghostRadiusMeters,
+      activePing: mapPingStatus?.activePing && Date.parse(mapPingStatus.activePing.expiresAt) > mapPingClock
+        ? mapPingStatus.activePing
+        : null,
+    });
+    const visibleMarkerIds = new Set(['me', ...nearbyMarkers.map((marker) => marker.id)]);
+    for (const markerId of ghostExitMarkersRef.current.keys()) {
+      if (!visibleMarkerIds.has(markerId)) {
+        ghostExitMarkersRef.current.delete(markerId);
+      }
+    }
+
     return [
-      {
-        id: 'me',
-        userId: currentProfile?.id ?? 'me',
-        displayName: 'You',
-        signal: currentProfile?.signal ?? '',
-        approximateLatitude: currentUserMapLocation.approximateLatitude,
-        approximateLongitude: currentUserMapLocation.approximateLongitude,
-        lastActiveLabel: 'Now',
-        photo: currentProfile?.photos[0] ?? null,
-        isCurrentUser: true,
-        badge: createMapMarkerBadge(currentProfile?.position ?? []),
-        displayMode: privacySettings.ghostModeEnabled ? 'GHOST' : 'PRECISE',
-        privacyRadiusMeters: privacySettings.ghostRadiusMeters,
-      },
+      currentUserMarker,
       ...nearbyMarkers,
       ...eventMarkers,
     ];
-  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, privacySettings, userApproximateLocation]);
+  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, mapPingClock, mapPingStatus, privacySettings, userApproximateLocation]);
 
   const focusedMapLocation = useMemo(() => {
     if (!focusUserId) {
@@ -1574,23 +1801,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
       className={`cruush-map-shell ${isMobile ? 'fixed inset-0' : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
     >
-      <svg aria-hidden="true" className="absolute h-0 w-0">
-        <defs>
-          <linearGradient id="cruush-dl-eye-gradient" x1="0" x2="24" y1="0" y2="24" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#FF0072" />
-            <stop offset="46%" stopColor="#6F00FF" />
-            <stop offset="72%" stopColor="#004BFF" />
-            <stop offset="100%" stopColor="#1181FF" />
-          </linearGradient>
-        </defs>
-      </svg>
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
         data-testid="map-top-chrome"
       >
         <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 shrink-0 flex-col items-center gap-1">
+          <div
+            className="flex min-w-0 shrink-0 flex-col items-center gap-1"
+            data-testid="map-beta-stack"
+          >
             <h1 className="sr-only">cruush</h1>
             <img
               alt=""
@@ -1602,6 +1822,18 @@ export default function MapHome(_props: MapHomeProps = {}) {
             <div className="inline-flex max-w-[5.75rem] shrink-0 items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]">
               {isMutualMapMode ? 'mutual cruushes' : 'nyc open beta'}
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMapPingSheetOpen(true)}
+              data-testid="map-ping-button"
+              data-tutorial-target="ping"
+              aria-label="Send a Ping"
+              title="Send a Ping"
+              className="pointer-events-auto size-8 rounded-full border border-white/10 bg-background/35 text-white/90 backdrop-blur-md hover:bg-white/10 sm:size-9"
+            >
+              <Radio aria-hidden="true" className="h-5 w-5" />
+            </Button>
           </div>
 
           <div
@@ -1647,7 +1879,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
             >
-              <Eye className="h-4 w-4 sm:h-5 sm:w-5" style={dlModeEyeStyle} strokeWidth={2.35} />
+              <CruushIconImage
+                src={dlModeActive ? dlModeColored : dlModeWhite}
+                className="h-5 w-5 sm:h-6 sm:w-6"
+              />
             </Button>
             <Button
               variant="ghost"
@@ -2183,6 +2418,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onChange={handleVisibilityChange}
           onClear={handleClearVisibility}
           onApply={handleApplyVisibility}
+        />
+
+        <MapPingSheet
+          open={mapPingSheetOpen}
+          onOpenChange={setMapPingSheetOpen}
+          status={mapPingStatus}
+          loading={mapPingStatusLoading}
+          hasMapLocation={Boolean(currentUserMapLocation)}
+          signal={currentProfile?.signal}
+          onRefresh={refreshMapPingStatus}
+          onSend={handleSendMapPing}
         />
 
         <MapControlsTutorial

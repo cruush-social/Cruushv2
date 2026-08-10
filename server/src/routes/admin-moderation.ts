@@ -1309,6 +1309,29 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
       let objectKeys: string[] = [];
       if (report.target_type === "post" && report.post_id) {
         action = "remove_post";
+        const linkedPost = await db.query<{ id: string; map_ping_id: string | null }>(
+          `select id::text, map_ping_id::text as map_ping_id
+           from posts
+           where id = $1
+           for update`,
+          [report.post_id]
+        );
+        const post = linkedPost.rows[0];
+
+        if (!post) {
+          throw new ApiError(404, "NOT_FOUND", "Reported post is no longer available.");
+        }
+
+        if (post.map_ping_id) {
+          await db.query(
+            `update map_pings
+             set expires_at = least(expires_at, now())
+             where id = $1
+             returning id::text as id`,
+            [post.map_ping_id]
+          );
+        }
+
         const removed = await db.query<{ id: string }>("delete from posts where id = $1 returning id::text", [report.post_id]);
         if (!removed.rows[0]) throw new ApiError(404, "NOT_FOUND", "Reported post is no longer available.");
       } else if (report.target_type === "message" && report.message_id) {

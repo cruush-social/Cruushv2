@@ -81,7 +81,9 @@ const migrationFiles = [
   "070_photo_moderation_retries.sql",
   "071_moderation_system_errors.sql",
   "072_moderation_system_error_context.sql",
-  "073_revoke_post_aug7_automatic_cruush_plus_trials.sql"
+  "073_revoke_post_aug7_automatic_cruush_plus_trials.sql",
+  "074_map_pings.sql",
+  "075_ghost_mode_pulse.sql"
 ];
 
 const databaseUrl = process.env.DATABASE_URL;

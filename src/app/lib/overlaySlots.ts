@@ -55,11 +55,23 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     desktop: { top: 0.75, right: 0.75, width: 14, height: 2.75 },
   },
   {
-    id: 'map-zoom-stack',
+    id: 'map-right-actions',
     source: 'src/app/components/MapHome.tsx',
     z: 40,
-    mobile: { top: 3.5, right: 0.75, width: 2.75, height: 9 },
-    desktop: { top: 4, right: 1, width: 2.75, height: 9 },
+    // Includes the widest state: crowd/ghost notices, Seeking, Visibility and the
+    // complete vertical map-control stack.
+    mobile: { top: 3.5, right: 0.75, width: 12.117188, height: 15.25 },
+    desktop: { top: 4, right: 1, width: 12.117188, height: 15.25 },
+  },
+  {
+    id: 'map-ping-button',
+    source: 'src/app/components/MapHome.tsx',
+    z: 40,
+    // The generic bug trigger and tip use different map-specific geometry while this
+    // control exists, so their non-map registry entries cannot coexist with this slot.
+    exclusiveWith: ['alpha-bug-button', 'alpha-bug-tip'],
+    mobile: { top: 5.375, left: 1.722656, width: 2, height: 2 },
+    desktop: { top: 6.1875, left: 2.268555, width: 2.25, height: 2.25 },
   },
   {
     id: 'recently-active-panel',
@@ -71,7 +83,7 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
   {
     id: 'mobile-install-prompt',
     source: 'src/app/components/MobileInstallPrompt.tsx',
-    z: 40,
+    z: 90,
     transient: true,
     // Narrowed on mobile so it clears the bug button's column on the right edge.
     mobile: { bottom: 6, left: 1, right: 4.5, height: 10 },
@@ -90,6 +102,9 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     id: 'alpha-bug-button',
     source: 'src/app/components/AlphaBugButton.tsx',
     z: 20,
+    // On the map this trigger is portaled into map-header-row instead of using the
+    // generic fixed position declared here.
+    exclusiveWith: ['map-header-row', 'map-right-actions', 'map-ping-button', 'map-alpha-bug-tip'],
     mobile: { top: 4, left: 1, width: 2.75, height: 2.75 },
     desktop: { top: 0.75, left: 1.25, width: 2.75, height: 2.75 },
   },
@@ -102,9 +117,17 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     // on top of another control. On desktop it goes to the left of the button along the
     // bottom edge, the only space clear of the install prompt, the Recently Active
     // panel and the nav pill.
-    exclusiveWith: ['alpha-bug-button'],
+    exclusiveWith: ['alpha-bug-button', 'map-header-row', 'map-right-actions', 'map-ping-button', 'map-alpha-bug-tip'],
     mobile: { top: 7.25, left: 1, width: 18, height: 5 },
     desktop: { top: 4.5, left: 1.25, width: 18, height: 5 },
+  },
+  {
+    id: 'map-alpha-bug-tip',
+    source: 'src/app/components/AlphaBugButton.tsx',
+    z: 30,
+    exclusiveWith: ['alpha-bug-button', 'alpha-bug-tip'],
+    mobile: { top: 19.5, left: 1, width: 18, height: 5.625 },
+    desktop: { top: 9.25, left: 1.25, width: 18, height: 5.625 },
   },
 ];
 

@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { requireCruushPlus } from "../billing.js";
 import { canStartDirectMessage } from "../cruush-match-settings.js";
+import { runTransaction, type DbClient } from "../db.js";
 import { ApiError } from "../errors.js";
 import {
   getRelationshipPermissions,
@@ -19,6 +20,12 @@ import {
   type ProfilePayload
 } from "../profile-schema.js";
 import { moderateProfileOrReject } from "../moderation-service.js";
+import {
+  lockMapPingSenderInTransaction,
+  mapVisibilityNarrowed,
+  profileVisibilityNarrowed,
+  revokeActiveMapPingsInTransaction
+} from "../map-ping-revocation.js";
 import { notifyNearbyUsersForLocationUpdate } from "../nearby-notifications.js";
 import {
   canSubjectViewProfile,
@@ -48,9 +55,11 @@ import { assertUsersNotBlocked } from "../user-blocks.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   GHOST_RADIUS_OPTIONS,
+  describeGhostRotation,
   loadLocationEnvelope,
   loadVisibilityPolicy,
   makeDisplayLocationToken,
+  normalizeVisibilityPolicy,
   publicPrivacySettings,
   radiusMetersForLabel,
   saveVisibilityPolicy,
@@ -112,6 +121,29 @@ const privacySettingsPayloadSchema = z.object({
     });
   }
 });
+
+async function publicPrivacySettingsWithGhostRotation(
+  app: FastifyInstance,
+  userId: string,
+  settings: ReturnType<typeof publicPrivacySettings>
+) {
+  if (!settings.ghostModeEnabled) {
+    return {
+      ...settings,
+      animationHint: "NONE" as const
+    };
+  }
+
+  const rotation = await describeGhostRotation(app, userId);
+
+  return {
+    ...settings,
+    animationHint: rotation.animationHint,
+    ...(typeof rotation.rotationExpiresAtMs === "number"
+      ? { ghostRotationExpiresAtMs: rotation.rotationExpiresAtMs }
+      : {})
+  };
+}
 
 type ProfileRow = {
   id: string;
@@ -941,46 +973,62 @@ async function loadOwnerProfileRow(app: FastifyInstance, userId: string) {
   return row;
 }
 
+function appWithDatabase(app: FastifyInstance, db: DbClient) {
+  return {
+    config: app.config,
+    db,
+    log: app.log
+  } as FastifyInstance;
+}
+
 async function applyProfileVisibilityRules(
   app: FastifyInstance,
   userId: string,
   visibilityRules: ProfileVisibilityRules
 ) {
-  const existingRow = await loadOwnerProfileRow(app, userId);
-  const sensitiveProfile = decryptSensitiveProfile(app.config, existingRow) ?? fallbackSensitiveProfile();
-  const kinkInterests = await loadProfileKinkInterests(app, userId);
-  profilePayloadSchema.parse(profilePayloadFromRow(existingRow, sensitiveProfile, kinkInterests, visibilityRules));
+  return runTransaction(app.db, async (db) => {
+    await lockMapPingSenderInTransaction(db, userId);
+    const transactionApp = appWithDatabase(app, db);
+    const existingRow = await loadOwnerProfileRow(transactionApp, userId);
+    const sensitiveProfile = decryptSensitiveProfile(app.config, existingRow) ?? fallbackSensitiveProfile();
+    const kinkInterests = await loadProfileKinkInterests(transactionApp, userId);
+    profilePayloadSchema.parse(profilePayloadFromRow(existingRow, sensitiveProfile, kinkInterests, visibilityRules));
+    const existingVisibilityRules = decryptProfileVisibility(app.config, existingRow) ?? emptyProfile.visibility_rules;
+    const encryptedProfileVisibility = encryptProfileVisibility(app.config, visibilityRules);
+    const result = await db.query<ProfileRow>(
+      `update profiles
+       set profile_visibility_ciphertext = $2,
+           profile_visibility_nonce = $3,
+           profile_visibility_auth_tag = $4,
+           profile_visibility_key_version = $5,
+           profile_visibility_token_key_version = $6,
+           updated_at = now()
+       where id = $1
+       returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
+      [
+        userId,
+        encryptedProfileVisibility.profile_visibility_ciphertext,
+        encryptedProfileVisibility.profile_visibility_nonce,
+        encryptedProfileVisibility.profile_visibility_auth_tag,
+        encryptedProfileVisibility.profile_visibility_key_version,
+        encryptedProfileVisibility.profile_visibility_token_key_version
+      ]
+    );
 
-  const encryptedProfileVisibility = encryptProfileVisibility(app.config, visibilityRules);
-  const result = await app.db.query<ProfileRow>(
-    `update profiles
-     set profile_visibility_ciphertext = $2,
-         profile_visibility_nonce = $3,
-         profile_visibility_auth_tag = $4,
-         profile_visibility_key_version = $5,
-         profile_visibility_token_key_version = $6,
-         updated_at = now()
-     where id = $1
-     returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
-    [
-      userId,
-      encryptedProfileVisibility.profile_visibility_ciphertext,
-      encryptedProfileVisibility.profile_visibility_nonce,
-      encryptedProfileVisibility.profile_visibility_auth_tag,
-      encryptedProfileVisibility.profile_visibility_key_version,
-      encryptedProfileVisibility.profile_visibility_token_key_version
-    ]
-  );
+    await syncSensitiveProfileTokens(transactionApp, userId, combineSensitiveTokens(
+      createSensitiveProfileTokens(app.config, sensitiveProfile),
+      createProfileVisibilityTokens(app.config, visibilityRules)
+    ));
 
-  await syncSensitiveProfileTokens(app, userId, combineSensitiveTokens(
-    createSensitiveProfileTokens(app.config, sensitiveProfile),
-    createProfileVisibilityTokens(app.config, visibilityRules)
-  ));
+    if (profileVisibilityNarrowed(existingVisibilityRules, visibilityRules)) {
+      await revokeActiveMapPingsInTransaction(db, userId);
+    }
 
-  return mapProfileRow(result.rows[0], kinkInterests, {
-    includePrivateSensitive: true,
-    sensitiveProfile,
-    visibilityRules
+    return mapProfileRow(result.rows[0], kinkInterests, {
+      includePrivateSensitive: true,
+      sensitiveProfile,
+      visibilityRules
+    });
   });
 }
 
@@ -1071,7 +1119,9 @@ type ExistingIdentityState = {
   exists: boolean;
   yearOfBirth: number | null;
   identities: string[];
+  signal: string;
   sensitiveProfile: SensitiveProfileData | null;
+  visibilityRules: ProfileVisibilityRules | null;
   changedAt: Date | null;
 };
 
@@ -1082,18 +1132,28 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
       profile_sensitive_nonce: string | null;
       profile_sensitive_auth_tag: string | null;
       profile_sensitive_key_version: string | null;
+      profile_visibility_ciphertext: string | null;
+      profile_visibility_nonce: string | null;
+      profile_visibility_auth_tag: string | null;
+      profile_visibility_key_version: string | null;
       trans_crowds_changed_at: string | Date | null;
       identities: string[] | null;
       year_of_birth: number | null;
+      signal: string | null;
     }>(
       `select
          profile_sensitive_ciphertext,
          profile_sensitive_nonce,
          profile_sensitive_auth_tag,
          profile_sensitive_key_version,
+         profile_visibility_ciphertext,
+         profile_visibility_nonce,
+         profile_visibility_auth_tag,
+         profile_visibility_key_version,
          trans_crowds_changed_at,
          identities,
-         year_of_birth
+         year_of_birth,
+         signal
        from profiles
        where id = $1`,
       [userId]
@@ -1105,12 +1165,15 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
         exists: false,
         yearOfBirth: null,
         identities: [],
+        signal: "",
         sensitiveProfile: null,
+        visibilityRules: null,
         changedAt: null
       };
     }
 
     let sensitiveProfile: SensitiveProfileData | null = null;
+    let visibilityRules: ProfileVisibilityRules | null = null;
 
     try {
       sensitiveProfile = decryptSensitiveProfile(app.config, row);
@@ -1118,11 +1181,19 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
       sensitiveProfile = null;
     }
 
+    try {
+      visibilityRules = decryptProfileVisibility(app.config, row);
+    } catch {
+      visibilityRules = null;
+    }
+
     return {
       exists: true,
       yearOfBirth: row.year_of_birth,
       identities: row.identities ?? [],
+      signal: row.signal ?? "",
       sensitiveProfile,
+      visibilityRules,
       changedAt: row.trans_crowds_changed_at ? new Date(row.trans_crowds_changed_at) : null
     };
   } catch (error) {
@@ -1131,7 +1202,9 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
         exists: false,
         yearOfBirth: null,
         identities: [],
+        signal: "",
         sensitiveProfile: null,
+        visibilityRules: null,
         changedAt: null
       };
     }
@@ -1336,28 +1409,29 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
   app.get("/api/profiles/me/privacy-settings", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
+    const policy = await loadVisibilityPolicy(app, userId).catch(async (error) => {
+      if (isSchemaCompatibilityError(error)) {
+        const legacy = await getPrivacySettings(app, userId);
+        return {
+          version: 1 as const,
+          subjectUserId: userId,
+          policyVersion: 1,
+          baseMode: legacy.baseMode,
+          ghostRadiusMeters: legacy.ghostRadiusMeters,
+          preciseToMutualCruushes: legacy.preciseToMutualCruushes,
+          preciseToMutualCrowds: [],
+          auditRequired: false,
+          updatedAtMs: legacy.updatedAtMs,
+          expiresAtMs: null,
+          keyVersion: app.config.VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION || "v1"
+        };
+      }
+
+      throw error;
+    });
 
     return reply.send({
-      data: publicPrivacySettings(await loadVisibilityPolicy(app, userId).catch(async (error) => {
-        if (isSchemaCompatibilityError(error)) {
-          const legacy = await getPrivacySettings(app, userId);
-          return {
-            version: 1 as const,
-            subjectUserId: userId,
-            policyVersion: 1,
-            baseMode: legacy.baseMode,
-            ghostRadiusMeters: legacy.ghostRadiusMeters,
-            preciseToMutualCruushes: legacy.preciseToMutualCruushes,
-            preciseToMutualCrowds: [],
-            auditRequired: false,
-            updatedAtMs: legacy.updatedAtMs,
-            expiresAtMs: null,
-            keyVersion: app.config.VISIBILITY_POLICY_ENCRYPTION_KEY_VERSION || "v1"
-          };
-        }
-
-        throw error;
-      }))
+      data: await publicPrivacySettingsWithGhostRotation(app, userId, publicPrivacySettings(policy))
     });
   });
 
@@ -1382,15 +1456,30 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       await requireCruushPlus(app, userId, premiumPrivacyMessage({ baseMode, preciseToMutualCruushes, preciseToMutualCrowds }));
     }
 
+    const visibilityInput = {
+      baseMode,
+      ghostModeEnabled: baseMode === "GHOST",
+      ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(payload.ghostRadiusLabel),
+      preciseToMutualCruushes,
+      preciseToMutualCrowds,
+      preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" as const : "none" as const
+    };
+    const savedPolicy = await runTransaction(app.db, async (db) => {
+      await lockMapPingSenderInTransaction(db, userId);
+      const context = { config: app.config, db };
+      const currentPolicy = await loadVisibilityPolicy(context, userId);
+      const nextPolicy = normalizeVisibilityPolicy(app.config, userId, visibilityInput, currentPolicy);
+      const saved = await saveVisibilityPolicy(context, userId, visibilityInput);
+
+      if (mapVisibilityNarrowed(currentPolicy, nextPolicy)) {
+        await revokeActiveMapPingsInTransaction(db, userId);
+      }
+
+      return saved;
+    });
+
     return reply.send({
-      data: publicPrivacySettings(await saveVisibilityPolicy(app, userId, {
-        baseMode,
-        ghostModeEnabled: baseMode === "GHOST",
-        ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(payload.ghostRadiusLabel),
-        preciseToMutualCruushes,
-        preciseToMutualCrowds,
-        preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" : "none"
-      }))
+      data: await publicPrivacySettingsWithGhostRotation(app, userId, publicPrivacySettings(savedPolicy))
     });
   });
 
@@ -1601,13 +1690,15 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
     const kinkInterests = normalizeKinkInterests(payload);
     const sensitiveProfile = buildSensitiveProfile(payload, kinkInterests);
+    assertIdentityGateChangeAllowed(
+      existingIdentityState,
+      hasIdentityGateChange(existingIdentityState, payload, sensitiveProfile)
+    );
     await moderateProfileOrReject(app, {
       userId,
       fields: buildProfileModerationFields(payload, kinkInterests),
       contentId: userId
     });
-    const hasIdentityChange = hasIdentityGateChange(existingIdentityState, payload, sensitiveProfile);
-    assertIdentityGateChangeAllowed(existingIdentityState, hasIdentityChange);
     const encryptedSensitiveProfile = encryptSensitiveProfile(app.config, sensitiveProfile);
     const encryptedProfileVisibility = encryptProfileVisibility(app.config, payload.visibility_rules);
     const payloadForColumns: ProfilePayload = {
@@ -1617,30 +1708,6 @@ export async function registerProfileRoutes(app: FastifyInstance) {
       hiv_status: [],
       custom_hiv_status: ""
     };
-    const values = PROFILE_COLUMNS.map((column) => {
-      if (column === "id") {
-        return userId;
-      }
-
-      if (column === "ethnicity") {
-        return payloadForColumns.ethnicity ? [payloadForColumns.ethnicity] : [];
-      }
-
-      if (column in encryptedSensitiveProfile) {
-        return encryptedSensitiveProfile[column as keyof EncryptedSensitiveProfile];
-      }
-
-      if (column in encryptedProfileVisibility) {
-        return encryptedProfileVisibility[column as keyof EncryptedProfileVisibility];
-      }
-
-      if (column === "trans_crowds_changed_at") {
-        return hasIdentityChange ? new Date() : null;
-      }
-
-      return payloadForColumns[column as keyof ProfilePayload];
-    });
-
     const placeholders = PROFILE_COLUMNS.map((_, index) => `$${index + 1}`);
     const updates = PROFILE_COLUMNS
       .filter((column) => column !== "id")
@@ -1651,14 +1718,62 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     let result;
 
     try {
-      result = await app.db.query<ProfileRow>(
-        `insert into profiles (${PROFILE_COLUMNS.join(", ")})
-         values (${placeholders.join(", ")})
-         on conflict (id) do update
-         set ${updates.join(", ")}, updated_at = now()
-         returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
-        values
-      );
+      result = await runTransaction(app.db, async (db) => {
+        await lockMapPingSenderInTransaction(db, userId);
+        const transactionApp = appWithDatabase(app, db);
+        const currentIdentityState = await loadExistingIdentityState(transactionApp, userId);
+        const hasIdentityChange = hasIdentityGateChange(currentIdentityState, payload, sensitiveProfile);
+        assertIdentityGateChangeAllowed(currentIdentityState, hasIdentityChange);
+        const values = PROFILE_COLUMNS.map((column) => {
+          if (column === "id") {
+            return userId;
+          }
+
+          if (column === "ethnicity") {
+            return payloadForColumns.ethnicity ? [payloadForColumns.ethnicity] : [];
+          }
+
+          if (column in encryptedSensitiveProfile) {
+            return encryptedSensitiveProfile[column as keyof EncryptedSensitiveProfile];
+          }
+
+          if (column in encryptedProfileVisibility) {
+            return encryptedProfileVisibility[column as keyof EncryptedProfileVisibility];
+          }
+
+          if (column === "trans_crowds_changed_at") {
+            return hasIdentityChange ? new Date() : null;
+          }
+
+          return payloadForColumns[column as keyof ProfilePayload];
+        });
+        const saved = await db.query<ProfileRow>(
+          `insert into profiles (${PROFILE_COLUMNS.join(", ")})
+           values (${placeholders.join(", ")})
+           on conflict (id) do update
+           set ${updates.join(", ")}, updated_at = now()
+           returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
+          values
+        );
+
+        await syncProfileKinkInterests(transactionApp, userId, kinkInterests);
+        await syncSensitiveProfileTokens(transactionApp, userId, combineSensitiveTokens(
+          createSensitiveProfileTokens(app.config, sensitiveProfile),
+          createProfileVisibilityTokens(app.config, payload.visibility_rules)
+        ));
+
+        if (currentIdentityState.exists && (
+          currentIdentityState.signal !== payload.signal ||
+          profileVisibilityNarrowed(
+            currentIdentityState.visibilityRules ?? emptyProfile.visibility_rules,
+            payload.visibility_rules
+          )
+        )) {
+          await revokeActiveMapPingsInTransaction(db, userId);
+        }
+
+        return saved;
+      });
     } catch (error) {
       const code = typeof error === "object" && error !== null && "code" in error
         ? String((error as { code?: string }).code)
@@ -1671,11 +1786,6 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
       throw error;
     }
-    await syncProfileKinkInterests(app, userId, kinkInterests);
-    await syncSensitiveProfileTokens(app, userId, combineSensitiveTokens(
-      createSensitiveProfileTokens(app.config, sensitiveProfile),
-      createProfileVisibilityTokens(app.config, payload.visibility_rules)
-    ));
 
     return reply.send({
       data: mapProfileRow(result.rows[0], kinkInterests, {
@@ -1691,20 +1801,27 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     const payload = profileLocationPayloadSchema.parse(request.body);
 
     try {
-      await app.db.query(
-        `insert into profiles (id, location_updated_at, updated_at)
-         values ($1, now(), now())
-         on conflict (id) do update
-         set location_updated_at = now(),
-             updated_at = now()`,
-        [userId]
-      );
-      const location = await storeLocationEnvelope(app, {
-        subjectUserId: userId,
-        lat: payload.lat,
-        lng: payload.lng,
-        accuracyM: payload.fuzz_radius_meters,
-        source: "GPS"
+      const location = await runTransaction(app.db, async (db) => {
+        await lockMapPingSenderInTransaction(db, userId);
+        const transactionApp = appWithDatabase(app, db);
+        await db.query(
+          `insert into profiles (id, location_updated_at, updated_at)
+           values ($1, now(), now())
+           on conflict (id) do update
+           set location_updated_at = now(),
+               updated_at = now()`,
+          [userId]
+        );
+        const savedLocation = await storeLocationEnvelope(transactionApp, {
+          subjectUserId: userId,
+          lat: payload.lat,
+          lng: payload.lng,
+          accuracyM: payload.fuzz_radius_meters,
+          source: "GPS"
+        });
+        await revokeActiveMapPingsInTransaction(db, userId);
+
+        return savedLocation;
       });
       const policy = await loadVisibilityPolicy(app, userId);
       const token = await makeDisplayLocationToken(app, request, {

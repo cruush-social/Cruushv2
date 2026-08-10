@@ -15,6 +15,7 @@ import { emptyProfile } from "./profile-schema.js";
 import { createCrowdTokens, encryptProfileVisibility, encryptSensitiveProfile, type ProfileVisibilityRules } from "./profile-sensitive.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
 import {
+  buildRevokeActionToken,
   decryptDisplayLocationTokenForTest,
   saveVisibilityPolicy,
   storeLocationEnvelope,
@@ -5098,9 +5099,20 @@ describe("server", () => {
       payload: multipart.payload
     });
     const favoriteMediaApprove = query.mock.calls.find(([sql]) => String(sql).includes("update media_objects media") && String(sql).includes("moderation_status = 'approved'"));
+    const favoriteReviewInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into content_reviews"));
     const favoriteInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into message_favorite_images"));
+    const favoriteMediaApproveSql = String(favoriteMediaApprove?.[0] ?? "");
+    const favoriteMediaApproveParams = (favoriteMediaApprove?.[1] ?? []) as unknown[];
+    const favoriteMediaApprovePlaceholders = Array.from(
+      new Set(Array.from(favoriteMediaApproveSql.matchAll(/\$(\d+)/g), (match) => Number(match[1])))
+    ).sort((left, right) => left - right);
 
     expect(response.statusCode, response.body).toBe(201);
+    expect(favoriteMediaApprovePlaceholders).toEqual(
+      Array.from({ length: favoriteMediaApproveParams.length }, (_, index) => index + 1)
+    );
+    expect(favoriteMediaApproveParams).toHaveLength(9);
+    expect(favoriteReviewInsert?.[0]).toContain("$2::text");
     expect(favoriteMediaApprove?.[0]).not.toContain("media.moderation_status = 'pending'");
     expect(favoriteInsert?.[0]).not.toContain("feature_restrictions");
     expect(favoriteInsert?.[1]?.[2]).toBe("go-to");
@@ -6494,10 +6506,12 @@ describe("server", () => {
     expect(query.mock.calls[3]?.[1]?.[4]).toBe("reject_content");
   });
 
-  it("removes reported posts, resolves the report, and closes the linked review", async () => {
+  it("removes reported Ping posts and transactionally expires their map activity", async () => {
     const reportId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
     const reviewId = "c6c09b96-80ea-4272-a6f5-91727250c4ce";
     const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const postId = "59e01d61-4a76-4359-915a-1f25b7815ff4";
+    const pingId = "10000000-0000-4000-8000-000000000001";
     query
       .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
       .mockResolvedValueOnce({ rows: [{
@@ -6507,12 +6521,14 @@ describe("server", () => {
         target_user_id: targetUserId,
         conversation_id: null,
         message_id: null,
-        post_id: "59e01d61-4a76-4359-915a-1f25b7815ff4",
+        post_id: postId,
         media_object_id: null,
         profile_photo_url: null,
         content_review_id: reviewId
       }] })
-      .mockResolvedValueOnce({ rows: [{ id: "59e01d61-4a76-4359-915a-1f25b7815ff4" }] })
+      .mockResolvedValueOnce({ rows: [{ id: postId, map_ping_id: pingId }] })
+      .mockResolvedValueOnce({ rows: [{ id: pingId }] })
+      .mockResolvedValueOnce({ rows: [{ id: postId }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{
@@ -6528,9 +6544,16 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[2]?.[0]).toContain("delete from posts");
-    expect(query.mock.calls[3]?.[0]).toContain("status = 'resolved'");
-    expect(query.mock.calls[4]?.[0]).toContain("moderation_status = 'removed'");
+    expect(query.mock.calls[2]?.[0]).toContain("select id::text, map_ping_id::text as map_ping_id");
+    expect(query.mock.calls[2]?.[0]).toContain("for update");
+    expect(query.mock.calls[3]?.[0]).toContain("update map_pings");
+    expect(query.mock.calls[3]?.[0]).toContain("expires_at = least(expires_at, now())");
+    expect(query.mock.calls[3]?.[1]).toEqual([pingId]);
+    expect(query.mock.calls[4]?.[0]).toContain("delete from posts");
+    expect(query.mock.calls[4]?.[1]).toEqual([postId]);
+    expect(query.mock.calls[5]?.[0]).toContain("status = 'resolved'");
+    expect(query.mock.calls[6]?.[0]).toContain("moderation_status = 'removed'");
+    expect(query.mock.calls.some((call) => String(call[0]).includes("delete from app_notifications"))).toBe(false);
     expect(response.json().data.action).toBe("remove_post");
   });
 
@@ -7999,6 +8022,10 @@ describe("server", () => {
         return Promise.resolve({ rows: [targetPolicy] });
       }
 
+      if (normalizedSql.includes("insert into ghost_rotation_tokens")) {
+        return Promise.resolve({ rows: [{ subject_user_id: targetUserId }] });
+      }
+
       return Promise.resolve({ rows: [] });
     });
 
@@ -8065,7 +8092,7 @@ describe("server", () => {
       accuracyM: 50
     });
 
-    query.mockImplementation((sql: string) => {
+    query.mockImplementation((sql: string, params: unknown[] = []) => {
       const normalizedSql = sql.toLowerCase();
 
       if (normalizedSql.includes("join encrypted_location_envelopes")) {
@@ -8235,7 +8262,7 @@ describe("server", () => {
       accuracyM: 25
     })));
 
-    query.mockImplementation((sql: string) => {
+    query.mockImplementation((sql: string, params: unknown[] = []) => {
       const normalizedSql = sql.toLowerCase();
 
       if (normalizedSql.includes("from profiles") && normalizedSql.includes("join app_users")) {
@@ -8252,6 +8279,10 @@ describe("server", () => {
             email: "codeveloper-nyc@cruush.local"
           }]
         });
+      }
+
+      if (normalizedSql.includes("insert into ghost_rotation_tokens")) {
+        return Promise.resolve({ rows: [{ subject_user_id: String(params[0]) }] });
       }
 
       return Promise.resolve({ rows: [] });
@@ -8993,6 +9024,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
     expect(query.mock.calls[1]?.[0]).toContain("from posts p");
+    expect(query.mock.calls[1]?.[0]).toContain("p.map_ping_id");
     expect(response.json()).toEqual({
       data: [{
         id: "post-1",
@@ -9010,6 +9042,66 @@ describe("server", () => {
         }
       }]
     });
+  });
+
+  it("returns Ping feed posts through normal feed privacy without exposing their internal Ping link", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{ user_id: userId }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "post-ping-1",
+          user_id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          content: "Coffee now",
+          expires_in: "24h",
+          expires_at: "2026-08-10T18:00:00.000Z",
+          created_at: "2026-08-09T18:00:00.000Z",
+          display_name: "Nearby person",
+          pronouns: ["they/them"],
+          photos: [],
+          map_ping_id: "10000000-0000-4000-8000-000000000001",
+          distance_miles: 0.4,
+          feed_location_pin_visibility: "public",
+          has_live_location: true
+        }]
+      });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/posts",
+      cookies: {
+        cruush_session: "test-session-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const feedSql = String(query.mock.calls[1]?.[0]);
+    expect(feedSql).toContain("p.map_ping_id");
+    expect(feedSql).toContain("from user_blocks block");
+    expect(feedSql).not.toContain("notification.dedupe_key = 'map-ping:'");
+    expect(response.json()).toEqual({
+      data: [{
+        id: "post-ping-1",
+        content: "Coffee now",
+        expiresIn: "24h",
+        expiresAt: "2026-08-10T18:00:00.000Z",
+        createdAt: "2026-08-09T18:00:00.000Z",
+        distance: "<1 mi",
+        locationPin: {
+          userId: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          visibility: "public"
+        },
+        user: {
+          id: "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97",
+          name: "Nearby person",
+          pronouns: "they/them",
+          photo: null,
+          photoExplicit: false
+        }
+      }]
+    });
+    expect(JSON.stringify(response.json())).not.toMatch(/mapPingId|radiusMiles/i);
   });
 
   it("filters blocked relationships from GET /api/posts at the query boundary", async () => {
@@ -9057,6 +9149,98 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("feed_post_crowd_targets target");
     expect(query.mock.calls[1]?.[0]).toContain("profile_sensitive_tokens viewer_crowd_token");
     expect(query.mock.calls[1]?.[0]).toContain("viewer_crowd_token.user_id = $1");
+  });
+
+  it("persists the feed expiry choice used by future Pings", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        feed_location_pin_visibility: "mutuals",
+        feed_show_distance_labels: true,
+        feed_post_expiry_default: "24h"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/feed/settings",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        locationPinVisibility: "mutuals",
+        showDistanceLabels: true,
+        postExpiryDefault: "24h"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain(
+      "feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default)"
+    );
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, "24h"]);
+    expect(response.json()).toEqual({
+      data: {
+        locationPinVisibility: "mutuals",
+        showDistanceLabels: true,
+        postExpiryDefault: "24h"
+      }
+    });
+  });
+
+  it("returns the persisted feed expiry choice on another page or device", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        feed_location_pin_visibility: "off",
+        feed_show_distance_labels: false,
+        feed_post_expiry_default: "7d"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/feed/settings",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        locationPinVisibility: "off",
+        showDistanceLabels: false,
+        postExpiryDefault: "7d"
+      }
+    });
+  });
+
+  it("preserves the saved feed expiry when a legacy settings payload omits it", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        feed_location_pin_visibility: "public",
+        feed_show_distance_labels: false,
+        feed_post_expiry_default: "24h"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/feed/settings",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        locationPinVisibility: "public",
+        showDistanceLabels: false
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[0]?.[0]).toContain(
+      "feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default)"
+    );
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "public", false, null]);
+    expect(response.json().data.postExpiryDefault).toBe("24h");
   });
 
   it("validates the payload on POST /api/posts", async () => {
@@ -10287,6 +10471,213 @@ describe("server", () => {
     });
   });
 
+  it("returns only the current server deadline needed to animate the signed-in Ghost heart", async () => {
+    const nowMs = Date.parse("2026-08-09T16:00:00.000Z");
+    const anchorMs = nowMs - 14 * 60_000 - 30_000;
+    const rotationExpiresAtMs = nowMs + 30_000;
+    const policy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "GHOST"
+    });
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(nowMs);
+
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [policy] };
+      }
+
+      if (text.includes("select ghost_mode_anchor_ms, ghost_pulse_enabled")) {
+        return {
+          rows: [{
+            ghost_mode_anchor_ms: anchorMs,
+            ghost_pulse_enabled: true
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/profiles/me/privacy-settings",
+        headers: {
+          "x-user-id": userId
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data).toEqual(expect.objectContaining({
+        baseMode: "GHOST",
+        ghostModeEnabled: true,
+        animationHint: "FADE_LAST_MINUTE",
+        ghostRotationExpiresAtMs: rotationExpiresAtMs
+      }));
+      expect(response.body).not.toContain("ghost_mode_anchor_ms");
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("omits a Ghost rotation deadline when the heartbeat preference is off", async () => {
+    const policy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "GHOST"
+    });
+
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [policy] };
+      }
+
+      if (text.includes("select ghost_mode_anchor_ms, ghost_pulse_enabled")) {
+        return {
+          rows: [{
+            ghost_mode_anchor_ms: Date.now(),
+            ghost_pulse_enabled: false
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/me/privacy-settings",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual(expect.objectContaining({
+      baseMode: "GHOST",
+      animationHint: "NONE"
+    }));
+    expect(response.json().data).not.toHaveProperty("ghostRotationExpiresAtMs");
+  });
+
+  it("returns the new server rotation deadline when Ghost Mode is enabled", async () => {
+    const nowMs = Date.parse("2026-08-09T16:00:00.000Z");
+    const currentPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "PUBLIC_PRECISE"
+    });
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(nowMs);
+
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [currentPolicy] };
+      }
+
+      if (text.includes("select ghost_mode_anchor_ms, ghost_pulse_enabled")) {
+        return {
+          rows: [{
+            ghost_mode_anchor_ms: nowMs,
+            ghost_pulse_enabled: true
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PUT",
+        url: "/api/profiles/me/privacy-settings",
+        headers: {
+          "x-user-id": userId
+        },
+        payload: {
+          baseMode: "GHOST",
+          ghostRadiusMeters: 1609
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data).toEqual(expect.objectContaining({
+        baseMode: "GHOST",
+        animationHint: "NONE",
+        ghostRotationExpiresAtMs: nowMs + 15 * 60_000
+      }));
+      expect(response.body).not.toContain("ghost_mode_anchor_ms");
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("returns the saved Ghost Mode heartbeat preference and defaults missing rows to on", async () => {
+    query.mockResolvedValueOnce({ rows: [{ ghost_pulse_enabled: false }] });
+
+    const savedResponse = await app.inject({
+      method: "GET",
+      url: "/api/privacy/ghost-pulse",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(savedResponse.statusCode).toBe(200);
+    expect(savedResponse.json()).toEqual({ data: { enabled: false } });
+    expect(query.mock.calls[0]?.[0]).toContain("select ghost_pulse_enabled");
+
+    query.mockReset().mockResolvedValue({ rows: [] });
+    const defaultResponse = await app.inject({
+      method: "GET",
+      url: "/api/privacy/ghost-pulse",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(defaultResponse.statusCode).toBe(200);
+    expect(defaultResponse.json()).toEqual({ data: { enabled: true } });
+  });
+
+  it("saves the Ghost Mode heartbeat preference with a strict boolean payload", async () => {
+    query.mockResolvedValueOnce({ rows: [{ ghost_pulse_enabled: false }] });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/privacy/ghost-pulse",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        enabled: false
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: { enabled: false } });
+    expect(query.mock.calls[0]?.[0]).toContain("insert into user_privacy_settings (user_id, ghost_pulse_enabled)");
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, false]);
+
+    query.mockReset().mockResolvedValue({ rows: [] });
+    const invalidResponse = await app.inject({
+      method: "PUT",
+      url: "/api/privacy/ghost-pulse",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        enabled: "yes"
+      }
+    });
+
+    expect(invalidResponse.statusCode).toBe(400);
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it("requires cruush+ before enabling stealth mode", async () => {
     query.mockResolvedValueOnce({
       rows: [{
@@ -10316,6 +10707,198 @@ describe("server", () => {
         details: null
       }
     });
+  });
+
+  it("revokes active Pings before switching profile map privacy to Stealth", async () => {
+    const currentPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "PUBLIC_PRECISE"
+    });
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from user_entitlements")) {
+        return {
+          rows: [{
+            cruush_plus_enabled: true,
+            cruush_plus_expires_at: null
+          }]
+        };
+      }
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [currentPolicy] };
+      }
+
+      if (text.includes("from map_pings") && text.includes("for update")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+
+      if (text.includes("clock_timestamp()")) {
+        return { rows: [{ revoked_at: "2026-08-09T20:00:00.000Z" }] };
+      }
+
+      if (text.includes("update map_pings")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/privacy-settings",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        baseMode: "STEALTH"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const pingRevocationIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update map_pings"));
+    const policyWriteIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("insert into encrypted_visibility_tokens"));
+    const senderLockIndex = query.mock.calls.findIndex((call) =>
+      String(call[0]).includes("from app_users") && String(call[0]).includes("for update")
+    );
+    const commitIndex = query.mock.calls.findIndex((call) => String(call[0]).trim().toLowerCase() === "commit");
+    expect(pingRevocationIndex).toBeGreaterThan(-1);
+    expect(senderLockIndex).toBeLessThan(policyWriteIndex);
+    expect(policyWriteIndex).toBeLessThan(pingRevocationIndex);
+    expect(pingRevocationIndex).toBeLessThan(commitIndex);
+    expect(response.json().data.baseMode).toBe("STEALTH");
+  });
+
+  it("revokes active Pings before narrowing the Ghost Mode map policy", async () => {
+    const currentPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "PUBLIC_PRECISE"
+    });
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [currentPolicy] };
+      }
+
+      if (text.includes("from map_pings") && text.includes("for update")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+
+      if (text.includes("clock_timestamp()")) {
+        return { rows: [{ revoked_at: "2026-08-09T20:00:00.000Z" }] };
+      }
+
+      if (text.includes("update map_pings")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/privacy/ghost-mode",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        baseMode: "GHOST",
+        ghostRadiusMeters: 4828
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const pingRevocationIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update map_pings"));
+    const policyWriteIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("insert into encrypted_visibility_tokens"));
+    const commitIndex = query.mock.calls.findIndex((call) => String(call[0]).trim().toLowerCase() === "commit");
+    expect(pingRevocationIndex).toBeGreaterThan(-1);
+    expect(policyWriteIndex).toBeLessThan(pingRevocationIndex);
+    expect(pingRevocationIndex).toBeLessThan(commitIndex);
+    expect(response.json().data.baseMode).toBe("GHOST");
+  });
+
+  it("revokes an active Ping in the same transaction as a precise-viewer revocation", async () => {
+    const viewerUserId = dmPartnerId;
+    const relationshipId = "10000000-0000-4000-8000-000000000020";
+    const relationship = await encryptedRelationshipRecordRow({
+      id: relationshipId,
+      type: "mutual_cruush",
+      actorUserId: viewerUserId,
+      targetUserId: userId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: relationshipId,
+      userOneId: viewerUserId,
+      userTwoId: userId
+    });
+    const subjectPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "PUBLIC_PRECISE",
+      preciseToMutualCruushes: true
+    });
+    const viewerPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: viewerUserId,
+      baseMode: "PUBLIC_PRECISE"
+    });
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      const text = String(sql);
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [params[0] === viewerUserId ? viewerPolicy : subjectPolicy] };
+      }
+      if (text.includes("from encrypted_relationship_records")) {
+        return { rows: [relationship] };
+      }
+      if (text.includes("from encrypted_relationship_tokens")) {
+        return { rows: [matchToken] };
+      }
+      if (text.includes("select true as exists") && text.includes("encrypted_privacy_audit_events")) {
+        return { rows: [] };
+      }
+      if (text.includes("from user_blocks")) {
+        return { rows: [] };
+      }
+      if (text.includes("from app_users") && text.includes("for update")) {
+        return { rows: [{ id: userId }] };
+      }
+      if (text.includes("from map_pings") && text.includes("for update")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+      if (text.includes("clock_timestamp()")) {
+        return { rows: [{ revoked_at: "2026-08-09T20:00:00.000Z" }] };
+      }
+      if (text.includes("update map_pings")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/privacy/revoke",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        revoke_action_token: buildRevokeActionToken(app.config, {
+          subjectUserId: userId,
+          viewerUserId,
+          permissionType: "mutual_cruush"
+        })
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const privacyWriteIndex = query.mock.calls.findIndex((call) =>
+      String(call[0]).includes("insert into encrypted_privacy_audit_events")
+    );
+    const pingRevocationIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update map_pings"));
+    const commitIndex = query.mock.calls.findIndex((call) => String(call[0]).trim().toLowerCase() === "commit");
+    expect(privacyWriteIndex).toBeGreaterThan(-1);
+    expect(privacyWriteIndex).toBeLessThan(pingRevocationIndex);
+    expect(pingRevocationIndex).toBeLessThan(commitIndex);
   });
 
   it("returns the authenticated profile on GET /api/profiles/me", async () => {
@@ -11125,6 +11708,21 @@ describe("server", () => {
         }]
       });
 
+    query.mockReset().mockImplementation(async (sql: string) => {
+      if (String(sql).includes("insert into profiles") && String(sql).includes("returning")) {
+        return {
+          rows: [{
+            id: userId,
+            ...payload,
+            ethnicity: [payload.ethnicity],
+            updated_at: "2026-04-28T12:05:00.000Z"
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
     const payload = {
       display_name: "Cruusher",
       photos: [],
@@ -11179,7 +11777,8 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(5);
+    expect(query.mock.calls.some((call) => String(call[0]).trim().toLowerCase() === "begin")).toBe(true);
+    expect(query.mock.calls.some((call) => String(call[0]).trim().toLowerCase() === "commit")).toBe(true);
     const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
     expect(profileInsertCall?.[0]).toContain("insert into profiles");
     expect(profileInsertCall?.[1]?.[0]).toBe(userId);
@@ -11302,6 +11901,21 @@ describe("server", () => {
       })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
+
+    query.mockReset().mockImplementation(async (sql: string) => {
+      if (String(sql).includes("insert into profiles") && String(sql).includes("returning")) {
+        return {
+          rows: [{
+            id: userId,
+            ...payload,
+            ethnicity: [],
+            updated_at: "2026-04-28T12:05:00.000Z"
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
 
     const payload = {
       ...emptyProfile,
@@ -11521,6 +12135,7 @@ describe("server", () => {
         profile_visibility_key_version: "v1",
         profile_visibility_token_key_version: "v1",
         trans_crowds_changed_at: "2026-04-01T12:00:00.000Z",
+        revoked_at: "2026-08-09T20:00:00.000Z",
         updated_at: "2026-04-28T12:05:00.000Z"
       }]
     });
@@ -11581,7 +12196,7 @@ describe("server", () => {
     });
   });
 
-  it("allows free users to save up to three visibility exclusion filters without checking entitlements", async () => {
+  it("allows three profile visibility filters and revokes active Pings before narrowing them", async () => {
     query.mockResolvedValue({
       rows: [{
         id: userId,
@@ -11635,6 +12250,7 @@ describe("server", () => {
         profile_visibility_key_version: "v1",
         profile_visibility_token_key_version: "v1",
         trans_crowds_changed_at: null,
+        revoked_at: "2026-08-09T20:00:00.000Z",
         updated_at: "2026-04-28T12:05:00.000Z"
       }]
     });
@@ -11662,6 +12278,12 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls.some((call) => String(call[0]).includes("from user_entitlements"))).toBe(false);
+    const pingRevocationIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update map_pings"));
+    const profileWriteIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("insert into profiles"));
+    const commitIndex = query.mock.calls.findIndex((call) => String(call[0]).trim().toLowerCase() === "commit");
+    expect(pingRevocationIndex).toBeGreaterThan(-1);
+    expect(profileWriteIndex).toBeLessThan(pingRevocationIndex);
+    expect(pingRevocationIndex).toBeLessThan(commitIndex);
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         visibility_rules: visibilityRules
@@ -11669,14 +12291,83 @@ describe("server", () => {
     });
   });
 
-  it("updates manual visibility rules without resubmitting the full profile payload", async () => {
+  it("revokes an active Ping when the sender changes their signal", async () => {
+    const identityState = {
+      profile_sensitive_ciphertext: null,
+      profile_sensitive_nonce: null,
+      profile_sensitive_auth_tag: null,
+      profile_sensitive_key_version: null,
+      profile_visibility_ciphertext: null,
+      profile_visibility_nonce: null,
+      profile_visibility_auth_tag: null,
+      profile_visibility_key_version: null,
+      trans_crowds_changed_at: null,
+      identities: [],
+      year_of_birth: 1994,
+      signal: "Before"
+    };
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("trans_crowds_changed_at") && text.includes("from profiles")) {
+        return { rows: [identityState] };
+      }
+      if (text.includes("insert into profiles") && text.includes("returning")) {
+        return {
+          rows: [{
+            id: userId,
+            display_name: "Cruusher",
+            signal: "After",
+            year_of_birth: 1994,
+            updated_at: "2026-08-09T20:00:00.000Z"
+          }]
+        };
+      }
+      if (text.includes("from app_users") && text.includes("for update")) {
+        return { rows: [{ id: userId }] };
+      }
+      if (text.includes("from map_pings") && text.includes("for update")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+      if (text.includes("clock_timestamp()")) {
+        return { rows: [{ revoked_at: "2026-08-09T20:00:00.000Z" }] };
+      }
+      if (text.includes("update map_pings")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        signal: "After",
+        year_of_birth: 1994
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    const profileWriteIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("insert into profiles"));
+    const pingRevocationIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update map_pings"));
+    const commitIndex = query.mock.calls.findIndex((call) => String(call[0]).trim().toLowerCase() === "commit");
+    expect(profileWriteIndex).toBeLessThan(pingRevocationIndex);
+    expect(pingRevocationIndex).toBeLessThan(commitIndex);
+  });
+
+  it("updates manual visibility rules and revokes active Pings when the rules narrow", async () => {
     const visibilityRules: ProfileVisibilityRules = {
       ...emptyProfile.visibility_rules,
       distance: 25,
       identities: ["nonbinary"],
       looking_for: ["hookup"]
     };
-    const encryptedProfileVisibility = encryptProfileVisibility(app.config, visibilityRules);
+    const encryptedProfileVisibility = encryptProfileVisibility(app.config, emptyProfile.visibility_rules);
     const profileRow = {
       id: userId,
       display_name: "Cruusher",
@@ -11732,6 +12423,14 @@ describe("server", () => {
     query.mockImplementation(async (sql: string) => {
       const text = String(sql);
 
+      if (text.includes("from map_pings") && text.includes("for update")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+
+      if (text.includes("clock_timestamp()")) {
+        return { rows: [{ revoked_at: "2026-08-09T20:00:00.000Z" }] };
+      }
+
       if (
         (text.includes("from profiles") && text.includes("where id = $1")) ||
         text.includes("update profiles")
@@ -11759,6 +12458,12 @@ describe("server", () => {
     expect(query.mock.calls.some((call) => String(call[0]).includes("from user_entitlements"))).toBe(false);
     expect(query.mock.calls.some((call) => String(call[0]).includes("insert into profiles"))).toBe(false);
     expect(query.mock.calls.some((call) => String(call[0]).includes("update profiles"))).toBe(true);
+    const pingRevocationIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update map_pings"));
+    const profileUpdateIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update profiles"));
+    const commitIndex = query.mock.calls.findIndex((call) => String(call[0]).trim().toLowerCase() === "commit");
+    expect(pingRevocationIndex).toBeGreaterThan(-1);
+    expect(profileUpdateIndex).toBeLessThan(pingRevocationIndex);
+    expect(pingRevocationIndex).toBeLessThan(commitIndex);
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         visibility_rules: visibilityRules
@@ -12070,7 +12775,7 @@ describe("server", () => {
       hiv_status: [],
       custom_hiv_status: ""
     });
-    const encryptedProfileVisibility = encryptProfileVisibility(app.config, savedRules);
+    const encryptedProfileVisibility = encryptProfileVisibility(app.config, emptyProfile.visibility_rules);
 
     query.mockImplementation(async (sql: string) => {
       const text = String(sql);
@@ -12095,6 +12800,18 @@ describe("server", () => {
             updated_at: "2026-07-08T12:00:00.000Z"
           }]
         };
+      }
+
+      if (text.includes("from map_pings") && text.includes("for update")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+
+      if (text.includes("clock_timestamp()")) {
+        return { rows: [{ revoked_at: "2026-08-09T20:00:00.000Z" }] };
+      }
+
+      if (text.includes("update map_pings")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
       }
 
       if (text.includes("from profiles") && text.includes("where id = $1")) {
@@ -12215,6 +12932,11 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls.some((call) => String(call[0]).includes("update profiles"))).toBe(true);
     expect(query.mock.calls.some((call) => String(call[0]).includes("insert into profile_sensitive_tokens"))).toBe(true);
+    const profileWriteIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update profiles"));
+    const pingRevocationIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update map_pings"));
+    const commitIndex = query.mock.calls.findIndex((call) => String(call[0]).trim().toLowerCase() === "commit");
+    expect(profileWriteIndex).toBeLessThan(pingRevocationIndex);
+    expect(pingRevocationIndex).toBeLessThan(commitIndex);
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         visibility_rules: savedRules
@@ -12257,7 +12979,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(query).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledTimes(1);
     expect(response.json()).toEqual({
       error: {
         code: "VALIDATION_ERROR",
@@ -12295,7 +13017,20 @@ describe("server", () => {
   });
 
   it("stores the authenticated profile location on PUT /api/profiles/me/location", async () => {
-    query.mockImplementation(async () => ({ rows: [] }));
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from map_pings") && text.includes("for update")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+      if (text.includes("clock_timestamp()")) {
+        return { rows: [{ revoked_at: "2026-08-09T20:00:00.000Z" }] };
+      }
+      if (text.includes("update map_pings")) {
+        return { rows: [{ id: "10000000-0000-4000-8000-000000000001" }] };
+      }
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "PUT",
@@ -12311,11 +13046,16 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[0]?.[0]).toContain("insert into profiles");
-    expect(query.mock.calls[0]?.[0]).toContain("location_updated_at");
-    expect(query.mock.calls[0]?.[1]?.[0]).toBe(userId);
-    expect(query.mock.calls[1]?.[0]).toContain("insert into encrypted_location_envelopes");
-    const persistedLocationParams = query.mock.calls[1]?.[1] ?? [];
+    const profileWriteIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("insert into profiles"));
+    const locationWriteIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("insert into encrypted_location_envelopes"));
+    const pingRevocationIndex = query.mock.calls.findIndex((call) => String(call[0]).includes("update map_pings"));
+    const commitIndex = query.mock.calls.findIndex((call) => String(call[0]).trim().toLowerCase() === "commit");
+    expect(query.mock.calls[profileWriteIndex]?.[0]).toContain("location_updated_at");
+    expect(query.mock.calls[profileWriteIndex]?.[1]?.[0]).toBe(userId);
+    expect(profileWriteIndex).toBeLessThan(locationWriteIndex);
+    expect(locationWriteIndex).toBeLessThan(pingRevocationIndex);
+    expect(pingRevocationIndex).toBeLessThan(commitIndex);
+    const persistedLocationParams = query.mock.calls[locationWriteIndex]?.[1] ?? [];
     expect(persistedLocationParams).not.toContain(40.711);
     expect(persistedLocationParams).not.toContain(-74.002);
     expect(response.json()).toMatchObject({

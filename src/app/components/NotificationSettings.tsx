@@ -3,54 +3,12 @@ import { ArrowLeft, Bell, Download, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
   getNotificationPreferences,
-  getVapidPublicKey,
-  subscribeToPushNotifications,
-  unsubscribeFromPushNotifications,
   updateNotificationPreferences,
   type NotificationPreferences,
-  type PushSubscriptionPayload,
-  type VapidPublicKeyPayload,
 } from '../lib/notificationsApi';
+import { disablePushNotifications, enablePushNotifications } from '../lib/pushNotifications';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
-
-function urlBase64ToUint8Array(value: string) {
-  const padding = '='.repeat((4 - (value.length % 4)) % 4);
-  const base64 = `${value}${padding}`.replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const output = new Uint8Array(rawData.length);
-
-  for (let index = 0; index < rawData.length; index += 1) {
-    output[index] = rawData.charCodeAt(index);
-  }
-
-  return output;
-}
-
-function arrayBufferToBase64(value: ArrayBuffer | null) {
-  if (!value) {
-    return '';
-  }
-
-  const bytes = new Uint8Array(value);
-  let output = '';
-
-  bytes.forEach((byte) => {
-    output += String.fromCharCode(byte);
-  });
-
-  return window.btoa(output);
-}
-
-function serializeSubscription(subscription: PushSubscription): PushSubscriptionPayload {
-  return {
-    endpoint: subscription.endpoint,
-    keys: {
-      p256dh: arrayBufferToBase64(subscription.getKey('p256dh')),
-      auth: arrayBufferToBase64(subscription.getKey('auth')),
-    },
-  };
-}
 
 function isStandaloneDisplay() {
   return window.matchMedia?.('(display-mode: standalone)').matches ||
@@ -85,7 +43,6 @@ function preferenceRows(preferences: NotificationPreferences) {
 export default function NotificationSettings() {
   const navigate = useNavigate();
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
-  const [vapid, setVapid] = useState<VapidPublicKeyPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState('');
@@ -99,17 +56,13 @@ export default function NotificationSettings() {
       setError('');
 
       try {
-        const [nextPreferences, nextVapid] = await Promise.all([
-          getNotificationPreferences(),
-          getVapidPublicKey(),
-        ]);
+        const nextPreferences = await getNotificationPreferences();
 
         if (!isActive) {
           return;
         }
 
         setPreferences(nextPreferences);
-        setVapid(nextVapid);
       } catch (error) {
         if (isActive) {
           setError(error instanceof Error ? error.message : 'Failed to load notification settings.');
@@ -153,33 +106,7 @@ export default function NotificationSettings() {
     setNotice('');
 
     try {
-      if (!vapid?.enabled || !vapid.publicKey) {
-        throw new Error('Push alerts are not configured on this server yet.');
-      }
-
-      if (!('Notification' in window)) {
-        throw new Error('This browser does not support push notifications.');
-      }
-
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        throw new Error('Add cruush to your Home Screen, then open it from there to enable push alerts.');
-      }
-
-      const permission = Notification.permission === 'granted'
-        ? 'granted'
-        : await Notification.requestPermission();
-
-      if (permission !== 'granted') {
-        throw new Error('Notifications are blocked for cruush in this browser.');
-      }
-
-      const registration = await navigator.serviceWorker.ready;
-      const existing = await registration.pushManager.getSubscription();
-      const subscription = existing ?? await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapid.publicKey),
-      });
-      const next = await subscribeToPushNotifications(serializeSubscription(subscription));
+      const next = await enablePushNotifications();
 
       setPreferences(next);
       setNotice('Push alerts enabled.');
@@ -196,16 +123,7 @@ export default function NotificationSettings() {
     setNotice('');
 
     try {
-      let endpoint = '';
-
-      if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        endpoint = subscription?.endpoint ?? '';
-        await subscription?.unsubscribe();
-      }
-
-      const next = await unsubscribeFromPushNotifications(endpoint || undefined);
+      const next = await disablePushNotifications();
       setPreferences(next);
       setNotice('Push alerts disabled.');
     } catch (error) {

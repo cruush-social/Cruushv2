@@ -56,6 +56,15 @@ const { syncMyLocation } = vi.hoisted(() => ({
   syncMyLocation: vi.fn(),
 }));
 
+const { getMapPingStatus, sendMapPing } = vi.hoisted(() => ({
+  getMapPingStatus: vi.fn(),
+  sendMapPing: vi.fn(),
+}));
+
+const { enablePushNotifications } = vi.hoisted(() => ({
+  enablePushNotifications: vi.fn(),
+}));
+
 const { getMyBillingStatus } = vi.hoisted(() => ({
   getMyBillingStatus: vi.fn(),
 }));
@@ -93,6 +102,17 @@ const { dismissUserNotice, getUserNoticeDismissal, markNoticeDismissed, resolveN
   markNoticeDismissed: vi.fn(),
   resolveNoticeDismissal: vi.fn(),
 }));
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, resolve, reject };
+}
 
 vi.mock('sonner', () => ({
   toast: {
@@ -148,6 +168,19 @@ vi.mock('../lib/privacyApi', async () => {
 
 vi.mock('../lib/locationApi', () => ({
   syncMyLocation,
+}));
+
+vi.mock('../lib/mapPingsApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/mapPingsApi')>('../lib/mapPingsApi');
+  return {
+    ...actual,
+    getMapPingStatus,
+    sendMapPing,
+  };
+});
+
+vi.mock('../lib/pushNotifications', () => ({
+  enablePushNotifications,
 }));
 
 vi.mock('../lib/billingApi', async () => {
@@ -239,17 +272,20 @@ vi.mock('./MapView', async () => {
               data-can-message={String(marker.relationship?.canMessage ?? '')}
               data-precision={marker.relationship?.precision ?? ''}
               data-display-mode={marker.displayMode ?? ''}
+              data-animation-hint={marker.animationHint ?? ''}
+              data-ghost-rotation-expires-at={marker.ghostRotationExpiresAtMs == null ? '' : String(marker.ghostRotationExpiresAtMs)}
               data-npc-ghost-demo={String(Boolean(marker.npcGhostDemo))}
+              data-active-ping={marker.activePing?.id ?? ''}
               key={`marker-data-${marker.id}`}
             />
           ))}
-          {markers
-            .filter((marker) => marker.id !== 'me')
-            .map((marker) => (
-              <button key={marker.id} onClick={() => onPinClick(marker)}>
-                {`Pin ${marker.displayName}`}
-              </button>
-            ))}
+          {markers.map((marker) => marker.id === 'me' ? (
+            <div aria-label="Your approximate area" key={marker.id} />
+          ) : (
+            <button key={marker.id} onClick={() => onPinClick(marker)}>
+              {`Pin ${marker.displayName}`}
+            </button>
+          ))}
         </div>
       );
     },
@@ -310,6 +346,9 @@ describe('MapHome', () => {
     decryptDisplayLocationToken.mockReset();
     getMyPrivacySettings.mockReset();
     syncMyLocation.mockReset();
+    getMapPingStatus.mockReset();
+    sendMapPing.mockReset();
+    enablePushNotifications.mockReset();
     getMyBillingStatus.mockReset();
     getActiveEvents.mockReset();
     revealEventPass.mockReset();
@@ -330,10 +369,17 @@ describe('MapHome', () => {
     mapControls.getZoom.mockReturnValue(13.75);
     toastSuccess.mockReset();
     toastError.mockReset();
+    enablePushNotifications.mockResolvedValue({
+      pushEnabled: true,
+      cruushEnabled: true,
+      messagesEnabled: true,
+      groupsEnabled: true,
+      soundEnabled: true,
+    });
     window.sessionStorage.clear();
     window.localStorage.clear();
     window.localStorage.setItem('cruush:ghost-mode-intro-seen', 'true');
-    window.localStorage.setItem('cruush:tutorial-v2-seen', 'true');
+    window.localStorage.setItem('cruush:tutorial-v3-seen', 'true');
     dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
@@ -355,6 +401,7 @@ describe('MapHome', () => {
       ...((await import('../lib/profileApi')).emptyProfilePayload),
       id: 'me',
       display_name: 'Me',
+      signal: 'Come say hi',
       photos: ['https://example.com/me.jpg'],
       year_of_birth: 1994,
       position: ['Bottom'],
@@ -518,6 +565,29 @@ describe('MapHome', () => {
       animation_hint: 'NONE',
       location_updated_at: '2026-07-31T12:00:00.000Z',
     });
+    getMapPingStatus.mockResolvedValue({
+      allowance: {
+        limit: 3,
+        used: 0,
+        remaining: 3,
+        nextEligibleAt: null,
+      },
+      activePing: null,
+      receivedPings: [],
+    });
+    sendMapPing.mockResolvedValue({
+      allowance: {
+        limit: 3,
+        used: 1,
+        remaining: 2,
+        nextEligibleAt: null,
+      },
+      activePing: {
+        id: 'ping-own',
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      },
+      receivedPings: [],
+    });
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: true,
       expiresAt: null,
@@ -561,6 +631,208 @@ describe('MapHome', () => {
       'select-none',
       'overscroll-none',
     );
+  });
+
+  it('exposes the real Ping control to the tutorial and opens the Ping sheet', async () => {
+    useIsMobile.mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const pingControl = await screen.findByRole('button', { name: 'Send a Ping' });
+    expect(pingControl).toHaveAttribute('data-tutorial-target', 'ping');
+    expect(screen.getByTestId('map-beta-stack')).toContainElement(pingControl);
+    expect(screen.getByTestId('map-top-actions')).not.toContainElement(pingControl);
+
+    fireEvent.click(pingControl);
+
+    expect(await screen.findByRole('dialog')).toHaveAttribute('data-testid', 'map-ping-sheet');
+    expect(screen.getByText('3 of 3 Pings available right now.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByLabelText('Your approximate area')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('merges only caller-authorized active Pings into nearby and own heart markers', async () => {
+    useIsMobile.mockReturnValue(false);
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+    getMapPingStatus.mockResolvedValue({
+      allowance: {
+        limit: 3,
+        used: 1,
+        remaining: 2,
+        nextEligibleAt: null,
+      },
+      activePing: { id: 'ping-own', expiresAt },
+      receivedPings: [
+        { id: 'ping-nearby', sourceUserId: 'user-1', expiresAt },
+        { id: 'ping-hidden', sourceUserId: 'not-in-map-results', expiresAt },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-active-ping', 'ping-nearby');
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-active-ping', 'ping-own');
+    });
+    expect(screen.queryByTestId('marker-not-in-map-results')).not.toBeInTheDocument();
+  });
+
+  it('refreshes and syncs map location from the Send gesture before sending a Ping', async () => {
+    useIsMobile.mockReturnValue(true);
+    const finishLocationSyncs: Array<(value: unknown) => void> = [];
+    syncMyLocation.mockImplementation(() => new Promise((resolve) => {
+      finishLocationSyncs.push(resolve);
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(syncMyLocation).toHaveBeenCalled());
+    expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Send a Ping' }));
+    fireEvent.click(await screen.findByRole('radio', { name: '10 miles' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send Ping' }));
+
+    await waitFor(() => {
+      expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(2);
+      expect(syncMyLocation).toHaveBeenCalledTimes(2);
+    });
+    expect(sendMapPing).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishLocationSyncs[1]?.({
+        id: 'me',
+        location_updated_at: '2026-08-09T18:00:00.000Z',
+      });
+    });
+
+    await waitFor(() => expect(sendMapPing).toHaveBeenCalledWith(10, expect.any(String)));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled());
+  });
+
+  it('reuses the same Ping idempotency key after an ambiguous delivery failure', async () => {
+    useIsMobile.mockReturnValue(true);
+    sendMapPing
+      .mockRejectedValueOnce(new Error('Ping delivery is incomplete. Try again.'))
+      .mockResolvedValueOnce({
+        allowance: {
+          limit: 3,
+          used: 1,
+          remaining: 2,
+          nextEligibleAt: null,
+        },
+        activePing: {
+          id: 'ping-retried',
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        },
+        receivedPings: [],
+      });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Send a Ping' }));
+    const sendButton = screen.getByRole('button', { name: 'Send Ping' });
+    await waitFor(() => expect(sendButton).toBeEnabled());
+    fireEvent.click(sendButton);
+    await waitFor(() => expect(sendMapPing).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ping delivery is incomplete. Try again.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send Ping' }));
+    await waitFor(() => expect(sendMapPing).toHaveBeenCalledTimes(2));
+
+    const firstIdempotencyKey = sendMapPing.mock.calls[0]?.[1];
+    const retryIdempotencyKey = sendMapPing.mock.calls[1]?.[1];
+    expect(firstIdempotencyKey).toEqual(expect.any(String));
+    expect(retryIdempotencyKey).toBe(firstIdempotencyKey);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled());
+  });
+
+  it('does not let a stale status refresh erase a newly sent Ping', async () => {
+    useIsMobile.mockReturnValue(true);
+    const staleRefresh = deferred<Awaited<ReturnType<typeof getMapPingStatus>>>();
+    const sentStatus = deferred<Awaited<ReturnType<typeof sendMapPing>>>();
+    sendMapPing.mockReturnValueOnce(sentStatus.promise);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Send a Ping' }));
+    await waitFor(() => expect(getMapPingStatus).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Send Ping' }));
+    await waitFor(() => expect(sendMapPing).toHaveBeenCalled());
+
+    getMapPingStatus.mockImplementationOnce(() => staleRefresh.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Send a Ping' }));
+    await waitFor(() => expect(getMapPingStatus).toHaveBeenCalledTimes(3));
+
+    const activeStatus = {
+      allowance: {
+        limit: 3,
+        used: 1,
+        remaining: 2,
+        nextEligibleAt: null,
+      },
+      activePing: {
+        id: 'ping-after-send',
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      },
+      receivedPings: [],
+    };
+
+    await act(async () => {
+      sentStatus.resolve(activeStatus);
+      await sentStatus.promise;
+    });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled());
+
+    await act(async () => {
+      staleRefresh.resolve({
+        allowance: {
+          limit: 3,
+          used: 0,
+          remaining: 3,
+          nextEligibleAt: null,
+        },
+        activePing: null,
+        receivedPings: [],
+      });
+      await staleRefresh.promise;
+    });
+
+    expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled();
   });
 
   it('wires the visible zoom controls to the live map instance', async () => {
@@ -822,6 +1094,7 @@ describe('MapHome', () => {
     const luckyIcon = screen.getByRole('button', { name: 'Cruise Carousel' }).querySelector('img');
     const ghostModeButton = screen.getByRole('button', { name: 'Ghost Mode Settings' });
     const dlModeButton = screen.getByRole('button', { name: 'Turn DL Mode off' });
+    const dlModeIcon = dlModeButton.querySelector('img');
     const ghostModeIcon = ghostModeButton.querySelector('img');
     const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
     const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
@@ -840,6 +1113,8 @@ describe('MapHome', () => {
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
     expect(luckyIcon).toHaveClass('h-5', 'w-5');
     expect(ghostModeIcon).toHaveClass('h-4', 'w-4');
+    expect(dlModeIcon).toHaveClass('h-5', 'w-5', 'sm:h-6', 'sm:w-6');
+    expect(dlModeIcon?.getAttribute('src')).toContain('dl-mode-colored');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
     expect(decodeURIComponent(visibilityIcon?.getAttribute('src') ?? '')).toContain('Crush Icon - Group White');
@@ -852,7 +1127,8 @@ describe('MapHome', () => {
     fireEvent.click(dlModeButton);
     expect(window.localStorage.getItem('cruush:dl-mode-enabled')).toBe('false');
     expect(screen.queryByTestId('location-probe')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Turn DL Mode on' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Turn DL Mode on' }).querySelector('img')?.getAttribute('src'))
+      .toContain('dl-mode-white');
   });
 
   it('shows one combined active crowd notice on the map', async () => {
@@ -1045,9 +1321,37 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 
+  it('runs install and notification permission actions from the tutorial', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.localStorage.removeItem('cruush:tutorial-v3-seen');
+    resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
+    const installRequested = vi.fn();
+    window.addEventListener('cruush:install-requested', installRequested);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-try-step'));
+    expect(installRequested).toHaveBeenCalledTimes(1);
+    fireEvent.click(await screen.findByTestId('tutorial-skip-step'));
+    expect(await screen.findByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('tutorial-try-step'));
+    await waitFor(() => expect(enablePushNotifications).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole('heading', { name: 'Seeking' })).toBeInTheDocument();
+
+    window.removeEventListener('cruush:install-requested', installRequested);
+  });
+
   it('shows the map controls intro once and dismisses it permanently', async () => {
     useIsMobile.mockReturnValue(false);
-    window.localStorage.removeItem('cruush:tutorial-v2-seen');
+    window.localStorage.removeItem('cruush:tutorial-v3-seen');
     resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
 
     const { unmount } = render(
@@ -1059,6 +1363,10 @@ describe('MapHome', () => {
     );
 
     expect(await screen.findByTestId('map-controls-tutorial')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-skip-step'));
+    expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-skip-step'));
     expect(screen.getByRole('heading', { name: 'Seeking' })).toBeInTheDocument();
     expect(screen.getByText(/filters the people you see on the map/i)).toBeInTheDocument();
 
@@ -1070,12 +1378,15 @@ describe('MapHome', () => {
     fireEvent.click(screen.getByTestId('tutorial-try-step'));
     expect(screen.getByRole('button', { name: 'Turn DL Mode on' })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Ping' })).toBeInTheDocument();
+    expect(screen.getByText(/briefly marks your heart as active on the map/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Zoom' })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
     await waitFor(() => expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument());
-    expect(window.localStorage.getItem('cruush:tutorial-v2-seen')).toBe('true');
-    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:tutorial-v2-seen', { offline: false });
+    expect(window.localStorage.getItem('cruush:tutorial-v3-seen')).toBe('true');
+    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:tutorial-v3-seen', { offline: false });
     unmount();
 
     resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
@@ -1552,6 +1863,7 @@ describe('MapHome', () => {
   it('uses the saved display-token location for initial discovery', async () => {
     useIsMobile.mockReturnValue(false);
     window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+    const ghostRotationExpiresAtMs = Date.now() + 15 * 60_000;
     const displayLocationToken = {
       version: 1 as const,
       tokenId: 'owner-token',
@@ -1592,10 +1904,12 @@ describe('MapHome', () => {
       longitude: -74.006,
     });
     getMyPrivacySettings.mockResolvedValueOnce({
+      animationHint: 'FADE_LAST_MINUTE',
       baseMode: 'GHOST',
       ghostModeEnabled: true,
       ghostRadiusMeters: 1609,
       ghostRadiusLabel: '1 mi',
+      ghostRotationExpiresAtMs,
       preciseToMutualCruushes: false,
       preciseToMutualCrowds: [],
       preciseLocationVisibility: 'none',
@@ -1622,6 +1936,8 @@ describe('MapHome', () => {
       { limit: 500 },
     ]);
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-display-mode', 'GHOST');
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-animation-hint', 'FADE_LAST_MINUTE');
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-ghost-rotation-expires-at', String(ghostRotationExpiresAtMs));
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lat', '40.7128');
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lng', '-74.006');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-circle', '1609');
@@ -1631,6 +1947,190 @@ describe('MapHome', () => {
     expect(decodeURIComponent(screen.getByRole('button', { name: 'Ghost Mode Settings' }).querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
     expect(decodeURIComponent(screen.getByText('Ghost Mode Active').querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the signed-in Ghost rotation deadline after it expires', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+    const expiredDeadline = Date.now() - 1_000;
+    const nextDeadline = Date.now() + 15 * 60_000;
+    const settings = {
+      baseMode: 'GHOST' as const,
+      ghostModeEnabled: true,
+      ghostRadiusMeters: 1609,
+      ghostRadiusLabel: '1 mi',
+      preciseToMutualCruushes: false,
+      preciseToMutualCrowds: [],
+      preciseLocationVisibility: 'none' as const,
+      updatedAtMs: Date.now(),
+    };
+
+    getMyProfile.mockResolvedValue({
+      photos: ['https://example.com/me.jpg'],
+      position: ['Bottom'],
+      location: {
+        id: 'me',
+        lat: 40.7128,
+        lng: -74.006,
+        fuzzy_lat: 40.713,
+        fuzzy_lng: -74.005,
+        fuzz_radius_meters: 250,
+        location_updated_at: '2026-06-02T12:00:00.000Z',
+      },
+    });
+    getMyPrivacySettings
+      .mockResolvedValueOnce({
+        ...settings,
+        animationHint: 'SIGNAL_LOSS',
+        ghostRotationExpiresAtMs: expiredDeadline,
+      })
+      .mockResolvedValueOnce({
+        ...settings,
+        animationHint: 'NONE',
+        ghostRotationExpiresAtMs: nextDeadline,
+      });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(getMyPrivacySettings).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-animation-hint', 'NONE');
+      expect(screen.getByTestId('marker-me')).toHaveAttribute('data-ghost-rotation-expires-at', String(nextDeadline));
+    });
+  });
+
+  it('retries the signed-in Ghost deadline refresh when the server returns the expired deadline', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+    const expiredDeadline = Date.now() - 2_000;
+    const nextDeadline = Date.now() + 15 * 60_000;
+    const settings = {
+      baseMode: 'GHOST' as const,
+      ghostModeEnabled: true,
+      ghostRadiusMeters: 1609,
+      ghostRadiusLabel: '1 mi',
+      preciseToMutualCruushes: false,
+      preciseToMutualCrowds: [],
+      preciseLocationVisibility: 'none' as const,
+      updatedAtMs: Date.now(),
+    };
+    const expiredSettings = {
+      ...settings,
+      animationHint: 'SIGNAL_LOSS' as const,
+      ghostRotationExpiresAtMs: expiredDeadline,
+    };
+    getMyPrivacySettings
+      .mockResolvedValueOnce(expiredSettings)
+      .mockResolvedValueOnce(expiredSettings)
+      .mockResolvedValueOnce({
+        ...settings,
+        animationHint: 'NONE',
+        ghostRotationExpiresAtMs: nextDeadline,
+      });
+    const timeoutSpy = vi.spyOn(window, 'setTimeout');
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/map']}>
+          <Routes>
+            <Route path="/map" element={<MapHome />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => expect(getMyPrivacySettings).toHaveBeenCalledTimes(2));
+      const retryCall = timeoutSpy.mock.calls.find(([, delayMs]) => delayMs === 5_000);
+      expect(retryCall).toBeDefined();
+
+      await act(async () => {
+        retryCall?.[0]();
+        await Promise.resolve();
+      });
+
+      await waitFor(() => expect(getMyPrivacySettings).toHaveBeenCalledTimes(3));
+      await waitFor(() => {
+        expect(screen.getByTestId('marker-me')).toHaveAttribute('data-animation-hint', 'NONE');
+        expect(screen.getByTestId('marker-me')).toHaveAttribute('data-ghost-rotation-expires-at', String(nextDeadline));
+      });
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  it('keeps an outgoing viewed Ghost marker through its one-shot exit before accepting the next deadline', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+    const baseNow = new Date('2026-08-09T16:00:00.000Z').getTime();
+    const oldDeadline = baseNow + 9_500;
+    const nextDeadline = baseNow + 15 * 60_000;
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(baseNow);
+    const oldGhost = {
+      id: 'ghost-rotating',
+      name: 'River',
+      display_name: 'River',
+      age: 29,
+      pronouns: 'they/them',
+      lat: 40.71,
+      lng: -73.91,
+      lastActive: 'Now',
+      distance: '1 mi',
+      lookingFor: [],
+      vibes: [],
+      position: ['Top'],
+      hostingTravel: [],
+      photo: null,
+      displayMode: 'GHOST' as const,
+      animationHint: 'FADE_LAST_MINUTE' as const,
+      ghostRotationExpiresAtMs: oldDeadline,
+    };
+    const nextGhost = {
+      ...oldGhost,
+      lat: 40.72,
+      lng: -73.92,
+      animationHint: 'NONE' as const,
+      ghostRotationExpiresAtMs: nextDeadline,
+    };
+    let currentGhost = oldGhost;
+    getNearbyUsers.mockImplementation(async () => [currentGhost]);
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/map']}>
+          <Routes>
+            <Route path="/map" element={<MapHome />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      const marker = await screen.findByTestId('marker-ghost-rotating');
+      expect(marker).toHaveAttribute('data-ghost-rotation-expires-at', String(oldDeadline));
+      expect(marker).toHaveAttribute('data-lat', '40.71');
+      const initialRequestCount = getNearbyUsers.mock.calls.length;
+
+      currentGhost = nextGhost;
+      nowSpy.mockReturnValue(oldDeadline + 600);
+      window.dispatchEvent(new Event('focus'));
+      await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(initialRequestCount));
+      expect(marker).toHaveAttribute('data-ghost-rotation-expires-at', String(oldDeadline));
+      expect(marker).toHaveAttribute('data-lat', '40.71');
+
+      const midExitRequestCount = getNearbyUsers.mock.calls.length;
+      nowSpy.mockReturnValue(oldDeadline + 1_300);
+      window.dispatchEvent(new Event('focus'));
+      await waitFor(() => expect(getNearbyUsers.mock.calls.length).toBeGreaterThan(midExitRequestCount));
+      await waitFor(() => {
+        expect(marker).toHaveAttribute('data-ghost-rotation-expires-at', String(nextDeadline));
+        expect(marker).toHaveAttribute('data-lat', '40.72');
+      });
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it('does not expose the retired NPC Ghost Test discovery path for developer tools sessions', async () => {

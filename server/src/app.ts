@@ -16,6 +16,7 @@ import { registerMediaRoutes } from "./routes/media.js";
 import { registerModerationMediaRoutes } from "./routes/moderation-media.js";
 import { registerMessageRoutes } from "./routes/messages.js";
 import { registerInternalRoutes } from "./routes/internal.js";
+import { registerMapPingRoutes } from "./routes/map-pings.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
 import { registerPostRoutes } from "./routes/posts.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
@@ -199,6 +200,7 @@ export function buildServer(config: AppConfig, deps: BuildServerDeps = {}) {
   void registerModerationMediaRoutes(app);
   void registerMediaRoutes(app);
   void registerMessageRoutes(app);
+  void registerMapPingRoutes(app);
   void registerNotificationRoutes(app);
   void registerUserNoticeRoutes(app);
   void registerUserRoutes(app);

@@ -1,11 +1,18 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { runTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
+import {
+  lockMapPingSenderInTransaction,
+  mapVisibilityNarrowed,
+  revokeActiveMapPingsInTransaction
+} from "../map-ping-revocation.js";
 import {
   buildRevokeActionToken,
   GHOST_RADIUS_OPTIONS,
   issueBrowserDisplayKey,
   loadVisibilityPolicy,
+  normalizeVisibilityPolicy,
   publicPrivacySettings,
   radiusMetersForLabel,
   revokePreciseLocationAccess,
@@ -51,6 +58,10 @@ const crowdPrecisionPolicySchema = z.object({
 
 const mapPresencePayloadSchema = z.object({
   days: z.coerce.number().int().min(MIN_MAP_PRESENCE_DAYS).max(MAX_MAP_PRESENCE_DAYS)
+}).strict();
+
+const ghostPulsePayloadSchema = z.object({
+  enabled: z.boolean()
 }).strict();
 
 const ghostModePayloadSchema = z.object({
@@ -226,16 +237,30 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
       createdAtMs: policy.createdAtMs ?? Date.now(),
       revokedAtMs: policy.revokedAtMs ?? null
     }));
+    const visibilityInput = {
+      baseMode,
+      ghostModeEnabled: baseMode === "GHOST",
+      ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(radiusLabel),
+      preciseToMutualCruushes,
+      preciseToMutualCrowds,
+      preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" as const : "none" as const
+    };
+    const savedPolicy = await runTransaction(app.db, async (db) => {
+      await lockMapPingSenderInTransaction(db, userId);
+      const context = { config: app.config, db };
+      const currentPolicy = await loadVisibilityPolicy(context, userId);
+      const nextPolicy = normalizeVisibilityPolicy(app.config, userId, visibilityInput, currentPolicy);
+      const saved = await saveVisibilityPolicy(context, userId, visibilityInput);
+
+      if (mapVisibilityNarrowed(currentPolicy, nextPolicy)) {
+        await revokeActiveMapPingsInTransaction(db, userId);
+      }
+
+      return saved;
+    });
 
     return reply.send({
-      data: publicPrivacySettings(await saveVisibilityPolicy(app, userId, {
-        baseMode,
-        ghostModeEnabled: baseMode === "GHOST",
-        ghostRadiusMeters: payload.ghostRadiusMeters ?? radiusMetersForLabel(radiusLabel),
-        preciseToMutualCruushes,
-        preciseToMutualCrowds,
-        preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" : "none"
-      }))
+      data: publicPrivacySettings(savedPolicy)
     });
   });
 
@@ -275,6 +300,42 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
         days: normalizeMapPresenceDays(result.rows[0]?.map_presence_days ?? payload.days),
         minDays: MIN_MAP_PRESENCE_DAYS,
         maxDays: MAX_MAP_PRESENCE_DAYS
+      }
+    });
+  });
+
+  app.get("/api/privacy/ghost-pulse", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const result = await app.db.query<{ ghost_pulse_enabled: boolean | null }>(
+      `select ghost_pulse_enabled
+       from user_privacy_settings
+       where user_id = $1`,
+      [userId]
+    );
+
+    return reply.send({
+      data: {
+        enabled: result.rows[0]?.ghost_pulse_enabled !== false
+      }
+    });
+  });
+
+  app.put("/api/privacy/ghost-pulse", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const payload = ghostPulsePayloadSchema.parse(request.body);
+    const result = await app.db.query<{ ghost_pulse_enabled: boolean | null }>(
+      `insert into user_privacy_settings (user_id, ghost_pulse_enabled)
+       values ($1, $2)
+       on conflict (user_id) do update
+       set ghost_pulse_enabled = excluded.ghost_pulse_enabled,
+           updated_at = now()
+       returning ghost_pulse_enabled`,
+      [userId, payload.enabled]
+    );
+
+    return reply.send({
+      data: {
+        enabled: result.rows[0]?.ghost_pulse_enabled !== false
       }
     });
   });
@@ -329,11 +390,17 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
       throw new ApiError(404, "NOT_FOUND", "Precise-location grant was not found.");
     }
 
-    const effectiveAtMs = await revokePreciseLocationAccess(app, {
-      subjectUserId,
-      viewerUserId: match.viewerUserId,
-      permissionType: match.permissionType,
-      reason: "Privacy Audit revocation"
+    const effectiveAtMs = await runTransaction(app.db, async (db) => {
+      await lockMapPingSenderInTransaction(db, subjectUserId);
+      const revokedAt = await revokePreciseLocationAccess({ config: app.config, db }, {
+        subjectUserId,
+        viewerUserId: match.viewerUserId,
+        permissionType: match.permissionType,
+        reason: "Privacy Audit revocation"
+      });
+      await revokeActiveMapPingsInTransaction(db, subjectUserId);
+
+      return revokedAt;
     });
 
     return reply.send({

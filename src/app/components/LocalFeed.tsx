@@ -91,6 +91,7 @@ const LAUNCH_PARTY_EVENT_SLUG = 'the-chocolate-factory-launch';
 const DEFAULT_FEED_SETTINGS: FeedSettings = {
   locationPinVisibility: 'mutuals',
   showDistanceLabels: true,
+  postExpiryDefault: 'never',
 };
 
 type FeedCoordinates = {
@@ -129,11 +130,37 @@ export default function LocalFeed() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [feedSettingsLoaded, setFeedSettingsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const feedSettingsRef = useRef<FeedSettings>(DEFAULT_FEED_SETTINGS);
+  const feedSettingsSaveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const latestFeedExpiryChoiceRef = useRef(0);
   const canPost = billingStatus?.cruushPlus === true;
+
+  const applyFeedSettings = (nextSettings: FeedSettings) => {
+    feedSettingsRef.current = nextSettings;
+    setFeedSettings(nextSettings);
+  };
+
+  const enqueueFeedSettingsUpdate = (patch: Partial<FeedSettings>) => {
+    const queuedUpdate = feedSettingsSaveChainRef.current.then(async () => {
+      const nextSettings = await updateFeedSettings({
+        ...feedSettingsRef.current,
+        ...patch,
+      });
+      applyFeedSettings(nextSettings);
+      return nextSettings;
+    });
+
+    feedSettingsSaveChainRef.current = queuedUpdate.then(
+      () => undefined,
+      () => undefined,
+    );
+    return queuedUpdate;
+  };
 
   useEffect(() => {
     if (new URLSearchParams(location.search).get('compose') !== '1' || !canPost) {
@@ -210,8 +237,17 @@ export default function LocalFeed() {
     };
 
     void getFeedSettings()
-      .then((settings) => setFeedSettings({ ...DEFAULT_FEED_SETTINGS, ...settings }))
-      .catch(() => setFeedSettings(DEFAULT_FEED_SETTINGS));
+      .then((settings) => {
+        const nextSettings = { ...DEFAULT_FEED_SETTINGS, ...settings };
+        applyFeedSettings(nextSettings);
+        setExpiresIn(nextSettings.postExpiryDefault);
+        setFeedSettingsLoaded(true);
+      })
+      .catch(() => {
+        applyFeedSettings(DEFAULT_FEED_SETTINGS);
+        setExpiresIn(DEFAULT_FEED_SETTINGS.postExpiryDefault);
+        setFeedSettingsLoaded(false);
+      });
     void getCurrentUserId()
       .then(setCurrentUserId)
       .catch(() => setCurrentUserId(null));
@@ -331,11 +367,9 @@ export default function LocalFeed() {
     setError(null);
 
     try {
-      const nextSettings = await updateFeedSettings({
-        ...feedSettings,
+      await enqueueFeedSettingsUpdate({
         locationPinVisibility,
       });
-      setFeedSettings(nextSettings);
       void fetchPosts();
     } catch (error) {
       console.error('Error saving feed settings:', error);
@@ -350,16 +384,36 @@ export default function LocalFeed() {
     setError(null);
 
     try {
-      const nextSettings = await updateFeedSettings({
-        ...feedSettings,
+      await enqueueFeedSettingsUpdate({
         showDistanceLabels,
       });
-      setFeedSettings(nextSettings);
     } catch (error) {
       console.error('Error saving feed settings:', error);
       setError(error instanceof Error ? error.message : 'Failed to save feed settings.');
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleFeedExpiryChange = async (postExpiryDefault: FeedPostExpiry) => {
+    const choiceSequence = latestFeedExpiryChoiceRef.current + 1;
+    latestFeedExpiryChoiceRef.current = choiceSequence;
+    setExpiresIn(postExpiryDefault);
+    setError(null);
+
+    try {
+      const nextSettings = await enqueueFeedSettingsUpdate({
+        postExpiryDefault,
+      });
+      if (choiceSequence === latestFeedExpiryChoiceRef.current) {
+        setExpiresIn(nextSettings.postExpiryDefault);
+      }
+    } catch (error) {
+      if (choiceSequence === latestFeedExpiryChoiceRef.current) {
+        setExpiresIn(feedSettingsRef.current.postExpiryDefault);
+        console.error('Error saving feed expiry:', error);
+        setError(error instanceof Error ? error.message : 'Failed to save feed expiry.');
+      }
     }
   };
 
@@ -458,7 +512,7 @@ export default function LocalFeed() {
                 </div>
                 <Switch
                   checked={feedSettings.showDistanceLabels !== false}
-                  disabled={settingsSaving}
+                  disabled={settingsSaving || !feedSettingsLoaded}
                   onCheckedChange={(checked) => void handleDistanceLabelVisibilityChange(checked)}
                 />
               </section>
@@ -478,7 +532,7 @@ export default function LocalFeed() {
                           : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
                       ].join(' ')}
                       aria-pressed={active}
-                      disabled={settingsSaving}
+                      disabled={settingsSaving || !feedSettingsLoaded}
                       onClick={() => void handleFeedPinVisibilityChange(option.value)}
                     >
                       <span className="flex items-center justify-between gap-3">
@@ -540,8 +594,8 @@ export default function LocalFeed() {
                   key={option.value}
                   variant={expiresIn === option.value ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setExpiresIn(option.value)}
-                  disabled={!canPost}
+                  onClick={() => void handleFeedExpiryChange(option.value)}
+                  disabled={!feedSettingsLoaded}
                 >
                   {option.label}
                 </Button>

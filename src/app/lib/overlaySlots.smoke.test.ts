@@ -49,10 +49,12 @@ describe('smoke: floating overlays do not cover each other', () => {
   it('never lets the bug reporter sit on top of another control', () => {
     // No transient exemption, no z-index excuse: the bug button and its coach mark must
     // be clear of every other overlay on both viewports.
-    const reporter = OVERLAY_SLOTS.filter((slot) => slot.id.startsWith('alpha-bug-'));
-    const others = OVERLAY_SLOTS.filter((slot) => !slot.id.startsWith('alpha-bug-'));
+    const reporter = OVERLAY_SLOTS.filter((slot) => slot.id.includes('alpha-bug-'));
+    const others = OVERLAY_SLOTS.filter((slot) => !slot.id.includes('alpha-bug-'));
 
-    const collisions = reporter.flatMap((mine) => others.flatMap((other) => (
+    const collisions = reporter.flatMap((mine) => others
+      .filter((other) => canCoexist(mine, other))
+      .flatMap((other) => (
       ([['mobile', MOBILE_VIEWPORT], ['desktop', DESKTOP_VIEWPORT]] as const)
         .filter(([, viewport], index) => rectsOverlap(
           resolveBox(index === 0 ? mine.mobile : mine.desktop, viewport),
@@ -93,9 +95,24 @@ describe('smoke: declared overlay geometry matches the components', () => {
       ['top-[calc(7.25rem+env(safe-area-inset-top))]', 'lg:left-5', 'fixed z-30'],
     ],
     [
+      'map-alpha-bug-tip',
+      'src/app/components/AlphaBugButton.tsx',
+      ['top-[calc(19.5rem+env(safe-area-inset-top))]', 'sm:top-[calc(9.25rem+env(safe-area-inset-top))]', 'fixed z-30'],
+    ],
+    [
+      'map-ping-button',
+      'src/app/components/MapHome.tsx',
+      ['data-testid="map-beta-stack"', 'data-testid="map-ping-button"', 'data-tutorial-target="ping"', 'size-8', 'sm:size-9'],
+    ],
+    [
+      'map-right-actions',
+      'src/app/components/MapHome.tsx',
+      ['right-3 top-14', 'sm:right-4 sm:top-16', 'data-testid="map-right-actions"'],
+    ],
+    [
       'mobile-install-prompt',
       'src/app/components/MobileInstallPrompt.tsx',
-      ['bottom-24', 'right-[4.5rem]', 'sm:right-4', 'z-40'],
+      ['bottom-24', 'right-[4.5rem]', 'sm:right-4', 'z-[90]'],
     ],
     [
       'bottom-nav',

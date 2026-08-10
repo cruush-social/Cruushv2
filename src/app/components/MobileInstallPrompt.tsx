@@ -120,7 +120,8 @@ export default function MobileInstallPrompt() {
 
   return (
     <div
-      className="fixed bottom-24 left-4 right-[4.5rem] z-40 mx-auto max-w-md rounded-lg border border-border bg-card p-4 text-card-foreground shadow-[0_20px_60px_rgba(0,0,0,0.45)] sm:right-4"
+      className="fixed bottom-24 left-4 right-[4.5rem] z-[90] mx-auto max-w-md rounded-lg border border-border bg-card p-4 text-card-foreground shadow-[0_20px_60px_rgba(0,0,0,0.45)] sm:right-4"
+      data-tutorial-target="install"
       data-testid="mobile-install-prompt"
     >
       <div className="flex items-start gap-3">

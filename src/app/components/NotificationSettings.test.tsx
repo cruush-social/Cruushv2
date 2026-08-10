@@ -5,12 +5,12 @@ import NotificationSettings from './NotificationSettings';
 
 const {
   getNotificationPreferences,
-  getVapidPublicKey,
   updateNotificationPreferences,
+  enablePushNotifications,
 } = vi.hoisted(() => ({
   getNotificationPreferences: vi.fn(),
-  getVapidPublicKey: vi.fn(),
   updateNotificationPreferences: vi.fn(),
+  enablePushNotifications: vi.fn(),
 }));
 
 vi.mock('../lib/notificationsApi', async () => {
@@ -19,16 +19,20 @@ vi.mock('../lib/notificationsApi', async () => {
   return {
     ...actual,
     getNotificationPreferences,
-    getVapidPublicKey,
     updateNotificationPreferences,
   };
 });
 
+vi.mock('../lib/pushNotifications', () => ({
+  disablePushNotifications: vi.fn(),
+  enablePushNotifications,
+}));
+
 describe('NotificationSettings', () => {
   beforeEach(() => {
     getNotificationPreferences.mockReset();
-    getVapidPublicKey.mockReset();
     updateNotificationPreferences.mockReset();
+    enablePushNotifications.mockReset();
     getNotificationPreferences.mockResolvedValue({
       pushEnabled: false,
       cruushEnabled: true,
@@ -36,9 +40,12 @@ describe('NotificationSettings', () => {
       groupsEnabled: true,
       soundEnabled: true,
     });
-    getVapidPublicKey.mockResolvedValue({
-      enabled: false,
-      publicKey: '',
+    enablePushNotifications.mockResolvedValue({
+      pushEnabled: true,
+      cruushEnabled: true,
+      messagesEnabled: true,
+      groupsEnabled: true,
+      soundEnabled: true,
     });
     updateNotificationPreferences.mockImplementation((partial) => Promise.resolve({
       pushEnabled: false,
@@ -48,6 +55,19 @@ describe('NotificationSettings', () => {
       soundEnabled: true,
       ...partial,
     }));
+  });
+
+  it('enables push from a direct user action', async () => {
+    render(
+      <MemoryRouter>
+        <NotificationSettings />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Enable push' }));
+
+    await waitFor(() => expect(enablePushNotifications).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Push alerts enabled.')).toBeInTheDocument();
   });
 
   it('loads preferences and saves alert toggles', async () => {
@@ -69,6 +89,8 @@ describe('NotificationSettings', () => {
     await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
       soundEnabled: false,
     }));
+
+    expect(screen.queryByRole('switch', { name: 'Toggle Nearby Pings' })).not.toBeInTheDocument();
   });
 
   it('dispatches install requests from the Home Screen app action', async () => {

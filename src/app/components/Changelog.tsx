@@ -1,17 +1,20 @@
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { Button } from './ui/button';
 
 const changelogReleases = [
   {
     version: 'v1.2',
     items: [
-      'The interactive map tutorial now walks through Seeking, Visibility, DL Mode, and Zoom using the real controls, can be replayed from Settings, and stays above the bottom navigation.',
-      'The map remembers your place after you open a profile, refreshes visibility changes more promptly, and supports a wider zoom range.',
+      'Ping briefly marks your heart as active on the map and adds your signal to the local feed for your saved post duration, with privacy controls and quiet limits built in.',
+      'The interactive tutorial now covers installing cruush, enabling notifications, Seeking, Visibility, DL Mode, Ping, and Zoom using real highlighted controls without covering the bottom navigation.',
+      'The map now stays inside the NYC beta area and remembers your place after you open a profile.',
       'Message discovery filters and sort controls are clearer and stay readable on smaller screens.',
-      'Chat keeps your draft when a send fails, makes settings easier to reach, and gives the composer more room.',
-      'View-once photos, disappearing-message controls, and quick-access photo saves now have clearer, more reliable states.',
-      'Profiles now clearly show when messaging is mutuals-only, and Ghost Mode profiles stay out of discovery.',
+      'Chat keeps your draft when a send fails, makes settings easier to reach, gives the composer more room, and shows a live countdown on disappearing messages you send.',
+      'Quick-access photos upload more reliably, while view-once photos and disappearing-message controls have clearer states.',
+      'Profiles now clearly show when messaging is mutuals-only, while Ghost Mode remains available as a static privacy mode.',
+      'The new winged-heart Profile icon stays white until selected, then fills with the cruush gradient; in-app notifications now share a bright chartreuse border.',
       'Mobile installation uses clearer iPhone and browser instructions and catches the install prompt more reliably.',
       'The first-post prompt opens the composer directly, and post duration is now yours to choose.',
       'Onboarding now distinguishes Map communities from gender identity.',
@@ -44,6 +47,11 @@ export default function Changelog() {
           <h2 className="text-xl">Changelog</h2>
           <p className="text-sm text-white/52">{changelogReleases[0].version}</p>
         </div>
+        <div
+          className="ml-auto flex items-center"
+          data-testid="changelog-bug-button-slot"
+          ref={registerBugButtonSlot}
+        />
       </header>
 
       <main className="mx-auto max-w-2xl space-y-4 p-4">

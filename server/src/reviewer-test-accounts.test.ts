@@ -189,7 +189,9 @@ describe("reviewer test account seeding", () => {
     const profileUpserts = query.mock.calls.filter(([sql]) => String(sql).includes("insert into profiles"));
     const encryptedLocationCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_location_envelopes"));
     const encryptedPolicyCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"));
-    const legacyPrivacyCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into user_privacy_settings"));
+    const legacyPrivacyCalls = query.mock.calls.filter(([sql]) => String(sql).includes(
+      "insert into user_privacy_settings (user_id, ghost_mode_enabled, precise_location_visibility)"
+    ));
     const conversationDeletes = query.mock.calls.filter(([sql]) => String(sql).toLowerCase().includes("delete from conversations"));
     const fakeUserDeletes = query.mock.calls.filter(([sql]) => String(sql).toLowerCase().includes("delete from app_users"));
 
