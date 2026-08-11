@@ -891,7 +891,7 @@ function DirectUserOverlay({
         </Tabs>
 
         {activeComposerTab === 'public' ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-card/58 p-2">
+          <div className="rounded-2xl border border-white/10 bg-card/58 p-3">
             <Select value={seekingFilter} onValueChange={setSeekingFilter}>
               <SelectTrigger
                 aria-label="Seeking filter"
@@ -918,24 +918,40 @@ function DirectUserOverlay({
               </SelectContent>
             </Select>
 
-            <div className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-full border border-white/10 bg-background/55 p-1 sm:w-auto" role="group" aria-label="Sort people by">
-              {([
-                ['lastOnline', 'Recently online', Clock3],
-                ['distance', 'Distance', MapPin],
-              ] as const).map(([value, label, Icon]) => (
-                <Button
-                  key={value}
-                  type="button"
-                  size="sm"
-                  variant={sortMode === value ? 'default' : 'ghost'}
-                  className="h-7 min-w-0 flex-1 rounded-full px-2.5 text-xs sm:flex-none"
-                  onClick={() => setSortMode(value)}
-                >
-                  <Icon className="size-3.5" />
-                  {label}
-                </Button>
-              ))}
-            </div>
+            <section className="mt-3 border-t border-white/10 pt-3" aria-labelledby="message-picker-sort-title">
+              <div className="flex items-baseline justify-between gap-3 px-1">
+                <p id="message-picker-sort-title" className="text-xs font-medium uppercase tracking-[0.14em] text-white/70">Sort people by</p>
+                <p id="message-picker-sort-description" className="text-[11px] text-white/48">Choose the order people appear in.</p>
+              </div>
+              <div
+                className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-background/55 p-1"
+                role="group"
+                aria-labelledby="message-picker-sort-title"
+                aria-describedby="message-picker-sort-description"
+              >
+                {([
+                  ['lastOnline', 'Recently online', 'Most recent first', Clock3],
+                  ['distance', 'Distance', 'Closest first', MapPin],
+                ] as const).map(([value, label, description, Icon]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={sortMode === value ? 'default' : 'ghost'}
+                    aria-label={`Sort by ${label}`}
+                    aria-pressed={sortMode === value}
+                    className="min-h-12 min-w-0 flex-col gap-0.5 rounded-xl px-2 py-1.5 text-xs"
+                    onClick={() => setSortMode(value)}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Icon className="size-3.5" />
+                      {label}
+                    </span>
+                    <span className="text-[10px] font-normal opacity-70">{description}</span>
+                  </Button>
+                ))}
+              </div>
+            </section>
           </div>
         ) : null}
 

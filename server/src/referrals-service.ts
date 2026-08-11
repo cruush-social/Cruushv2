@@ -2,9 +2,9 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { ApiError } from "./errors.js";
 import { runTransaction, type DbClient } from "./db.js";
-import { checkProfileCompletion } from "./profile-completion.js";
 import { loadRewardConfig } from "./reward-config.js";
 import { grantPromotionalDaysInTransaction } from "./rewards-service.js";
+import { sendPushForPersistedNotification } from "./notification-service.js";
 import { severeAccessBanIdentity } from "./severe-access-bans.js";
 import { insertTrustEvent, recalculateTrustProfile } from "./trust-engine.js";
 
@@ -205,14 +205,12 @@ async function qualifyReferral(
 
     const standing = await db.query<{
       account_status: string;
-      old_enough: boolean;
       two_factor_enabled: boolean;
       trust_suspended: boolean;
       has_active_suspension: boolean;
     }>(
       `select
          coalesce(app_user.account_status, 'active') as account_status,
-         app_user.created_at <= now() - ($2::int * interval '1 day') as old_enough,
          two_factor.enabled_at is not null as two_factor_enabled,
          coalesce(trust.is_suspended, false) as trust_suspended,
          exists (
@@ -225,7 +223,7 @@ async function qualifyReferral(
        left join user_trust_profiles trust on trust.user_id = app_user.id
        where app_user.id = $1
        limit 1`,
-      [referral.referred_user_id, config.referralMinAccountAgeDays]
+      [referral.referred_user_id]
     );
     const state = standing.rows[0];
 
@@ -254,13 +252,7 @@ async function qualifyReferral(
       return "flagged" as const;
     }
 
-    if (!state.old_enough || !state.two_factor_enabled) {
-      return "pending" as const;
-    }
-
-    const profile = await checkProfileCompletion(db, referral.referred_user_id, config, app.config);
-
-    if (!profile.complete) {
+    if (!state.two_factor_enabled) {
       return "pending" as const;
     }
 
@@ -305,17 +297,16 @@ async function qualifyReferral(
 
 export async function qualifyPendingReferrals(
   app: Pick<FastifyInstance, "db" | "config" | "log">,
-  options: { limit?: number } = {}
+  options: { limit?: number; referredUserId?: string } = {}
 ) {
-  const config = await loadRewardConfig(app.db);
   const queue = await app.db.query<ReferralQueueRow>(
     `select id::text, referrer_user_id::text, referred_user_id::text
      from referrals
      where status = 'pending'
-       and created_at <= now() - ($1::int * interval '1 day')
+       and ($1::uuid is null or referred_user_id = $1)
      order by created_at asc
      limit $2`,
-    [config.referralMinAccountAgeDays, options.limit ?? 100]
+    [options.referredUserId ?? null, options.limit ?? 100]
   );
   const results = {
     scanned: queue.rows.length,
@@ -331,6 +322,12 @@ export async function qualifyPendingReferrals(
     try {
       const status = await qualifyReferral(app, referral);
       results[status] += 1;
+      if (status === "rewarded") {
+        await sendPushForPersistedNotification(app, {
+          userId: referral.referrer_user_id,
+          dedupeKey: `reward:referral:${referral.id}`
+        });
+      }
     } catch (error) {
       app.log.error({ err: error, referralId: referral.id }, "referral qualification failed");
     }

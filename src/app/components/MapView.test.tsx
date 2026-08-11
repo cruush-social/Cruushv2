@@ -564,7 +564,7 @@ describe('MapView', () => {
     }));
   });
 
-  it('keeps Ghost markers static in v1.2', async () => {
+  it('keeps Ghost markers static without changing the normal no-photo heart treatment', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -586,7 +586,10 @@ describe('MapView', () => {
     expect(screen.queryByTestId('marker-ghost-pulse-ghost-static')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-fly-icon-ghost-static')).not.toBeInTheDocument();
     expect(screen.queryByTestId('marker-ghost-puff-ghost-static')).not.toBeInTheDocument();
-    expect(marker.querySelector('path[fill="#0BA8FF"][stroke="#0BA8FF"]')).not.toBeNull();
+    expect(marker).toHaveAttribute('data-marker-theme', 'nearby');
+    expect(marker.querySelector('path[fill]')).toHaveAttribute('fill', 'url(#marker-fill-ghost-static)');
+    expect(marker.querySelector('path[stroke]')).toHaveAttribute('stroke', '#FF0072');
+    expect(marker.querySelector('path[fill="#FF0072"]')).toBeNull();
     expect(marker.querySelector('path[style*="transform"]')).toBeNull();
   });
 
@@ -678,6 +681,97 @@ describe('MapView', () => {
     expect(screen.queryByText('12m ago')).not.toBeInTheDocument();
   });
 
+  it('keeps an allowed Ghost Mode profile photo and regular pink map styling', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[{
+          id: 'ghost-photo',
+          displayName: 'River',
+          approximateLatitude: 40.72,
+          approximateLongitude: -74.01,
+          displayMode: 'GHOST',
+          photo: 'https://example.com/river.jpg',
+          photoExplicit: false,
+          signal: 'Around tonight',
+          badge: createMapMarkerBadge(['Top'], []),
+        }]}
+      />
+    );
+
+    const heart = await screen.findByTestId('marker-heart-ghost-photo');
+    expect(heart).toHaveAttribute('data-marker-theme', 'nearby');
+    expect(heart).toHaveAttribute('data-has-photo', 'true');
+    expect(screen.getByTestId('marker-photo-fill-ghost-photo')).toHaveAttribute('href', 'https://example.com/river.jpg');
+    expect(heart.querySelector('path[stroke]')).toHaveAttribute('stroke', '#FF0072');
+    expect(screen.getByTestId('marker-badge-ghost-photo')).toHaveClass('border-[#FF0072]/80');
+    expect(screen.getByTestId('marker-signal-badge-ghost-photo')).toHaveClass('border-white/12');
+  });
+
+  it('keeps the signed-in Ghost marker electric blue without replacing its profile photo', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[{
+          id: 'me',
+          displayName: 'You',
+          approximateLatitude: 40.72,
+          approximateLongitude: -74.01,
+          displayMode: 'GHOST',
+          photo: 'https://example.com/me.jpg',
+          photoExplicit: false,
+          isCurrentUser: true,
+          signal: 'Around tonight',
+          badge: createMapMarkerBadge(['Top'], []),
+        }]}
+      />
+    );
+
+    const heart = await screen.findByTestId('marker-heart-me');
+    expect(heart).toHaveAttribute('data-marker-theme', 'current');
+    expect(heart).toHaveAttribute('data-has-photo', 'true');
+    expect(screen.getByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
+    expect(heart.querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
+    expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]');
+    expect(screen.getByTestId('marker-signal-badge-me')).toHaveClass('border-[#0BA8FF]');
+  });
+
+  it('keeps an explicit Ghost Mode profile photo masked while DL Mode is on', async () => {
+    const storageKey = 'cruush:dl-mode-enabled';
+    const previousValue = window.localStorage.getItem(storageKey);
+    window.localStorage.setItem(storageKey, 'true');
+
+    try {
+      render(
+        <MapView
+          onPinClick={vi.fn()}
+          markers={[{
+            id: 'ghost-explicit-photo',
+            displayName: 'River',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            displayMode: 'GHOST',
+            photo: 'https://example.com/river.jpg',
+            photoExplicit: true,
+          }]}
+        />,
+      );
+
+      const heart = await screen.findByTestId('marker-heart-ghost-explicit-photo');
+      expect(heart).toHaveAttribute('data-marker-theme', 'nearby');
+      expect(heart).toHaveAttribute('data-has-photo', 'false');
+      expect(screen.queryByTestId('marker-photo-fill-ghost-explicit-photo')).not.toBeInTheDocument();
+      expect(heart.querySelector('path[fill]')).toHaveAttribute('fill', 'url(#marker-fill-ghost-explicit-photo)');
+      expect(heart.querySelector('path[stroke]')).toHaveAttribute('stroke', '#FF0072');
+    } finally {
+      if (previousValue === null) {
+        window.localStorage.removeItem(storageKey);
+      } else {
+        window.localStorage.setItem(storageKey, previousValue);
+      }
+    }
+  });
+
   it('keeps the current user pin blue even when relationship metadata is present', async () => {
     render(
       <MapView
@@ -767,6 +861,150 @@ describe('MapView', () => {
     expect(markerInstances[0].element.className).not.toContain('hover:scale');
     expect(markerInstances[0].element.className).not.toContain('hover:drop-shadow');
     expect(markerInstances[0].element.className).not.toContain('transition-[filter]');
+  });
+
+  it('opens the profile on a short touch tap without leaving the pin previewed', async () => {
+    const onPinClick = vi.fn();
+
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          {
+            id: 'user-touch-preview',
+            displayName: 'Noor',
+            signal: 'Around tonight',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            lastActiveLabel: '8m ago',
+          },
+        ]}
+      />,
+    );
+
+    const markerButton = await screen.findByRole('button', { name: 'Open Noor on map' });
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperty(pointerDown, 'pointerType', { value: 'touch' });
+    fireEvent(markerButton, pointerDown);
+    fireEvent.click(markerButton, { detail: 1 });
+
+    expect(onPinClick).toHaveBeenCalledOnce();
+    expect(onPinClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-touch-preview' }));
+    expect(markerButton).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-preview')).not.toHaveClass('scale-[1.16]');
+    expect(screen.getByTestId('marker-signal-stack-user-touch-preview')).toHaveClass('opacity-0');
+  });
+
+  it('enlarges a heart pin and shows its signal on press-and-hold without opening the profile', async () => {
+    const onPinClick = vi.fn();
+
+    render(
+      <MapView
+        onPinClick={onPinClick}
+        markers={[
+          {
+            id: 'user-touch-hold',
+            displayName: 'River',
+            signal: 'Come say hi',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            lastActiveLabel: 'Now',
+          },
+        ]}
+      />,
+    );
+
+    const markerButton = await screen.findByRole('button', { name: 'Open River on map' });
+    vi.useFakeTimers();
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperty(pointerDown, 'pointerType', { value: 'touch' });
+    fireEvent(markerButton, pointerDown);
+    act(() => vi.advanceTimersByTime(500));
+
+    expect(markerButton).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).toHaveClass('scale-[1.16]');
+    expect(screen.getByTestId('marker-signal-stack-user-touch-hold')).toHaveClass('opacity-100');
+    const contextMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+    fireEvent(markerButton, contextMenu);
+    expect(contextMenu.defaultPrevented).toBe(true);
+
+    fireEvent.pointerUp(markerButton, { pointerType: 'touch' });
+    fireEvent.click(markerButton, { detail: 1 });
+    expect(onPinClick).not.toHaveBeenCalled();
+
+    act(() => vi.advanceTimersByTime(351));
+    mapInstances[0].trigger('click');
+    expect(markerButton).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).not.toHaveClass('scale-[1.16]');
+    expect(screen.getByTestId('marker-signal-stack-user-touch-hold')).toHaveClass('opacity-0');
+  });
+
+  it('keeps a touch hold active when equivalent marker data rerenders', async () => {
+    const marker = {
+      id: 'user-touch-rerender',
+      displayName: 'Ari',
+      signal: 'Free tonight',
+      approximateLatitude: 40.72,
+      approximateLongitude: -74.01,
+      lastActiveLabel: 'Now',
+    };
+    const onPinClick = vi.fn();
+    const { rerender } = render(<MapView onPinClick={onPinClick} markers={[marker]} />);
+    const originalButton = await screen.findByRole('button', { name: 'Open Ari on map' });
+
+    vi.useFakeTimers();
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperty(pointerDown, 'pointerType', { value: 'touch' });
+    fireEvent(originalButton, pointerDown);
+    rerender(<MapView onPinClick={onPinClick} markers={[{ ...marker }]} />);
+    act(() => vi.advanceTimersByTime(500));
+
+    const currentButton = screen.getByRole('button', { name: 'Open Ari on map' });
+    expect(currentButton).toBe(originalButton);
+    expect(currentButton).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-rerender')).toHaveClass('scale-[1.16]');
+    expect(screen.getByTestId('marker-signal-stack-user-touch-rerender')).toHaveClass('opacity-100');
+    expect(onPinClick).not.toHaveBeenCalled();
+  });
+
+  it('cancels the press-and-hold preview when the touch moves to pan the map', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'user-touch-pan',
+            displayName: 'Kai',
+            signal: 'Out now',
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.01,
+            lastActiveLabel: 'Now',
+          },
+        ]}
+      />,
+    );
+
+    const markerButton = await screen.findByRole('button', { name: 'Open Kai on map' });
+    vi.useFakeTimers();
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperties(pointerDown, {
+      clientX: { value: 20 },
+      clientY: { value: 20 },
+      pointerType: { value: 'touch' },
+    });
+    fireEvent(markerButton, pointerDown);
+    const pointerMove = new Event('pointermove', { bubbles: true });
+    Object.defineProperties(pointerMove, {
+      clientX: { value: 40 },
+      clientY: { value: 20 },
+      pointerType: { value: 'touch' },
+    });
+    fireEvent(markerButton, pointerMove);
+    act(() => vi.advanceTimersByTime(500));
+
+    expect(markerButton).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-pan')).not.toHaveClass('scale-[1.16]');
+    expect(screen.getByTestId('marker-signal-stack-user-touch-pan')).toHaveClass('opacity-0');
   });
 
   it('uses the corrected V2 signal position above the marker frame', async () => {
@@ -1133,6 +1371,43 @@ describe('MapView', () => {
     });
   });
 
+  it('keeps active Ping hearts above ordinary people clusters during zoom-out', async () => {
+    render(
+      <MapView
+        onPinClick={vi.fn()}
+        markers={[
+          {
+            id: 'user-pinging',
+            displayName: 'Pinging',
+            approximateLatitude: 40.7128,
+            approximateLongitude: -73.99,
+            activePing: { id: 'ping-1', expiresAt: '2026-08-11T19:00:00.000Z' },
+          },
+          {
+            id: 'user-a',
+            displayName: 'A',
+            approximateLatitude: 40.7129,
+            approximateLongitude: -73.9901,
+          },
+          {
+            id: 'user-b',
+            displayName: 'B',
+            approximateLatitude: 40.713,
+            approximateLongitude: -73.9902,
+          },
+        ]}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Open Pinging on map' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
+
+    const pingMarker = markerInstances.find((instance: any) => instance.element.dataset.activePing === 'true');
+    const clusterMarker = markerInstances.find((instance: any) => instance.element.dataset.mapMarkerKind === 'cluster');
+    expect(pingMarker?.element.style.zIndex).not.toBe('');
+    expect(Number(pingMarker?.element.style.zIndex)).toBeGreaterThan(Number(clusterMarker?.element.style.zIndex || 0));
+  });
+
   it('keeps a focused person pin visible instead of hiding it in a nearby cluster', async () => {
     render(
       <MapView
@@ -1385,6 +1660,23 @@ describe('separateOverlappingMarkers', () => {
     const [, moved] = separateOverlappingMarkers([me, other], zoom);
 
     expect(pixelDistance(me, moved, zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
+  });
+
+  it('keeps an active Ping at its map position before an ordinary overlapping heart', () => {
+    const ordinary = { ...me, id: 'a-ordinary', isCurrentUser: false };
+    const pinging = {
+      ...me,
+      id: 'z-pinging',
+      isCurrentUser: false,
+      activePing: { id: 'ping-1', expiresAt: '2026-08-11T19:00:00.000Z' },
+    };
+    const separated = separateOverlappingMarkers([ordinary, pinging], zoom);
+    const placedPinging = separated.find((marker) => marker.id === pinging.id)!;
+    const placedOrdinary = separated.find((marker) => marker.id === ordinary.id)!;
+
+    expect(placedPinging.approximateLatitude).toBe(pinging.approximateLatitude);
+    expect(placedPinging.approximateLongitude).toBe(pinging.approximateLongitude);
+    expect(pixelDistance(placedOrdinary, pinging, zoom)).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
   });
 
   it('never moves the current user pin', () => {

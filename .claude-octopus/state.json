@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
   "project_id": "638a65bb0358e194aaf2656e18fc809d",
-  "current_workflow": "flow-develop",
-  "current_phase": "develop",
+  "current_workflow": "flow-discover",
+  "current_phase": "discover",
   "session_start": "2026-04-28T20:52:45Z",
   "decisions": [
     {
@@ -27,7 +27,14 @@
       "commit": "d764fb7e5bc850d3820b46a081d2b4646cb3dc6e"
     }
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "description": "Octopus discovery blocked: Codex smoke test failed and Gemini authentication failed; no provider result files were created.",
+      "phase": "discover",
+      "status": "active",
+      "created": "2026-08-11"
+    }
+  ],
   "context": {
     "discover": null,
     "define": null,

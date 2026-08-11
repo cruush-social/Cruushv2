@@ -30,6 +30,8 @@ create table if not exists notification_preferences (
   cruush_enabled boolean not null default true,
   messages_enabled boolean not null default true,
   groups_enabled boolean not null default true,
+  nearby_enabled boolean not null default true,
+  rewards_enabled boolean not null default true,
   sound_enabled boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

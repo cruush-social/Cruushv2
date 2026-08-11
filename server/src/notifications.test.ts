@@ -271,6 +271,109 @@ describe("notification service", () => {
     expect(pushPayload.body).toBe("Someone within your radar may be in your area.");
     expect(JSON.stringify(pushPayload)).not.toContain("Alex");
   });
+
+  it("uses generic reward copy instead of labeling reward pushes as messages", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [notificationRow({
+          type: "reward",
+          title: "cruush+ reward earned",
+          body: "7 promotional days of cruush+ added.",
+          link_url: "/rewards"
+        })]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          push_enabled: true,
+          cruush_enabled: true,
+          messages_enabled: true,
+          groups_enabled: true,
+          nearby_enabled: true,
+          rewards_enabled: true,
+          sound_enabled: true
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: "push-sub-1",
+          endpoint: "https://push.example/sub",
+          p256dh: "p256dh-key",
+          auth: "auth-key"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+    sendNotification.mockResolvedValueOnce(undefined);
+
+    await createAppNotificationAndPush({
+      config: {
+        ...baseConfig,
+        WEB_PUSH_ENABLED: true,
+        WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
+        WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
+      },
+      db: { query, end },
+      log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
+    } as never, {
+      userId: recipientUserId,
+      type: "reward",
+      title: "cruush+ reward earned",
+      body: "7 promotional days of cruush+ added.",
+      linkUrl: "/rewards",
+      dedupeKey: `reward:${notificationId}:${recipientUserId}`
+    });
+
+    const pushPayload = JSON.parse(sendNotification.mock.calls[0]?.[1] as string);
+    expect(pushPayload.title).toBe("cruush+ reward earned");
+    expect(pushPayload.body).toBe("Open cruush to view it.");
+    expect(pushPayload.url).toBe("/rewards");
+    expect(JSON.stringify(pushPayload)).not.toContain("7 promotional days");
+  });
+
+  it.each([
+    ["nearby_activity", "nearby_enabled"],
+    ["reward", "rewards_enabled"]
+  ] as const)("does not query push subscriptions when %s alerts are disabled", async (type, disabledColumn) => {
+    query
+      .mockResolvedValueOnce({
+        rows: [notificationRow({
+          type,
+          title: "Update",
+          body: "Open cruush to check it.",
+          link_url: type === "reward" ? "/rewards" : "/map?layer=nearby"
+        })]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          push_enabled: true,
+          cruush_enabled: true,
+          messages_enabled: true,
+          groups_enabled: true,
+          nearby_enabled: disabledColumn === "nearby_enabled" ? false : true,
+          rewards_enabled: disabledColumn === "rewards_enabled" ? false : true,
+          sound_enabled: true
+        }]
+      });
+
+    await createAppNotificationAndPush({
+      config: {
+        ...baseConfig,
+        WEB_PUSH_ENABLED: true,
+        WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
+        WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
+      },
+      db: { query, end },
+      log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
+    } as never, {
+      userId: recipientUserId,
+      type,
+      title: "Update",
+      linkUrl: type === "reward" ? "/rewards" : "/map?layer=nearby"
+    });
+
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("from push_subscriptions"))).toBe(false);
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
 });
 
 describe("notification routes", () => {
@@ -357,6 +460,61 @@ describe("notification routes", () => {
     expect(query.mock.calls[0]?.[1]).toEqual([recipientUserId]);
   }, 10000);
 
+  it("stores nearby and reward notification preferences", async () => {
+    const app = buildNotificationsApp();
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          push_enabled: true,
+          cruush_enabled: true,
+          messages_enabled: true,
+          groups_enabled: true,
+          nearby_enabled: true,
+          rewards_enabled: true,
+          sound_enabled: true
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          push_enabled: true,
+          cruush_enabled: true,
+          messages_enabled: true,
+          groups_enabled: true,
+          nearby_enabled: false,
+          rewards_enabled: false,
+          sound_enabled: true
+        }]
+      });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/notification-preferences",
+      headers: {
+        "x-user-id": recipientUserId
+      },
+      payload: {
+        nearbyEnabled: false,
+        rewardsEnabled: false
+      }
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        pushEnabled: true,
+        cruushEnabled: true,
+        messagesEnabled: true,
+        groupsEnabled: true,
+        nearbyEnabled: false,
+        rewardsEnabled: false,
+        soundEnabled: true
+      }
+    });
+    expect(query.mock.calls[1]?.[0]).toContain("nearby_enabled");
+    expect(query.mock.calls[1]?.[0]).toContain("rewards_enabled");
+  }, 10000);
+
   it("upserts push subscriptions and enables push preferences", async () => {
     const app = buildNotificationsApp({
       WEB_PUSH_ENABLED: true,
@@ -369,6 +527,8 @@ describe("notification routes", () => {
         cruush_enabled: true,
         messages_enabled: true,
         groups_enabled: true,
+        nearby_enabled: true,
+        rewards_enabled: true,
         sound_enabled: true
       }]
     });
@@ -399,6 +559,8 @@ describe("notification routes", () => {
         cruushEnabled: true,
         messagesEnabled: true,
         groupsEnabled: true,
+        nearbyEnabled: true,
+        rewardsEnabled: true,
         soundEnabled: true
       }
     });

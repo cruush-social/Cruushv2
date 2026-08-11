@@ -1,0 +1,102 @@
+name: Regression gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: regression-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  code-regressions:
+    name: Frontend and server regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: npm ci --prefix server
+      - run: pnpm regression:gate
+
+  postgres-integrity:
+    name: PostgreSQL migration and reward integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cruush_reward_integrity_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cruush_reward_integrity_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cruush_reward_integrity_ci
+      CRUUSH_REAL_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/cruush_reward_integrity_ci
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci --prefix server
+      - name: Apply every migration
+        run: npm --prefix server run migrate:dev
+      - name: Exercise reward constraints and triggers in PostgreSQL
+        run: npm --prefix server test -- src/reward-integrity-real-postgres.test.ts --pool=forks --maxWorkers=1
+      - name: Replay every migration
+        run: npm --prefix server run migrate:dev
+      - name: Create disposable account-deletion database
+        run: createdb -h localhost -U postgres cruush_account_deletion_integrity_ci
+      - name: Apply every migration for account deletion
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cruush_account_deletion_integrity_ci
+        run: npm --prefix server run migrate:dev
+      - name: Exercise account-deletion constraints, transactions, and concurrency
+        env:
+          CRUUSH_REAL_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/cruush_account_deletion_integrity_ci
+        run: npm --prefix server test -- src/account-deletion-integrity.test.ts --pool=forks --maxWorkers=1
+      - name: Replay every account-deletion migration
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cruush_account_deletion_integrity_ci
+        run: npm --prefix server run migrate:dev
+
+  mobile-browser-regressions:
+    name: Mobile browser regressions
+    runs-on: ubuntu-latest
+    needs: code-regressions
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:regression:browser

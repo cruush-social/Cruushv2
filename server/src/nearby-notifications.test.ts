@@ -122,6 +122,109 @@ function locationPayload(latE7: number, lonE7: number, collectedAtMs: number) {
   } as const;
 }
 
+function nearbySourceRow() {
+  return {
+    year_of_birth: 1992,
+    identities: [],
+    presentation: [],
+    looking_for: [],
+    availability: [],
+    hosting_travel: [],
+    vibes: [],
+    scenes: [],
+    archetypes: [],
+    hobbies: [],
+    position: [],
+    role: [],
+    kinks: [],
+    body_type: [],
+    sexuality: [],
+    substance_boundaries: [],
+    lat: 0,
+    lng: 0,
+    fuzzy_lat: 0,
+    fuzzy_lng: 0,
+    profile_sensitive_ciphertext: null,
+    profile_sensitive_nonce: null,
+    profile_sensitive_auth_tag: null,
+    profile_sensitive_key_version: null
+  };
+}
+
+function nearbyRecipientRow(input: {
+  id: string;
+  latitude: number;
+  visibilityRules?: Record<string, unknown> | null;
+}) {
+  return {
+    id: input.id,
+    year_of_birth: 1990,
+    identities: [],
+    presentation: [],
+    looking_for: [],
+    availability: [],
+    hosting_travel: [],
+    vibes: [],
+    scenes: [],
+    archetypes: [],
+    hobbies: [],
+    position: [],
+    role: [],
+    kinks: [],
+    body_type: [],
+    sexuality: [],
+    substance_boundaries: [],
+    lat: input.latitude,
+    lng: 0,
+    fuzzy_lat: input.latitude,
+    fuzzy_lng: 0,
+    profile_visibility_ciphertext: null,
+    profile_visibility_nonce: null,
+    profile_visibility_auth_tag: null,
+    profile_visibility_key_version: null,
+    updated_at: "2026-08-08T12:00:00.000Z",
+    _visibilityRules: input.visibilityRules ?? null
+  };
+}
+
+function publicVisibilityPolicy() {
+  return {
+    version: 1 as const,
+    subjectUserId: sourceUserId,
+    policyVersion: 1,
+    baseMode: "PUBLIC_PRECISE" as const,
+    ghostRadiusMeters: 250,
+    preciseToMutualCruushes: false,
+    preciseToMutualCrowds: [],
+    auditRequired: false,
+    updatedAtMs: Date.parse("2026-08-08T12:00:00.000Z"),
+    expiresAtMs: null,
+    keyVersion: "v1"
+  };
+}
+
+function distanceVisibilityRules(distance: number) {
+  return {
+    active_crowd_modes: [],
+    age_range: null,
+    distance,
+    identities: [],
+    presentations: [],
+    looking_for: [],
+    timing: [],
+    hosting: [],
+    vibes: [],
+    crowds: [],
+    hobbies: [],
+    positions: [],
+    roles: [],
+    kinks: [],
+    body_types: [],
+    sexuality: [],
+    substance_boundaries: []
+  };
+}
+
 beforeEach(() => {
   query.mockReset();
 });
@@ -290,11 +393,77 @@ describe("nearby notifications", () => {
       sent: 1
     });
     const recipientQuery = query.mock.calls.find(([sql]) => String(sql).includes("from profiles p"));
-    expect(recipientQuery?.[0]).toContain("preferences.push_enabled = true");
-    expect(recipientQuery?.[0]).toContain("from push_subscriptions subscription");
-    expect(recipientQuery?.[0]).toContain("subscription.revoked_at is null");
+    expect(recipientQuery?.[0]).toContain("coalesce(preferences.nearby_enabled, true) = true");
+    expect(recipientQuery?.[0]).not.toContain("preferences.push_enabled = true");
+    expect(recipientQuery?.[0]).not.toContain("from push_subscriptions subscription");
     expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into app_notifications"))).toHaveLength(1);
     expect(query.mock.calls.some(([sql, params]) => String(sql).includes("insert into app_notifications") && params?.[0] === recipientAllowedId)).toBe(true);
     expect(query.mock.calls.some(([sql, params]) => String(sql).includes("insert into app_notifications") && params?.[0] === recipientFilteredId)).toBe(false);
+  });
+
+  it.each([
+    ["notifies at 4.99 miles", 0.07222035459489765, 1],
+    ["does not notify at 5.01 miles", 0.07250981493395534, 0]
+  ])("%s", async (_caseName, recipientLatitude, expectedSent) => {
+    const recipientId = "00000000-0000-4000-8000-000000000004";
+    const collectedAtMs = Date.parse("2026-08-08T12:00:00.000Z");
+
+    query
+      .mockResolvedValueOnce({ rows: [nearbySourceRow()] })
+      .mockResolvedValueOnce({
+        rows: [nearbyRecipientRow({
+          id: recipientId,
+          latitude: recipientLatitude
+        })]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await notifyNearbyUsersForLocationUpdate({
+      config: baseConfig,
+      db: { query, end: vi.fn() },
+      log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
+    } as never, {
+      sourceUserId,
+      location: locationPayload(0, 0, collectedAtMs),
+      visibilityPolicy: publicVisibilityPolicy()
+    });
+
+    expect(result).toEqual({
+      attempted: true,
+      sent: expectedSent
+    });
+    expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into app_notifications"))).toHaveLength(expectedSent);
+  });
+
+  it("applies the recipient distance rule using the recipient map location", async () => {
+    const recipientId = "00000000-0000-4000-8000-000000000005";
+    const collectedAtMs = Date.parse("2026-08-08T12:00:00.000Z");
+
+    query
+      .mockResolvedValueOnce({ rows: [nearbySourceRow()] })
+      .mockResolvedValueOnce({
+        rows: [nearbyRecipientRow({
+          id: recipientId,
+          latitude: 0.07222035459489765,
+          visibilityRules: distanceVisibilityRules(4.5)
+        })]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await notifyNearbyUsersForLocationUpdate({
+      config: baseConfig,
+      db: { query, end: vi.fn() },
+      log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
+    } as never, {
+      sourceUserId,
+      location: locationPayload(0, 0, collectedAtMs),
+      visibilityPolicy: publicVisibilityPolicy()
+    });
+
+    expect(result).toEqual({
+      attempted: true,
+      sent: 0
+    });
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into app_notifications"))).toBe(false);
   });
 });

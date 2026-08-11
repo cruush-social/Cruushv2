@@ -268,6 +268,7 @@ vi.mock('./MapView', async () => {
               data-lng={String(marker.approximateLongitude)}
               data-last-active={marker.lastActiveLabel ?? ''}
               data-photo={marker.photo ?? ''}
+              data-photo-explicit={String(marker.photoExplicit === true)}
               data-relationship={marker.relationship?.kind ?? ''}
               data-can-message={String(marker.relationship?.canMessage ?? '')}
               data-precision={marker.relationship?.precision ?? ''}
@@ -377,7 +378,7 @@ describe('MapHome', () => {
     window.sessionStorage.clear();
     window.localStorage.clear();
     window.localStorage.setItem('cruush:ghost-mode-intro-seen', 'true');
-    window.localStorage.setItem('cruush:tutorial-v3-seen', 'true');
+    window.localStorage.setItem('cruush:tutorial-v4-seen', 'true');
     dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
     resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
@@ -644,6 +645,8 @@ describe('MapHome', () => {
 
     const pingControl = await screen.findByRole('button', { name: 'Send a Ping' });
     expect(pingControl).toHaveAttribute('data-tutorial-target', 'ping');
+    expect(screen.getByRole('button', { name: 'Notifications' })).toHaveAttribute('data-tutorial-target', 'notifications');
+    expect(screen.getByRole('button', { name: 'Ghost Mode Settings' })).toHaveAttribute('data-tutorial-target', 'ghost');
     expect(screen.getByTestId('map-beta-stack')).toContainElement(pingControl);
     expect(screen.getByTestId('map-top-actions')).not.toContainElement(pingControl);
 
@@ -889,7 +892,7 @@ describe('MapHome', () => {
     setIntervalSpy.mockRestore();
   });
 
-  it('navigates directly to the full profile on mobile', async () => {
+  it('navigates directly to the full profile on a short mobile tap', async () => {
     useIsMobile.mockReturnValue(true);
 
     const { container } = render(
@@ -902,14 +905,15 @@ describe('MapHome', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'cruush' })).toHaveClass('sr-only');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('h-14');
-    expect(container.querySelector('img[src*="cruush-logo.svg"]')?.className).toContain('sm:h-16');
-    expect(screen.getByText('nyc open beta')).toHaveClass('lowercase');
-    expect(screen.getByText('nyc open beta').parentElement).toHaveClass('flex-col', 'items-center');
+    expect(container.querySelector('img[src*="cruush-logo.svg"]')).toBeNull();
+    expect(screen.queryByText('nyc open beta')).not.toBeInTheDocument();
 
     const profilePin = await screen.findByRole('button', { name: 'Pin Jordan' });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Zoom in on map' })).toBeEnabled());
-    fireEvent.click(profilePin);
+    const pointerDown = new Event('pointerdown', { bubbles: true });
+    Object.defineProperty(pointerDown, 'pointerType', { value: 'touch' });
+    fireEvent(profilePin, pointerDown);
+    fireEvent.click(profilePin, { detail: 1 });
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/profile/user-1');
     expect(JSON.parse(window.sessionStorage.getItem('cruush:map-viewport-restore') ?? 'null')).toEqual({
@@ -1073,7 +1077,7 @@ describe('MapHome', () => {
     expect(screen.queryByText('Internal server error')).not.toBeInTheDocument();
   });
 
-  it('renders compact map top chrome and toggles DL Mode from the top slot', async () => {
+  it('renders full-width map top chrome with larger controls and toggles DL Mode from the top slot', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
@@ -1098,24 +1102,59 @@ describe('MapHome', () => {
     const dlModeButton = screen.getByRole('button', { name: 'Turn DL Mode off' });
     const dlModeIcon = dlModeButton.querySelector('img');
     const ghostModeIcon = ghostModeButton.querySelector('img');
+    const notificationButton = screen.getByRole('button', { name: 'Notifications' });
+    const notificationIcon = notificationButton.querySelector('img');
+    const settingsButton = screen.getByRole('button', { name: 'Settings' });
+    const settingsIcon = settingsButton.querySelector('img');
     const visibilityIcon = screen.getByRole('button', { name: /visibility/i }).querySelector('img');
     const locationButton = screen.getByRole('button', { name: /center your location|finding your location/i });
 
     const topActions = screen.getByTestId('map-top-actions');
+    const plusStack = screen.getByTestId('map-plus-stack');
     const rightActions = screen.getByTestId('map-right-actions');
     const cruushPlusButton = await screen.findByRole('button', { name: 'cruush+ rewards' });
+    const pingButton = screen.getByRole('button', { name: 'Send a Ping' });
 
     expect(screen.getByTestId('map-home-shell')).toHaveClass('relative');
     expect(screen.getByTestId('map-home-shell')).not.toHaveClass('fixed', 'inset-0');
     expect(screen.getByTestId('map-top-chrome')).toHaveClass('pointer-events-none');
-    expect(topActions).toHaveClass('pointer-events-auto', 'mt-0', 'gap-0.5', 'p-0.5');
+    expect(topActions).toHaveClass(
+      'pointer-events-auto',
+      'mt-0',
+      'min-w-0',
+      'w-full',
+      'flex-1',
+      'justify-between',
+      'gap-0.5',
+      'p-1',
+      'sm:p-1.5',
+    );
+    for (const button of [
+      screen.getByRole('button', { name: 'Cruise Carousel' }),
+      ghostModeButton,
+      dlModeButton,
+      notificationButton,
+      settingsButton,
+    ]) {
+      expect(button).toHaveClass('size-9', 'sm:size-10');
+    }
+    expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
+    expect(topActions.parentElement).toHaveClass('w-full');
     expect(topActions).not.toHaveClass('mt-11');
+    expect(plusStack).toHaveClass('flex-col', 'items-center', 'gap-1');
+    expect(plusStack).toContainElement(cruushPlusButton);
+    expect(plusStack).toContainElement(pingButton);
+    expect(cruushPlusButton.nextElementSibling).toBe(pingButton);
+    expect(topActions).not.toContainElement(cruushPlusButton);
+    expect(topActions).not.toContainElement(pingButton);
     expect(rightActions).toHaveClass('right-3', 'top-14', 'sm:right-4', 'sm:top-16');
     expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(luckyIcon).toHaveClass('h-5', 'w-5');
-    expect(ghostModeIcon).toHaveClass('h-4', 'w-4');
-    expect(dlModeIcon).toHaveClass('h-5', 'w-5', 'sm:h-6', 'sm:w-6');
+    expect(luckyIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6');
+    expect(ghostModeIcon).toHaveClass('h-5', 'w-5', 'sm:h-[1.375rem]', 'sm:w-[1.375rem]');
+    expect(dlModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6');
+    expect(notificationIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6');
+    expect(settingsIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6');
     expect(dlModeIcon?.getAttribute('src')).toContain('dl-mode-colored');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
@@ -1323,9 +1362,26 @@ describe('MapHome', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map');
   });
 
+  it('fails closed when billing status cannot load and shows the basic visibility gate', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMyBillingStatus.mockRejectedValue(new Error('Billing unavailable'));
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /^visibility$/i }));
+    const dialog = screen.getByRole('dialog', { name: 'Visibility' });
+    expect(within(dialog).getByText('Basic includes up to 3 hidden filters.')).toBeInTheDocument();
+  });
+
   it('runs install and notification permission actions from the tutorial', async () => {
     useIsMobile.mockReturnValue(false);
-    window.localStorage.removeItem('cruush:tutorial-v3-seen');
+    window.localStorage.removeItem('cruush:tutorial-v4-seen');
     resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
     const installRequested = vi.fn();
     window.addEventListener('cruush:install-requested', installRequested);
@@ -1353,7 +1409,7 @@ describe('MapHome', () => {
 
   it('shows the map controls intro once and dismisses it permanently', async () => {
     useIsMobile.mockReturnValue(false);
-    window.localStorage.removeItem('cruush:tutorial-v3-seen');
+    window.localStorage.removeItem('cruush:tutorial-v4-seen');
     resolveNoticeDismissal.mockResolvedValue({ dismissed: false, offline: false });
 
     const { unmount } = render(
@@ -1375,6 +1431,14 @@ describe('MapHome', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Crowd Mode' })).toBeInTheDocument();
+    expect(screen.getByText(/only people in those crowds to see you/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-try-step'));
+    expect(await screen.findByTestId('crowd-mode-tutorial-target')).toHaveAttribute('data-tutorial-target', 'crowds');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'DL Mode' })).toBeInTheDocument();
     expect(screen.getByText(/replaces explicit or NSFW photos with gradients/i)).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tutorial-try-step'));
@@ -1385,10 +1449,13 @@ describe('MapHome', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Zoom' })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
+    expect(screen.getByText(/start with a short signal, question, or invitation/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-next'));
 
     await waitFor(() => expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument());
-    expect(window.localStorage.getItem('cruush:tutorial-v3-seen')).toBe('true');
-    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:tutorial-v3-seen', { offline: false });
+    expect(window.localStorage.getItem('cruush:tutorial-v4-seen')).toBe('true');
+    expect(markNoticeDismissed).toHaveBeenCalledWith('cruush:tutorial-v4-seen', { offline: false });
     unmount();
 
     resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
@@ -1542,8 +1609,7 @@ describe('MapHome', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
 
-    expect(screen.getByText('nyc open beta').parentElement).toHaveClass('flex-col', 'items-center');
-    expect(screen.getByText('nyc open beta')).toHaveClass('lowercase');
+    expect(screen.queryByText('nyc open beta')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveClass('z-50');
@@ -1723,6 +1789,40 @@ describe('MapHome', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ghost Mode Settings' }));
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/ghost-mode');
     expect(window.localStorage.getItem('cruush:ghost-mode-intro-seen')).toBeNull();
+  });
+
+  it('passes an explicit own profile photo to the Ghost Mode marker for DL Mode masking', async () => {
+    useIsMobile.mockReturnValue(false);
+    getMyProfile.mockResolvedValue({
+      ...((await import('../lib/profileApi')).emptyProfilePayload),
+      id: 'me',
+      display_name: 'Me',
+      photos: ['https://example.com/me-explicit.jpg'],
+      photo_metadata: [{ url: 'https://example.com/me-explicit.jpg', explicit: true }],
+      updated_at: '2026-08-11T12:00:00.000Z',
+    });
+    getMyPrivacySettings.mockResolvedValue({
+      baseMode: 'GHOST',
+      ghostModeEnabled: true,
+      ghostRadiusMeters: 1609,
+      ghostRadiusLabel: '1 mi',
+      preciseToMutualCruushes: false,
+      preciseToMutualCrowds: [],
+      preciseLocationVisibility: 'none',
+      updatedAtMs: 0,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const marker = await screen.findByTestId('marker-me');
+    expect(marker).toHaveAttribute('data-display-mode', 'GHOST');
+    expect(marker).toHaveAttribute('data-photo-explicit', 'true');
   });
 
   it('requests geolocation again after a same-session reload when no saved location exists', async () => {
@@ -2200,6 +2300,7 @@ describe('MapHome', () => {
         name: 'River',
         pronouns: 'they/them',
         photo: 'https://example.com/river.jpg',
+        photoExplicit: true,
       },
       mutualCrowds: ['T4T'],
       vibes: ['Goth'],
@@ -2229,6 +2330,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('button', { name: /MUTUALS/ })).toBeInTheDocument();
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-precision', 'precise');
+    expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-photo-explicit', 'true');
     expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
   });
 

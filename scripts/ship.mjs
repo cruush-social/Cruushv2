@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-// One command for CRUUSH-RULES A1-A3: get the work onto main, deploy it, and
+// One command for cruush rules A1-A3: get the work onto main, deploy it, and
 // prove the deployed commit is the commit that was pushed.
 //
 //   pnpm ship -m "fix the thing"     # commit, push to main, deploy, verify
 //   pnpm ship                        # tree already clean
-//   pnpm ship --skip-checks          # hotfix: skip the guards, still verify
 //   pnpm ship --no-deploy            # push only
 //   pnpm ship --dry-run              # print the plan, touch nothing
 //
@@ -33,11 +32,10 @@ const SECRET_PATTERNS = [
 ];
 
 function parseArgs(argv) {
-  const args = { message: null, skipChecks: false, deploy: true, dryRun: false };
+  const args = { message: null, deploy: true, dryRun: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '-m' || arg === '--message') args.message = argv[++index];
-    else if (arg === '--skip-checks') args.skipChecks = true;
     else if (arg === '--no-deploy') args.deploy = false;
     else if (arg === '--dry-run') args.dryRun = true;
     else if (arg === '--help' || arg === '-h') {
@@ -61,7 +59,7 @@ function run(command, args, label) {
     console.log('FAILED');
     const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim();
     if (output) console.error(output.split('\n').slice(-25).join('\n'));
-    throw new Error(`${label} failed. Fix it, or re-run with --skip-checks if this is a hotfix.`);
+    throw new Error(`${label} failed. Fix the regression before shipping.`);
   }
   console.log('ok');
 }
@@ -219,24 +217,13 @@ async function main() {
     );
   }
 
-  if (!args.skipChecks) {
-    console.log('Checks:');
-    run('node', ['scripts/check-lowercase-cruush.mjs'], 'lowercase cruush (F1)');
-    run('git', ['diff', '--check'], 'whitespace');
+  console.log('Checks:');
+  run('pnpm', ['regression:gate'], 'complete regression gate');
 
-    const diff = git(['diff', 'origin/main...HEAD']) + (dirty ? git(['diff']) : '');
-    const leak = SECRET_PATTERNS.find((pattern) => pattern.test(diff));
-    if (leak) throw new Error(`Possible secret in the diff (${leak}). CRUUSH-RULES I5. Refusing to push.`);
-    console.log('  secret scan ... ok');
-
-    if (existsSync(path.join(ROOT, 'node_modules'))) {
-      run('pnpm', ['test:smoke'], 'frontend smoke');
-    } else {
-      console.log('  smoke tests ... skipped (no node_modules in this worktree)');
-    }
-  } else {
-    console.log('Checks: skipped (--skip-checks)');
-  }
+  const diff = git(['diff', 'origin/main...HEAD']) + (dirty ? git(['diff']) : '');
+  const leak = SECRET_PATTERNS.find((pattern) => pattern.test(diff));
+  if (leak) throw new Error(`Possible secret in the diff (${leak}). cruush rule I5. Refusing to push.`);
+  console.log('  secret scan ... ok');
 
   if (args.dryRun) {
     console.log(`\n[dry-run] Would commit${args.message ? ` "${args.message}"` : ' nothing'}, push ${branch} to main, deploy, and verify.`);

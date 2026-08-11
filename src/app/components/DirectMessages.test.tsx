@@ -362,6 +362,10 @@ describe('DirectMessages', () => {
 
     expect(await screen.findByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('River')).toBeInTheDocument();
+    expect(screen.getByText('Sort people by')).toBeInTheDocument();
+    expect(screen.getByText('Choose the order people appear in.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sort by Recently online' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Sort by Distance' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByRole('button', { name: 'Seeking filters' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('Seeking filter'));
@@ -375,6 +379,8 @@ describe('DirectMessages', () => {
     fireEvent.click(screen.getByRole('button', { name: /Distance/ }));
 
     await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Sort by Recently online' })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button', { name: 'Sort by Distance' })).toHaveAttribute('aria-pressed', 'true');
       const sortedBlake = screen.getByText('Blake');
       const sortedAlex = screen.getByText('Alex');
       expect(sortedBlake.compareDocumentPosition(sortedAlex) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

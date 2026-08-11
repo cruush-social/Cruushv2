@@ -3,7 +3,7 @@ import { requestApi } from './apiClient';
 export type NotificationRecord = {
   id: string;
   userId: string;
-  type: 'incoming_cruush' | 'mutual_cruush' | 'direct_message' | 'group_message' | 'group_membership';
+  type: 'incoming_cruush' | 'mutual_cruush' | 'direct_message' | 'group_message' | 'group_membership' | 'nearby_activity' | 'reward';
   title: string;
   body: string;
   linkUrl: string;
@@ -28,6 +28,8 @@ export type NotificationPreferences = {
   cruushEnabled: boolean;
   messagesEnabled: boolean;
   groupsEnabled: boolean;
+  nearbyEnabled: boolean;
+  rewardsEnabled: boolean;
   soundEnabled: boolean;
 };
 

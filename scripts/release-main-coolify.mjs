@@ -13,11 +13,7 @@ const REQUIRED_ENVS = [
   'COOLIFY_PRODUCTION_API_UUID',
 ];
 const CHECKS = [
-  ['pnpm', ['--dir', 'server', 'test']],
-  ['pnpm', ['--dir', 'server', 'run', 'build']],
-  ['pnpm', ['test']],
-  ['pnpm', ['run', 'build']],
-  ['git', ['diff', '--check']],
+  ['pnpm', ['regression:gate']],
 ];
 
 function parseArgs(argv) {
@@ -26,7 +22,6 @@ function parseArgs(argv) {
     target: 'staging',
     confirmProduction: false,
     dryRun: true,
-    skipChecks: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -41,8 +36,6 @@ function parseArgs(argv) {
       parsed.confirmProduction = true;
     } else if (arg === '--no-dry-run') {
       parsed.dryRun = false;
-    } else if (arg === '--skip-checks') {
-      parsed.skipChecks = true;
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -74,8 +67,7 @@ Defaults:
   --target staging
   dry-run enabled until --no-dry-run is passed
 
-Options:
-  --skip-checks       Do not run local test/build checks`);
+The complete regression gate always runs before a release.`);
 }
 
 function run(command, args, options = {}) {
@@ -665,10 +657,8 @@ async function main() {
   run('git', ['fetch', 'origin']);
   run('git', ['rev-parse', '--verify', args.source], { capture: true });
 
-  if (!args.skipChecks) {
-    for (const [command, commandArgs] of CHECKS) {
-      run(command, commandArgs);
-    }
+  for (const [command, commandArgs] of CHECKS) {
+    run(command, commandArgs);
   }
 
   const sourceSha = run('git', ['rev-parse', args.source], { capture: true }).trim();

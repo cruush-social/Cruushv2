@@ -2,56 +2,44 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Fix production account deletion so preserved support requests and reports cannot roll back deletion when foreign keys clear user-owned references.",
-  "base": "origin/main",
-  "baseSha": "e953a99e02832d4c566c8e3f584ae32a65b8ea4d",
-  "branch": "codex/account-deletion-integrity-20260810",
+  "job": "Make the full-width map top action bar slightly taller and make every icon inside it slightly larger, including the docked alpha bug icon. Amend only the existing local session commit.",
+  "base": "f683d3133f014309af657eb180f9fba15cbc6f73",
+  "baseSha": "f683d3133f014309af657eb180f9fba15cbc6f73",
+  "branch": "codex/session-dirty-work-20260811",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/sql/021_reports.sql",
-    "server/sql/029_support_requests.sql",
-    "server/sql/033_user_blocks_and_report_targets.sql",
-    "server/sql/036_beta_reporting_admin_moderation.sql",
-    "server/sql/042_rewards_and_two_factor.sql",
-    "server/sql/076_account_deletion_integrity.sql",
-    "server/src/account-deletion-integrity.test.ts",
-    "server/src/migrate.test.ts",
-    "server/src/migrate.ts",
-    "server/src/routes/auth.ts"
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx",
+    "src/app/components/AlphaBugButton.tsx",
+    "src/app/components/AlphaBugButton.test.tsx",
+    "e2e/regression/session-interactions.spec.ts"
   ],
   "preserved": [
-    "Preserve support requests, support replies, reports about deleted accounts, moderation evidence, and their existing user-visible behavior.",
-    "Remove account and sessions immediately while allowing asynchronous owned-media cleanup to continue unchanged.",
-    "Preserve all v1.2 UI, Ping, Ghost Mode, messaging, moderation, privacy, billing, and unrelated user work.",
-    "Keep cruush lowercase in product text."
+    "Preserve the full-width top-bar layout, control order, routes, click behavior, tutorial targets, unread badge, supplied icon assets, and active-state colors.",
+    "Preserve the separate cruush+ and Ping stack, map controls, bottom navigation, map rendering, and all other page layouts.",
+    "Preserve every existing user change in the session commit and keep origin/main untouched."
   ],
   "nonGoals": [
-    "Do not redesign Settings or change deletion confirmation copy.",
-    "Do not change suspended or banned account navigation in this slice.",
-    "Do not change the existing retention policy for reports filed by the deleting account.",
-    "Do not delete or weaken retained safety and support evidence.",
-    "Do not change providers, secrets, environment variables, billing, analytics, email, or deployment configuration.",
-    "Do not send announcements or support messages."
+    "Do not change icon assets, colors, labels, copy, routes, or feature behavior.",
+    "Do not resize the cruush+ or Ping controls or change the top bar width or horizontal placement.",
+    "Do not alter bottom-navigation icons or any non-map header.",
+    "Do not push, merge, deploy, or change environment variables."
   ],
   "proofTarget": {
-    "route": "/settings -> DELETE /api/auth/me",
     "requiredEvidence": [
-      "A real PostgreSQL regression fails before the fix for both signed-in support history and retained report history.",
-      "The same regression passes after the fix and proves the account and sessions are removed while support and report rows remain anonymized.",
-      "A real PostgreSQL deadlock regression proves account deletion retries a rolled-back transaction instead of returning 500.",
-      "All numbered migrations remain listed in replay order and the full migration sequence replays twice on disposable PostgreSQL state.",
-      "The rewards migration accepts the later nearby-activity notification type already present in production during a full replay.",
-      "Focused account-deletion and migration tests pass; the server test suite and production build pass.",
-      "Only allowed paths are staged and no secrets are exposed.",
-      "origin/main, production runtime SHA, migration completion, API health, and an authenticated disposable-account deletion are verified independently.",
-      "Disposable proof data is removed after verification."
+      "Regression assertions fail against the prior compact classes and pass after the narrow size change.",
+      "Focused MapHome and AlphaBugButton tests pass.",
+      "Actual /map renders at 390x844 and 1440x900 with the bar at least 44px and 52px tall respectively, larger icons, no overflow, and working controls.",
+      "The mobile Chromium interaction regression, frontend build, contract, scope, spelling, and whitespace checks pass."
+    ],
+    "viewports": [
+      "390x844",
+      "1440x900"
     ]
   },
   "externalActions": [
-    "Push only the verified scoped commit to origin/main.",
-    "Deploy only the production API resource after remote main is verified.",
-    "Create and remove isolated disposable production proof records; never delete or alter a real user account."
+    "Amend the existing local feature-branch commit after all gates pass."
   ],
-  "publicationTarget": "main",
+  "publicationTarget": "none",
   "environmentChanges": []
 }

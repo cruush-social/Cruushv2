@@ -5,31 +5,32 @@ For the implementation rationale and tradeoffs, see
 
 ## Overview
 
-cruush rewards legitimate daily participation and qualified referrals with
+cruush rewards daily authenticated check-ins and qualified referrals with
 promotional cruush+ access. Promotional access is separate from paid billing,
 auditable, capped, reversible, and idempotent. Optional TOTP two-factor
 authentication protects accounts, adds trust once, and is required before a
 referred account can qualify.
 
 The implementation lives in the existing Fastify/PostgreSQL API and React/Vite
-PWA. It does not use frontend activity beacons and does not change payment
+PWA. It does not change payment
 provider records, PhotoDNA, Rekognition, age estimation, or moderation policy.
 
 ## Product rules
 
-### Daily activity
+### Daily check-ins
 
-- The first eligible, successfully completed server-side action in a user's
-  calendar day creates one activity credit.
-- Default eligible types are `cruush`, `message`, and `post`.
-- App opens, logins, reads, and quantity do not count.
+- The first authenticated app check-in in a user's calendar day creates one
+  activity credit. Repeated visits that day are idempotent.
+- The only eligible activity type is `check_in`. Cruushes, messages, posts,
+  profile edits, and other actions do not advance the streak.
 - Calendar dates use `app_users.timezone`; invalid or missing values resolve to
   UTC. Each credit stores the timezone and resolved date.
 - A gap of one or more calendar days resets the current streak.
-- Every seventh consecutive day grants one promotional day.
-- After the first seventh-day reward, each eligible day between seventh-day
-  rewards grants one additional promotional day.
-- Activity grants default to 30 days per rolling 30 days.
+- Every completed seven-day block grants one promotional day: streak days
+  7, 14, 21, and so on.
+- Intervening streak days do not grant promotional access.
+- Check-in rewards are limited to five promotional days per rolling 30 days.
+  The shared 90-day promotional bank limit also applies.
 
 ### Referrals
 
@@ -38,22 +39,18 @@ provider records, PhotoDNA, Rekognition, age estimation, or moderation policy.
   only in the signup body.
 - A database constraint permits one referral per referred account, and a trigger
   prevents changing the referrer, referred account, or captured code.
-- A referral remains pending until the referred account is at least seven days
-  old, has enabled 2FA, has a complete required profile, and is in good standing.
+- A referral remains pending until the referred account verifies 2FA and is in
+  good standing. There is no account-age or profile-completion delay.
 - Suspended/deleted accounts and active suspensions are rejected. Accounts under
   review and suspicious signup patterns are flagged for human review.
 - A qualified referral grants seven promotional cruush+ days to the referrer and
   one trust point, up to 20 referral-derived trust points.
 - One unique ledger grant can exist per referral. Reruns do not duplicate it.
 
-The centralized profile-completion check defaults to display name, year of
-birth, bio, pronouns, identities, looking-for values, and vibes. The field list
-is configurable.
-
 ## Architecture
 
 - `reward-config.ts`: validated, cached database settings with safe defaults.
-- `rewards-service.ts`: activity credits, streak transitions, grant issuance,
+- `rewards-service.ts`: check-in credits, streak transitions, grant issuance,
   promo banking/activation, summaries, and reversals.
 - `referrals-service.ts`: signup risk preparation, referral summaries,
   qualification, trust awards, and the scheduler.
@@ -61,7 +58,7 @@ is configurable.
 - `two-factor.ts`: TOTP setup/verification, encrypted secrets, recovery codes,
   replay protection, disable/regeneration, and one-time trust award.
 - `routes/rewards.ts`: authenticated member and moderator/admin APIs.
-- `Rewards.tsx`: streak, promo, referral, history, and 2FA UI.
+- `Rewards.tsx`: check-in streak, promo, referral, and reward-history UI.
 
 Reward issuance and reversal use database transactions. The production
 `DbClient` exposes a checked-out PostgreSQL transaction, and domain actions are
@@ -87,6 +84,10 @@ Migration `server/sql/042_rewards_and_two_factor.sql` adds:
 Important database protections include:
 
 - unique `(user_id, activity_date)`
+- a replay-safe `NOT VALID` check that preserves historical action credits but
+  rejects every new or changed credit unless its type is `check_in`
+- a replay-safe `NOT VALID` grant-shape check that preserves historical gifts
+  but rejects new multi-day recurring grants and all legacy activity bonuses
 - unique referred user and a no-self-referral check
 - immutable referral association trigger
 - unique referral codes
@@ -94,7 +95,20 @@ Important database protections include:
 - unique user/source/milestone grants
 - unique referral reward grants
 - append-only grant and reversal triggers
+- earned check-in validation for every new recurring activity grant, including
+  its persisted seven-day boundary, check-in credit, one-day reward amount,
+  rolling cap, and idempotency key
+- a protected-settings trigger that rejects changes to the five approved
+  check-in reward values
 - non-negative promo balances and positive grant/reversal days
+
+On an existing reward schema, the migration runner installs the final earned
+grant guard and reward invariants before replaying earlier migrations. The
+historical reward migrations also contain the final safe values. This closes
+the partial-replay window that previously restored action-based, seven-day
+rewards before the final migration corrected them. The safety migrations never
+update or delete existing credits, grants, reversals, streaks, or promotional
+entitlements.
 
 `reward_grants.user_id`, `reward_grants.referral_id`, and reversal user IDs are
 intentionally retained as opaque UUID audit identifiers rather than cascading
@@ -123,10 +137,11 @@ access, checkout sessions, or payment-provider data.
 `pending -> qualified -> rewarded`
 
 Alternative terminal/review paths are `rejected`, `flagged`, and `reversed`.
-Qualification selects only pending referrals old enough for evaluation, locks
-each row, and rechecks all conditions. A grant-cap or bank-cap condition may
-leave a referral `qualified` for operational review rather than issuing a
-partial reward.
+Every successful 2FA setup immediately attempts qualification for that referred
+account. The scheduler also rechecks outstanding pending referrals. Each attempt
+locks the referral row and rechecks all conditions. A grant-cap or bank-cap
+condition may leave a referral `qualified` for operational review rather than
+issuing a partial reward.
 
 The API entrypoint starts a 15-minute in-process scheduler. Operators can also
 run a bounded one-shot pass:
@@ -175,17 +190,15 @@ documented defaults.
 | `recurring_streak_reward_days` | 1 |
 | `long_streak_days` | 1 |
 | `long_streak_bonus_days` | 1 |
-| `activity_reward_cap_days` | 30 |
+| `activity_reward_cap_days` | 5 |
 | `activity_reward_cap_period_days` | 30 |
-| `referral_min_account_age_days` | 7 |
 | `referral_reward_days` | 7 |
 | `max_banked_promotional_days` | 90 |
 | `referral_reward_cap_days` | `null` |
 | `two_factor_trust_points` | 10 |
 | `referral_trust_points` | 1 |
 | `max_referral_trust_points` | 20 |
-| `eligible_activity_types` | `["cruush","message","post"]` |
-| `profile_completion_fields` | required onboarding fields listed above |
+| `eligible_activity_types` | `["check_in"]` |
 
 Example:
 
@@ -197,8 +210,10 @@ where key = 'activity_reward_cap_days';
 
 ## Abuse protections
 
-- Server-confirmed domain actions only; no rewardable page-view beacon.
-- One activity row per user/date and no quantity multiplier.
+- Authenticated, active-account check-ins only.
+- One check-in row per user/date and no visit-count multiplier.
+- Five check-in reward days per rolling 30 days, enforced in both the service
+  and PostgreSQL grant guard.
 - Self-referral check and immutable one-referrer association.
 - Account age, 2FA, profile, account status, trust suspension, and suspension
   checks at qualification time.
@@ -215,6 +230,7 @@ where key = 'activity_reward_cap_days';
 
 Member endpoints:
 
+- `POST /api/rewards/check-in`
 - `GET /api/rewards/summary`
 - `GET /api/rewards/streak`
 - `GET /api/rewards/referrals`
@@ -245,8 +261,7 @@ secrets after setup, recovery hashes, or internal subscription rows.
 - active and banked promotional access
 - copy/share referral link and pending/success counts
 - recent active/reversed reward history
-- clear eligible-activity copy, including that opening the app does not count
-- complete TOTP setup, recovery regeneration, and disable flows
+- clear daily check-in cadence and streak-reset copy
 - loading, empty, success, and recoverable error states
 
 Onboarding presents “Protect my account next” as the primary completion action
@@ -257,8 +272,8 @@ grant exists.
 
 1. Back up PostgreSQL.
 2. Set a strong `TWO_FACTOR_ENCRYPTION_KEY` in every API replica (recommended).
-3. Deploy the API image. Its existing startup command runs migration 042 before
-   starting Fastify.
+3. Deploy the API image. Its existing startup command runs numbered migrations,
+   including migration 079, before starting Fastify.
 4. Deploy the frontend image.
 5. Confirm one API replica logs `referral qualification complete`.
 6. Exercise the manual checks below.
@@ -272,9 +287,9 @@ No external billing migration or payment-provider edit is required.
    token, and store the displayed recovery codes.
 3. Sign out/in and confirm the second-factor prompt.
 4. Use one recovery code once and confirm reuse fails.
-5. Complete one cruush/message action and confirm one activity row; repeat the
-   action and confirm no second row for that date.
-6. In a staging database, backdate activity/referral rows to verify milestone
+5. Open the authenticated app and confirm one `check_in` activity row; reload
+   and confirm no second row for that date.
+6. In a staging database, backdate check-in/referral rows to verify milestone
    and qualification processing.
 7. Inspect member `/rewards`; verify no risk/audit internals appear.
 8. As a moderator, list grants, reverse a staging grant, and confirm the reversal
@@ -295,7 +310,7 @@ The call is idempotent. It reports `alreadyReversed` on a retry.
 
 ## Tests
 
-Focused suites cover reward dates/streaks/milestones/caps/banking/reversal,
+Focused suites cover check-in dates/streaks/milestones/caps/banking/reversal,
 referral pending/rejected/flagged/rewarded/retry behavior, TOTP setup/replay and
 recovery/disable/trust behavior, API authorization/rate limits/serialization,
 and frontend loading/error/empty/success/setup states.

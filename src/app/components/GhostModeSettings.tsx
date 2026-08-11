@@ -5,6 +5,8 @@ import { Button } from './ui/button';
 import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { CruushIcon } from './CruushIconImage';
+import CruushPlusWord from './CruushPlusWord';
+import { getMyBillingStatus } from '../lib/billingApi';
 import {
   CROWDS,
 } from '../lib/profileOptions';
@@ -29,6 +31,7 @@ export default function GhostModeSettings() {
   const [privacyError, setPrivacyError] = useState<string | null>(null);
   const [mapPresence, setMapPresence] = useState<MapPresenceSettings>(DEFAULT_MAP_PRESENCE_SETTINGS);
   const [mapPresenceSaving, setMapPresenceSaving] = useState(false);
+  const [hasCruushPlus, setHasCruushPlus] = useState(false);
 
   const normalizePrivacySettings = (settings: Partial<PrivacySettings>): PrivacySettings => ({
     ...DEFAULT_PRIVACY_SETTINGS,
@@ -96,6 +99,18 @@ export default function GhostModeSettings() {
         }
       });
 
+    getMyBillingStatus()
+      .then((status) => {
+        if (active) {
+          setHasCruushPlus(status.cruushPlus === true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setHasCruushPlus(false);
+        }
+      });
+
     return () => {
       active = false;
     };
@@ -120,6 +135,8 @@ export default function GhostModeSettings() {
   };
 
   const persistPrivacySettings = async (nextSettings: PrivacySettings) => {
+    const previousPrivacySettings = privacySettings;
+
     setPrivacySettings(nextSettings);
     setPrivacyStatus('saving');
     setPrivacyError(null);
@@ -128,6 +145,7 @@ export default function GhostModeSettings() {
       const savedSettings = await saveMyPrivacySettings(nextSettings);
       setPrivacySettings(normalizePrivacySettings(savedSettings));
     } catch (error) {
+      setPrivacySettings(previousPrivacySettings);
       setPrivacyError(error instanceof Error ? error.message : 'Failed to save Ghost Mode settings.');
     } finally {
       setPrivacyStatus('idle');
@@ -177,6 +195,42 @@ export default function GhostModeSettings() {
                 });
               }}
             />
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <CruushIcon name="ghost" variant={privacySettings.baseMode === 'STEALTH' ? 'colored' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
+                <div>
+                  <p>Stealth Mode</p>
+                  <p className="text-sm text-muted-foreground">Browse the map without appearing on it.</p>
+                </div>
+              </div>
+              {hasCruushPlus ? (
+                <Switch
+                  aria-label="Toggle Stealth Mode"
+                  checked={privacySettings.baseMode === 'STEALTH'}
+                  disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
+                  onCheckedChange={(enabled) => {
+                    void persistPrivacySettings({
+                      ...privacySettings,
+                      baseMode: enabled ? 'STEALTH' : 'PUBLIC_PRECISE',
+                      ghostModeEnabled: false,
+                    });
+                  }}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  aria-label="Unlock Stealth Mode with cruush+"
+                  onClick={() => navigate('/rewards')}
+                >
+                  <CruushPlusWord />
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.025] p-4">

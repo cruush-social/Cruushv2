@@ -8,6 +8,7 @@ import GoogleAnalyticsPageTracker from './components/GoogleAnalyticsPageTracker'
 import { Toaster } from './components/ui/sonner';
 import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
+import { recordDailyRewardCheckIn, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
 
 const MapHome = lazy(() => import('./components/MapHome'));
@@ -164,6 +165,27 @@ export default function App({
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (authStatus !== 'signed_in' || !session?.user.emailVerifiedAt) {
+      return;
+    }
+
+    let isActive = true;
+    const checkIn = async () => {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      await updateRewardTimezone(timezone).catch(() => undefined);
+
+      if (isActive) {
+        await recordDailyRewardCheckIn().catch(() => undefined);
+      }
+    };
+
+    void checkIn();
+    return () => {
+      isActive = false;
+    };
+  }, [authStatus, session?.user.emailVerifiedAt, session?.user.id]);
 
   const handleAuth = (session: AuthSessionPayload) => {
     setSession(session);

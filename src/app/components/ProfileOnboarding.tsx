@@ -103,7 +103,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   twoFactor: {
     rite: 'protect your key',
     title: 'Set up 2FA?',
-    detail: 'Optional, but affiliate-link signups count only after the referred account enables 2FA.',
+    detail: 'Optional, but affiliate-link signups count when the referred account verifies its 2FA code.',
   },
   affiliateShare: {
     rite: 'summon your circle',
@@ -887,8 +887,7 @@ export default function ProfileOnboarding({
                     <Gift className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                     <p className="text-sm leading-6 text-white/72">
                       You get {rewardSummary?.rules.referralRewardDays ?? 7} <CruushPlusWord /> days after a trusted
-                      invite secures their account with 2FA, completes their profile, and reaches{' '}
-                      {rewardSummary?.rules.referralMinAccountAgeDays ?? 7} days old.
+                      invite verifies 2FA.
                     </p>
                   </div>
 

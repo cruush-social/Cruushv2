@@ -49,6 +49,14 @@ export function isNotificationTypeEnabled(
     return preferences.groupsEnabled;
   }
 
+  if (type === 'nearby_activity') {
+    return preferences.nearbyEnabled;
+  }
+
+  if (type === 'reward') {
+    return preferences.rewardsEnabled;
+  }
+
   return true;
 }
 

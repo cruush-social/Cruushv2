@@ -3,10 +3,11 @@ import { z } from "zod";
 import { ApiError } from "../errors.js";
 import { getModeratorUser } from "../moderator-auth.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
-import { getReferralInfo } from "../referrals-service.js";
+import { getReferralInfo, qualifyPendingReferrals } from "../referrals-service.js";
 import {
   getRewardSummary,
   normalizeTimeZone,
+  recordMeaningfulActivity,
   redeemCruushPlusPromoCode,
   reverseRewardGrant
 } from "../rewards-service.js";
@@ -79,6 +80,16 @@ async function applyTwoFactorRateLimit(app: FastifyInstance, userId: string, ope
 }
 
 export async function registerRewardRoutes(app: FastifyInstance) {
+  app.post("/api/rewards/check-in", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    return reply.send({
+      data: await recordMeaningfulActivity(app, {
+        userId,
+        activityType: "check_in"
+      })
+    });
+  });
+
   app.get("/api/rewards/summary", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
     const [summary, referral] = await Promise.all([
@@ -156,8 +167,16 @@ export async function registerRewardRoutes(app: FastifyInstance) {
     const userId = await getActiveAccountUserId(request);
     const payload = tokenPayloadSchema.parse(request.body);
     await applyTwoFactorRateLimit(app, userId, "complete");
+    const completed = await completeTwoFactorSetup(app, userId, payload.token);
+
+    try {
+      await qualifyPendingReferrals(app, { referredUserId: userId, limit: 1 });
+    } catch (error) {
+      app.log.error({ err: error, userId }, "referral qualification after 2FA failed");
+    }
+
     return reply.send({
-      data: await completeTwoFactorSetup(app, userId, payload.token)
+      data: completed
     });
   });
 

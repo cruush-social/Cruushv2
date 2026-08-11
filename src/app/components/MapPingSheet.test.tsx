@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapPingSheet from './MapPingSheet';
 
 const availableStatus = {
@@ -16,6 +16,81 @@ const availableStatus = {
 describe('MapPingSheet', () => {
   beforeEach(() => {
     vi.useRealTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows a live cooldown counter while the next Ping is unavailable', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-11T12:00:00.000Z'));
+
+    render(
+      <MapPingSheet
+        open
+        onOpenChange={vi.fn()}
+        status={{
+          ...availableStatus,
+          allowance: {
+            limit: 3,
+            used: 1,
+            remaining: 2,
+            nextEligibleAt: '2026-08-11T16:00:00.000Z',
+          },
+        }}
+        loading={false}
+        hasMapLocation
+        signal="At the park"
+        onRefresh={vi.fn().mockResolvedValue(undefined)}
+        onSend={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('timer', { name: 'Ping cooldown' })).toHaveTextContent('04:00:00');
+    expect(screen.getByRole('button', { name: 'Send Ping' })).toBeDisabled();
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(screen.getByRole('timer', { name: 'Ping cooldown' })).toHaveTextContent('03:59:59');
+  });
+
+  it('refreshes the allowance when the cooldown reaches zero', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-11T12:00:00.000Z'));
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <MapPingSheet
+        open
+        onOpenChange={vi.fn()}
+        status={{
+          ...availableStatus,
+          allowance: {
+            limit: 1,
+            used: 1,
+            remaining: 0,
+            nextEligibleAt: '2026-08-11T12:00:02.000Z',
+          },
+        }}
+        loading={false}
+        hasMapLocation
+        signal="At the park"
+        onRefresh={onRefresh}
+        onSend={vi.fn()}
+      />,
+    );
+
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      vi.advanceTimersByTime(2050);
+      await Promise.resolve();
+    });
+
+    expect(onRefresh).toHaveBeenCalledTimes(2);
   });
 
   it('shows every radius, current signal, and remaining allowance', async () => {
@@ -45,6 +120,31 @@ describe('MapPingSheet', () => {
       '15 miles',
     ]);
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('links a basic member with no remaining Pings to cruush+', () => {
+    const onUpgrade = vi.fn();
+    render(
+      <MapPingSheet
+        open
+        onOpenChange={vi.fn()}
+        status={{
+          ...availableStatus,
+          allowance: { limit: 1, used: 1, remaining: 0, nextEligibleAt: null },
+        }}
+        loading={false}
+        hasMapLocation
+        hasCruushPlus={false}
+        signal="At the park"
+        onRefresh={vi.fn().mockResolvedValue(undefined)}
+        onSend={vi.fn()}
+        onUpgrade={onUpgrade}
+      />,
+    );
+
+    expect(screen.getByText('Basic includes 1 Ping every 24 hours.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
+    expect(onUpgrade).toHaveBeenCalledTimes(1);
   });
 
   it('sends the selected radius', async () => {
@@ -94,6 +194,10 @@ describe('MapPingSheet', () => {
         onOpenChange={vi.fn()}
         status={{
           ...availableStatus,
+          allowance: {
+            ...availableStatus.allowance,
+            nextEligibleAt: new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
+          },
           activePing: {
             id: 'ping-1',
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -108,5 +212,6 @@ describe('MapPingSheet', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled();
+    expect(screen.getByRole('timer', { name: 'Ping cooldown' })).toBeInTheDocument();
   });
 });

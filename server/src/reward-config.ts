@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { DbClient } from "./db.js";
 
-const activityTypeSchema = z.enum(["cruush", "message", "post", "profile_update", "social"]);
+const activityTypeSchema = z.enum(["check_in", "cruush", "message", "post", "profile_update", "social"]);
 const profileFieldSchema = z.enum([
   "display_name",
   "year_of_birth",
@@ -20,7 +20,6 @@ const rewardConfigSchema = z.object({
   longStreakBonusDays: z.number().int().min(1).max(365),
   activityRewardCapDays: z.number().int().min(0).max(365).nullable(),
   activityRewardCapPeriodDays: z.number().int().min(1).max(365),
-  referralMinAccountAgeDays: z.number().int().min(0).max(365),
   referralRewardDays: z.number().int().min(1).max(365),
   maxBankedPromotionalDays: z.number().int().min(0).max(3650),
   referralRewardCapDays: z.number().int().min(0).max(36500).nullable(),
@@ -36,19 +35,18 @@ export type RewardActivityType = z.infer<typeof activityTypeSchema>;
 
 export const DEFAULT_REWARD_CONFIG: RewardConfig = {
   recurringStreakDays: 7,
-  recurringStreakRewardDays: 7,
+  recurringStreakRewardDays: 1,
   longStreakDays: 1,
   longStreakBonusDays: 1,
-  activityRewardCapDays: null,
+  activityRewardCapDays: 5,
   activityRewardCapPeriodDays: 30,
-  referralMinAccountAgeDays: 7,
   referralRewardDays: 7,
   maxBankedPromotionalDays: 90,
   referralRewardCapDays: null,
   twoFactorTrustPoints: 10,
   referralTrustPoints: 1,
   maxReferralTrustPoints: 20,
-  eligibleActivityTypes: ["cruush", "message", "post"],
+  eligibleActivityTypes: ["check_in"],
   profileCompletionFields: [
     "display_name",
     "year_of_birth",
@@ -67,7 +65,6 @@ const settingMap = {
   long_streak_bonus_days: "longStreakBonusDays",
   activity_reward_cap_days: "activityRewardCapDays",
   activity_reward_cap_period_days: "activityRewardCapPeriodDays",
-  referral_min_account_age_days: "referralMinAccountAgeDays",
   referral_reward_days: "referralRewardDays",
   max_banked_promotional_days: "maxBankedPromotionalDays",
   referral_reward_cap_days: "referralRewardCapDays",

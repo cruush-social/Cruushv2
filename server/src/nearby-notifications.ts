@@ -4,6 +4,8 @@ import { decryptProfileVisibility, decryptSensitiveProfile, type ProfileVisibili
 import { createAppNotificationAndPush } from "./notification-service.js";
 import { distanceMiles, loadLocationEnvelopes, locationPayloadToCoordinates, type LocationPayload, type VisibilityPolicyPayload } from "./location-privacy.js";
 
+const NEARBY_NOTIFICATION_RADIUS_MILES = 5;
+
 type NearbyNotificationSourceRow = {
   year_of_birth: number | null;
   identities: string[] | null;
@@ -175,18 +177,12 @@ async function loadNearbyNotificationRecipients(app: FastifyInstance, sourceUser
        p.updated_at
      from profiles p
      join app_users u on u.id = p.id
-     join notification_preferences preferences
+     left join notification_preferences preferences
        on preferences.user_id = p.id
-      and preferences.push_enabled = true
      where p.id <> $1
        and coalesce(u.account_status, 'active') = 'active'
        and p.location_updated_at >= now() - interval '4 days'
-       and exists (
-         select 1
-         from push_subscriptions subscription
-         where subscription.user_id = p.id
-           and subscription.revoked_at is null
-       )
+       and coalesce(preferences.nearby_enabled, true) = true
        and not exists (
          select 1
          from user_blocks block
@@ -243,12 +239,12 @@ export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, i
       recipientCoordinates.lng
     );
 
-    if (distance > 10) {
+    if (!Number.isFinite(distance) || distance > NEARBY_NOTIFICATION_RADIUS_MILES) {
       continue;
     }
 
     const rules = recipientRules(app, recipient);
-    if (rules && !canSubjectViewProfile(rules, sourceSubject, sourceCoordinates)) {
+    if (rules && !canSubjectViewProfile(rules, sourceSubject, recipientCoordinates)) {
       continue;
     }
 

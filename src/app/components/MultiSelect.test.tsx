@@ -164,6 +164,89 @@ describe('MultiSelect', () => {
     expect(menuSurface?.style.top).toBe('');
   });
 
+  it('prefers the larger space above a mobile portalled menu so sheet actions remain tappable', async () => {
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 844,
+    });
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 390,
+    });
+
+    render(
+      <MultiSelect
+        ariaLabel="Gender Identities"
+        menuPortal
+        options={['cis man', 'man', 'woman']}
+        value={[]}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Gender Identities' });
+    mockTriggerRect(trigger, {
+      bottom: 571,
+      left: 21,
+      top: 531,
+      width: 349,
+    });
+
+    fireEvent.click(trigger);
+
+    const menuSurface = screen.getByRole('listbox', { name: 'Gender Identities' }).parentElement;
+    await waitFor(() => {
+      expect(menuSurface).toHaveStyle({
+        bottom: '321px',
+        left: '16px',
+        maxHeight: '288px',
+        position: 'fixed',
+        width: '358px',
+      });
+    });
+    expect(menuSurface?.style.top).toBe('');
+  });
+
+  it('keeps portalled options pointer-enabled inside a modal Sheet', async () => {
+    const onChange = vi.fn();
+    const previousPointerEvents = document.body.style.pointerEvents;
+    document.body.style.pointerEvents = 'none';
+
+    try {
+      render(
+        <MultiSelect
+          ariaLabel="Gender Identities"
+          menuPortal
+          onChange={onChange}
+          options={['nonbinary', 'woman']}
+          value={[]}
+        />,
+      );
+
+      const trigger = screen.getByRole('button', { name: 'Gender Identities' });
+      mockTriggerRect(trigger, {
+        bottom: 200,
+        left: 20,
+        top: 160,
+        width: 280,
+      });
+
+      fireEvent.click(trigger);
+
+      const menuSurface = screen.getByRole('listbox', { name: 'Gender Identities' }).parentElement!;
+      await waitFor(() => {
+        expect(menuSurface).toHaveStyle({ pointerEvents: 'auto' });
+      });
+
+      const option = screen.getByRole('option', { name: 'nonbinary' });
+      fireEvent.pointerDown(option, { isPrimary: true, pointerType: 'touch' });
+      fireEvent.pointerUp(option, { isPrimary: true, pointerType: 'touch' });
+      fireEvent.click(option);
+      expect(onChange).toHaveBeenCalledWith(['nonbinary']);
+    } finally {
+      document.body.style.pointerEvents = previousPointerEvents;
+    }
+  });
+
   it('does not render a full-screen blocker over portaled menus', async () => {
     const onOutsideTap = vi.fn();
 

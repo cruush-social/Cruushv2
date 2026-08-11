@@ -10606,6 +10606,177 @@ describe("server", () => {
     });
   });
 
+  it.each([
+    ["precise mutual cruush sharing", { preciseToMutualCruushes: true }],
+    [
+      "precise mutual crowd sharing",
+      {
+        preciseToMutualCrowds: [{
+          crowdId: "Gay",
+          precisionEnabled: true
+        }]
+      }
+    ]
+  ])("allows a basic member to enable %s through the primary privacy settings endpoint", async (_setting, payload) => {
+    const currentPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "PUBLIC_PRECISE"
+    });
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from user_entitlements")) {
+        return {
+          rows: [{
+            cruush_plus_enabled: false,
+            cruush_plus_expires_at: null
+          }]
+        };
+      }
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [currentPolicy] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/privacy-settings",
+      headers: {
+        "x-user-id": userId
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("from user_entitlements"))).toBe(false);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"))).toBe(true);
+  });
+
+  it("requires cruush+ before the legacy Ghost Mode endpoint enables Stealth", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        cruush_plus_enabled: false,
+        cruush_plus_expires_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/privacy/ghost-mode",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: { baseMode: "STEALTH" }
+    });
+
+    expect(response.statusCode).toBe(402);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("from user_entitlements");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"))).toBe(false);
+    expect(response.json()).toEqual({
+      error: {
+        code: "CRUUSH_PLUS_REQUIRED",
+        message: "Upgrade to cruush+ to use stealth mode.",
+        details: null
+      }
+    });
+  });
+
+  it.each([
+    ["precise mutual cruush sharing", { preciseToMutualCruushes: true }],
+    [
+      "precise mutual crowd sharing",
+      {
+        preciseToMutualCrowds: [{
+          crowdId: "Gay",
+          precisionEnabled: true
+        }]
+      }
+    ]
+  ])("allows a basic member to enable %s through the legacy Ghost Mode endpoint", async (_setting, payload) => {
+    const currentPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "PUBLIC_PRECISE"
+    });
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from user_entitlements")) {
+        return {
+          rows: [{
+            cruush_plus_enabled: false,
+            cruush_plus_expires_at: null
+          }]
+        };
+      }
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [currentPolicy] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/privacy/ghost-mode",
+      headers: {
+        "x-user-id": userId
+      },
+      payload
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("from user_entitlements"))).toBe(false);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"))).toBe(true);
+  });
+
+  it("allows cruush+ to enable Stealth through the legacy Ghost Mode endpoint", async () => {
+    const currentPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "PUBLIC_PRECISE"
+    });
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from user_entitlements")) {
+        return {
+          rows: [{
+            cruush_plus_enabled: true,
+            cruush_plus_expires_at: null
+          }]
+        };
+      }
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [currentPolicy] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/privacy/ghost-mode",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        baseMode: "STEALTH"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.baseMode).toBe("STEALTH");
+    const entitlementIndex = query.mock.calls.findIndex(([sql]) => String(sql).includes("from user_entitlements"));
+    const policyWriteIndex = query.mock.calls.findIndex(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"));
+    expect(entitlementIndex).toBeGreaterThan(-1);
+    expect(entitlementIndex).toBeLessThan(policyWriteIndex);
+  });
+
   it("revokes active Pings before switching profile map privacy to Stealth", async () => {
     const currentPolicy = await encryptedVisibilityPolicyRow({
       subjectUserId: userId,
@@ -12972,6 +13143,38 @@ describe("server", () => {
     expect(response.json().data).not.toHaveProperty("lat");
     expect(response.json().data).not.toHaveProperty("lng");
     expect(notifyNearbyUsersForLocationUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["recently visible", false, 0],
+    ["returning after the map window", true, 1]
+  ])("dispatches nearby notifications only for a profile that is %s", async (_state, isNewMapAppearance, expectedDispatches) => {
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("as is_new_map_appearance") && text.includes("for update")) {
+        return { rows: [{ is_new_map_appearance: isNewMapAppearance }] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/location",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        lat: 40.711,
+        lng: -74.002,
+        fuzz_radius_meters: 50
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("as is_new_map_appearance"))).toBe(true);
+    expect(notifyNearbyUsersForLocationUpdate).toHaveBeenCalledTimes(expectedDispatches);
   });
 
   it("stores a Ping location sync without dispatching nearby notifications", async () => {

@@ -5,6 +5,7 @@ import {
   Clipboard,
   Gift,
   Share2,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -14,16 +15,48 @@ import { Input } from './ui/input';
 import { Progress } from './ui/progress';
 import {
   getRewardSummary,
+  recordDailyRewardCheckIn,
   redeemCruushPlusPromoCode,
   updateRewardTimezone,
   type RewardSummary,
 } from '../lib/rewardsApi';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 
+const CRUUSH_PLUS_FEATURES = [
+  {
+    title: 'Full activity',
+    description: 'See your full incoming cruush and profile-view lists.',
+  },
+  {
+    title: 'More Pings',
+    description: 'Send up to 3 Pings every 24 hours, with 4 hours between sends.',
+  },
+  {
+    title: 'Post nearby',
+    description: 'Create posts on the local feed. Free users can still read nearby posts.',
+  },
+  {
+    title: 'Cruise carousel',
+    description: 'Spin through nearby profiles and browse again.',
+  },
+  {
+    title: 'All seeking filters',
+    description: 'Use more than 3 seeking filter categories at once.',
+  },
+  {
+    title: 'More visibility controls',
+    description: 'Use more than 3 hidden filters at once.',
+  },
+  {
+    title: 'Stealth Mode',
+    description: 'Browse the map without appearing on it.',
+  },
+] as const;
+
 function sourceLabel(source: RewardSummary['recentGrants'][number]['source']) {
   switch (source) {
     case 'activity_recurring':
-      return '7-day streak reward';
+      return '7-day check-in reward';
     case 'activity_long_bonus':
       return 'Log-in bonus';
     case 'referral':
@@ -60,6 +93,7 @@ export default function Rewards() {
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
       await updateRewardTimezone(timezone).catch(() => undefined);
+      await recordDailyRewardCheckIn().catch(() => undefined);
       setSummary(await getRewardSummary());
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load rewards.');
@@ -109,6 +143,26 @@ export default function Rewards() {
       </header>
 
       <main className="mx-auto max-w-2xl space-y-5 p-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              What <CruushPlusWord /> unlocks
+            </CardTitle>
+            <CardDescription>Every cruush+ feature available in the app.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul aria-label="cruush+ features" className="grid gap-3 sm:grid-cols-2">
+              {CRUUSH_PLUS_FEATURES.map((feature) => (
+                <li className="rounded-xl border border-border bg-muted/30 p-3" key={feature.title}>
+                  <p className="font-medium">{feature.title}</p>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">{feature.description}</p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
         {loading ? (
           <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
             Loading your rewards…
@@ -132,8 +186,8 @@ export default function Rewards() {
                 </CardTitle>
                 <CardDescription>
                   {summary.streak.todayQualified
-                    ? 'Today counts. Come back tomorrow to keep it going.'
-                    : 'Complete one meaningful action today to continue your streak.'}
+                    ? 'Today’s check-in counts. Come back tomorrow to keep it going.'
+                    : 'Open cruush today to continue your check-in streak.'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -144,18 +198,20 @@ export default function Rewards() {
                 />
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-lg bg-muted/40 p-3">
-                    <p className="text-muted-foreground">Next 7-day reward</p>
+                    <p className="text-muted-foreground">Next check-in reward</p>
                     <p className="mt-1 font-medium">{summary.streak.nextRecurringInDays} consecutive days</p>
                   </div>
                   <div className="rounded-lg bg-muted/40 p-3">
                     <p className="text-muted-foreground">Reward amount</p>
-                    <p className="mt-1 font-medium">{summary.rules.recurringStreakRewardDays} days each time</p>
+                    <p className="mt-1 font-medium">
+                      {summary.rules.recurringStreakRewardDays}{' '}
+                      {summary.rules.recurringStreakRewardDays === 1 ? 'day' : 'days'} each time
+                    </p>
                   </div>
                 </div>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  A cruush, legitimate message, reply, or other eligible social action counts once per
-                  calendar day. Opening the app or logging in alone does not count. After the first seven
-                  consecutive qualifying days, the next reward takes eight days, then nine, and so on.
+                  Check in once a day. Every 7 consecutive check-in days earns 1 day of cruush+.
+                  Multiple visits on the same day count once. Miss a day and your streak restarts.
                 </p>
               </CardContent>
             </Card>
@@ -164,9 +220,7 @@ export default function Rewards() {
               <CardHeader>
                 <CardTitle>Invite people you trust</CardTitle>
                 <CardDescription>
-                  You receive {summary.rules.referralRewardDays} <CruushPlusWord /> days after they secure their
-                  account with 2FA, complete their profile, and reach{' '}
-                  {summary.rules.referralMinAccountAgeDays} days old.
+                  You receive {summary.rules.referralRewardDays} <CruushPlusWord /> days once they verify 2FA.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

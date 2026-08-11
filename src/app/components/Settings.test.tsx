@@ -166,6 +166,21 @@ describe('Settings', () => {
     );
   });
 
+  it('renders Edit Profile with the canonical cruush gradient icon treatment', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    const editProfile = await screen.findByRole('button', { name: 'Edit Profile' });
+    const icon = editProfile.querySelector('[data-tone="gradient"]');
+
+    expect(icon).toHaveClass('h-5', 'w-5');
+    expect(icon).not.toHaveClass('opacity-65');
+    expect(icon).toHaveStyle({ background: 'var(--cruush-gradient)' });
+  });
+
   it('shows active moderators a direct dashboard entry', async () => {
     getStoredCurrentUser.mockReturnValue({
       display_name: 'Moderator',

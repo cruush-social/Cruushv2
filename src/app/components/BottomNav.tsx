@@ -1,9 +1,8 @@
 import { type CSSProperties } from 'react';
 import { useNavigate, useLocation } from 'react-router';
+import cruushLogo from '../assets/brand/cruush-logo.svg';
 import cruushIconColored from '../assets/ui-icons/cruush-colored.png';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
-import feedIconColored from '../assets/ui-icons/feed-colored.png';
-import feedIconWhite from '../assets/ui-icons/feed-white.png';
 import mapIconColored from '../assets/ui-icons/map-colored.png';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import messagesIconColored from '../assets/ui-icons/messages-colored.png';
@@ -15,8 +14,8 @@ const CRUUSH_GRADIENT = 'linear-gradient(135deg, #ff0072 0%, #6f00ff 32%, #004bf
 
 const navItems = [
   { path: '/map', icon: mapIconWhite, activeIcon: mapIconColored, label: 'Map' },
-  { path: '/feed', icon: feedIconWhite, activeIcon: feedIconColored, label: 'Feed' },
-  { path: '/cruush', icon: cruushIconWhite, activeIcon: cruushIconColored, label: 'cruush' },
+  { path: '/feed', icon: cruushIconWhite, activeIcon: cruushIconColored, label: 'Feed' },
+  { path: '/cruush', brand: true, label: 'cruush' },
   { path: '/messages', icon: messagesIconWhite, activeIcon: messagesIconColored, label: 'Messages' },
   { path: '/profile', profile: true, label: 'Profile' },
 ];
@@ -111,6 +110,7 @@ export default function BottomNav() {
               key={item.path}
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
+              data-tutorial-target={item.path === '/feed' ? 'feed' : undefined}
               onClick={() => handleNavClick(item.path)}
               className={`flex h-[3.75rem] w-[3.75rem] min-w-0 shrink-0 items-center justify-center rounded-full transition-colors ${
                 active
@@ -120,11 +120,22 @@ export default function BottomNav() {
             >
               {'profile' in item ? (
                 <ProfileNavIcon active={active} />
+              ) : 'brand' in item ? (
+                <img
+                  alt=""
+                  aria-hidden="true"
+                  className={`h-12 w-12 object-contain ${active ? '' : 'brightness-0 invert'}`}
+                  data-tone={active ? 'gradient-white-wordmark' : 'white'}
+                  draggable={false}
+                  src={cruushLogo}
+                />
               ) : (
                 <img
                   alt=""
                   aria-hidden="true"
-                  className="h-[3.6rem] w-[3.6rem] object-contain"
+                  className={item.path === '/feed'
+                    ? 'h-[4.25rem] w-[4.25rem] max-w-none object-contain'
+                    : 'h-[3.6rem] w-[3.6rem] object-contain'}
                   draggable={false}
                   src={active ? item.activeIcon : item.icon}
                 />

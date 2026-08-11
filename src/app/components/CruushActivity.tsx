@@ -18,6 +18,7 @@ import { addCruushChangedListener } from '../lib/cruushEvents';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
 
@@ -425,30 +426,35 @@ export default function CruushActivity() {
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
         <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-2xl space-y-4">
-            <div className="grid grid-cols-[44px_1fr_44px] items-center gap-2">
-              <Button
-                type="button"
-                size="icon"
-                className="rounded-full text-white"
-                aria-label="New cruush chat"
-                title="New cruush chat"
-                onClick={() => setComposeChooserOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
+            <div className="grid grid-cols-[84px_minmax(0,1fr)_84px] items-center gap-2">
+              <div className="flex items-center justify-start">
+                <Button
+                  type="button"
+                  size="icon"
+                  className="rounded-full text-white"
+                  aria-label="New cruush chat"
+                  title="New cruush chat"
+                  onClick={() => setComposeChooserOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
               <div className="flex justify-center">
                 <h1 className="text-2xl text-white sm:text-3xl">Activity</h1>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="rounded-full text-white/78 hover:bg-white/10"
-                aria-label="Open cruush match settings"
-                onClick={() => navigate('/cruush/settings')}
-              >
-                <CruushIcon name="settings" className="h-5 w-5" />
-              </Button>
+              <div className="flex items-center justify-end gap-2">
+                <div data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full text-white/78 hover:bg-white/10"
+                  aria-label="Open cruush match settings"
+                  onClick={() => navigate('/cruush/settings')}
+                >
+                  <CruushIcon name="settings" className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
 
             <div data-testid="cruush-count-grid" className="grid grid-cols-[repeat(4,minmax(0,1fr))] gap-2">

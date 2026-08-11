@@ -43,6 +43,7 @@ describe('BottomNav', () => {
     );
 
     expect(screen.getByRole('button', { name: /map/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /feed/i })).toHaveAttribute('data-tutorial-target', 'feed');
     expect(screen.queryByText('Map')).not.toBeInTheDocument();
     expect(screen.queryByText('Feed')).not.toBeInTheDocument();
     expect(screen.queryByText('cruush')).not.toBeInTheDocument();
@@ -113,17 +114,17 @@ describe('BottomNav', () => {
     );
 
     const activeButton = screen.getByRole('button', { name: /feed/i });
-    const activeIcon = activeButton.querySelector('img');
+    const mapIcon = screen.getByRole('button', { name: /map/i }).querySelector('img');
     const buttons = screen.getAllByRole('button');
 
     expect(activeButton).toHaveClass('items-center', 'justify-center', 'h-[3.75rem]', 'w-[3.75rem]');
-    expect(activeIcon).toHaveClass('h-[3.6rem]', 'w-[3.6rem]', 'object-contain');
+    expect(mapIcon).toHaveClass('h-[3.6rem]', 'w-[3.6rem]', 'object-contain');
     buttons.forEach((button) => {
       expect(button).toHaveClass('h-[3.75rem]', 'w-[3.75rem]', 'min-w-0');
     });
   });
 
-  it('uses colored icons for the current page and white icons for inactive pages', () => {
+  it('uses a larger Feed glyph without resizing its navigation button', () => {
     render(
       <MemoryRouter initialEntries={['/feed']}>
         <BottomNav />
@@ -131,10 +132,40 @@ describe('BottomNav', () => {
     );
 
     const activeFeedIcon = screen.getByRole('button', { name: /feed/i }).querySelector('img');
-    const inactiveMapIcon = screen.getByRole('button', { name: /map/i }).querySelector('img');
+    expect(activeFeedIcon?.getAttribute('src')).toContain('cruush-colored');
+    expect(activeFeedIcon).toHaveClass('h-[4.25rem]', 'w-[4.25rem]', 'max-w-none', 'object-contain');
+    expect(screen.getByRole('button', { name: /feed/i })).toHaveClass('h-[3.75rem]', 'w-[3.75rem]');
+  });
 
-    expect(activeFeedIcon?.getAttribute('src')).toContain('feed-colored');
-    expect(inactiveMapIcon?.getAttribute('src')).toContain('map-white');
+  it('uses the notch-free cruush logo in white when inactive and its gradient with white text when active', () => {
+    const inactiveRender = render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const inactiveLogo = screen.getByRole('button', { name: /^cruush$/i }).querySelector('img');
+
+    expect(inactiveLogo?.getAttribute('src')).toContain('cruush-logo.svg');
+    expect(inactiveLogo).toHaveAttribute('data-tone', 'white');
+    expect(inactiveLogo).toHaveClass('h-12', 'w-12', 'object-contain', 'brightness-0', 'invert');
+
+    inactiveRender.unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/cruush']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    const activeButton = screen.getByRole('button', { name: /^cruush$/i });
+    const activeLogo = activeButton.querySelector('img');
+
+    expect(activeButton).toHaveAttribute('aria-current', 'page');
+    expect(activeLogo?.getAttribute('src')).toContain('cruush-logo.svg');
+    expect(activeLogo).toHaveAttribute('data-tone', 'gradient-white-wordmark');
+    expect(activeLogo).toHaveClass('h-12', 'w-12', 'object-contain');
+    expect(activeLogo).not.toHaveClass('brightness-0', 'invert');
   });
 
   it('uses the selected V2 humanity profile mark in white while inactive', () => {

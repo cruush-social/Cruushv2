@@ -11,6 +11,8 @@ const preferences: NotificationPreferences = {
   cruushEnabled: true,
   messagesEnabled: true,
   groupsEnabled: true,
+  nearbyEnabled: true,
+  rewardsEnabled: true,
   soundEnabled: true,
 };
 
@@ -32,6 +34,13 @@ describe('ForegroundNotifications behavior', () => {
   it('honors existing message preferences', () => {
     expect(isNotificationTypeEnabled(preferences, 'direct_message')).toBe(true);
     expect(isNotificationTypeEnabled({ ...preferences, messagesEnabled: false }, 'direct_message')).toBe(false);
+  });
+
+  it('honors nearby and reward preferences', () => {
+    expect(isNotificationTypeEnabled(preferences, 'nearby_activity')).toBe(true);
+    expect(isNotificationTypeEnabled({ ...preferences, nearbyEnabled: false }, 'nearby_activity')).toBe(false);
+    expect(isNotificationTypeEnabled(preferences, 'reward')).toBe(true);
+    expect(isNotificationTypeEnabled({ ...preferences, rewardsEnabled: false }, 'reward')).toBe(false);
   });
 
   it('suppresses sound inside the active conversation only', () => {

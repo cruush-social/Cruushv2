@@ -19,6 +19,22 @@ Checks for tracked env files, private key material, known token patterns, and se
 npm run security:check
 ```
 
+## `run-regression-gates.mjs`
+
+Runs the mandatory local release gate: product casing, copy, security, layout,
+all frontend tests and build, all server tests and build, and whitespace checks.
+Both release helpers invoke this command and do not provide a skip flag.
+
+```bash
+pnpm regression:gate
+```
+
+GitHub Actions adds two checks that need dedicated infrastructure: real
+PostgreSQL migration, reward, and account-deletion integrity tests; and mobile
+Chromium interaction tests for map menus, pin gestures, Ghost/DL rendering,
+Ping, and navigation. A local pass does not replace those required checks or
+live-flow verification.
+
 ## `release-main-coolify.mjs`
 
 Pushes a reviewed branch to `origin/main`, sets the Coolify app branch to `main`, applies the launch runtime envs, triggers Coolify deployments, and smokes the public URLs.

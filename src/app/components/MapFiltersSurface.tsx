@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { Slider } from './ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect, { type MultiSelectOptionGroup } from './MultiSelect';
+import CruushPlusGateNotice from './CruushPlusGateNotice';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -71,6 +72,8 @@ interface MapFiltersSurfaceProps {
   onClear: () => void;
   onApply: () => void;
   onMutualCruushesOnlyChange?: (enabled: boolean) => void;
+  hasCruushPlus?: boolean;
+  onUpgrade?: () => void;
 }
 
 type MultiSelectKey = Exclude<keyof FilterState, 'ageRange' | 'distance'>;
@@ -123,6 +126,8 @@ export default function MapFiltersSurface({
   onClear,
   onApply,
   onMutualCruushesOnlyChange,
+  hasCruushPlus = false,
+  onUpgrade,
 }: MapFiltersSurfaceProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -133,6 +138,14 @@ export default function MapFiltersSurface({
         </SheetHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {!hasCruushPlus && onUpgrade ? (
+            <div className="mb-5">
+              <CruushPlusGateNotice
+                description="Basic includes up to 3 seeking filter categories."
+                onUpgrade={onUpgrade}
+              />
+            </div>
+          ) : null}
           {onMutualCruushesOnlyChange ? (
             <button
               type="button"

@@ -29,6 +29,8 @@ const notificationPreferencesPayloadSchema = z.object({
   cruushEnabled: z.boolean().optional(),
   messagesEnabled: z.boolean().optional(),
   groupsEnabled: z.boolean().optional(),
+  nearbyEnabled: z.boolean().optional(),
+  rewardsEnabled: z.boolean().optional(),
   soundEnabled: z.boolean().optional()
 }).strict();
 

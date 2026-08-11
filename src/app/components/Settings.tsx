@@ -22,7 +22,7 @@ import {
 } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { CruushIcon, type CruushIconName } from './CruushIconImage';
+import { CruushIcon, type CruushIconName, type CruushIconVariant } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changePassword, deleteAccount, sendVerificationEmail, signOut } from '../lib/authApi';
@@ -39,6 +39,7 @@ import {
 type SettingsItem = {
   icon?: LucideIcon;
   iconName?: CruushIconName;
+  iconVariant?: CruushIconVariant;
   label: ReactNode;
   description?: string;
   action: () => void;
@@ -182,7 +183,7 @@ export default function Settings() {
     {
       title: 'Account',
       items: [
-        { iconName: 'profile' as const, label: 'Edit Profile', action: () => navigate('/profile/edit') },
+        { iconName: 'profile' as const, iconVariant: 'gradient', label: 'Edit Profile', action: () => navigate('/profile/edit') },
         {
           icon: Gift,
           label: <>Rewards & <CruushPlusWord /></>,
@@ -373,7 +374,11 @@ export default function Settings() {
                     }`}
                   >
                     {'iconName' in item ? (
-                      <CruushIcon name={item.iconName as CruushIconName} className="h-5 w-5 opacity-65" />
+                      <CruushIcon
+                        name={item.iconName as CruushIconName}
+                        className={item.iconVariant === 'gradient' ? 'h-5 w-5' : 'h-5 w-5 opacity-65'}
+                        variant={item.iconVariant ?? 'white'}
+                      />
                     ) : Icon ? (
                       <Icon className={`w-5 h-5 ${item.destructive ? '' : 'text-muted-foreground'}`} />
                     ) : null}

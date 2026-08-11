@@ -23,6 +23,7 @@ import {
   VIBE_GROUPS,
 } from '../lib/profileOptions';
 import { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
+import CruushPlusGateNotice from './CruushPlusGateNotice';
 
 export interface VisibilityControlState extends FilterState {
   activeCrowdModes: string[];
@@ -51,6 +52,7 @@ interface MapVisibilitySurfaceProps {
   onChange: (value: VisibilityControlState) => void;
   onClear: () => void;
   onApply: () => void;
+  onUpgrade?: () => void;
 }
 
 type VisibilityListKey = Exclude<keyof VisibilityControlState, 'ageRange' | 'distance' | 'activeCrowdModes' | 'restrictAge' | 'restrictDistance'>;
@@ -146,6 +148,7 @@ export default function MapVisibilitySurface({
   onChange,
   onClear,
   onApply,
+  onUpgrade,
 }: MapVisibilitySurfaceProps) {
   const visibleCrowdModes = availableCrowdModes.length > 0 ? availableCrowdModes : [];
   const [limitNotice, setLimitNotice] = useState<string | null>(null);
@@ -192,13 +195,20 @@ export default function MapVisibilitySurface({
             </p>
           </div>
 
+          {!hasCruushPlus && onUpgrade ? (
+            <CruushPlusGateNotice
+              description="Basic includes up to 3 hidden filters."
+              onUpgrade={onUpgrade}
+            />
+          ) : null}
+
           {limitNotice ? (
             <div className="rounded-md border border-primary/25 bg-primary/10 p-3 text-sm text-primary">
               {limitNotice}
             </div>
           ) : null}
 
-          <div className="space-y-2">
+          <div className="space-y-2" data-testid="crowd-mode-tutorial-target" data-tutorial-target="crowds">
             <Label>Crowd Mode</Label>
             {visibleCrowdModes.length > 0 ? (
               <div className="grid gap-2 sm:grid-cols-3">

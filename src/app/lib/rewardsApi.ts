@@ -51,6 +51,14 @@ export type PromotionalClaim = {
   grant: RewardGrant | null;
 };
 
+export type DailyRewardCheckIn = {
+  credited: boolean;
+  activityDate: string;
+  timezone: string;
+  currentStreak: number;
+  grants: RewardGrant[];
+};
+
 export type TwoFactorStatus = {
   enabled: boolean;
   enabledAt: string | null;
@@ -71,6 +79,12 @@ export function updateRewardTimezone(timezone: string) {
   return requestApi<{ timezone: string }>('/api/rewards/timezone', {
     method: 'PUT',
     body: JSON.stringify({ timezone }),
+  });
+}
+
+export function recordDailyRewardCheckIn() {
+  return requestApi<DailyRewardCheckIn>('/api/rewards/check-in', {
+    method: 'POST',
   });
 }
 

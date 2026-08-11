@@ -37,6 +37,16 @@ function preferenceRows(preferences: NotificationPreferences) {
       label: 'Group alerts',
       checked: preferences.groupsEnabled,
     },
+    {
+      key: 'nearbyEnabled' as const,
+      label: 'Nearby people',
+      checked: preferences.nearbyEnabled,
+    },
+    {
+      key: 'rewardsEnabled' as const,
+      label: 'Reward updates',
+      checked: preferences.rewardsEnabled,
+    },
   ];
 }
 

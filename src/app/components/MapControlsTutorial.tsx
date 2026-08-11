@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from './ui/button';
 
-export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v3-seen';
+export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v4-seen';
 export const MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT = 'cruush:map-controls-tutorial-completed';
 
 export function notifyMapControlsTutorialCompleted() {
@@ -10,7 +10,7 @@ export function notifyMapControlsTutorialCompleted() {
   }
 }
 
-export type MapControlsTutorialStepId = 'install' | 'notifications' | 'seeking' | 'visibility' | 'dl-mode' | 'ping' | 'zoom';
+export type MapControlsTutorialStepId = 'install' | 'notifications' | 'seeking' | 'visibility' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'zoom' | 'feed';
 
 type TutorialStep = {
   id: MapControlsTutorialStepId;
@@ -48,6 +48,18 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     actionLabel: 'Open Visibility',
   },
   {
+    id: 'crowds',
+    title: 'Crowd Mode',
+    description: 'Crowd Mode is part of Visibility. Choose active crowds when you want only people in those crowds to see you.',
+    actionLabel: 'Open Crowd Mode',
+  },
+  {
+    id: 'ghost',
+    title: 'Ghost Mode',
+    description: 'Ghost Mode shifts your public map location to protect your privacy. Open its settings to choose how your presence appears.',
+    actionLabel: 'Open Ghost Mode',
+  },
+  {
     id: 'dl-mode',
     title: 'DL Mode',
     description: 'DL Mode is on by default. It replaces explicit or NSFW photos with gradients; non-explicit photos stay visible. Use the highlighted mask to turn it on or off.',
@@ -64,6 +76,12 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Zoom',
     description: 'Use these controls to zoom in for a closer look or zoom out to see more of the map. The highlighted controls are the real controls.',
     actionLabel: 'Zoom in',
+  },
+  {
+    id: 'feed',
+    title: 'Feed',
+    description: 'With cruush+, use Feed to share a post with people nearby. Start with a short signal, question, or invitation.',
+    actionLabel: 'Open Feed',
   },
 ];
 

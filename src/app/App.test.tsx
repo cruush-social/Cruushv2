@@ -1,16 +1,23 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
-const { loadCurrentSession, persistSessionUser, routeModuleLoads } = vi.hoisted(() => ({
+const { loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
   loadCurrentSession: vi.fn(),
   persistSessionUser: vi.fn(),
+  recordDailyRewardCheckIn: vi.fn(),
+  updateRewardTimezone: vi.fn(),
   routeModuleLoads: [] as string[],
 }));
 
 vi.mock('./lib/sessionUser', () => ({
   loadCurrentSession,
   persistSessionUser,
+}));
+
+vi.mock('./lib/rewardsApi', () => ({
+  recordDailyRewardCheckIn,
+  updateRewardTimezone,
 }));
 
 vi.mock('./components/MapHome', () => {
@@ -236,6 +243,10 @@ describe('App', () => {
     window.history.replaceState({}, '', '/');
     loadCurrentSession.mockReset();
     persistSessionUser.mockReset();
+    recordDailyRewardCheckIn.mockReset();
+    recordDailyRewardCheckIn.mockResolvedValue({ credited: false, grants: [] });
+    updateRewardTimezone.mockReset();
+    updateRewardTimezone.mockResolvedValue({ timezone: 'America/New_York' });
   });
 
   it('does not load signed-in route modules before signed-out users authenticate', async () => {
@@ -250,6 +261,7 @@ describe('App', () => {
       'ProfileView',
       'ProfileEdit',
     ]));
+    expect(recordDailyRewardCheckIn).not.toHaveBeenCalled();
   });
 
   it('renders public info pages before authentication', async () => {
@@ -282,6 +294,33 @@ describe('App', () => {
 
     expect(await screen.findByText('Mock Map')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Bottom Navigation' })).toBeInTheDocument();
+  });
+
+  it('records one daily reward check-in after a verified session loads', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Map')).toBeInTheDocument();
+    await waitFor(() => expect(recordDailyRewardCheckIn).toHaveBeenCalledTimes(1));
+    expect(updateRewardTimezone).toHaveBeenCalledTimes(1);
+    expect(updateRewardTimezone.mock.invocationCallOrder[0]).toBeLessThan(
+      recordDailyRewardCheckIn.mock.invocationCallOrder[0],
+    );
   });
 
   it('shows the bug button for signed-in users outside active alpha testing', async () => {

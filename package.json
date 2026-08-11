@@ -16,6 +16,7 @@
     "smoke:profile-photo": "node scripts/smoke-real-profile-photo-upload.mjs",
     "security:check": "bash scripts/security-check.sh",
     "check:cruush-casing": "node scripts/check-cruush-casing.mjs",
+    "regression:gate": "node scripts/run-regression-gates.mjs",
     "ship": "node scripts/ship.mjs",
     "check:copy": "node scripts/check-lowercase-cruush.mjs",
     "check:layout": "node scripts/check-layout-invariants.mjs",
@@ -24,6 +25,7 @@
     "pretest": "node scripts/check-cruush-casing.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:regression:browser": "playwright test --config playwright.regression.config.ts",
     "test:release-coolify": "npm --prefix server run test:release-coolify",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "smoke": "pnpm test:smoke && pnpm --dir server test:smoke"

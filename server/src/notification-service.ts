@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { AppConfig } from "./config.js";
 import type { DbClient } from "./db.js";
-import { sendPushForNotification } from "./push-service.js";
+import { getVapidPublicKey, sendPushForNotification } from "./push-service.js";
 
 export type AppNotificationType =
   | "incoming_cruush"
@@ -172,6 +172,48 @@ export async function createAppNotificationAndPush(
   }
 
   return notification;
+}
+
+export async function sendPushForPersistedNotification(
+  app: NotificationApp,
+  input: { userId: string; dedupeKey: string }
+) {
+  if (!getVapidPublicKey(app.config).enabled) {
+    return false;
+  }
+
+  try {
+    const result = await app.db.query<AppNotificationRow>(
+      `select
+         id::text as id,
+         user_id::text as user_id,
+         type,
+         title,
+         body,
+         link_url,
+         actor_user_id::text as actor_user_id,
+         conversation_id::text as conversation_id,
+         metadata,
+         read_at,
+         created_at
+       from app_notifications
+       where user_id = $1
+         and dedupe_key = $2
+       limit 1`,
+      [input.userId, input.dedupeKey]
+    );
+    const row = result.rows[0];
+
+    if (!row) {
+      return false;
+    }
+
+    await sendPushForNotification(app, mapNotificationRow(row));
+    return true;
+  } catch (error) {
+    app.log.warn({ err: error, userId: input.userId }, "persisted notification push dispatch failed");
+    return false;
+  }
 }
 
 export async function getNotificationSummary(app: NotificationApp, userId: string): Promise<NotificationSummary> {

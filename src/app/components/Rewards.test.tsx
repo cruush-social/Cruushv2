@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import Rewards from './Rewards';
@@ -8,6 +8,7 @@ const api = vi.hoisted(() => ({
   disableTwoFactor: vi.fn(),
   getRewardSummary: vi.fn(),
   getTwoFactorStatus: vi.fn(),
+  recordDailyRewardCheckIn: vi.fn(),
   regenerateTwoFactorRecoveryCodes: vi.fn(),
   startTwoFactorSetup: vi.fn(),
   updateRewardTimezone: vi.fn(),
@@ -49,7 +50,7 @@ const summary = {
   timezone: 'America/Chicago',
   rules: {
     recurringStreakDays: 7,
-    recurringStreakRewardDays: 7,
+    recurringStreakRewardDays: 1,
     longStreakDays: 1,
     longStreakBonusDays: 1,
     referralRewardDays: 7,
@@ -71,6 +72,7 @@ describe('Rewards', () => {
     Object.values(api).forEach((mock) => mock.mockReset());
     toastSuccess.mockReset();
     api.updateRewardTimezone.mockResolvedValue({ timezone: 'America/Chicago' });
+    api.recordDailyRewardCheckIn.mockResolvedValue({ credited: true, grants: [] });
     api.getRewardSummary.mockResolvedValue(summary);
     api.getTwoFactorStatus.mockResolvedValue({
       enabled: false,
@@ -94,12 +96,44 @@ describe('Rewards', () => {
     resolveSummary(summary);
 
     expect(await screen.findByText('6-day streak')).toBeInTheDocument();
-    expect(screen.getByText('Opening the app or logging in alone does not count.', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('Next 7-day reward')).toBeInTheDocument();
-    expect(screen.getByText('7 days each time')).toBeInTheDocument();
+    expect(screen.getByText('Check in once a day.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('Next check-in reward')).toBeInTheDocument();
+    expect(screen.getByText('1 day each time')).toBeInTheDocument();
+    expect(screen.getByText(
+      'Every 7 consecutive check-in days earns 1 day of cruush+.',
+      { exact: false },
+    )).toBeInTheDocument();
+    expect(screen.getByText('Multiple visits on the same day count once.', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('Miss a day and your streak restarts.', { exact: false })).toBeInTheDocument();
+    expect(api.recordDailyRewardCheckIn).toHaveBeenCalledTimes(1);
+    expect(api.recordDailyRewardCheckIn.mock.invocationCallOrder[0]).toBeLessThan(
+      api.getRewardSummary.mock.invocationCallOrder[0],
+    );
+    expect(screen.queryByText(/the next reward takes eight days/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Real activity. Real referrals. No spam.')).not.toBeInTheDocument();
     expect(screen.getByText('Your first confirmed reward will appear here.')).toBeInTheDocument();
     expect(screen.getByDisplayValue(summary.referrals.link)).toHaveAttribute('readonly');
+    expect(screen.getByText(/You receive 7/)).toHaveTextContent(
+      'You receive 7 cruush+ days once they verify 2FA.',
+    );
+    expect(screen.queryByText(/days old/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/complete their profile/i)).not.toBeInTheDocument();
+  });
+
+  it('explains every user-accessible cruush+ feature', async () => {
+    renderRewards();
+    await screen.findByText('6-day streak');
+
+    const featureList = screen.getByRole('list', { name: 'cruush+ features' });
+    expect(within(featureList).getAllByRole('listitem')).toHaveLength(7);
+    expect(within(featureList).getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
+    expect(within(featureList).getByText('Send up to 3 Pings every 24 hours, with 4 hours between sends.')).toBeInTheDocument();
+    expect(within(featureList).getByText('Create posts on the local feed. Free users can still read nearby posts.')).toBeInTheDocument();
+    expect(within(featureList).getByText('Spin through nearby profiles and browse again.')).toBeInTheDocument();
+    expect(within(featureList).getByText('Use more than 3 seeking filter categories at once.')).toBeInTheDocument();
+    expect(within(featureList).getByText('Use more than 3 hidden filters at once.')).toBeInTheDocument();
+    expect(within(featureList).getByText('Browse the map without appearing on it.')).toBeInTheDocument();
+    expect(within(featureList).queryByText(/precise sharing|saved visibility sets|founder/i)).not.toBeInTheDocument();
   });
 
   it('renders a recoverable error state', async () => {
@@ -108,6 +142,7 @@ describe('Rewards', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Rewards are temporarily unavailable.');
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'cruush+ features' })).toBeInTheDocument();
   });
 
   it('copies the referral link only after the backend summary confirms it', async () => {

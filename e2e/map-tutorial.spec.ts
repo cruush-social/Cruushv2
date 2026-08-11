@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
-const tutorialStorageKey = 'cruush:tutorial-v3-seen';
+const tutorialStorageKey = 'cruush:tutorial-v4-seen';
 const firstFeedPostStorageKeyPrefix = 'cruush:first-feed-post-prompt-seen:';
 const releaseViewports = [
   { width: 375, height: 812 },
@@ -84,7 +84,7 @@ test.describe('authenticated map tutorial', () => {
           window.localStorage.removeItem(key);
         }
       }
-      window.localStorage.removeItem('cruush:tutorial-v3-seen');
+      window.localStorage.removeItem('cruush:tutorial-v4-seen');
     }, firstFeedPostStorageKeyPrefix);
 
     await page.route('**/api/users/me/notices/**', async (route) => {
@@ -130,7 +130,7 @@ test.describe('authenticated map tutorial', () => {
     });
 
     await page.goto('/map');
-    await page.context().clearCookies({ name: 'cruush_tutorial-v3-seen' });
+    await page.context().clearCookies({ name: 'cruush_tutorial-v4-seen' });
     await page.context().clearCookies({ name: /^cruush_first-feed-post-prompt-seen_/ });
     await page.evaluate((key) => localStorage.removeItem(key), tutorialStorageKey);
     await retryLocalNavigation(() => page.goto('/map'));
@@ -160,7 +160,13 @@ test.describe('authenticated map tutorial', () => {
     await tutorial.getByRole('button', { name: 'Next' }).click();
 
     await expect(tutorial).toContainText('Notifications');
-    await captureTutorialStateAcrossReleaseViewports(page, testInfo, 'notifications');
+    await expect(page.locator('[data-tutorial-target="notifications"]')).toBeVisible();
+    await captureTutorialStateAcrossReleaseViewports(
+      page,
+      testInfo,
+      'notifications',
+      '[data-tutorial-target="notifications"]',
+    );
     await tutorial.getByTestId('tutorial-skip-step').click();
 
     await expect(tutorial).toContainText('Seeking');
@@ -189,6 +195,29 @@ test.describe('authenticated map tutorial', () => {
     await tutorial.getByTestId('tutorial-try-step').click();
     await expect(page.getByRole('dialog', { name: 'Visibility' })).toBeVisible();
     await page.keyboard.press('Escape');
+    await tutorial.getByTestId('tutorial-next').click();
+
+    await expect(tutorial).toContainText('Crowd Mode');
+    await tutorial.getByTestId('tutorial-try-step').click();
+    await expect(page.getByRole('dialog', { name: 'Visibility' })).toBeVisible();
+    await expect(page.locator('[data-tutorial-target="crowds"]')).toBeVisible();
+    await captureTutorialStateAcrossReleaseViewports(
+      page,
+      testInfo,
+      'crowds',
+      '[data-tutorial-target="crowds"]',
+    );
+    await page.keyboard.press('Escape');
+    await tutorial.getByTestId('tutorial-next').click();
+
+    await expect(tutorial).toContainText('Ghost Mode');
+    await expect(page.locator('[data-tutorial-target="ghost"]')).toBeVisible();
+    await captureTutorialStateAcrossReleaseViewports(
+      page,
+      testInfo,
+      'ghost',
+      '[data-tutorial-target="ghost"]',
+    );
     await tutorial.getByTestId('tutorial-next').click();
 
     await expect(tutorial).toContainText('DL Mode');
@@ -229,6 +258,17 @@ test.describe('authenticated map tutorial', () => {
     );
     await expect(page.getByRole('button', { name: 'Zoom in on map' })).toBeEnabled();
     await tutorial.getByTestId('tutorial-try-step').click();
+    await tutorial.getByTestId('tutorial-next').click();
+
+    await expect(tutorial).toContainText('Feed');
+    await expect(tutorial).toContainText('start with a short signal, question, or invitation');
+    await expect(page.locator('[data-tutorial-target="feed"]')).toBeVisible();
+    await captureTutorialStateAcrossReleaseViewports(
+      page,
+      testInfo,
+      'feed',
+      '[data-tutorial-target="feed"]',
+    );
     await tutorial.getByTestId('tutorial-next').click();
 
     await expect(tutorial).toBeHidden();

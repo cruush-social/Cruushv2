@@ -114,10 +114,15 @@ export default function MultiSelect({
       const rect = triggerRef.current.getBoundingClientRect();
       const bottomSpace = window.innerHeight - rect.bottom - MENU_VIEWPORT_PADDING - MENU_OFFSET;
       const topSpace = rect.top - MENU_VIEWPORT_PADDING - MENU_OFFSET;
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+      const useMobileSheetWidth = viewportWidth < MENU_MOBILE_BREAKPOINT;
       const placeAbove = menuPlacement === 'top' || (
         menuPlacement === 'bottom' &&
-        bottomSpace < MENU_FLIP_THRESHOLD &&
-        topSpace > bottomSpace
+        topSpace > bottomSpace &&
+        (
+          bottomSpace < MENU_FLIP_THRESHOLD ||
+          (menuPortal && useMobileSheetWidth && bottomSpace < MENU_MAX_HEIGHT)
+        )
       );
       const availableHeight = Math.max(0, placeAbove ? topSpace : bottomSpace);
       const maxHeight = Math.max(MENU_MIN_HEIGHT, Math.min(MENU_MAX_HEIGHT, availableHeight));
@@ -129,9 +134,7 @@ export default function MultiSelect({
         return;
       }
 
-      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
       const availableWidth = Math.max(0, viewportWidth - MENU_VIEWPORT_PADDING * 2);
-      const useMobileSheetWidth = viewportWidth < MENU_MOBILE_BREAKPOINT;
       const width = useMobileSheetWidth ? availableWidth : Math.min(rect.width, availableWidth);
       const left = useMobileSheetWidth
         ? MENU_VIEWPORT_PADDING
@@ -316,7 +319,7 @@ export default function MultiSelect({
           <div
             ref={portalMenuRef}
             className="overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg"
-            style={{ ...portalStyle, zIndex: MENU_PORTAL_Z_INDEX + 1 }}
+            style={{ ...portalStyle, pointerEvents: 'auto', zIndex: MENU_PORTAL_Z_INDEX + 1 }}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}

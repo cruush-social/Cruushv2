@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { AppConfig } from "./config.js";
 import type { DbClient, DbQueryResult } from "./db.js";
@@ -7,29 +7,41 @@ import {
   qualifyPendingReferrals
 } from "./referrals-service.js";
 
+const { sendNotification, setVapidDetails } = vi.hoisted(() => ({
+  sendNotification: vi.fn(),
+  setVapidDetails: vi.fn()
+}));
+
+vi.mock("web-push", () => ({
+  default: { sendNotification, setVapidDetails },
+  sendNotification,
+  setVapidDetails
+}));
+
 const referralId = "76b226e8-01f1-4232-bccc-746ddc0dcdf8";
 const referrerId = "8b2f51cf-65e2-4cb3-b09b-c8cc3e3bbb21";
 const referredId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
 
 class ReferralTestDb implements DbClient {
   status = "pending";
-  oldEnough = true;
   twoFactorEnabled = true;
   accountStatus = "active";
   trustSuspended = false;
   activeSuspension = false;
-  profileComplete = true;
   rewardGrantCount = 0;
   trustEventCount = 0;
   activeUntil: Date | null = null;
+  notifications: Array<Record<string, unknown>> = [];
+  queries: string[] = [];
 
   async query<T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<DbQueryResult<T>> {
     const sql = text.replace(/\s+/g, " ").trim();
+    this.queries.push(sql);
     let rows: unknown[] = [];
 
     if (sql.includes("from reward_settings")) {
       rows = [];
-    } else if (sql.includes("from referrals") && sql.includes("created_at <=") && sql.includes("limit $2")) {
+    } else if (sql.includes("from referrals") && sql.includes("where status = 'pending'") && sql.includes("limit $2")) {
       rows = this.status === "pending"
         ? [{ id: referralId, referrer_user_id: referrerId, referred_user_id: referredId }]
         : [];
@@ -40,36 +52,13 @@ class ReferralTestDb implements DbClient {
         referred_user_id: referredId,
         status: this.status
       }];
-    } else if (sql.includes("as old_enough") && sql.includes("two_factor_enabled")) {
+    } else if (sql.includes("as two_factor_enabled") && sql.includes("from app_users app_user")) {
       rows = [{
         account_status: this.accountStatus,
-        old_enough: this.oldEnough,
         two_factor_enabled: this.twoFactorEnabled,
         trust_suspended: this.trustSuspended,
         has_active_suspension: this.activeSuspension
       }];
-    } else if (sql.includes("from profiles") && sql.includes("display_name")) {
-      rows = this.profileComplete
-        ? [{
-            display_name: "Referral",
-            year_of_birth: 1990,
-            bio: "Complete profile",
-            pronouns: ["they"],
-            identities: ["queer"],
-            looking_for: ["dates"],
-            vibes: ["social"],
-            photos: []
-          }]
-        : [{
-            display_name: "Referral",
-            year_of_birth: 1990,
-            bio: "",
-            pronouns: [],
-            identities: [],
-            looking_for: [],
-            vibes: [],
-            photos: []
-          }];
     } else if (sql.includes("set status = 'rejected'")) {
       this.status = "rejected";
     } else if (sql.includes("set status = 'flagged'")) {
@@ -103,6 +92,42 @@ class ReferralTestDb implements DbClient {
       }];
     } else if (sql.includes("set active_until = greatest")) {
       this.activeUntil = new Date(Date.now() + Number(params[1]) * 1000);
+    } else if (sql.includes("insert into app_notifications")) {
+      this.notifications.push({
+        id: `notification-${this.notifications.length + 1}`,
+        user_id: params[0],
+        type: "reward",
+        title: "cruush+ reward earned",
+        body: params[1],
+        link_url: "/rewards",
+        actor_user_id: null,
+        conversation_id: null,
+        dedupe_key: params[2],
+        metadata: params[3],
+        read_at: null,
+        created_at: new Date()
+      });
+    } else if (sql.includes("from app_notifications") && sql.includes("dedupe_key = $2")) {
+      rows = this.notifications.filter((notification) =>
+        notification.user_id === params[0] && notification.dedupe_key === params[1]
+      );
+    } else if (sql.includes("from notification_preferences")) {
+      rows = [{
+        push_enabled: true,
+        cruush_enabled: true,
+        messages_enabled: true,
+        groups_enabled: true,
+        nearby_enabled: true,
+        rewards_enabled: true,
+        sound_enabled: true
+      }];
+    } else if (sql.includes("from push_subscriptions")) {
+      rows = [{
+        id: "push-sub-1",
+        endpoint: "https://push.example/sub",
+        p256dh: "p256dh-key",
+        auth: "auth-key"
+      }];
     } else if (sql.includes("event_type = 'qualified_referral'")) {
       rows = [{ total: this.trustEventCount }];
     } else if (sql.includes("insert into trust_events")) {
@@ -121,41 +146,62 @@ class ReferralTestDb implements DbClient {
   }
 }
 
-function qualificationApp(db: ReferralTestDb) {
+function qualificationApp(db: ReferralTestDb, pushEnabled = false) {
   return {
     db,
     config: {
       SESSION_SECRET: "test-session-secret",
-      APP_URL: "https://cruush.test"
+      APP_URL: "https://cruush.test",
+      WEB_PUSH_ENABLED: pushEnabled,
+      WEB_PUSH_VAPID_PUBLIC_KEY: pushEnabled ? "public-key" : "",
+      WEB_PUSH_VAPID_PRIVATE_KEY: pushEnabled ? "private-key" : "",
+      WEB_PUSH_SUBJECT: "mailto:hello@cruush.test"
     } as AppConfig,
     log: {
       info: vi.fn(),
-      error: vi.fn()
+      error: vi.fn(),
+      warn: vi.fn()
     }
   } as unknown as Pick<FastifyInstance, "db" | "config" | "log">;
 }
 
+afterEach(() => {
+  sendNotification.mockReset();
+  setVapidDetails.mockReset();
+});
+
 describe("referral lifecycle", () => {
-  it("keeps an otherwise valid referral pending before the age threshold", async () => {
+  it("dispatches the referrer's reward push after referral qualification commits", async () => {
     const db = new ReferralTestDb();
-    db.oldEnough = false;
-    const result = await qualifyPendingReferrals(qualificationApp(db));
-    expect(result.pending).toBe(1);
-    expect(db.status).toBe("pending");
-    expect(db.rewardGrantCount).toBe(0);
+    sendNotification.mockResolvedValueOnce(undefined);
+
+    await qualifyPendingReferrals(qualificationApp(db, true));
+
+    expect(sendNotification).toHaveBeenCalledOnce();
+    expect(db.queries.some((sql) => sql.includes("from app_notifications") && sql.includes("dedupe_key = $2"))).toBe(true);
   });
 
-  it("requires both 2FA and reusable profile-completion rules", async () => {
+  it("qualifies an otherwise valid referral without an account-age delay", async () => {
+    const db = new ReferralTestDb();
+    const result = await qualifyPendingReferrals(qualificationApp(db));
+    expect(result.rewarded).toBe(1);
+    expect(db.status).toBe("rewarded");
+    expect(db.rewardGrantCount).toBe(1);
+    expect(db.queries.find((sql) => sql.includes("where status = 'pending'"))).not.toContain("created_at <=");
+    expect(db.queries.find((sql) => sql.includes("as two_factor_enabled"))).not.toContain("old_enough");
+  });
+
+  it("requires 2FA but does not delay a valid referral for profile completion", async () => {
     const withoutTwoFactor = new ReferralTestDb();
     withoutTwoFactor.twoFactorEnabled = false;
     await qualifyPendingReferrals(qualificationApp(withoutTwoFactor));
     expect(withoutTwoFactor.status).toBe("pending");
 
-    const incompleteProfile = new ReferralTestDb();
-    incompleteProfile.profileComplete = false;
-    await qualifyPendingReferrals(qualificationApp(incompleteProfile));
-    expect(incompleteProfile.status).toBe("pending");
-    expect(incompleteProfile.rewardGrantCount).toBe(0);
+    const noProfileDelay = new ReferralTestDb();
+    const result = await qualifyPendingReferrals(qualificationApp(noProfileDelay));
+    expect(result.rewarded).toBe(1);
+    expect(noProfileDelay.status).toBe("rewarded");
+    expect(noProfileDelay.queries.some((sql) => sql.includes("from profiles"))).toBe(false);
   });
 
   it("rejects banned or suspended accounts and flags accounts under review", async () => {

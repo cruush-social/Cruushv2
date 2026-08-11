@@ -371,6 +371,11 @@ describe('ProfileOnboarding', () => {
 
     expect(await screen.findByText('summon your circle')).toBeInTheDocument();
     expect(await screen.findByLabelText('Affiliate link')).toHaveValue(rewardSummary.referrals.link);
+    expect(screen.getByText(/You get 7/)).toHaveTextContent(
+      'You get 7 cruush+ days after a trusted invite verifies 2FA.',
+    );
+    expect(screen.queryByText(/days old/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/complete their profile/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /share to contacts/i }));
 

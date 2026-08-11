@@ -38,7 +38,6 @@ import {
   type MapPingRadiusMiles,
   type MapPingStatus,
 } from '../lib/mapPingsApi';
-import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
   emptyProfilePayload,
   getMyProfile,
@@ -293,6 +292,7 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
     role: [],
     hostingTravel: [],
     photo: item.user.photo,
+    photoExplicit: item.user.photoExplicit === true,
     badges: item.user.badges,
     displayMode: item.coordinates?.precision === 'precise' ? 'PRECISE' : 'GHOST',
     displayExpiresAtMs: item.displayExpiresAtMs,
@@ -499,7 +499,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const routeState = location.state as MapRouteState;
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
   const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
-  const hasCruushPlus = billingStatus?.cruushPlus !== false;
+  const hasCruushPlus = billingStatus?.cruushPlus === true;
 
 
   const syncApproximateMapLocation = (
@@ -591,8 +591,24 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
+    if (step === 'crowds') {
+      setVisibilityError(null);
+      setIsVisibilityOpen(true);
+      return;
+    }
+
+    if (step === 'ghost') {
+      navigate('/privacy/ghost-mode');
+      return;
+    }
+
     if (step === 'dl-mode') {
       handleToggleDlMode();
+      return;
+    }
+
+    if (step === 'feed') {
+      navigate('/feed');
       return;
     }
 
@@ -1575,6 +1591,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       approximateLongitude: currentUserMapLocation.approximateLongitude,
       lastActiveLabel: 'Now',
       photo: currentProfile?.photos[0] ?? null,
+      photoExplicit: currentProfile?.photo_metadata?.[0]?.explicit === true,
       isCurrentUser: true,
       badge: createMapMarkerBadge(currentProfile?.position ?? []),
       displayMode: privacySettings.ghostModeEnabled ? 'GHOST' : 'PRECISE',
@@ -1727,69 +1744,67 @@ export default function MapHome(_props: MapHomeProps = {}) {
         className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
         data-testid="map-top-chrome"
       >
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex w-full items-start gap-2">
           <div
             className="flex min-w-0 shrink-0 flex-col items-center gap-1"
             data-testid="map-beta-stack"
           >
             <h1 className="sr-only">cruush</h1>
-            <img
-              alt=""
-              aria-hidden="true"
-              className="h-14 w-auto shrink-0 object-contain sm:h-16"
-              draggable={false}
-              src={cruushLogo}
-            />
-            <div className="inline-flex max-w-[5.75rem] shrink-0 items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]">
-              {isMutualMapMode ? 'mutual cruushes' : 'nyc open beta'}
+            {isMutualMapMode ? (
+              <div className="inline-flex max-w-[5.75rem] shrink-0 items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]">
+                mutual cruushes
+              </div>
+            ) : null}
+            <div className="flex flex-col items-center gap-1" data-testid="map-plus-stack">
+              <Button
+                type="button"
+                onClick={() => navigate('/rewards')}
+                aria-label="cruush+ rewards"
+                title="cruush+ rewards"
+                className="cruush-logo-font pointer-events-auto h-8 rounded-full px-2 text-sm font-normal leading-none tracking-normal normal-case text-white sm:h-9 sm:px-2.5 sm:text-base"
+                style={{ background: 'var(--cruush-gradient)' }}
+              >
+                <CruushPlusWord />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMapPingSheetOpen(true)}
+                data-testid="map-ping-button"
+                data-tutorial-target="ping"
+                aria-label="Send a Ping"
+                title="Send a Ping"
+                className="pointer-events-auto size-8 rounded-full border border-white/10 bg-background/35 text-white/90 backdrop-blur-md hover:bg-white/10 sm:size-9"
+              >
+                <Radio aria-hidden="true" className="h-5 w-5" />
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setMapPingSheetOpen(true)}
-              data-testid="map-ping-button"
-              data-tutorial-target="ping"
-              aria-label="Send a Ping"
-              title="Send a Ping"
-              className="pointer-events-auto size-8 rounded-full border border-white/10 bg-background/35 text-white/90 backdrop-blur-md hover:bg-white/10 sm:size-9"
-            >
-              <Radio aria-hidden="true" className="h-5 w-5" />
-            </Button>
           </div>
 
           <div
-            className="pointer-events-auto mt-0 flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-background/25 p-0.5 backdrop-blur-md sm:gap-1 sm:p-1"
+            className="pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-0.5 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md sm:gap-1 sm:p-1.5"
             data-testid="map-top-actions"
           >
-            <Button
-              type="button"
-              onClick={() => navigate('/rewards')}
-              aria-label="cruush+ rewards"
-              title="cruush+ rewards"
-              className="cruush-logo-font h-8 rounded-full px-2 text-sm font-normal leading-none tracking-normal normal-case text-white sm:h-9 sm:px-2.5 sm:text-base"
-              style={{ background: 'var(--cruush-gradient)' }}
-            >
-              <CruushPlusWord />
-            </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={handleFeelingLucky}
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
-              className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
+              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10"
             >
-              <CruushIconImage src={luckyIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
+              <CruushIconImage src={luckyIconWhite} className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate('/privacy/ghost-mode')}
+              data-tutorial-target="ghost"
               aria-label="Ghost Mode Settings"
               title="Ghost Mode Settings"
-              className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
+              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10"
             >
-              <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} className="h-4 w-4" />
+              <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
             </Button>
             <Button
               variant="ghost"
@@ -1798,22 +1813,23 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
+              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10"
             >
               <CruushIconImage
                 src={dlModeActive ? dlModeColored : dlModeWhite}
-                className="h-5 w-5 sm:h-6 sm:w-6"
+                className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6"
               />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate('/notifications')}
+              data-tutorial-target="notifications"
               aria-label="Notifications"
               title="Notifications"
-              className="relative size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
+              className="relative size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10"
             >
-              <CruushIconImage src={notificationsIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
+              <CruushIconImage src={notificationsIconWhite} className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6" />
               {notificationUnreadCount > 0 ? (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
                   {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
@@ -1826,12 +1842,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 onClick={() => navigate('/settings')}
                 aria-label="Settings"
                 title="Settings"
-                className="size-8 rounded-full text-white/90 hover:bg-white/10 sm:size-9"
+                className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10"
               >
-                <CruushIconImage src={settingsIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
+                <CruushIconImage src={settingsIconWhite} className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6" />
               </Button>
               <div
                 className="contents"
+                data-bug-button-size="large"
                 data-testid="map-bug-button-slot"
                 ref={registerBugButtonSlot}
               />
@@ -2318,6 +2335,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onMutualCruushesOnlyChange={(enabled) => {
             navigate(enabled ? '/map?mode=mutuals' : '/map');
           }}
+          hasCruushPlus={hasCruushPlus}
+          onUpgrade={() => navigate('/rewards')}
           onClear={() => {
             setFilters(DEFAULT_FILTER_STATE);
             void fetchUsers(getCurrentFetchCoordinates(), DEFAULT_FILTER_STATE);
@@ -2339,6 +2358,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           onChange={handleVisibilityChange}
           onClear={handleClearVisibility}
           onApply={handleApplyVisibility}
+          onUpgrade={() => navigate('/rewards')}
         />
 
         <MapPingSheet
@@ -2350,6 +2370,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
           signal={currentProfile?.signal}
           onRefresh={refreshMapPingStatus}
           onSend={handleSendMapPing}
+          hasCruushPlus={hasCruushPlus}
+          onUpgrade={() => navigate('/rewards')}
         />
 
         <MapControlsTutorial

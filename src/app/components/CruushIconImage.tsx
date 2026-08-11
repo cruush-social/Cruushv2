@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import cruushColored from '../assets/ui-icons/cruush-colored.png';
 import cruushWhite from '../assets/ui-icons/cruush-white.png';
 import cameraColored from '../assets/ui-icons/camera-colored.png';
@@ -48,9 +49,11 @@ export type CruushIconName =
   | 'settings'
   | 'visibility';
 
-export type CruushIconVariant = 'colored' | 'white';
+export type CruushIconVariant = 'colored' | 'white' | 'gradient';
 
-const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconVariant, string>> = {
+type CruushIconAssetVariant = Exclude<CruushIconVariant, 'gradient'>;
+
+const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconAssetVariant, string>> = {
   camera: {
     colored: cameraColored,
     white: cameraWhite,
@@ -130,5 +133,29 @@ export function CruushIcon({
   name: CruushIconName;
   variant?: CruushIconVariant;
 }) {
+  if (variant === 'gradient') {
+    const iconMask = CRUUSH_ICON_SOURCES[name].white;
+    const style: CSSProperties = {
+      background: 'var(--cruush-gradient)',
+      maskImage: `url(${iconMask})`,
+      maskPosition: 'center',
+      maskRepeat: 'no-repeat',
+      maskSize: 'contain',
+      WebkitMaskImage: `url(${iconMask})`,
+      WebkitMaskPosition: 'center',
+      WebkitMaskRepeat: 'no-repeat',
+      WebkitMaskSize: 'contain',
+    };
+
+    return (
+      <span
+        aria-hidden="true"
+        className={`inline-block shrink-0 ${className}`}
+        data-tone="gradient"
+        style={style}
+      />
+    );
+  }
+
   return <CruushIconImage className={className} src={CRUUSH_ICON_SOURCES[name][variant]} />;
 }

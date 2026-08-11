@@ -40,11 +40,11 @@ test.describe('authenticated map Ping', () => {
     await page.context().setGeolocation({ latitude: 40.701, longitude: -73.901 });
 
     await page.addInitScript(() => {
-      window.localStorage.setItem('cruush:tutorial-v3-seen', 'true');
+      window.localStorage.setItem('cruush:tutorial-v4-seen', 'true');
     });
 
     await page.route('**/api/users/me/notices/**', async (route) => {
-      if (decodeURIComponent(route.request().url()).includes('cruush:tutorial-v3-seen')) {
+      if (decodeURIComponent(route.request().url()).includes('cruush:tutorial-v4-seen')) {
         await route.fulfill({
           contentType: 'application/json',
           body: JSON.stringify({
@@ -190,7 +190,7 @@ test.describe('authenticated map Ping', () => {
     }
   });
 
-  test('renders a static flat-blue Ghost marker without V2 animation or deadline metadata', async ({ page }, testInfo) => {
+  test('renders a static Ghost profile photo marker without recoloring its mutual heart', async ({ page }, testInfo) => {
     await page.route((url) => url.pathname === '/api/users', async (route) => {
       await route.fulfill({
         contentType: 'application/json',
@@ -231,6 +231,7 @@ test.describe('authenticated map Ping', () => {
     const positionBadge = page.getByTestId('marker-badge-ghost-preview');
     const relationshipBadge = page.getByTestId('marker-relationship-ghost-preview');
     const signalStack = page.getByTestId('marker-signal-stack-ghost-preview');
+    const signalBadge = page.getByTestId('marker-signal-badge-ghost-preview');
     await expect(heartLayer).toBeVisible();
     await expect(heartLayer.getByTestId('marker-signal-stack-ghost-preview')).toHaveCount(1);
     await expect(markerButton).not.toHaveAttribute('data-animation-hint');
@@ -240,8 +241,11 @@ test.describe('authenticated map Ping', () => {
     await expect(page.getByTestId('marker-ghost-fly-icon-ghost-preview')).toHaveCount(0);
     await expect(page.getByTestId('marker-ghost-puff-ghost-preview')).toHaveCount(0);
     await expect(heart).toHaveAttribute('data-has-photo', 'true');
-    await expect(page.getByTestId('marker-photo-fill-ghost-preview')).toHaveCount(0);
-    await expect(heart.locator('path[fill="#0BA8FF"][stroke="#0BA8FF"]')).toHaveCount(1);
+    await expect(page.getByTestId('marker-photo-fill-ghost-preview')).toHaveCount(1);
+    await expect(heart.locator('path[fill="none"][stroke="#6f00ff"]')).toHaveCount(1);
+    await expect(positionBadge).toHaveClass(/border-\[\#6f00ff\]\/80/);
+    await expect(relationshipBadge).toHaveClass(/border-\[\#6f00ff\]\/80/);
+    await expect(signalBadge).toHaveClass(/border-white\/12/);
 
     const assertGeometry = async () => {
       await expect(positionBadge).toHaveCSS('width', '25px');

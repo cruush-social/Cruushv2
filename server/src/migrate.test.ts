@@ -12,7 +12,13 @@ describe("migration runner", () => {
       .filter((file) => /^\d+_.+\.sql$/.test(file))
       .sort();
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
-    const listedFiles = Array.from(migrateSource.matchAll(/"(\d+_[^"]+\.sql)"/g), (match) => match[1]);
+    const listStart = migrateSource.indexOf("const migrationFiles = [");
+    const listEnd = migrateSource.indexOf("];", listStart);
+    const migrationListSource = migrateSource.slice(listStart, listEnd + 2);
+    const listedFiles = Array.from(
+      migrationListSource.matchAll(/"(\d+_[^"]+\.sql)"/g),
+      (match) => match[1]
+    );
 
     expect(listedFiles).toEqual(sqlFiles);
   });
@@ -36,6 +42,23 @@ describe("migration runner", () => {
     expect(billingSql).toContain("foreign key (user_id) references app_users(id) on delete cascade");
   });
 
+  it("seeds the original reward schema with only the final check-in rule", async () => {
+    const rewardsSql = await readFile(path.join(serverRoot, "sql", "042_rewards_and_two_factor.sql"), "utf8");
+
+    expect(rewardsSql).toContain("('recurring_streak_reward_days', '1'::jsonb)");
+    expect(rewardsSql).toContain("('activity_reward_cap_days', '5'::jsonb)");
+    expect(rewardsSql).toContain("('activity_reward_cap_period_days', '30'::jsonb)");
+    expect(rewardsSql).toContain("'[\"check_in\"]'::jsonb");
+    expect(rewardsSql).not.toContain("'[\"cruush\",\"message\",\"post\"]'::jsonb");
+  });
+
+  it("keeps the daily-login migration replay on the final reward cap", async () => {
+    const loginRewardsSql = await readFile(path.join(serverRoot, "sql", "056_daily_login_bonus_rewards.sql"), "utf8");
+
+    expect(loginRewardsSql).toContain("('activity_reward_cap_days', '5'::jsonb)");
+    expect(loginRewardsSql).not.toContain("('activity_reward_cap_days', '30'::jsonb)");
+  });
+
   it("seeds existing account notice dismissals for one-time launch popups", async () => {
     const noticeSql = await readFile(path.join(serverRoot, "sql", "055_user_notice_dismissals.sql"), "utf8");
     const affiliateNoticeSql = await readFile(path.join(serverRoot, "sql", "057_post_onboarding_affiliate_share_notice.sql"), "utf8");
@@ -51,12 +74,14 @@ describe("migration runner", () => {
     expect(affiliateNoticeSql).toContain("profiles.year_of_birth is not null");
   });
 
-  it("keeps recurring and referral promotions active at seven days per grant", async () => {
+  it("keeps the replayed recurring reward settings on the final check-in rule", async () => {
     const rewardsSql = await readFile(path.join(serverRoot, "sql", "066_recurring_weekly_promotions.sql"), "utf8");
 
-    expect(rewardsSql).toContain("('recurring_streak_reward_days', '7'::jsonb)");
-    expect(rewardsSql).toContain("('activity_reward_cap_days', 'null'::jsonb)");
-    expect(rewardsSql).toContain("'[\"cruush\",\"message\",\"post\"]'::jsonb");
+    expect(rewardsSql).toContain("('recurring_streak_reward_days', '1'::jsonb)");
+    expect(rewardsSql).toContain("('activity_reward_cap_days', '5'::jsonb)");
+    expect(rewardsSql).toContain("('activity_reward_cap_period_days', '30'::jsonb)");
+    expect(rewardsSql).toContain("'[\"check_in\"]'::jsonb");
+    expect(rewardsSql).not.toContain("'[\"cruush\",\"message\",\"post\"]'::jsonb");
     expect(rewardsSql).toContain("('referral_reward_days', '7'::jsonb)");
     expect(rewardsSql).toContain("('referral_reward_cap_days', 'null'::jsonb)");
   });
@@ -127,6 +152,87 @@ describe("migration runner", () => {
     expect(deletionIntegritySql).toContain("order by report.id");
     expect(deletionIntegritySql).toContain("for update");
     expect(deletionIntegritySql).toContain("before delete on app_users");
+  });
+
+  it("adds notification-type preferences after account deletion integrity", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const preferencesSql = await readFile(path.join(serverRoot, "sql", "077_notification_type_preferences.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"076_account_deletion_integrity\.sql",\s*"077_notification_type_preferences\.sql"/);
+    expect(preferencesSql).toContain("add column if not exists nearby_enabled boolean not null default true");
+    expect(preferencesSql).toContain("add column if not exists rewards_enabled boolean not null default true");
+  });
+
+  it("keeps the pre-079 reward guard fail-closed on the final check-in rule", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const rewardGuardSql = await readFile(path.join(serverRoot, "sql", "078_activity_reward_earned_guard.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"077_notification_type_preferences\.sql",\s*"078_activity_reward_earned_guard\.sql"/);
+    expect(rewardGuardSql).toContain("before insert on reward_grants");
+    expect(rewardGuardSql).toContain("legacy activity bonus grants are disabled");
+    expect(rewardGuardSql).toContain("seven check-ins, one reward day, and five days per rolling 30 days");
+    expect(rewardGuardSql).toContain("mod(streak_value, boundary_days) <> 0");
+    expect(rewardGuardSql).toContain("new.days <> configured_reward_days");
+    expect(rewardGuardSql).toContain("from user_activity_streaks streak");
+    expect(rewardGuardSql).toContain("from daily_activity_credits credit");
+    expect(rewardGuardSql).toContain("credit.activity_type = 'check_in'");
+    expect(rewardGuardSql).toContain("activity reward exceeds the rolling 30-day cap");
+    expect(rewardGuardSql).toContain("for update");
+    expect(rewardGuardSql).not.toContain("activity reward configuration must remain seven days");
+    expect(rewardGuardSql).not.toMatch(/\b(update|delete)\s+reward_grants\b/i);
+  });
+
+  it("replaces action rewards with capped daily check-in rewards", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const checkInSql = await readFile(path.join(serverRoot, "sql", "079_daily_check_in_rewards.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"078_activity_reward_earned_guard\.sql",\s*"079_daily_check_in_rewards\.sql"/);
+    expect(checkInSql).toContain("('recurring_streak_reward_days', '1'::jsonb)");
+    expect(checkInSql).toContain("('activity_reward_cap_days', '5'::jsonb)");
+    expect(checkInSql).toContain("('activity_reward_cap_period_days', '30'::jsonb)");
+    expect(checkInSql).toContain("'[\"check_in\"]'::jsonb");
+    expect(checkInSql).toContain("credit.activity_type = 'check_in'");
+    expect(checkInSql).toContain("activity reward configuration must remain seven check-ins, one reward day, and five days per rolling 30 days");
+    expect(checkInSql).toContain("activity reward exceeds the rolling 30-day cap");
+    expect(checkInSql).not.toMatch(/\b(update|delete)\s+reward_grants\b/i);
+  });
+
+  it("locks daily check-in reward invariants without rewriting legacy rows", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const invariantSql = await readFile(path.join(serverRoot, "sql", "080_reward_invariants.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"079_daily_check_in_rewards\.sql",\s*"080_reward_invariants\.sql"/);
+    expect(invariantSql).toContain("daily_activity_credits_check_in_only");
+    expect(invariantSql).toContain("check (activity_type = 'check_in') not valid");
+    expect(invariantSql).toContain("reward_grants_check_in_only_shape");
+    expect(invariantSql).toMatch(
+      /check \(\s*source not in \('activity_recurring', 'activity_long_bonus'\)\s*or \(source = 'activity_recurring' and days = 1\)\s*\) not valid/
+    );
+    expect(invariantSql).toContain("enforce_daily_check_in_reward_settings");
+    expect(invariantSql).toContain("before insert or update on reward_settings");
+    expect(invariantSql).toContain("unsafe daily check-in reward setting is forbidden");
+    expect(invariantSql).toContain("'recurring_streak_reward_days', '1'::jsonb");
+    expect(invariantSql).toContain("'activity_reward_cap_days', '5'::jsonb");
+    expect(invariantSql).toContain("'eligible_activity_types', '[\"check_in\"]'::jsonb");
+    expect(invariantSql).not.toMatch(/\b(update|delete)\s+(reward_grants|daily_activity_credits)\b/i);
+  });
+
+  it("runs reward safety migrations before normal replay on existing databases", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const preflightStart = migrateSource.indexOf("for (const file of rewardSafetyPreflightFiles)");
+    const normalStart = migrateSource.indexOf("for (const file of migrationFiles)");
+
+    expect(migrateSource).toMatch(
+      /const rewardSafetyPreflightFiles = \[\s*"079_daily_check_in_rewards\.sql",\s*"080_reward_invariants\.sql"\s*\] as const;/
+    );
+    expect(migrateSource).not.toContain("migrationFiles.slice(-2)");
+    expect(migrateSource).toContain('"079_daily_check_in_rewards.sql"');
+    expect(migrateSource).toContain('"080_reward_invariants.sql"');
+    expect(migrateSource).toContain("to_regclass('public.reward_settings')");
+    expect(migrateSource).toContain("to_regclass('public.daily_activity_credits')");
+    expect(migrateSource).toContain("to_regclass('public.reward_grants')");
+    expect(preflightStart).toBeGreaterThan(-1);
+    expect(normalStart).toBeGreaterThan(preflightStart);
   });
 
   it("adds the launch party and crowd feed schema after rewards and 2FA", async () => {

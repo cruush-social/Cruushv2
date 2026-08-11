@@ -6,7 +6,17 @@ import MapControlsTutorial, {
   type TutorialPlacementRect,
 } from './MapControlsTutorial';
 
-const TARGET_STEP_IDS: MapControlsTutorialStepId[] = ['seeking', 'visibility', 'dl-mode', 'ping', 'zoom'];
+const TARGET_STEP_IDS: MapControlsTutorialStepId[] = [
+  'notifications',
+  'seeking',
+  'visibility',
+  'crowds',
+  'ghost',
+  'dl-mode',
+  'ping',
+  'zoom',
+  'feed',
+];
 
 function makeRect({ bottom, left, right, top }: Pick<TutorialPlacementRect, 'bottom' | 'left' | 'right' | 'top'>) {
   return {
@@ -187,7 +197,7 @@ describe('MapControlsTutorial', () => {
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={onComplete} />);
 
-    expect(screen.getByText('Map tutorial · Step 1 of 7')).toBeInTheDocument();
+    expect(screen.getByText('Map tutorial · Step 1 of 10')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('install', 'Install cruush'));
     expect(onActivateStep).toHaveBeenLastCalledWith('install');
@@ -196,6 +206,7 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-skip-step'));
 
     expect(await screen.findByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
+    expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', 'notifications');
     fireEvent.click(expectHighlightedAction('notifications', 'Turn on notifications'));
     expect(onActivateStep).toHaveBeenLastCalledWith('notifications');
 
@@ -211,6 +222,14 @@ describe('MapControlsTutorial', () => {
     expectHighlightedAction('visibility', 'Open Visibility');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Crowd Mode' })).toBeInTheDocument();
+    expectHighlightedAction('crowds', 'Open Crowd Mode');
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
+    expectHighlightedAction('ghost', 'Open Ghost Mode');
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'DL Mode' })).toBeInTheDocument();
     expectHighlightedAction('dl-mode', 'Toggle DL Mode');
 
@@ -224,6 +243,11 @@ describe('MapControlsTutorial', () => {
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Zoom' })).toBeInTheDocument();
     expectHighlightedAction('zoom', 'Zoom in');
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+
+    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
+    expect(screen.getByText(/start with a short signal, question, or invitation/i)).toBeInTheDocument();
+    expectHighlightedAction('feed', 'Open Feed');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
     expect(onComplete).toHaveBeenCalledTimes(1);

@@ -1,0 +1,22 @@
+{
+  "interaction_mode": "interactive",
+  "git_strategy": "per_task",
+  "review_depth": "detailed",
+  "security_audit": true,
+  "simplification_review": true,
+  "iac_validation": "auto",
+  "documentation_generation": true,
+  "codebase_docs_path": ".octo/codebase",
+  "model_routing": {
+    "validation": "haiku",
+    "building": "sonnet",
+    "planning": "sonnet",
+    "architecture": "opus",
+    "debugging": "opus",
+    "review": "sonnet",
+    "security_audit": "sonnet"
+  },
+  "context_tier": "auto",
+  "created_at": "2026-08-11T05:06:47Z",
+  "version": "1.0"
+}

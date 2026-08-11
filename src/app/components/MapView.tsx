@@ -90,6 +90,8 @@ const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
 const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
 const MAP_READY_FALLBACK_TIMEOUT_MS = 4500;
 const MAP_RENDER_READY_TIMEOUT_MS = 1200;
+const MOBILE_MARKER_LONG_PRESS_MS = 450;
+const MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 10;
 const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
@@ -107,6 +109,7 @@ const SPIDERFY_RADIUS_PX = 86;
 const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
 const SPIDERFY_SECOND_RING_AFTER = 10;
 const PERSON_CLUSTER_ZOOM_STEP = 1.5;
+const ACTIVE_PING_MARKER_Z_INDEX = 100;
 
 type MapLibreModule = typeof import('maplibre-gl');
 type MapLibreExport = MapLibreModule['default'];
@@ -499,8 +502,11 @@ const POSITION_BADGE_ICONS: Record<string, LucideIcon> = {
 };
 
 type RenderedMapMarker = {
+  dispose: () => void;
+  id: string;
   marker: MapLibreMarker;
   root: Root;
+  setPreviewed: (previewed: boolean) => void;
 };
 
 type SpiderfiedCluster = {
@@ -663,6 +669,9 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
   const ordered = [...markers].sort((a, b) => {
     if (a.isCurrentUser === true) return -1;
     if (b.isCurrentUser === true) return 1;
+    const aHasActivePing = Boolean(a.activePing);
+    const bHasActivePing = Boolean(b.activePing);
+    if (aHasActivePing !== bHasActivePing) return aHasActivePing ? -1 : 1;
     return a.id.localeCompare(b.id);
   });
 
@@ -711,7 +720,9 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
 }
 
 function canClusterMarker(marker: MapMarker, focusCoordinates: MapViewProps['focusCoordinates']) {
-  if ((marker.kind ?? 'person') !== 'person' || marker.isCurrentUser === true) {
+  // An active Ping is a short-lived visibility signal. Keep its heart
+  // independent from nearby clusters so it stays discoverable while zoomed out.
+  if ((marker.kind ?? 'person') !== 'person' || marker.isCurrentUser === true || marker.activePing) {
     return false;
   }
 
@@ -855,7 +866,7 @@ function getMarkerBorderClass(marker: MapMarker, isCurrentUser: boolean) {
     return 'border-[#C8FF31]';
   }
 
-  if (marker.displayMode === 'GHOST') {
+  if ((isCurrentUser && marker.displayMode === 'GHOST') || marker.npcGhostDemo) {
     return 'border-[#0BA8FF]';
   }
 
@@ -943,19 +954,21 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const clipId = `marker-photo-clip-${marker.id}`;
   const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
   const isNpcGhostDemo = marker.npcGhostDemo === true;
-  const isGhostMode = marker.displayMode === 'GHOST';
+  const isOwnGhostMarker = isCurrentUser && marker.displayMode === 'GHOST';
   const pingActive = Boolean(marker.activePing);
-  const theme = isGhostMode ? 'ghost' : isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
+  const theme = isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
   const markerTheme = HEART_PIN_THEMES[theme];
-  const borderColor = pingActive ? '#C8FF31' : markerTheme.border;
-  const gradientStops = isGhostMode || hasPhoto || isCurrentUser || isNpcGhostDemo
+  const borderColor = pingActive ? '#C8FF31' : isOwnGhostMarker || isNpcGhostDemo ? '#0BA8FF' : markerTheme.border;
+  const gradientStops = isNpcGhostDemo
+    ? HEART_PIN_THEMES.ghost.stops
+    : hasPhoto || isCurrentUser
     ? markerTheme.stops
     : getProfileGradientStops(marker.userId ?? marker.id);
   const gradientOffsets = gradientStops.length === 4
     ? ['6%', '53%', '81%', '100%']
     : ['0%', '52%', '100%'];
   const borderPaint = borderColor;
-  const fillPaint = isGhostMode ? '#0BA8FF' : `url(#${gradientId})`;
+  const fillPaint = isNpcGhostDemo ? '#0BA8FF' : `url(#${gradientId})`;
 
   return (
     <svg
@@ -979,7 +992,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           <path d={HEART_PIN_PATH} />
         </clipPath>
       </defs>
-      {hasPhoto && !isGhostMode ? (
+      {hasPhoto ? (
         <>
           <image
             clipPath={`url(#${clipId})`}
@@ -1058,7 +1071,7 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
   );
 }
 
-function MapMarkerPin({ marker }: { marker: MapMarker }) {
+function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser === true;
   const isPerson = marker.kind == null || marker.kind === 'person';
   const signalPreview = isPerson ? truncateMarkerPreview(marker.signal) : '';
@@ -1066,7 +1079,7 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
   const pingActive = Boolean(marker.activePing);
   const signalBorderClass = pingActive
     ? 'border-[#C8FF31]'
-    : marker.displayMode === 'GHOST'
+    : (isCurrentUser && marker.displayMode === 'GHOST') || marker.npcGhostDemo
       ? 'border-[#0BA8FF]'
       : 'border-white/12';
 
@@ -1084,7 +1097,7 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
       data-active-ping={pingActive ? 'true' : 'false'}
     >
       <span
-        className={`relative flex h-20 w-[103px] items-center justify-center ${pingActive ? 'cruush-map-ping-heart' : ''}`}
+        className={`relative flex h-20 w-[103px] items-center justify-center transition-transform duration-150 ${previewed ? 'scale-[1.16]' : ''} ${pingActive ? 'cruush-map-ping-heart' : ''}`}
         data-testid={`marker-heart-layer-${marker.id}`}
       >
             <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
@@ -1092,7 +1105,7 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
             <MarkerRelationshipBadge marker={marker} isCurrentUser={isCurrentUser} />
             {signalPreview ? (
               <span
-                className={`absolute left-1/2 top-0 z-30 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-opacity duration-150 ${pingActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
+                className={`absolute left-1/2 top-0 z-30 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-opacity duration-150 ${pingActive || previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                 data-signal-position="v2-frame-top"
                 data-testid={`marker-signal-stack-${marker.id}`}
               >
@@ -1107,7 +1120,7 @@ function MapMarkerPin({ marker }: { marker: MapMarker }) {
       </span>
       {postPreview ? (
         <span
-          className={`absolute left-1/2 top-0 z-20 w-max max-w-[16rem] -translate-x-1/2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${signalPreview ? '-translate-y-[calc(200%+0.25rem)]' : '-translate-y-full'}`}
+          className={`absolute left-1/2 top-0 z-20 w-max max-w-[16rem] -translate-x-1/2 transition-opacity duration-150 ${previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'} ${signalPreview ? '-translate-y-[calc(200%+0.25rem)]' : '-translate-y-full'}`}
           data-testid={`marker-post-preview-${marker.id}`}
         >
           <span className="rounded-full border border-primary/20 bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-primary shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
@@ -1128,6 +1141,7 @@ function isMapClickFromMarker(event: unknown) {
 function createMarkerElement(
   marker: MapMarker,
   onPinClick: (marker: MapMarker) => void,
+  onPinPreview: (marker: MapMarker) => void,
   onMarkerInteraction: () => void,
 ) {
   const isCurrentUser = marker.id === 'me' || marker.isCurrentUser;
@@ -1140,6 +1154,35 @@ function createMarkerElement(
   element.dataset.mapMarkerPin = 'true';
   element.dataset.mapMarkerKind = marker.kind ?? 'person';
   element.dataset.activePing = marker.activePing ? 'true' : 'false';
+  const root = createRoot(element);
+  let previewed = false;
+  let lastPointerType = '';
+  let longPressTimer: number | null = null;
+  let longPressTriggered = false;
+  let touchStartPoint: { x: number; y: number } | null = null;
+  const clearLongPressTimer = () => {
+    if (longPressTimer != null) {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  };
+  const renderMarker = () => {
+    flushSync(() => {
+      root.render(<MapMarkerPin marker={marker} previewed={previewed} />);
+    });
+  };
+  const setPreviewed = (nextPreviewed: boolean) => {
+    if (previewed === nextPreviewed) {
+      return;
+    }
+
+    previewed = nextPreviewed;
+    element.dataset.markerPreviewed = nextPreviewed ? 'true' : 'false';
+    if (element instanceof HTMLButtonElement && (marker.kind == null || marker.kind === 'person')) {
+      element.setAttribute('aria-pressed', nextPreviewed ? 'true' : 'false');
+    }
+    renderMarker();
+  };
 
   if (!isInteractive) {
     element.setAttribute('aria-label', 'Your approximate area');
@@ -1155,19 +1198,66 @@ function createMarkerElement(
         ? `Zoom into ${marker.cluster?.label ?? name} on map`
         : `Open ${marker.cluster?.label ?? name} on map`
       : `Open ${name} on map`);
+    if (marker.kind == null || marker.kind === 'person') {
+      button.setAttribute('aria-pressed', 'false');
+    }
     const recordMarkerInteraction = (event: Event) => {
       event.stopPropagation();
       onMarkerInteraction();
     };
 
-    button.addEventListener('pointerdown', recordMarkerInteraction);
+    button.addEventListener('pointerdown', (event) => {
+      const pointerEvent = event as PointerEvent;
+      lastPointerType = pointerEvent.pointerType || '';
+      recordMarkerInteraction(event);
+      if ((marker.kind == null || marker.kind === 'person') && lastPointerType === 'touch') {
+        clearLongPressTimer();
+        longPressTriggered = false;
+        touchStartPoint = { x: pointerEvent.clientX, y: pointerEvent.clientY };
+        longPressTimer = window.setTimeout(() => {
+          longPressTimer = null;
+          longPressTriggered = true;
+          onPinPreview(marker);
+        }, MOBILE_MARKER_LONG_PRESS_MS);
+      }
+    });
+    button.addEventListener('pointermove', (event) => {
+      if (!touchStartPoint || longPressTimer == null) {
+        return;
+      }
+
+      const pointerEvent = event as PointerEvent;
+      const movedX = Math.abs(pointerEvent.clientX - touchStartPoint.x);
+      const movedY = Math.abs(pointerEvent.clientY - touchStartPoint.y);
+      if (movedX > MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX || movedY > MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX) {
+        clearLongPressTimer();
+      }
+    });
+    const finishPointerInteraction = () => {
+      clearLongPressTimer();
+      touchStartPoint = null;
+    };
+    button.addEventListener('pointerup', finishPointerInteraction);
+    button.addEventListener('pointercancel', finishPointerInteraction);
+    button.addEventListener('contextmenu', (event) => {
+      if (lastPointerType === 'touch' && longPressTriggered) {
+        event.preventDefault();
+      }
+    });
     button.addEventListener('mousedown', recordMarkerInteraction);
-    button.addEventListener('touchstart', recordMarkerInteraction);
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
       onMarkerInteraction();
+      if ((marker.kind == null || marker.kind === 'person') && lastPointerType === 'touch' && event.detail > 0) {
+        if (longPressTriggered) {
+          longPressTriggered = false;
+          return;
+        }
+        onPinClick(marker);
+        return;
+      }
       if (marker.kind === 'event' && !shouldReduceMotion()) {
         void playEventMarkerConfetti().catch(() => {
           // Confetti is decorative; marker selection must keep working.
@@ -1177,12 +1267,14 @@ function createMarkerElement(
     });
   }
 
-  const root = createRoot(element);
-  flushSync(() => {
-    root.render(<MapMarkerPin marker={marker} />);
-  });
+  renderMarker();
 
-  return { element, root };
+  return {
+    element,
+    root,
+    setPreviewed,
+    dispose: clearLongPressTimer,
+  };
 }
 
 function createCircleFeature({ center, radiusMeters }: RadiusCircle) {
@@ -1223,7 +1315,8 @@ function createCirclePolygon(center: RadiusCircle['center'], radiusMeters: numbe
   return createCircleFeatureCollection([{ center, radiusMeters }]);
 }
 
-function cleanupRenderedMarker({ marker, root }: RenderedMapMarker) {
+function cleanupRenderedMarker({ dispose, marker, root }: RenderedMapMarker) {
+  dispose();
   marker.remove();
   queueMicrotask(() => root.unmount());
 }
@@ -1273,6 +1366,9 @@ function MapView({
     ),
     [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster],
   );
+  const renderedMarkerSignature = useMemo(() => JSON.stringify(renderedMarkers), [renderedMarkers]);
+  const renderedMarkersRef = useRef(renderedMarkers);
+  renderedMarkersRef.current = renderedMarkers;
   const viewportMarkerSignature = useMemo(() => renderedMarkers
     .filter(isMapMarker)
     .map((marker) => [
@@ -1449,6 +1545,7 @@ function MapView({
             return;
           }
 
+          markersRef.current.forEach((renderedMarker) => renderedMarker.setPreviewed(false));
           onMapClickRef.current?.();
         });
         map.on('zoomend', () => {
@@ -1725,7 +1822,7 @@ function MapView({
     markersRef.current.forEach(cleanupRenderedMarker);
     markersRef.current = [];
 
-    const visibleMarkers = renderedMarkers.filter(isMapMarker);
+    const visibleMarkers = renderedMarkersRef.current.filter(isMapMarker);
     let cancelled = false;
 
     queueMicrotask(() => {
@@ -1734,7 +1831,7 @@ function MapView({
       }
 
       markersRef.current = visibleMarkers.map((marker) => {
-        const { element, root } = createMarkerElement(
+        const { dispose, element, root, setPreviewed } = createMarkerElement(
           marker,
           (selectedMarker) => {
             if (isSpiderfyCluster(selectedMarker)) {
@@ -1767,13 +1864,20 @@ function MapView({
             setSpiderfiedCluster(null);
             onPinClickRef.current(selectedMarker);
           },
+          (previewedMarker) => {
+            markersRef.current.forEach((renderedMarker) => {
+              renderedMarker.setPreviewed(renderedMarker.id === previewedMarker.id);
+            });
+          },
           () => {
             lastMarkerInteractionAtRef.current = Date.now();
           },
         );
         const displayMarker = marker as DisplayMapMarker;
 
-        if (displayMarker.spiderfy) {
+        if (marker.activePing) {
+          element.style.zIndex = String(ACTIVE_PING_MARKER_Z_INDEX);
+        } else if (displayMarker.spiderfy) {
           element.dataset.spiderfyIndex = String(displayMarker.spiderfy.index);
           element.dataset.spiderfyCount = String(displayMarker.spiderfy.count);
           element.style.zIndex = String(30 + displayMarker.spiderfy.index);
@@ -1786,8 +1890,11 @@ function MapView({
           .setLngLat([marker.approximateLongitude, marker.approximateLatitude])
           .addTo(map);
         return {
+          dispose,
+          id: marker.id,
           marker: mapMarker,
           root,
+          setPreviewed,
         };
       });
     });
@@ -1795,7 +1902,7 @@ function MapView({
     return () => {
       cancelled = true;
     };
-  }, [currentZoom, renderedMarkers, mapInstance]);
+  }, [currentZoom, mapInstance, renderedMarkerSignature]);
 
   return (
     <div className="relative h-full min-h-[400px] w-full overflow-hidden bg-background">

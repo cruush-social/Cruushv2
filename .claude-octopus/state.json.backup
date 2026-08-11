@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
   "project_id": "638a65bb0358e194aaf2656e18fc809d",
-  "current_workflow": "flow-develop",
-  "current_phase": "develop",
+  "current_workflow": "flow-discover",
+  "current_phase": "discover",
   "session_start": "2026-04-28T20:52:45Z",
   "decisions": [
     {
@@ -38,7 +38,7 @@
     "phases_completed": 0,
     "total_execution_time_minutes": 0,
     "provider_usage": {
-      "codex": 2,
+      "codex": 3,
       "gemini": 0,
       "perplexity": 0,
       "claude": 0

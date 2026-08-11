@@ -4,16 +4,27 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import GhostModeSettings from './GhostModeSettings';
 
 const {
+  getMyBillingStatus,
   getMyPrivacySettings,
   saveMyPrivacySettings,
   getMyMapPresenceSettings,
   saveMyMapPresenceSettings,
 } = vi.hoisted(() => ({
+  getMyBillingStatus: vi.fn(),
   getMyPrivacySettings: vi.fn(),
   saveMyPrivacySettings: vi.fn(),
   getMyMapPresenceSettings: vi.fn(),
   saveMyMapPresenceSettings: vi.fn(),
 }));
+
+vi.mock('../lib/billingApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/billingApi')>('../lib/billingApi');
+
+  return {
+    ...actual,
+    getMyBillingStatus,
+  };
+});
 
 vi.mock('../lib/privacyApi', async () => {
   const actual = await vi.importActual<typeof import('../lib/privacyApi')>('../lib/privacyApi');
@@ -35,6 +46,7 @@ function LocationProbe() {
 describe('GhostModeSettings', () => {
   beforeEach(() => {
     getMyPrivacySettings.mockReset();
+    getMyBillingStatus.mockReset();
     saveMyPrivacySettings.mockReset();
     getMyMapPresenceSettings.mockReset();
     saveMyMapPresenceSettings.mockReset();
@@ -42,6 +54,13 @@ describe('GhostModeSettings', () => {
     getMyPrivacySettings.mockResolvedValue({
       ghostModeEnabled: false,
       preciseLocationVisibility: 'none',
+    });
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: false,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
     });
     saveMyPrivacySettings.mockImplementation((settings) => Promise.resolve(settings));
     getMyMapPresenceSettings.mockResolvedValue({ days: 7, minDays: 1, maxDays: 30 });
@@ -123,6 +142,28 @@ describe('GhostModeSettings', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/privacy/audit');
   });
 
+  it('restores the saved Ghost Mode setting after a failed save', async () => {
+    saveMyPrivacySettings.mockRejectedValueOnce(new Error('Upgrade to cruush+ to share precise location with mutuals.'));
+
+    render(
+      <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
+        <Routes>
+          <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const preciseSwitch = await screen.findByRole('switch', {
+      name: 'Toggle precise location for mutual cruushes',
+    });
+    await waitFor(() => expect(preciseSwitch).not.toBeDisabled());
+
+    fireEvent.click(preciseSwitch);
+
+    expect(await screen.findByText('Upgrade to cruush+ to share precise location with mutuals.')).toBeInTheDocument();
+    expect(preciseSwitch).not.toBeChecked();
+  });
+
   it('keeps v1.2 Ghost Mode static without V2 heartbeat controls', async () => {
     render(
       <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
@@ -138,5 +179,56 @@ describe('GhostModeSettings', () => {
     })).not.toBeInTheDocument();
     expect(screen.queryByText('Countdown before you move')).not.toBeInTheDocument();
     expect(screen.queryByText(/heart beats faster/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps Ghost Mode and precise sharing available to basic members while linking locked Stealth Mode to cruush+', async () => {
+    render(
+      <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
+        <Routes>
+          <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+          <Route path="/rewards" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const ghostSwitch = await screen.findByRole('switch', { name: 'Toggle Ghost Mode' });
+    const preciseSwitch = screen.getByRole('switch', { name: 'Toggle precise location for mutual cruushes' });
+    await waitFor(() => {
+      expect(ghostSwitch).not.toBeDisabled();
+      expect(preciseSwitch).not.toBeDisabled();
+    });
+
+    expect(screen.queryByRole('switch', { name: 'Toggle Stealth Mode' })).not.toBeInTheDocument();
+    expect(screen.getByText('Browse the map without appearing on it.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock Stealth Mode with cruush+' }));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
+  });
+
+  it('lets cruush+ members enable Stealth Mode without changing precise sharing', async () => {
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: true,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
+        <Routes>
+          <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const stealthSwitch = await screen.findByRole('switch', { name: 'Toggle Stealth Mode' });
+    await waitFor(() => expect(stealthSwitch).not.toBeDisabled());
+    fireEvent.click(stealthSwitch);
+
+    await waitFor(() => expect(saveMyPrivacySettings).toHaveBeenLastCalledWith(expect.objectContaining({
+      baseMode: 'STEALTH',
+      ghostModeEnabled: false,
+      preciseToMutualCruushes: false,
+    })));
   });
 });

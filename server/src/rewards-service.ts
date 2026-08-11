@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { ApiError } from "./errors.js";
 import { runTransaction, type DbClient } from "./db.js";
+import { sendPushForPersistedNotification } from "./notification-service.js";
 import {
   DEFAULT_REWARD_CONFIG,
   loadRewardConfig,
@@ -11,6 +12,12 @@ import {
 const DAY_SECONDS = 86_400;
 
 type RewardSource = "activity_recurring" | "activity_long_bonus" | "referral" | "admin";
+
+type RewardServiceApp = {
+  config: FastifyInstance["config"];
+  db: DbClient;
+  log: Pick<FastifyInstance["log"], "warn" | "error" | "info">;
+};
 
 type GrantInput = {
   userId: string;
@@ -298,11 +305,20 @@ export async function grantPromotionalDaysInTransaction(
 }
 
 export async function grantPromotionalDays(
-  app: Pick<FastifyInstance, "db">,
+  app: RewardServiceApp,
   input: GrantInput
 ) {
   const config = await loadRewardConfig(app.db);
-  return runTransaction(app.db, (db) => grantPromotionalDaysInTransaction(db, input, config));
+  const grant = await runTransaction(app.db, (db) => grantPromotionalDaysInTransaction(db, input, config));
+
+  if (grant) {
+    await sendPushForPersistedNotification(app, {
+      userId: input.userId,
+      dedupeKey: `reward:${input.idempotencyKey}`
+    });
+  }
+
+  return grant;
 }
 
 async function grantPromotionalAccessUntilInTransaction(
@@ -393,7 +409,7 @@ async function grantPromotionalAccessUntilInTransaction(
 }
 
 export async function redeemCruushPlusPromoCode(
-  app: Pick<FastifyInstance, "db">,
+  app: RewardServiceApp,
   input: { userId: string; code: string }
 ): Promise<PromotionalClaimResult> {
   const normalizedCode = input.code.trim().toUpperCase();
@@ -403,8 +419,9 @@ export async function redeemCruushPlusPromoCode(
   }
 
   const config = await loadRewardConfig(app.db);
+  let notificationDedupeKey: string | null = null;
 
-  return runTransaction(app.db, async (db) => {
+  const result = await runTransaction(app.db, async (db) => {
     const promo = (await db.query<PromoCodeRow>(
       `select id::text, code, label, grant_days, active_until, max_redemptions
        from cruush_plus_promo_codes
@@ -507,11 +524,24 @@ export async function redeemCruushPlusPromoCode(
       [promo.id, input.userId, result.grant?.id ?? null]
     );
 
+    if (result.grant) {
+      notificationDedupeKey = `reward:promo-code:${promo.id}:${input.userId}`;
+    }
+
     return {
       ...result,
       activeUntil: result.activeUntil ?? asDate(promo.active_until)?.toISOString() ?? null
     };
   });
+
+  if (notificationDedupeKey) {
+    await sendPushForPersistedNotification(app, {
+      userId: input.userId,
+      dedupeKey: notificationDedupeKey
+    });
+  }
+
+  return result;
 }
 
 async function grantActivityMilestones(
@@ -521,7 +551,7 @@ async function grantActivityMilestones(
 ) {
   const grants: RewardGrantResult[] = [];
 
-  if (input.streak >= config.recurringStreakDays) {
+  if (input.streak % config.recurringStreakDays === 0) {
     const grant = await grantPromotionalDaysInTransaction(db, {
       userId: input.userId,
       source: "activity_recurring",
@@ -544,7 +574,7 @@ async function grantActivityMilestones(
 }
 
 export async function recordMeaningfulActivity(
-  app: Pick<FastifyInstance, "db">,
+  app: RewardServiceApp,
   input: {
     userId: string;
     activityType: RewardActivityType;
@@ -559,7 +589,7 @@ export async function recordMeaningfulActivity(
     return { credited: false, grants: [] as RewardGrantResult[] };
   }
 
-  return runTransaction(app.db, async (db) => {
+  const result = await runTransaction(app.db, async (db) => {
     const user = await db.query<{ timezone: string | null }>(
       "select timezone from app_users where id = $1 limit 1",
       [input.userId]
@@ -630,10 +660,19 @@ export async function recordMeaningfulActivity(
       grants
     };
   });
+
+  if (result.credited && result.grants.length > 0) {
+    await sendPushForPersistedNotification(app, {
+      userId: input.userId,
+      dedupeKey: `reward:activity:recurring:${input.userId}:${result.currentStreak}`
+    });
+  }
+
+  return result;
 }
 
 export async function recordMeaningfulActivitySafely(
-  app: Pick<FastifyInstance, "db" | "log">,
+  app: RewardServiceApp,
   input: Parameters<typeof recordMeaningfulActivity>[1]
 ) {
   if (!app.db.transaction) {
@@ -840,8 +879,11 @@ export async function getRewardSummary(
     : Number(streak?.current_streak ?? 0);
   const activeUntil = asDate(promotion.active_until);
   const promotionalActive = Boolean(activeUntil && activeUntil > new Date());
-  const nextRewardAtDays = Math.max(currentStreak + 1, config.recurringStreakDays);
-  const nextRewardInDays = Math.max(1, nextRewardAtDays - currentStreak);
+  const recurringRemainder = currentStreak % config.recurringStreakDays;
+  const nextRewardInDays = recurringRemainder === 0
+    ? config.recurringStreakDays
+    : config.recurringStreakDays - recurringRemainder;
+  const nextRewardAtDays = currentStreak + nextRewardInDays;
 
   return {
     streak: {
@@ -850,7 +892,7 @@ export async function getRewardSummary(
       todayQualified: lastActivityDate === today,
       nextRecurringInDays: nextRewardInDays,
       // Keep the legacy response fields for older clients; both now describe
-      // the same fixed seven-day reward stream.
+      // the same seven-day boundary.
       nextLongBonusInDays: nextRewardInDays,
       nextLoginBonusAtDays: nextRewardAtDays
     },
@@ -872,7 +914,9 @@ export async function getRewardSummary(
       longStreakDays: config.longStreakDays,
       longStreakBonusDays: config.longStreakBonusDays,
       referralRewardDays: config.referralRewardDays,
-      referralMinAccountAgeDays: config.referralMinAccountAgeDays,
+      // Older clients still read this field. Zero keeps them from showing a
+      // nonexistent account-age delay while current copy omits it.
+      referralMinAccountAgeDays: 0,
       maxBankedPromotionalDays: config.maxBankedPromotionalDays
     }
   };

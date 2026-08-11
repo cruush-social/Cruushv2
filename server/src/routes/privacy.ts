@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { requireCruushPlus } from "../billing.js";
 import { runTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import {
@@ -87,6 +88,20 @@ const ghostModePayloadSchema = z.object({
 const revokePayloadSchema = z.object({
   revoke_action_token: z.string().min(1)
 }).strict();
+
+function hasPremiumPrivacySettings(input: {
+  baseMode: VisibilityBaseMode;
+  preciseToMutualCruushes: boolean;
+  preciseToMutualCrowds: CrowdPrecisionPolicy[];
+}) {
+  return input.baseMode === "STEALTH";
+}
+
+function premiumPrivacyMessage(input: {
+  baseMode: VisibilityBaseMode;
+}) {
+  return "Upgrade to cruush+ to use stealth mode.";
+}
 
 function isSchemaCompatibilityError(error: unknown) {
   const code = typeof error === "object" && error !== null && "code" in error
@@ -233,6 +248,9 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
       createdAtMs: policy.createdAtMs ?? Date.now(),
       revokedAtMs: policy.revokedAtMs ?? null
     }));
+    if (hasPremiumPrivacySettings({ baseMode, preciseToMutualCruushes, preciseToMutualCrowds })) {
+      await requireCruushPlus(app, userId, premiumPrivacyMessage({ baseMode }));
+    }
     const visibilityInput = {
       baseMode,
       ghostModeEnabled: baseMode === "GHOST",

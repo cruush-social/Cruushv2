@@ -94,7 +94,7 @@ describe('AlphaBugButton', () => {
     );
   });
 
-  it('uses the map chrome slot instead of floating over map controls', () => {
+  it('uses a registered slot instead of floating over page controls', () => {
     const slot = document.createElement('div');
     document.body.appendChild(slot);
     registerBugButtonSlot(slot);
@@ -103,7 +103,28 @@ describe('AlphaBugButton', () => {
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
     expect(slot).toContainElement(reportButton);
-    expect(reportButton).toHaveClass('size-8');
+    expect(reportButton).toHaveClass('size-8', 'sm:size-9');
+    expect(reportButton.querySelector('svg')).toHaveClass('h-5', 'w-5');
+    expect(reportButton).not.toHaveClass('fixed', 'z-20');
+  });
+
+  it('uses the larger control only when the map top bar requests it', () => {
+    const slot = document.createElement('div');
+    slot.dataset.bugButtonSize = 'large';
+    document.body.appendChild(slot);
+    registerBugButtonSlot(slot);
+
+    renderAlphaBugButton();
+
+    const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
+    expect(slot).toContainElement(reportButton);
+    expect(reportButton).toHaveClass('size-9', 'sm:size-10');
+    expect(reportButton.querySelector('svg')).toHaveClass(
+      'h-[1.375rem]',
+      'w-[1.375rem]',
+      'sm:h-6',
+      'sm:w-6',
+    );
     expect(reportButton).not.toHaveClass('fixed', 'z-20');
   });
 
@@ -119,6 +140,19 @@ describe('AlphaBugButton', () => {
       'top-[calc(19.5rem+env(safe-area-inset-top))]',
       'sm:top-[calc(9.25rem+env(safe-area-inset-top))]',
     );
+  });
+
+  it('moves the first-run Activity tip above the bottom navigation', async () => {
+    clearPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
+    getUserNoticeDismissal.mockResolvedValueOnce({ dismissed: false, dismissedAt: null });
+
+    window.history.replaceState({}, '', '/cruush');
+    renderAlphaBugButton(true, '/cruush');
+
+    const tipCopy = await screen.findByText('Alpha test: tap the bug icon to report anything broken.');
+    const tip = tipCopy.closest('div');
+    expect(tip).toHaveClass('bottom-[calc(5.5rem+env(safe-area-inset-bottom))]');
+    expect(tip).not.toHaveClass('top-[calc(7.25rem+env(safe-area-inset-top))]');
   });
 
   it('shows an actionable error code when sending fails', async () => {

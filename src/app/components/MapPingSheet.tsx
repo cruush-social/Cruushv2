@@ -8,6 +8,7 @@ import {
 } from '../lib/mapPingsApi';
 import { Button } from './ui/button';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import CruushPlusGateNotice from './CruushPlusGateNotice';
 import {
   Sheet,
   SheetContent,
@@ -26,6 +27,8 @@ type MapPingSheetProps = {
   signal: string | null | undefined;
   onRefresh: () => Promise<void>;
   onSend: (radiusMiles: MapPingRadiusMiles) => Promise<void>;
+  hasCruushPlus?: boolean;
+  onUpgrade?: () => void;
 };
 
 function formatTime(value: string) {
@@ -39,6 +42,17 @@ function formatTime(value: string) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(timestamp);
+}
+
+function formatCountdown(targetTimestamp: number, currentTimestamp: number) {
+  const totalSeconds = Math.max(0, Math.ceil((targetTimestamp - currentTimestamp) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [hours, minutes, seconds]
+    .map((part) => String(part).padStart(2, '0'))
+    .join(':');
 }
 
 function resolvePingErrorMessage(error: unknown) {
@@ -62,6 +76,8 @@ export default function MapPingSheet({
   signal,
   onRefresh,
   onSend,
+  hasCruushPlus = false,
+  onUpgrade,
 }: MapPingSheetProps) {
   const [radiusMiles, setRadiusMiles] = useState<MapPingRadiusMiles>(3);
   const [sending, setSending] = useState(false);
@@ -88,6 +104,9 @@ export default function MapPingSheet({
   const cooldownActive = nextEligibleTimestamp !== null &&
     Number.isFinite(nextEligibleTimestamp) &&
     nextEligibleTimestamp > now;
+  const cooldownCountdown = cooldownActive && nextEligibleTimestamp !== null
+    ? formatCountdown(nextEligibleTimestamp, now)
+    : null;
   const activePingTimestamp = status?.activePing?.expiresAt
     ? Date.parse(status.activePing.expiresAt)
     : null;
@@ -115,6 +134,26 @@ export default function MapPingSheet({
 
     return 'Checking your Ping allowance...';
   }, [activePing, cooldownActive, status]);
+
+  useEffect(() => {
+    if (!open || nextEligibleTimestamp === null || !Number.isFinite(nextEligibleTimestamp)) {
+      return;
+    }
+
+    const delay = nextEligibleTimestamp - Date.now();
+    if (delay <= 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNow(Date.now());
+      void onRefresh().catch((refreshError) => {
+        setError(resolvePingErrorMessage(refreshError));
+      });
+    }, delay);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [nextEligibleTimestamp, onRefresh, open]);
 
   const handleSend = async () => {
     setSending(true);
@@ -183,6 +222,26 @@ export default function MapPingSheet({
                 ? statusText
                 : 'Share your map location before sending a Ping.'}
           </p>
+          {cooldownCountdown && status?.allowance.nextEligibleAt ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.08] px-3 py-2.5 text-sm">
+              <span className="text-white/65">Next Ping in</span>
+              <time
+                aria-label="Ping cooldown"
+                aria-live="off"
+                className="font-mono font-semibold tabular-nums text-white"
+                dateTime={status.allowance.nextEligibleAt}
+                role="timer"
+              >
+                {cooldownCountdown}
+              </time>
+            </div>
+          ) : null}
+          {!hasCruushPlus && status?.allowance.remaining === 0 && onUpgrade ? (
+            <CruushPlusGateNotice
+              description="Basic includes 1 Ping every 24 hours."
+              onUpgrade={onUpgrade}
+            />
+          ) : null}
           {error ? (
             <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
               {error}

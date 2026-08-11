@@ -230,9 +230,7 @@ function hasPremiumPrivacySettings(input: {
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
 }) {
-  return input.baseMode === "STEALTH" ||
-    input.preciseToMutualCruushes ||
-    input.preciseToMutualCrowds.some((policy) => policy.precisionEnabled);
+  return input.baseMode === "STEALTH";
 }
 
 function premiumPrivacyMessage(input: {
@@ -240,11 +238,7 @@ function premiumPrivacyMessage(input: {
   preciseToMutualCruushes: boolean;
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
 }) {
-  if (input.baseMode === "STEALTH") {
-    return "Upgrade to cruush+ to use stealth mode.";
-  }
-
-  return "Upgrade to cruush+ to share precise location with mutuals.";
+  return "Upgrade to cruush+ to use stealth mode.";
 }
 
 type ProfileKinkInterest = {
@@ -1777,9 +1771,18 @@ export async function registerProfileRoutes(app: FastifyInstance) {
     const payload = profileLocationPayloadSchema.parse(request.body);
 
     try {
-      const location = await runTransaction(app.db, async (db) => {
+      const { location, isNewMapAppearance } = await runTransaction(app.db, async (db) => {
         await lockMapPingSenderInTransaction(db, userId);
         const transactionApp = appWithDatabase(app, db);
+        const previousLocation = await db.query<{ is_new_map_appearance: boolean }>(
+          `select
+             (location_updated_at is null or location_updated_at < now() - interval '4 days') as is_new_map_appearance
+           from profiles
+           where id = $1
+           for update`,
+          [userId]
+        );
+        const isNewMapAppearance = previousLocation.rows[0]?.is_new_map_appearance ?? true;
         await db.query(
           `insert into profiles (id, location_updated_at, updated_at)
            values ($1, now(), now())
@@ -1797,7 +1800,10 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         });
         await revokeActiveMapPingsInTransaction(db, userId);
 
-        return savedLocation;
+        return {
+          location: savedLocation,
+          isNewMapAppearance
+        };
       });
       const policy = await loadVisibilityPolicy(app, userId);
       const token = await makeDisplayLocationToken(app, request, {
@@ -1809,7 +1815,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         forceSelfPrecise: true
       });
 
-      if (payload.sync_reason !== "PING") {
+      if (payload.sync_reason !== "PING" && isNewMapAppearance) {
         try {
           await notifyNearbyUsersForLocationUpdate(app, {
             sourceUserId: userId,

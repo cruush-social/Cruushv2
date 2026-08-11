@@ -83,8 +83,16 @@ const migrationFiles = [
   "072_moderation_system_error_context.sql",
   "073_revoke_post_aug7_automatic_cruush_plus_trials.sql",
   "074_map_pings.sql",
-  "076_account_deletion_integrity.sql"
+  "076_account_deletion_integrity.sql",
+  "077_notification_type_preferences.sql",
+  "078_activity_reward_earned_guard.sql",
+  "079_daily_check_in_rewards.sql",
+  "080_reward_invariants.sql"
 ];
+const rewardSafetyPreflightFiles = [
+  "079_daily_check_in_rewards.sql",
+  "080_reward_invariants.sql"
+] as const;
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -96,23 +104,49 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const sqlDir = path.resolve(currentDir, "../sql");
 const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 
-try {
-  for (const file of migrationFiles) {
-    const sql = await readFile(path.join(sqlDir, file), "utf8");
-    const client = await pool.connect();
+async function runMigration(file: string, phase = "migration") {
+  const sql = await readFile(path.join(sqlDir, file), "utf8");
+  const client = await pool.connect();
 
-    try {
-      console.log(`Running ${file}`);
-      await client.query("begin");
-      await client.query(sql);
-      await client.query("commit");
-      console.log(`Finished ${file}`);
-    } catch (error) {
-      await client.query("rollback");
-      throw error;
-    } finally {
-      client.release();
+  try {
+    console.log(`Running ${file} (${phase})`);
+    await client.query("begin");
+    await client.query(sql);
+    await client.query("commit");
+    console.log(`Finished ${file} (${phase})`);
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+try {
+  const rewardSchema = await pool.query<{
+    reward_settings: boolean;
+    daily_activity_credits: boolean;
+    reward_grants: boolean;
+  }>(
+    `select
+       to_regclass('public.reward_settings') is not null as reward_settings,
+       to_regclass('public.daily_activity_credits') is not null as daily_activity_credits,
+       to_regclass('public.reward_grants') is not null as reward_grants`
+  );
+  const existingRewardSchema = rewardSchema.rows[0];
+
+  if (
+    existingRewardSchema?.reward_settings &&
+    existingRewardSchema.daily_activity_credits &&
+    existingRewardSchema.reward_grants
+  ) {
+    for (const file of rewardSafetyPreflightFiles) {
+      await runMigration(file, "reward safety preflight");
     }
+  }
+
+  for (const file of migrationFiles) {
+    await runMigration(file);
   }
 
   console.log("Migrations complete.");

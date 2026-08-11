@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import AlphaBugButton from './AlphaBugButton';
 import CruushActivity from './CruushActivity';
 import { emitCruushChanged } from '../lib/cruushEvents';
 
@@ -11,6 +12,11 @@ const { getMyCruushActivity, sendCruush } = vi.hoisted(() => ({
 
 const { openConversationOrInbox } = vi.hoisted(() => ({
   openConversationOrInbox: vi.fn(),
+}));
+
+const { dismissUserNotice, getUserNoticeDismissal } = vi.hoisted(() => ({
+  dismissUserNotice: vi.fn(),
+  getUserNoticeDismissal: vi.fn(),
 }));
 
 vi.mock('../lib/cruushApi', async () => {
@@ -25,6 +31,11 @@ vi.mock('../lib/cruushApi', async () => {
 
 vi.mock('../lib/openConversation', () => ({
   openConversationOrInbox,
+}));
+
+vi.mock('../lib/userNoticesApi', () => ({
+  dismissUserNotice,
+  getUserNoticeDismissal,
 }));
 
 function LocationProbe() {
@@ -132,6 +143,8 @@ describe('CruushActivity', () => {
     getMyCruushActivity.mockReset();
     sendCruush.mockReset();
     openConversationOrInbox.mockReset();
+    dismissUserNotice.mockReset();
+    getUserNoticeDismissal.mockReset();
     getMyCruushActivity.mockResolvedValue(activityFixture);
     sendCruush.mockResolvedValue({
       id: 'cruush-return',
@@ -140,6 +153,29 @@ describe('CruushActivity', () => {
       createdAt: '2026-04-29T12:05:00.000Z',
       mutual: true,
     });
+    dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: null });
+    getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: null });
+  });
+
+  it('docks the alpha bug reporter in the Activity header instead of the count grid', async () => {
+    render(
+      <MemoryRouter initialEntries={['/cruush']}>
+        <CruushActivity />
+        <AlphaBugButton enabled />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('luna');
+
+    const header = screen.getByTestId('cruush-activity-header');
+    const slot = screen.getByTestId('cruush-activity-bug-button-slot');
+    const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
+
+    expect(header).toContainElement(reportButton);
+    expect(slot).toContainElement(reportButton);
+    expect(reportButton).not.toHaveClass('fixed', 'z-20');
+    expect(screen.getByTestId('cruush-count-grid')).not.toContainElement(reportButton);
+    expect(screen.getByTestId('cruush-tab-grid')).not.toContainElement(reportButton);
   });
 
   it('renders locked free rows, mutual actions, and list-only mutual cruushes', async () => {

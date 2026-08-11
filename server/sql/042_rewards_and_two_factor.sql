@@ -35,7 +35,7 @@ values
   ('recurring_streak_reward_days', '1'::jsonb),
   ('long_streak_days', '1'::jsonb),
   ('long_streak_bonus_days', '1'::jsonb),
-  ('activity_reward_cap_days', '30'::jsonb),
+  ('activity_reward_cap_days', '5'::jsonb),
   ('activity_reward_cap_period_days', '30'::jsonb),
   ('referral_min_account_age_days', '7'::jsonb),
   ('referral_reward_days', '7'::jsonb),
@@ -44,7 +44,7 @@ values
   ('two_factor_trust_points', '10'::jsonb),
   ('referral_trust_points', '1'::jsonb),
   ('max_referral_trust_points', '20'::jsonb),
-  ('eligible_activity_types', '["cruush","message","post"]'::jsonb),
+  ('eligible_activity_types', '["check_in"]'::jsonb),
   ('profile_completion_fields', '["display_name","year_of_birth","bio","pronouns","identities","looking_for","vibes"]'::jsonb)
 on conflict (key) do nothing;
 

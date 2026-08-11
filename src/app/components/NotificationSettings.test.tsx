@@ -38,6 +38,8 @@ describe('NotificationSettings', () => {
       cruushEnabled: true,
       messagesEnabled: true,
       groupsEnabled: true,
+      nearbyEnabled: true,
+      rewardsEnabled: true,
       soundEnabled: true,
     });
     enablePushNotifications.mockResolvedValue({
@@ -45,6 +47,8 @@ describe('NotificationSettings', () => {
       cruushEnabled: true,
       messagesEnabled: true,
       groupsEnabled: true,
+      nearbyEnabled: true,
+      rewardsEnabled: true,
       soundEnabled: true,
     });
     updateNotificationPreferences.mockImplementation((partial) => Promise.resolve({
@@ -52,6 +56,8 @@ describe('NotificationSettings', () => {
       cruushEnabled: true,
       messagesEnabled: false,
       groupsEnabled: true,
+      nearbyEnabled: true,
+      rewardsEnabled: true,
       soundEnabled: true,
       ...partial,
     }));
@@ -90,7 +96,15 @@ describe('NotificationSettings', () => {
       soundEnabled: false,
     }));
 
-    expect(screen.queryByRole('switch', { name: 'Toggle Nearby Pings' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'Toggle Nearby people' }));
+    await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
+      nearbyEnabled: false,
+    }));
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Toggle Reward updates' }));
+    await waitFor(() => expect(updateNotificationPreferences).toHaveBeenCalledWith({
+      rewardsEnabled: false,
+    }));
   });
 
   it('dispatches install requests from the Home Screen app action', async () => {
