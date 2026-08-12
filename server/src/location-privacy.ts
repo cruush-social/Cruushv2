@@ -182,6 +182,26 @@ export const GHOST_RADIUS_OPTIONS = [
 
 export const DEFAULT_GHOST_RADIUS_METERS = 1609;
 export const GHOST_MIN_OFFSET_RATIO = 0.5;
+// Ghost v2 geometry, as fractions of the configured radius R.
+//
+// The decoy sits at GHOST_ANCHOR_RATIO * R from the centroid of the subject's
+// cell, then drifts by up to GHOST_DRIFT_RATIO * R. A point anywhere in the
+// cell is at most (cell diagonal / 2) from the centroid, so the decoy's
+// distance from the true point stays inside
+//   ANCHOR +/- (halfCellDiagonal + DRIFT)
+// and that budget must land inside [0.5R, R].
+//
+// The budget is deliberately NOT tight: offsetCoordinate uses a fixed
+// metres-per-degree constant that is off by up to ~0.7%, and it is applied
+// twice here, so a zero-margin budget would breach the annulus at some
+// latitudes. GHOST_GEOMETRY_SLACK_RATIO reserves that headroom.
+export const GHOST_ANCHOR_RATIO = 0.75;
+export const GHOST_DRIFT_RATIO = 0.1;
+export const GHOST_GEOMETRY_SLACK_RATIO = 0.02;
+// halfCellDiagonal = cellMeters * sqrt(2) / 2, and we need
+// halfCellDiagonal + DRIFT + SLACK <= 0.25R.
+export const GHOST_CELL_RATIO =
+  (0.25 - GHOST_DRIFT_RATIO - GHOST_GEOMETRY_SLACK_RATIO) * 2 / Math.SQRT2;
 // Reported to viewers for every Ghost subject regardless of the radius they
 // chose, so the display token cannot be used to recover it.
 export const GHOST_DISPLAY_ACCURACY_METERS = DEFAULT_GHOST_RADIUS_METERS;
@@ -1015,7 +1035,9 @@ function offsetCoordinate(lat: number, lng: number, northMeters: number, eastMet
 export function deriveGhostCoordinate(input: {
   config: AppConfig;
   subjectUserId: string;
-  viewerUserId: string;
+  // Deliberately no viewerUserId. Deriving per viewer let one attacker with
+  // several accounts collect that many independent samples every epoch, which
+  // is far cheaper than waiting out a single-observer averaging attack.
   centerLat: number;
   centerLng: number;
   rotationEpoch: number;
@@ -1028,30 +1050,86 @@ export function deriveGhostCoordinate(input: {
     "ghost-coordinate",
     getGhostDerivationKeyVersion(input.config)
   );
-  const seed = createHmac("sha256", key)
-    .update([
-      input.subjectUserId,
-      input.viewerUserId,
-      input.rotationEpoch,
-      input.derivationSalt,
-      input.policyVersion,
-      "ghost-v1"
-    ].join(":"))
-    .digest();
-  const u1 = randomFloatFromSeed(seed.subarray(0, 8));
-  const u2 = randomFloatFromSeed(seed.subarray(8, 16));
-  // Sample uniformly from an annulus instead of from the exact center. Ghost
-  // Mode must never render an ungranted viewer at the subject's real pin, even
-  // when the configured radius is the smallest option.
-  const minimumRadiusRatioSquared = GHOST_MIN_OFFSET_RATIO ** 2;
-  const radius = input.radiusMeters * Math.sqrt(
-    minimumRadiusRatioSquared + (1 - minimumRadiusRatioSquared) * u1
-  );
-  const theta = 2 * Math.PI * u2;
-  const northMeters = radius * Math.cos(theta);
-  const eastMeters = radius * Math.sin(theta);
+  // Ghost v2. The v1 scheme offset the TRUE point by a fresh random vector each
+  // epoch. Those offsets were unbiased, so an observer who recorded the decoy
+  // every rotation and averaged converged on the real position — about 40 m
+  // after a week at a one-mile radius, and it kept shrinking. The decoy also
+  // varied per viewer, so one attacker with several accounts harvested
+  // independent samples every epoch.
+  //
+  // v2 removes both. The decoy is derived from a quantised CELL rather than the
+  // exact point, and the only per-epoch movement is a drift that does not depend
+  // on the subject's position at all:
+  //
+  //     decoy = anchor(subject, cell) + drift(subject, epoch)
+  //
+  // The anchor is constant while the subject stays inside a cell, so averaging
+  // converges on the anchor — never on the subject — and the decoy carries no
+  // within-cell trajectory to map-match. The lattice is phase-shifted by a
+  // per-subject secret so cell boundaries are not a publicly known grid.
+  const hmacFor = (label: string, ...parts: Array<string | number>) =>
+    createHmac("sha256", key).update([label, ...parts].join(":")).digest();
 
-  return offsetCoordinate(input.centerLat, input.centerLng, northMeters, eastMeters);
+  const cellMeters = input.radiusMeters * GHOST_CELL_RATIO;
+  const latStepDegrees = cellMeters / 111_320;
+
+  // Secret per-subject lattice phase: without it an attacker who recovers the
+  // anchor can intersect a known grid and identify the cell outright.
+  const phaseSeed = hmacFor("ghost-v2-phase", input.subjectUserId, input.policyVersion);
+  const phaseLat = randomFloatFromSeed(phaseSeed.subarray(0, 8)) * latStepDegrees;
+
+  // Quantise latitude FIRST, then scale longitude by the row's latitude rather
+  // than the subject's exact latitude. Using the exact latitude would make the
+  // longitude step — and therefore the whole grid — drift continuously as the
+  // subject moved, so the anchor would not hold still inside a cell and the
+  // decoy would leak a within-cell track.
+  const cellRow = Math.floor((input.centerLat - phaseLat) / latStepDegrees);
+  const centroidLat = phaseLat + (cellRow + 0.5) * latStepDegrees;
+
+  const lngScale = Math.max(0.01, Math.abs(Math.cos(centroidLat * Math.PI / 180)));
+  const lngStepDegrees = cellMeters / (111_320 * lngScale);
+  const phaseLng = randomFloatFromSeed(phaseSeed.subarray(8, 16)) * lngStepDegrees;
+
+  const cellColumn = Math.floor((input.centerLng - phaseLng) / lngStepDegrees);
+  const centroidLng = phaseLng + (cellColumn + 0.5) * lngStepDegrees;
+
+  // Anchor: fixed for this subject and cell. No epoch, no viewer.
+  const anchorSeed = hmacFor(
+    "ghost-v2-anchor",
+    input.subjectUserId,
+    cellRow,
+    cellColumn,
+    input.policyVersion
+  );
+  const anchorTheta = 2 * Math.PI * randomFloatFromSeed(anchorSeed.subarray(0, 8));
+  const anchorMeters = input.radiusMeters * GHOST_ANCHOR_RATIO;
+  const anchor = offsetCoordinate(
+    centroidLat,
+    centroidLng,
+    anchorMeters * Math.cos(anchorTheta),
+    anchorMeters * Math.sin(anchorTheta)
+  );
+
+  // Drift: the visible fifteen-minute movement. Derived only from the subject
+  // and the epoch, never from the position, so averaging it away reveals
+  // nothing about the subject beyond the cell the anchor already fixes.
+  const driftSeed = hmacFor(
+    "ghost-v2-drift",
+    input.subjectUserId,
+    input.rotationEpoch,
+    input.derivationSalt,
+    input.policyVersion
+  );
+  const driftAmplitude = input.radiusMeters * GHOST_DRIFT_RATIO;
+  const radius = driftAmplitude * Math.sqrt(randomFloatFromSeed(driftSeed.subarray(0, 8)));
+  const theta = 2 * Math.PI * randomFloatFromSeed(driftSeed.subarray(8, 16));
+
+  return offsetCoordinate(
+    anchor.lat,
+    anchor.lng,
+    radius * Math.cos(theta),
+    radius * Math.sin(theta)
+  );
 }
 
 export async function resolveViewerGhostCoordinate(context: LocationPrivacyContext, input: {
@@ -1074,7 +1152,6 @@ export async function resolveViewerGhostCoordinate(context: LocationPrivacyConte
     coordinate: deriveGhostCoordinate({
       config: context.config,
       subjectUserId: input.subjectUserId,
-      viewerUserId: input.viewerUserId,
       centerLat: center.lat,
       centerLng: center.lng,
       rotationEpoch: rotation.rotationEpoch,

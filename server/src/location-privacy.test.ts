@@ -302,43 +302,29 @@ describe("location privacy", () => {
     expect(far.some((token) => viewer.includes(token))).toBe(true);
   });
 
-  it("derives stable viewer-specific ghost coordinates inside the selected radius", () => {
-    const first = deriveGhostCoordinate({
+  it("derives a stable ghost coordinate inside the selected radius", () => {
+    const ghostInput = {
       config,
       subjectUserId,
-      viewerUserId,
       centerLat: 40.711,
       centerLng: -74.002,
       rotationEpoch: 123,
       derivationSalt: "salt",
       radiusMeters: 1609,
       policyVersion: 2
-    });
-    const again = deriveGhostCoordinate({
-      config,
-      subjectUserId,
-      viewerUserId,
-      centerLat: 40.711,
-      centerLng: -74.002,
-      rotationEpoch: 123,
-      derivationSalt: "salt",
-      radiusMeters: 1609,
-      policyVersion: 2
-    });
-    const otherViewer = deriveGhostCoordinate({
-      config,
-      subjectUserId,
-      viewerUserId: "b8b61062-f0b1-4c75-9390-7bc769278e01",
-      centerLat: 40.711,
-      centerLng: -74.002,
-      rotationEpoch: 123,
-      derivationSalt: "salt",
-      radiusMeters: 1609,
-      policyVersion: 2
+    };
+    const first = deriveGhostCoordinate(ghostInput);
+    const again = deriveGhostCoordinate(ghostInput);
+    const otherSubject = deriveGhostCoordinate({
+      ...ghostInput,
+      subjectUserId: "b8b61062-f0b1-4c75-9390-7bc769278e01"
     });
 
     expect(first).toEqual(again);
-    expect(first).not.toEqual(otherViewer);
+    // Every viewer sees the same decoy in an epoch. Deriving per viewer let one
+    // attacker with several accounts gather that many independent samples at
+    // once, which defeats the whole scheme far faster than patient averaging.
+    expect(first).not.toEqual(otherSubject);
     const offsetMiles = distanceMiles(40.711, -74.002, first.lat, first.lng);
     expect(offsetMiles).toBeGreaterThanOrEqual(GHOST_MIN_OFFSET_RATIO - 0.01);
     expect(offsetMiles).toBeLessThanOrEqual(1.01);
