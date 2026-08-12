@@ -182,6 +182,9 @@ export const GHOST_RADIUS_OPTIONS = [
 
 export const DEFAULT_GHOST_RADIUS_METERS = 1609;
 export const GHOST_MIN_OFFSET_RATIO = 0.5;
+// Reported to viewers for every Ghost subject regardless of the radius they
+// chose, so the display token cannot be used to recover it.
+export const GHOST_DISPLAY_ACCURACY_METERS = DEFAULT_GHOST_RADIUS_METERS;
 export const DISPLAY_TOKEN_TTL_MS = 180 * 1000;
 export const LOCATION_DISCOVERY_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
 const LOCATION_TTL_MS = LOCATION_DISCOVERY_WINDOW_MS;
@@ -1197,7 +1200,12 @@ export async function makeDisplayLocationToken(context: LocationPrivacyContext, 
     });
     coordinate = ghost.coordinate;
     rotationEpoch = ghost.rotationEpoch;
-    accuracyDisplayM = ghost.radiusMeters;
+    // Never disclose the subject's configured ghost radius. Viewers decrypt this
+    // payload, and the radius bounds where the true pin can be relative to the
+    // decoy: publishing it tells an observer the subject is between
+    // GHOST_MIN_OFFSET_RATIO * R and R away, and lets them tell a 500 ft user
+    // from a 5 mi one. Every ghost subject reports the same fixed value.
+    accuracyDisplayM = GHOST_DISPLAY_ACCURACY_METERS;
   }
 
   const payload: DisplayLocationPayload = {

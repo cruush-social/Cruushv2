@@ -1,31 +1,29 @@
 {
-  "task": "Security hotfix: stop publishing a precise-derived distance in nearby-activity notification metadata, which exposed Ghost Mode users' locations",
+  "task": "Security hotfix: stop disclosing a Ghost Mode subject's configured radius in the viewer-decrypted display location token",
   "base": "bed2ed0944abcf6cbf05a9e4901f7a6714ba77e7 (current production SHA)",
-  "branch": "hotfix/ghost-mode-distance-leak",
+  "branch": "hotfix/ghost-radius-disclosure",
   "status": "active",
   "allowedPaths": [
-    "server/src/nearby-notifications.ts",
-    "server/src/nearby-notifications.test.ts",
-    "server/src/ghost-mode-distance-leak.test.ts",
+    "server/src/location-privacy.ts",
+    "server/src/ghost-radius-disclosure.test.ts",
     "AI_TASK.json"
   ],
   "nonGoals": [
-    "Do not change who receives a nearby notification",
-    "Do not change the ghost coordinate derivation or rotation scheme",
-    "Do not change Ghost, Stealth or precise visibility policy semantics",
+    "Do not change the ghost coordinate derivation, radius options, or rotation scheme",
+    "Do not change precise-mode accuracy reporting",
+    "Do not change the user's own view of their configured radius in settings",
     "No database configuration or credential changes",
     "No deploy without explicit authorization"
   ],
   "preservedBehavior": [
-    "Nearby notifications continue to be delivered to the same recipients",
-    "The ten-mile radius gate still uses the server-side computed distance",
-    "sourceUserId remains in metadata so the notification still resolves",
-    "Stealth continues to suppress nearby notifications entirely"
+    "The configured radius still drives the ghost offset server-side",
+    "Precise-mode subjects still report real GPS accuracy",
+    "A subject still sees their own configured radius in privacy settings",
+    "No visible map rendering depends on the disclosed value"
   ],
   "proof": [
-    "Existing nearby-notification test asserts no distance appears in the inserted metadata, and fails against the previous code",
-    "Dedicated regression test documents the Ghost Mode reasoning and fails against the previous code",
-    "Adjacent location-privacy, notifications and map-presence tests still pass",
+    "Regression test fails against the disclosing version and passes after",
+    "Existing location-privacy tests still pass",
     "Server type-check clean"
   ],
   "publicationTarget": "Pull request into main (branch push only; production deploy requires separate explicit authorization)",
