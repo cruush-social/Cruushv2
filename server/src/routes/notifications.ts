@@ -13,6 +13,14 @@ import {
   upsertPushSubscription
 } from "../push-service.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
+import { publicHttpsUrlSchema } from "../input-schema.js";
+
+// Push endpoints are dereferenced by the server when delivering a notification,
+// so they must be restricted to public HTTPS hosts. Every real push service
+// (FCM, Apple, Mozilla) issues such a URL.
+const pushEndpointSchema = () => publicHttpsUrlSchema({
+  message: "Push endpoint must be a public HTTPS URL."
+});
 
 const notificationQuerySchema = z.object({
   filter: z.enum(["all", "unread"]).optional().default("all"),
@@ -32,8 +40,8 @@ const notificationPreferencesPayloadSchema = z.object({
   soundEnabled: z.boolean().optional()
 }).strict();
 
-const pushSubscriptionPayloadSchema = z.object({
-  endpoint: z.string().url(),
+export const pushSubscriptionPayloadSchema = z.object({
+  endpoint: pushEndpointSchema(),
   keys: z.object({
     p256dh: z.string().min(1),
     auth: z.string().min(1)
@@ -41,7 +49,7 @@ const pushSubscriptionPayloadSchema = z.object({
 }).strict();
 
 const pushUnsubscribePayloadSchema = z.object({
-  endpoint: z.string().url().optional()
+  endpoint: pushEndpointSchema().optional()
 }).strict();
 
 export function registerNotificationRoutes(app: FastifyInstance) {
