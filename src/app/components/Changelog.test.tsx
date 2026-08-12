@@ -22,15 +22,16 @@ describe('Changelog', () => {
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-08-09T12:00:00.000Z' });
   });
 
-  it('shows v1.2 before the preserved v1.1 history', () => {
+  it('shows v1.3 before the preserved v1.2 and v1.1 history', () => {
     render(
       <MemoryRouter>
         <Changelog />
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('v1.2')).toBeInTheDocument();
+    expect(screen.getByText('v1.3')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'cruush v1.3',
       'cruush v1.2',
       'cruush v1.1',
     ]);
@@ -39,7 +40,12 @@ describe('Changelog', () => {
     expect(screen.getByText(/map now stays inside the NYC beta area/i)).toBeInTheDocument();
     expect(screen.getByText(/shows a live countdown on disappearing messages you send/i)).toBeInTheDocument();
     expect(screen.getByText(/Quick-access photos upload more reliably/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Ghost Mode/i)).not.toBeInTheDocument();
+    // v1.2 was deliberately written without any Ghost Mode mention. v1.3
+    // announces the Ghost Mode privacy fixes, so scope the rule to the v1.2
+    // section rather than the whole page.
+    const v12Section = screen.getByRole('heading', { level: 3, name: 'cruush v1.2' }).closest('section');
+    expect(v12Section).not.toBeNull();
+    expect(v12Section?.textContent ?? '').not.toMatch(/Ghost Mode/i);
     expect(screen.getByText(/winged-heart Profile icon stays white until selected/i)).toBeInTheDocument();
     expect(screen.getByText(/flat chartreuse border treatment/i)).toBeInTheDocument();
     expect(screen.getByText(/Feed post duration is yours to choose, with Never as the default/i)).toBeInTheDocument();

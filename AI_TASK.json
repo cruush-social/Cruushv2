@@ -1,31 +1,51 @@
 {
-  "task": "Security hotfix: stop disclosing a Ghost Mode subject's configured radius in the viewer-decrypted display location token",
-  "base": "bed2ed0944abcf6cbf05a9e4901f7a6714ba77e7 (current production SHA)",
-  "branch": "hotfix/ghost-radius-disclosure",
-  "status": "active",
+  "status": "validating",
+  "product": "cruush",
+  "repository": "cruush-social/Cruushv2",
+  "job": "Assemble cruush v1.3: the session's UI and bug fixes, plus four security fixes and the Ghost Mode privacy fixes, on one branch.",
+  "base": "codex/session-dirty-work-20260811 at fa9d2b8, which itself branches from bed2ed0 (main, and the deployed API SHA; v1.2 release e953a99 is an ancestor)",
+  "branch": "security/v12-combined",
   "allowedPaths": [
+    "AI_TASK.json",
+    "SECURITY-FIX-PLAN.md",
+    "server/scripts/audit-snapshot-photos-count-only.ts",
+    "server/src/cruush-schema.ts",
+    "server/src/cruush-schema.test.ts",
+    "server/src/routes/cruush.ts",
+    "server/src/routes/notifications.ts",
+    "server/src/push-endpoint-validation.test.ts",
+    "server/src/nearby-notifications.ts",
+    "server/src/nearby-notifications.test.ts",
+    "server/src/ghost-mode-distance-leak.test.ts",
     "server/src/location-privacy.ts",
     "server/src/ghost-radius-disclosure.test.ts",
-    "AI_TASK.json"
+    "src/app/lib/cruushApi.ts",
+    "src/app/lib/cruushApi.test.ts",
+    "src/app/lib/overlaySlots.ts",
+    "src/app/lib/overlaySlots.smoke.test.ts",
+    "src/app/components/Changelog.tsx",
+    "src/app/components/Changelog.test.tsx"
+  ],
+  "preserved": [
+    "Every UI and bug fix from the session branch: map navigation and touch handling, tutorial recovery, mobile menu hardening, per-type notification controls, rewards check-in, Ping placement and cooldown, cruush+ gating, and theme changes.",
+    "The five-mile nearby radius and the recipient selection that reaches users without a push subscription.",
+    "Ghost, Stealth and precise-location semantics, including the minimum ghost offset of half the configured radius.",
+    "All v1.2 behavior and the preserved v1.1 and v1.2 changelog history."
   ],
   "nonGoals": [
-    "Do not change the ghost coordinate derivation, radius options, or rotation scheme",
-    "Do not change precise-mode accuracy reporting",
-    "Do not change the user's own view of their configured radius in settings",
-    "No database configuration or credential changes",
-    "No deploy without explicit authorization"
-  ],
-  "preservedBehavior": [
-    "The configured radius still drives the ghost offset server-side",
-    "Precise-mode subjects still report real GPS accuracy",
-    "A subject still sees their own configured radius in privacy settings",
-    "No visible map rendering depends on the disclosed value"
+    "Do not redesign the Ghost Mode rotation scheme; the averaging weakness is tracked separately and is not fixed here.",
+    "Do not change database configuration, credentials, or environment variables.",
+    "Do not deploy without explicit authorization.",
+    "Do not modify the codex/session-dirty-work-20260811 branch itself."
   ],
   "proof": [
-    "Regression test fails against the disclosing version and passes after",
-    "Existing location-privacy tests still pass",
-    "Server type-check clean"
+    "Server suite 771 passed, 14 skipped, 0 failed; server tsc clean.",
+    "Client suite 510 passed, 0 failed.",
+    "Overlay smoke tests 11/11, including the overlap assertions, after syncing the stale map-right-actions geometry to what MapHome renders.",
+    "Each security fix has a regression test verified to fail against the pre-fix code and pass after.",
+    "Product-name casing and lowercase-cruush checks pass.",
+    "Production build not yet run; no live-behavior verification performed; nothing deployed."
   ],
-  "publicationTarget": "Pull request into main (branch push only; production deploy requires separate explicit authorization)",
+  "publicationTarget": "none (local branch; push and deploy require explicit authorization)",
   "environmentChanges": []
 }

@@ -21,8 +21,9 @@ describe("ghost mode distance leak", () => {
 
   it("still computes distance server-side to gate delivery by radius", () => {
     // The fix must not disable the radius gate — only stop publishing the value.
+    // The bound may be a literal or a named constant, so match either.
     expect(source).toMatch(/const distance = distanceMiles\(/);
-    expect(source).toMatch(/if \(distance > \d+\)/);
+    expect(source).toMatch(/distance\s*>\s*(?:\d+|[A-Z_][A-Z0-9_]*)/);
   });
 
   it("keeps sourceUserId in metadata so the notification still resolves", () => {

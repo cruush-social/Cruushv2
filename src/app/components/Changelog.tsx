@@ -5,6 +5,21 @@ import { Button } from './ui/button';
 
 const changelogReleases = [
   {
+    version: 'v1.3',
+    items: [
+      'Ghost Mode no longer shares how far away you are. People nearby see that you are around, never your distance.',
+      'Ghost Mode no longer shares which privacy radius you picked, so nobody can tell a tight radius from a wide one.',
+      'Notification settings now switch each alert type on or off on its own, including nearby activity and rewards.',
+      'Nearby alerts cover a five-mile radius and reach you in the app whether or not push notifications are on.',
+      'Rewards move to one daily check-in, with a bonus day each time you finish a seven-day streak.',
+      'Stealth Mode is part of cruush+, while Ghost Mode and precise-location controls stay free.',
+      'Ping sits directly below cruush+ in the map controls and waits out a cooldown between signals.',
+      'The map top action bar and its icons are larger, and map pins respond to both a short tap and a press and hold.',
+      'Map navigation, touch handling, the tutorial, and the mobile menu were tightened up.',
+      'Behind the scenes, links and notification endpoints the server handles are validated more strictly.',
+    ],
+  },
+  {
     version: 'v1.2',
     items: [
       'Ping briefly activates your map heart and posts your signal to the local feed for your saved post duration.',
