@@ -933,7 +933,8 @@ export async function registerCruushRoutes(app: FastifyInstance) {
       targetSnapshot: {
         name: payload.targetUser?.name ?? "",
         pronouns: payload.targetUser?.pronouns ?? "",
-        photo: payload.targetUser?.photo ?? null
+        // Client-supplied snapshot photo URLs are never persisted.
+        photo: null
       }
     }));
 
