@@ -1,35 +1,31 @@
 {
-  "task": "Security hotfix: stop accepting and sending client-supplied cruush snapshot photo URLs; always persist photo: null",
+  "task": "Security hotfix: restrict web push subscription endpoints to public HTTPS URLs to close a blind server-side request forgery primitive",
   "base": "bed2ed0944abcf6cbf05a9e4901f7a6714ba77e7 (current production SHA)",
-  "branch": "hotfix/snapshot-photo-null",
+  "branch": "hotfix/push-endpoint-ssrf",
   "status": "active",
   "allowedPaths": [
-    "server/src/cruush-schema.ts",
-    "server/src/routes/cruush.ts",
-    "server/src/cruush-schema.test.ts",
-    "src/app/lib/cruushApi.ts",
-    "src/app/lib/cruushApi.test.ts",
-    "server/scripts/audit-snapshot-photos-count-only.ts",
-    "SECURITY-FIX-PLAN.md",
+    "server/src/routes/notifications.ts",
+    "server/src/push-endpoint-validation.test.ts",
     "AI_TASK.json"
   ],
   "nonGoals": [
     "No database configuration changes",
-    "No DATABASE_URL or credential changes",
-    "No changes to moderation/Web Push capability URLs",
-    "No cleanup of stored production data",
-    "No push, no deploy without explicit authorization",
-    "Do not touch any other worktree"
+    "No credential changes",
+    "No changes to snapshot photo handling (separate branch)",
+    "No cleanup or migration of stored subscriptions",
+    "No deploy without explicit authorization"
   ],
   "preservedBehavior": [
-    "Sending a cruush (with or without a targetUser block, with or without a photo field, valid or invalid) must continue to succeed exactly as before",
-    "Snapshot name and pronouns fallback behavior unchanged",
-    "Profile-media photos (row.photos) unchanged"
+    "Real push service endpoints (FCM, Apple, Mozilla) continue to be accepted",
+    "Existing notification preference and delivery behavior is unchanged",
+    "All four existing production subscriptions remain valid under the new rule"
   ],
   "proof": [
-    "Server unit tests: credential-bearing URL, javascript: URL, oversized string, and null all accepted and persisted as photo: null",
-    "Client tests: sendCruush never includes a non-null photo in the request body",
-    "Full existing test files for touched modules pass"
+    "Regression tests fail against the previous permissive schema and pass after the fix",
+    "Existing notifications route tests still pass",
+    "Server type-check clean",
+    "Count-only production query confirms no stored subscription is invalidated"
   ],
-  "publicationTarget": "Pull request into main (branch push only; production deploy requires separate explicit authorization)"
+  "publicationTarget": "Pull request into main (branch push only; production deploy requires separate explicit authorization)",
+  "environmentChanges": []
 }
