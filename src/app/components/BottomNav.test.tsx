@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,6 +23,13 @@ describe('BottomNav', () => {
   beforeEach(() => {
     useIsMobile.mockReset();
     useIsMobile.mockReturnValue(false);
+  });
+
+  it('keeps the supplied no-notch cruush logo as the canonical full-logo asset', () => {
+    const logo = readFileSync(resolve(process.cwd(), 'src/app/assets/brand/cruush-logo.svg'));
+
+    expect(createHash('sha256').update(logo).digest('hex'))
+      .toBe('928d31f785515d958b2efb9778b1d5082e6e677df49e6426cf4be0942fbcace1');
   });
 
   it('navigates to /map when the map button is pressed', () => {
@@ -199,7 +209,8 @@ describe('BottomNav', () => {
     expect(profileIcon.tagName).toBe('SPAN');
     expect(profileIcon).toHaveAttribute('data-tone', 'gradient');
     expect(profileIcon).toHaveStyle({
-      background: 'linear-gradient(135deg, #ff0072 0%, #6f00ff 32%, #004bff 66%, #03ecfc 100%)',
+      background:
+        'linear-gradient(90deg, #ff0072 0%, #ff0072 30%, #d000ff 48%, #6f00ff 62%, #004bff 82%, #03ecfc 100%)',
     });
     expect(profileIcon).toHaveClass('h-11', 'w-11');
     expect(profileIcon.getAttribute('style')).toContain('humanity-profile-selected-winged-heart');

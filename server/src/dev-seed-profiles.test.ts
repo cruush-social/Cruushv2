@@ -9,6 +9,20 @@ import {
   seedDevelopmentProfilesWithDb
 } from "./dev-seed-profiles.js";
 import { createCoarseIndexTokens } from "./location-privacy.js";
+import {
+  deleteEncryptedMediaObject,
+  writeEncryptedMediaObject
+} from "./media-storage.js";
+
+vi.mock("./media-storage.js", async () => {
+  const actual = await vi.importActual<typeof import("./media-storage.js")>("./media-storage.js");
+
+  return {
+    ...actual,
+    deleteEncryptedMediaObject: vi.fn(async () => undefined),
+    writeEncryptedMediaObject: vi.fn(async () => undefined)
+  };
+});
 
 const config: AppConfig = {
   NODE_ENV: "development",
@@ -18,6 +32,10 @@ const config: AppConfig = {
   CORS_ORIGIN: "http://localhost:5173",
   SESSION_SECRET: "test-secret",
   APP_URL: "https://cruush.test",
+  MEDIA_STORAGE_DIR: "media",
+  MEDIA_OBJECT_STORAGE_DRIVER: "local",
+  MEDIA_ENCRYPTION_KEY: "test-media-encryption-key-32-bytes",
+  MEDIA_ENCRYPTION_KEY_VERSION: "v1",
   RESEND_API_KEY: "",
   MAIL_FROM: "",
   EMAIL_PREVIEW_ENABLED: true,
@@ -99,6 +117,8 @@ describe("development profile seeding", () => {
   });
 
   it("syncs the admin and all test profiles into encrypted location discovery", async () => {
+    vi.mocked(deleteEncryptedMediaObject).mockClear();
+    vi.mocked(writeEncryptedMediaObject).mockClear();
     let userIndex = 0;
     let relationshipIndex = 0;
     const query = vi.fn(async (sql: string, params: unknown[] = []) => {
@@ -128,6 +148,18 @@ describe("development profile seeding", () => {
         };
       }
 
+      if (
+        normalizedSql.includes("from media_objects") &&
+        normalizedSql.includes("surface = 'profile_photo'")
+      ) {
+        return {
+          rows: [{
+            public_url: "/api/media/profile-photos/existing.png",
+            object_key: "profile-photos/existing.png.enc"
+          }]
+        };
+      }
+
       return {
         rows: []
       };
@@ -140,6 +172,9 @@ describe("development profile seeding", () => {
     const result = await seedDevelopmentProfilesWithDb({ config, db });
     const encryptedLocationCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_location_envelopes"));
     const encryptedPolicyCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"));
+    const mediaObjectCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into media_objects"));
+    const profileCalls = query.mock.calls.filter(([sql]) => String(sql).includes("profile_sensitive_ciphertext"));
+    const adminPhotoCalls = query.mock.calls.filter(([sql]) => String(sql).includes("set photos = $2"));
     const legacyPrivacyCalls = query.mock.calls.filter(([sql]) => String(sql).includes(
       "insert into user_privacy_settings (user_id, ghost_mode_enabled, precise_location_visibility)"
     ));
@@ -158,6 +193,20 @@ describe("development profile seeding", () => {
     expect(seededProfileLocationCalls).toHaveLength(TEST_PROFILE_COUNT);
     expect(encryptedPolicyCalls).toHaveLength(TEST_PROFILE_COUNT + 1);
     expect(legacyPrivacyCalls).toHaveLength(TEST_PROFILE_COUNT);
+    expect(mediaObjectCalls).toHaveLength(TEST_PROFILE_COUNT + 1);
+    expect(profileCalls).toHaveLength(TEST_PROFILE_COUNT);
+    expect(adminPhotoCalls).toHaveLength(1);
+    expect(adminPhotoCalls[0]?.[1]).toEqual([
+      seededUserId(1),
+      [expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]+\.png$/)]
+    ]);
+    expect(deleteEncryptedMediaObject).toHaveBeenCalledTimes(TEST_PROFILE_COUNT + 1);
+    expect(writeEncryptedMediaObject).toHaveBeenCalledTimes(TEST_PROFILE_COUNT + 1);
+    for (const [, params] of profileCalls) {
+      expect(((params ?? []) as unknown[])[2]).toEqual([
+        expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]+\.png$/)
+      ]);
+    }
     for (const [, params] of seededProfileLocationCalls) {
       const coarseIndexTokens = (((params ?? []) as unknown[])[9] ?? []) as string[];
       expect(coarseIndexTokens.some((token) => adminDiscoveryTokens.has(token))).toBe(true);

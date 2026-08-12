@@ -21,3 +21,13 @@ describe('global text selection policy', () => {
     expect(themeCss).toContain('overflow-x: hidden;');
   });
 });
+
+describe('cruush+ map button sheen', () => {
+  it('keeps the v2 sweep and reduced-motion fallback available', () => {
+    expect(themeCss).toContain('.cruush-plus-shimmer-button::before');
+    expect(themeCss).toContain('animation: cruush-plus-shimmer 3.4s ease-in-out infinite;');
+    expect(themeCss).toContain('@keyframes cruush-plus-shimmer');
+    expect(themeCss).toContain('.cruush-plus-shimmer-button > *');
+    expect(themeCss).toContain('.cruush-plus-shimmer-button::before {\n      animation: none;');
+  });
+});

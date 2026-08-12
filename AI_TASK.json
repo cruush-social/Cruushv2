@@ -2,60 +2,56 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Finish the verified, non-production continuation work from this session: fail closed for unreadable visibility policies, hide Stealth users in legacy discovery, add notification-settings load recovery, preserve map-tutorial progress across routed steps, strengthen interaction regression coverage, verify Coolify repository URLs contain no credentials, and publish only the session feature branch.",
-  "base": "92fe0da50cead15fcb81cc46f53c635dda426a14",
-  "baseSha": "92fe0da50cead15fcb81cc46f53c635dda426a14",
+  "job": "Repair the local development admin map by reseeding valid encrypted profile media while preserving the working encrypted location flow.",
+  "base": "a2fafd21aea764bad47b7f88611f84638fa4e0d4",
+  "baseSha": "a2fafd21aea764bad47b7f88611f84638fa4e0d4",
   "branch": "codex/session-dirty-work-20260811",
   "allowedPaths": [
     "AI_TASK.json",
-    ".octo/LESSONS.md",
-    "server/src/location-privacy.ts",
-    "server/src/location-privacy.test.ts",
-    "server/src/routes/users.ts",
-    "server/src/app.test.ts",
-    "src/app/components/NotificationSettings.tsx",
-    "src/app/components/NotificationSettings.test.tsx",
-    "src/app/components/MapControlsTutorial.tsx",
-    "src/app/components/MapControlsTutorial.test.tsx",
+    "server/src/dev-seed-profiles.ts",
+    "server/src/dev-seed-profiles.test.ts",
     "src/app/components/MapHome.tsx",
     "src/app/components/MapHome.test.tsx",
-    "src/app/components/DebugCruushPlusToggle.tsx",
-    "src/app/components/DebugCruushPlusToggle.test.tsx",
+    "src/styles/theme.css",
+    "src/styles/theme.test.ts",
+    "src/app/components/AlphaBugButton.tsx",
+    "src/app/components/AlphaBugButton.test.tsx",
+    "src/app/components/BottomNav.tsx",
+    "src/app/components/BottomNav.test.tsx",
     "e2e/regression/session-interactions.spec.ts"
   ],
+  "forbiddenPaths": [
+    "server/sql/**",
+    "server/src/routes/**",
+    "src/app/assets/**",
+    "src/app/components/MapView.tsx"
+  ],
   "preserved": [
-    "Preserve all existing work in commit 92fe0da50cead15fcb81cc46f53c635dda426a14 and keep origin/main untouched.",
-    "Preserve Ghost Mode for basic and cruush+ members, including precise-location choices; only Stealth remains a cruush+ feature.",
-    "Preserve approved Ghost map visuals: the signed-in Ghost user sees an electric-blue self border, while other users see normal pink or mutual-purple borders and normal profile photos.",
-    "Preserve production user data, reward balances, notification delivery state, Coolify production app configuration, and every secret value.",
-    "Preserve supplied assets, current routes, copy, and behavior outside the listed defects."
+    "Preserve all completed UI work already present in the dirty worktree, including top navigation, bottom navigation, map spacing, icon sizing, cruush+ sheen, and the no-notch cruush logo invariant.",
+    "Preserve production behavior, data, schema, routes, media moderation, encryption boundaries, account permissions, and user data.",
+    "Preserve the current development admin identity, deterministic twenty-profile fixture, encrypted discovery locations, relationship fixtures, and map behavior.",
+    "Preserve all existing branch work and keep origin/main untouched."
   ],
   "nonGoals": [
-    "Do not push or merge to main, deploy, change DNS, create or delete production accounts, send real notifications, or alter production user data.",
-    "Do not expose, log, reconstruct, or repeat the revoked personal access key or any other credential.",
-    "Do not redesign Ghost Mode, notification taxonomy, tutorial visuals, premium gates, rewards, navigation, map pins, or unrelated controls.",
-    "Do not claim exhaustive device or provider delivery proof from local tests."
+    "Do not change production or migration code, frontend UI, map pins, Ghost Mode, DL Mode, location semantics, admin authorization, or real user records.",
+    "Do not push, merge, deploy, install providers, or add screenshots to Git."
   ],
   "proofTarget": {
     "requiredEvidence": [
-      "Each defect has a failing regression test before its implementation and a passing focused test afterward.",
-      "Unreadable stored visibility policy data resolves to a fail-closed Stealth policy while a genuinely missing policy retains the default behavior.",
-      "Legacy discovery excludes Stealth users and preserves Ghost display mode for Ghost users.",
-      "Notification settings show an actionable retry after load failure and recover after retry.",
-      "Ghost and Feed tutorial route actions preserve progress when the user returns to the map.",
-      "Mobile Chromium proves representative menu and button hit targets and handlers at 390x844; static tests do not substitute for rendered interaction proof.",
-      "Focused tests, server typecheck, frontend build, regression gates, contract, scope, secrets, spelling, and whitespace checks pass.",
-      "Every Coolify application repository value is verified credential-free without printing repository credentials or changing production configuration.",
-      "The exact verified commit is pushed only to origin/codex/session-dirty-work-20260811 and its remote SHA is checked separately."
+      "A focused regression fails when development reseeding does not rewrite encrypted profile media and passes after the fix.",
+      "Development reseeding remains deterministic and rewrites the admin plus all twenty approved local profile-photo objects using the active development media key.",
+      "The local admin location update returns 200 and the authenticated /map flow renders the admin plus twenty seeded profiles.",
+      "All seeded profile-photo requests return 200 with zero local media 404 or 500 responses.",
+      "Focused tests, server typecheck, scope, secret, spelling, and whitespace checks pass."
     ],
     "viewports": [
       "390x844",
       "1440x900"
     ]
   },
-  "externalActions": [
-    "Push the verified branch only to origin/codex/session-dirty-work-20260811."
-  ],
-  "publicationTarget": "origin/codex/session-dirty-work-20260811",
-  "environmentChanges": []
+  "externalActions": [],
+  "publicationTarget": "none",
+  "environmentChanges": [
+    "Refresh disposable local development seed rows and encrypted media files only."
+  ]
 }

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { hashPassword } from "./auth.js";
@@ -19,6 +20,12 @@ import {
   encryptSensitiveProfile,
   type SensitiveProfileData
 } from "./profile-sensitive.js";
+import { encryptMediaBytes } from "./media-encryption.js";
+import {
+  deleteEncryptedMediaObject,
+  ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX,
+  writeEncryptedMediaObject
+} from "./media-storage.js";
 
 export const TEST_PROFILE_COUNT = 20;
 const TEST_PROFILE_PASSWORD = "cruush-test-profile-password";
@@ -198,6 +205,134 @@ function createSeedPhoto(profileName: string, index: number) {
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
+function uuidFromSeed(seed: string) {
+  const bytes = createHash("sha256").update(seed).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20, 32)
+  ].join("-");
+}
+
+function decodeSeedPhoto(photo: string) {
+  const prefix = "data:image/svg+xml,";
+
+  if (!photo.startsWith(prefix)) {
+    throw new Error("Development profile photo must be an SVG data URL.");
+  }
+
+  return Buffer.from(decodeURIComponent(photo.slice(prefix.length)), "utf8");
+}
+
+async function upsertDevelopmentProfilePhoto(
+  context: DevelopmentSeedContext,
+  userId: string,
+  profile: Pick<DevelopmentTestProfile, "email" | "photo">
+) {
+  const photoId = uuidFromSeed(`development-profile-photo:${profile.email}`);
+  const filename = `${photoId}.png`;
+  const publicUrl = `${ENCRYPTED_PROFILE_PHOTO_MEDIA_PREFIX}/${filename}`;
+  const objectKey = `profile-photos/${filename}.enc`;
+  const photoBytes = decodeSeedPhoto(profile.photo);
+  const encryptedPhoto = encryptMediaBytes(context.config, photoBytes);
+
+  // Development secrets can change between local sessions. Always replace the
+  // object bytes so a deterministic media row never keeps obsolete ciphertext.
+  await deleteEncryptedMediaObject(context.config, objectKey);
+  await writeEncryptedMediaObject(context.config, objectKey, encryptedPhoto.ciphertext);
+
+  await context.db.query(
+    `insert into media_objects (
+       id,
+       owner_user_id,
+       surface,
+       object_key,
+       public_url,
+       media_type,
+       mime_type,
+       byte_size,
+       width,
+       height,
+       encrypted_data_key,
+       data_key_nonce,
+       data_key_auth_tag,
+       content_nonce,
+       content_auth_tag,
+       key_version,
+       moderation_status,
+       photodna_status,
+       moderation_provider,
+       moderation_provider_version,
+       moderation_scores,
+       moderation_decided_at,
+       explicit_classification,
+       legacy_asset,
+       explicit_classification_source,
+       explicit_classification_updated_at,
+       explicit_classification_reason
+     ) values (
+       $1, $2, 'profile_photo', $3, $4, 'image', 'image/svg+xml', $5,
+       320, 320, $6, $7, $8, $9, $10, $11, 'approved', 'not_configured',
+       'development_seed', 'v1', '[]'::jsonb, now(), 'non_explicit', true,
+       'provider', now(), 'Deterministic local development fixture.'
+     )
+     on conflict (id) do update
+     set owner_user_id = excluded.owner_user_id,
+         surface = excluded.surface,
+         object_key = excluded.object_key,
+         public_url = excluded.public_url,
+         media_type = excluded.media_type,
+         mime_type = excluded.mime_type,
+         byte_size = excluded.byte_size,
+         width = excluded.width,
+         height = excluded.height,
+         encrypted_data_key = excluded.encrypted_data_key,
+         data_key_nonce = excluded.data_key_nonce,
+         data_key_auth_tag = excluded.data_key_auth_tag,
+         content_nonce = excluded.content_nonce,
+         content_auth_tag = excluded.content_auth_tag,
+         key_version = excluded.key_version,
+         moderation_status = excluded.moderation_status,
+         photodna_status = excluded.photodna_status,
+         moderation_provider = excluded.moderation_provider,
+         moderation_provider_version = excluded.moderation_provider_version,
+         moderation_scores = excluded.moderation_scores,
+         moderation_decided_at = excluded.moderation_decided_at,
+         moderation_failure_reason = null,
+         explicit_classification = excluded.explicit_classification,
+         legacy_asset = excluded.legacy_asset,
+         explicit_classification_source = excluded.explicit_classification_source,
+         explicit_classification_updated_by = null,
+         explicit_classification_updated_at = excluded.explicit_classification_updated_at,
+         explicit_classification_reason = excluded.explicit_classification_reason,
+         moderation_attempts = 0,
+         moderation_next_retry_at = null,
+         moderation_hold = null,
+         deleted_at = null`,
+    [
+      photoId,
+      userId,
+      objectKey,
+      publicUrl,
+      photoBytes.length,
+      encryptedPhoto.encryptedDataKey,
+      encryptedPhoto.dataKeyNonce,
+      encryptedPhoto.dataKeyAuthTag,
+      encryptedPhoto.nonce,
+      encryptedPhoto.authTag,
+      encryptedPhoto.keyVersion
+    ]
+  );
+
+  return publicUrl;
+}
+
 function offsetCoordinate(value: number, index: number, direction: 1 | -1) {
   const offset = (((index % 5) - 2) * 0.0012 + Math.floor(index / 5) * 0.0003) * direction;
   return Number((value + offset).toFixed(6));
@@ -301,6 +436,7 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
     throw new Error(`Unable to create ${profile.email}.`);
   }
 
+  const profilePhotoUrl = await upsertDevelopmentProfilePhoto(context, userId, profile);
   const encryptedSensitiveProfile = encryptSensitiveProfile(context.config, profile.sensitiveProfile);
 
   await context.db.query(
@@ -342,7 +478,7 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
      )
      on conflict (id) do update
      set display_name = excluded.display_name,
-         photos = profiles.photos,
+         photos = excluded.photos,
          pronouns = excluded.pronouns,
          year_of_birth = excluded.year_of_birth,
          identities = excluded.identities,
@@ -371,7 +507,7 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
     [
       userId,
       profile.displayName,
-      [],
+      [profilePhotoUrl],
       profile.pronouns,
       profile.yearOfBirth,
       profile.identities,
@@ -429,6 +565,18 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
 
   try {
     const adminUserId = await ensureDevelopmentAdminUser(context);
+    const adminPhotoUrl = await upsertDevelopmentProfilePhoto(context, adminUserId, {
+      email: DEVELOPMENT_ADMIN_EMAIL,
+      photo: createSeedPhoto(DEVELOPMENT_ADMIN_DISPLAY_NAME, TEST_PROFILE_COUNT)
+    });
+
+    await context.db.query(
+      `update profiles
+       set photos = $2,
+           updated_at = now()
+       where id = $1`,
+      [adminUserId, [adminPhotoUrl]]
+    );
 
     for (const profile of profiles) {
       const profileUserId = await upsertDevelopmentProfile(context, profile);

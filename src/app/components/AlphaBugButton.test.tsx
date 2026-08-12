@@ -118,12 +118,14 @@ describe('AlphaBugButton', () => {
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
     expect(slot).toContainElement(reportButton);
-    expect(reportButton).toHaveClass('size-9', 'sm:size-10');
+    expect(reportButton).toHaveClass('size-9', 'sm:size-10', 'lg:size-11');
     expect(reportButton.querySelector('svg')).toHaveClass(
       'h-[1.375rem]',
       'w-[1.375rem]',
       'sm:h-6',
       'sm:w-6',
+      'lg:h-7',
+      'lg:w-7',
     );
     expect(reportButton).not.toHaveClass('fixed', 'z-20');
   });

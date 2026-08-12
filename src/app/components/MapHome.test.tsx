@@ -647,8 +647,7 @@ describe('MapHome', () => {
     expect(pingControl).toHaveAttribute('data-tutorial-target', 'ping');
     expect(screen.getByRole('button', { name: 'Notifications' })).toHaveAttribute('data-tutorial-target', 'notifications');
     expect(screen.getByRole('button', { name: 'Ghost Mode Settings' })).toHaveAttribute('data-tutorial-target', 'ghost');
-    expect(screen.getByTestId('map-beta-stack')).toContainElement(pingControl);
-    expect(screen.getByTestId('map-top-actions')).not.toContainElement(pingControl);
+    expect(screen.getByTestId('map-top-actions')).toContainElement(pingControl);
 
     fireEvent.click(pingControl);
 
@@ -1077,7 +1076,7 @@ describe('MapHome', () => {
     expect(screen.queryByText('Internal server error')).not.toBeInTheDocument();
   });
 
-  it('renders full-width map top chrome with larger controls and toggles DL Mode from the top slot', async () => {
+  it('renders responsive map top chrome with larger controls and toggles DL Mode from the top slot', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
@@ -1114,6 +1113,7 @@ describe('MapHome', () => {
     const rightActions = screen.getByTestId('map-right-actions');
     const cruushPlusButton = await screen.findByRole('button', { name: 'cruush+ rewards' });
     const pingButton = screen.getByRole('button', { name: 'Send a Ping' });
+    const pingIcon = pingButton.querySelector('svg');
 
     expect(screen.getByTestId('map-home-shell')).toHaveClass('relative');
     expect(screen.getByTestId('map-home-shell')).not.toHaveClass('fixed', 'inset-0');
@@ -1128,6 +1128,9 @@ describe('MapHome', () => {
       'gap-0.5',
       'p-1',
       'sm:p-1.5',
+      'lg:mx-auto',
+      'lg:max-w-[52rem]',
+      'lg:flex-none',
     );
     for (const button of [
       screen.getByRole('button', { name: 'Cruise Carousel' }),
@@ -1136,25 +1139,41 @@ describe('MapHome', () => {
       notificationButton,
       settingsButton,
     ]) {
-      expect(button).toHaveClass('size-9', 'sm:size-10');
+      expect(button).toHaveClass('size-9', 'sm:size-10', 'lg:size-11');
     }
     expect(topActions).not.toHaveClass('sm:max-w-[34rem]');
     expect(topActions.parentElement).toHaveClass('w-full');
     expect(topActions).not.toHaveClass('mt-11');
-    expect(plusStack).toHaveClass('flex-col', 'items-center', 'gap-1');
+    expect(plusStack).toHaveClass('relative', 'shrink-0');
     expect(plusStack).toContainElement(cruushPlusButton);
     expect(plusStack).toContainElement(pingButton);
     expect(cruushPlusButton.nextElementSibling).toBe(pingButton);
-    expect(topActions).not.toContainElement(cruushPlusButton);
-    expect(topActions).not.toContainElement(pingButton);
-    expect(rightActions).toHaveClass('right-3', 'top-14', 'sm:right-4', 'sm:top-16');
-    expect(cruushPlusButton).toHaveClass('cruush-logo-font', 'normal-case', 'tracking-normal', 'text-sm', 'sm:text-base');
+    expect(topActions).toContainElement(cruushPlusButton);
+    expect(topActions).toContainElement(pingButton);
+    expect(pingButton).toHaveClass('absolute', 'left-1/2', 'top-full', 'mt-2', '-translate-x-1/2', 'lg:size-11');
+    expect(rightActions).toHaveClass('right-3', 'top-[3.875rem]', 'sm:right-4', 'sm:top-[4.875rem]');
+    expect(cruushPlusButton).toHaveClass(
+      'cruush-plus-shimmer-button',
+      'cruush-logo-font',
+      'normal-case',
+      'tracking-normal',
+      'h-9',
+      'px-3',
+      'text-base',
+      'sm:h-10',
+      'sm:px-3.5',
+      'sm:text-lg',
+      'lg:h-11',
+      'lg:px-4',
+      'lg:text-xl',
+    );
     expect(screen.queryByRole('button', { name: 'Safety Center' })).not.toBeInTheDocument();
-    expect(luckyIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6');
-    expect(ghostModeIcon).toHaveClass('h-5', 'w-5', 'sm:h-[1.375rem]', 'sm:w-[1.375rem]');
-    expect(dlModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6');
-    expect(notificationIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6');
-    expect(settingsIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6');
+    expect(pingIcon).toHaveClass('h-5', 'w-5', 'lg:h-7', 'lg:w-7');
+    expect(luckyIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.55]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
+    expect(ghostModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
+    expect(dlModeIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
+    expect(notificationIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.4]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
+    expect(settingsIcon).toHaveClass('h-[1.375rem]', 'w-[1.375rem]', 'scale-[1.18]', 'sm:h-6', 'sm:w-6', 'lg:h-7', 'lg:w-7');
     expect(dlModeIcon?.getAttribute('src')).toContain('dl-mode-colored');
     expect(decodeURIComponent(ghostModeIcon?.getAttribute('src') ?? '')).toContain("fill='#ffffff'");
     expect(visibilityIcon).toHaveClass('h-4', 'w-4');
@@ -1583,7 +1602,7 @@ describe('MapHome', () => {
 
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-0', 'right-4', 'pl-4', 'pr-0');
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('pointer-events-none');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[30rem]', 'lg:ml-auto', 'lg:mr-0');
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('pointer-events-auto');
   });
 
@@ -1659,7 +1678,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-subtle')).not.toBeInTheDocument();
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(23rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[29.5rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[30rem]', 'lg:ml-auto', 'lg:mr-0');
     expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
@@ -2170,7 +2189,7 @@ describe('MapHome', () => {
     expect(recentToggle.parentElement).toHaveClass('justify-end');
     expect(recentToggle).toHaveStyle({ background: 'var(--cruush-gradient)' });
     expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0');
-    expect(recentPanel).toHaveClass('max-w-[29.5rem]', 'p-3');
+    expect(recentPanel).toHaveClass('max-w-[30rem]', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('cursor-grab', 'overflow-x-auto', 'overscroll-x-contain', 'scroll-smooth');
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('tabindex', '0');
     fireEvent.click(recentTile);
@@ -2221,7 +2240,7 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
     expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
     expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentPanel).toHaveClass('max-w-[29.5rem]', 'p-3');
+    expect(recentPanel).toHaveClass('max-w-[30rem]', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 

@@ -240,13 +240,13 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       <button
         aria-label="Report alpha bug"
         className={buttonSlot
-          ? `inline-flex shrink-0 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${useLargeSlotButton ? 'size-9 sm:size-10' : 'size-8 sm:size-9'}`
+          ? `inline-flex shrink-0 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${useLargeSlotButton ? 'size-9 sm:size-10 lg:size-11' : 'size-8 sm:size-9'}`
           : `fixed z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${getBugButtonPlacement(location.pathname)}`}
         data-testid="alpha-bug-button"
         title="Report a bug"
         type="button"
       >
-        <Bug className={useLargeSlotButton ? 'h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6' : 'h-5 w-5'} />
+        <Bug className={useLargeSlotButton ? 'h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6 lg:h-7 lg:w-7' : 'h-5 w-5'} />
       </button>
     </DialogTrigger>
   );

@@ -1746,24 +1746,28 @@ export default function MapHome(_props: MapHomeProps = {}) {
         className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2 pb-10 pt-2 sm:px-3 sm:pt-3"
         data-testid="map-top-chrome"
       >
-        <div className="flex w-full items-start gap-2">
+        <div className="relative flex w-full items-start">
+          <h1 className="sr-only">cruush</h1>
+          {isMutualMapMode ? (
+            <div
+              className="pointer-events-auto absolute right-0 top-full mt-1 inline-flex max-w-[5.75rem] items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]"
+              data-testid="map-beta-stack"
+            >
+              mutual cruushes
+            </div>
+          ) : null}
+
           <div
-            className="flex min-w-0 shrink-0 flex-col items-center gap-1"
-            data-testid="map-beta-stack"
+            className="pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-0.5 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md sm:gap-1 sm:p-1.5 lg:mx-auto lg:max-w-[52rem] lg:flex-none"
+            data-testid="map-top-actions"
           >
-            <h1 className="sr-only">cruush</h1>
-            {isMutualMapMode ? (
-              <div className="inline-flex max-w-[5.75rem] shrink-0 items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]">
-                mutual cruushes
-              </div>
-            ) : null}
-            <div className="flex flex-col items-center gap-1" data-testid="map-plus-stack">
+            <div className="relative shrink-0" data-testid="map-plus-stack">
               <Button
                 type="button"
                 onClick={() => navigate('/rewards')}
                 aria-label="cruush+ rewards"
                 title="cruush+ rewards"
-                className="cruush-logo-font pointer-events-auto h-8 rounded-full px-2 text-sm font-normal leading-none tracking-normal normal-case text-white sm:h-9 sm:px-2.5 sm:text-base"
+                className="cruush-plus-shimmer-button cruush-logo-font pointer-events-auto h-9 rounded-full px-3 text-base font-normal leading-none tracking-normal normal-case text-white sm:h-10 sm:px-3.5 sm:text-lg lg:h-11 lg:px-4 lg:text-xl"
                 style={{ background: 'var(--cruush-gradient)' }}
               >
                 <CruushPlusWord />
@@ -1776,26 +1780,20 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 data-tutorial-target="ping"
                 aria-label="Send a Ping"
                 title="Send a Ping"
-                className="pointer-events-auto size-8 rounded-full border border-white/10 bg-background/35 text-white/90 backdrop-blur-md hover:bg-white/10 sm:size-9"
+                className="absolute left-1/2 top-full mt-2 size-8 -translate-x-1/2 rounded-full border border-white/10 bg-background/35 text-white/90 backdrop-blur-md hover:bg-white/10 sm:size-9 lg:size-11"
               >
-                <Radio aria-hidden="true" className="h-5 w-5" />
+                <Radio aria-hidden="true" className="h-5 w-5 lg:h-7 lg:w-7" />
               </Button>
             </div>
-          </div>
-
-          <div
-            className="pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-0.5 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md sm:gap-1 sm:p-1.5"
-            data-testid="map-top-actions"
-          >
             <Button
               variant="ghost"
               size="icon"
               onClick={handleFeelingLucky}
               aria-label="Cruise Carousel"
               title="Cruise Carousel"
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10"
+              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
             >
-              <CruushIconImage src={luckyIconWhite} className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6" />
+              <CruushIconImage src={luckyIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.55] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
             </Button>
             <Button
               variant="ghost"
@@ -1804,9 +1802,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="ghost"
               aria-label="Ghost Mode Settings"
               title="Ghost Mode Settings"
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10"
+              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
             >
-              <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} className="h-5 w-5 sm:h-[1.375rem] sm:w-[1.375rem]" />
+              <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
             </Button>
             <Button
               variant="ghost"
@@ -1815,11 +1813,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="dl-mode"
               aria-label={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
               title={dlModeActive ? 'Turn DL Mode off' : 'Turn DL Mode on'}
-              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10"
+              className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
             >
               <CruushIconImage
                 src={dlModeActive ? dlModeColored : dlModeWhite}
-                className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6"
+                className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6 lg:h-7 lg:w-7"
               />
             </Button>
             <Button
@@ -1829,9 +1827,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               data-tutorial-target="notifications"
               aria-label="Notifications"
               title="Notifications"
-              className="relative size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10"
+              className="relative size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
             >
-              <CruushIconImage src={notificationsIconWhite} className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6" />
+              <CruushIconImage src={notificationsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.4] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
               {notificationUnreadCount > 0 ? (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.62rem] font-semibold leading-none text-primary-foreground">
                   {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
@@ -1844,9 +1842,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 onClick={() => navigate('/settings')}
                 aria-label="Settings"
                 title="Settings"
-                className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10"
+                className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
               >
-                <CruushIconImage src={settingsIconWhite} className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6" />
+                <CruushIconImage src={settingsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.18] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
               </Button>
               <div
                 className="contents"
@@ -2132,7 +2130,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-14 z-40 flex flex-col items-end gap-2 sm:right-4 sm:top-16"
+          className="pointer-events-auto absolute right-3 top-[3.875rem] z-40 flex flex-col items-end gap-2 sm:right-4 sm:top-[4.875rem]"
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (
@@ -2249,7 +2247,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 isRecentlyActiveOpen
                   ? isMobile
                     ? 'w-full max-w-full rounded-2xl border border-white/10 bg-background/50 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
-                    : 'w-fit max-w-[29.5rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                    : 'w-fit max-w-[30rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
                   : 'max-w-max p-0'
               } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''} pointer-events-auto`}
               data-testid="recently-active-panel"

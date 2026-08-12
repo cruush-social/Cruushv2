@@ -177,12 +177,45 @@ const remoteUsers = [
   },
 ];
 
+const desktopRecentlyActiveUsers = [
+  ...remoteUsers,
+  {
+    ...remoteUsers[0],
+    id: 'recently-active-4',
+    name: 'Recent Four',
+    display_name: 'Recent Four',
+    lat: 40.7142,
+    lng: -74.0032,
+    lastActive: '1m ago',
+  },
+  {
+    ...remoteUsers[1],
+    id: 'recently-active-5',
+    name: 'Recent Five',
+    display_name: 'Recent Five',
+    lat: 40.7112,
+    lng: -74.0041,
+    lastActive: '2m ago',
+  },
+  {
+    ...remoteUsers[2],
+    id: 'recently-active-6',
+    name: 'Recent Six',
+    display_name: 'Recent Six',
+    lat: 40.7104,
+    lng: -74.0074,
+    lastActive: '3m ago',
+  },
+];
+
 type MockOptions = {
   ghostOwner?: boolean;
   explicitOwnerPhoto?: boolean;
+  users?: typeof remoteUsers;
 };
 
 async function installAppMocks(page: Page, options: MockOptions = {}) {
+  const mockedRemoteUsers = options.users ?? remoteUsers;
   let ownerProfile = {
     ...emptyProfile,
     id: 'owner',
@@ -240,7 +273,7 @@ async function installAppMocks(page: Page, options: MockOptions = {}) {
       ownerProfile = { ...ownerProfile, visibility_rules: visibilityRules };
       data = ownerProfile;
     } else if (url.pathname === '/api/profiles/me/location') data = ownerProfile.location;
-    else if (url.pathname === '/api/users') data = remoteUsers;
+    else if (url.pathname === '/api/users') data = mockedRemoteUsers;
     else if (url.pathname === '/api/cruush/mutual-map') data = [];
     else if (url.pathname === '/api/map-pings/status') data = {
       allowance: { limit: 1, used: 0, remaining: 1, nextEligibleAt: null },
@@ -355,7 +388,7 @@ async function installAppMocks(page: Page, options: MockOptions = {}) {
     else if (url.pathname.startsWith('/api/users/me/notices/')) data = { dismissed: true, dismissedAt: now };
     else if (url.pathname.startsWith('/api/profiles/')) {
       const userId = url.pathname.split('/').pop() ?? 'nearby-ghost-no-photo';
-      const remote = remoteUsers.find((user) => user.id === userId) ?? remoteUsers[0];
+      const remote = mockedRemoteUsers.find((user) => user.id === userId) ?? mockedRemoteUsers[0];
       data = {
         ...emptyProfile,
         id: remote.id,
@@ -391,6 +424,7 @@ async function expectTopActionSizing(
   minimumBarHeight: number,
   minimumButtonSize: number,
   minimumIconSize: number,
+  widthMode: 'mobile-full' | 'desktop-capped',
 ) {
   const topActions = page.getByTestId('map-top-actions');
   await expect(topActions).toBeVisible();
@@ -398,7 +432,47 @@ async function expectTopActionSizing(
   expect(barBox).not.toBeNull();
   expect(barBox!.height).toBeGreaterThanOrEqual(minimumBarHeight);
   expect(barBox!.x).toBeGreaterThanOrEqual(0);
-  expect(barBox!.x + barBox!.width).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+  const viewportWidth = await page.evaluate(() => window.innerWidth);
+  expect(barBox!.x + barBox!.width).toBeLessThanOrEqual(viewportWidth);
+  if (widthMode === 'mobile-full') {
+    expect(barBox!.width).toBeGreaterThanOrEqual(viewportWidth - 20);
+  } else {
+    expect(barBox!.width).toBeGreaterThanOrEqual(700);
+    expect(barBox!.width).toBeLessThanOrEqual(832);
+    expect(Math.abs(barBox!.x + barBox!.width / 2 - viewportWidth / 2)).toBeLessThanOrEqual(2);
+  }
+
+  const cruushPlusBox = await page.getByRole('button', { name: 'cruush+ rewards' }).boundingBox();
+  const pingBox = await page.getByRole('button', { name: 'Send a Ping' }).boundingBox();
+  expect(cruushPlusBox).not.toBeNull();
+  expect(pingBox).not.toBeNull();
+  expect(cruushPlusBox!.height).toBeGreaterThanOrEqual(minimumButtonSize);
+  expect(cruushPlusBox!.x).toBeGreaterThanOrEqual(barBox!.x);
+  expect(cruushPlusBox!.x + cruushPlusBox!.width).toBeLessThanOrEqual(barBox!.x + barBox!.width);
+  expect(cruushPlusBox!.y).toBeGreaterThanOrEqual(barBox!.y);
+  expect(cruushPlusBox!.y + cruushPlusBox!.height).toBeLessThanOrEqual(barBox!.y + barBox!.height);
+  expect(pingBox!.y).toBeGreaterThanOrEqual(cruushPlusBox!.y + cruushPlusBox!.height);
+  expect(pingBox!.x).toBeGreaterThanOrEqual(0);
+  expect(pingBox!.x + pingBox!.width).toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+
+  const cruushPlusSheen = await page.getByRole('button', { name: 'cruush+ rewards' }).evaluate((button) => {
+    const buttonStyle = window.getComputedStyle(button);
+    const sheenStyle = window.getComputedStyle(button, '::before');
+    return {
+      animationDuration: sheenStyle.animationDuration,
+      animationName: sheenStyle.animationName,
+      backgroundImage: sheenStyle.backgroundImage,
+      isolation: buttonStyle.isolation,
+      overflow: buttonStyle.overflow,
+    };
+  });
+  expect(cruushPlusSheen).toMatchObject({
+    animationDuration: '3.4s',
+    animationName: 'cruush-plus-shimmer',
+    isolation: 'isolate',
+    overflow: 'hidden',
+  });
+  expect(cruushPlusSheen.backgroundImage).toContain('linear-gradient');
 
   const controls = [
     page.getByRole('button', { name: 'Cruise Carousel' }),
@@ -418,6 +492,22 @@ async function expectTopActionSizing(
     expect(iconBox!.width).toBeGreaterThanOrEqual(minimumIconSize);
     expect(iconBox!.height).toBeGreaterThanOrEqual(minimumIconSize);
   }
+}
+
+async function expectSeekingTopSpacing(page: Page) {
+  const topActionsBox = await page.getByTestId('map-top-actions').boundingBox();
+  const seekingBox = await page.getByTestId('map-seeking-button').boundingBox();
+  const visibilityBox = await page.getByTestId('map-visibility-button').boundingBox();
+  expect(topActionsBox).not.toBeNull();
+  expect(seekingBox).not.toBeNull();
+  expect(visibilityBox).not.toBeNull();
+
+  const topToSeekingGap = seekingBox!.y - (topActionsBox!.y + topActionsBox!.height);
+  const seekingToVisibilityGap = visibilityBox!.y - (seekingBox!.y + seekingBox!.height);
+  expect(
+    Math.abs(topToSeekingGap - seekingToVisibilityGap),
+    `top-to-Seeking gap ${topToSeekingGap}px should match Seeking-to-Visibility gap ${seekingToVisibilityGap}px`,
+  ).toBeLessThanOrEqual(1);
 }
 
 async function expectViewportControlsToReceivePointerInput(page: Page, route: string) {
@@ -457,11 +547,12 @@ async function expectViewportControlsToReceivePointerInput(page: Page, route: st
   expect(failures, `${route} has visible controls that cannot receive pointer input`).toEqual([]);
 }
 
-test('renders a taller top action bar with larger icons on mobile and desktop', async ({ page, browser }) => {
+test('renders a full-width mobile top bar and a centered capped desktop top bar', async ({ page, browser }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installAppMocks(page);
   await openMap(page);
-  await expectTopActionSizing(page, 44, 36, 20);
+  await expectTopActionSizing(page, 44, 36, 20, 'mobile-full');
+  await expectSeekingTopSpacing(page);
 
   const desktopContext = await browser.newContext({
     baseURL: 'http://127.0.0.1:4173',
@@ -472,10 +563,80 @@ test('renders a taller top action bar with larger icons on mobile and desktop', 
   try {
     await installAppMocks(desktopPage);
     await openMap(desktopPage);
-    await expectTopActionSizing(desktopPage, 52, 40, 22);
+    await expectTopActionSizing(desktopPage, 56, 44, 28, 'desktop-capped');
+    await expectSeekingTopSpacing(desktopPage);
   } finally {
     await desktopContext.close();
   }
+});
+
+test('uses a pink-forward cruush gradient only while the profile nav icon is active', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installAppMocks(page);
+  await page.goto('/profile');
+
+  const profileButton = page.getByTestId('bottom-nav-pill').getByRole('button', {
+    name: 'Profile',
+    exact: true,
+  });
+  const activeIcon = page.getByTestId('bottom-nav-profile-icon');
+  await expect(profileButton).toHaveAttribute('aria-current', 'page');
+  await expect(activeIcon).toHaveAttribute('data-tone', 'gradient');
+  await expect(activeIcon).toHaveAttribute(
+    'style',
+    /linear-gradient\(90deg, rgb\(255, 0, 114\) 0%, rgb\(255, 0, 114\) 30%, rgb\(208, 0, 255\) 48%, rgb\(111, 0, 255\) 62%, rgb\(0, 75, 255\) 82%, rgb\(3, 236, 252\) 100%\)/,
+  );
+  await expect(activeIcon).toHaveCSS('width', '44px');
+  await expect(activeIcon).toHaveCSS('height', '44px');
+
+  await page.goto('/feed');
+  const inactiveIcon = page.getByTestId('bottom-nav-profile-icon');
+  await expect(inactiveIcon).toHaveAttribute('data-tone', 'white');
+  await expect(inactiveIcon).toHaveCSS('width', '44px');
+  await expect(inactiveIcon).toHaveCSS('height', '44px');
+});
+
+test('previews five recently active profiles before horizontal scrolling on desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installAppMocks(page, { users: desktopRecentlyActiveUsers });
+  await page.goto('/map');
+  await expect(page.getByTestId('map-home-shell')).toBeVisible();
+  await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible();
+
+  const tray = page.getByTestId('recently-active-tray');
+  const tiles = tray.locator('[data-testid^="recently-active-tile-"]');
+  await expect(tiles).toHaveCount(6);
+
+  const trayBox = await tray.boundingBox();
+  expect(trayBox).not.toBeNull();
+  for (let index = 0; index < 5; index += 1) {
+    const tileBox = await tiles.nth(index).boundingBox();
+    expect(tileBox).not.toBeNull();
+    expect(tileBox!.x).toBeGreaterThanOrEqual(trayBox!.x);
+    expect(tileBox!.x + tileBox!.width).toBeLessThanOrEqual(trayBox!.x + trayBox!.width);
+  }
+
+  const sixthTileBox = await tiles.nth(5).boundingBox();
+  expect(sixthTileBox).not.toBeNull();
+  expect(sixthTileBox!.x).toBeGreaterThanOrEqual(trayBox!.x + trayBox!.width);
+  await expect(tiles.nth(4)).toBeInViewport();
+  await tiles.nth(4).click();
+  await expect(page.getByRole('button', { name: 'Close profile preview' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close profile preview' }).click();
+
+  const scrollMetrics = await tray.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(scrollMetrics.scrollWidth).toBeGreaterThan(scrollMetrics.clientWidth);
+  await tray.evaluate((element) => {
+    element.style.scrollBehavior = 'auto';
+    element.scrollLeft = element.scrollWidth;
+  });
+  await expect.poll(() => tray.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+  const scrolledSixthTileBox = await tiles.nth(5).boundingBox();
+  expect(scrolledSixthTileBox).not.toBeNull();
+  expect(scrolledSixthTileBox!.x + scrolledSixthTileBox!.width).toBeLessThanOrEqual(trayBox!.x + trayBox!.width);
 });
 
 test('selects Seeking and Visibility menu options with real mobile taps', async ({ page }) => {
