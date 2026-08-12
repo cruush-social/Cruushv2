@@ -1,57 +1,35 @@
 {
-  "status": "validating",
-  "product": "cruush",
-  "repository": "cruush-social/Cruushv2",
-  "job": "Repair the local development admin map by reseeding valid encrypted profile media while preserving the working encrypted location flow.",
-  "base": "a2fafd21aea764bad47b7f88611f84638fa4e0d4",
-  "baseSha": "a2fafd21aea764bad47b7f88611f84638fa4e0d4",
-  "branch": "codex/session-dirty-work-20260811",
+  "task": "Security hotfix: stop accepting and sending client-supplied cruush snapshot photo URLs; always persist photo: null",
+  "base": "bed2ed0944abcf6cbf05a9e4901f7a6714ba77e7 (current production SHA)",
+  "branch": "hotfix/snapshot-photo-null",
+  "status": "active",
   "allowedPaths": [
-    "AI_TASK.json",
-    "server/src/dev-seed-profiles.ts",
-    "server/src/dev-seed-profiles.test.ts",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapHome.test.tsx",
-    "src/styles/theme.css",
-    "src/styles/theme.test.ts",
-    "src/app/components/AlphaBugButton.tsx",
-    "src/app/components/AlphaBugButton.test.tsx",
-    "src/app/components/BottomNav.tsx",
-    "src/app/components/BottomNav.test.tsx",
-    "e2e/regression/session-interactions.spec.ts"
-  ],
-  "forbiddenPaths": [
-    "server/sql/**",
-    "server/src/routes/**",
-    "src/app/assets/**",
-    "src/app/components/MapView.tsx"
-  ],
-  "preserved": [
-    "Preserve all completed UI work already present in the dirty worktree, including top navigation, bottom navigation, map spacing, icon sizing, cruush+ sheen, and the no-notch cruush logo invariant.",
-    "Preserve production behavior, data, schema, routes, media moderation, encryption boundaries, account permissions, and user data.",
-    "Preserve the current development admin identity, deterministic twenty-profile fixture, encrypted discovery locations, relationship fixtures, and map behavior.",
-    "Preserve all existing branch work and keep origin/main untouched."
+    "server/src/cruush-schema.ts",
+    "server/src/routes/cruush.ts",
+    "server/src/cruush-schema.test.ts",
+    "src/app/lib/cruushApi.ts",
+    "src/app/lib/cruushApi.test.ts",
+    "server/scripts/audit-snapshot-photos-count-only.ts",
+    "SECURITY-FIX-PLAN.md",
+    "AI_TASK.json"
   ],
   "nonGoals": [
-    "Do not change production or migration code, frontend UI, map pins, Ghost Mode, DL Mode, location semantics, admin authorization, or real user records.",
-    "Do not push, merge, deploy, install providers, or add screenshots to Git."
+    "No database configuration changes",
+    "No DATABASE_URL or credential changes",
+    "No changes to moderation/Web Push capability URLs",
+    "No cleanup of stored production data",
+    "No push, no deploy without explicit authorization",
+    "Do not touch any other worktree"
   ],
-  "proofTarget": {
-    "requiredEvidence": [
-      "A focused regression fails when development reseeding does not rewrite encrypted profile media and passes after the fix.",
-      "Development reseeding remains deterministic and rewrites the admin plus all twenty approved local profile-photo objects using the active development media key.",
-      "The local admin location update returns 200 and the authenticated /map flow renders the admin plus twenty seeded profiles.",
-      "All seeded profile-photo requests return 200 with zero local media 404 or 500 responses.",
-      "Focused tests, server typecheck, scope, secret, spelling, and whitespace checks pass."
-    ],
-    "viewports": [
-      "390x844",
-      "1440x900"
-    ]
-  },
-  "externalActions": [],
-  "publicationTarget": "none",
-  "environmentChanges": [
-    "Refresh disposable local development seed rows and encrypted media files only."
-  ]
+  "preservedBehavior": [
+    "Sending a cruush (with or without a targetUser block, with or without a photo field, valid or invalid) must continue to succeed exactly as before",
+    "Snapshot name and pronouns fallback behavior unchanged",
+    "Profile-media photos (row.photos) unchanged"
+  ],
+  "proof": [
+    "Server unit tests: credential-bearing URL, javascript: URL, oversized string, and null all accepted and persisted as photo: null",
+    "Client tests: sendCruush never includes a non-null photo in the request body",
+    "Full existing test files for touched modules pass"
+  ],
+  "publicationTarget": "Pull request into main (branch push only; production deploy requires separate explicit authorization)"
 }
