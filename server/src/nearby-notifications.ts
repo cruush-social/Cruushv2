@@ -2,7 +2,14 @@ import type { FastifyInstance } from "fastify";
 import { canSubjectViewProfile, type VisibilityCoordinates, type VisibilitySubjectProfile } from "./profile-visibility.js";
 import { decryptProfileVisibility, decryptSensitiveProfile, type ProfileVisibilityRules } from "./profile-sensitive.js";
 import { createAppNotificationAndPush } from "./notification-service.js";
-import { distanceMiles, loadLocationEnvelopes, locationPayloadToCoordinates, type LocationPayload, type VisibilityPolicyPayload } from "./location-privacy.js";
+import {
+  distanceMiles,
+  loadLocationEnvelopes,
+  locationPayloadToCoordinates,
+  resolveViewerGhostCoordinate,
+  type LocationPayload,
+  type VisibilityPolicyPayload
+} from "./location-privacy.js";
 
 const NEARBY_NOTIFICATION_RADIUS_MILES = 5;
 
@@ -215,7 +222,30 @@ export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, i
     };
   }
 
-  const sourceCoordinates = locationPayloadToCoordinates(input.location);
+  // Gate delivery on the decoy for Ghost subjects, never on the true point.
+  //
+  // Removing the distance from the notification payload was not enough: the
+  // decision to deliver at all is itself a one-bit oracle on the subject's real
+  // position. An attacker positions several accounts, and each learns whether
+  // the subject is inside its radius; intersecting those discs localises the
+  // subject far below the ghost cell. The recipient's own visibility distance
+  // rule is attacker-tunable too, which turns that bit into a bisectable
+  // boundary. Deciding on the decoy means those bits describe the location the
+  // subject already publishes, not the one Ghost Mode exists to hide.
+  const trueCoordinates = locationPayloadToCoordinates(input.location);
+  let sourceCoordinates = trueCoordinates;
+
+  if (input.visibilityPolicy.baseMode === "GHOST") {
+    const ghost = await resolveViewerGhostCoordinate(app, {
+      subjectUserId: input.sourceUserId,
+      viewerUserId: input.sourceUserId,
+      policy: input.visibilityPolicy,
+      location: input.location
+    });
+
+    sourceCoordinates = { lat: ghost.coordinate.lat, lng: ghost.coordinate.lng };
+  }
+
   const sourceSubject = toVisibilitySubject(app, sourceRow, sourceCoordinates);
   const sourceLocationUpdatedBucket = Math.floor(input.location.collectedAtMs / 3_600_000);
   const recipients = await loadNearbyNotificationRecipients(app, input.sourceUserId);

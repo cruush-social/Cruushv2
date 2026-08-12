@@ -63,12 +63,17 @@ vi.mock("./profile-sensitive.js", async () => {
   };
 });
 
+const { resolveViewerGhostCoordinateMock } = vi.hoisted(() => ({
+  resolveViewerGhostCoordinateMock: vi.fn()
+}));
+
 vi.mock("./location-privacy.js", async () => {
   const actual = await vi.importActual<typeof import("./location-privacy.js")>("./location-privacy.js");
 
   return {
     ...actual,
-    loadLocationEnvelopes: vi.fn().mockResolvedValue(new Map())
+    loadLocationEnvelopes: vi.fn().mockResolvedValue(new Map()),
+    resolveViewerGhostCoordinate: resolveViewerGhostCoordinateMock
   };
 });
 
@@ -227,6 +232,7 @@ function distanceVisibilityRules(distance: number) {
 
 beforeEach(() => {
   query.mockReset();
+  resolveViewerGhostCoordinateMock.mockReset();
 });
 
 describe("nearby notifications", () => {
@@ -478,5 +484,82 @@ describe("nearby notifications", () => {
       sent: 0
     });
     expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into app_notifications"))).toBe(false);
+  });
+
+  // Removing the distance from the payload was not enough on its own: the
+  // decision to deliver is itself a one-bit oracle on the subject's true
+  // position, and several positioned accounts intersect those bits to localise
+  // a Ghost subject well below the ghost cell. Delivery must therefore be
+  // decided on the decoy, which the subject already publishes.
+  it("decides Ghost delivery on the decoy rather than the true position", async () => {
+    const recipientId = "00000000-0000-4000-8000-000000000005";
+    const collectedAtMs = Date.parse("2026-08-08T12:00:00.000Z");
+
+    // A recipient sitting essentially on top of the subject's TRUE point. If the
+    // gate still used the true coordinate this is a guaranteed delivery; decided
+    // on the decoy it depends on where the decoy landed, which is at least half
+    // the ghost radius away by construction.
+    query
+      .mockResolvedValueOnce({ rows: [nearbySourceRow()] })
+      .mockResolvedValueOnce({
+        rows: [nearbyRecipientRow({ id: recipientId, latitude: 0 })]
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const ghostPolicy = {
+      ...publicVisibilityPolicy(),
+      baseMode: "GHOST" as const,
+      ghostRadiusMeters: 1609
+    };
+
+    // Decoy placed far away, so a gate that still used the true coordinate
+    // (recipient sitting on it) would deliver, and one using the decoy will not.
+    resolveViewerGhostCoordinateMock.mockResolvedValueOnce({
+      coordinate: { lat: 1, lng: 1 },
+      rotationEpoch: 1,
+      radiusMeters: 1609
+    });
+
+    const result = await notifyNearbyUsersForLocationUpdate({
+      config: baseConfig,
+      db: { query, end: vi.fn() },
+      log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
+    } as never, {
+      sourceUserId,
+      location: locationPayload(0, 0, collectedAtMs),
+      visibilityPolicy: ghostPolicy
+    });
+
+    expect(resolveViewerGhostCoordinateMock).toHaveBeenCalledTimes(1);
+    expect(resolveViewerGhostCoordinateMock.mock.calls[0]?.[1]).toMatchObject({
+      subjectUserId: sourceUserId
+    });
+    expect(result.sent).toBe(0);
+  });
+
+  it("still decides non-Ghost delivery on the real coordinate", async () => {
+    const recipientId = "00000000-0000-4000-8000-000000000006";
+    const collectedAtMs = Date.parse("2026-08-08T12:00:00.000Z");
+
+    query
+      .mockResolvedValueOnce({ rows: [nearbySourceRow()] })
+      .mockResolvedValueOnce({
+        rows: [nearbyRecipientRow({ id: recipientId, latitude: 0 })]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "notification-1" }] });
+
+    const result = await notifyNearbyUsersForLocationUpdate({
+      config: baseConfig,
+      db: { query, end: vi.fn() },
+      log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
+    } as never, {
+      sourceUserId,
+      location: locationPayload(0, 0, collectedAtMs),
+      visibilityPolicy: publicVisibilityPolicy()
+    });
+
+    expect(resolveViewerGhostCoordinateMock).not.toHaveBeenCalled();
+    expect(result.sent).toBe(1);
   });
 });
