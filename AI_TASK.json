@@ -1,57 +1,33 @@
 {
-  "status": "validating",
-  "product": "cruush",
-  "repository": "cruush-social/Cruushv2",
-  "job": "Fix production account deletion so preserved support requests and reports cannot roll back deletion when foreign keys clear user-owned references.",
-  "base": "origin/main",
-  "baseSha": "e953a99e02832d4c566c8e3f584ae32a65b8ea4d",
-  "branch": "codex/account-deletion-integrity-20260810",
+  "task": "Security hotfix: stop publishing a precise-derived distance in nearby-activity notification metadata, which exposed Ghost Mode users' locations",
+  "base": "bed2ed0944abcf6cbf05a9e4901f7a6714ba77e7 (current production SHA)",
+  "branch": "hotfix/ghost-mode-distance-leak",
+  "status": "active",
   "allowedPaths": [
-    "AI_TASK.json",
-    "server/sql/021_reports.sql",
-    "server/sql/029_support_requests.sql",
-    "server/sql/033_user_blocks_and_report_targets.sql",
-    "server/sql/036_beta_reporting_admin_moderation.sql",
-    "server/sql/042_rewards_and_two_factor.sql",
-    "server/sql/076_account_deletion_integrity.sql",
-    "server/src/account-deletion-integrity.test.ts",
-    "server/src/migrate.test.ts",
-    "server/src/migrate.ts",
-    "server/src/routes/auth.ts"
-  ],
-  "preserved": [
-    "Preserve support requests, support replies, reports about deleted accounts, moderation evidence, and their existing user-visible behavior.",
-    "Remove account and sessions immediately while allowing asynchronous owned-media cleanup to continue unchanged.",
-    "Preserve all v1.2 UI, Ping, Ghost Mode, messaging, moderation, privacy, billing, and unrelated user work.",
-    "Keep cruush lowercase in product text."
+    "server/src/nearby-notifications.ts",
+    "server/src/nearby-notifications.test.ts",
+    "server/src/ghost-mode-distance-leak.test.ts",
+    "AI_TASK.json"
   ],
   "nonGoals": [
-    "Do not redesign Settings or change deletion confirmation copy.",
-    "Do not change suspended or banned account navigation in this slice.",
-    "Do not change the existing retention policy for reports filed by the deleting account.",
-    "Do not delete or weaken retained safety and support evidence.",
-    "Do not change providers, secrets, environment variables, billing, analytics, email, or deployment configuration.",
-    "Do not send announcements or support messages."
+    "Do not change who receives a nearby notification",
+    "Do not change the ghost coordinate derivation or rotation scheme",
+    "Do not change Ghost, Stealth or precise visibility policy semantics",
+    "No database configuration or credential changes",
+    "No deploy without explicit authorization"
   ],
-  "proofTarget": {
-    "route": "/settings -> DELETE /api/auth/me",
-    "requiredEvidence": [
-      "A real PostgreSQL regression fails before the fix for both signed-in support history and retained report history.",
-      "The same regression passes after the fix and proves the account and sessions are removed while support and report rows remain anonymized.",
-      "A real PostgreSQL deadlock regression proves account deletion retries a rolled-back transaction instead of returning 500.",
-      "All numbered migrations remain listed in replay order and the full migration sequence replays twice on disposable PostgreSQL state.",
-      "The rewards migration accepts the later nearby-activity notification type already present in production during a full replay.",
-      "Focused account-deletion and migration tests pass; the server test suite and production build pass.",
-      "Only allowed paths are staged and no secrets are exposed.",
-      "origin/main, production runtime SHA, migration completion, API health, and an authenticated disposable-account deletion are verified independently.",
-      "Disposable proof data is removed after verification."
-    ]
-  },
-  "externalActions": [
-    "Push only the verified scoped commit to origin/main.",
-    "Deploy only the production API resource after remote main is verified.",
-    "Create and remove isolated disposable production proof records; never delete or alter a real user account."
+  "preservedBehavior": [
+    "Nearby notifications continue to be delivered to the same recipients",
+    "The ten-mile radius gate still uses the server-side computed distance",
+    "sourceUserId remains in metadata so the notification still resolves",
+    "Stealth continues to suppress nearby notifications entirely"
   ],
-  "publicationTarget": "main",
+  "proof": [
+    "Existing nearby-notification test asserts no distance appears in the inserted metadata, and fails against the previous code",
+    "Dedicated regression test documents the Ghost Mode reasoning and fails against the previous code",
+    "Adjacent location-privacy, notifications and map-presence tests still pass",
+    "Server type-check clean"
+  ],
+  "publicationTarget": "Pull request into main (branch push only; production deploy requires separate explicit authorization)",
   "environmentChanges": []
 }

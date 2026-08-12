@@ -296,5 +296,18 @@ describe("nearby notifications", () => {
     expect(query.mock.calls.filter(([sql]) => String(sql).includes("insert into app_notifications"))).toHaveLength(1);
     expect(query.mock.calls.some(([sql, params]) => String(sql).includes("insert into app_notifications") && params?.[0] === recipientAllowedId)).toBe(true);
     expect(query.mock.calls.some(([sql, params]) => String(sql).includes("insert into app_notifications") && params?.[0] === recipientFilteredId)).toBe(false);
+
+    // The distance is derived from the subject's precise coordinates and must
+    // never be published. Ghost Mode subjects reach this path — only STEALTH
+    // short-circuits above — and the app shows them as "Nearby" rather than a
+    // distance, so a published value would defeat the feature.
+    const notificationInserts = query.mock.calls.filter(([sql]) => String(sql).includes("insert into app_notifications"));
+    expect(notificationInserts.length).toBeGreaterThan(0);
+
+    for (const [, params] of notificationInserts) {
+      const serialized = JSON.stringify((params as unknown[])?.[6] ?? {});
+      expect(serialized).not.toMatch(/distance/i);
+      expect(serialized).toContain(sourceUserId);
+    }
   });
 });
