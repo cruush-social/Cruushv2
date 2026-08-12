@@ -32,11 +32,11 @@ describe('cruushApi', () => {
     }));
   });
 
-  it('drops non-http snapshot photos before sending a cruush', async () => {
+  it('never sends a snapshot photo URL, including credential-bearing ones', async () => {
     await sendCruush('53fd68d7-24fc-4cff-8cd7-a97ec0cadf97', {
       name: 'jay',
       pronouns: 'he/him',
-      photo: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E',
+      photo: 'https://user:secret@attacker.example/avatar.png',
     });
 
     expect(fetch).toHaveBeenCalledWith('/api/cruush', expect.objectContaining({

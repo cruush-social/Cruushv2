@@ -118,22 +118,10 @@ export type CruushActivity = {
   received?: CruushActivityItem[];
 };
 
-function normalizeCruushSnapshotPhoto(photo: string | null | undefined) {
-  if (!photo) {
-    return null;
-  }
-
-  try {
-    const parsedUrl = new URL(photo);
-
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return null;
-    }
-
-    return photo.length <= 2048 ? photo : null;
-  } catch {
-    return null;
-  }
+function normalizeCruushSnapshotPhoto(_photo: string | null | undefined): null {
+  // Snapshot photo URLs are no longer sent to the server; the server also
+  // refuses to store them. Always send null.
+  return null;
 }
 
 function isUuid(value: string) {
