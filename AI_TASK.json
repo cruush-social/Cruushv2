@@ -2,35 +2,51 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Make the full-width map top action bar slightly taller and make every icon inside it slightly larger, including the docked alpha bug icon. Amend only the existing local session commit.",
-  "base": "f683d3133f014309af657eb180f9fba15cbc6f73",
-  "baseSha": "f683d3133f014309af657eb180f9fba15cbc6f73",
+  "job": "Finish the verified, non-production continuation work from this session: fail closed for unreadable visibility policies, hide Stealth users in legacy discovery, add notification-settings load recovery, preserve map-tutorial progress across routed steps, strengthen interaction regression coverage, verify Coolify repository URLs contain no credentials, and publish only the session feature branch.",
+  "base": "92fe0da50cead15fcb81cc46f53c635dda426a14",
+  "baseSha": "92fe0da50cead15fcb81cc46f53c635dda426a14",
   "branch": "codex/session-dirty-work-20260811",
   "allowedPaths": [
     "AI_TASK.json",
+    ".octo/LESSONS.md",
+    "server/src/location-privacy.ts",
+    "server/src/location-privacy.test.ts",
+    "server/src/routes/users.ts",
+    "server/src/app.test.ts",
+    "src/app/components/NotificationSettings.tsx",
+    "src/app/components/NotificationSettings.test.tsx",
+    "src/app/components/MapControlsTutorial.tsx",
+    "src/app/components/MapControlsTutorial.test.tsx",
     "src/app/components/MapHome.tsx",
     "src/app/components/MapHome.test.tsx",
-    "src/app/components/AlphaBugButton.tsx",
-    "src/app/components/AlphaBugButton.test.tsx",
+    "src/app/components/DebugCruushPlusToggle.tsx",
+    "src/app/components/DebugCruushPlusToggle.test.tsx",
     "e2e/regression/session-interactions.spec.ts"
   ],
   "preserved": [
-    "Preserve the full-width top-bar layout, control order, routes, click behavior, tutorial targets, unread badge, supplied icon assets, and active-state colors.",
-    "Preserve the separate cruush+ and Ping stack, map controls, bottom navigation, map rendering, and all other page layouts.",
-    "Preserve every existing user change in the session commit and keep origin/main untouched."
+    "Preserve all existing work in commit 92fe0da50cead15fcb81cc46f53c635dda426a14 and keep origin/main untouched.",
+    "Preserve Ghost Mode for basic and cruush+ members, including precise-location choices; only Stealth remains a cruush+ feature.",
+    "Preserve approved Ghost map visuals: the signed-in Ghost user sees an electric-blue self border, while other users see normal pink or mutual-purple borders and normal profile photos.",
+    "Preserve production user data, reward balances, notification delivery state, Coolify production app configuration, and every secret value.",
+    "Preserve supplied assets, current routes, copy, and behavior outside the listed defects."
   ],
   "nonGoals": [
-    "Do not change icon assets, colors, labels, copy, routes, or feature behavior.",
-    "Do not resize the cruush+ or Ping controls or change the top bar width or horizontal placement.",
-    "Do not alter bottom-navigation icons or any non-map header.",
-    "Do not push, merge, deploy, or change environment variables."
+    "Do not push or merge to main, deploy, change DNS, create or delete production accounts, send real notifications, or alter production user data.",
+    "Do not expose, log, reconstruct, or repeat the revoked personal access key or any other credential.",
+    "Do not redesign Ghost Mode, notification taxonomy, tutorial visuals, premium gates, rewards, navigation, map pins, or unrelated controls.",
+    "Do not claim exhaustive device or provider delivery proof from local tests."
   ],
   "proofTarget": {
     "requiredEvidence": [
-      "Regression assertions fail against the prior compact classes and pass after the narrow size change.",
-      "Focused MapHome and AlphaBugButton tests pass.",
-      "Actual /map renders at 390x844 and 1440x900 with the bar at least 44px and 52px tall respectively, larger icons, no overflow, and working controls.",
-      "The mobile Chromium interaction regression, frontend build, contract, scope, spelling, and whitespace checks pass."
+      "Each defect has a failing regression test before its implementation and a passing focused test afterward.",
+      "Unreadable stored visibility policy data resolves to a fail-closed Stealth policy while a genuinely missing policy retains the default behavior.",
+      "Legacy discovery excludes Stealth users and preserves Ghost display mode for Ghost users.",
+      "Notification settings show an actionable retry after load failure and recover after retry.",
+      "Ghost and Feed tutorial route actions preserve progress when the user returns to the map.",
+      "Mobile Chromium proves representative menu and button hit targets and handlers at 390x844; static tests do not substitute for rendered interaction proof.",
+      "Focused tests, server typecheck, frontend build, regression gates, contract, scope, secrets, spelling, and whitespace checks pass.",
+      "Every Coolify application repository value is verified credential-free without printing repository credentials or changing production configuration.",
+      "The exact verified commit is pushed only to origin/codex/session-dirty-work-20260811 and its remote SHA is checked separately."
     ],
     "viewports": [
       "390x844",
@@ -38,8 +54,8 @@
     ]
   },
   "externalActions": [
-    "Amend the existing local feature-branch commit after all gates pass."
+    "Push the verified branch only to origin/codex/session-dirty-work-20260811."
   ],
-  "publicationTarget": "none",
+  "publicationTarget": "origin/codex/session-dirty-work-20260811",
   "environmentChanges": []
 }

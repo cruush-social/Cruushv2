@@ -45,7 +45,7 @@ describe('DebugCruushPlusToggle', () => {
 
     const toggle = await screen.findByRole('button', { name: 'Debug cruush+ disabled' });
     expect(toggle).toHaveTextContent('DEV cruush+ OFF');
-    expect(toggle).toHaveClass('fixed', 'left-1/2', 'top-3', '-translate-x-1/2');
+    expect(toggle).toHaveClass('fixed', 'hidden', 'left-1/2', 'top-3', '-translate-x-1/2', 'sm:inline-flex');
     expect(toggle).not.toHaveClass('right-3');
 
     fireEvent.click(toggle);

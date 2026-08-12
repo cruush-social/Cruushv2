@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from './ui/button';
 
 export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v4-seen';
+export const MAP_CONTROLS_TUTORIAL_PROGRESS_KEY = 'cruush:tutorial-v4-progress';
 export const MAP_CONTROLS_TUTORIAL_COMPLETED_EVENT = 'cruush:map-controls-tutorial-completed';
 
 export function notifyMapControlsTutorialCompleted() {
@@ -84,6 +85,23 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     actionLabel: 'Open Feed',
   },
 ];
+
+export function getStoredMapControlsTutorialStep(): MapControlsTutorialStepId | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const savedStep = window.localStorage.getItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY);
+  return TUTORIAL_STEPS.some((step) => step.id === savedStep)
+    ? savedStep as MapControlsTutorialStepId
+    : null;
+}
+
+function readTutorialProgressIndex() {
+  const savedStep = getStoredMapControlsTutorialStep();
+  const savedIndex = TUTORIAL_STEPS.findIndex((step) => step.id === savedStep);
+  return savedIndex >= 0 ? savedIndex : 0;
+}
 
 type MapControlsTutorialProps = {
   open: boolean;
@@ -322,7 +340,7 @@ function readBottomBoundary(viewportHeight: number) {
 
 export default function MapControlsTutorial({ open, onComplete, onActivateStep }: MapControlsTutorialProps) {
   const cardRef = useRef<HTMLElement | null>(null);
-  const [stepIndex, setStepIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(readTutorialProgressIndex);
   const [targetRect, setTargetRect] = useState<TutorialPlacementRect | null>(null);
   const [measurements, setMeasurements] = useState<TutorialMeasurements | null>(null);
   const [actionPending, setActionPending] = useState(false);
@@ -330,6 +348,12 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
   const [actionCompleted, setActionCompleted] = useState(false);
   const step = TUTORIAL_STEPS[stepIndex];
   const isLastStep = stepIndex === TUTORIAL_STEPS.length - 1;
+
+  useEffect(() => {
+    if (open) {
+      window.localStorage.setItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY, step.id);
+    }
+  }, [open, step.id]);
 
   useEffect(() => {
     setActionPending(false);
@@ -418,9 +442,14 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
     };
   }, [measurements, targetRect]);
 
+  const completeTutorial = () => {
+    window.localStorage.removeItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY);
+    onComplete();
+  };
+
   const advanceStep = () => {
     if (isLastStep) {
-      onComplete();
+      completeTutorial();
       return;
     }
 
@@ -483,7 +512,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
             type="button"
             className="text-xs text-white/60 underline-offset-4 hover:text-white hover:underline"
             data-testid="skip-map-controls-tutorial"
-            onClick={onComplete}
+            onClick={completeTutorial}
           >
             Skip tutorial
           </button>

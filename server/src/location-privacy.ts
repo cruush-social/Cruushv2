@@ -403,6 +403,33 @@ export function buildDefaultVisibilityPolicy(
   };
 }
 
+export class VisibilityPolicyUnreadableError extends Error {
+  readonly policyVersion: number;
+  readonly updatedAtMs: number;
+
+  constructor(policyVersion = 1, updatedAtMs = Date.now()) {
+    super("Stored visibility policy could not be read.");
+    this.name = "VisibilityPolicyUnreadableError";
+    this.policyVersion = Math.max(1, Math.trunc(policyVersion));
+    this.updatedAtMs = updatedAtMs;
+  }
+}
+
+function buildFailClosedVisibilityPolicy(
+  config: AppConfig,
+  subjectUserId: string,
+  error: VisibilityPolicyUnreadableError
+): VisibilityPolicyPayload {
+  return {
+    ...buildDefaultVisibilityPolicy(config, subjectUserId, error.updatedAtMs),
+    policyVersion: error.policyVersion,
+    baseMode: "STEALTH",
+    preciseToMutualCruushes: false,
+    preciseToMutualCrowds: [],
+    auditRequired: true
+  };
+}
+
 export function normalizeVisibilityPolicy(
   config: AppConfig,
   subjectUserId: string,
@@ -509,18 +536,30 @@ export async function loadVisibilityPolicyStrict(
     });
 
     if (policy.subjectUserId !== subjectUserId) {
-      return null;
+      throw new VisibilityPolicyUnreadableError(policyVersion, updatedAtMs);
     }
 
     return policy;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof VisibilityPolicyUnreadableError) {
+      throw error;
+    }
+
+    throw new VisibilityPolicyUnreadableError(policyVersion, updatedAtMs);
   }
 }
 
 export async function loadVisibilityPolicy(context: LocationPrivacyContext, subjectUserId: string) {
-  return await loadVisibilityPolicyStrict(context, subjectUserId)
-    ?? buildDefaultVisibilityPolicy(context.config, subjectUserId);
+  try {
+    return await loadVisibilityPolicyStrict(context, subjectUserId)
+      ?? buildDefaultVisibilityPolicy(context.config, subjectUserId);
+  } catch (error) {
+    if (error instanceof VisibilityPolicyUnreadableError) {
+      return buildFailClosedVisibilityPolicy(context.config, subjectUserId, error);
+    }
+
+    throw error;
+  }
 }
 
 export async function saveVisibilityPolicy(

@@ -1020,12 +1020,16 @@ export async function registerUserRoutes(app: FastifyInstance) {
             updatedAt: row.last_active ?? new Date()
           });
           const policy = await loadPolicyOrDefault(app, legacy.id);
+          if (policy.baseMode === "STEALTH") {
+            return null;
+          }
+          const displayMode: DisplayMode = policy.baseMode === "GHOST" ? "GHOST" : "PRECISE";
           const displayLocationToken = await makeDisplayLocationToken(app, request, {
             subjectUserId: legacy.id,
             viewerUserId: currentUserId,
             policy,
             location,
-            displayMode: "PRECISE"
+            displayMode
           });
 
           return {
@@ -1035,7 +1039,13 @@ export async function registerUserRoutes(app: FastifyInstance) {
             age: legacy.age,
             pronouns: legacy.pronouns,
             lastActive: legacy.lastActive,
-            distanceLabel: legacy.distance,
+            distanceLabel: formatDistanceLabel({
+              displayMode,
+              viewerLat: centerLat,
+              viewerLng: centerLng,
+              targetLat: legacy.lat,
+              targetLng: legacy.lng
+            }),
             displayLocationToken,
             displayExpiresAtMs: displayLocationToken.expiresAtMs,
             animationHint: "NONE",

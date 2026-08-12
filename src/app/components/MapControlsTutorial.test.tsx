@@ -180,6 +180,7 @@ describe('calculateTutorialCardPlacement', () => {
 
 describe('MapControlsTutorial', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     document.body.innerHTML = '';
     TARGET_STEP_IDS.forEach((id, index) => {
       appendTutorialTarget(id, makeRect({
@@ -312,5 +313,41 @@ describe('MapControlsTutorial', () => {
 
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onActivateStep).not.toHaveBeenCalled();
+  });
+
+  it('resumes routed Ghost and Feed steps after the tutorial remounts', async () => {
+    const onActivateStep = vi.fn();
+    const firstRender = render(
+      <MapControlsTutorial open onActivateStep={onActivateStep} onComplete={vi.fn()} />,
+    );
+
+    fireEvent.click(screen.getByTestId('tutorial-skip-step'));
+    fireEvent.click(screen.getByTestId('tutorial-skip-step'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('tutorial-try-step'));
+    await waitFor(() => expect(onActivateStep).toHaveBeenLastCalledWith('ghost'));
+    firstRender.unmount();
+
+    const secondRender = render(
+      <MapControlsTutorial open onActivateStep={onActivateStep} onComplete={vi.fn()} />,
+    );
+    expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('tutorial-try-step'));
+    await waitFor(() => expect(onActivateStep).toHaveBeenLastCalledWith('feed'));
+    secondRender.unmount();
+
+    render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
+    expect(window.localStorage.getItem('cruush:tutorial-v4-progress')).toBe('feed');
   });
 });

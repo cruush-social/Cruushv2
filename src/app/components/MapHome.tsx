@@ -14,6 +14,7 @@ import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './Map
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import MapPingSheet from './MapPingSheet';
 import MapControlsTutorial, {
+  getStoredMapControlsTutorialStep,
   MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
   notifyMapControlsTutorialCompleted,
   type MapControlsTutorialStepId,
@@ -658,7 +659,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
       }
 
       setMapControlsNoticeOffline((currentOffline) => currentOffline === notice.offline ? currentOffline : notice.offline);
-      const shouldOpen = shouldReplayTutorial || !notice.dismissed;
+      const hasSavedProgress = getStoredMapControlsTutorialStep() !== null;
+      const shouldOpen = shouldReplayTutorial || hasSavedProgress || !notice.dismissed;
       setMapControlsIntroOpen((currentOpen) => currentOpen === shouldOpen ? currentOpen : shouldOpen);
     });
 

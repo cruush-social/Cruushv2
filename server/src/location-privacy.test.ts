@@ -162,7 +162,7 @@ describe("location privacy", () => {
     expect(db.query.mock.calls.some(([sql]) => String(sql).includes("ghost_mode_anchor_ms"))).toBe(false);
   });
 
-  it("fails closed when a strict visibility policy is missing", async () => {
+  it("uses the default policy only when a stored policy is missing", async () => {
     const db = createPolicyDb();
 
     await expect(loadVisibilityPolicyStrict({ config, db }, subjectUserId)).resolves.toBeNull();
@@ -176,7 +176,7 @@ describe("location privacy", () => {
     const query = vi.fn(async () => ({
       rows: [{
         subject_user_id: subjectUserId,
-        policy_version: 1,
+        policy_version: 7,
         policy_ciphertext: "not-valid-ciphertext",
         policy_nonce: "not-valid-nonce",
         policy_auth_tag: "not-valid-auth-tag",
@@ -189,7 +189,16 @@ describe("location privacy", () => {
     }));
     const db = { query } as unknown as Pick<DbClient, "query">;
 
-    await expect(loadVisibilityPolicyStrict({ config, db }, subjectUserId)).resolves.toBeNull();
+    await expect(loadVisibilityPolicyStrict({ config, db }, subjectUserId)).rejects.toThrow(
+      "Stored visibility policy could not be read."
+    );
+    await expect(loadVisibilityPolicy({ config, db }, subjectUserId)).resolves.toMatchObject({
+      subjectUserId,
+      baseMode: "STEALTH",
+      policyVersion: 7,
+      preciseToMutualCruushes: false,
+      preciseToMutualCrowds: []
+    });
   });
 
   it("round-trips encrypted location envelopes without storing raw coordinate params", async () => {

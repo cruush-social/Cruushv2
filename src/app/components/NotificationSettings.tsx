@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Bell, Download, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
@@ -57,39 +57,39 @@ export default function NotificationSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const loadRequestIdRef = useRef(0);
+
+  const loadSettings = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const nextPreferences = await getNotificationPreferences();
+
+      if (loadRequestIdRef.current === requestId) {
+        setPreferences(nextPreferences);
+      }
+    } catch (error) {
+      if (loadRequestIdRef.current === requestId) {
+        setPreferences(null);
+        setError(error instanceof Error ? error.message : 'Failed to load notification settings.');
+      }
+    } finally {
+      if (loadRequestIdRef.current === requestId) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    let isActive = true;
-
-    const loadSettings = async () => {
-      setIsLoading(true);
-      setError('');
-
-      try {
-        const nextPreferences = await getNotificationPreferences();
-
-        if (!isActive) {
-          return;
-        }
-
-        setPreferences(nextPreferences);
-      } catch (error) {
-        if (isActive) {
-          setError(error instanceof Error ? error.message : 'Failed to load notification settings.');
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    };
-
     void loadSettings();
 
     return () => {
-      isActive = false;
+      loadRequestIdRef.current += 1;
     };
-  }, []);
+  }, [loadSettings]);
 
   const savePreferences = async (partial: Partial<NotificationPreferences>) => {
     if (!preferences) {
@@ -188,7 +188,7 @@ export default function NotificationSettings() {
                 <Button
                   type="button"
                   onClick={preferences?.pushEnabled ? disablePush : enablePush}
-                  disabled={isLoading || isSaving}
+                  disabled={isLoading || isSaving || !preferences}
                   className="rounded-full"
                 >
                   {preferences?.pushEnabled ? 'Disable push' : 'Enable push'}
@@ -197,7 +197,7 @@ export default function NotificationSettings() {
                   type="button"
                   variant="outline"
                   onClick={() => void savePreferences({ pushEnabled: !preferences?.pushEnabled })}
-                  disabled={isLoading || isSaving}
+                  disabled={isLoading || isSaving || !preferences}
                   className="rounded-full"
                 >
                   {preferences?.pushEnabled ? 'Pause alerts' : 'Allow in-app only'}
@@ -220,8 +220,17 @@ export default function NotificationSettings() {
                   aria-label={`Toggle ${row.label}`}
                 />
               </div>
-            )) : (
+            )) : isLoading ? (
               <p className="text-sm text-muted-foreground">Loading settings...</p>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => void loadSettings()}
+              >
+                Retry loading notification settings
+              </Button>
             )}
           </div>
         </section>

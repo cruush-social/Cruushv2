@@ -107,6 +107,36 @@ describe('NotificationSettings', () => {
     }));
   });
 
+  it('offers a retry after loading fails and recovers without leaving a false loading state', async () => {
+    getNotificationPreferences
+      .mockRejectedValueOnce(new Error('Notification settings are temporarily unavailable.'))
+      .mockResolvedValueOnce({
+        pushEnabled: false,
+        cruushEnabled: true,
+        messagesEnabled: true,
+        groupsEnabled: true,
+        nearbyEnabled: true,
+        rewardsEnabled: true,
+        soundEnabled: true,
+      });
+
+    render(
+      <MemoryRouter>
+        <NotificationSettings />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Notification settings are temporarily unavailable.')).toBeInTheDocument();
+    expect(screen.queryByText('Loading settings...')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enable push' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Allow in-app only' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading notification settings' }));
+
+    expect(await screen.findByRole('switch', { name: 'Toggle Nearby people' })).toBeInTheDocument();
+    expect(getNotificationPreferences).toHaveBeenCalledTimes(2);
+  });
+
   it('dispatches install requests from the Home Screen app action', async () => {
     const listener = vi.fn();
     window.addEventListener('cruush:install-requested', listener);

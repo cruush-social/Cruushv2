@@ -1472,6 +1472,47 @@ describe('MapHome', () => {
     expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
   });
 
+  it('resumes saved tutorial progress even when the completion notice is already dismissed', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.localStorage.setItem('cruush:tutorial-v4-seen', 'true');
+    window.localStorage.setItem('cruush:tutorial-v4-progress', 'ghost');
+    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
+    expect(screen.getByTestId('map-controls-tutorial')).toBeInTheDocument();
+  });
+
+  it('ignores malformed saved tutorial progress when the tutorial is dismissed', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.localStorage.setItem('cruush:tutorial-v4-seen', 'true');
+    window.localStorage.setItem('cruush:tutorial-v4-progress', 'not-a-tutorial-step');
+    resolveNoticeDismissal.mockResolvedValue({ dismissed: true, offline: false });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByRole('button', { name: /^seeking$/i });
+    await waitFor(() => expect(resolveNoticeDismissal).toHaveBeenCalledWith('cruush:tutorial-v4-seen'));
+    expect(window.localStorage.getItem('cruush:tutorial-v4-progress')).toBe('not-a-tutorial-step');
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 20));
+    });
+    expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument();
+  });
+
   it('keeps visibility controls manual without saved-set affordances', async () => {
     useIsMobile.mockReturnValue(false);
     getMyBillingStatus.mockResolvedValue({

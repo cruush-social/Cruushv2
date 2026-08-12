@@ -8988,6 +8988,123 @@ describe("server", () => {
     });
   });
 
+  it("keeps Stealth users out of legacy discovery fallback results", async () => {
+    const legacyUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const stealthPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: legacyUserId,
+      baseMode: "STEALTH"
+    });
+
+    query.mockImplementation((sql: string, params: unknown[] = []) => {
+      const normalizedSql = sql.toLowerCase();
+
+      if (normalizedSql.includes("from profiles") && normalizedSql.includes("where id = $1")) {
+        return Promise.resolve({ rows: [] });
+      }
+      if (normalizedSql.includes("from profiles") && normalizedSql.includes("join app_users")) {
+        return Promise.reject({ code: "42703", message: 'column "year_of_birth" does not exist' });
+      }
+      if (normalizedSql.includes("tribes as legacy_vibe_tags")) {
+        return Promise.resolve({
+          rows: [{
+            id: legacyUserId,
+            display_name: "Hidden Jordan",
+            age: 29,
+            pronouns: "they/them",
+            looking_for: ["Fun"],
+            legacy_vibe_tags: ["Goth"],
+            primary_photo_url: null,
+            last_active: "2026-04-28T12:00:00.000Z",
+            lat: 40.71,
+            lng: -74.0,
+            fuzzy_lat: 40.7105,
+            fuzzy_lng: -74.0005
+          }]
+        });
+      }
+      if (normalizedSql.includes("from encrypted_visibility_tokens")) {
+        return Promise.resolve({ rows: params[0] === legacyUserId ? [stealthPolicy] : [] });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.profiles).toEqual([]);
+  });
+
+  it("keeps Ghost location rendering in legacy discovery fallback results", async () => {
+    const legacyUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const ghostPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: legacyUserId,
+      baseMode: "GHOST"
+    });
+
+    query.mockImplementation((sql: string, params: unknown[] = []) => {
+      const normalizedSql = sql.toLowerCase();
+
+      if (normalizedSql.includes("from profiles") && normalizedSql.includes("where id = $1")) {
+        return Promise.resolve({ rows: [] });
+      }
+      if (normalizedSql.includes("from profiles") && normalizedSql.includes("join app_users")) {
+        return Promise.reject({ code: "42703", message: 'column "year_of_birth" does not exist' });
+      }
+      if (normalizedSql.includes("tribes as legacy_vibe_tags")) {
+        return Promise.resolve({
+          rows: [{
+            id: legacyUserId,
+            display_name: "Ghost Jordan",
+            age: 29,
+            pronouns: "they/them",
+            looking_for: ["Fun"],
+            legacy_vibe_tags: ["Goth"],
+            primary_photo_url: null,
+            last_active: "2026-04-28T12:00:00.000Z",
+            lat: 40.71,
+            lng: -74.0,
+            fuzzy_lat: 40.7105,
+            fuzzy_lng: -74.0005
+          }]
+        });
+      }
+      if (normalizedSql.includes("from encrypted_visibility_tokens")) {
+        return Promise.resolve({ rows: params[0] === legacyUserId ? [ghostPolicy] : [] });
+      }
+      if (normalizedSql.includes("insert into ghost_rotation_tokens")) {
+        return Promise.resolve({ rows: [{ subject_user_id: legacyUserId }] });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    const displayKeyResponse = await app.inject({
+      method: "GET",
+      url: "/api/location/display-key",
+      headers: { "x-user-id": userId }
+    });
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: { "x-user-id": userId }
+    });
+    const profile = response.json().data.profiles[0];
+    const payload = decryptDisplayLocationTokenForTest({
+      key: displayKeyResponse.json().data.key,
+      token: profile.displayLocationToken
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(profile.profileToken).toBe(legacyUserId);
+    expect(payload.displayMode).toBe("GHOST");
+    expect(profile.distanceLabel).toBe("Nearby");
+  });
+
   it("requires the temporary x-user-id header on GET /api/posts", async () => {
     const response = await app.inject({
       method: "GET",
