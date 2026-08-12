@@ -145,21 +145,45 @@ storage — so an offsite destination is still worth configuring. Disk has
 - Restore a strict public-HTTPS URL validator as the only way to introduce any
   future user-supplied URL field, with security-invariant tests that fail if a
   permissive validator reappears.
-- Fix the contract hook's worktree handling. Two separate problems were seen
-  while preparing this change, from a linked worktree of `Cruushv2-1`:
-  1. It warns "git hooks not inspectable" for linked worktrees, because
-     `resolveHooksDir` does not follow a `.git` *file* pointing at
-     `…/worktrees/<name>` to the shared `hooks` directory.
-  2. Commits were rejected with `server/src/…: forbidden by AI_TASK.json`
-     listing exactly the paths that the *main checkout's* `AI_TASK.json`
-     forbids (`server/**`, `src/**`), while the worktree's own contract
-     allowed them. The message text can only come from a `forbiddenPaths`
-     match, and only the main checkout defines those, so the validator
-     appears to have read one checkout's contract while inspecting another's
-     staged paths. **This was not reproducible afterwards** once the staging
-     state changed, so the exact trigger is unconfirmed — it should be fixed
-     with a regression test rather than from this description alone. The
-     workaround used here was a standalone clone instead of a linked worktree.
+
+  An audit for other instances of this bug class found one more, now fixed in
+  PR #77: the web push subscription endpoint was validated with
+  `z.string().url()` and then dereferenced by the server, giving any
+  authenticated user a blind server-side request forgery primitive against
+  internal hosts. `WEB_PUSH_ENABLED` is true in production, so it was
+  reachable. A count-only query confirmed no stored subscription abuses it.
+
+  The audit also surfaced the structural problem behind both bugs:
+  `publicHttpsUrlSchema` is correct but had **no production call site at all**
+  — its only reference was its own unit test. The snapshot-photo bug removed
+  its last real use, and nothing else had ever adopted it. Five further
+  candidates were examined and refuted with evidence (support `pageUrl`,
+  internal `prUrl`, report `profilePhotoUrl`, client `resolveMediaUrl`, and a
+  dead `fallbackPhoto` parameter); none reaches a dangerous sink.
+- **DONE** — the contract hook's checkout resolution is fixed. Root cause,
+  reproduced deterministically: `claude-contract-hook.mjs` used the shell's
+  working directory verbatim as the repository root. Running `git commit` from
+  a subdirectory (`server/`) made it look for `server/AI_TASK.json`, and
+  running it while the shell sat in a *different* cruush checkout made it
+  enforce that checkout's contract — which is why commits were rejected with
+  `server/src/…: forbidden by AI_TASK.json` naming paths only the main
+  checkout forbids. It now resolves the real root with
+  `git rev-parse --show-toplevel`.
+
+  Separately, `resolveHooksDir` in `check-ai-contract.mjs` did not follow a
+  linked worktree's `.git` file to the shared hooks directory, producing the
+  "git hooks not inspectable" warning. It now reads the `commondir` file.
+
+  Verified with four cases: commit from a subdirectory passes (exit 0),
+  commit from a linked worktree passes with no warning (exit 0), an
+  out-of-scope staged file is still blocked (exit 2), and invalid product
+  casing is still blocked (exit 2). Enforcement is unchanged; only the
+  checkout resolution moved. Originals backed up as
+  `*.bak-20260812` in `~/.ai/bin/`.
+
+  Note this bug could *under*-enforce as well as over-enforce: with the shell
+  in a non-cruush directory, the `isCruush` test could miss and skip contract
+  checks entirely.
 - Keep intentional moderation and Web Push capability URLs separate from any
   public snapshot URL logic.
 - Clone the repository fresh and audit full git history there (the local
