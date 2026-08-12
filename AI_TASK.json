@@ -1,30 +1,32 @@
 {
-  "task": "Security hotfix: restrict web push subscription endpoints to public HTTPS URLs to close a blind server-side request forgery primitive",
+  "task": "Security hotfix: stop publishing a precise-derived distance in nearby-activity notification metadata, which exposed Ghost Mode users' locations",
   "base": "bed2ed0944abcf6cbf05a9e4901f7a6714ba77e7 (current production SHA)",
-  "branch": "hotfix/push-endpoint-ssrf",
+  "branch": "hotfix/ghost-mode-distance-leak",
   "status": "active",
   "allowedPaths": [
-    "server/src/routes/notifications.ts",
-    "server/src/push-endpoint-validation.test.ts",
+    "server/src/nearby-notifications.ts",
+    "server/src/nearby-notifications.test.ts",
+    "server/src/ghost-mode-distance-leak.test.ts",
     "AI_TASK.json"
   ],
   "nonGoals": [
-    "No database configuration changes",
-    "No credential changes",
-    "No changes to snapshot photo handling (separate branch)",
-    "No cleanup or migration of stored subscriptions",
+    "Do not change who receives a nearby notification",
+    "Do not change the ghost coordinate derivation or rotation scheme",
+    "Do not change Ghost, Stealth or precise visibility policy semantics",
+    "No database configuration or credential changes",
     "No deploy without explicit authorization"
   ],
   "preservedBehavior": [
-    "Real push service endpoints (FCM, Apple, Mozilla) continue to be accepted",
-    "Existing notification preference and delivery behavior is unchanged",
-    "All four existing production subscriptions remain valid under the new rule"
+    "Nearby notifications continue to be delivered to the same recipients",
+    "The ten-mile radius gate still uses the server-side computed distance",
+    "sourceUserId remains in metadata so the notification still resolves",
+    "Stealth continues to suppress nearby notifications entirely"
   ],
   "proof": [
-    "Regression tests fail against the previous permissive schema and pass after the fix",
-    "Existing notifications route tests still pass",
-    "Server type-check clean",
-    "Count-only production query confirms no stored subscription is invalidated"
+    "Existing nearby-notification test asserts no distance appears in the inserted metadata, and fails against the previous code",
+    "Dedicated regression test documents the Ghost Mode reasoning and fails against the previous code",
+    "Adjacent location-privacy, notifications and map-presence tests still pass",
+    "Server type-check clean"
   ],
   "publicationTarget": "Pull request into main (branch push only; production deploy requires separate explicit authorization)",
   "environmentChanges": []

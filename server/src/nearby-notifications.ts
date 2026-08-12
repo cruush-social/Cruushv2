@@ -255,9 +255,13 @@ export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, i
       body: "Someone within your radar may be in your area.",
       linkUrl: "/map?layer=nearby",
       dedupeKey: `nearby:${input.sourceUserId}:${recipient.id}:${sourceLocationUpdatedBucket}`,
+      // The distance is computed from the subject's precise coordinates and is
+      // deliberately not exposed. Ghost Mode subjects reach this point (only
+      // STEALTH short-circuits above), so publishing it would hand recipients a
+      // ~16m fix on someone who asked to be shown only as "Nearby". No client
+      // reads it, and the distance still gates delivery via the radius check.
       metadata: {
-        sourceUserId: input.sourceUserId,
-        distanceMiles: Number(distance.toFixed(2))
+        sourceUserId: input.sourceUserId
       }
     });
     sent += 1;
