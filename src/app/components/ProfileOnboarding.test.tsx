@@ -3,8 +3,9 @@ import type { ComponentType } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileOnboarding from './ProfileOnboarding';
 
-const { acceptCodeOfConduct, persistCurrentUser, saveMyProfile } = vi.hoisted(() => ({
+const { acceptCodeOfConduct, getAuthSession, persistCurrentUser, saveMyProfile } = vi.hoisted(() => ({
   acceptCodeOfConduct: vi.fn(),
+  getAuthSession: vi.fn(),
   persistCurrentUser: vi.fn(),
   saveMyProfile: vi.fn(),
 }));
@@ -19,6 +20,7 @@ const toastSuccess = vi.hoisted(() => vi.fn());
 
 vi.mock('../lib/authApi', () => ({
   acceptCodeOfConduct,
+  getAuthSession,
 }));
 
 vi.mock('../lib/profileApi', () => ({
@@ -151,6 +153,7 @@ async function skipTwoFactorAndEnter() {
 describe('ProfileOnboarding', () => {
   beforeEach(() => {
     acceptCodeOfConduct.mockReset();
+    getAuthSession.mockReset();
     completeTwoFactorSetup.mockReset();
     getRewardSummary.mockReset();
     persistCurrentUser.mockReset();
@@ -170,6 +173,12 @@ describe('ProfileOnboarding', () => {
     getRewardSummary.mockResolvedValue(rewardSummary);
     acceptCodeOfConduct.mockResolvedValue({
       needsCodeOfConduct: false,
+      codeOfConductVersion: '2026-07-07',
+      acceptedCodeOfConductVersion: '2026-07-07',
+      codeOfConductAcceptedAt: '2026-07-07T15:00:00.000Z',
+    });
+    getAuthSession.mockResolvedValue({
+      needsOnboarding: false,
       codeOfConductVersion: '2026-07-07',
       acceptedCodeOfConductVersion: '2026-07-07',
       codeOfConductAcceptedAt: '2026-07-07T15:00:00.000Z',
@@ -397,7 +406,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
-    expect(onComplete).toHaveBeenCalledWith(undefined, 'map');
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ needsOnboarding: false }), 'map');
   });
 
   it('lets users enable 2FA directly during onboarding before entering the map', async () => {
@@ -430,7 +439,19 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: /enter cruush/i }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledTimes(1));
-    expect(onComplete).toHaveBeenCalledWith(undefined, 'map');
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ needsOnboarding: false }), 'map');
+  });
+
+  it('keeps the user in onboarding when the server still requires a profile', async () => {
+    getAuthSession.mockResolvedValueOnce({ needsOnboarding: true });
+    const onComplete = vi.fn();
+    render(<ProfileOnboarding onComplete={onComplete} />);
+
+    await fillProfileRites();
+    await skipTwoFactorAndEnter();
+
+    expect(await screen.findByText("We couldn't finish setting up your profile. Try again.")).toBeInTheDocument();
+    expect(onComplete).not.toHaveBeenCalled();
   });
 
   it('requires a complete adult date of birth before continuing', () => {

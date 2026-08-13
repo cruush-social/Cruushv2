@@ -4,7 +4,7 @@ import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { acceptCodeOfConduct, type AuthSessionPayload } from '../lib/authApi';
+import { acceptCodeOfConduct, getAuthSession, type AuthSessionPayload } from '../lib/authApi';
 import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
 import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload } from '../lib/profileApi';
 import {
@@ -558,7 +558,12 @@ export default function ProfileOnboarding({
       });
       const nextSession = needsCodeOfConduct
         ? await acceptCodeOfConduct(codeOfConductVersion)
-        : undefined;
+        : await getAuthSession();
+
+      if (nextSession.needsOnboarding) {
+        throw new Error("We couldn't finish setting up your profile. Try again.");
+      }
+
       onComplete(nextSession, destination);
     } catch (error) {
       console.error('Error saving profile:', error);

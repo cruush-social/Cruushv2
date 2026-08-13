@@ -605,7 +605,8 @@ export async function registerMediaRoutes(app: FastifyInstance) {
       return reply.code(201).send({
         data: {
           url: asset.displayUrl,
-          explicit: isAdultExplicit
+          explicit: isAdultExplicit,
+          photos: savedPhotoResult.rows[0].photos ?? [asset.displayUrl]
         }
       });
     } catch (error) {

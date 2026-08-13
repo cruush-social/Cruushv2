@@ -12,6 +12,7 @@ import {
 } from "./location-privacy.js";
 
 const NEARBY_NOTIFICATION_RADIUS_MILES = 5;
+const NEARBY_NOTIFICATION_RECIPIENT_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
 
 type NearbyNotificationSourceRow = {
   year_of_birth: number | null;
@@ -247,7 +248,10 @@ export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, i
   }
 
   const sourceSubject = toVisibilitySubject(app, sourceRow, sourceCoordinates);
-  const sourceLocationUpdatedBucket = Math.floor(input.location.collectedAtMs / 3_600_000);
+  // Location updates already dispatch only when the source returns after four
+  // days. Use the same four-day window for each recipient so a dense map cannot
+  // turn several distinct returning people into a notification burst.
+  const recipientWindowBucket = Math.floor(input.location.collectedAtMs / NEARBY_NOTIFICATION_RECIPIENT_WINDOW_MS);
   const recipients = await loadNearbyNotificationRecipients(app, input.sourceUserId);
   const recipientLocationEnvelopes = await loadLocationEnvelopes(app, recipients.map((row) => row.id));
   let sent = 0;
@@ -284,7 +288,7 @@ export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, i
       title: "Someone nearby",
       body: "Someone within your radar may be in your area.",
       linkUrl: "/map?layer=nearby",
-      dedupeKey: `nearby:${recipient.id}:${sourceLocationUpdatedBucket}`,
+      dedupeKey: `nearby:${recipient.id}:${recipientWindowBucket}`,
       // The distance is computed from the subject's precise coordinates and is
       // deliberately not exposed. Ghost Mode subjects reach this point (only
       // STEALTH short-circuits above), so publishing it would hand recipients a

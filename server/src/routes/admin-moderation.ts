@@ -583,6 +583,7 @@ async function getContentReview(app: FastifyInstance, reviewId: string) {
      where review.id = $1
        and coalesce(review.flagged_reason, '') <> 'photodna_csam_match'
        and coalesce(review.policy_decision ->> 'category', '') <> 'csam'
+       and coalesce(review.policy_decision ->> 'category', '') <> 'provider_unavailable'
      limit 1`,
     [reviewId]
   );
@@ -928,6 +929,7 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
           where coalesce(review.provider, '') <> 'user_report'
            and coalesce(review.flagged_reason, '') <> 'photodna_csam_match'
            and coalesce(review.policy_decision ->> 'category', '') <> 'csam'
+           and coalesce(review.policy_decision ->> 'category', '') <> 'provider_unavailable'
            and (
              review.moderation_status <> 'allowed'
              or exists (

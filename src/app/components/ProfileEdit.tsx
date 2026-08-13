@@ -797,14 +797,29 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
         return;
       }
 
+      const uploadedPhotos = (uploaded.photos ?? [...previousPhotos, uploaded.url]).slice(0, MAX_PROFILE_PHOTOS);
+      const uploadedMetadata = [
+        ...previousMetadata.filter((metadata) => metadata.url !== uploaded.url),
+        { url: uploaded.url, explicit: uploaded.explicit === true },
+      ].filter((metadata) => uploadedPhotos.includes(metadata.url)).slice(-MAX_PROFILE_PHOTOS);
+      const currentUserId = getStoredCurrentUser()?.id;
+
       setProfile((prev) => ({
         ...prev,
-        photos: [...(prev.photos ?? []), uploaded.url].slice(0, MAX_PROFILE_PHOTOS),
-        photo_metadata: [
-          ...(prev.photo_metadata ?? []).filter((metadata) => metadata.url !== uploaded.url),
-          { url: uploaded.url, explicit: uploaded.explicit === true },
-        ].slice(-MAX_PROFILE_PHOTOS),
+        photos: uploadedPhotos,
+        photo_metadata: uploadedMetadata,
       }));
+
+      if (currentUserId) {
+        applySavedProfile({
+          ...profile,
+          id: currentUserId,
+          updated_at: new Date().toISOString(),
+          photos: uploadedPhotos,
+          photo_metadata: uploadedMetadata,
+        });
+      }
+
       const freshProfile = await getMyProfile().catch(() => null);
 
       if (freshProfile) {
@@ -815,23 +830,18 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
         const loadedPhotos = loadedProfile.photos ?? [];
         const photos = loadedPhotos.includes(uploaded.url)
           ? loadedPhotos
-          : [...previousPhotos.filter((photo) => photo !== uploaded.url), uploaded.url].slice(0, MAX_PROFILE_PHOTOS);
+          : uploadedPhotos;
         const loadedMetadata = loadedProfile.photo_metadata ?? [];
         const photo_metadata = loadedMetadata.some((metadata) => metadata.url === uploaded.url)
           ? loadedMetadata
-          : [
-              ...previousMetadata.filter((metadata) => metadata.url !== uploaded.url),
-              { url: uploaded.url, explicit: uploaded.explicit === true },
-            ].slice(-MAX_PROFILE_PHOTOS);
+          : uploadedMetadata;
         const mergedProfile = {
           ...loadedProfile,
           photos,
           photo_metadata,
         };
 
-        setProfile(mergedProfile);
-        onSaved?.(mergedProfile);
-        notifyProfileChanged(mergedProfile);
+        applySavedProfile(mergedProfile);
       }
       setPendingPhoto(null);
       setPhotoUploadError(null);

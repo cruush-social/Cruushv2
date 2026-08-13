@@ -93,15 +93,14 @@ const DEFAULT_TILE_URLS = [
 ];
 const DEFAULT_ATTRIBUTION = '&copy; CARTO &copy; OpenStreetMap contributors';
 const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
-const DEFAULT_VECTOR_GLYPHS_URL = 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf';
 const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
 const MAP_READY_FALLBACK_TIMEOUT_MS = 4500;
 const MAP_RENDER_READY_TIMEOUT_MS = 1200;
 const MOBILE_MARKER_LONG_PRESS_MS = 450;
 const MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 10;
-const MAP_LABEL_FONT_FAMILY = 'Noto Serif';
-const MAP_LABEL_FONT_REGULAR = ['Noto Serif Regular'];
-const MAP_LABEL_FONT_BOLD = ['Noto Serif Bold', 'Noto Serif Regular'];
+const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
+const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
+const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
@@ -232,11 +231,11 @@ async function loadMapLabelFonts() {
 
 export function createCruushVectorStyle(
   tileJsonUrl = DEFAULT_VECTOR_TILEJSON_URL,
-  glyphsUrl = DEFAULT_VECTOR_GLYPHS_URL,
+  glyphsUrl?: string,
 ): StyleSpecification {
   return {
     version: 8,
-    glyphs: glyphsUrl,
+    ...(glyphsUrl ? { glyphs: glyphsUrl } : {}),
     sources: {
       openmaptiles: {
         type: 'vector',
@@ -248,7 +247,7 @@ export function createCruushVectorStyle(
         id: 'background',
         type: 'background',
         paint: {
-          'background-color': '#080808',
+          'background-color': '#050506',
         },
       },
       {
@@ -257,8 +256,8 @@ export function createCruushVectorStyle(
         source: 'openmaptiles',
         'source-layer': 'landcover',
         paint: {
-          'fill-color': '#0f0f0f',
-          'fill-opacity': 0.78,
+          'fill-color': '#1c1c22',
+          'fill-opacity': 0.92,
         },
       },
       {
@@ -271,41 +270,10 @@ export function createCruushVectorStyle(
             'match',
             ['get', 'class'],
             ['residential', 'commercial', 'industrial'],
-            '#111111',
-            '#0f0f0f',
+            '#212128',
+            '#1c1c22',
           ],
-          'fill-outline-color': '#1e1e1e',
-        },
-      },
-      {
-        id: 'building-fill',
-        type: 'fill',
-        source: 'openmaptiles',
-        'source-layer': 'building',
-        minzoom: 13,
-        paint: {
-          'fill-color': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            13,
-            '#161616',
-            16,
-            '#181818',
-          ],
-          'fill-opacity': 0.88,
-        },
-      },
-      {
-        id: 'building-outline',
-        type: 'line',
-        source: 'openmaptiles',
-        'source-layer': 'building',
-        minzoom: 15,
-        paint: {
-          'line-color': '#1e1e1e',
-          'line-width': 0.6,
-          'line-opacity': 0.7,
+          'fill-outline-color': '#2e2e38',
         },
       },
       {
@@ -321,8 +289,8 @@ export function createCruushVectorStyle(
           false,
         ],
         paint: {
-          'line-color': '#1c1c1c',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.45, 16, 2.2],
+          'line-color': '#38383f',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 11, 0.6, 16, 2.2],
           'line-opacity': 0.95,
         },
       },
@@ -339,8 +307,8 @@ export function createCruushVectorStyle(
           false,
         ],
         paint: {
-          'line-color': '#242424',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.2, 16, 5.5],
+          'line-color': '#4c4c56',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.6, 16, 5.5],
           'line-opacity': 0.98,
         },
       },
@@ -357,7 +325,7 @@ export function createCruushVectorStyle(
           false,
         ],
         paint: {
-          'line-color': ['match', ['get', 'class'], 'trunk', '#363636', '#2e2e2e'],
+          'line-color': ['match', ['get', 'class'], 'trunk', '#5c5c68', '#4a4a54'],
           'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.45, 16, 1.4],
           'line-dasharray': [1.2, 2.4],
           'line-opacity': 0.75,
@@ -378,20 +346,6 @@ export function createCruushVectorStyle(
         },
       },
       {
-        id: 'poi-dots',
-        type: 'circle',
-        source: 'openmaptiles',
-        'source-layer': 'poi',
-        minzoom: 14,
-        paint: {
-          'circle-color': '#0d0d0d',
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2.5, 17, 4],
-          'circle-stroke-color': '#383838',
-          'circle-stroke-width': 1,
-          'circle-opacity': 0.8,
-        },
-      },
-      {
         id: 'minor-road-labels',
         type: 'symbol',
         source: 'openmaptiles',
@@ -400,7 +354,7 @@ export function createCruushVectorStyle(
         filter: [
           'match',
           ['get', 'class'],
-          ['minor', 'service'],
+          ['minor', 'service', 'track', 'path'],
           true,
           false,
         ],
@@ -409,13 +363,13 @@ export function createCruushVectorStyle(
           'symbol-spacing': 120,
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 10.5, 16, 14],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9, 16, 12],
           'text-letter-spacing': 0.02,
           'text-padding': 1,
         },
         paint: {
-          'text-color': '#8f8f8f',
-          'text-halo-color': '#080808',
+          'text-color': '#9c9ca4',
+          'text-halo-color': '#050506',
           'text-halo-width': 1,
         },
       },
@@ -436,13 +390,13 @@ export function createCruushVectorStyle(
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 12.5, 16, 16],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 11, 16, 14],
           'text-letter-spacing': 0.025,
           'text-padding': 2,
         },
         paint: {
-          'text-color': '#b8b8b8',
-          'text-halo-color': '#080808',
+          'text-color': '#b4b4bc',
+          'text-halo-color': '#050506',
           'text-halo-width': 1.2,
         },
       },
@@ -457,13 +411,13 @@ export function createCruushVectorStyle(
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_BOLD,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 10, 13.5, 16, 17],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 10, 12, 16, 15],
           'text-letter-spacing': 0.03,
           'text-padding': 2,
         },
         paint: {
-          'text-color': '#dedede',
-          'text-halo-color': '#080808',
+          'text-color': '#dcdce2',
+          'text-halo-color': '#050506',
           'text-halo-width': 1.4,
         },
       },
@@ -478,35 +432,14 @@ export function createCruushVectorStyle(
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_BOLD,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 9, 14.5, 16, 18],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 9, 13, 16, 16],
           'text-letter-spacing': 0.035,
           'text-padding': 2,
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#080808',
+          'text-halo-color': '#050506',
           'text-halo-width': 1.5,
-        },
-      },
-      {
-        id: 'poi-labels',
-        type: 'symbol',
-        source: 'openmaptiles',
-        'source-layer': 'poi',
-        minzoom: 14,
-        layout: {
-          'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
-          'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 14, 11.5, 17, 13.5],
-          'text-letter-spacing': 0.02,
-          'text-offset': [0, 0.75],
-          'text-anchor': 'top',
-          'text-padding': 2,
-        },
-        paint: {
-          'text-color': '#c0c0c0',
-          'text-halo-color': '#0d0d0d',
-          'text-halo-width': 1.4,
         },
       },
       {
@@ -523,16 +456,16 @@ export function createCruushVectorStyle(
             ['linear'],
             ['zoom'],
             8,
-            15,
+            13,
             12,
-            19,
+            17,
           ],
           'text-letter-spacing': 0.035,
           'text-padding': 4,
         },
         paint: {
-          'text-color': '#d8d8d8',
-          'text-halo-color': '#080808',
+          'text-color': '#eaeaef',
+          'text-halo-color': '#050506',
           'text-halo-width': 1.6,
         },
       },
@@ -556,7 +489,7 @@ export function getMapStyle() {
 
   return createCruushVectorStyle(
     configuredVectorTileJsonUrl || DEFAULT_VECTOR_TILEJSON_URL,
-    configuredGlyphsUrl || DEFAULT_VECTOR_GLYPHS_URL,
+    configuredGlyphsUrl || undefined,
   );
 }
 

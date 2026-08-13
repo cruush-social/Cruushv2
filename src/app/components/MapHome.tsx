@@ -476,6 +476,29 @@ function getGeolocationErrorMessage(error: GeolocationPositionError | undefined)
   }
 }
 
+function getBrowserPosition(options: PositionOptions) {
+  return new Promise<GeolocationPosition>((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      resolve,
+      (error) => {
+        // iOS can reject a fresh high-accuracy fix indoors even while a recent
+        // lower-accuracy browser fix is available. Permission denials never retry.
+        if (options.enableHighAccuracy === true && (error.code === 2 || error.code === 3)) {
+          navigator.geolocation.getCurrentPosition(
+            resolve,
+            reject,
+            { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 },
+          );
+          return;
+        }
+
+        reject(error);
+      },
+      options,
+    );
+  });
+}
+
 export default function MapHome(_props: MapHomeProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -1134,24 +1157,35 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
 
     setLocationStatus('locating');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        void applyBrowserPositionToMap(position, centerAfterUpdate, undefined, centerAfterUpdate)
-          .catch(() => {
-            setLocationStatus('error');
-            setLocationError(LOCATION_SYNC_ERROR_MESSAGE);
-          });
-      },
-      (positionError) => {
+    const options = {
+      enableHighAccuracy: centerAfterUpdate,
+      timeout: centerAfterUpdate ? 15000 : 10000,
+      maximumAge: centerAfterUpdate ? 0 : 60_000,
+    };
+    const applyPositionError = (positionError: GeolocationPositionError | Error) => {
+      if (positionError instanceof Error && !("code" in positionError)) {
         setLocationStatus('error');
-        setLocationError(getGeolocationErrorMessage(positionError));
-      },
-      {
-        enableHighAccuracy: centerAfterUpdate,
-        timeout: centerAfterUpdate ? 15000 : 10000,
-        maximumAge: centerAfterUpdate ? 0 : 60_000,
-      },
-    );
+        setLocationError(LOCATION_SYNC_ERROR_MESSAGE);
+        return;
+      }
+      setLocationStatus('error');
+      setLocationError(getGeolocationErrorMessage(positionError as GeolocationPositionError));
+    };
+
+    if (!centerAfterUpdate) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          void applyBrowserPositionToMap(position);
+        },
+        applyPositionError,
+        options,
+      );
+      return;
+    }
+
+    void getBrowserPosition(options)
+      .then((position) => applyBrowserPositionToMap(position, centerAfterUpdate, undefined, centerAfterUpdate))
+      .catch(applyPositionError);
   };
 
   const requestFreshEventPassCoordinates = () => new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
@@ -1165,24 +1199,21 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
 
     setLocationStatus('locating');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        void applyBrowserPositionToMap(position, false, undefined, true)
-          .then(resolve)
-          .catch(() => {
-            setLocationStatus('error');
-            setLocationError(LOCATION_SYNC_ERROR_MESSAGE);
-            reject(new Error(LOCATION_SYNC_ERROR_MESSAGE));
-          });
-      },
-      (positionError) => {
-        const errorMessage = getGeolocationErrorMessage(positionError);
+    void getBrowserPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 })
+      .then((position) => applyBrowserPositionToMap(position, false, undefined, true))
+      .then(resolve)
+      .catch((positionError: GeolocationPositionError | Error) => {
+        if (positionError instanceof Error && !("code" in positionError)) {
+          setLocationStatus('error');
+          setLocationError(LOCATION_SYNC_ERROR_MESSAGE);
+          reject(new Error(LOCATION_SYNC_ERROR_MESSAGE));
+          return;
+        }
+        const errorMessage = getGeolocationErrorMessage(positionError as GeolocationPositionError);
         setLocationStatus('error');
         setLocationError(errorMessage);
         reject(new Error(errorMessage));
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
-    );
+      });
   });
 
   const requestFreshMapPingLocation = () => new Promise<void>((resolve, reject) => {
@@ -1196,24 +1227,21 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
 
     setLocationStatus('locating');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        void applyBrowserPositionToMap(position, false, 'PING', true)
-          .then(() => resolve())
-          .catch(() => {
-            setLocationStatus('error');
-            setLocationError(LOCATION_SYNC_ERROR_MESSAGE);
-            reject(new Error(LOCATION_SYNC_ERROR_MESSAGE));
-          });
-      },
-      (positionError) => {
-        const errorMessage = getGeolocationErrorMessage(positionError);
+    void getBrowserPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 })
+      .then((position) => applyBrowserPositionToMap(position, false, 'PING', true))
+      .then(() => resolve())
+      .catch((positionError: GeolocationPositionError | Error) => {
+        if (positionError instanceof Error && !("code" in positionError)) {
+          setLocationStatus('error');
+          setLocationError(LOCATION_SYNC_ERROR_MESSAGE);
+          reject(new Error(LOCATION_SYNC_ERROR_MESSAGE));
+          return;
+        }
+        const errorMessage = getGeolocationErrorMessage(positionError as GeolocationPositionError);
         setLocationStatus('error');
         setLocationError(errorMessage);
         reject(new Error(errorMessage));
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
-    );
+      });
   });
 
   useEffect(() => {

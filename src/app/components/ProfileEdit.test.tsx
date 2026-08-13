@@ -336,6 +336,41 @@ describe('ProfileEdit', () => {
     expect(screen.getByAltText('Primary profile photo')).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
   });
 
+  it('publishes the server-authoritative uploaded photos when the follow-up profile read fails', async () => {
+    const onSaved = vi.fn();
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+    localStorage.setItem('cruush_user', JSON.stringify({ id: 'user-1', display_name: 'Jordan' }));
+    uploadProfilePhoto.mockResolvedValueOnce({
+      url: uploadedProfilePhoto,
+      explicit: false,
+      photos: [existingProfilePhoto, uploadedProfilePhoto],
+    });
+    getMyProfile.mockResolvedValueOnce({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: 'Jordan',
+      photos: [existingProfilePhoto],
+    }).mockRejectedValueOnce(new Error('Profile refresh failed.'));
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit onSaved={onSaved} />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+    const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+    fireEvent.change(uploadInput as HTMLInputElement, {
+      target: { files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })] },
+    });
+    fireEvent.load(await screen.findByAltText('Profile crop preview'));
+    fireEvent.click(screen.getByRole('button', { name: 'Use cropped photo' }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      photos: [existingProfilePhoto, uploadedProfilePhoto],
+    })));
+  });
+
   it('masks explicit profile photos while treating unknown photos as safe in DL Mode', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const explicitPhoto = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';

@@ -303,7 +303,7 @@ export async function uploadProfilePhoto(photo: File) {
   formData.set('photo', photo);
 
   return requestApi<
-    | { url: string; explicit?: boolean; status?: undefined }
+    | { url: string; explicit?: boolean; photos?: string[]; status?: undefined }
     | { status: 'pending_review'; assetId: string }
   >('/api/profile-photos', {
     method: 'POST',

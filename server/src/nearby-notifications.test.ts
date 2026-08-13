@@ -406,7 +406,7 @@ describe("nearby notifications", () => {
     expect(query.mock.calls.some(([sql, params]) => String(sql).includes("insert into app_notifications") && params?.[0] === recipientAllowedId)).toBe(true);
     expect(query.mock.calls.some(([sql, params]) => String(sql).includes("insert into app_notifications") && params?.[0] === recipientFilteredId)).toBe(false);
     const allowedNotification = query.mock.calls.find(([sql, params]) => String(sql).includes("insert into app_notifications") && params?.[0] === recipientAllowedId);
-    expect(allowedNotification?.[1]?.[5]).toBe(`nearby:${recipientAllowedId}:${Math.floor(nearbyLocation.collectedAtMs / 3_600_000)}`);
+    expect(allowedNotification?.[1]?.[5]).toBe(`nearby:${recipientAllowedId}:${Math.floor(nearbyLocation.collectedAtMs / (4 * 24 * 60 * 60 * 1000))}`);
     expect(String(allowedNotification?.[1]?.[5])).not.toContain(sourceUserId);
 
     // The distance is derived from the subject's precise coordinates and must
@@ -423,7 +423,7 @@ describe("nearby notifications", () => {
     }
   });
 
-  it("does not count or re-push when the recipient already received a nearby alert in the hour", async () => {
+  it("does not count or re-push when the recipient already received a nearby alert in the four-day window", async () => {
     const recipientId = "00000000-0000-4000-8000-000000000004";
     const collectedAtMs = Date.parse("2026-08-08T12:00:00.000Z");
 
@@ -452,7 +452,7 @@ describe("nearby notifications", () => {
       sent: 0
     });
     const notificationInsert = query.mock.calls.find(([sql]) => String(sql).includes("insert into app_notifications"));
-    expect(notificationInsert?.[1]?.[5]).toBe(`nearby:${recipientId}:${Math.floor(collectedAtMs / 3_600_000)}`);
+    expect(notificationInsert?.[1]?.[5]).toBe(`nearby:${recipientId}:${Math.floor(collectedAtMs / (4 * 24 * 60 * 60 * 1000))}`);
   });
 
   it.each([

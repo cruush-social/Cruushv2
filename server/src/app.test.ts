@@ -6536,6 +6536,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[1]?.[0]).toContain("coalesce(review.provider, '') <> 'user_report'");
     expect(query.mock.calls[1]?.[0]).toContain("photodna_csam_match");
+    expect(query.mock.calls[1]?.[0]).toContain("coalesce(review.policy_decision ->> 'category', '') <> 'provider_unavailable'");
     expect(response.json().data.page).toEqual({ limit: 25, offset: 0, total: 2, hasMore: false });
     expect(response.json().data.items.map((item: { kind: string }) => item.kind)).toEqual(["report", "review"]);
   });
@@ -7623,7 +7624,8 @@ describe("server", () => {
     expect(body).toEqual({
       data: {
         url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/),
-        explicit: false
+        explicit: false,
+        photos: [expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/)]
       }
     });
     expect(body.data.url).not.toContain(userId);

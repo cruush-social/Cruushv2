@@ -700,6 +700,10 @@ describe('MapHome', () => {
       .mockImplementationOnce((
         _success: (position: ReturnType<typeof browserPosition>) => void,
         failure?: (error: GeolocationPositionError) => void,
+      ) => failure?.(geolocationError(2)))
+      .mockImplementationOnce((
+        _success: (position: ReturnType<typeof browserPosition>) => void,
+        failure?: (error: GeolocationPositionError) => void,
       ) => failure?.(geolocationError(2)));
     Object.defineProperty(global.navigator, 'geolocation', {
       configurable: true,
@@ -719,7 +723,7 @@ describe('MapHome', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Reveal door pass' }));
 
     const expected = GEOLOCATION_ERROR_CASES[1].expected;
-    await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(3));
     await waitFor(() => expect(screen.getAllByText(expected)).toHaveLength(2));
     expect(revealEventPass).not.toHaveBeenCalled();
   });
@@ -765,6 +769,10 @@ describe('MapHome', () => {
       .mockImplementationOnce((success: (position: ReturnType<typeof browserPosition>) => void) => {
         success(browserPosition());
       })
+      .mockImplementationOnce((
+        _success: (position: ReturnType<typeof browserPosition>) => void,
+        failure?: (error: GeolocationPositionError) => void,
+      ) => failure?.(geolocationError(3)))
       .mockImplementationOnce((
         _success: (position: ReturnType<typeof browserPosition>) => void,
         failure?: (error: GeolocationPositionError) => void,
@@ -2162,9 +2170,9 @@ describe('MapHome', () => {
         maximumAge: 0,
       })
     );
-    expect(mapControls.setCenter).toHaveBeenCalledWith([-73.901, 40.701]);
-    expect(mapControls.setZoom).toHaveBeenCalledWith(14);
     await waitFor(() => {
+      expect(mapControls.setCenter).toHaveBeenCalledWith([-73.901, 40.701]);
+      expect(mapControls.setZoom).toHaveBeenCalledWith(14);
       expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.701');
       expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-73.901');
     });

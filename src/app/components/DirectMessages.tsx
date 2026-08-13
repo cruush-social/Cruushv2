@@ -1,13 +1,13 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ChevronRight, Clock3, MapPin, Pin, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import {
   createGroupConversation,
   deleteConversationForEveryone,
@@ -17,6 +17,7 @@ import {
 } from '../lib/messagesApi';
 import { getMyCruushActivity, sendCruush, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
+import { getMyBillingStatus } from '../lib/billingApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 
@@ -94,8 +95,6 @@ function getConversationHeartTheme(conversation: ConversationThread) {
 
 type DirectSortMode = 'distance' | 'lastOnline';
 
-const ALL_SEEKING_FILTER = '__all__';
-
 function parseDistanceMiles(distance: string) {
   if (/nearby/i.test(distance)) {
     return 0;
@@ -126,15 +125,39 @@ function seekingSortScore(user: DiscoveryUser) {
   );
 }
 
-function normalizeSeekingValue(value: string) {
-  return value.trim().toLowerCase();
-}
-
 function describeDiscoveryUser(user: DiscoveryUser) {
   return [user.pronouns, user.age ? String(user.age) : '', ...(user.presentation ?? []), ...(user.identities ?? [])]
     .filter(Boolean)
     .slice(0, 5)
     .join(' · ');
+}
+
+function matchesMessageFilterBasics(user: DiscoveryUser, filters: FilterState) {
+  const distanceMiles = parseDistanceMiles(user.distance);
+  if (Number.isFinite(distanceMiles) && distanceMiles > filters.distance) {
+    return false;
+  }
+
+  if (user.age !== null && (user.age < filters.ageRange[0] || user.age > filters.ageRange[1])) {
+    return false;
+  }
+
+  if (filters.lookingFor.length > 0) {
+    const lookingFor = user.lookingFor.map((value) => value.toLowerCase());
+    if (!filters.lookingFor.some((value) => lookingFor.includes(value.toLowerCase()))) {
+      return false;
+    }
+  }
+
+  if (filters.vibes.length > 0) {
+    const vibes = [...user.vibes, ...(user.scenes ?? []), ...(user.archetypes ?? [])]
+      .map((value) => value.toLowerCase());
+    if (!filters.vibes.some((value) => vibes.includes(value.toLowerCase()))) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export default function DirectMessages() {
@@ -158,6 +181,7 @@ export default function DirectMessages() {
   const [groupLoading, setGroupLoading] = useState(false);
   const [directError, setDirectError] = useState<string | null>(null);
   const [directLoading, setDirectLoading] = useState(false);
+  const [directHasCruushPlus, setDirectHasCruushPlus] = useState(false);
   const [groupCreating, setGroupCreating] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -243,20 +267,19 @@ export default function DirectMessages() {
     });
   };
 
-  const openDirectComposer = async () => {
-    setComposeChooserOpen(false);
-    setGroupComposerOpen(false);
-    setDirectComposerOpen(true);
+  const loadDirectMessageOptions = async (filters: FilterState = DEFAULT_FILTER_STATE) => {
     setDirectError(null);
     setDirectLoading(true);
 
     try {
-      const [nearbyUsers, activity] = await Promise.all([
-        getNearbyUsers(null, undefined, { limit: 100 }),
+      const [nearbyUsers, activity, billing] = await Promise.all([
+        getNearbyUsers(null, filters, { limit: 100 }),
         getMyCruushActivity().catch(() => ({ mutual: [] })),
+        getMyBillingStatus().catch(() => null),
       ]);
       setDirectOptions(nearbyUsers.filter((user) => user.relationship?.canMessage !== false));
       setMutualOptions((activity.mutual ?? []).filter((item) => item.canMessage !== false));
+      setDirectHasCruushPlus(billing?.cruushPlus === true);
     } catch (error) {
       console.error('Error loading people available for direct messaging:', error);
       setDirectOptions([]);
@@ -264,6 +287,13 @@ export default function DirectMessages() {
     } finally {
       setDirectLoading(false);
     }
+  };
+
+  const openDirectComposer = async () => {
+    setComposeChooserOpen(false);
+    setGroupComposerOpen(false);
+    setDirectComposerOpen(true);
+    await loadDirectMessageOptions();
   };
 
   useEffect(() => {
@@ -296,6 +326,12 @@ export default function DirectMessages() {
   const resetDirectComposer = () => {
     setDirectComposerOpen(false);
     setDirectError(null);
+  };
+
+  const returnToMessageOptions = () => {
+    setDirectComposerOpen(false);
+    setDirectError(null);
+    setComposeChooserOpen(true);
   };
 
   const handleStartDirectChat = (userId: string) => {
@@ -423,11 +459,15 @@ export default function DirectMessages() {
           loading={directLoading}
           users={directOptions}
           mutuals={mutualOptions}
+          hasCruushPlus={directHasCruushPlus}
           requestedCruushIds={requestedCruushIds}
           onAskMutual={(user) => {
             setRequestedCruushIds((current) => current.includes(user.id) ? current : [...current, user.id]);
           }}
           onClose={resetDirectComposer}
+          onBack={returnToMessageOptions}
+          onApplyFilters={loadDirectMessageOptions}
+          onUpgrade={() => navigate('/rewards')}
           onMessage={handleStartDirectChat}
         />
       ) : null}
@@ -785,49 +825,39 @@ function DirectUserOverlay({
   loading,
   users,
   mutuals,
+  hasCruushPlus,
   requestedCruushIds,
   onAskMutual,
   onClose,
+  onBack,
+  onApplyFilters,
+  onUpgrade,
   onMessage,
 }: {
   error: string | null;
   loading: boolean;
   users: DiscoveryUser[];
   mutuals: MutualCruushActivityItem[];
+  hasCruushPlus: boolean;
   requestedCruushIds: string[];
   onAskMutual: (user: DiscoveryUser) => void;
   onClose: () => void;
+  onBack: () => void;
+  onApplyFilters: (filters: FilterState) => Promise<void>;
+  onUpgrade: () => void;
   onMessage: (userId: string) => void;
 }) {
   const dlModeActive = useDlMode();
   const [activeComposerTab, setActiveComposerTab] = useState<'public' | 'mutuals'>('public');
   const [sortMode, setSortMode] = useState<DirectSortMode>('lastOnline');
-  const [seekingFilter, setSeekingFilter] = useState(ALL_SEEKING_FILTER);
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [requestingUserId, setRequestingUserId] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const publicUsers = useMemo(() => users.filter((user) => user.relationship?.mutualCruush !== true), [users]);
-  const seekingOptions = useMemo(() => {
-    const options = new Map<string, string>();
-    for (const user of publicUsers) {
-      for (const value of user.lookingFor ?? []) {
-        const trimmed = value.trim();
-        if (trimmed) {
-          options.set(normalizeSeekingValue(trimmed), trimmed);
-        }
-      }
-    }
-
-    return Array.from(options.values()).sort((a, b) => a.localeCompare(b));
-  }, [publicUsers]);
   const filteredPublicUsers = useMemo(() => {
-    if (seekingFilter === ALL_SEEKING_FILTER) {
-      return publicUsers;
-    }
-
-    return publicUsers.filter((user) => (
-      user.lookingFor?.some((value) => normalizeSeekingValue(value) === seekingFilter)
-    ));
-  }, [publicUsers, seekingFilter]);
+    return publicUsers.filter((user) => matchesMessageFilterBasics(user, filters));
+  }, [publicUsers, filters]);
   const sortedPublicUsers = useMemo(() => {
     return [...filteredPublicUsers].sort((a, b) => {
       if (sortMode === 'distance') {
@@ -839,15 +869,6 @@ function DirectUserOverlay({
         || parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
     });
   }, [filteredPublicUsers, sortMode]);
-
-  useEffect(() => {
-    if (
-      seekingFilter !== ALL_SEEKING_FILTER &&
-      !seekingOptions.some((option) => normalizeSeekingValue(option) === seekingFilter)
-    ) {
-      setSeekingFilter(ALL_SEEKING_FILTER);
-    }
-  }, [seekingFilter, seekingOptions]);
 
   const requestMutual = async (user: DiscoveryUser) => {
     if (requestingUserId || requestedCruushIds.includes(user.id)) {
@@ -875,7 +896,10 @@ function DirectUserOverlay({
     <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="flex items-center justify-between gap-3">
-          <div>
+          <div className="flex min-w-0 items-center gap-1">
+            <Button type="button" variant="ghost" size="icon" aria-label="Back to message options" onClick={onBack}>
+              <ChevronLeft className="size-4" />
+            </Button>
             <h3 className="text-2xl">Choose someone to message</h3>
           </div>
           <Button type="button" variant="ghost" size="icon" aria-label="Close mutual picker" onClick={onClose}>
@@ -892,31 +916,17 @@ function DirectUserOverlay({
 
         {activeComposerTab === 'public' ? (
           <div className="rounded-2xl border border-white/10 bg-card/58 p-3">
-            <Select value={seekingFilter} onValueChange={setSeekingFilter}>
-              <SelectTrigger
-                aria-label="Seeking filter"
-                size="sm"
-                className="h-9 w-auto min-w-40 max-w-full rounded-full border-white/12 bg-background/70 px-3 text-xs text-foreground"
-              >
-                <SlidersHorizontal className="size-3.5 text-primary" />
-                <SelectValue placeholder="All seeking" />
-              </SelectTrigger>
-              <SelectContent
-                align="start"
-                className="min-w-44 rounded-2xl border-white/12 bg-card/95 p-1 text-foreground shadow-[0_18px_52px_rgba(0,0,0,0.46)] backdrop-blur-xl"
-              >
-                <SelectItem value={ALL_SEEKING_FILTER} className="rounded-xl px-3 py-2 text-sm">All seeking</SelectItem>
-                {seekingOptions.map((option) => (
-                  <SelectItem
-                    key={option}
-                    value={normalizeSeekingValue(option)}
-                    className="rounded-xl px-3 py-2 text-sm"
-                  >
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Seeking filters"
+              className="h-9 rounded-full border-white/12 bg-background/70 px-3 text-xs text-foreground"
+              onClick={() => setFiltersOpen(true)}
+            >
+              <SlidersHorizontal className="mr-1.5 size-3.5 text-primary" />
+              Seeking filters
+            </Button>
 
             <section className="mt-3 border-t border-white/10 pt-3" aria-labelledby="message-picker-sort-title">
               <div className="flex items-baseline justify-between gap-3 px-1">
@@ -1063,6 +1073,25 @@ function DirectUserOverlay({
             </button>
           ))}
         </div>
+
+        <MapFiltersSurface
+          open={filtersOpen}
+          onOpenChange={setFiltersOpen}
+          title="Seeking"
+          description="Refine who you can choose to message."
+          value={filters}
+          onChange={setFilters}
+          hasCruushPlus={hasCruushPlus}
+          onUpgrade={onUpgrade}
+          onClear={() => {
+            setFilters(DEFAULT_FILTER_STATE);
+            void onApplyFilters(DEFAULT_FILTER_STATE);
+          }}
+          onApply={() => {
+            setFiltersOpen(false);
+            void onApplyFilters(filters);
+          }}
+        />
       </div>
     </div>
   );
