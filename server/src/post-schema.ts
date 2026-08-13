@@ -4,6 +4,7 @@ import { normalizeCrowdOption } from "./profile-sensitive.js";
 
 export const postExpirySchema = z.enum(["1h", "6h", "24h", "7d", "never"]);
 export const feedLocationPinVisibilitySchema = z.enum(["off", "mutuals", "same_crowd", "public"]);
+export const feedWindowSchema = z.enum(["1h", "3h", "6h", "24h", "7d"]);
 
 const crowdTargetsSchema = z.array(z.string()).optional().default([])
   .transform((values, ctx) => {
@@ -37,7 +38,8 @@ export const createPostPayloadSchema = z.object({
 export const updateFeedSettingsPayloadSchema = z.object({
   locationPinVisibility: feedLocationPinVisibilitySchema,
   showDistanceLabels: z.boolean().optional().default(true),
-  postExpiryDefault: postExpirySchema.optional()
+  postExpiryDefault: postExpirySchema.optional(),
+  feedWindow: feedWindowSchema.optional()
 }).strict();
 
 export type CreatePostPayload = z.infer<typeof createPostPayloadSchema>;

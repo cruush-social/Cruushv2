@@ -92,6 +92,7 @@ const DEFAULT_FEED_SETTINGS: FeedSettings = {
   locationPinVisibility: 'mutuals',
   showDistanceLabels: true,
   postExpiryDefault: 'never',
+  feedWindow: '7d',
 };
 
 type FeedCoordinates = {
@@ -123,7 +124,7 @@ export default function LocalFeed() {
   const [availableCrowdTargets, setAvailableCrowdTargets] = useState<string[]>([]);
   const [selectedCrowdTargets, setSelectedCrowdTargets] = useState<string[]>([]);
   const [feedSettings, setFeedSettings] = useState<FeedSettings>(DEFAULT_FEED_SETTINGS);
-  const [feedWindow, setFeedWindow] = useState<FeedPostWindow>('24h');
+  const [feedWindow, setFeedWindow] = useState<FeedPostWindow>('7d');
   const [feedDistanceMiles, setFeedDistanceMiles] = useState(DEFAULT_FEED_RADIUS_MILES);
   const [feedCoordinates, setFeedCoordinates] = useState<FeedCoordinates | null>(null);
   const [hasMorePosts, setHasMorePosts] = useState(false);
@@ -241,11 +242,13 @@ export default function LocalFeed() {
         const nextSettings = { ...DEFAULT_FEED_SETTINGS, ...settings };
         applyFeedSettings(nextSettings);
         setExpiresIn(nextSettings.postExpiryDefault);
+        setFeedWindow(nextSettings.feedWindow);
         setFeedSettingsLoaded(true);
       })
       .catch(() => {
         applyFeedSettings(DEFAULT_FEED_SETTINGS);
         setExpiresIn(DEFAULT_FEED_SETTINGS.postExpiryDefault);
+        setFeedWindow(DEFAULT_FEED_SETTINGS.feedWindow);
         setFeedSettingsLoaded(false);
       });
     void getCurrentUserId()
@@ -417,9 +420,14 @@ export default function LocalFeed() {
     }
   };
 
-  const handleFeedWindowChange = (nextWindow: FeedPostWindow) => {
+  const handleFeedWindowChange = async (nextWindow: FeedPostWindow) => {
     setFeedWindow(nextWindow);
-    void fetchPosts({ before: null, within: nextWindow });
+    try {
+      await enqueueFeedSettingsUpdate({ feedWindow: nextWindow });
+      await fetchPosts({ before: null, within: nextWindow });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to save feed window.');
+    }
   };
 
   const handleFeedDistanceChange = (nextDistanceMiles: number) => {
@@ -478,7 +486,7 @@ export default function LocalFeed() {
                       ].join(' ')}
                       style={feedWindow === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
                       aria-pressed={feedWindow === option.value}
-                      onClick={() => handleFeedWindowChange(option.value)}
+                      onClick={() => void handleFeedWindowChange(option.value)}
                     >
                       {option.label}
                     </button>

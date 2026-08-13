@@ -72,6 +72,7 @@
     "src/app/components/HeartPhoto.tsx",
     "src/app/components/CruushActivity.tsx",
     "src/app/components/LocalFeed.tsx",
+    "src/app/lib/postApi.ts",
     "src/app/components/PrivateGroupChat.tsx",
     "src/app/components/BlockedUsersPage.tsx",
     "src/app/components/MapControlsTutorial.tsx",
@@ -89,7 +90,10 @@
     "server/src/routes/support.ts",
     "server/src/routes/admin-moderation.ts",
     "server/src/migrate.ts",
-    "server/sql/084_suspension_appeals.sql"
+    "server/sql/084_suspension_appeals.sql",
+    "server/sql/085_feed_window_default.sql",
+    "server/src/post-schema.ts",
+    "server/src/routes/posts.ts"
   ],
   "preserved": [
     "All deployed Ghost, Stealth, location-sharing, moderation, messaging, profile persistence, and security fixes.",

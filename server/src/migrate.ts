@@ -90,7 +90,8 @@ const migrationFiles = [
   "080_reward_invariants.sql",
   "081_signup_age_verification.sql",
   "082_two_factor_cruush_plus_reward.sql",
-  "084_suspension_appeals.sql"
+  "084_suspension_appeals.sql",
+  "085_feed_window_default.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

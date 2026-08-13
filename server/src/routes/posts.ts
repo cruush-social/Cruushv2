@@ -43,6 +43,7 @@ type FeedSettingsRow = {
   feed_location_pin_visibility: FeedLocationPinVisibility | null;
   feed_show_distance_labels: boolean | null;
   feed_post_expiry_default: PostRow["expires_in"] | null;
+  feed_window_default: "1h" | "3h" | "6h" | "24h" | "7d" | null;
 };
 
 function formatCoarseDistance(miles: number) {
@@ -252,7 +253,7 @@ const postParamsSchema = z.object({
 });
 
 const feedPostQuerySchema = z.object({
-  within: z.enum(["1h", "3h", "6h", "24h", "7d"]).default("24h"),
+  within: z.enum(["1h", "3h", "6h", "24h", "7d"]).default("7d"),
   distanceMiles: z.coerce.number().min(1).max(15).default(15),
   limit: z.coerce.number().int().min(1).max(50).default(30),
   before: z.string().datetime().optional(),
@@ -338,7 +339,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
       `select
          feed_location_pin_visibility,
          feed_show_distance_labels,
-         feed_post_expiry_default
+         feed_post_expiry_default,
+         feed_window_default
        from user_privacy_settings
        where user_id = $1
        limit 1`,
@@ -349,7 +351,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
       data: {
         locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals",
         showDistanceLabels: row?.feed_show_distance_labels ?? true,
-        postExpiryDefault: row?.feed_post_expiry_default ?? "never"
+        postExpiryDefault: row?.feed_post_expiry_default ?? "never",
+        feedWindow: row?.feed_window_default ?? "7d"
       }
     });
   });
@@ -362,23 +365,27 @@ export async function registerPostRoutes(app: FastifyInstance) {
          user_id,
          feed_location_pin_visibility,
          feed_show_distance_labels,
-         feed_post_expiry_default
+         feed_post_expiry_default,
+         feed_window_default
        )
-       values ($1, $2, $3, coalesce($4::text, 'never'))
+       values ($1, $2, $3, coalesce($4::text, 'never'), coalesce($5::text, '7d'))
        on conflict (user_id) do update
        set feed_location_pin_visibility = excluded.feed_location_pin_visibility,
            feed_show_distance_labels = excluded.feed_show_distance_labels,
            feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default),
+           feed_window_default = coalesce($5::text, user_privacy_settings.feed_window_default),
            updated_at = now()
        returning
          feed_location_pin_visibility,
          feed_show_distance_labels,
-         feed_post_expiry_default`,
+         feed_post_expiry_default,
+         feed_window_default`,
       [
         userId,
         payload.locationPinVisibility,
         payload.showDistanceLabels,
-        payload.postExpiryDefault ?? null
+        payload.postExpiryDefault ?? null,
+        payload.feedWindow ?? null
       ]
     )).rows[0];
 
@@ -386,7 +393,8 @@ export async function registerPostRoutes(app: FastifyInstance) {
       data: {
         locationPinVisibility: row?.feed_location_pin_visibility ?? "mutuals",
         showDistanceLabels: row?.feed_show_distance_labels ?? true,
-        postExpiryDefault: row?.feed_post_expiry_default ?? "never"
+        postExpiryDefault: row?.feed_post_expiry_default ?? "never",
+        feedWindow: row?.feed_window_default ?? "7d"
       }
     });
   });
