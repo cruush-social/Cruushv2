@@ -1525,24 +1525,20 @@ describe('MapView', () => {
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
     });
-    expect(style.glyphs).toBe('https://fonts.openmaptiles.org/{fontstack}/{range}.pbf');
-    expect(layerById.get('background')?.paint['background-color']).toBe('#080808');
-    expect(layerById.get('major-roads')?.paint['line-color']).toBe('#242424');
-    expect(layerById.has('building-fill')).toBe(true);
-    expect(layerById.has('building-outline')).toBe(true);
+    expect(style.glyphs).toBeUndefined();
+    expect(layerById.get('background')?.paint['background-color']).toBe('#050506');
+    expect(layerById.get('major-roads')?.paint['line-color']).toBe('#4c4c56');
     expect(layerById.get('minor-road-labels')?.layout['symbol-placement']).toBe('line');
     expect(layerById.get('minor-road-labels')?.layout['symbol-spacing']).toBe(120);
-    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Noto Serif Regular']);
-    expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#8f8f8f');
-    expect(layerById.has('poi-dots')).toBe(true);
-    expect(layerById.has('poi-labels')).toBe(true);
-    expect(layerById.get('secondary-road-labels')?.paint['text-color']).toBe('#b8b8b8');
-    expect(layerById.get('primary-road-labels')?.paint['text-color']).toBe('#dedede');
+    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
+    expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#9c9ca4');
+    expect(layerById.get('secondary-road-labels')?.paint['text-color']).toBe('#b4b4bc');
+    expect(layerById.get('primary-road-labels')?.paint['text-color']).toBe('#dcdce2');
     expect(layerById.get('prominent-road-labels')?.paint['text-color']).toBe('#ffffff');
-    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Noto Serif Regular']);
-    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Noto Serif Bold', 'Noto Serif Regular']);
-    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Noto Serif Bold', 'Noto Serif Regular']);
-    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Noto Serif Bold', 'Noto Serif Regular']);
+    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
+    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
+    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
+    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
     expect(layerById.get('secondary-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('primary-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('prominent-road-labels')?.layout['text-transform']).toBeUndefined();
@@ -1571,7 +1567,7 @@ describe('MapView', () => {
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
     });
-    expect(style.glyphs).toBe('https://fonts.openmaptiles.org/{fontstack}/{range}.pbf');
+    expect(style.glyphs).toBeUndefined();
     expect(style.sources.osmRasterTiles).toBeUndefined();
     expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
   });

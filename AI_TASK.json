@@ -9,6 +9,7 @@
     "AI_TASK.json",
     "src/app/components/DirectMessages.tsx",
     "src/app/components/MapView.tsx",
+    "src/app/components/MapView.test.tsx",
     "src/app/components/MapHome.tsx",
     "src/app/components/ProfileOnboarding.tsx",
     "src/app/components/ProfileOnboarding.test.tsx",
