@@ -21,12 +21,15 @@
     "src/app/components/ProfileEdit.tsx",
     "src/app/App.tsx",
     "src/app/lib/authApi.ts",
+    "src/app/lib/publicLegalContent.tsx",
     "src/app/lib/authApi.test.ts",
     "src/app/lib/locationApi.ts",
     "src/app/lib/profileApi.ts",
     "server/src/routes/auth.ts",
     "server/src/routes/profiles.ts",
     "server/src/auth-schema.ts",
+    "server/src/auth-schema.test.ts",
+    "server/src/migrate.ts",
     "server/src/errors.ts",
     "server/src/profile-schema.ts",
     "server/src/request-auth.ts",
@@ -106,7 +109,16 @@
     "src/app/App.tsx",
     "server/sql/086_waitlist30_promo_code.sql",
     "server/src/resend-audience.ts",
-    "server/.env.example"
+    "server/.env.example",
+    "server/sql/087_signup_consent.sql",
+    "server/src/auth-schema.ts",
+    "server/src/routes/auth.ts",
+    "src/app/components/Auth.tsx",
+    "src/app/lib/authApi.ts",
+    "server/src/resend-audience.ts",
+    "server/src/resend-audience.test.ts",
+    "server/src/index.ts",
+    "server/src/app.test.ts"
   ],
   "preserved": [
     "All deployed Ghost, Stealth, location-sharing, moderation, messaging, profile persistence, and security fixes.",
@@ -124,7 +136,8 @@
     "Do not create a new map style; port only the existing v2 tile, contrast, label, and glyph configuration.",
     "Keep nearby alerts opt-in and cap each recipient to one alert in the existing four-day return window without changing location-disclosure policy.",
     "Do not weaken moderation, delete content, or bypass provider failures; preserve pending-review and retry behavior.",
-    "Do not change map providers, discovery scope, group membership rules, or unrelated messages behavior."
+    "Do not change map providers, discovery scope, group membership rules, or unrelated messages behavior.",
+    "Record required Terms and Privacy acceptance and optional product-updates consent at signup; preserve unsubscribe state and do not send email in this task."
   ],
   "proof": [
     "Issue-by-issue audit maps each automatic GitHub report to its current source path and separates verified source fixes from evidence gaps.",

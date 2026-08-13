@@ -36,13 +36,13 @@ export const termsSections: PolicySection[] = [
         as cruush. Questions about these Terms can be sent to {contactLink}.
       </>,
       "cruush is currently focused on a U.S. launch. The website, waitlist, pre-launch communications, and app access are intended for people located in the United States.",
-      "Additional product-specific notices, in-app disclosures, checkout terms, safety prompts, app-store rules, community guidelines, or event terms may also apply. If there is a conflict, the more specific notice controls for that feature or transaction."
+      "Additional product-specific notices, in-app disclosures, safety prompts, community guidelines, or event terms may also apply. If there is a conflict, the more specific notice controls for that feature or activity."
     ]
   },
   {
     title: "Adult-only service",
     body: [
-      "cruush is only for adults who are at least 18 years old. You may not use the website, join the waitlist, create an account, view profiles, upload content, send messages, buy cruush+, or attend cruush-operated launch experiences if you are under 18.",
+      "cruush is only for adults who are at least 18 years old. You may not use the website, join the waitlist, create an account, view profiles, upload content, send messages, or attend cruush-operated launch experiences if you are under 18.",
       "By using cruush, you represent that the age you provide is accurate, that you are at least 18, and that you are legally allowed to use an adult-oriented social, dating, and discovery service."
     ]
   },
@@ -50,8 +50,8 @@ export const termsSections: PolicySection[] = [
     title: "Accounts and profile information",
     body: [
       "You are responsible for the information you submit, the content you upload, and activity under your account. Do not provide false age information, impersonate another person, create accounts for anyone else, or use someone else's account without permission.",
-      "cruush may refuse, suspend, limit, remove, or terminate access when we believe an account, profile, message, payment, or submission violates these Terms, creates safety risk, appears fraudulent, or may expose cruush or users to legal or operational harm.",
-      "You are responsible for keeping login credentials, devices, session links, and payment methods secure. Notify cruush if you believe your account was accessed without permission."
+      "cruush may refuse, suspend, limit, remove, or terminate access when we believe an account, profile, message, or submission violates these Terms, creates safety risk, appears fraudulent, or may expose cruush or users to legal or operational harm.",
+      "You are responsible for keeping login credentials, devices, and session links secure. Notify cruush if you believe your account was accessed without permission."
     ]
   },
   {
@@ -87,32 +87,7 @@ export const termsSections: PolicySection[] = [
         <a href="/content-removal">Report or Request Removal of Content page</a>{" "}
         or by emailing {contactLink}.
       </>,
-      "cruush may remove content, limit visibility, preserve evidence, suspend accounts, contact affected users, or report matters to law enforcement, NCMEC, hotlines, payment providers, hosting providers, or other appropriate channels when we believe it is necessary or legally required."
-    ]
-  },
-  {
-    title: "cruush+ and recurring billing",
-    body: [
-      "cruush+ is a paid subscription. Current planned pricing is $18.99 monthly, $9.99 weekly, $11.99 per month on a three-month plan, and $9.99 per month on a six-month plan. Taxes, app-store fees, payment-provider fees, or promotional discounts may affect final checkout pricing.",
-      "Unless clearly stated otherwise at checkout, cruush+ renews automatically at the end of each billing period until canceled. You authorize recurring charges to your selected payment method for the plan you choose.",
-      <>
-        Billing, cancellation, and refund details are described in the{" "}
-        <a href="/billing-policy">Billing Policy</a>.
-      </>
-    ]
-  },
-  {
-    title: "App stores, payment providers, and third-party services",
-    body: [
-      "Some purchases, refunds, tax calculations, chargebacks, identity checks, age checks, app-store access, event tickets, or payment updates may be handled by third parties selected by cruush. Those providers may apply their own terms, privacy notices, refund rules, and dispute processes.",
-      "If a payment provider, app store, bank, card network, or platform restricts a transaction or account, cruush may be unable to override that decision."
-    ]
-  },
-  {
-    title: "Cancellation and refunds",
-    body: [
-      "When you cancel cruush+, cancellation takes effect at the end of the current paid billing period. You keep paid access until that period ends unless cruush terminates access for a Terms or safety violation.",
-      "All purchases are final and non-refundable except where required by law or expressly approved by cruush. cruush does not guarantee partial-month, partial-week, unused-time, promotional, or renewal refunds. Promotional periods, free months, coupon codes, and launch-party discounts may have separate limitations."
+      "cruush may remove content, limit visibility, preserve evidence, suspend accounts, contact affected users, or report matters to law enforcement, NCMEC, hotlines, hosting providers, or other appropriate channels when we believe it is necessary or legally required."
     ]
   },
   {
@@ -133,7 +108,7 @@ export const termsSections: PolicySection[] = [
       <>
         Our data practices are described in the <a href="/privacy">Privacy Policy</a>.
         By using cruush, you consent to service communications such as safety
-        notices, account notices, billing messages, policy updates, verification
+        notices, account notices, policy updates, verification
         messages, and support replies.
       </>,
       "Marketing messages may be sent only where permitted by law and can be unsubscribed from where an unsubscribe option is provided."
@@ -181,14 +156,14 @@ export const termsSections: PolicySection[] = [
   {
     title: "Termination",
     body: [
-      "You may stop using cruush at any time. cruush may suspend, restrict, or terminate access at any time where allowed by law, including for safety, legal, operational, billing, fraud, abuse-prevention, or policy reasons.",
-      "Sections that by their nature should survive termination, including content licenses needed for operation, safety records, billing obligations, disclaimers, limits of liability, indemnity, governing law, and enforcement terms, survive account closure or access termination."
+      "You may stop using cruush at any time. cruush may suspend, restrict, or terminate access at any time where allowed by law, including for safety, legal, operational, fraud, abuse-prevention, or policy reasons.",
+      "Sections that by their nature should survive termination, including content licenses needed for operation, safety records, disclaimers, limits of liability, indemnity, governing law, and enforcement terms, survive account closure or access termination."
     ]
   },
   {
     title: "Changes",
     body: [
-      "We may update these Terms as the website, product, safety systems, billing model, legal requirements, and launch plans evolve. The updated version will be posted on this page with a new last updated date."
+      "We may update these Terms as the website, product, safety systems, legal requirements, and launch plans evolve. The updated version will be posted on this page with a new last updated date."
     ]
   }
 ];

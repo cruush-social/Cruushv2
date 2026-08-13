@@ -22,6 +22,9 @@ describe('authApi', () => {
       email: 'river@example.com',
       password: 'password-123',
       dateOfBirth: '1994-06-15',
+      termsAccepted: true,
+      privacyAccepted: true,
+      productUpdatesOptIn: false,
       captchaToken: 'captcha-token',
     });
     await signIn({
@@ -35,6 +38,9 @@ describe('authApi', () => {
         email: 'river@example.com',
         password: 'password-123',
         dateOfBirth: '1994-06-15',
+        termsAccepted: true,
+        privacyAccepted: true,
+        productUpdatesOptIn: false,
         captchaToken: 'captcha-token',
       }),
     }));
