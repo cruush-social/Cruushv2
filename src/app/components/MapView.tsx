@@ -1940,6 +1940,22 @@ function MapView({
             }
 
             if (isPersonCluster(selectedMarker)) {
+              const memberIds = selectedMarker.cluster?.memberIds ?? [];
+              const memberMarkers = denseMarkerResult.markers.filter((candidate) => memberIds.includes(candidate.id));
+              const coordinates = memberMarkers.map((candidate) => [
+                candidate.approximateLongitude,
+                candidate.approximateLatitude,
+              ] as [number, number]);
+              if (coordinates.length > 1 && typeof map.fitBounds === 'function') {
+                const lngs = coordinates.map(([lng]) => lng);
+                const lats = coordinates.map(([, lat]) => lat);
+                setSpiderfiedCluster(null);
+                map.fitBounds(
+                  [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+                  { padding: { top: 180, right: 140, bottom: 220, left: 140 }, maxZoom: PERSON_CLUSTER_MAX_ZOOM, duration: 450 },
+                );
+                return;
+              }
               const nextZoom = Math.min(
                 PERSON_CLUSTER_MAX_ZOOM + 0.75,
                 Math.max(currentZoom + PERSON_CLUSTER_ZOOM_STEP, PERSON_CLUSTER_MAX_ZOOM + 0.25),

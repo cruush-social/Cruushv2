@@ -72,6 +72,8 @@
     "src/app/components/HeartPhoto.tsx",
     "src/app/components/CruushActivity.tsx",
     "src/app/components/LocalFeed.tsx",
+    "src/main.tsx",
+    "public/sw.js",
     "src/app/lib/postApi.ts",
     "src/app/components/PrivateGroupChat.tsx",
     "src/app/components/BlockedUsersPage.tsx",
