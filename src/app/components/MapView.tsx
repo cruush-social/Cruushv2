@@ -684,6 +684,9 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
   }
 
   const ordered = [...markers].sort((a, b) => {
+    const aIsCluster = a.kind === 'cluster';
+    const bIsCluster = b.kind === 'cluster';
+    if (aIsCluster !== bIsCluster) return aIsCluster ? -1 : 1;
     if (a.isCurrentUser === true) return -1;
     if (b.isCurrentUser === true) return 1;
     const aHasActivePing = Boolean(a.activePing);
@@ -700,6 +703,14 @@ export function separateOverlappingMarkers(markers: MapMarker[], zoom: number) {
 
   ordered.forEach((marker) => {
     const origin = mercatorPixelPoint(marker, zoom);
+
+    // Cluster coordinates are their groups' centroid. Keep them fixed across
+    // zoom changes; only individual hearts may move to clear the footprint.
+    if (marker.kind === 'cluster') {
+      placed.push(origin);
+      return;
+    }
+
     let spot = { x: origin.x, y: origin.y };
 
     if (!isFree(spot.x, spot.y)) {
