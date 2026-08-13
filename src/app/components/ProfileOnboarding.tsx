@@ -65,7 +65,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   crowds: {
     rite: 'find your crowd',
     title: 'Choose your crowds.',
-    detail: 'Crowd Mode lets only the active crowds you choose see you on the map. Pick up to three.',
+    detail: 'Optional visibility rooms, not identity labels. Think of a gay bar, dyke bar, or another room you choose to enter. Turn Crowd Mode on to be seen only by your selected crowds; turn it off to return to your normal visibility. Leave this empty for broader visibility.',
   },
   lookingFor: {
     rite: 'declare your hunger',
@@ -285,7 +285,7 @@ export default function ProfileOnboarding({
       case 'identities':
         return profile.identities.length > 0;
       case 'crowds':
-        return profile.crowds.length > 0;
+        return true;
       case 'lookingFor':
         return profile.lookingFor.length > 0;
       case 'vibes':
@@ -558,7 +558,7 @@ export default function ProfileOnboarding({
                       value={profile.identities}
                       onChange={(values) => setProfileField('identities', limitToThree(values))}
                     />
-                    <p className="text-xs text-white/58 mt-1">Select up to 3</p>
+                    <p className="text-xs text-white/58 mt-1">Optional · select up to 3, or leave empty</p>
                   </div>
                   <label className="flex cursor-pointer items-center gap-3 rounded-md border border-white/12 bg-white/[0.04] p-3 text-sm text-white/82">
                     <input

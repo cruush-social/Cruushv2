@@ -72,6 +72,7 @@
     "src/app/components/HeartPhoto.tsx",
     "src/app/components/CruushActivity.tsx",
     "src/app/components/LocalFeed.tsx",
+    "src/app/components/CruushBadge.tsx",
     "src/main.tsx",
     "public/sw.js",
     "src/app/lib/postApi.ts",
