@@ -87,7 +87,7 @@ describe('smoke: declared overlay geometry matches the components', () => {
     [
       'alpha-bug-button',
       'src/app/components/AlphaBugButton.tsx',
-      ['top-[calc(4rem+env(safe-area-inset-top))]', 'lg:left-5', 'fixed z-20'],
+      ['bottom-[calc(6rem+env(safe-area-inset-bottom))]', 'lg:left-5', 'fixed z-20'],
     ],
     [
       'alpha-bug-tip',

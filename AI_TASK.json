@@ -45,6 +45,7 @@
     "src/app/components/Changelog.tsx",
     "src/app/components/AlphaBugButton.tsx",
     "src/app/components/AlphaBugButton.test.tsx",
+    "src/app/lib/overlaySlots.smoke.test.ts",
     "src/app/components/Survey.tsx",
     "src/app/components/Survey.test.tsx",
     "src/app/components/ProfileOnboarding.tsx",
@@ -101,7 +102,10 @@
     "server/sql/085_feed_window_default.sql",
     "server/src/post-schema.ts",
     "server/src/routes/posts.ts",
-    "src/app/App.tsx"
+    "src/app/App.tsx",
+    "server/sql/086_waitlist30_promo_code.sql",
+    "server/src/resend-audience.ts",
+    "server/.env.example"
   ],
   "preserved": [
     "All deployed Ghost, Stealth, location-sharing, moderation, messaging, profile persistence, and security fixes.",
@@ -112,7 +116,7 @@
     "Existing dirty artifacts: .claude/launch.json, menu-harness.html, src/menu-harness.tsx, and server/pnpm-lock.yaml."
   ],
   "nonGoals": [
-    "Update the in-app v1.3 changelog, add the one-day 2FA cruush+ promotion, and expand the beta geofence to 20 miles only; no email, broadcast, audience, waitlist, or unrelated product work.",
+    "Update the in-app v1.3 changelog, add the one-day 2FA cruush+ promotion, and expand the beta geofence to 20 miles only; no unrelated product work.",
     "No GitHub issue closure, credential change, or unrelated product work. Deploy only the reviewed v1.3 bug-fix batch after the release gates pass.",
     "Do not synchronize Messages filters with Map Seeking or alter server authorization rules.",
     "Do not change map provider or map data access beyond the approved NYC-and-Yonkers beta geofence expansion; keep private service-center coordinates out of public copy and payloads.",
@@ -133,5 +137,5 @@
     "Migration 082 creates a replay-safe one-day 2FA cruush+ promotion cutover; focused server migration/2FA checks passed (25 tests), server build passed, and onboarding check passed (9 tests).",
     "Beta access now covers the 20-mile NYC launch area; focused geofence checks passed (2 tests), map-boundary/Auth checks passed (18 and 15 tests), and the rendered local map includes Yonkers without exposing the private service center."
   ],
-  "publicationTarget": "origin/main via the verified Coolify deployment; no email, broadcast, audience, or waitlist."
+  "publicationTarget": "origin/main via the verified Coolify deployment; email remains draft-only until the pre-August 1 audience is verified."
 }
