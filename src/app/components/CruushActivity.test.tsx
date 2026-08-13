@@ -259,7 +259,7 @@ describe('CruushActivity', () => {
     expect(screen.getByRole('button', { name: /^Create group message/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /^Start chat with mutual/ }));
-    fireEvent.click(screen.getByRole('button', { name: /river/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: /river/ })[0]);
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river');
 
     fireEvent.click(screen.getByRole('button', { name: 'New cruush chat' }));

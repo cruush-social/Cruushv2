@@ -286,7 +286,7 @@ describe('DirectMessages', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
     fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /River/ }));
+    fireEvent.click((await screen.findAllByRole('button', { name: /River/ }))[0]);
 
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
   });

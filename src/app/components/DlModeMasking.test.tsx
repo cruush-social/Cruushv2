@@ -23,7 +23,7 @@ function setDlMode(enabled: boolean) {
 }
 
 function photoOf(label: string) {
-  return screen.getByLabelText(label).querySelector('image');
+  return screen.getAllByLabelText(label).at(-1)?.querySelector('image') ?? null;
 }
 
 describe('DL Mode masking across list surfaces', () => {

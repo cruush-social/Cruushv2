@@ -216,7 +216,7 @@ describe('ProfileOnboarding', () => {
 
     expect(screen.getByText('find your crowd')).toBeInTheDocument();
     expect(screen.getByText('Choose your crowds.')).toBeInTheDocument();
-    expect(screen.getByText('Crowd Mode lets only the active crowds you choose see you on the map. Pick up to three.')).toBeInTheDocument();
+    expect(screen.getByText(/Optional visibility rooms, not identity labels\./)).toBeInTheDocument();
     await chooseMultiSelect('Crowds', 'Gay');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
