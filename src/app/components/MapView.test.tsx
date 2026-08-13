@@ -593,7 +593,7 @@ describe('MapView', () => {
     expect(marker.querySelector('path[style*="transform"]')).toBeNull();
   });
 
-  it('draws the owner Ghost Mode radius with a visible stroke on the dark map', async () => {
+  it('draws the owner Ghost Mode radius around true location and a leash to the decoy', async () => {
     render(
       <MapView
         onPinClick={vi.fn()}
@@ -613,6 +613,16 @@ describe('MapView', () => {
             approximateLongitude: -74.004,
           },
           radiusMeters: 1609,
+        }}
+        ghostLeash={{
+          from: {
+            approximateLatitude: 40.714,
+            approximateLongitude: -74.004,
+          },
+          to: {
+            approximateLatitude: 40.72,
+            approximateLongitude: -74.001,
+          },
         }}
       />
     );
@@ -634,6 +644,30 @@ describe('MapView', () => {
         'line-color': '#1181FF',
         'line-opacity': 0.88,
         'line-width': 2.5,
+      }),
+    }));
+    expect(mapInstances[0].addSource).toHaveBeenCalledWith(
+      'owner-ghost-leash',
+      expect.objectContaining({
+        type: 'geojson',
+        data: expect.objectContaining({
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [-74.004, 40.714],
+              [-74.001, 40.72],
+            ],
+          },
+        }),
+      }),
+    );
+    expect(mapInstances[0].addLayer).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'owner-ghost-leash-line',
+      paint: expect.objectContaining({
+        'line-color': '#0BA8FF',
+        'line-opacity': 0.9,
+        'line-width': 2.5,
+        'line-dasharray': [2, 1.5],
       }),
     }));
   });
@@ -1491,24 +1525,24 @@ describe('MapView', () => {
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
     });
-    expect(style.glyphs).toBeUndefined();
+    expect(style.glyphs).toBe('https://fonts.openmaptiles.org/{fontstack}/{range}.pbf');
     expect(layerById.get('background')?.paint['background-color']).toBe('#080808');
     expect(layerById.get('major-roads')?.paint['line-color']).toBe('#242424');
-    expect(layerById.has('building-fill')).toBe(false);
-    expect(layerById.has('building-outline')).toBe(false);
+    expect(layerById.has('building-fill')).toBe(true);
+    expect(layerById.has('building-outline')).toBe(true);
     expect(layerById.get('minor-road-labels')?.layout['symbol-placement']).toBe('line');
     expect(layerById.get('minor-road-labels')?.layout['symbol-spacing']).toBe(120);
-    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
-    expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#7f7f7f');
-    expect(layerById.has('poi-dots')).toBe(false);
-    expect(layerById.has('poi-labels')).toBe(false);
-    expect(layerById.get('secondary-road-labels')?.paint['text-color']).toBe('#a0a0a0');
-    expect(layerById.get('primary-road-labels')?.paint['text-color']).toBe('#d0d0d0');
+    expect(layerById.get('minor-road-labels')?.layout['text-font']).toEqual(['Noto Serif Regular']);
+    expect(layerById.get('minor-road-labels')?.paint['text-color']).toBe('#8f8f8f');
+    expect(layerById.has('poi-dots')).toBe(true);
+    expect(layerById.has('poi-labels')).toBe(true);
+    expect(layerById.get('secondary-road-labels')?.paint['text-color']).toBe('#b8b8b8');
+    expect(layerById.get('primary-road-labels')?.paint['text-color']).toBe('#dedede');
     expect(layerById.get('prominent-road-labels')?.paint['text-color']).toBe('#ffffff');
-    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond']);
-    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
-    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
-    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Cormorant Garamond Bold', 'Cormorant Garamond']);
+    expect(layerById.get('secondary-road-labels')?.layout['text-font']).toEqual(['Noto Serif Regular']);
+    expect(layerById.get('primary-road-labels')?.layout['text-font']).toEqual(['Noto Serif Bold', 'Noto Serif Regular']);
+    expect(layerById.get('prominent-road-labels')?.layout['text-font']).toEqual(['Noto Serif Bold', 'Noto Serif Regular']);
+    expect(layerById.get('place-labels')?.layout['text-font']).toEqual(['Noto Serif Bold', 'Noto Serif Regular']);
     expect(layerById.get('secondary-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('primary-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('prominent-road-labels')?.layout['text-transform']).toBeUndefined();
@@ -1537,7 +1571,7 @@ describe('MapView', () => {
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
     });
-    expect(style.glyphs).toBeUndefined();
+    expect(style.glyphs).toBe('https://fonts.openmaptiles.org/{fontstack}/{range}.pbf');
     expect(style.sources.osmRasterTiles).toBeUndefined();
     expect(style.layers.some((layer: any) => layer.id === 'major-roads')).toBe(true);
   });

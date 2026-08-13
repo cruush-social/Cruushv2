@@ -135,6 +135,7 @@ describe("notification service", () => {
       createdAt: "2026-07-08T12:00:00.000Z"
     });
     expect(query.mock.calls[0]?.[0]).toContain("insert into app_notifications");
+    expect(query.mock.calls[0]?.[0]).toContain("on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing");
     expect(query.mock.calls[0]?.[1]).toEqual([
       recipientUserId,
       "direct_message",
@@ -146,6 +147,31 @@ describe("notification service", () => {
       `message:${notificationId}:${recipientUserId}`,
       { conversationKind: "dm" }
     ]);
+  });
+
+  it("does not push when a dedupe key already exists", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+
+    await expect(createAppNotificationAndPush({
+      config: {
+        ...baseConfig,
+        WEB_PUSH_ENABLED: true,
+        WEB_PUSH_VAPID_PUBLIC_KEY: "public-key",
+        WEB_PUSH_VAPID_PRIVATE_KEY: "private-key"
+      },
+      db: { query, end },
+      log: { warn: vi.fn(), error: vi.fn(), info: vi.fn() }
+    } as never, {
+      userId: recipientUserId,
+      type: "nearby_activity",
+      title: "Someone nearby",
+      body: "Someone within your radar may be in your area.",
+      linkUrl: "/map?layer=nearby",
+      dedupeKey: `nearby:${recipientUserId}:495192`
+    })).resolves.toBeNull();
+
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(sendNotification).not.toHaveBeenCalled();
   });
 
   it("does not create a notification for the actor", async () => {

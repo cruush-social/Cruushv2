@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
@@ -6,7 +6,8 @@ import { Slider } from './ui/slider';
 import { Switch } from './ui/switch';
 import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
-import { getMyBillingStatus } from '../lib/billingApi';
+import { CRUUSH_PLUS_CHANGED_EVENT, getMyBillingStatus } from '../lib/billingApi';
+import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import {
   CROWDS,
 } from '../lib/profileOptions';
@@ -24,6 +25,13 @@ import {
   type PrivacySettings,
 } from '../lib/privacyApi';
 
+function formatCountdown(remainingMs: number) {
+  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1_000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
 export default function GhostModeSettings() {
   const navigate = useNavigate();
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
@@ -32,6 +40,8 @@ export default function GhostModeSettings() {
   const [mapPresence, setMapPresence] = useState<MapPresenceSettings>(DEFAULT_MAP_PRESENCE_SETTINGS);
   const [mapPresenceSaving, setMapPresenceSaving] = useState(false);
   const [hasCruushPlus, setHasCruushPlus] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const refreshedRotationDeadlineRef = useRef<number | null>(null);
 
   const normalizePrivacySettings = (settings: Partial<PrivacySettings>): PrivacySettings => ({
     ...DEFAULT_PRIVACY_SETTINGS,
@@ -44,6 +54,7 @@ export default function GhostModeSettings() {
     preciseLocationVisibility: settings.preciseLocationVisibility ?? (settings.preciseToMutualCruushes ? 'mutual_cruushes' : 'none'),
     preciseToMutualCrowds: settings.preciseToMutualCrowds ?? [],
     updatedAtMs: settings.updatedAtMs ?? 0,
+    ghostRotationExpiresAtMs: settings.ghostRotationExpiresAtMs ?? null,
   });
 
   const upsertCrowdPolicy = (crowdId: CrowdPrecisionPolicy['crowdId'], enabled: boolean): CrowdPrecisionPolicy[] => {
@@ -69,23 +80,47 @@ export default function GhostModeSettings() {
   useEffect(() => {
     let active = true;
 
-    getMyPrivacySettings()
-      .then((settings) => {
-        if (active) {
-          setPrivacySettings(normalizePrivacySettings(settings));
-          setPrivacyError(null);
-        }
-      })
-      .catch((error) => {
-        if (active) {
-          setPrivacyError(error instanceof Error ? error.message : 'Failed to load Ghost Mode settings.');
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setPrivacyStatus('idle');
-        }
-      });
+    const loadBillingStatus = () => {
+      void getMyBillingStatus()
+        .then((status) => {
+          if (active) {
+            setHasCruushPlus(status.cruushPlus === true);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setHasCruushPlus(false);
+          }
+        });
+    };
+
+    const loadPrivacySettings = () => {
+      void getMyPrivacySettings()
+        .then((settings) => {
+          if (active) {
+            setPrivacySettings(normalizePrivacySettings(settings));
+            setPrivacyError(null);
+            setNowMs(Date.now());
+          }
+        })
+        .catch((error) => {
+          if (active) {
+            setPrivacyError(error instanceof Error ? error.message : 'Failed to load Ghost Mode settings.');
+          }
+        })
+        .finally(() => {
+          if (active) {
+            setPrivacyStatus('idle');
+          }
+        });
+    };
+
+    const loadEntitlementState = () => {
+      loadBillingStatus();
+      loadPrivacySettings();
+    };
+
+    loadPrivacySettings();
 
     getMyMapPresenceSettings()
       .then((settings) => {
@@ -99,22 +134,49 @@ export default function GhostModeSettings() {
         }
       });
 
-    getMyBillingStatus()
-      .then((status) => {
-        if (active) {
-          setHasCruushPlus(status.cruushPlus === true);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setHasCruushPlus(false);
-        }
-      });
+    loadBillingStatus();
+    window.addEventListener(DEBUG_CRUUSH_PLUS_EVENT, loadEntitlementState);
+    window.addEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadEntitlementState);
 
     return () => {
       active = false;
+      window.removeEventListener(DEBUG_CRUUSH_PLUS_EVENT, loadEntitlementState);
+      window.removeEventListener(CRUUSH_PLUS_CHANGED_EVENT, loadEntitlementState);
     };
   }, []);
+
+  useEffect(() => {
+    if (privacySettings.baseMode !== 'GHOST' || !privacySettings.ghostRotationExpiresAtMs) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => setNowMs(Date.now()), 1_000);
+    return () => window.clearInterval(intervalId);
+  }, [privacySettings.baseMode, privacySettings.ghostRotationExpiresAtMs]);
+
+  useEffect(() => {
+    if (
+      privacySettings.baseMode !== 'GHOST' ||
+      !privacySettings.ghostRotationExpiresAtMs ||
+      nowMs < privacySettings.ghostRotationExpiresAtMs
+    ) {
+      return;
+    }
+
+    if (refreshedRotationDeadlineRef.current === privacySettings.ghostRotationExpiresAtMs) {
+      return;
+    }
+
+    refreshedRotationDeadlineRef.current = privacySettings.ghostRotationExpiresAtMs;
+
+    void getMyPrivacySettings()
+      .then((settings) => {
+        setPrivacySettings(normalizePrivacySettings(settings));
+        setPrivacyError(null);
+        setNowMs(Date.now());
+      })
+      .catch(() => undefined);
+  }, [nowMs, privacySettings.baseMode, privacySettings.ghostRotationExpiresAtMs]);
 
   const persistMapPresenceDays = async (days: number) => {
     const previousPresence = mapPresence;
@@ -143,7 +205,9 @@ export default function GhostModeSettings() {
 
     try {
       const savedSettings = await saveMyPrivacySettings(nextSettings);
+      refreshedRotationDeadlineRef.current = null;
       setPrivacySettings(normalizePrivacySettings(savedSettings));
+      setNowMs(Date.now());
     } catch (error) {
       setPrivacySettings(previousPrivacySettings);
       setPrivacyError(error instanceof Error ? error.message : 'Failed to save Ghost Mode settings.');
@@ -181,6 +245,11 @@ export default function GhostModeSettings() {
               <div>
                 <p>Ghost Mode</p>
                 <p className="text-sm text-muted-foreground">Other people see a shifting location inside your selected radius. You still see your own current map position.</p>
+                {privacySettings.baseMode === 'GHOST' && privacySettings.ghostRotationExpiresAtMs ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Location rotates in {formatCountdown(privacySettings.ghostRotationExpiresAtMs - nowMs)}
+                  </p>
+                ) : null}
               </div>
             </div>
             <Switch

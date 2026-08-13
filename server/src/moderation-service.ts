@@ -876,7 +876,7 @@ export async function moderateImageOrReject(
     // Rethrowing surfaced a bare 500; carrying on lets the Rekognition fallback below
     // still score the image, and if that fails too the upload is refused with a message
     // that actually tells the user what happened.
-    app.log.error(
+    app.log?.error?.(
       { err: error, provider: provider.name, surface: input.surface },
       "image moderation provider failed"
     );
@@ -887,6 +887,8 @@ export async function moderateImageOrReject(
     const streamUnusable = providerResultUnavailable(providerResult) || providerResult.provider === "mock";
     const safetyResult = input.surface === "profile_photo"
       ? await detectProfilePhotoHuman(app.config, input.bytes)
+      : useMessagePhotoRekognitionFallback
+        ? await detectPublicImageSafety(app.config, input.bytes)
       : useFeedImageRekognitionFallback && streamUnusable
         ? await detectPublicImageSafety(app.config, input.bytes)
         : await detectImageChildFaces(app.config, input.bytes);
@@ -933,7 +935,7 @@ export async function moderateImageOrReject(
   // looked at. `handlePolicyDecision` turns this into a 503 whose message tells the user
   // to try again or contact reports@cruush.app.
   if (isProviderUnavailableDecision(decision)) {
-    app.log.error(
+    app.log?.error?.(
       {
         provider: providerResult.provider,
         surface: input.surface,

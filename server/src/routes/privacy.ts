@@ -23,6 +23,7 @@ import {
 } from "../location-privacy.js";
 import {
   getRelationshipPermissions,
+  getEffectiveVisibilityPolicy,
   getPrivacySettings
 } from "../match-relationships.js";
 import {
@@ -207,7 +208,7 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
     const userId = await getAuthenticatedUserId(request);
 
     return reply.send({
-      data: publicPrivacySettings(await loadVisibilityPolicy(app, userId).catch(async (error) => {
+      data: publicPrivacySettings(await getEffectiveVisibilityPolicy(app, userId).catch(async (error) => {
         if (isSchemaCompatibilityError(error)) {
           const legacy = await getPrivacySettings(app, userId);
           return {

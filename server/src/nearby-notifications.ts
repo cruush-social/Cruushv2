@@ -278,13 +278,13 @@ export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, i
       continue;
     }
 
-    await createAppNotificationAndPush(app, {
+    const notification = await createAppNotificationAndPush(app, {
       userId: recipient.id,
       type: "nearby_activity",
       title: "Someone nearby",
       body: "Someone within your radar may be in your area.",
       linkUrl: "/map?layer=nearby",
-      dedupeKey: `nearby:${input.sourceUserId}:${recipient.id}:${sourceLocationUpdatedBucket}`,
+      dedupeKey: `nearby:${recipient.id}:${sourceLocationUpdatedBucket}`,
       // The distance is computed from the subject's precise coordinates and is
       // deliberately not exposed. Ghost Mode subjects reach this point (only
       // STEALTH short-circuits above), so publishing it would hand recipients a
@@ -294,7 +294,9 @@ export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, i
         sourceUserId: input.sourceUserId
       }
     });
-    sent += 1;
+    if (notification) {
+      sent += 1;
+    }
   }
 
   return {

@@ -18,7 +18,7 @@ import {
   notifyMutualCruushRequired,
   notifyMutualCruushRevokeError,
 } from '../lib/cruushNotifications';
-import { emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
+import { addProfileChangedListener, emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
@@ -119,7 +119,7 @@ export function profileRecordToProfileView(
     distance: previewState?.distance ?? null,
     lastActive: previewState?.lastActive ?? null,
     photos: profile.photos,
-    photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: true })),
+    photoMetadata: profile.photo_metadata ?? profile.photos.map((photo) => ({ url: photo, explicit: false })),
     badges: profile.badges ?? [],
     attendingLaunchParty: profile.attendingLaunchParty === true,
     bio: profile.bio,
@@ -212,6 +212,19 @@ export default function ProfileView() {
       active = false;
     };
   }, [isOwnProfile, userId]);
+
+  useEffect(() => {
+    if (!isOwnProfile) {
+      return undefined;
+    }
+
+    return addProfileChangedListener((savedProfile) => {
+      setProfile({
+        ...emptyProfilePayload,
+        ...savedProfile,
+      });
+    });
+  }, [isOwnProfile]);
 
   useEffect(() => {
     if (isOwnProfile || !userId) {

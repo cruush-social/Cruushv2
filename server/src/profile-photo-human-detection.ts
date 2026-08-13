@@ -208,7 +208,8 @@ export function classifyProfilePhotoSafety(
   const labels = labelsOutput.Labels ?? [];
   const faces = facesOutput.FaceDetails ?? [];
   const moderationLabels = profilePhotoNudityLabels(moderationOutput?.ModerationLabels ?? []);
-  const humanConfidence = strongestLabelNameConfidence(labels, (name) => HUMAN_LABELS.has(name.toLowerCase()));
+  const directHumanConfidence = strongestLabelNameConfidence(labels, (name) => HUMAN_LABELS.has(name.toLowerCase()));
+  const humanConfidence = strongestConfidence(labels, (name) => HUMAN_LABELS.has(name.toLowerCase()));
   const animalConfidence = strongestConfidence(labels, (name) => ANIMAL_LABEL_PATTERN.test(name));
   const minorLabelConfidence = strongestLabelNameConfidence(labels, (name) => MINOR_LABEL_PATTERN.test(name));
   const requiredHumanConfidence = config.PROFILE_PHOTO_REKOGNITION_HUMAN_CONFIDENCE ?? 90;
@@ -217,7 +218,9 @@ export function classifyProfilePhotoSafety(
     faces,
     config.PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE ?? 90
   );
-  const hasHuman = humanConfidence >= requiredHumanConfidence || consideredFaces.length > 0;
+  const hierarchyOnlyHuman = directHumanConfidence < requiredHumanConfidence && consideredFaces.length === 0;
+  const hasHuman = (humanConfidence >= requiredHumanConfidence || consideredFaces.length > 0) &&
+    !(hierarchyOnlyHuman && minorLabelConfidence >= 90);
   const hasAnimal = animalConfidence >= rejectedAnimalConfidence;
   const childGate = childFaceLabels(faces, config, minorLabelConfidence);
   const normalizedLabels: ProviderLabel[] = [...childGate.labels, ...moderationLabels];
@@ -529,7 +532,8 @@ export function mergeProfilePhotoSafetyResults(
 ): ProviderModerationResult {
   const safetyFailed = safetyResult.status?.toLowerCase() !== "complete" || Boolean(safetyResult.error);
   const safetyRejected = !safetyFailed && safetyResult.recommended_action?.toLowerCase() !== "keep";
-  const streamCompletedSafely = !streamResult.error &&
+  const streamCompletedSafely = streamResult.provider === "stream" &&
+    !streamResult.error &&
     ["complete", "completed"].includes(streamResult.status?.toLowerCase() ?? "") &&
     streamResult.recommended_action?.toLowerCase() === "keep";
   const noHealthyProvider = safetyFailed && !streamCompletedSafely;

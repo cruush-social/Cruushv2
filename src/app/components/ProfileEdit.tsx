@@ -12,6 +12,7 @@ import MultiSelect from './MultiSelect';
 import {
   emptyProfilePayload,
   getMyProfile,
+  notifyProfileChanged,
   ProfileApiError,
   saveMyProfile,
   toDefaultKinkInterest,
@@ -551,6 +552,26 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [pendingPhoto, setPendingPhoto] = useState<PendingProfilePhoto | null>(null);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const photoPreviewRequestRef = useRef(0);
+  const profileSaveRequestRef = useRef(0);
+
+  const applySavedProfile = (savedProfile: ProfileRecord) => {
+    const loadedProfile = {
+      ...emptyProfilePayload,
+      ...savedProfile,
+    };
+
+    setProfile(loadedProfile);
+    persistCurrentUser({
+      id: savedProfile.id,
+      name: savedProfile.display_name,
+      display_name: savedProfile.display_name,
+      age: savedProfile.year_of_birth ? new Date().getFullYear() - savedProfile.year_of_birth : null,
+      year_of_birth: savedProfile.year_of_birth,
+    });
+    onSaved?.(loadedProfile);
+
+    return loadedProfile;
+  };
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
@@ -650,33 +671,68 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
 
   const handleSave = async () => {
+    const requestId = profileSaveRequestRef.current + 1;
+    profileSaveRequestRef.current = requestId;
     setSaving(true);
     setError(null);
     try {
       const savedProfile = await saveMyProfile(toProfileSavePayload(profile));
-      setProfile({
-        ...emptyProfilePayload,
-        ...savedProfile,
-      });
-      persistCurrentUser({
-        id: savedProfile.id,
-        name: savedProfile.display_name,
-        display_name: savedProfile.display_name,
-        age: savedProfile.year_of_birth ? new Date().getFullYear() - savedProfile.year_of_birth : null,
-        year_of_birth: savedProfile.year_of_birth,
-      });
+      if (profileSaveRequestRef.current !== requestId) {
+        return;
+      }
+
+      applySavedProfile(savedProfile);
       if (embedded) {
-        onSaved?.({
-          ...emptyProfilePayload,
-          ...savedProfile,
-        });
+        return;
       } else {
         navigate(-1);
       }
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Failed to save profile.');
+      if (profileSaveRequestRef.current === requestId) {
+        setError(saveError instanceof Error ? saveError.message : 'Failed to save profile.');
+      }
     } finally {
-      setSaving(false);
+      if (profileSaveRequestRef.current === requestId) {
+        setSaving(false);
+      }
+    }
+  };
+
+  const persistProfilePhotoEdit = async (nextProfile: ProfilePayload) => {
+    const requestId = profileSaveRequestRef.current + 1;
+    profileSaveRequestRef.current = requestId;
+
+    setProfile(nextProfile);
+    setSaving(true);
+    setError(null);
+    setPhotoUploadError(null);
+
+    try {
+      const savedProfile = await saveMyProfile(toProfileSavePayload(nextProfile));
+
+      if (profileSaveRequestRef.current === requestId) {
+        applySavedProfile(savedProfile);
+      }
+    } catch (saveError) {
+      if (profileSaveRequestRef.current !== requestId) {
+        return;
+      }
+
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save profile.');
+
+      try {
+        const freshProfile = await getMyProfile();
+
+        if (profileSaveRequestRef.current === requestId) {
+          applySavedProfile(freshProfile);
+        }
+      } catch {
+        // Keep the visible optimistic edit plus the save error.
+      }
+    } finally {
+      if (profileSaveRequestRef.current === requestId) {
+        setSaving(false);
+      }
     }
   };
 
@@ -728,6 +784,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const handleConfirmCrop = async (croppedFile: File) => {
     setUploadingPhoto(true);
     setError(null);
+    const previousPhotos = profile.photos ?? [];
+    const previousMetadata = profile.photo_metadata ?? [];
 
     try {
       const uploaded = await uploadProfilePhoto(croppedFile);
@@ -747,6 +805,34 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           { url: uploaded.url, explicit: uploaded.explicit === true },
         ].slice(-MAX_PROFILE_PHOTOS),
       }));
+      const freshProfile = await getMyProfile().catch(() => null);
+
+      if (freshProfile) {
+        const loadedProfile = {
+          ...emptyProfilePayload,
+          ...freshProfile,
+        };
+        const loadedPhotos = loadedProfile.photos ?? [];
+        const photos = loadedPhotos.includes(uploaded.url)
+          ? loadedPhotos
+          : [...previousPhotos.filter((photo) => photo !== uploaded.url), uploaded.url].slice(0, MAX_PROFILE_PHOTOS);
+        const loadedMetadata = loadedProfile.photo_metadata ?? [];
+        const photo_metadata = loadedMetadata.some((metadata) => metadata.url === uploaded.url)
+          ? loadedMetadata
+          : [
+              ...previousMetadata.filter((metadata) => metadata.url !== uploaded.url),
+              { url: uploaded.url, explicit: uploaded.explicit === true },
+            ].slice(-MAX_PROFILE_PHOTOS);
+        const mergedProfile = {
+          ...loadedProfile,
+          photos,
+          photo_metadata,
+        };
+
+        setProfile(mergedProfile);
+        onSaved?.(mergedProfile);
+        notifyProfileChanged(mergedProfile);
+      }
       setPendingPhoto(null);
       setPhotoUploadError(null);
       setPhotoUploadNotice(null);
@@ -760,17 +846,21 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   };
 
   const handleSetPrimaryPhoto = (photo: string) => {
-    setProfile((prev) => ({
-      ...prev,
-      photos: [photo, ...(prev.photos ?? []).filter((item) => item !== photo)].slice(0, MAX_PROFILE_PHOTOS),
-    }));
+    const nextProfile = {
+      ...profile,
+      photos: [photo, ...(profile.photos ?? []).filter((item) => item !== photo)].slice(0, MAX_PROFILE_PHOTOS),
+    };
+
+    void persistProfilePhotoEdit(nextProfile);
   };
 
   const handleRemovePhoto = (photo: string) => {
-    setProfile((prev) => ({
-      ...prev,
-      photos: (prev.photos ?? []).filter((item) => item !== photo),
-    }));
+    const nextProfile = {
+      ...profile,
+      photos: (profile.photos ?? []).filter((item) => item !== photo),
+    };
+
+    void persistProfilePhotoEdit(nextProfile);
   };
 
   const handleCancel = () => {

@@ -119,13 +119,7 @@ export async function createAppNotification(
        metadata
      )
      values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
-     on conflict (user_id, dedupe_key) where dedupe_key is not null do update
-       set title = excluded.title,
-           body = excluded.body,
-           link_url = excluded.link_url,
-           actor_user_id = excluded.actor_user_id,
-           conversation_id = excluded.conversation_id,
-           metadata = excluded.metadata
+     on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing
      returning
        id::text as id,
        user_id::text as user_id,

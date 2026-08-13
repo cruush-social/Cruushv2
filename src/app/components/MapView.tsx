@@ -49,6 +49,11 @@ type RadiusCircle = {
   radiusMeters: number;
 };
 
+type GhostLeash = {
+  from: RadiusCircle['center'];
+  to: RadiusCircle['center'];
+};
+
 type InitialViewport = {
   center: {
     approximateLatitude: number;
@@ -69,6 +74,7 @@ interface MapViewProps {
   } | null;
   initialViewport?: InitialViewport;
   radiusCircle?: RadiusCircle | null;
+  ghostLeash?: GhostLeash | null;
   demoRadiusCircles?: RadiusCircle[];
   denseVenue?: DenseVenueConfig | null;
 }
@@ -87,14 +93,15 @@ const DEFAULT_TILE_URLS = [
 ];
 const DEFAULT_ATTRIBUTION = '&copy; CARTO &copy; OpenStreetMap contributors';
 const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
+const DEFAULT_VECTOR_GLYPHS_URL = 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf';
 const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
 const MAP_READY_FALLBACK_TIMEOUT_MS = 4500;
 const MAP_RENDER_READY_TIMEOUT_MS = 1200;
 const MOBILE_MARKER_LONG_PRESS_MS = 450;
 const MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 10;
-const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
-const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
-const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
+const MAP_LABEL_FONT_FAMILY = 'Noto Serif';
+const MAP_LABEL_FONT_REGULAR = ['Noto Serif Regular'];
+const MAP_LABEL_FONT_BOLD = ['Noto Serif Bold', 'Noto Serif Regular'];
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
@@ -225,11 +232,11 @@ async function loadMapLabelFonts() {
 
 export function createCruushVectorStyle(
   tileJsonUrl = DEFAULT_VECTOR_TILEJSON_URL,
-  glyphsUrl?: string,
+  glyphsUrl = DEFAULT_VECTOR_GLYPHS_URL,
 ): StyleSpecification {
   return {
     version: 8,
-    ...(glyphsUrl ? { glyphs: glyphsUrl } : {}),
+    glyphs: glyphsUrl,
     sources: {
       openmaptiles: {
         type: 'vector',
@@ -268,6 +275,37 @@ export function createCruushVectorStyle(
             '#0f0f0f',
           ],
           'fill-outline-color': '#1e1e1e',
+        },
+      },
+      {
+        id: 'building-fill',
+        type: 'fill',
+        source: 'openmaptiles',
+        'source-layer': 'building',
+        minzoom: 13,
+        paint: {
+          'fill-color': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            13,
+            '#161616',
+            16,
+            '#181818',
+          ],
+          'fill-opacity': 0.88,
+        },
+      },
+      {
+        id: 'building-outline',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'building',
+        minzoom: 15,
+        paint: {
+          'line-color': '#1e1e1e',
+          'line-width': 0.6,
+          'line-opacity': 0.7,
         },
       },
       {
@@ -340,6 +378,20 @@ export function createCruushVectorStyle(
         },
       },
       {
+        id: 'poi-dots',
+        type: 'circle',
+        source: 'openmaptiles',
+        'source-layer': 'poi',
+        minzoom: 14,
+        paint: {
+          'circle-color': '#0d0d0d',
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2.5, 17, 4],
+          'circle-stroke-color': '#383838',
+          'circle-stroke-width': 1,
+          'circle-opacity': 0.8,
+        },
+      },
+      {
         id: 'minor-road-labels',
         type: 'symbol',
         source: 'openmaptiles',
@@ -348,7 +400,7 @@ export function createCruushVectorStyle(
         filter: [
           'match',
           ['get', 'class'],
-          ['minor', 'service', 'track', 'path'],
+          ['minor', 'service'],
           true,
           false,
         ],
@@ -357,12 +409,12 @@ export function createCruushVectorStyle(
           'symbol-spacing': 120,
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9, 16, 12],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 10.5, 16, 14],
           'text-letter-spacing': 0.02,
           'text-padding': 1,
         },
         paint: {
-          'text-color': '#7f7f7f',
+          'text-color': '#8f8f8f',
           'text-halo-color': '#080808',
           'text-halo-width': 1,
         },
@@ -384,12 +436,12 @@ export function createCruushVectorStyle(
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 11, 16, 14],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 12.5, 16, 16],
           'text-letter-spacing': 0.025,
           'text-padding': 2,
         },
         paint: {
-          'text-color': '#a0a0a0',
+          'text-color': '#b8b8b8',
           'text-halo-color': '#080808',
           'text-halo-width': 1.2,
         },
@@ -405,12 +457,12 @@ export function createCruushVectorStyle(
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_BOLD,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 10, 12, 16, 15],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 10, 13.5, 16, 17],
           'text-letter-spacing': 0.03,
           'text-padding': 2,
         },
         paint: {
-          'text-color': '#d0d0d0',
+          'text-color': '#dedede',
           'text-halo-color': '#080808',
           'text-halo-width': 1.4,
         },
@@ -426,7 +478,7 @@ export function createCruushVectorStyle(
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_BOLD,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 9, 13, 16, 16],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 9, 14.5, 16, 18],
           'text-letter-spacing': 0.035,
           'text-padding': 2,
         },
@@ -434,6 +486,27 @@ export function createCruushVectorStyle(
           'text-color': '#ffffff',
           'text-halo-color': '#080808',
           'text-halo-width': 1.5,
+        },
+      },
+      {
+        id: 'poi-labels',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'poi',
+        minzoom: 14,
+        layout: {
+          'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
+          'text-font': MAP_LABEL_FONT_REGULAR,
+          'text-size': ['interpolate', ['linear'], ['zoom'], 14, 11.5, 17, 13.5],
+          'text-letter-spacing': 0.02,
+          'text-offset': [0, 0.75],
+          'text-anchor': 'top',
+          'text-padding': 2,
+        },
+        paint: {
+          'text-color': '#c0c0c0',
+          'text-halo-color': '#0d0d0d',
+          'text-halo-width': 1.4,
         },
       },
       {
@@ -450,15 +523,15 @@ export function createCruushVectorStyle(
             ['linear'],
             ['zoom'],
             8,
-            13,
+            15,
             12,
-            17,
+            19,
           ],
           'text-letter-spacing': 0.035,
           'text-padding': 4,
         },
         paint: {
-          'text-color': '#c0c0c0',
+          'text-color': '#d8d8d8',
           'text-halo-color': '#080808',
           'text-halo-width': 1.6,
         },
@@ -483,7 +556,7 @@ export function getMapStyle() {
 
   return createCruushVectorStyle(
     configuredVectorTileJsonUrl || DEFAULT_VECTOR_TILEJSON_URL,
-    configuredGlyphsUrl || undefined,
+    configuredGlyphsUrl || DEFAULT_VECTOR_GLYPHS_URL,
   );
 }
 
@@ -1315,6 +1388,20 @@ function createCirclePolygon(center: RadiusCircle['center'], radiusMeters: numbe
   return createCircleFeatureCollection([{ center, radiusMeters }]);
 }
 
+function createGhostLeashFeature(leash: GhostLeash) {
+  return {
+    type: 'Feature' as const,
+    properties: {},
+    geometry: {
+      type: 'LineString' as const,
+      coordinates: [
+        [leash.from.approximateLongitude, leash.from.approximateLatitude],
+        [leash.to.approximateLongitude, leash.to.approximateLatitude],
+      ],
+    },
+  };
+}
+
 function cleanupRenderedMarker({ dispose, marker, root }: RenderedMapMarker) {
   dispose();
   marker.remove();
@@ -1330,6 +1417,7 @@ function MapView({
   focusCoordinates,
   initialViewport,
   radiusCircle,
+  ghostLeash,
   demoRadiusCircles = [],
   denseVenue = null,
 }: MapViewProps) {
@@ -1742,6 +1830,61 @@ function MapView({
     });
     moveMapServiceOutsideMaskToTop(map);
   }, [mapInstance, mapLoadStatus, radiusCircle]);
+
+  useEffect(() => {
+    const map = mapInstance ?? mapRef.current;
+
+    if (!map || mapLoadStatus !== 'ready') {
+      return;
+    }
+
+    const sourceId = 'owner-ghost-leash';
+    const layerId = 'owner-ghost-leash-line';
+    const getLayer = typeof map.getLayer === 'function' ? map.getLayer.bind(map) : () => undefined;
+    const getSource = typeof map.getSource === 'function' ? map.getSource.bind(map) : () => undefined;
+    const removeLayer = typeof map.removeLayer === 'function' ? map.removeLayer.bind(map) : null;
+    const removeSource = typeof map.removeSource === 'function' ? map.removeSource.bind(map) : null;
+
+    if (!ghostLeash) {
+      if (getLayer(layerId) && removeLayer) {
+        removeLayer(layerId);
+      }
+      if (getSource(sourceId) && removeSource) {
+        removeSource(sourceId);
+      }
+      return;
+    }
+
+    const data = createGhostLeashFeature(ghostLeash);
+    const existingSource = getSource(sourceId) as GeoJSONSource | undefined;
+
+    if (existingSource) {
+      existingSource.setData(data);
+      moveMapServiceOutsideMaskToTop(map);
+      return;
+    }
+
+    if (typeof map.addSource !== 'function' || typeof map.addLayer !== 'function') {
+      return;
+    }
+
+    map.addSource(sourceId, {
+      type: 'geojson',
+      data,
+    });
+    map.addLayer({
+      id: layerId,
+      type: 'line',
+      source: sourceId,
+      paint: {
+        'line-color': '#0BA8FF',
+        'line-opacity': 0.9,
+        'line-width': 2.5,
+        'line-dasharray': [2, 1.5],
+      },
+    });
+    moveMapServiceOutsideMaskToTop(map);
+  }, [ghostLeash, mapInstance, mapLoadStatus]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

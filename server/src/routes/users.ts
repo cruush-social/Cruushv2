@@ -24,19 +24,19 @@ import {
 } from "../profile-visibility.js";
 import { getAuthenticatedUserId } from "../request-auth.js";
 import { normalizeSingleLineText } from "../input-schema.js";
-import { getRelationshipPermissions } from "../match-relationships.js";
+import { getEffectiveVisibilityPolicy, getRelationshipPermissions } from "../match-relationships.js";
 import { canStartDirectMessage } from "../cruush-match-settings.js";
 import { loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import { DEFAULT_MAP_PRESENCE_DAYS } from "../map-presence.js";
 import { DEVELOPMENT_ADMIN_EMAIL } from "../development-admin.js";
 import { isWithinBetaLaunchArea } from "../beta-access.js";
+import { primaryPhotoExplicitSelect } from "../profile-photo-explicit.js";
 import {
   DEFAULT_GHOST_RADIUS_METERS,
   createCoarseIndexTokens,
   buildDefaultVisibilityPolicy,
   formatDistanceLabel,
   loadLocationEnvelopes,
-  loadVisibilityPolicy,
   locationPayloadToCoordinates,
   makeDisplayLocationToken,
   type DisplayMode,
@@ -579,17 +579,7 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          role,
          hosting_travel,
          photos,
-         coalesce((
-           select media.explicit_classification is distinct from 'non_explicit'
-           from unnest(coalesce(profiles.photos, '{}'::text[])) with ordinality as photo(photo_url, ordinality)
-           left join media_objects media
-             on media.owner_user_id = profiles.id
-            and media.public_url = photo.photo_url
-            and media.surface = 'profile_photo'
-            and media.deleted_at is null
-           order by photo.ordinality
-           limit 1
-        ), true) as primary_photo_explicit,
+         ${primaryPhotoExplicitSelect("profiles", "primary_photo_explicit")},
          identities,
          presentation,
          sexuality,
@@ -747,7 +737,7 @@ function locationPayloadFromCoordinates(input: {
 
 async function loadPolicyOrDefault(app: FastifyInstance, subjectUserId: string) {
   try {
-    return await loadVisibilityPolicy(app, subjectUserId);
+    return await getEffectiveVisibilityPolicy(app, subjectUserId);
   } catch (error) {
     if (isSchemaCompatibilityError(error)) {
       return buildDefaultVisibilityPolicy(app.config, subjectUserId);

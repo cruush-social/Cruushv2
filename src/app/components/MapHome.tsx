@@ -32,7 +32,7 @@ import type { DenseVenueConfig } from '../lib/denseVenueMarkers';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto, setDlModeEnabled } from '../lib/dlMode';
 import { markNoticeDismissed, resolveNoticeDismissal } from '../lib/userNoticesApi';
-import { syncMyLocation, type ProfileLocationPayload } from '../lib/locationApi';
+import { syncMyLocation, type ProfileLocationPayload, type ProfileLocationRecord } from '../lib/locationApi';
 import {
   getMapPingStatus,
   sendMapPing,
@@ -41,6 +41,7 @@ import {
 } from '../lib/mapPingsApi';
 import {
   emptyProfilePayload,
+  addProfileChangedListener,
   getMyProfile,
   saveMyVisibilityRules,
   type ProfileRecord,
@@ -195,6 +196,26 @@ function profileLocationToApproximateCoordinates(profile: ProfileRecord | null):
   };
 }
 
+async function decryptOwnerGhostLocation(
+  location: ProfileRecord['location'] | ProfileLocationRecord | null | undefined,
+): Promise<ApproximateCoordinates | null> {
+  if (!location?.ghost_display_location_token) {
+    return null;
+  }
+
+  const displayPayload = await decryptDisplayLocationToken(location.ghost_display_location_token);
+
+  if (displayPayload.displayMode !== 'GHOST') {
+    return null;
+  }
+
+  return {
+    approximateLatitude: displayPayload.latitude,
+    approximateLongitude: displayPayload.longitude,
+    privacyRadiusMeters: displayPayload.accuracyDisplayM,
+  };
+}
+
 function profileRecordToOwnDiscoveryUser(profile: ProfileRecord, location: ApproximateCoordinates | null): DiscoveryUser {
   return {
     id: profile.id || 'me',
@@ -218,6 +239,15 @@ function profileRecordToOwnDiscoveryUser(profile: ProfileRecord, location: Appro
     photoExplicit: profile.photo_metadata?.[0]?.explicit === true,
     badges: profile.badges ?? [],
     isCurrentUser: true,
+  };
+}
+
+function mergeSavedCurrentProfile(currentProfile: ProfileRecord | null, savedProfile: ProfileRecord): ProfileRecord {
+  return {
+    ...emptyProfilePayload,
+    ...currentProfile,
+    ...savedProfile,
+    location: savedProfile.location ?? currentProfile?.location ?? null,
   };
 }
 
@@ -430,6 +460,22 @@ function getJoinEventChatErrorMessage(error: unknown) {
   return 'Unable to join the party chat right now. Try again in a moment.';
 }
 
+const KEEP_BROWSING_SUFFIX = 'You can keep browsing the NYC beta map.';
+const LOCATION_SYNC_ERROR_MESSAGE = "We found your location, but couldn't update your map location. Try again.";
+
+function getGeolocationErrorMessage(error: GeolocationPositionError | undefined) {
+  switch (error?.code) {
+    case 1:
+      return `Location permission was not granted. ${KEEP_BROWSING_SUFFIX}`;
+    case 2:
+      return `We couldn't pin down your location. Check that location services are on for your browser, then try again. ${KEEP_BROWSING_SUFFIX}`;
+    case 3:
+      return `Finding your location took too long. Try again in a moment. ${KEEP_BROWSING_SUFFIX}`;
+    default:
+      return `We couldn't get your location right now. ${KEEP_BROWSING_SUFFIX}`;
+  }
+}
+
 export default function MapHome(_props: MapHomeProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -437,6 +483,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const isMobile = useIsMobile();
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
+  const [ownerGhostMapLocation, setOwnerGhostMapLocation] = useState<ApproximateCoordinates | null>(null);
   const [browserFocusCoordinates, setBrowserFocusCoordinates] = useState<{
     approximateLatitude: number;
     approximateLongitude: number;
@@ -530,6 +577,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
               return locationChanged ? { ...profile, location: nextLocation } : profile;
             })()
           : profile);
+        void decryptOwnerGhostLocation(syncedLocation)
+          .then(setOwnerGhostMapLocation)
+          .catch((ghostDisplayError) => {
+            console.warn('Error refreshing your Ghost pin:', ghostDisplayError);
+            setOwnerGhostMapLocation(null);
+          });
       });
 
     latestLocationSyncRef.current = syncPromise;
@@ -671,6 +724,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
+  useEffect(() => addProfileChangedListener((savedProfile) => {
+    setCurrentProfile((currentProfile) => mergeSavedCurrentProfile(currentProfile, savedProfile));
+    setVisibility(visibilityRulesToState(savedProfile.visibility_rules));
+  }), []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -806,7 +864,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
         }
 
         if (profile.location?.display_location_token) {
-          const displayPayload = await decryptDisplayLocationToken(profile.location.display_location_token);
+          const [displayPayload, ghostLocation] = await Promise.all([
+            decryptDisplayLocationToken(profile.location.display_location_token),
+            decryptOwnerGhostLocation(profile.location),
+          ]);
           initialFetchCoordinates = {
             lat: displayPayload.latitude,
             lng: displayPayload.longitude,
@@ -818,6 +879,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               approximateLongitude: displayPayload.longitude,
               privacyRadiusMeters: displayPayload.accuracyDisplayM,
             });
+            setOwnerGhostMapLocation(ghostLocation);
           }
         } else {
           const savedProfileLocation = profileLocationToApproximateCoordinates(profile);
@@ -828,6 +890,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
               lng: savedProfileLocation.approximateLongitude,
             };
             syncApproximateMapLocation(savedProfileLocation);
+          }
+          if (isMounted) {
+            setOwnerGhostMapLocation(null);
           }
         }
 
@@ -854,6 +919,52 @@ export default function MapHome(_props: MapHomeProps = {}) {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!privacySettings.ghostModeEnabled) {
+      setOwnerGhostMapLocation(null);
+      return undefined;
+    }
+
+    const rotationExpiresAtMs = privacySettings.ghostRotationExpiresAtMs;
+    if (!rotationExpiresAtMs) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    let retryTimeoutId: number | null = null;
+    const refreshOwnerGhostDisplay = async () => {
+      try {
+        const [profile, loadedPrivacySettings] = await Promise.all([
+          getMyProfile(),
+          getMyPrivacySettings(),
+        ]);
+        const ghostLocation = await decryptOwnerGhostLocation(profile.location);
+
+        if (!cancelled) {
+          setPrivacySettings(loadedPrivacySettings);
+          setOwnerGhostMapLocation(loadedPrivacySettings.ghostModeEnabled ? ghostLocation : null);
+        }
+      } catch (ghostDisplayError) {
+        console.warn('Error rotating your Ghost pin:', ghostDisplayError);
+        if (!cancelled) {
+          retryTimeoutId = window.setTimeout(refreshOwnerGhostDisplay, MAP_PRIVACY_REFRESH_INTERVAL_MS);
+        }
+      }
+    };
+    const rotationTimeoutId = window.setTimeout(
+      refreshOwnerGhostDisplay,
+      Math.max(0, rotationExpiresAtMs - Date.now() + 250),
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(rotationTimeoutId);
+      if (retryTimeoutId !== null) {
+        window.clearTimeout(retryTimeoutId);
+      }
+    };
+  }, [privacySettings.ghostModeEnabled, privacySettings.ghostRotationExpiresAtMs]);
 
   useEffect(() => {
     if (!hasFetchedInitialUsersRef.current || lastMutualMapModeRef.current === isMutualMapMode) {
@@ -965,10 +1076,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
     });
   }, [filters, isMutualMapMode, userApproximateLocation]);
 
-  const applyBrowserPositionToMap = (
+  const applyBrowserPositionToMap = async (
     position: GeolocationPosition,
     centerAfterUpdate = false,
     syncReason?: ProfileLocationPayload['sync_reason'],
+    requireLocationSync = false,
   ) => {
     // Exact browser coordinates stay local here. They are only used as the
     // camera target when recentering yourself; shared map data stays approximate.
@@ -985,10 +1097,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
       longitude: position.coords.longitude,
     };
 
-    setEventPassCoordinates(browserCoordinates);
     setUserApproximateLocation(approximateLocation);
-    setLocationStatus('ready');
-    syncApproximateMapLocation(approximateLocation, syncReason);
+    const locationSync = syncApproximateMapLocation(approximateLocation, syncReason);
     if (centerAfterUpdate) {
       const exactCameraCoordinates = {
         approximateLatitude: browserCoordinates.latitude,
@@ -1003,6 +1113,13 @@ export default function MapHome(_props: MapHomeProps = {}) {
       mapInstance?.setZoom(14);
     }
     void fetchUsers(fetchCoordinates);
+
+    if (requireLocationSync) {
+      await locationSync;
+    }
+
+    setEventPassCoordinates(browserCoordinates);
+    setLocationStatus('ready');
 
     return browserCoordinates;
   };
@@ -1019,11 +1136,15 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setLocationStatus('locating');
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        applyBrowserPositionToMap(position, centerAfterUpdate);
+        void applyBrowserPositionToMap(position, centerAfterUpdate, undefined, centerAfterUpdate)
+          .catch(() => {
+            setLocationStatus('error');
+            setLocationError(LOCATION_SYNC_ERROR_MESSAGE);
+          });
       },
-      () => {
+      (positionError) => {
         setLocationStatus('error');
-        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
+        setLocationError(getGeolocationErrorMessage(positionError));
       },
       {
         enableHighAccuracy: centerAfterUpdate,
@@ -1046,12 +1167,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setLocationStatus('locating');
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        resolve(applyBrowserPositionToMap(position));
+        void applyBrowserPositionToMap(position, false, undefined, true)
+          .then(resolve)
+          .catch(() => {
+            setLocationStatus('error');
+            setLocationError(LOCATION_SYNC_ERROR_MESSAGE);
+            reject(new Error(LOCATION_SYNC_ERROR_MESSAGE));
+          });
       },
       (positionError) => {
+        const errorMessage = getGeolocationErrorMessage(positionError);
         setLocationStatus('error');
-        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
-        reject(positionError);
+        setLocationError(errorMessage);
+        reject(new Error(errorMessage));
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
@@ -1070,13 +1198,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
     setLocationStatus('locating');
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        applyBrowserPositionToMap(position, false, 'PING');
-        resolve();
+        void applyBrowserPositionToMap(position, false, 'PING', true)
+          .then(() => resolve())
+          .catch(() => {
+            setLocationStatus('error');
+            setLocationError(LOCATION_SYNC_ERROR_MESSAGE);
+            reject(new Error(LOCATION_SYNC_ERROR_MESSAGE));
+          });
       },
-      () => {
+      (positionError) => {
+        const errorMessage = getGeolocationErrorMessage(positionError);
         setLocationStatus('error');
-        setLocationError('Location permission was not granted. You can keep browsing the NYC beta map.');
-        reject(new Error('Location permission is required to send a Ping.'));
+        setLocationError(errorMessage);
+        reject(new Error(errorMessage));
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
@@ -1223,6 +1357,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
     return [focusedUser, ...filteredUsers];
   }, [filteredUsers, focusUserId, users]);
+  const recentlyActiveUsers = useMemo(() => [...displayedUsers]
+    .sort((a, b) => getLastActiveMinutes(a.lastActive) - getLastActiveMinutes(b.lastActive))
+    .slice(0, 10), [displayedUsers]);
+  const recentlyActiveVisibleCount = Math.min(recentlyActiveUsers.length, 5);
+  const recentlyActiveNeedsScroll = recentlyActiveUsers.length > 5;
+  const recentlyActiveTrayWidth = isMobile
+    ? `${recentlyActiveVisibleCount * 3.5 + Math.max(0, recentlyActiveVisibleCount - 1) * 0.5}rem`
+    : `${recentlyActiveVisibleCount * 5 + Math.max(0, recentlyActiveVisibleCount - 1) * 0.75}rem`;
   const savedProfileMapLocation = useMemo(
     () => profileLocationToApproximateCoordinates(currentProfile),
     [currentProfile],
@@ -1422,9 +1564,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
     let passCoordinates: { latitude: number; longitude: number };
     try {
       passCoordinates = await requestFreshEventPassCoordinates();
-    } catch {
+    } catch (locationRequestError) {
       setEventActionStatus(null);
-      setEventActionError(`Share your location to unlock the door pass within ${selectedEvent.radiusMiles} mile of the venue.`);
+      setEventActionError(locationRequestError instanceof Error
+        ? locationRequestError.message
+        : `Share your location to unlock the door pass within ${selectedEvent.radiusMiles} mile of the venue.`);
       return;
     }
 
@@ -1596,19 +1740,36 @@ export default function MapHome(_props: MapHomeProps = {}) {
       photoExplicit: currentProfile?.photo_metadata?.[0]?.explicit === true,
       isCurrentUser: true,
       badge: createMapMarkerBadge(currentProfile?.position ?? []),
-      displayMode: privacySettings.ghostModeEnabled ? 'GHOST' : 'PRECISE',
+      displayMode: 'PRECISE',
       privacyRadiusMeters: privacySettings.ghostRadiusMeters,
       activePing: mapPingStatus?.activePing && Date.parse(mapPingStatus.activePing.expiresAt) > mapPingClock
         ? mapPingStatus.activePing
         : null,
     };
+    const ownerGhostMarker: MapMarker | null = privacySettings.ghostModeEnabled && ownerGhostMapLocation
+      ? {
+          id: 'me-ghost-decoy',
+          userId: currentProfile?.id ?? 'me',
+          displayName: 'Your Ghost pin',
+          signal: 'Ghost Mode decoy',
+          approximateLatitude: ownerGhostMapLocation.approximateLatitude,
+          approximateLongitude: ownerGhostMapLocation.approximateLongitude,
+          lastActiveLabel: 'Now',
+          photo: currentProfile?.photos[0] ?? null,
+          photoExplicit: currentProfile?.photo_metadata?.[0]?.explicit === true,
+          isCurrentUser: true,
+          displayMode: 'GHOST',
+          privacyRadiusMeters: privacySettings.ghostRadiusMeters,
+        }
+      : null;
 
     return [
       currentUserMarker,
+      ...(ownerGhostMarker ? [ownerGhostMarker] : []),
       ...nearbyMarkers,
       ...eventMarkers,
     ];
-  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, mapPingClock, mapPingStatus, privacySettings, userApproximateLocation]);
+  }, [activeEvents, currentProfile, currentUserMapLocation, displayedUsers, mapPingClock, mapPingStatus, ownerGhostMapLocation, privacySettings]);
 
   const focusedMapLocation = useMemo(() => {
     if (!focusUserId) {
@@ -1780,7 +1941,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 data-tutorial-target="ping"
                 aria-label="Send a Ping"
                 title="Send a Ping"
-                className="absolute left-1/2 top-full mt-2 size-8 -translate-x-1/2 rounded-full border border-white/10 bg-background/35 text-white/90 backdrop-blur-md hover:bg-white/10 sm:size-9 lg:size-11"
+                className="absolute left-1/2 top-full mt-3.5 size-8 -translate-x-1/2 rounded-full border border-white/10 bg-background/35 text-white/90 backdrop-blur-md hover:bg-white/10 sm:mt-5 sm:size-9 lg:mt-4 lg:size-11"
               >
                 <Radio aria-hidden="true" className="h-5 w-5 lg:h-7 lg:w-7" />
               </Button>
@@ -1891,6 +2052,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
               ? {
                   center: currentUserMapLocation,
                   radiusMeters: privacySettings.ghostRadiusMeters,
+                }
+              : null}
+            ghostLeash={privacySettings.ghostModeEnabled && currentUserMapLocation && ownerGhostMapLocation
+              ? {
+                  from: currentUserMapLocation,
+                  to: ownerGhostMapLocation,
                 }
               : null}
             onMapReady={handleMapReady}
@@ -2246,7 +2413,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               className={`mx-auto ${
                 isRecentlyActiveOpen
                   ? isMobile
-                    ? 'w-full max-w-full rounded-2xl border border-white/10 bg-background/50 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                    ? 'w-fit max-w-full rounded-2xl border border-white/10 bg-background/50 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
                     : 'w-fit max-w-[30rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
                   : 'max-w-max p-0'
               } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''} pointer-events-auto`}
@@ -2271,29 +2438,24 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <div
                   id="recently-active-tray"
                   aria-label="Recently active profiles"
-                  className={`${isMobile ? 'gap-2' : 'gap-3'} flex cursor-grab overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
+                  className={`${isMobile ? 'gap-2' : 'gap-3'} ${recentlyActiveNeedsScroll ? 'overflow-x-auto pb-1 scrollbar-subtle' : 'overflow-x-hidden'} flex cursor-grab overscroll-x-contain scroll-smooth active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                   data-testid="recently-active-tray"
+                  data-scrollable={recentlyActiveNeedsScroll ? 'true' : 'false'}
                   onClickCapture={handleRecentlyActiveClickCapture}
                   onPointerCancel={handleRecentlyActivePointerEnd}
                   onPointerDown={handleRecentlyActivePointerDown}
                   onPointerMove={handleRecentlyActivePointerMove}
                   onPointerUp={handleRecentlyActivePointerEnd}
                   onWheel={handleRecentlyActiveWheel}
+                  style={{ width: recentlyActiveTrayWidth, maxWidth: '100%' }}
                   tabIndex={0}
                 >
-                {[...displayedUsers]
-                  .sort((a, b) => {
-                    const firstUserMinutes = getLastActiveMinutes(a.lastActive);
-                    const secondUserMinutes = getLastActiveMinutes(b.lastActive);
-                    return firstUserMinutes - secondUserMinutes;
-                  })
-                  .slice(0, 10)
-                  .map((user) => (
+                {recentlyActiveUsers.map((user) => (
                     <button
                       key={user.id}
                       aria-label={`Open ${user.name} profile`}
                       onClick={() => handleUserSelect(user)}
-                      className={`${isMobile ? 'w-16' : 'w-20'} group block flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
+                      className={`${isMobile ? 'w-14' : 'w-20'} group block flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                       data-testid={`recently-active-tile-${user.id}`}
                     >
                       <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">

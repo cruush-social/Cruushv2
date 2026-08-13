@@ -356,11 +356,64 @@ describe('PrivateGroupChat', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
     const composerError = await within(screen.getByTestId('chat-composer-bar')).findByRole('alert');
-    expect(composerError).toHaveTextContent('This text message was rejected by text safety checks. No photo was attached.');
+    expect(composerError).toHaveTextContent('This text message was rejected by text safety checks.');
+    expect(composerError).not.toHaveTextContent('photo');
     expect(composerError).toHaveTextContent('Error code: TEXT_CONTENT_REJECTED');
     expect(screen.getByPlaceholderText('Drop the plan...')).toHaveValue('text only');
     expect(createMessage).toHaveBeenCalledWith(conversationId, 'text only');
     expect(createMessagePhoto).not.toHaveBeenCalled();
+  });
+
+  it('shows the server reason when text messaging is restricted', async () => {
+    const conversationId = '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2';
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: conversationId,
+        kind: 'group',
+        user: {
+          id: 'group-1',
+          name: 'Beta crew',
+          pronouns: '',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: '',
+        unreadCount: 0,
+        pinned: false,
+        muted: false,
+        tags: [],
+        membersLabel: '3 people',
+        currentUserRole: 'owner',
+        disappearingTimer: 'off',
+      },
+      messages: [],
+    });
+    createMessage.mockRejectedValue(new ApiClientError(
+      403,
+      'FEATURE_RESTRICTED',
+      'Text messaging is unavailable while your trust score is low.',
+    ));
+
+    render(
+      <MemoryRouter initialEntries={[`/chat/${conversationId}`]}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Drop the plan...'), {
+      target: { value: 'text only' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    const composerError = await within(screen.getByTestId('chat-composer-bar')).findByRole('alert');
+    expect(composerError).toHaveTextContent('Text messaging is unavailable while your trust score is low.');
+    expect(composerError).not.toHaveTextContent('photo');
+    expect(composerError).toHaveTextContent('Error code: TEXT_MESSAGING_RESTRICTED');
   });
 
   it('keeps send disabled for control-character-only text and normalizes mixed input', async () => {

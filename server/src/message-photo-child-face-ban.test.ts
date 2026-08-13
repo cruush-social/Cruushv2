@@ -13,8 +13,18 @@ vi.mock("@aws-sdk/client-rekognition", () => ({
   DetectLabelsCommand: class DetectLabelsCommand {
     constructor(readonly input: unknown) {}
   },
+  DetectModerationLabelsCommand: class DetectModerationLabelsCommand {
+    constructor(readonly input: unknown) {}
+  },
   RekognitionClient: class RekognitionClient {
-    async send() {
+    async send(command: { constructor: { name: string } }) {
+      if (command.constructor.name === "DetectModerationLabelsCommand") {
+        return {
+          ModerationLabels: [],
+          $metadata: { requestId: "rekognition-message-moderation" }
+        };
+      }
+
       return {
         FaceDetails: state.faceDetails,
         $metadata: { requestId: "rekognition-message-child" }

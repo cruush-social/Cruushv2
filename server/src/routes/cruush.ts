@@ -12,6 +12,7 @@ import { createAppNotificationAndPush } from "../notification-service.js";
 import {
   ensureMutualCruushMatch,
   getCruushEntitlement,
+  getEffectiveVisibilityPolicy,
   getPrivacySettings,
   getRelationshipPermissions,
   revokeMutualCruushMatch
@@ -33,7 +34,6 @@ import {
   buildDefaultVisibilityPolicy,
   formatDistanceLabel,
   loadLocationEnvelope,
-  loadVisibilityPolicy,
   locationPayloadToCoordinates,
   makeDisplayLocationToken,
   type DisplayMode
@@ -455,7 +455,7 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
 
 async function loadPolicyOrDefault(app: FastifyInstance, subjectUserId: string) {
   try {
-    return await loadVisibilityPolicy(app, subjectUserId);
+    return await getEffectiveVisibilityPolicy(app, subjectUserId);
   } catch (error) {
     if (isSchemaCompatibilityError(error)) {
       return buildDefaultVisibilityPolicy(app.config, subjectUserId);

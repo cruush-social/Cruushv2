@@ -63,6 +63,42 @@ describe("image child-face and profile-photo human detection", () => {
     });
   });
 
+  it.each([
+    { hierarchy: "parent", label: { Name: "Portrait", Confidence: 98, Parents: [{ Name: "Person" }] } },
+    { hierarchy: "category", label: { Name: "Portrait", Confidence: 98, Categories: [{ Name: "Person" }] } }
+  ])("allows a faceless adult body when Person is a Rekognition $hierarchy signal", ({ label }) => {
+    expect(classifyProfilePhotoSafety({
+      Labels: [label],
+      $metadata: { requestId: "rekognition-labels-faceless-hierarchy" }
+    }, {
+      FaceDetails: [],
+      $metadata: { requestId: "rekognition-faces-faceless-hierarchy" }
+    }, null, config)).toMatchObject({
+      recommended_action: "keep",
+      labels: [expect.objectContaining({ normalized_label: "human_present" })],
+      raw_result: { outcome: "human_detected" }
+    });
+  });
+
+  it.each([
+    { hierarchy: "parent", label: { Name: "Child", Confidence: 98, Parents: [{ Name: "Person" }] } },
+    { hierarchy: "category", label: { Name: "Child", Confidence: 98, Categories: [{ Name: "Person" }] } }
+  ])("rejects a faceless minor label when Person is only a Rekognition $hierarchy signal", ({ label }) => {
+    expect(classifyProfilePhotoSafety({
+      Labels: [label],
+      $metadata: { requestId: "rekognition-labels-faceless-minor-hierarchy" }
+    }, {
+      FaceDetails: [],
+      $metadata: { requestId: "rekognition-faces-faceless-minor-hierarchy" }
+    }, null, config)).toMatchObject({
+      recommended_action: "remove",
+      labels: expect.arrayContaining([
+        expect.objectContaining({ normalized_label: "minor_age_ambiguous" }),
+        expect.objectContaining({ normalized_label: "profile_photo_not_adult_human" })
+      ])
+    });
+  });
+
   it("permanently actionable child label is emitted only when the face range ends below 18", () => {
     expect(classifyImageChildFaces({
       FaceDetails: [{ Confidence: 99, AgeRange: { Low: 6, High: 10 } }],
@@ -201,6 +237,27 @@ describe("image child-face and profile-photo human detection", () => {
       }
     });
     expect(merged).not.toHaveProperty("error");
+  });
+
+  it("does not treat a mock provider decision as healthy when Rekognition is unavailable", () => {
+    const merged = mergeProfilePhotoSafetyResults({
+      ...streamKeep(),
+      provider: "mock",
+      provider_request_id: "mock-1"
+    }, {
+      provider: "aws_rekognition",
+      provider_request_id: "rekognition-error-mock",
+      labels: [],
+      latency_ms: 5,
+      status: "error",
+      error: "Rekognition unavailable"
+    });
+
+    expect(merged).toMatchObject({
+      provider: "mock+aws_rekognition",
+      status: "error",
+      error: "Rekognition unavailable"
+    });
   });
 
   it("fails the combined decision closed when both providers are unavailable", () => {

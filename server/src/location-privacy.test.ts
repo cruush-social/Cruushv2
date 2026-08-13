@@ -5,7 +5,6 @@ import type { DbClient } from "./db.js";
 import {
   decryptDisplayLocationTokenForTest,
   createCoarseIndexTokens,
-  currentRotationEpoch,
   deriveGhostCoordinate,
   distanceMiles,
   GHOST_MIN_OFFSET_RATIO,
@@ -15,6 +14,8 @@ import {
   loadVisibilityPolicy,
   loadVisibilityPolicyStrict,
   makeDisplayLocationToken,
+  normalizeVisibilityPolicy,
+  publicPrivacySettings,
   resolveViewerGhostCoordinate,
   saveVisibilityPolicy,
   storeLocationEnvelope
@@ -61,6 +62,21 @@ const viewerUserId = "d271f6da-c51d-4d73-a322-d9c56f45d4fa";
 
 function createPolicyDb() {
   let row: unknown = null;
+  type RotationRow = {
+    subject_user_id: string;
+    rotation_epoch: number;
+    policy_version: number;
+    token_ciphertext: string;
+    token_nonce: string;
+    token_auth_tag: string;
+    wrapped_token_dek: string;
+    token_dek_nonce: string;
+    token_dek_auth_tag: string;
+    key_version: string;
+    expires_at_ms: number;
+    revoked_at_ms: number | null;
+  };
+  const rotationRows = new Map<string, RotationRow>();
   const query = vi.fn(async (sql: string, params: unknown[] = []) => {
     if (sql.includes("select") && sql.includes("encrypted_visibility_tokens")) {
       return { rows: row ? [row] : [] };
@@ -79,6 +95,52 @@ function createPolicyDb() {
         key_version: params[8],
         updated_at_ms: params[9]
       };
+    }
+
+    if (sql.includes("select") && sql.includes("ghost_rotation_tokens")) {
+      const key = `${params[0]}:${params[1]}:${params[2]}`;
+      const rotationRow = rotationRows.get(key);
+
+      return {
+        rows: rotationRow && rotationRow.revoked_at_ms === null && rotationRow.expires_at_ms > Number(params[3])
+          ? [rotationRow]
+          : []
+      };
+    }
+
+    if (sql.includes("insert into ghost_rotation_tokens")) {
+      const key = `${params[0]}:${params[1]}:${params[2]}`;
+      const existing = rotationRows.get(key);
+      const canClaim = !existing || existing.revoked_at_ms !== null || existing.expires_at_ms <= Number(params[12]);
+
+      if (!canClaim) {
+        return { rows: [] };
+      }
+
+      rotationRows.set(key, {
+        subject_user_id: String(params[0]),
+        rotation_epoch: Number(params[1]),
+        policy_version: Number(params[2]),
+        token_ciphertext: String(params[3]),
+        token_nonce: String(params[4]),
+        token_auth_tag: String(params[5]),
+        wrapped_token_dek: String(params[6]),
+        token_dek_nonce: String(params[7]),
+        token_dek_auth_tag: String(params[8]),
+        key_version: String(params[9]),
+        expires_at_ms: Number(params[11]),
+        revoked_at_ms: null
+      });
+
+      return { rows: [{ subject_user_id: params[0] }] };
+    }
+
+    if (sql.includes("update ghost_rotation_tokens")) {
+      for (const rotationRow of rotationRows.values()) {
+        if (rotationRow.subject_user_id === String(params[0]) && rotationRow.revoked_at_ms === null) {
+          rotationRow.revoked_at_ms = Number(params[1]);
+        }
+      }
     }
 
     return { rows: [] };
@@ -118,19 +180,7 @@ function createLocationDb() {
 }
 
 function createDisplayTokenDb() {
-  const query = vi.fn(async (sql: string, params: unknown[] = []) => {
-    if (sql.includes("select") && sql.includes("ghost_rotation_tokens")) {
-      return { rows: [] };
-    }
-
-    if (sql.includes("insert into ghost_rotation_tokens")) {
-      return { rows: [{ subject_user_id: params[0] }] };
-    }
-
-    return { rows: [] };
-  });
-
-  return { query } as unknown as Pick<DbClient, "query"> & { query: typeof query };
+  return createPolicyDb();
 }
 
 function requestWithSession() {
@@ -162,14 +212,41 @@ describe("location privacy", () => {
     expect(db.query.mock.calls.some(([sql]) => String(sql).includes("ghost_mode_anchor_ms"))).toBe(false);
   });
 
-  it("uses the default policy only when a stored policy is missing", async () => {
+  it("defaults missing policies to an immediately rotating Ghost session without changing stored public policies", async () => {
+    const nowMs = new Date("2026-08-12T20:03:00.000Z").getTime();
+    vi.useFakeTimers();
+    vi.setSystemTime(nowMs);
     const db = createPolicyDb();
 
-    await expect(loadVisibilityPolicyStrict({ config, db }, subjectUserId)).resolves.toBeNull();
-    await expect(loadVisibilityPolicy({ config, db }, subjectUserId)).resolves.toMatchObject({
-      subjectUserId,
-      baseMode: "PUBLIC_PRECISE"
-    });
+    try {
+      await expect(loadVisibilityPolicyStrict({ config, db }, subjectUserId)).resolves.toBeNull();
+      const defaultPolicy = await loadVisibilityPolicy({ config, db }, subjectUserId);
+      expect(defaultPolicy).toMatchObject({
+        subjectUserId,
+        baseMode: "GHOST",
+        ghostActivatedAtMs: nowMs,
+        ghostSessionVersion: 1
+      });
+      expect(publicPrivacySettings(defaultPolicy, nowMs)).toMatchObject({
+        ghostModeEnabled: true,
+        ghostRotationExpiresAtMs: nowMs + 15 * 60_000
+      });
+      const loadedAgain = await loadVisibilityPolicy({ config, db }, subjectUserId);
+      expect(loadedAgain.ghostActivatedAtMs).toBe(defaultPolicy.ghostActivatedAtMs);
+      expect(db.query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens")))
+        .toHaveLength(1);
+
+      await saveVisibilityPolicy({ config, db }, subjectUserId, {
+        baseMode: "PUBLIC_PRECISE"
+      });
+      await expect(loadVisibilityPolicy({ config, db }, subjectUserId)).resolves.toMatchObject({
+        baseMode: "PUBLIC_PRECISE",
+        ghostActivatedAtMs: null,
+        ghostSessionVersion: null
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("fails closed when a strict visibility policy cannot be decrypted", async () => {
@@ -321,7 +398,7 @@ describe("location privacy", () => {
     });
 
     expect(first).toEqual(again);
-    // Every viewer sees the same decoy in an epoch. Deriving per viewer let one
+    // Every viewer sees the same decoy in an epoch. Deriving per viewer lets one
     // attacker with several accounts gather that many independent samples at
     // once, which defeats the whole scheme far faster than patient averaging.
     expect(first).not.toEqual(otherSubject);
@@ -330,9 +407,167 @@ describe("location privacy", () => {
     expect(offsetMiles).toBeLessThanOrEqual(1.01);
   });
 
-  it("uses the existing shared Ghost rotation epoch without a per-profile anchor", () => {
-    const nowMs = new Date("2026-08-09T16:00:00.000Z").getTime();
-    expect(currentRotationEpoch(nowMs)).toBe(Math.floor(nowMs / (15 * 60_000)));
+  it("sets the Ghost activation anchor once and preserves it across Ghost setting edits", () => {
+    const activatedAtMs = new Date("2026-08-09T16:07:00.000Z").getTime();
+    const publicPolicy = normalizeVisibilityPolicy(config, subjectUserId, {
+      baseMode: "PUBLIC_PRECISE"
+    }, undefined, activatedAtMs - 60_000);
+    const activated = normalizeVisibilityPolicy(config, subjectUserId, {
+      baseMode: "GHOST"
+    }, publicPolicy, activatedAtMs);
+    const radiusEdited = normalizeVisibilityPolicy(config, subjectUserId, {
+      ghostRadiusMeters: 4828
+    }, activated, activatedAtMs + 5 * 60_000);
+    const disabled = normalizeVisibilityPolicy(config, subjectUserId, {
+      baseMode: "PUBLIC_PRECISE"
+    }, radiusEdited, activatedAtMs + 6 * 60_000);
+    const reactivatedAtMs = activatedAtMs + 7 * 60_000;
+    const reactivated = normalizeVisibilityPolicy(config, subjectUserId, {
+      baseMode: "GHOST"
+    }, disabled, reactivatedAtMs);
+    const legacyEdited = normalizeVisibilityPolicy(config, subjectUserId, {
+      ghostRadiusMeters: 805
+    }, {
+      ...activated,
+      ghostActivatedAtMs: undefined
+    }, activatedAtMs + 8 * 60_000);
+
+    expect(activated.ghostActivatedAtMs).toBe(activatedAtMs);
+    expect(radiusEdited.ghostActivatedAtMs).toBe(activatedAtMs);
+    expect(radiusEdited.ghostSessionVersion).toBe(activated.ghostSessionVersion);
+    expect(disabled.ghostActivatedAtMs).toBeNull();
+    expect(disabled.ghostSessionVersion).toBeNull();
+    expect(reactivated.ghostActivatedAtMs).toBe(reactivatedAtMs);
+    expect(reactivated.ghostSessionVersion).not.toBe(activated.ghostSessionVersion);
+    expect(legacyEdited.ghostActivatedAtMs).toBe(activated.updatedAtMs);
+    expect(publicPrivacySettings(activated)).not.toHaveProperty("ghostActivatedAtMs");
+    expect(publicPrivacySettings(activated)).not.toHaveProperty("ghostSessionVersion");
+    expect(publicPrivacySettings(activated, activatedAtMs + 5 * 60_000)).toMatchObject({
+      ghostRotationExpiresAtMs: activatedAtMs + 15 * 60_000
+    });
+    expect(publicPrivacySettings(activated, activatedAtMs + 15 * 60_000)).toMatchObject({
+      ghostRotationExpiresAtMs: activatedAtMs + 30 * 60_000
+    });
+    expect(publicPrivacySettings(disabled, activatedAtMs + 15 * 60_000))
+      .not.toHaveProperty("ghostRotationExpiresAtMs");
+  });
+
+  it("keeps the shared decoy fixed for activation-relative 15-minute intervals", async () => {
+    const activatedAtMs = new Date("2026-08-09T16:07:00.000Z").getTime();
+    const db = createDisplayTokenDb();
+    const otherViewerUserId = "b8b61062-f0b1-4c75-9390-7bc769278e01";
+    const policy = {
+      version: 1 as const,
+      subjectUserId,
+      policyVersion: 2,
+      baseMode: "GHOST" as const,
+      ghostRadiusMeters: 1609,
+      preciseToMutualCruushes: false,
+      preciseToMutualCrowds: [],
+      auditRequired: false,
+      ghostActivatedAtMs: activatedAtMs,
+      updatedAtMs: activatedAtMs + 5 * 60_000,
+      expiresAtMs: null,
+      keyVersion: "v1"
+    };
+    const location = {
+      version: 1 as const,
+      subjectUserId,
+      locationVersion: 1,
+      latE7: 407110000,
+      lonE7: -740020000,
+      accuracyM: 10,
+      source: "GPS" as const,
+      deviceReportedAtMs: activatedAtMs,
+      collectedAtMs: activatedAtMs,
+      expiresAtMs: activatedAtMs + 60 * 60_000,
+      keyVersion: "v1"
+    };
+    const resolveAt = (viewer: string, nowMs: number) => resolveViewerGhostCoordinate({ config, db }, {
+      subjectUserId,
+      viewerUserId: viewer,
+      policy,
+      location,
+      nowMs
+    });
+
+    const firstA = await resolveAt(viewerUserId, activatedAtMs + 1);
+    const lastA = await resolveAt(viewerUserId, activatedAtMs + 15 * 60_000 - 1);
+    const lastB = await resolveAt(otherViewerUserId, activatedAtMs + 15 * 60_000 - 1);
+    const nextA = await resolveAt(viewerUserId, activatedAtMs + 15 * 60_000);
+    const nextB = await resolveAt(otherViewerUserId, activatedAtMs + 15 * 60_000);
+
+    expect(firstA.rotationEpoch).toBe(0);
+    expect(lastA.rotationEpoch).toBe(0);
+    expect(firstA.coordinate).toEqual(lastA.coordinate);
+    expect(lastA.coordinate).toEqual(lastB.coordinate);
+    expect(nextA.rotationEpoch).toBe(1);
+    expect(nextB.rotationEpoch).toBe(1);
+    expect(nextA.coordinate).not.toEqual(lastA.coordinate);
+    expect(nextB.coordinate).not.toEqual(lastB.coordinate);
+    expect(nextA.coordinate).toEqual(nextB.coordinate);
+  });
+
+  it("holds the active decoy across Ghost setting edits and applies a new radius at the next rotation", async () => {
+    vi.useFakeTimers();
+    const activatedAtMs = new Date("2026-08-09T16:07:00.000Z").getTime();
+    vi.setSystemTime(activatedAtMs);
+
+    try {
+      const db = createPolicyDb();
+      const location = {
+        version: 1 as const,
+        subjectUserId,
+        locationVersion: 1,
+        latE7: 407110000,
+        lonE7: -740020000,
+        accuracyM: 10,
+        source: "GPS" as const,
+        deviceReportedAtMs: activatedAtMs,
+        collectedAtMs: activatedAtMs,
+        expiresAtMs: activatedAtMs + 60 * 60_000,
+        keyVersion: "v1"
+      };
+      const activated = await saveVisibilityPolicy({ config, db }, subjectUserId, {
+        baseMode: "GHOST",
+        ghostRadiusMeters: 1609
+      });
+      const beforeEdit = await resolveViewerGhostCoordinate({ config, db }, {
+        subjectUserId,
+        viewerUserId,
+        policy: activated,
+        location,
+        nowMs: activatedAtMs + 1
+      });
+
+      vi.setSystemTime(activatedAtMs + 5 * 60_000);
+      const edited = await saveVisibilityPolicy({ config, db }, subjectUserId, {
+        ghostRadiusMeters: 4828
+      });
+      const afterEdit = await resolveViewerGhostCoordinate({ config, db }, {
+        subjectUserId,
+        viewerUserId,
+        policy: edited,
+        location,
+        nowMs: activatedAtMs + 5 * 60_000
+      });
+      const nextRotation = await resolveViewerGhostCoordinate({ config, db }, {
+        subjectUserId,
+        viewerUserId,
+        policy: edited,
+        location,
+        nowMs: activatedAtMs + 15 * 60_000
+      });
+
+      expect(afterEdit.coordinate).toEqual(beforeEdit.coordinate);
+      expect(afterEdit.radiusMeters).toBe(1609);
+      expect(nextRotation.coordinate).not.toEqual(beforeEdit.coordinate);
+      expect(nextRotation.radiusMeters).toBe(4828);
+      expect(db.query.mock.calls.filter(([sql]) => String(sql).includes("update ghost_rotation_tokens")))
+        .toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("uses the shared Ghost coordinate resolver for viewer-specific display decisions", async () => {

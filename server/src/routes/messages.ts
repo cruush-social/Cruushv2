@@ -230,6 +230,84 @@ export async function assertCanSaveFavoriteMessageImage(app: FastifyInstance, us
   }
 }
 
+async function throwTextMessageInsertFailure(
+  app: FastifyInstance,
+  userId: string,
+  restrictedFeature: "direct_messages" | "group_messages"
+): Promise<never> {
+  const result = await app.db.query<{
+    account_status: string;
+    suspended: boolean;
+    trust_score: number;
+    active_suspensions: number;
+    active_restrictions: number;
+    owner_email: boolean;
+    admin: boolean;
+  }>(
+    `select
+       u.account_status,
+       coalesce(trust.is_suspended, false) as suspended,
+       coalesce(trust.trust_score, 50) as trust_score,
+       lower(trim(coalesce(u.email, ''))) = $3 as owner_email,
+       exists (
+         select 1
+         from moderator_users moderator
+         where moderator.user_id = u.id
+           and moderator.role = 'admin'
+       ) as admin,
+       (select count(*)::int
+        from suspensions suspension
+        where suspension.user_id = u.id
+          and (suspension.permanent or suspension.ends_at is null or suspension.ends_at > now())) as active_suspensions,
+       (select count(*)::int
+        from feature_restrictions restriction
+        where restriction.user_id = u.id
+          and restriction.feature = $2
+          and (restriction.ends_at is null or restriction.ends_at > now())) as active_restrictions
+     from app_users u
+     left join user_trust_profiles trust on trust.user_id = u.id
+     where u.id = $1`,
+    [userId, restrictedFeature, OWNER_FULL_ACCESS_EMAIL]
+  );
+  const sender = result.rows[0];
+
+  if (!sender) {
+    throw new ApiError(403, "FORBIDDEN", "Account not found.");
+  }
+
+  if (!sender.owner_email && !sender.admin) {
+    if (sender.account_status !== "active") {
+      throw new ApiError(
+        403,
+        "FEATURE_RESTRICTED",
+        "Text messaging is unavailable because your account is not active."
+      );
+    }
+
+    if (sender.suspended || sender.active_suspensions > 0) {
+      throw new ApiError(
+        403,
+        "FEATURE_RESTRICTED",
+        "Text messaging is unavailable while your account is suspended."
+      );
+    }
+
+    if (sender.trust_score <= 20) {
+      throw new ApiError(
+        403,
+        "FEATURE_RESTRICTED",
+        "Text messaging is unavailable while your trust score is low."
+      );
+    }
+
+    if (sender.active_restrictions > 0) {
+      throw new ApiError(403, "FEATURE_RESTRICTED", "Text messaging is restricted on your account.");
+    }
+  }
+
+  throw new ApiError(403, "FEATURE_RESTRICTED", "This text message could not be sent.");
+}
+
 function normalizeMessageAttachments(value: MessageRow["attachments"]): MessageAttachment[] {
   if (!value) {
     return [];
@@ -2240,7 +2318,8 @@ export async function registerMessageRoutes(app: FastifyInstance) {
                )
              )
              or (
-               coalesce(trust.is_suspended, false) = false
+               u.account_status = 'active'
+               and coalesce(trust.is_suspended, false) = false
                and coalesce(trust.trust_score, 50) > 20
                and not exists (
                  select 1
@@ -2349,7 +2428,7 @@ export async function registerMessageRoutes(app: FastifyInstance) {
     const created = result.rows[0];
 
     if (!created) {
-      throw new ApiError(403, "FEATURE_RESTRICTED", "Messaging is unavailable for this account.");
+      await throwTextMessageInsertFailure(app, userId, restrictedFeature);
     }
 
     await recordMeaningfulActivitySafely(app, {

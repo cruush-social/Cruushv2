@@ -50,4 +50,31 @@ describe('googleAnalytics', () => {
       page_path: '/profile/:userId',
     }));
   });
+
+  it('queues native Arguments objects for the Google tag protocol', () => {
+    vi.stubEnv('VITE_GOOGLE_ANALYTICS_ID', 'G-QUEUE123');
+
+    expect(loadGoogleAnalytics()).toBe(true);
+    trackPageView('/map?mode=mutuals&focusUserId=private-user-id');
+
+    expect(window.dataLayer).toHaveLength(3);
+    expect(window.dataLayer?.map((entry) => Object.prototype.toString.call(entry))).toEqual([
+      '[object Arguments]',
+      '[object Arguments]',
+      '[object Arguments]',
+    ]);
+    expect(Array.from(window.dataLayer?.[1] as IArguments)).toEqual([
+      'config',
+      'G-QUEUE123',
+      { send_page_view: false },
+    ]);
+    expect(Array.from(window.dataLayer?.[2] as IArguments)).toEqual([
+      'event',
+      'page_view',
+      expect.objectContaining({
+        page_location: 'http://localhost:3000/map?mode=mutuals',
+        page_path: '/map?mode=mutuals',
+      }),
+    ]);
+  });
 });

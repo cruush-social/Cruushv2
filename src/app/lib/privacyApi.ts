@@ -18,6 +18,7 @@ export type PrivacySettings = {
   preciseToMutualCrowds: CrowdPrecisionPolicy[];
   preciseLocationVisibility: 'none' | 'mutual_cruushes';
   updatedAtMs: number;
+  ghostRotationExpiresAtMs?: number | null;
 };
 
 export type PrivacySettingsUpdate = Pick<

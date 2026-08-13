@@ -1,7 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import GhostModeSettings from './GhostModeSettings';
+import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
+import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 
 const {
   getMyBillingStatus,
@@ -181,6 +183,56 @@ describe('GhostModeSettings', () => {
     expect(screen.queryByText(/heart beats faster/i)).not.toBeInTheDocument();
   });
 
+  it('shows a ticking server-authoritative rotation countdown only while Ghost Mode is active', async () => {
+    const nowMs = new Date('2026-08-12T20:00:00.000Z').getTime();
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(nowMs);
+    const originalSetInterval = window.setInterval.bind(window);
+    let tickCountdown: (() => void) | undefined;
+    const intervalSpy = vi.spyOn(window, 'setInterval').mockImplementation((handler, delay, ...args) => {
+      if (delay === 1_000 && typeof handler === 'function') {
+        tickCountdown = handler;
+        return 1;
+      }
+
+      return originalSetInterval(handler, delay, ...args);
+    });
+    getMyPrivacySettings.mockResolvedValue({
+      baseMode: 'GHOST',
+      ghostModeEnabled: true,
+      ghostRadiusMeters: 1609,
+      ghostRadiusLabel: '1 mi',
+      preciseToMutualCruushes: false,
+      preciseToMutualCrowds: [],
+      preciseLocationVisibility: 'none',
+      updatedAtMs: Date.now(),
+      ghostRotationExpiresAtMs: nowMs + 62_000,
+    });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
+          <Routes>
+            <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(await screen.findByText('Location rotates in 01:02')).toBeInTheDocument();
+
+      nowSpy.mockReturnValue(nowMs + 1_000);
+      act(() => tickCountdown?.());
+      expect(screen.getByText('Location rotates in 01:01')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('switch', { name: 'Toggle Ghost Mode' }));
+      await waitFor(() => {
+        expect(screen.queryByText(/Location rotates in/)).not.toBeInTheDocument();
+      });
+    } finally {
+      intervalSpy.mockRestore();
+      nowSpy.mockRestore();
+    }
+  });
+
   it('keeps Ghost Mode and precise sharing available to basic members while linking locked Stealth Mode to cruush+', async () => {
     render(
       <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
@@ -230,5 +282,48 @@ describe('GhostModeSettings', () => {
       ghostModeEnabled: false,
       preciseToMutualCruushes: false,
     })));
+  });
+
+  it.each([
+    DEBUG_CRUUSH_PLUS_EVENT,
+    CRUUSH_PLUS_CHANGED_EVENT,
+  ])('locks Stealth Mode when %s reports that cruush+ ended', async (eventName) => {
+    getMyPrivacySettings.mockResolvedValue({
+      baseMode: 'STEALTH',
+      ghostModeEnabled: false,
+      preciseLocationVisibility: 'none',
+    });
+    getMyBillingStatus
+      .mockResolvedValueOnce({
+        cruushPlus: true,
+        expiresAt: null,
+        badges: [],
+        processor: 'fake',
+        testCheckout: true,
+      })
+      .mockResolvedValueOnce({
+        cruushPlus: false,
+        expiresAt: null,
+        badges: [],
+        processor: 'fake',
+        testCheckout: true,
+      });
+
+    render(
+      <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
+        <Routes>
+          <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('switch', { name: 'Toggle Stealth Mode' })).toBeChecked();
+
+    window.dispatchEvent(new CustomEvent(eventName));
+
+    expect(await screen.findByRole('button', { name: 'Unlock Stealth Mode with cruush+' })).toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Toggle Stealth Mode' })).not.toBeInTheDocument();
+    expect(getMyBillingStatus).toHaveBeenCalledTimes(2);
+    expect(getMyPrivacySettings).toHaveBeenCalledTimes(2);
   });
 });

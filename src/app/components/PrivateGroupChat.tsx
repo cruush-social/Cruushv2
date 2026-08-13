@@ -68,28 +68,28 @@ function describeTextMessageError(error: unknown) {
   if (error instanceof ApiClientError) {
     if (error.code === 'CONTENT_REJECTED') {
       return {
-        message: 'This text message was rejected by text safety checks. No photo was attached.',
+        message: 'This text message was rejected by text safety checks.',
         code: 'TEXT_CONTENT_REJECTED',
       };
     }
 
     if (error.code === 'MODERATION_UNAVAILABLE') {
       return {
-        message: 'Text safety checks are temporarily unavailable. No photo was attached. Try again later.',
+        message: 'Text safety checks are temporarily unavailable. Try again later.',
         code: 'TEXT_MODERATION_UNAVAILABLE',
       };
     }
 
     if (error.code === 'FEATURE_RESTRICTED') {
       return {
-        message: 'Text messaging is restricted for this account. No photo was attached.',
+        message: error.message || 'Text messaging is restricted for this account.',
         code: 'TEXT_MESSAGING_RESTRICTED',
       };
     }
   }
 
   return {
-    message: 'We could not send this text message. It was checked as text only; no photo was attached. Try again.',
+    message: 'We could not send this text message. Try again.',
     code: 'TEXT_MESSAGE_SEND_FAILED',
   };
 }

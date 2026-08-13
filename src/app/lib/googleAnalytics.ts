@@ -6,7 +6,7 @@ type GoogleAnalyticsFunction = (...args: unknown[]) => void;
 
 declare global {
   interface Window {
-    dataLayer?: unknown[][];
+    dataLayer?: unknown[];
     gtag?: GoogleAnalyticsFunction;
   }
 }
@@ -97,8 +97,11 @@ export function loadGoogleAnalytics(measurementId = getGoogleAnalyticsMeasuremen
   }
 
   window.dataLayer = window.dataLayer ?? [];
-  window.gtag = window.gtag ?? function gtag(...args: unknown[]) {
-    window.dataLayer?.push(args);
+  // Google's tag loader distinguishes its command queue by the native
+  // Arguments object. Pushing a rest-parameter Array can leave config and
+  // event commands unprocessed even though gtag.js itself loads successfully.
+  window.gtag = window.gtag ?? function gtag(..._args: unknown[]) {
+    window.dataLayer?.push(arguments);
   };
 
   if (!document.getElementById(GOOGLE_ANALYTICS_SCRIPT_ID)) {

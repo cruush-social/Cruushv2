@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { ApiClientError } from '../lib/apiClient';
 import MapHome, { canUseDeveloperMapToolsEmail } from './MapHome';
@@ -223,6 +223,7 @@ vi.mock('./MapView', async () => {
       fitToMarkers,
       focusCoordinates,
       radiusCircle,
+      ghostLeash,
       demoRadiusCircles = [],
       onPinClick,
       onMapClick,
@@ -234,6 +235,10 @@ vi.mock('./MapView', async () => {
       radiusCircle?: {
         center: { approximateLatitude: number; approximateLongitude: number };
         radiusMeters: number;
+      } | null;
+      ghostLeash?: {
+        from: { approximateLatitude: number; approximateLongitude: number };
+        to: { approximateLatitude: number; approximateLongitude: number };
       } | null;
       demoRadiusCircles?: Array<{
         center: { approximateLatitude: number; approximateLongitude: number };
@@ -257,6 +262,10 @@ vi.mock('./MapView', async () => {
             data-radius-circle={radiusCircle ? String(radiusCircle.radiusMeters) : ''}
             data-radius-lat={radiusCircle ? String(radiusCircle.center.approximateLatitude) : ''}
             data-radius-lng={radiusCircle ? String(radiusCircle.center.approximateLongitude) : ''}
+            data-ghost-leash-from-lat={ghostLeash ? String(ghostLeash.from.approximateLatitude) : ''}
+            data-ghost-leash-from-lng={ghostLeash ? String(ghostLeash.from.approximateLongitude) : ''}
+            data-ghost-leash-to-lat={ghostLeash ? String(ghostLeash.to.approximateLatitude) : ''}
+            data-ghost-leash-to-lng={ghostLeash ? String(ghostLeash.to.approximateLongitude) : ''}
             data-demo-radius-circles={String(demoRadiusCircles.length)}
           />
           <button onClick={() => onMapClick?.()}>Map background</button>
@@ -319,7 +328,55 @@ const launchEvent = {
   conversationId: null,
 };
 
+const KEEP_BROWSING_SUFFIX = 'You can keep browsing the NYC beta map.';
+const LOCATION_SYNC_ERROR_MESSAGE = "We found your location, but couldn't update your map location. Try again.";
+const GEOLOCATION_ERROR_CASES = [
+  {
+    code: 1,
+    label: 'permission denied',
+    expected: `Location permission was not granted. ${KEEP_BROWSING_SUFFIX}`,
+  },
+  {
+    code: 2,
+    label: 'position unavailable',
+    expected: `We couldn't pin down your location. Check that location services are on for your browser, then try again. ${KEEP_BROWSING_SUFFIX}`,
+  },
+  {
+    code: 3,
+    label: 'timeout',
+    expected: `Finding your location took too long. Try again in a moment. ${KEEP_BROWSING_SUFFIX}`,
+  },
+  {
+    code: 99,
+    label: 'unknown failure',
+    expected: `We couldn't get your location right now. ${KEEP_BROWSING_SUFFIX}`,
+  },
+] as const;
+
+function geolocationError(code: number): GeolocationPositionError {
+  return {
+    code,
+    message: 'Browser location failed.',
+    PERMISSION_DENIED: 1,
+    POSITION_UNAVAILABLE: 2,
+    TIMEOUT: 3,
+  };
+}
+
+function browserPosition() {
+  return {
+    coords: {
+      latitude: 40.7099,
+      longitude: -73.9226,
+    },
+  };
+}
+
 describe('MapHome', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('allows the codeveloper NYC account to use developer-only map tools without bank reviewer access', () => {
     expect(canUseDeveloperMapToolsEmail('admin@cruush.local')).toBe(true);
     expect(canUseDeveloperMapToolsEmail(' codeveloper-nyc@cruush.local ')).toBe(true);
@@ -610,6 +667,131 @@ describe('MapHome', () => {
     });
   });
 
+  it.each(GEOLOCATION_ERROR_CASES)('shows the $label browser-location message on the map', async ({ code, expected }) => {
+    useIsMobile.mockReturnValue(false);
+    Object.defineProperty(global.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: vi.fn().mockImplementation((
+          _success: (position: ReturnType<typeof browserPosition>) => void,
+          failure?: (error: GeolocationPositionError) => void,
+        ) => failure?.(geolocationError(code))),
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(expected)).toBeInTheDocument();
+  });
+
+  it('shows the position-unavailable message from a fresh event-pass location request', async () => {
+    useIsMobile.mockReturnValue(false);
+    getActiveEvents.mockResolvedValue([launchEvent]);
+    const getCurrentPosition = vi.fn()
+      .mockImplementationOnce((success: (position: ReturnType<typeof browserPosition>) => void) => {
+        success(browserPosition());
+      })
+      .mockImplementationOnce((
+        _success: (position: ReturnType<typeof browserPosition>) => void,
+        failure?: (error: GeolocationPositionError) => void,
+      ) => failure?.(geolocationError(2)));
+    Object.defineProperty(global.navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(1));
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin The Chocolate Factory' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Reveal door pass' }));
+
+    const expected = GEOLOCATION_ERROR_CASES[1].expected;
+    await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getAllByText(expected)).toHaveLength(2));
+    expect(revealEventPass).not.toHaveBeenCalled();
+  });
+
+  it('does not reveal an event pass when the fresh map-location update fails', async () => {
+    useIsMobile.mockReturnValue(false);
+    getActiveEvents.mockResolvedValue([launchEvent]);
+    syncMyLocation
+      .mockResolvedValueOnce({
+        id: 'me',
+        location_updated_at: '2026-08-12T18:00:00.000Z',
+      })
+      .mockRejectedValueOnce(new Error('Location update failed.'));
+    Object.defineProperty(global.navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: vi.fn().mockImplementation((success: (position: ReturnType<typeof browserPosition>) => void) => {
+          success(browserPosition());
+        }),
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(syncMyLocation).toHaveBeenCalledTimes(1));
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin The Chocolate Factory' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Reveal door pass' }));
+
+    await waitFor(() => expect(syncMyLocation).toHaveBeenCalledTimes(2));
+    expect(await screen.findAllByText(LOCATION_SYNC_ERROR_MESSAGE)).not.toHaveLength(0);
+    expect(revealEventPass).not.toHaveBeenCalled();
+  });
+
+  it('shows the timeout message from a fresh Ping location request', async () => {
+    useIsMobile.mockReturnValue(true);
+    const getCurrentPosition = vi.fn()
+      .mockImplementationOnce((success: (position: ReturnType<typeof browserPosition>) => void) => {
+        success(browserPosition());
+      })
+      .mockImplementationOnce((
+        _success: (position: ReturnType<typeof browserPosition>) => void,
+        failure?: (error: GeolocationPositionError) => void,
+      ) => failure?.(geolocationError(3)));
+    Object.defineProperty(global.navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(1));
+    fireEvent.click(await screen.findByRole('button', { name: 'Send a Ping' }));
+    const sendButton = await screen.findByRole('button', { name: 'Send Ping' });
+    await waitFor(() => expect(sendButton).toBeEnabled());
+    fireEvent.click(sendButton);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(GEOLOCATION_ERROR_CASES[2].expected);
+    expect(sendMapPing).not.toHaveBeenCalled();
+  });
+
   it('uses a mobile-friendly fullscreen shell without page text selection', async () => {
     useIsMobile.mockReturnValue(true);
 
@@ -732,6 +914,34 @@ describe('MapHome', () => {
 
     await waitFor(() => expect(sendMapPing).toHaveBeenCalledWith(10, expect.any(String)));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Ping active' })).toBeDisabled());
+  });
+
+  it('does not send a Ping when the fresh map-location update fails', async () => {
+    useIsMobile.mockReturnValue(true);
+    syncMyLocation
+      .mockResolvedValueOnce({
+        id: 'me',
+        location_updated_at: '2026-08-12T18:00:00.000Z',
+      })
+      .mockRejectedValueOnce(new Error('Location update failed.'));
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(syncMyLocation).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Send a Ping' }));
+    const sendButton = screen.getByRole('button', { name: 'Send Ping' });
+    await waitFor(() => expect(sendButton).toBeEnabled());
+    fireEvent.click(sendButton);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(LOCATION_SYNC_ERROR_MESSAGE);
+    expect(syncMyLocation).toHaveBeenCalledTimes(2);
+    expect(sendMapPing).not.toHaveBeenCalled();
   });
 
   it('reuses the same Ping idempotency key after an ambiguous delivery failure', async () => {
@@ -946,9 +1156,9 @@ describe('MapHome', () => {
     fireEvent.click(recentToggle);
 
     expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
-    expect(recentPanel).toHaveClass('w-full', 'max-w-full', 'p-2');
+    expect(recentPanel).toHaveClass('w-fit', 'max-w-full', 'p-2');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
-    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
+    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-14');
   });
 
   it('does not show a saved launch pass icon outside the one-mile live radius or duplicate the chat invite', async () => {
@@ -1150,7 +1360,17 @@ describe('MapHome', () => {
     expect(cruushPlusButton.nextElementSibling).toBe(pingButton);
     expect(topActions).toContainElement(cruushPlusButton);
     expect(topActions).toContainElement(pingButton);
-    expect(pingButton).toHaveClass('absolute', 'left-1/2', 'top-full', 'mt-2', '-translate-x-1/2', 'lg:size-11');
+    expect(pingButton).toHaveClass(
+      'absolute',
+      'left-1/2',
+      'top-full',
+      'mt-3.5',
+      'sm:mt-5',
+      'lg:mt-4',
+      '-translate-x-1/2',
+      'lg:size-11',
+    );
+    expect(pingButton).not.toHaveClass('mt-2');
     expect(rightActions).toHaveClass('right-3', 'top-[3.875rem]', 'sm:right-4', 'sm:top-[4.875rem]');
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
@@ -1851,7 +2071,7 @@ describe('MapHome', () => {
     expect(window.localStorage.getItem('cruush:ghost-mode-intro-seen')).toBeNull();
   });
 
-  it('passes an explicit own profile photo to the Ghost Mode marker for DL Mode masking', async () => {
+  it('passes an explicit own profile photo to the true self marker while Ghost Mode is active', async () => {
     useIsMobile.mockReturnValue(false);
     getMyProfile.mockResolvedValue({
       ...((await import('../lib/profileApi')).emptyProfilePayload),
@@ -1881,7 +2101,7 @@ describe('MapHome', () => {
     );
 
     const marker = await screen.findByTestId('marker-me');
-    expect(marker).toHaveAttribute('data-display-mode', 'GHOST');
+    expect(marker).toHaveAttribute('data-display-mode', 'PRECISE');
     expect(marker).toHaveAttribute('data-photo-explicit', 'true');
   });
 
@@ -1948,6 +2168,50 @@ describe('MapHome', () => {
       expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.701');
       expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-73.901');
     });
+  });
+
+  it('shows a truthful error when explicit map recentering cannot update the shared location', async () => {
+    useIsMobile.mockReturnValue(false);
+    const displayLocationToken = {
+      version: 1 as const,
+      tokenId: 'owner-token',
+      keyId: 'owner-key',
+      ciphertext: 'encrypted-location',
+      nonce: 'nonce',
+      expiresAtMs: Date.now() + 60_000,
+      tokenVersion: 1 as const,
+    };
+    getMyProfile.mockResolvedValue({
+      ...((await import('../lib/profileApi')).emptyProfilePayload),
+      id: 'me',
+      photos: ['https://example.com/me.jpg'],
+      position: ['Bottom'],
+      location: {
+        id: 'me',
+        display_location_token: displayLocationToken,
+        display_expires_at_ms: displayLocationToken.expiresAtMs,
+        display_mode: 'PRECISE',
+        animation_hint: 'NONE',
+        location_updated_at: '2026-08-12T17:00:00.000Z',
+      },
+    });
+    syncMyLocation.mockRejectedValueOnce(new Error('Location update failed.'));
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const centerButton = await screen.findByRole('button', { name: 'Center your location' });
+    fireEvent.click(centerButton);
+
+    await waitFor(() => expect(syncMyLocation).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText(LOCATION_SYNC_ERROR_MESSAGE)).toBeInTheDocument();
+    expect(mapControls.setCenter).toHaveBeenCalledWith([-73.901, 40.701]);
+    expect(screen.getByRole('button', { name: 'Center your location' })).toBeEnabled();
   });
 
   it('shows the signed-in user marker from their saved profile location', async () => {
@@ -2094,7 +2358,7 @@ describe('MapHome', () => {
       undefined,
       { limit: 500 },
     ]);
-    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-display-mode', 'GHOST');
+    expect(screen.getByTestId('marker-me')).toHaveAttribute('data-display-mode', 'PRECISE');
     expect(screen.getByTestId('marker-me')).not.toHaveAttribute('data-animation-hint');
     expect(screen.getByTestId('marker-me')).not.toHaveAttribute('data-ghost-rotation-expires-at');
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-lat', '40.7128');
@@ -2106,6 +2370,142 @@ describe('MapHome', () => {
     expect(decodeURIComponent(screen.getByRole('button', { name: 'Ghost Mode Settings' }).querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
     expect(decodeURIComponent(screen.getByText('Ghost Mode Active').querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it('shows the signed-in user true and shared Ghost pins with a true-location radius and rotating leash', async () => {
+    useIsMobile.mockReturnValue(false);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-08-12T20:00:00.000Z'));
+    const rotationExpiresAtMs = Date.now() + 1_000;
+    const preciseToken = {
+      version: 1 as const,
+      tokenId: 'owner-precise-token',
+      keyId: 'owner-key',
+      ciphertext: 'encrypted-precise-location',
+      nonce: 'precise-nonce',
+      expiresAtMs: Date.now() + 60_000,
+      tokenVersion: 1 as const,
+    };
+    const ghostToken = {
+      ...preciseToken,
+      tokenId: 'owner-ghost-token',
+      ciphertext: 'encrypted-ghost-location',
+      nonce: 'ghost-nonce',
+    };
+    const rotatedGhostToken = {
+      ...ghostToken,
+      tokenId: 'owner-ghost-token-rotated',
+      ciphertext: 'encrypted-rotated-ghost-location',
+    };
+    const profile = {
+      ...((await import('../lib/profileApi')).emptyProfilePayload),
+      id: 'me',
+      display_name: 'Me',
+      photos: ['https://example.com/me.jpg'],
+      updated_at: '2026-08-12T19:00:00.000Z',
+      location: {
+        id: 'me',
+        display_location_token: preciseToken,
+        display_expires_at_ms: preciseToken.expiresAtMs,
+        ghost_display_location_token: ghostToken,
+        ghost_display_expires_at_ms: ghostToken.expiresAtMs,
+        display_mode: 'PRECISE' as const,
+        animation_hint: 'NONE' as const,
+        location_updated_at: '2026-08-12T19:00:00.000Z',
+      },
+    };
+    getMyProfile
+      .mockResolvedValueOnce(profile)
+      .mockResolvedValueOnce({
+        ...profile,
+        location: {
+          ...profile.location,
+          ghost_display_location_token: rotatedGhostToken,
+        },
+      });
+    getMyPrivacySettings
+      .mockResolvedValueOnce({
+        baseMode: 'GHOST',
+        ghostModeEnabled: true,
+        ghostRadiusMeters: 1609,
+        ghostRadiusLabel: '1 mi',
+        preciseToMutualCruushes: false,
+        preciseToMutualCrowds: [],
+        preciseLocationVisibility: 'none',
+        updatedAtMs: Date.now(),
+        ghostRotationExpiresAtMs: rotationExpiresAtMs,
+      })
+      .mockResolvedValueOnce({
+        baseMode: 'GHOST',
+        ghostModeEnabled: true,
+        ghostRadiusMeters: 1609,
+        ghostRadiusLabel: '1 mi',
+        preciseToMutualCruushes: false,
+        preciseToMutualCrowds: [],
+        preciseLocationVisibility: 'none',
+        updatedAtMs: Date.now(),
+        ghostRotationExpiresAtMs: rotationExpiresAtMs + 15 * 60 * 1000,
+      });
+    decryptDisplayLocationToken.mockImplementation(async (token) => {
+      const rotated = token.tokenId === rotatedGhostToken.tokenId;
+      const ghost = token.tokenId === ghostToken.tokenId || rotated;
+
+      return {
+        version: 1,
+        subjectUserId: 'me',
+        viewerUserId: 'me',
+        displayMode: ghost ? 'GHOST' : 'PRECISE',
+        latE7: ghost ? (rotated ? 407180000 : 407160000) : 407128000,
+        lonE7: ghost ? (rotated ? -740010000 : -740020000) : -740060000,
+        accuracyDisplayM: ghost ? 1609 : 25,
+        rotationEpoch: ghost ? (rotated ? 2 : 1) : null,
+        subjectPolicyVersion: 3,
+        relationshipGrantVersion: 0,
+        expiresAtMs: token.expiresAtMs,
+        animationHint: 'NONE' as const,
+        renderNonce: `render-${token.tokenId}`,
+        latitude: ghost ? (rotated ? 40.718 : 40.716) : 40.7128,
+        longitude: ghost ? (rotated ? -74.001 : -74.002) : -74.006,
+      };
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const trueMarker = await screen.findByTestId('marker-me');
+    const ghostMarker = await screen.findByTestId('marker-me-ghost-decoy');
+    const mapFocus = screen.getByTestId('map-focus');
+    expect(trueMarker).toHaveAttribute('data-display-mode', 'PRECISE');
+    expect(trueMarker).toHaveAttribute('data-lat', '40.7128');
+    expect(trueMarker).toHaveAttribute('data-lng', '-74.006');
+    expect(ghostMarker).toHaveAttribute('data-display-mode', 'GHOST');
+    expect(ghostMarker).toHaveAttribute('data-lat', '40.716');
+    expect(ghostMarker).toHaveAttribute('data-lng', '-74.002');
+    expect(ghostMarker).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
+    expect(mapFocus).toHaveAttribute('data-radius-circle', '1609');
+    expect(mapFocus).toHaveAttribute('data-radius-lat', '40.7128');
+    expect(mapFocus).toHaveAttribute('data-radius-lng', '-74.006');
+    expect(mapFocus).toHaveAttribute('data-ghost-leash-from-lat', '40.7128');
+    expect(mapFocus).toHaveAttribute('data-ghost-leash-from-lng', '-74.006');
+    expect(mapFocus).toHaveAttribute('data-ghost-leash-to-lat', '40.716');
+    expect(mapFocus).toHaveAttribute('data-ghost-leash-to-lng', '-74.002');
+    expect(decryptDisplayLocationToken).toHaveBeenCalledWith(ghostToken);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_300);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-me-ghost-decoy')).toHaveAttribute('data-lat', '40.718');
+      expect(screen.getByTestId('map-focus')).toHaveAttribute('data-ghost-leash-to-lng', '-74.001');
+    });
+    expect(decryptDisplayLocationToken).toHaveBeenCalledWith(rotatedGhostToken);
+    vi.useRealTimers();
   });
 
   it('does not expose the retired NPC Ghost Test discovery path for developer tools sessions', async () => {
@@ -2190,7 +2590,10 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveStyle({ background: 'var(--cruush-gradient)' });
     expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0');
     expect(recentPanel).toHaveClass('max-w-[30rem]', 'p-3');
-    expect(screen.getByTestId('recently-active-tray')).toHaveClass('cursor-grab', 'overflow-x-auto', 'overscroll-x-contain', 'scroll-smooth');
+    expect(screen.getByTestId('recently-active-tray')).toHaveClass('cursor-grab', 'overflow-x-hidden', 'overscroll-x-contain', 'scroll-smooth');
+    expect(screen.getByTestId('recently-active-tray')).not.toHaveClass('scrollbar-subtle', 'pb-1');
+    expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('data-scrollable', 'false');
+    expect(screen.getByTestId('recently-active-tray')).toHaveStyle({ width: '5rem', maxWidth: '100%' });
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('tabindex', '0');
     fireEvent.click(recentTile);
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
@@ -2242,6 +2645,45 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveTextContent('Recently Active');
     expect(recentPanel).toHaveClass('max-w-[30rem]', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
+  });
+
+  it('caps Recently Active at five visible cards and shows a slim scrollbar for up to ten sorted profiles', async () => {
+    useIsMobile.mockReturnValue(false);
+    getNearbyUsers.mockResolvedValue(Array.from({ length: 12 }, (_, index) => ({
+      id: `user-${index + 1}`,
+      name: `User ${index + 1}`,
+      display_name: `User ${index + 1}`,
+      age: 25 + index,
+      pronouns: 'they/them',
+      lat: 40.7 + index * 0.001,
+      lng: -73.9 - index * 0.001,
+      lastActive: `${index + 1}m ago`,
+      distance: `${index + 1} mi`,
+      lookingFor: [],
+      vibes: [],
+      position: [],
+      role: [],
+      hostingTravel: [],
+      photo: null,
+    })));
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const recentTray = await screen.findByTestId('recently-active-tray');
+    expect(recentTray).toHaveAttribute('data-scrollable', 'true');
+    expect(recentTray).toHaveClass('overflow-x-auto', 'pb-1', 'scrollbar-subtle');
+    expect(recentTray).not.toHaveClass('scrollbar-hide');
+    expect(recentTray).toHaveStyle({ width: '28rem', maxWidth: '100%' });
+    expect(within(recentTray).getAllByRole('button')).toHaveLength(10);
+    expect(screen.getByTestId('recently-active-tile-user-10')).toBeInTheDocument();
+    expect(screen.queryByTestId('recently-active-tile-user-11')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('recently-active-tile-user-12')).not.toBeInTheDocument();
   });
 
   it('does not crash when pointer capture is rejected while dragging recently active', async () => {

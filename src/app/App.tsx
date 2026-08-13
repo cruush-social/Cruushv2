@@ -10,6 +10,7 @@ import { loadCurrentSession } from './lib/sessionUser';
 import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
 import { recordDailyRewardCheckIn, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
+import type { ProfileRecord } from './lib/profileApi';
 
 const MapHome = lazy(() => import('./components/MapHome'));
 const LocalFeed = lazy(() => import('./components/LocalFeed'));
@@ -228,6 +229,20 @@ export default function App({
     setNeedsOnboarding(nextSession.needsOnboarding);
   };
 
+  const handleProfileSaved = (savedProfile: ProfileRecord) => {
+    setSession((currentSession) => currentSession ? {
+      ...currentSession,
+      user: {
+        ...currentSession.user,
+        displayName: savedProfile.display_name,
+      },
+      profile: {
+        displayName: savedProfile.display_name,
+        yearOfBirth: savedProfile.year_of_birth,
+      },
+    } : currentSession);
+  };
+
   if (authStatus === 'loading') {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
@@ -373,7 +388,7 @@ export default function App({
               <Route path="/feed" element={<LocalFeed />} />
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/profile/:userId" element={<ProfileView />} />
-              <Route path="/profile/edit" element={<ProfileEdit />} />
+              <Route path="/profile/edit" element={<ProfileEdit onSaved={handleProfileSaved} />} />
               <Route path="/filters" element={<FiltersPanel />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reset-password" element={<ResetPassword />} />

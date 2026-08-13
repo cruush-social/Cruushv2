@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as privacyApi from './privacyApi';
 
-const { saveMyPrivacySettings } = privacyApi;
+const { getMyPrivacySettings, saveMyPrivacySettings } = privacyApi;
 
 describe('privacyApi', () => {
   beforeEach(() => {
@@ -34,6 +34,7 @@ describe('privacyApi', () => {
       preciseToMutualCrowds: [],
       preciseLocationVisibility: 'none',
       updatedAtMs: 1780520000000,
+      ghostRotationExpiresAtMs: 1786316460000,
     });
 
     expect(fetch).toHaveBeenCalledWith('/api/profiles/me/privacy-settings', expect.objectContaining({
@@ -49,7 +50,14 @@ describe('privacyApi', () => {
     }));
   });
 
-  it('does not expose V2 Ghost heartbeat or deadline APIs in v1.2', () => {
+  it('keeps the server-authoritative Ghost rotation deadline on reads', async () => {
+    await expect(getMyPrivacySettings()).resolves.toEqual(expect.objectContaining({
+      baseMode: 'GHOST',
+      ghostRotationExpiresAtMs: 1786316460000,
+    }));
+  });
+
+  it('does not expose V2 Ghost heartbeat APIs', () => {
     expect(privacyApi.DEFAULT_PRIVACY_SETTINGS).not.toHaveProperty('animationHint');
     expect(privacyApi).not.toHaveProperty('DEFAULT_GHOST_PULSE_SETTINGS');
     expect(privacyApi).not.toHaveProperty('getMyGhostPulseSettings');

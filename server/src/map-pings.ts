@@ -15,6 +15,7 @@ import {
 } from "./location-privacy.js";
 import {
   getCruushEntitlement,
+  effectiveVisibilityPolicyForEntitlement,
   getRelationshipPermissions,
   type CruushEntitlement
 } from "./match-relationships.js";
@@ -253,7 +254,8 @@ async function loadSenderDispatchContext(
   db: DbClient,
   userId: string,
   now: Date,
-  dependencies: MapPingDependencies
+  dependencies: MapPingDependencies,
+  knownEntitlement?: CruushEntitlement
 ): Promise<MapPingDispatchContext> {
   const profileResult = await db.query<SenderProfileRow>(
     `select
@@ -311,10 +313,15 @@ async function loadSenderDispatchContext(
     throw new ApiError(409, "FEATURE_RESTRICTED", "Ping privacy settings are unavailable.");
   }
 
-  const visibilityPolicy = await dependencies.loadStrictVisibilityPolicy({ config: app.config, db }, userId);
+  let visibilityPolicy = await dependencies.loadStrictVisibilityPolicy({ config: app.config, db }, userId);
 
   if (!visibilityPolicy) {
     throw new ApiError(409, "FEATURE_RESTRICTED", "Ping privacy settings are unavailable.");
+  }
+
+  if (visibilityPolicy.baseMode === "STEALTH") {
+    const entitlement = knownEntitlement ?? await dependencies.getEntitlement(app, userId);
+    visibilityPolicy = effectiveVisibilityPolicyForEntitlement(visibilityPolicy, entitlement.cruushPlus);
   }
 
   if (visibilityPolicy.baseMode === "STEALTH") {
@@ -761,7 +768,8 @@ export async function createMapPing(
       db,
       input.userId,
       now,
-      dependencies
+      dependencies,
+      entitlement
     );
 
     if (dispatchContext.signal !== moderatedSignal) {

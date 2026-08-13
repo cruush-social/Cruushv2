@@ -678,7 +678,7 @@ export default function ModeratorReview() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <Button variant="ghost" size="icon" aria-label="Return to settings" onClick={() => navigate('/settings')}>
               <ArrowLeft className="h-5 w-5" />
@@ -688,9 +688,10 @@ export default function ModeratorReview() {
               <p className="text-xs text-muted-foreground">Reports, automated reviews, and account enforcement</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-md border border-border p-0.5" role="tablist" aria-label="Moderation views">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 flex-1 overflow-x-auto rounded-md border border-border p-0.5" role="tablist" aria-label="Moderation views">
               <Button
+                className="shrink-0"
                 role="tab"
                 aria-selected={view === 'queue'}
                 size="sm"
@@ -700,6 +701,7 @@ export default function ModeratorReview() {
                 Queue
               </Button>
               <Button
+                className="shrink-0"
                 role="tab"
                 aria-selected={view === 'users'}
                 size="sm"
@@ -710,6 +712,7 @@ export default function ModeratorReview() {
                 Accounts
               </Button>
               <Button
+                className="shrink-0"
                 role="tab"
                 aria-selected={view === 'notifications'}
                 size="sm"
@@ -720,6 +723,7 @@ export default function ModeratorReview() {
                 Notifications
               </Button>
               <Button
+                className="shrink-0"
                 role="tab"
                 aria-selected={view === 'system-errors'}
                 size="sm"
@@ -730,6 +734,7 @@ export default function ModeratorReview() {
                 System errors
               </Button>
               <Button
+                className="shrink-0"
                 role="tab"
                 aria-selected={view === 'email'}
                 size="sm"
@@ -741,6 +746,7 @@ export default function ModeratorReview() {
               </Button>
             </div>
             <Button
+              className="shrink-0"
               variant="outline"
               disabled={refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading}
               onClick={() => {

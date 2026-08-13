@@ -17,6 +17,8 @@ export type ProfileLocationRecord = {
   fuzz_radius_meters?: number;
   display_location_token?: DisplayLocationToken;
   display_expires_at_ms?: number;
+  ghost_display_location_token?: DisplayLocationToken;
+  ghost_display_expires_at_ms?: number;
   display_mode?: 'PRECISE' | 'GHOST';
   animation_hint?: 'NONE' | 'FADE_LAST_MINUTE' | 'SIGNAL_LOSS' | 'REAPPEAR';
   location_updated_at: string | null;

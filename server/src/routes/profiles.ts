@@ -6,6 +6,7 @@ import { runTransaction, type DbClient } from "../db.js";
 import { ApiError } from "../errors.js";
 import {
   getRelationshipPermissions,
+  getEffectiveVisibilityPolicy,
   getPrivacySettings,
   recordProfileView,
   savePrivacySettings,
@@ -716,12 +717,27 @@ async function buildOwnerLocationDisplay(app: FastifyInstance, request: FastifyR
     displayMode: "PRECISE",
     forceSelfPrecise: true
   });
+  const ghostToken = effectivePolicy.baseMode === "GHOST"
+    ? await makeDisplayLocationToken(app, request, {
+        subjectUserId: userId,
+        viewerUserId: userId,
+        policy: effectivePolicy,
+        location,
+        displayMode: "GHOST"
+      })
+    : null;
 
   return {
     display_location_token: token,
     display_expires_at_ms: token.expiresAtMs,
     display_mode: "PRECISE",
     animation_hint: "NONE",
+    ...(ghostToken
+      ? {
+          ghost_display_location_token: ghostToken,
+          ghost_display_expires_at_ms: ghostToken.expiresAtMs
+        }
+      : {}),
     location_updated_at: new Date(location.collectedAtMs).toISOString()
   };
 }
@@ -1183,6 +1199,22 @@ async function loadExistingIdentityState(app: FastifyInstance, userId: string): 
   }
 }
 
+async function loadSignupBirthYear(app: FastifyInstance, userId: string) {
+  try {
+    const result = await app.db.query<{ signup_birth_year: number | null }>(
+      "select signup_birth_year from app_users where id = $1",
+      [userId]
+    );
+    return result.rows[0]?.signup_birth_year ?? null;
+  } catch (error) {
+    if (isSchemaCompatibilityError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 function hasIdentityGateChange(
   existingState: ExistingIdentityState,
   payload: ProfilePayload,
@@ -1379,7 +1411,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
   app.get("/api/profiles/me/privacy-settings", async (request, reply) => {
     const userId = await getAuthenticatedUserId(request);
-    const policy = await loadVisibilityPolicy(app, userId).catch(async (error) => {
+    const policy = await getEffectiveVisibilityPolicy(app, userId).catch(async (error) => {
       if (isSchemaCompatibilityError(error)) {
         const legacy = await getPrivacySettings(app, userId);
         return {
@@ -1639,17 +1671,17 @@ export async function registerProfileRoutes(app: FastifyInstance) {
 
     const existingIdentityState = await loadExistingIdentityState(app, userId);
 
-    if (existingIdentityState.yearOfBirth === null && !parsedPayload.date_of_birth) {
-      throw new ApiError(400, "VALIDATION_ERROR", "Enter your complete date of birth to verify that you are at least 18.");
-    }
-
-    const verifiedBirthYear = parsedPayload.date_of_birth
-      ? birthYearFromDateOfBirth(parsedPayload.date_of_birth)
-      : parsedPayload.year_of_birth;
-
-    if (verifiedBirthYear === null) {
-      throw new ApiError(400, "VALIDATION_ERROR", "Enter your complete date of birth to verify that you are at least 18.");
-    }
+    // Signup creates a year-only profile shell after checking the complete date of
+    // birth. Keep that server-owned year immutable. Older unfinished accounts may
+    // have no year, so accept their profile without reintroducing the removed DOB rite.
+    const signupBirthYear = existingIdentityState.yearOfBirth === null
+      ? await loadSignupBirthYear(app, userId)
+      : null;
+    const verifiedBirthYear = existingIdentityState.yearOfBirth ?? signupBirthYear ?? (
+      parsedPayload.date_of_birth
+        ? birthYearFromDateOfBirth(parsedPayload.date_of_birth)
+        : parsedPayload.year_of_birth
+    );
 
     const { date_of_birth: _dateOfBirth, ...profileFields } = parsedPayload;
     const payload: ProfilePayload = {
@@ -1724,6 +1756,13 @@ export async function registerProfileRoutes(app: FastifyInstance) {
            set ${updates.join(", ")}, updated_at = now()
            returning ${PROFILE_COLUMNS.join(", ")}, updated_at`,
           values
+        );
+
+        await db.query(
+          `update app_users
+           set display_name = $2
+           where id = $1`,
+          [userId, payload.display_name]
         );
 
         await syncProfileKinkInterests(transactionApp, userId, kinkInterests);
@@ -1805,7 +1844,7 @@ export async function registerProfileRoutes(app: FastifyInstance) {
           isNewMapAppearance
         };
       });
-      const policy = await loadVisibilityPolicy(app, userId);
+      const policy = await getEffectiveVisibilityPolicy(app, userId);
       const token = await makeDisplayLocationToken(app, request, {
         subjectUserId: userId,
         viewerUserId: userId,
@@ -1814,6 +1853,15 @@ export async function registerProfileRoutes(app: FastifyInstance) {
         displayMode: "PRECISE",
         forceSelfPrecise: true
       });
+      const ghostToken = policy.baseMode === "GHOST"
+        ? await makeDisplayLocationToken(app, request, {
+            subjectUserId: userId,
+            viewerUserId: userId,
+            policy,
+            location,
+            displayMode: "GHOST"
+          })
+        : null;
 
       if (payload.sync_reason !== "PING" && isNewMapAppearance) {
         try {
@@ -1834,6 +1882,12 @@ export async function registerProfileRoutes(app: FastifyInstance) {
           display_expires_at_ms: token.expiresAtMs,
           display_mode: "PRECISE",
           animation_hint: "NONE",
+          ...(ghostToken
+            ? {
+                ghost_display_location_token: ghostToken,
+                ghost_display_expires_at_ms: ghostToken.expiresAtMs
+              }
+            : {}),
           location_updated_at: new Date(location.collectedAtMs).toISOString()
         }
       });

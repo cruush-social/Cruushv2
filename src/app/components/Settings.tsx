@@ -27,7 +27,7 @@ import HeartPhoto from './HeartPhoto';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import { changePassword, deleteAccount, sendVerificationEmail, signOut } from '../lib/authApi';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
-import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
+import { addProfileChangedListener, getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import SupportRequestForm from './SupportRequestForm';
 import {
   clearCurrentUser,
@@ -35,6 +35,7 @@ import {
   getVerificationPreviewUrl,
   setVerificationPreviewUrl,
 } from '../lib/sessionUser';
+import cruushLogo from '../assets/brand/cruush-logo.svg';
 
 type SettingsItem = {
   icon?: LucideIcon;
@@ -69,7 +70,7 @@ export default function Settings() {
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const [previewUrl, setPreviewUrlState] = useState(() => getVerificationPreviewUrl());
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
-  const displayName = storedUser?.display_name ?? storedUser?.name ?? 'cruush user';
+  const displayName = profile?.display_name?.trim() || storedUser?.display_name || storedUser?.name || 'cruush user';
   const age = storedUser?.age ?? null;
   const moderatorRole = storedUser?.moderator_role ?? null;
 
@@ -92,6 +93,7 @@ export default function Settings() {
       active = false;
     };
   }, []);
+  useEffect(() => addProfileChangedListener(setProfile), []);
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   const resetPasswordDialog = () => {
@@ -185,6 +187,13 @@ export default function Settings() {
       items: [
         { iconName: 'profile' as const, iconVariant: 'gradient', label: 'Edit Profile', action: () => navigate('/profile/edit') },
         {
+          icon: Trash2,
+          label: 'Delete account',
+          description: 'Permanently delete your cruush account.',
+          action: () => setIsDeleteDialogOpen(true),
+          destructive: true,
+        },
+        {
           icon: Gift,
           label: <>Rewards & <CruushPlusWord /></>,
           description: 'Streaks, referrals, and promotional access.',
@@ -199,7 +208,6 @@ export default function Settings() {
         },
         { iconName: 'notifications' as const, label: 'Notifications', action: () => navigate('/settings/notifications') },
         { icon: LifeBuoy, label: 'Contact support', action: () => navigate('/support') },
-        { icon: Trash2, label: 'Delete account', action: () => setIsDeleteDialogOpen(true), destructive: true },
       ],
     },
     {
@@ -366,6 +374,7 @@ export default function Settings() {
                 return (
                   <button
                     key={`${section.title}-${index}`}
+                    aria-label={item.destructive && typeof item.label === 'string' ? item.label : undefined}
                     onClick={item.action}
                     className={`w-full p-4 flex items-center gap-3 hover:bg-accent transition-colors ${
                       item.destructive ? 'text-destructive' : ''
@@ -469,17 +478,13 @@ export default function Settings() {
         </Button>
 
         <div className="text-center space-y-2 pt-8">
-          <p
-            className="cruush-logo-text text-2xl"
-          >
-            cruush
-          </p>
-          <p className="text-xs text-muted-foreground">Version 1.0.0</p>
-          <div className="flex justify-center gap-4 text-xs text-muted-foreground">
-            <button className="hover:text-foreground">Terms</button>
-            <button className="hover:text-foreground">Privacy</button>
-            <button className="hover:text-foreground">Support</button>
-          </div>
+          <img
+            alt="cruush"
+            className="mx-auto h-16 w-16 object-contain"
+            draggable={false}
+            src={cruushLogo}
+          />
+          <p className="text-xs text-muted-foreground">Version 1.3</p>
         </div>
       </div>
 

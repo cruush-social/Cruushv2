@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { RekognitionClient } from "@aws-sdk/client-rekognition";
 import sharp from "sharp";
 import { buildServer } from "./app.js";
 import { createSessionCookie, generateSessionToken, hashPassword, hashSessionToken } from "./auth.js";
@@ -35,6 +36,189 @@ vi.mock("./nearby-notifications.js", () => ({
 const query = vi.fn();
 const end = vi.fn().mockResolvedValue(undefined);
 const rateLimiter = createMemoryRateLimiter();
+
+type MockQueryResult = { rows: unknown[] };
+type MockQueryImplementation = (sql: string, params?: unknown[]) => MockQueryResult | Promise<MockQueryResult>;
+
+const nativeQueryMockImplementation = query.mockImplementation.bind(query);
+const nativeQueryMockReset = query.mockReset.bind(query);
+const nativeQueryMockClear = query.mockClear.bind(query);
+let queuedQueryImplementations: MockQueryImplementation[] = [];
+let defaultQueryImplementation: MockQueryImplementation = async () => ({ rows: [] });
+let defaultQueryIsSqlAware = false;
+
+type TestGhostRotationRow = {
+  subject_user_id: string;
+  rotation_epoch: number;
+  policy_version: number;
+  token_ciphertext: string;
+  token_nonce: string;
+  token_auth_tag: string;
+  wrapped_token_dek: string;
+  token_dek_nonce: string;
+  token_dek_auth_tag: string;
+  key_version: string;
+  expires_at_ms: number;
+  revoked_at_ms: number | null;
+};
+
+const testEncryptedVisibilityRows = new Map<string, unknown>();
+const testGhostRotationRows = new Map<string, TestGhostRotationRow>();
+
+function resetQueryPrivacyState() {
+  testEncryptedVisibilityRows.clear();
+  testGhostRotationRows.clear();
+}
+
+function privacySideEffectResult(sql: string, params: unknown[] = [], interceptVisibility: boolean): MockQueryResult | null {
+  const normalizedSql = sql.toLowerCase();
+
+  if (interceptVisibility && normalizedSql.includes("insert into encrypted_visibility_tokens")) {
+    testEncryptedVisibilityRows.set(String(params[0]), {
+      subject_user_id: params[0],
+      policy_version: params[1],
+      policy_ciphertext: params[2],
+      policy_nonce: params[3],
+      policy_auth_tag: params[4],
+      wrapped_policy_dek: params[5],
+      policy_dek_nonce: params[6],
+      policy_dek_auth_tag: params[7],
+      key_version: params[8],
+      updated_at_ms: params[9]
+    });
+
+    return { rows: [{ subject_user_id: params[0] }] };
+  }
+
+  if (normalizedSql.includes("select") && normalizedSql.includes("from ghost_rotation_tokens")) {
+    const key = `${params[0]}:${params[1]}:${params[2]}`;
+    const row = testGhostRotationRows.get(key);
+
+    return {
+      rows: row && row.revoked_at_ms === null && row.expires_at_ms > Number(params[3])
+        ? [row]
+        : []
+    };
+  }
+
+  if (normalizedSql.includes("insert into ghost_rotation_tokens")) {
+    const key = `${params[0]}:${params[1]}:${params[2]}`;
+    const existing = testGhostRotationRows.get(key);
+    const canClaim = !existing || existing.revoked_at_ms !== null || existing.expires_at_ms <= Number(params[12]);
+
+    if (!canClaim) {
+      return { rows: [] };
+    }
+
+    testGhostRotationRows.set(key, {
+      subject_user_id: String(params[0]),
+      rotation_epoch: Number(params[1]),
+      policy_version: Number(params[2]),
+      token_ciphertext: String(params[3]),
+      token_nonce: String(params[4]),
+      token_auth_tag: String(params[5]),
+      wrapped_token_dek: String(params[6]),
+      token_dek_nonce: String(params[7]),
+      token_dek_auth_tag: String(params[8]),
+      key_version: String(params[9]),
+      expires_at_ms: Number(params[11]),
+      revoked_at_ms: null
+    });
+
+    return { rows: [{ subject_user_id: params[0] }] };
+  }
+
+  if (normalizedSql.includes("update ghost_rotation_tokens")) {
+    for (const row of testGhostRotationRows.values()) {
+      if (row.subject_user_id === String(params[0]) && row.revoked_at_ms === null) {
+        row.revoked_at_ms = Number(params[1]);
+      }
+    }
+
+    return { rows: [] };
+  }
+
+  return null;
+}
+
+function installPrivacyAwareQueryMock() {
+  const runQuery: MockQueryImplementation = async (sql, params = []) => {
+    const privacyResult = privacySideEffectResult(String(sql), params, !defaultQueryIsSqlAware);
+
+    if (privacyResult) {
+      if (!defaultQueryIsSqlAware) {
+        query.mock.calls.pop();
+      }
+
+      return privacyResult;
+    }
+
+    const queued = queuedQueryImplementations.shift();
+
+    if (queued) {
+      return queued(sql, params);
+    }
+
+    return defaultQueryImplementation(sql, params);
+  };
+
+  nativeQueryMockImplementation(runQuery);
+}
+
+(query as any).mockResolvedValueOnce = (value: MockQueryResult) => {
+  queuedQueryImplementations.push(async () => value);
+  installPrivacyAwareQueryMock();
+
+  return query;
+};
+(query as any).mockRejectedValueOnce = (error: unknown) => {
+  queuedQueryImplementations.push(async () => {
+    throw error;
+  });
+  installPrivacyAwareQueryMock();
+
+  return query;
+};
+(query as any).mockResolvedValue = (value: MockQueryResult) => {
+  defaultQueryIsSqlAware = false;
+  defaultQueryImplementation = async () => value;
+  installPrivacyAwareQueryMock();
+
+  return query;
+};
+(query as any).mockRejectedValue = (error: unknown) => {
+  defaultQueryIsSqlAware = false;
+  defaultQueryImplementation = async () => {
+    throw error;
+  };
+  installPrivacyAwareQueryMock();
+
+  return query;
+};
+(query as any).mockImplementation = (implementation: MockQueryImplementation) => {
+  queuedQueryImplementations = [];
+  defaultQueryIsSqlAware = true;
+  defaultQueryImplementation = implementation;
+  installPrivacyAwareQueryMock();
+
+  return query;
+};
+(query as any).mockReset = () => {
+  nativeQueryMockReset();
+  queuedQueryImplementations = [];
+  defaultQueryIsSqlAware = false;
+  defaultQueryImplementation = async () => ({ rows: [] });
+  resetQueryPrivacyState();
+  installPrivacyAwareQueryMock();
+
+  return query;
+};
+(query as any).mockClear = () => {
+  nativeQueryMockClear();
+
+  return query;
+};
+
 const app = buildServer({
   NODE_ENV: "test",
   PORT: 3001,
@@ -437,6 +621,9 @@ async function encryptedVisibilityPolicyRow(input: {
     if (sql.includes("from encrypted_visibility_tokens")) {
       return { rows: [] };
     }
+    if (sql.includes("insert into ghost_rotation_tokens")) {
+      return { rows: [{ subject_user_id: input.subjectUserId }] };
+    }
 
     return { rows: [] };
   });
@@ -451,7 +638,9 @@ async function encryptedVisibilityPolicyRow(input: {
     ghostRadiusMeters: input.ghostRadiusMeters
   });
 
-  const insertCall = policyQuery.mock.calls.find(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"));
+  const insertCall = policyQuery.mock.calls
+    .filter(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"))
+    .at(-1);
   const params = (insertCall?.[1] ?? []) as unknown[];
 
   return {
@@ -1270,13 +1459,20 @@ describe("server", () => {
       url: "/api/auth/signup",
       payload: {
         email: "river@example.com",
-        password: "password-123"
+        password: "password-123",
+        dateOfBirth: "1994-06-15",
+        emailUpdatesOptIn: true
       }
     });
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
+    expect(query.mock.calls[0]?.[0]).toContain("email_updates_opt_in");
+    expect(query.mock.calls[0]?.[0]).toContain("signup_birth_year");
+    expect(query.mock.calls[0]?.[0]).not.toContain("insert into profiles (id, year_of_birth)");
     expect(query.mock.calls[0]?.[1]?.[2]).toBeNull();
+    expect(query.mock.calls[0]?.[1]?.[14]).toBe(true);
+    expect(query.mock.calls[0]?.[1]?.[15]).toBe(1994);
     expect(query.mock.calls[1]?.[0]).toContain("delete from email_verification_tokens");
     expect(query.mock.calls[2]?.[0]).toContain("insert into email_verification_tokens");
     expect(response.headers["set-cookie"]).toBeUndefined();
@@ -1289,6 +1485,33 @@ describe("server", () => {
         verificationEmailSent: true
       }
     });
+  });
+
+  it.each([
+    [undefined, "Enter your complete date of birth."],
+    ["2020-02-30", "Enter a valid date of birth."],
+    ["2099-01-01", "Enter a valid date of birth."],
+    ["1800-01-01", "Enter a valid date of birth."],
+    ["2012-06-15", "You must be at least 18 to use cruush."]
+  ])("rejects ineligible signup date %s before account creation", async (dateOfBirth, expectedMessage) => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/signup",
+      payload: {
+        email: "river@example.com",
+        password: "password-123",
+        ...(dateOfBirth ? { dateOfBirth } : {})
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: expectedMessage
+      }
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("rejects alpha test signup before creating an account when alpha password is missing", async () => {
@@ -1311,7 +1534,8 @@ describe("server", () => {
         url: "/api/auth/signup",
         payload: {
           email: "river@example.com",
-          password: "password-123"
+          password: "password-123",
+          dateOfBirth: "1994-06-15"
         }
       });
 
@@ -1369,6 +1593,7 @@ describe("server", () => {
         payload: {
           email: "river@example.com",
           password: "password-123",
+          dateOfBirth: "1994-06-15",
           betaAccessLocation: {
             lat: 40.7099,
             lng: -73.9226
@@ -1412,6 +1637,7 @@ describe("server", () => {
       payload: {
         email: "river@example.com",
         password: "password-123",
+        dateOfBirth: "1994-06-15",
         displayName: "River"
       }
     });
@@ -1457,6 +1683,7 @@ describe("server", () => {
       payload: {
         email: "river@example.com",
         password: "password-123",
+        dateOfBirth: "1994-06-15",
         displayName: "River"
       }
     });
@@ -1483,6 +1710,7 @@ describe("server", () => {
         payload: {
           email: "river@example.com",
           password: "password-123",
+          dateOfBirth: "1994-06-15",
           displayName: "River"
         }
       });
@@ -1496,6 +1724,7 @@ describe("server", () => {
       payload: {
         email: "river@example.com",
         password: "password-123",
+        dateOfBirth: "1994-06-15",
         displayName: "River"
       }
     });
@@ -1524,6 +1753,7 @@ describe("server", () => {
       payload: {
         email: "river@example.com",
         password: "password-123",
+        dateOfBirth: "1994-06-15",
         displayName: "River",
         captchaToken: "invalid-captcha"
       }
@@ -4012,7 +4242,12 @@ describe("server", () => {
   });
 
   it("allows a direct conversation before a mutual cruush when the recipient selected Public", async () => {
-    query.mockImplementation(async (sql: string) => {
+    const publicTargetPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: dmPartnerId,
+      baseMode: "PUBLIC_PRECISE"
+    });
+
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
       const text = String(sql);
 
       if (text.includes("from encrypted_relationship_records")) {
@@ -4020,7 +4255,7 @@ describe("server", () => {
       }
 
       if (text.includes("from encrypted_visibility_tokens")) {
-        return { rows: [] };
+        return { rows: params[0] === dmPartnerId ? [publicTargetPolicy] : [] };
       }
 
       if (text.includes("from user_blocks")) {
@@ -4694,6 +4929,98 @@ describe("server", () => {
     expect(response.json().error.code).toBe("CONTENT_REJECTED");
     expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into messages"))).toBe(false);
     expect(query.mock.calls.some(([sql]) => String(sql).includes("insert into content_reviews"))).toBe(true);
+  });
+
+  it.each([
+    [
+      "an inactive account",
+      { account_status: "under_review", suspended: false, trust_score: 50, active_suspensions: 0, active_restrictions: 0 },
+      "Text messaging is unavailable because your account is not active."
+    ],
+    [
+      "a suspension",
+      { account_status: "active", suspended: false, trust_score: 50, active_suspensions: 1, active_restrictions: 0 },
+      "Text messaging is unavailable while your account is suspended."
+    ],
+    [
+      "a low trust score",
+      { account_status: "active", suspended: false, trust_score: 20, active_suspensions: 0, active_restrictions: 0 },
+      "Text messaging is unavailable while your trust score is low."
+    ],
+    [
+      "a messaging feature restriction",
+      { account_status: "active", suspended: false, trust_score: 50, active_suspensions: 0, active_restrictions: 1 },
+      "Text messaging is restricted on your account."
+    ]
+  ])("explains an empty text-message insert caused by %s", async (_reason, sender, expectedMessage) => {
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from conversation_members cm") && text.includes("join conversations c")) {
+        return {
+          rows: [{
+            id: conversationId,
+            kind: "group",
+            title: "Beta crew",
+            tags: [],
+            updated_at: "2026-04-29T12:00:00.000Z",
+            last_message: "",
+            unread_count: 0,
+            pinned: false,
+            muted: false,
+            other_user_id: null,
+            other_user_name: null,
+            other_user_pronouns: null,
+            other_user_photo: null,
+            member_count: 3,
+            current_user_role: "member",
+            disappearing_timer: "off",
+            closed_at: null
+          }]
+        };
+      }
+
+      if (text.includes("join user_blocks block")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("select email") && text.includes("from app_users")) {
+        return { rows: [{ email: "member@example.com" }] };
+      }
+
+      if (text.includes("insert into messages")) {
+        return { rows: [] };
+      }
+
+      if (text.includes("as active_suspensions") && text.includes("as active_restrictions")) {
+        return { rows: [sender] };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/messages",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        conversationId,
+        content: "see you there"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(query.mock.calls.find(([sql]) => String(sql).includes("insert into messages"))?.[0])
+      .toContain("u.account_status = 'active'");
+    expect(response.json()).toEqual({
+      error: {
+        code: "FEATURE_RESTRICTED",
+        message: expectedMessage,
+        details: null
+      }
+    });
   });
 
   it("applies a 1h group conversation timer to new messages", async () => {
@@ -7600,6 +7927,58 @@ describe("server", () => {
     expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
   });
 
+  it("retains a mock-provider profile photo for retry when Rekognition is unavailable", async () => {
+    const rekognitionSend = vi.spyOn(RekognitionClient.prototype, "send").mockRejectedValue(
+      Object.assign(new Error("Rekognition unavailable"), {
+        name: "ServiceUnavailableException",
+        $metadata: { httpStatusCode: 503, requestId: "rekognition-mock-outage-1" }
+      })
+    );
+    const outageApp = buildServer({
+      ...app.config,
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true
+    }, {
+      db: { query, end },
+      rateLimiter
+    });
+    mockPendingProfileMediaQueries();
+    const multipart = multipartFilePayload({
+      fieldName: "photo",
+      filename: "adult-human-profile.png",
+      contentType: "image/png",
+      content: await validPng()
+    });
+
+    try {
+      const response = await outageApp.inject({
+        method: "POST",
+        url: "/api/profile-photos",
+        headers: {
+          "x-user-id": userId,
+          "content-type": multipart.contentType
+        },
+        payload: multipart.payload
+      });
+      const queries = query.mock.calls.map(([sql]) => String(sql));
+
+      expect(response.statusCode).toBe(202);
+      expect(response.json()).toEqual({
+        data: {
+          status: "pending_review",
+          assetId: expect.any(String)
+        }
+      });
+      expect(rekognitionSend).toHaveBeenCalled();
+      expect(queries.some((sql) => sql.includes("insert into media_objects"))).toBe(true);
+      expect(queries.some((sql) => sql.includes("moderation_failure_reason = 'provider_unavailable'"))).toBe(true);
+      expect(queries.some((sql) => sql.includes("delete from media_objects"))).toBe(false);
+      expect(queries.some((sql) => sql.includes("insert into profiles"))).toBe(false);
+    } finally {
+      await outageApp.close();
+      rekognitionSend.mockRestore();
+    }
+  });
+
   it("rejects profile photos without adult-human proof and deletes quarantine storage", async () => {
     mockPendingProfileMediaQueries();
     const png = await validPng();
@@ -7951,10 +8330,13 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(10);
+    expect(query).toHaveBeenCalledTimes(9);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
+    expect(query.mock.calls[1]?.[0]).toContain("media.explicit_classification = 'explicit'");
+    expect(query.mock.calls[1]?.[0]).toContain("), false) as primary_photo_explicit");
+    expect(query.mock.calls[1]?.[0]).not.toContain("media.explicit_classification is distinct from 'non_explicit'");
     expect(query.mock.calls[1]?.[0]).toContain("where profiles.id <> $1");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.location_updated_at >= now() - interval '4 days'");
     expect(query.mock.calls[1]?.[0]).toContain("location_envelopes.collected_at_ms >=");
@@ -7991,7 +8373,7 @@ describe("server", () => {
       ciphertext: expect.any(String),
       nonce: expect.any(String)
     });
-    expect(body.data.profiles[0].distanceLabel).toMatch(/ mi$/);
+    expect(body.data.profiles[0].distanceLabel).toBe("Nearby");
     expect(body.data.profiles[0].lastActive).toMatch(/ago$/);
   });
 
@@ -8344,11 +8726,11 @@ describe("server", () => {
 
     expect(profiles).toHaveLength(21);
     expect(seededPayloads).toHaveLength(20);
-    expect(ghostedSeedNumbers).toEqual([2, 4, 6, 8, 10, 12, 14, 16, 18, 20]);
-    expect(preciseSeedNumbers).toEqual([1, 3, 5, 7, 9, 11, 13, 15, 17, 19]);
+    expect(ghostedSeedNumbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+    expect(preciseSeedNumbers).toEqual([]);
     expect(demoTaggedSeedNumbers).toEqual([2, 4, 6, 8, 10, 12, 14, 16, 18, 20]);
     expect(profilesById.get(nonNpcRow.id)?.demoDisplayMode).toBeUndefined();
-    expect(payloadsById.get(nonNpcRow.id)?.displayMode).toBe("PRECISE");
+    expect(payloadsById.get(nonNpcRow.id)?.displayMode).toBe("GHOST");
     expect(JSON.stringify(body)).not.toContain("@cruush.local");
     expect(JSON.stringify(body)).not.toContain("real-user@example.com");
     for (const profile of profiles) {
@@ -8362,9 +8744,10 @@ describe("server", () => {
       const normalizedSql = String(sql).toLowerCase();
       return (
         (/\binsert\b/.test(normalizedSql) || /\bupdate\b/.test(normalizedSql)) &&
-        (normalizedSql.includes("encrypted_visibility_tokens") || normalizedSql.includes("user_privacy_settings"))
+        normalizedSql.includes("user_privacy_settings")
       );
     })).toBe(false);
+    expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase().includes("insert into encrypted_visibility_tokens"))).toBe(true);
   });
 
   it("ignores the NPC Ghost demo flag for non-admin discovery users", async () => {
@@ -8455,9 +8838,9 @@ describe("server", () => {
       token: profile.displayLocationToken
     });
 
-    expect(payload.displayMode).toBe("PRECISE");
+    expect(payload.displayMode).toBe("GHOST");
     expect(profile.demoDisplayMode).toBeUndefined();
-    expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase().includes("insert into ghost_rotation_tokens"))).toBe(false);
+    expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase().includes("insert into ghost_rotation_tokens"))).toBe(true);
   });
 
   it("ignores the NPC Ghost demo flag in production discovery", async () => {
@@ -8553,9 +8936,9 @@ describe("server", () => {
       token: profile.displayLocationToken
     });
 
-    expect(payload.displayMode).toBe("PRECISE");
+    expect(payload.displayMode).toBe("GHOST");
     expect(profile.demoDisplayMode).toBeUndefined();
-    expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase().includes("insert into ghost_rotation_tokens"))).toBe(false);
+    expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase().includes("insert into ghost_rotation_tokens"))).toBe(true);
   });
 
   it("marks active mutual cruushes in discovery results", async () => {
@@ -9025,6 +9408,14 @@ describe("server", () => {
       if (normalizedSql.includes("from encrypted_visibility_tokens")) {
         return Promise.resolve({ rows: params[0] === legacyUserId ? [stealthPolicy] : [] });
       }
+      if (normalizedSql.includes("from user_entitlements")) {
+        return Promise.resolve({
+          rows: [{
+            cruush_plus_enabled: true,
+            cruush_plus_expires_at: null
+          }]
+        });
+      }
 
       return Promise.resolve({ rows: [] });
     });
@@ -9037,6 +9428,70 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data.profiles).toEqual([]);
+  });
+
+  it("restores a legacy discovery profile when its saved Stealth policy outlives cruush+", async () => {
+    const legacyUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const retainedStealthPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: legacyUserId,
+      baseMode: "STEALTH"
+    });
+
+    query.mockImplementation((sql: string, params: unknown[] = []) => {
+      const normalizedSql = sql.toLowerCase();
+
+      if (normalizedSql.includes("from profiles") && normalizedSql.includes("where id = $1")) {
+        return Promise.resolve({ rows: [] });
+      }
+      if (normalizedSql.includes("from profiles") && normalizedSql.includes("join app_users")) {
+        return Promise.reject({ code: "42703", message: 'column "year_of_birth" does not exist' });
+      }
+      if (normalizedSql.includes("tribes as legacy_vibe_tags")) {
+        return Promise.resolve({
+          rows: [{
+            id: legacyUserId,
+            display_name: "Visible Jordan",
+            age: 29,
+            pronouns: "they/them",
+            looking_for: ["Fun"],
+            legacy_vibe_tags: ["Goth"],
+            primary_photo_url: null,
+            last_active: "2026-04-28T12:00:00.000Z",
+            lat: 40.71,
+            lng: -74.0,
+            fuzzy_lat: 40.7105,
+            fuzzy_lng: -74.0005
+          }]
+        });
+      }
+      if (normalizedSql.includes("from encrypted_visibility_tokens")) {
+        return Promise.resolve({ rows: params[0] === legacyUserId ? [retainedStealthPolicy] : [] });
+      }
+      if (normalizedSql.includes("from user_entitlements")) {
+        return Promise.resolve({
+          rows: [{
+            cruush_plus_enabled: false,
+            cruush_plus_expires_at: "2026-08-11T12:00:00.000Z"
+          }]
+        });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: { "x-user-id": userId }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.profiles).toEqual([
+      expect.objectContaining({
+        profileToken: legacyUserId,
+        name: "Visible Jordan"
+      })
+    ]);
   });
 
   it("keeps Ghost location rendering in legacy discovery fallback results", async () => {
@@ -10133,7 +10588,7 @@ describe("server", () => {
     });
   });
 
-  it("returns tokenized mutual map pins when the viewer has Ghost Mode enabled", async () => {
+  it("returns tokenized mutual map pins when saved Stealth outlives cruush+", async () => {
     const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
     const matchRecord = await encryptedRelationshipRecordRow({
       id: "match-1",
@@ -10158,6 +10613,10 @@ describe("server", () => {
       lng: -74.002,
       accuracyM: 50
     });
+    const retainedTargetPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: otherUserId,
+      baseMode: "STEALTH"
+    });
 
     query.mockImplementation((sql: string, params: unknown[] = []) => {
       const normalizedSql = sql.toLowerCase();
@@ -10165,6 +10624,21 @@ describe("server", () => {
       if (normalizedSql.includes("from encrypted_location_envelopes")) {
         return Promise.resolve({
           rows: params[0] === userId ? [viewerLocation] : [targetLocation]
+        });
+      }
+
+      if (normalizedSql.includes("from encrypted_visibility_tokens")) {
+        return Promise.resolve({
+          rows: params[0] === userId ? [] : [retainedTargetPolicy]
+        });
+      }
+
+      if (normalizedSql.includes("from user_entitlements")) {
+        return Promise.resolve({
+          rows: [{
+            cruush_plus_enabled: false,
+            cruush_plus_expires_at: "2026-08-11T12:00:00.000Z"
+          }]
         });
       }
 
@@ -10392,6 +10866,23 @@ describe("server", () => {
     });
   });
 
+  it("does not expose the cruush+ debug entitlement route in production", async () => {
+    const response = await productionApp.inject({
+      method: "GET",
+      url: "/api/dev/cruush-plus",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual(expect.objectContaining({
+      statusCode: 404,
+      error: "Not Found"
+    }));
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it("creates a mutual match and server-managed token for reciprocal cruushes", async () => {
     const reciprocalCruush = await encryptedRelationshipRecordRow({
       id: "reciprocal-cruush",
@@ -10600,7 +11091,7 @@ describe("server", () => {
     });
   });
 
-  it("returns static v1.2 Ghost privacy settings without animation metadata", async () => {
+  it("returns Ghost privacy settings with the next rotation deadline", async () => {
     const policy = await encryptedVisibilityPolicyRow({
       subjectUserId: userId,
       baseMode: "GHOST"
@@ -10625,14 +11116,55 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toEqual(expect.objectContaining({
       baseMode: "GHOST",
-      ghostModeEnabled: true
+      ghostModeEnabled: true,
+      ghostRotationExpiresAtMs: expect.any(Number)
     }));
     expect(response.json().data).not.toHaveProperty("animationHint");
-    expect(response.json().data).not.toHaveProperty("ghostRotationExpiresAtMs");
     expect(query.mock.calls.some(([sql]) => /ghost_mode_anchor_ms|ghost_pulse_enabled/.test(String(sql)))).toBe(false);
   });
 
-  it("keeps the Ghost privacy response static when Ghost Mode is enabled", async () => {
+  it("returns normal public visibility when a saved Stealth policy outlives cruush+", async () => {
+    const policy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "STEALTH"
+    });
+
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [policy] };
+      }
+
+      if (text.includes("from user_entitlements")) {
+        return {
+          rows: [{
+            cruush_plus_enabled: false,
+            cruush_plus_expires_at: "2026-08-11T12:00:00.000Z"
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/me/privacy-settings",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual(expect.objectContaining({
+      baseMode: "PUBLIC_PRECISE",
+      ghostModeEnabled: false
+    }));
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("from user_entitlements"))).toBe(true);
+  });
+
+  it("returns the next rotation deadline when Ghost Mode is enabled", async () => {
     const currentPolicy = await encryptedVisibilityPolicyRow({
       subjectUserId: userId,
       baseMode: "PUBLIC_PRECISE"
@@ -10661,10 +11193,10 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toEqual(expect.objectContaining({
       baseMode: "GHOST",
-      ghostModeEnabled: true
+      ghostModeEnabled: true,
+      ghostRotationExpiresAtMs: expect.any(Number)
     }));
     expect(response.json().data).not.toHaveProperty("animationHint");
-    expect(response.json().data).not.toHaveProperty("ghostRotationExpiresAtMs");
     expect(query.mock.calls.some(([sql]) => /ghost_mode_anchor_ms|ghost_pulse_enabled/.test(String(sql)))).toBe(false);
   });
 
@@ -11558,14 +12090,12 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query.mock.calls[7]?.[0]).toContain("insert into encrypted_relationship_records");
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         kinks: ["Leather"],
         kink_interests: [{
           kink_id: "leather",
-          label: "Leather",
-          category: "Gear"
+          label: "Leather"
         }],
         kinks_visibility: "mutual_cruushes",
         viewer_relationship: {
@@ -11894,11 +12424,31 @@ describe("server", () => {
       });
 
     query.mockReset().mockImplementation(async (sql: string) => {
+      if (String(sql).includes("trans_crowds_changed_at") && String(sql).includes("from profiles")) {
+        return {
+          rows: [{
+            profile_sensitive_ciphertext: null,
+            profile_sensitive_nonce: null,
+            profile_sensitive_auth_tag: null,
+            profile_sensitive_key_version: null,
+            profile_visibility_ciphertext: null,
+            profile_visibility_nonce: null,
+            profile_visibility_auth_tag: null,
+            profile_visibility_key_version: null,
+            trans_crowds_changed_at: null,
+            identities: [],
+            year_of_birth: 1994,
+            signal: ""
+          }]
+        };
+      }
+
       if (String(sql).includes("insert into profiles") && String(sql).includes("returning")) {
         return {
           rows: [{
             id: userId,
             ...payload,
+            year_of_birth: 1994,
             ethnicity: [payload.ethnicity],
             updated_at: "2026-04-28T12:05:00.000Z"
           }]
@@ -11915,7 +12465,7 @@ describe("server", () => {
       signal: "",
       pronouns: ["they/them"],
       custom_pronouns: "",
-      year_of_birth: 1994,
+      year_of_birth: 1980,
       ethnicity: "Latinx",
       identities: ["Non-binary"],
       presentation: [],
@@ -11956,8 +12506,7 @@ describe("server", () => {
         "x-user-id": userId
       },
       payload: {
-        ...payload,
-        date_of_birth: "1994-06-15"
+        ...payload
       }
     });
 
@@ -11965,15 +12514,18 @@ describe("server", () => {
     expect(query.mock.calls.some((call) => String(call[0]).trim().toLowerCase() === "begin")).toBe(true);
     expect(query.mock.calls.some((call) => String(call[0]).trim().toLowerCase() === "commit")).toBe(true);
     const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
+    const appUserDisplayNameUpdateCall = query.mock.calls.find((call) => String(call[0]).includes("update app_users") && String(call[0]).includes("display_name"));
     expect(profileInsertCall?.[0]).toContain("insert into profiles");
     expect(profileInsertCall?.[1]?.[0]).toBe(userId);
     expect(profileInsertCall?.[1]?.[7]).toBe(1994);
     expect(profileInsertCall?.[1]?.[8]).toEqual(["Latinx"]);
     expect(profileInsertCall?.[0]).not.toContain("updated_at)");
+    expect(appUserDisplayNameUpdateCall?.[1]).toEqual([userId, "Cruusher"]);
     expect(response.json()).toEqual({
       data: {
         id: userId,
         ...payload,
+        year_of_birth: 1994,
         photo_metadata: [],
         is_trans: null,
         trans_status_visibility: "mutual_cruushes",
@@ -11987,8 +12539,21 @@ describe("server", () => {
     });
   });
 
-  it("requires a complete date of birth when creating a profile", async () => {
-    query.mockResolvedValueOnce({ rows: [] });
+  it("lets a legacy unfinished account complete onboarding without re-entering age", async () => {
+    query.mockImplementation(async (sql: string) => {
+      if (String(sql).includes("insert into profiles") && String(sql).includes("returning")) {
+        return {
+          rows: [{
+            id: userId,
+            ...emptyProfile,
+            display_name: "Cruusher",
+            updated_at: "2026-04-28T12:05:00.000Z"
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
 
     const response = await app.inject({
       method: "PUT",
@@ -11999,18 +12564,54 @@ describe("server", () => {
       payload: {
         ...emptyProfile,
         display_name: "Cruusher",
-        year_of_birth: 1994
+        year_of_birth: null
       }
     });
 
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toEqual({
-      error: {
-        code: "VALIDATION_ERROR",
-        message: "Enter your complete date of birth to verify that you are at least 18.",
-        details: null
+    expect(response.statusCode).toBe(200);
+    const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
+    expect(profileInsertCall?.[1]?.[7]).toBeNull();
+  });
+
+  it("uses the account signup birth year when creating a profile", async () => {
+    query.mockImplementation(async (sql: string) => {
+      if (String(sql).includes("select signup_birth_year from app_users")) {
+        return { rows: [{ signup_birth_year: 1994 }] };
+      }
+
+      if (String(sql).includes("insert into profiles") && String(sql).includes("returning")) {
+        return {
+          rows: [{
+            id: userId,
+            ...emptyProfile,
+            display_name: "Cruusher",
+            year_of_birth: 1994,
+            updated_at: "2026-04-28T12:05:00.000Z"
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me",
+      headers: { "x-user-id": userId },
+      payload: {
+        ...emptyProfile,
+        display_name: "Cruusher",
+        year_of_birth: null
       }
     });
+
+    expect(response.statusCode).toBe(200);
+    expect(query).toHaveBeenCalledWith(
+      "select signup_birth_year from app_users where id = $1",
+      [userId]
+    );
+    const profileInsertCall = query.mock.calls.find((call) => String(call[0]).includes("insert into profiles"));
+    expect(profileInsertCall?.[1]?.[7]).toBe(1994);
   });
 
   it("rejects an under-18 date of birth when creating a profile", async () => {
@@ -13260,6 +13861,61 @@ describe("server", () => {
     expect(response.json().data).not.toHaveProperty("lat");
     expect(response.json().data).not.toHaveProperty("lng");
     expect(notifyNearbyUsersForLocationUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns a separate self-only public Ghost decoy token when syncing an active Ghost location", async () => {
+    const ghostPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: userId,
+      baseMode: "GHOST",
+      ghostRadiusMeters: 1609
+    });
+    query.mockImplementation(async (sql: string) => {
+      const text = String(sql);
+
+      if (text.includes("from encrypted_visibility_tokens")) {
+        return { rows: [ghostPolicy] };
+      }
+      if (text.includes("insert into ghost_rotation_tokens")) {
+        return { rows: [{ subject_user_id: userId }] };
+      }
+      return { rows: [] };
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/api/profiles/me/location",
+      headers: {
+        "x-user-id": userId
+      },
+      payload: {
+        lat: 40.711,
+        lng: -74.002,
+        fuzz_radius_meters: 50
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      data: {
+        id: userId,
+        display_location_token: expect.objectContaining({
+          version: 1,
+          tokenVersion: 1,
+          ciphertext: expect.any(String)
+        }),
+        display_mode: "PRECISE",
+        ghost_display_location_token: expect.objectContaining({
+          version: 1,
+          tokenVersion: 1,
+          ciphertext: expect.any(String)
+        }),
+        ghost_display_expires_at_ms: expect.any(Number)
+      }
+    });
+    expect(response.json().data.ghost_display_location_token.tokenId)
+      .not.toBe(response.json().data.display_location_token.tokenId);
+    expect(response.json().data).not.toHaveProperty("lat");
+    expect(response.json().data).not.toHaveProperty("lng");
   });
 
   it.each([

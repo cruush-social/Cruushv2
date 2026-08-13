@@ -681,7 +681,7 @@ describe("map Pings", () => {
       userId: senderUserId,
       radiusMiles: 5,
       idempotencyKey: "30000000-0000-4000-8000-000000000009"
-    }, dependencies({ policy: stealthPolicy }))).rejects.toMatchObject({
+    }, dependencies({ policy: stealthPolicy, cruushPlus: true }))).rejects.toMatchObject({
       code: "FEATURE_RESTRICTED"
     });
 
@@ -698,6 +698,23 @@ describe("map Pings", () => {
     }, dependencies({ locations: new Map([[senderUserId, staleLocation]]) }))).rejects.toMatchObject({
       code: "LOCATION_STORAGE_UNAVAILABLE"
     });
+  });
+
+  it("stops applying a saved Stealth policy after cruush+ ends", async () => {
+    const db = new MapPingDb();
+    const retainedStealthPolicy = {
+      ...buildDefaultVisibilityPolicy(config, senderUserId),
+      baseMode: "STEALTH" as const
+    };
+
+    const status = await createMapPing(appWithDb(db), {
+      userId: senderUserId,
+      radiusMiles: 5,
+      idempotencyKey: "30000000-0000-4000-8000-000000000018"
+    }, dependencies({ policy: retainedStealthPolicy, cruushPlus: false }));
+
+    expect(status.activePing).toMatchObject({ id: expect.any(String) });
+    expect(db.insertCount).toBe(1);
   });
 
   it("requires a moderated signal and a sender inside the beta service area", async () => {

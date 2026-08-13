@@ -95,6 +95,8 @@ export type ProfileRecord = ProfilePayload & {
     id: string;
     display_location_token?: DisplayLocationToken;
     display_expires_at_ms?: number;
+    ghost_display_location_token?: DisplayLocationToken;
+    ghost_display_expires_at_ms?: number;
     display_mode?: 'PRECISE' | 'GHOST';
     animation_hint?: 'NONE' | 'FADE_LAST_MINUTE' | 'SIGNAL_LOSS' | 'REAPPEAR';
     lat?: number | null;
@@ -213,22 +215,54 @@ export async function getMyProfile() {
   return requestApi<ProfileRecord>('/api/profiles/me');
 }
 
+export const PROFILE_CHANGED_EVENT = 'cruush:profile-changed';
+
+export function notifyProfileChanged(profile: ProfileRecord) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent<ProfileRecord>(PROFILE_CHANGED_EVENT, {
+    detail: profile,
+  }));
+}
+
+export function addProfileChangedListener(listener: (profile: ProfileRecord) => void) {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  const handleProfileChanged = (event: Event) => {
+    listener((event as CustomEvent<ProfileRecord>).detail);
+  };
+
+  window.addEventListener(PROFILE_CHANGED_EVENT, handleProfileChanged);
+
+  return () => {
+    window.removeEventListener(PROFILE_CHANGED_EVENT, handleProfileChanged);
+  };
+}
+
 export async function getProfileById(userId: string) {
   return requestApi<ProfileRecord>(`/api/profiles/${userId}`);
 }
 
 export async function saveMyProfile(profile: ProfilePayload) {
-  return requestApi<ProfileRecord>('/api/profiles/me', {
+  const savedProfile = await requestApi<ProfileRecord>('/api/profiles/me', {
     method: 'PUT',
     body: JSON.stringify(profile),
   });
+  notifyProfileChanged(savedProfile);
+  return savedProfile;
 }
 
 export async function saveMyVisibilityRules(visibilityRules: ProfileVisibilityRules) {
-  return requestApi<ProfileRecord>('/api/profiles/me/visibility-rules', {
+  const savedProfile = await requestApi<ProfileRecord>('/api/profiles/me/visibility-rules', {
     method: 'PUT',
     body: JSON.stringify({ visibility_rules: visibilityRules }),
   });
+  notifyProfileChanged(savedProfile);
+  return savedProfile;
 }
 
 export function getMyVisibilitySets() {
@@ -258,6 +292,9 @@ export function deleteMyVisibilitySet(id: string) {
 export function applyMyVisibilitySet(id: string) {
   return requestApi<ProfileRecord>(`/api/profiles/me/visibility-sets/${id}/apply`, {
     method: 'POST',
+  }).then((savedProfile) => {
+    notifyProfileChanged(savedProfile);
+    return savedProfile;
   });
 }
 

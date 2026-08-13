@@ -192,7 +192,7 @@ describe('ProfileEdit', () => {
     expect(displayName).toHaveValue('Still here');
   });
 
-  it('crops, uploads, promotes, removes, and saves profile photos', async () => {
+  it('crops, uploads, promotes, removes, and persists profile photos immediately', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const uploadedPhoto = uploadedProfilePhoto;
 
@@ -208,6 +208,12 @@ describe('ProfileEdit', () => {
       url: uploadedPhoto,
       explicit: false,
     });
+    saveMyProfile.mockImplementation(async (payload) => ({
+      ...emptyProfilePayload,
+      ...payload,
+      id: 'user-1',
+      updated_at: '2026-04-29T12:00:00.000Z',
+    }));
 
     render(
       <MemoryRouter>
@@ -243,9 +249,13 @@ describe('ProfileEdit', () => {
     expect(uploadedFile.name).toBe('profile-crop.jpg');
     expect(uploadedFile.type).toBe('image/jpeg');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Make photo 2 primary' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Remove photo 2' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Make photo 2 primary' }));
+
+    await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      photos: [uploadedPhoto, existingProfilePhoto],
+    })));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove photo 2' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       photos: [uploadedPhoto],
@@ -820,6 +830,40 @@ describe('ProfileEdit', () => {
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
       display_name: 'River Local',
     })));
+  });
+
+  it('publishes a saved display name to the current session state immediately', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+    const onSaved = vi.fn();
+
+    saveMyProfile.mockResolvedValueOnce({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: 'River Updated',
+      year_of_birth: 1998,
+      updated_at: '2026-08-13T00:30:00.000Z',
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit onSaved={onSaved} />
+      </MemoryRouter>
+    );
+
+    fireEvent.change(await screen.findByPlaceholderText('Your display name'), {
+      target: { value: 'River Updated' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'user-1',
+      display_name: 'River Updated',
+    })));
+    expect(JSON.parse(localStorage.getItem('cruush_user') ?? '{}')).toMatchObject({
+      id: 'user-1',
+      name: 'River Updated',
+      display_name: 'River Updated',
+    });
   });
 
   it('supports embedded profile editing without routing away', async () => {

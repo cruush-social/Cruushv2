@@ -283,6 +283,15 @@ describe('ModeratorReview', () => {
     updateSupportRequestStatus.mockResolvedValue({ request: { ...supportRequest, status: 'closed' } });
   });
 
+  it('contains the mobile moderation header controls without page-level overflow', async () => {
+    renderReview();
+
+    const tablist = await screen.findByRole('tablist', { name: 'Moderation views' });
+    expect(tablist).toHaveClass('min-w-0', 'flex-1', 'overflow-x-auto');
+    expect(tablist.parentElement).toHaveClass('min-w-0');
+    expect(screen.getByRole('button', { name: 'Refresh' })).toHaveClass('shrink-0');
+  });
+
   it('shows the authorization loading state while the queue request is pending', () => {
     getModerationQueue.mockReturnValue(new Promise(() => {}));
     renderReview();

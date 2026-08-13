@@ -17,7 +17,8 @@ import {
   saveVisibilityPolicy,
   isPreciseLocationRevoked,
   type CrowdPrecisionPolicy,
-  type VisibilityBaseMode
+  type VisibilityBaseMode,
+  type VisibilityPolicyPayload
 } from "./location-privacy.js";
 import { hasUserBlockBetween } from "./user-blocks.js";
 import { getAlphaTestState } from "./alpha-test.js";
@@ -118,7 +119,7 @@ export function getOrderedMatchUserIds(firstUserId: string, secondUserId: string
 
 export async function getPrivacySettings(app: FastifyInstance, userId: string): Promise<PrivacySettings> {
   try {
-    return publicPrivacySettings(await loadVisibilityPolicy(app, userId));
+    return publicPrivacySettings(await getEffectiveVisibilityPolicy(app, userId));
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) {
       throw error;
@@ -146,6 +147,35 @@ export async function getPrivacySettings(app: FastifyInstance, userId: string): 
     preciseLocationVisibility: preciseToMutualCruushes ? "mutual_cruushes" : "none",
     updatedAtMs: Date.now()
   };
+}
+
+export function effectiveVisibilityPolicyForEntitlement(
+  policy: VisibilityPolicyPayload,
+  hasCruushPlus: boolean
+): VisibilityPolicyPayload {
+  if (policy.baseMode !== "STEALTH" || policy.auditRequired || hasCruushPlus) {
+    return policy;
+  }
+
+  return {
+    ...policy,
+    baseMode: "PUBLIC_PRECISE"
+  };
+}
+
+export async function getEffectiveVisibilityPolicy(
+  app: FastifyInstance,
+  userId: string,
+  storedPolicy?: VisibilityPolicyPayload
+): Promise<VisibilityPolicyPayload> {
+  const policy = storedPolicy ?? await loadVisibilityPolicy(app, userId);
+
+  if (policy.baseMode !== "STEALTH" || policy.auditRequired) {
+    return policy;
+  }
+
+  const entitlement = await getCruushEntitlement(app, userId);
+  return effectiveVisibilityPolicyForEntitlement(policy, entitlement.cruushPlus);
 }
 
 function conservativePrivacySettingsFallback(): PrivacySettings {

@@ -460,7 +460,7 @@ describe("independent photo-provider diagnostics", () => {
       status: "complete",
       recommended_action: "keep"
     });
-    detectImageChildFaces.mockResolvedValue(streamResult({
+    detectPublicImageSafety.mockResolvedValue(streamResult({
       provider: "aws_rekognition",
       provider_request_id: "rekognition-message-error-1",
       status: "error",
@@ -482,6 +482,46 @@ describe("independent photo-provider diagnostics", () => {
         recommended_action: "keep"
       }
     });
+
+    expect(detectPublicImageSafety).toHaveBeenCalledOnce();
+    expect(detectImageChildFaces).not.toHaveBeenCalled();
+  });
+
+  it("keeps explicit private-message photos sendable while exposing the explicit label to DL Mode", async () => {
+    const app = createApp();
+    Object.assign(app.config, {
+      PROFILE_PHOTO_REKOGNITION_ENABLED: true
+    });
+    detectPublicImageSafety.mockResolvedValue(streamResult({
+      provider: "aws_rekognition",
+      provider_request_id: "rekognition-message-explicit-1",
+      labels: [{
+        provider_label: "Amazon Rekognition moderation: Explicit Nudity",
+        normalized_label: "adult_nudity",
+        confidence: 0.97,
+        severity: "high"
+      }],
+      recommended_action: "remove"
+    }));
+
+    await expect(moderateImageOrReject(app, {
+      userId: "user-1",
+      surface: "direct_message",
+      mimeType: "image/jpeg",
+      bytes: Buffer.from("message-photo")
+    })).resolves.toMatchObject({
+      decision: {
+        decision: "allow",
+        category: "adult_nudity"
+      },
+      providerResult: {
+        provider: "mock+aws_rekognition",
+        labels: [expect.objectContaining({ normalized_label: "adult_nudity" })]
+      }
+    });
+
+    expect(detectPublicImageSafety).toHaveBeenCalledOnce();
+    expect(detectImageChildFaces).not.toHaveBeenCalled();
   });
 });
 
