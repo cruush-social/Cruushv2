@@ -658,6 +658,7 @@ export default function LocalFeed() {
                       photo={post.user?.photo}
                       theme={currentUserId && post.user.id === currentUserId ? 'current' : 'nearby'}
                       userId={post.user.id}
+                      onClick={() => navigate(`/profile/${post.user.id}`)}
                       fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
                     />
 

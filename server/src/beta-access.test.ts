@@ -10,17 +10,18 @@ describe("beta access geofence", () => {
   it("allows locations inside the launch area and blocks outside locations", () => {
     expect(checkBetaAccess(config, { lat: 40.7128, lng: -74.0060 })).toMatchObject({
       allowed: true,
-      radiusMiles: 15
+      radiusMiles: 20
     });
     expect(checkBetaAccess(config, { lat: 40.0, lng: -73.0 })).toMatchObject({
       allowed: false,
-      radiusMiles: 15
+      radiusMiles: 20
     });
   });
 
-  it("keeps discovery data within the same launch area", () => {
+  it("includes the upper boroughs and Yonkers in the launch area", () => {
     expect(isWithinBetaLaunchArea({ lat: 40.6828509, lng: -73.9521325 })).toBe(true);
-    expect(isWithinBetaLaunchArea({ lat: 40.898, lng: -73.9521325 })).toBe(true);
-    expect(isWithinBetaLaunchArea({ lat: 40.901, lng: -73.9521325 })).toBe(false);
+    expect(isWithinBetaLaunchArea({ lat: 40.913, lng: -73.843 })).toBe(true);
+    expect(isWithinBetaLaunchArea({ lat: 40.9312, lng: -73.8988 })).toBe(true);
+    expect(isWithinBetaLaunchArea({ lat: 41.12, lng: -73.8 })).toBe(false);
   });
 });

@@ -7,11 +7,11 @@ import mapIconColored from '../assets/ui-icons/map-colored.png';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import messagesIconColored from '../assets/ui-icons/messages-colored.png';
 import messagesIconWhite from '../assets/ui-icons/messages-white.png';
-import humanityProfileIcon from '../assets/ui-icons/humanity-profile-selected-winged-heart.png';
+import humanityProfileIcon from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
 import { useIsMobile } from './ui/use-mobile';
 
 const CRUUSH_GRADIENT =
-  'linear-gradient(90deg, #ff0072 0%, #ff0072 30%, #d000ff 48%, #6f00ff 62%, #004bff 82%, #03ecfc 100%)';
+  'linear-gradient(90deg, #ff0072 0%, #ff0072 10%, #d000ff 28%, #6f00ff 50%, #004bff 80%, #03ecfc 100%)';
 
 const navItems = [
   { path: '/map', icon: mapIconWhite, activeIcon: mapIconColored, label: 'Map' },

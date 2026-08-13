@@ -93,7 +93,8 @@ function makeBrowseItems(mode: CruiseCarouselSlotMode, targetUser?: DiscoveryUse
 
 function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolean }) {
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
-  const sizeClass = featured ? 'h-[6.25rem] w-[6.25rem]' : 'h-[5rem] w-[5rem]';
+  const profileSizeClass = featured ? 'h-[7.5rem] w-[6rem]' : 'h-[6rem] w-[4.8rem]';
+  const iconSizeClass = featured ? 'h-[6.25rem] w-[6.25rem]' : 'h-[5rem] w-[5rem]';
   const frameClass = featured
     ? 'border-white/34 bg-white/[0.12] shadow-[0_0_34px_rgba(255,0,114,0.26)]'
     : 'border-white/12 bg-white/[0.055]';
@@ -108,7 +109,7 @@ function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolea
 
     return (
       <div
-        className={`flex ${sizeClass} shrink-0 items-center justify-center overflow-hidden rounded-[1.375rem] border ${frameClass} transition-all duration-500`}
+        className={`flex ${profileSizeClass} shrink-0 items-center justify-center overflow-hidden rounded-[1.375rem] border ${frameClass} transition-all duration-500`}
       >
         {photo ? (
           <img
@@ -129,7 +130,7 @@ function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolea
 
   return (
     <div
-      className={`flex ${sizeClass} shrink-0 items-center justify-center rounded-[1.375rem] border ${frameClass} transition-all duration-500`}
+      className={`flex ${iconSizeClass} shrink-0 items-center justify-center rounded-[1.375rem] border ${frameClass} transition-all duration-500`}
     >
       <CruushIcon name={item.icon} className={featured ? 'h-12 w-12' : 'h-10 w-10'} variant={featured ? 'colored' : 'white'} />
     </div>
@@ -174,6 +175,9 @@ export default function CruiseCarouselSlot({
     () => makeBrowseItems(mode, targetUser),
     [mode, targetUser],
   );
+  const featuredFrameClass = browseItems[FEATURED_ITEM_INDEX]?.kind === 'profile'
+    ? 'h-[8.25rem] w-[6.6rem]'
+    : 'h-[7rem] w-[7rem]';
 
   const title = mode === 'profile'
     ? 'browsing nearby profiles'
@@ -211,7 +215,7 @@ export default function CruiseCarouselSlot({
         <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
           <div className="pointer-events-none absolute inset-y-4 left-0 z-10 w-14 bg-gradient-to-r from-black/75 to-transparent" />
           <div className="pointer-events-none absolute inset-y-4 right-0 z-10 w-14 bg-gradient-to-l from-black/75 to-transparent" />
-          <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-[7rem] w-[7rem] -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" />
+          <div className={`pointer-events-none absolute left-1/2 top-1/2 z-10 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]`} />
           <div className="relative flex h-[9rem] items-center justify-center overflow-hidden" aria-hidden="true">
             <div className={`flex items-center gap-3 transition-transform duration-500 ease-out ${settled ? '' : 'cruise-carousel-browse'}`}>
               {browseItems.map((item, itemIndex) => (

@@ -26,9 +26,12 @@ export const AUTH_POLICY_LINKS = [
 type PublicPolicyLinksProps = {
   className?: string;
   variant?: 'card' | 'compact';
+  excludePaths?: string[];
 };
 
-export default function PublicPolicyLinks({ className, variant = 'card' }: PublicPolicyLinksProps) {
+export default function PublicPolicyLinks({ className, variant = 'card', excludePaths = [] }: PublicPolicyLinksProps) {
+  const visiblePolicyLinks = PUBLIC_POLICY_LINKS.filter((link) => !excludePaths.includes(link.path));
+
   if (variant === 'compact') {
     return (
       <p
@@ -57,7 +60,7 @@ export default function PublicPolicyLinks({ className, variant = 'card' }: Publi
     <section className={cn('rounded-lg border border-border bg-card/70 p-4', className)}>
       <h3 className="text-sm text-muted-foreground">Legal and safety</h3>
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {PUBLIC_POLICY_LINKS.map((link) => (
+        {visiblePolicyLinks.map((link) => (
           <a
             key={link.path}
             className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm transition-colors hover:bg-accent"

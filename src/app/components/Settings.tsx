@@ -187,13 +187,6 @@ export default function Settings() {
       items: [
         { iconName: 'profile' as const, iconVariant: 'gradient', label: 'Edit Profile', action: () => navigate('/profile/edit') },
         {
-          icon: Trash2,
-          label: 'Delete account',
-          description: 'Permanently delete your cruush account.',
-          action: () => setIsDeleteDialogOpen(true),
-          destructive: true,
-        },
-        {
           icon: Gift,
           label: <>Rewards & <CruushPlusWord /></>,
           description: 'Streaks, referrals, and promotional access.',
@@ -456,7 +449,26 @@ export default function Settings() {
         </div>
 
         <div className="space-y-4">
-          <PublicPolicyLinks />
+          <PublicPolicyLinks excludePaths={['/billing-policy']} />
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="px-2 text-sm text-muted-foreground">Account</h3>
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+            <button
+              type="button"
+              aria-label="Delete account"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="flex w-full items-center gap-3 p-4 text-destructive transition-colors hover:bg-accent"
+            >
+              <Trash2 className="h-5 w-5" />
+              <span className="flex-1 text-left">
+                <span className="block">Delete account</span>
+                <span className="mt-1 block text-sm text-muted-foreground">Permanently delete your cruush account.</span>
+              </span>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </button>
+          </div>
         </div>
 
         <Button

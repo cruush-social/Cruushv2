@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, Settings2, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Input } from './ui/input';
@@ -94,6 +94,8 @@ function getConversationHeartTheme(conversation: ConversationThread) {
 }
 
 type DirectSortMode = 'distance' | 'lastOnline';
+
+const DIRECT_MESSAGE_DISCOVERY_LIMIT = 500;
 
 function parseDistanceMiles(distance: string) {
   if (/nearby/i.test(distance)) {
@@ -273,7 +275,7 @@ export default function DirectMessages() {
 
     try {
       const [nearbyUsers, activity, billing] = await Promise.all([
-        getNearbyUsers(null, filters, { limit: 100 }),
+        getNearbyUsers(null, filters, { limit: DIRECT_MESSAGE_DISCOVERY_LIMIT }),
         getMyCruushActivity().catch(() => ({ mutual: [] })),
         getMyBillingStatus().catch(() => null),
       ]);
@@ -397,17 +399,29 @@ export default function DirectMessages() {
             <div>
               <h1 className="text-3xl leading-none text-white">Messages</h1>
             </div>
-            <Button
-              type="button"
-              size="icon"
-              aria-label="New message"
-              title="New message"
-              onClick={() => setComposeChooserOpen(true)}
-              className="h-11 w-11 rounded-full text-white"
-              style={{ background: 'var(--cruush-gradient)' }}
-            >
-              <Plus className="size-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="icon"
+                aria-label="Message settings"
+                title="Message settings"
+                onClick={() => navigate('/cruush/settings')}
+                className="h-11 w-11 rounded-full border border-white/12 bg-white/[0.06] text-white hover:bg-white/[0.12]"
+              >
+                <Settings2 className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                aria-label="New message"
+                title="New message"
+                onClick={() => setComposeChooserOpen(true)}
+                className="h-11 w-11 rounded-full text-white"
+                style={{ background: 'var(--cruush-gradient)' }}
+              >
+                <Plus className="size-4" />
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -469,6 +483,7 @@ export default function DirectMessages() {
           onApplyFilters={loadDirectMessageOptions}
           onUpgrade={() => navigate('/rewards')}
           onMessage={handleStartDirectChat}
+          onOpenProfile={(userId) => navigate(`/profile/${userId}`)}
         />
       ) : null}
 
@@ -544,6 +559,7 @@ export default function DirectMessages() {
                       masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
                       photo={item.user.photo}
                       userId={item.user.id}
+                      onClick={() => navigate(`/profile/${item.user.id}`)}
                       fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
                     />
                     <span className="min-w-0">
@@ -589,6 +605,7 @@ export default function DirectMessages() {
                       photo={conversation.user.photo}
                       userId={conversation.user.id}
                       theme={getConversationHeartTheme(conversation)}
+                      onClick={conversation.kind === 'dm' ? () => navigate(`/profile/${conversation.user.id}`) : undefined}
                       fallback={<div className="text-sm text-white/80">{getConversationInitials(conversation.user.name)}</div>}
                     />
                     {conversation.unreadCount > 0 ? (
@@ -645,6 +662,7 @@ export default function DirectMessages() {
                       photo={conversation.user.photo}
                       userId={conversation.user.id}
                       theme={getConversationHeartTheme(conversation)}
+                      onClick={conversation.kind === 'dm' ? () => navigate(`/profile/${conversation.user.id}`) : undefined}
                       fallback={
                         conversation.kind === 'group'
                           ? <CruushIcon name="profile" className="size-7 opacity-80" />
@@ -833,6 +851,7 @@ function DirectUserOverlay({
   onApplyFilters,
   onUpgrade,
   onMessage,
+  onOpenProfile,
 }: {
   error: string | null;
   loading: boolean;
@@ -846,6 +865,7 @@ function DirectUserOverlay({
   onApplyFilters: (filters: FilterState) => Promise<void>;
   onUpgrade: () => void;
   onMessage: (userId: string) => void;
+  onOpenProfile: (userId: string) => void;
 }) {
   const dlModeActive = useDlMode();
   const [activeComposerTab, setActiveComposerTab] = useState<'public' | 'mutuals'>('public');
@@ -1012,6 +1032,7 @@ function DirectUserOverlay({
                     masked={shouldMaskPhoto(dlModeActive, user.photoExplicit)}
                     photo={user.photo}
                     userId={user.id}
+                    onClick={() => onOpenProfile(user.id)}
                     fallback={<div className="text-base text-white/80">{getConversationInitials(user.name)}</div>}
                   />
                   <span className="min-w-0 flex-1">
@@ -1058,6 +1079,7 @@ function DirectUserOverlay({
                 photo={item.user.photo}
                 theme="mutual"
                 userId={item.user.id}
+                onClick={() => onOpenProfile(item.user.id)}
                 fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
               />
               <span className="min-w-0 flex-1">

@@ -75,7 +75,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'zoom',
     title: 'Zoom',
-    description: 'Use these controls to zoom in for a closer look or zoom out to see more of the map. The highlighted controls are the real controls.',
+    description: 'Tap a profile pin briefly to open its profile. Press and hold on touch to make the pin and its details bigger. On desktop, hover a pin to reveal its details. Use the highlighted controls to zoom the map.',
     actionLabel: 'Zoom in',
   },
   {

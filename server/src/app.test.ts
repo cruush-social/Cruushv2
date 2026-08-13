@@ -7322,6 +7322,36 @@ describe("server", () => {
     expect(query.mock.calls[4]?.[1]).toEqual([targetUserId]);
   });
 
+  it("lets an admin unban a user and clears every active enforcement row", async () => {
+    const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "admin" }] })
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId, email: "reported@example.com", account_status: "banned", account_status_updated_at: "2026-04-29T12:00:00.000Z" }] })
+      .mockResolvedValueOnce({ rows: [{ id: targetUserId, account_status: "active", account_status_updated_at: "2026-04-29T12:45:00.000Z" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "restore-action", created_at: "2026-04-29T12:45:01.000Z" }] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/admin/moderation/users/${targetUserId}/status`,
+      headers: { "x-user-id": userId },
+      payload: { status: "active", reasonCode: "review_cleared" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.user.accountStatus).toBe("active");
+    const sql = query.mock.calls.map(([statement]) => String(statement));
+    expect(sql.some((statement) => statement.includes("update suspensions"))).toBe(true);
+    expect(sql.some((statement) => statement.includes("update feature_restrictions"))).toBe(true);
+    expect(sql.some((statement) => statement.includes("delete from severe_access_bans"))).toBe(true);
+    expect(sql.some((statement) => statement.includes("set is_suspended = false"))).toBe(true);
+  });
+
   it("refuses to restrict the owner account", async () => {
     const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
 

@@ -118,6 +118,7 @@ export default function BlockedUsersPage() {
                 masked={shouldMaskPhoto(dlModeActive, blockedUser.photoExplicit)}
                 photo={blockedUser.photo}
                 userId={blockedUser.userId}
+                onClick={() => navigate(`/profile/${blockedUser.userId}`)}
                 fallback={<CruushIcon name="profile" className="size-4 opacity-75" />}
               />
               <div className="min-w-0">

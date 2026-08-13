@@ -1,10 +1,11 @@
 import { requestApi } from './apiClient';
 
 export type SupportRequestCategory = 'bug' | 'comment' | 'question' | 'policy';
+export type SupportRequestAdminCategory = SupportRequestCategory | 'suspension_appeal';
 export type SupportRequestSource = 'auth' | 'settings' | 'policy' | 'unknown';
 
 export type CreateSupportRequestPayload = {
-  category: SupportRequestCategory;
+  category: SupportRequestAdminCategory;
   subject: string;
   message: string;
   contactEmail?: string;
@@ -42,6 +43,14 @@ export type SupportRequestAdminRecord = {
   lastReplyAt: string | null;
 };
 
+export type SuspensionAppealEvidenceType = 'id' | 'selfie';
+
+export type CreateSuspensionAppealPayload = {
+  contactEmail: string;
+  idDocument: File;
+  selfie: File;
+};
+
 export type SupportRequestAdminListResponse = {
   requests: SupportRequestAdminRecord[];
   page: {
@@ -69,6 +78,18 @@ export function createSupportRequest(payload: CreateSupportRequestPayload) {
   return requestApi<SupportRequestRecord>('/api/support-requests', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function createSuspensionAppeal(payload: CreateSuspensionAppealPayload) {
+  const form = new FormData();
+  form.append('contactEmail', payload.contactEmail.trim());
+  form.append('idDocument', payload.idDocument, payload.idDocument.name);
+  form.append('selfie', payload.selfie, payload.selfie.name);
+
+  return requestApi<SupportRequestRecord>('/api/support-requests/suspension-appeal', {
+    method: 'POST',
+    body: form,
   });
 }
 

@@ -283,7 +283,7 @@ describe('MapView', () => {
       paint: {
         'fill-antialias': false,
         'fill-color': '#080808',
-        'fill-opacity': 1,
+        'fill-opacity': ['step', ['zoom'], 0, 11.5, 1],
       },
     });
     expect(mapInstances[0].layers.get(MAP_SERVICE_MASK_LAYER_ID)).not.toHaveProperty('outline');
@@ -956,7 +956,7 @@ describe('MapView', () => {
     act(() => vi.advanceTimersByTime(500));
 
     expect(markerButton).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).toHaveClass('scale-[1.16]');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).toHaveClass('scale-[1.34]');
     expect(screen.getByTestId('marker-signal-stack-user-touch-hold')).toHaveClass('opacity-100');
     const contextMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     fireEvent(markerButton, contextMenu);
@@ -969,7 +969,7 @@ describe('MapView', () => {
     act(() => vi.advanceTimersByTime(351));
     mapInstances[0].trigger('click');
     expect(markerButton).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).not.toHaveClass('scale-[1.16]');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).not.toHaveClass('scale-[1.34]');
     expect(screen.getByTestId('marker-signal-stack-user-touch-hold')).toHaveClass('opacity-0');
   });
 
@@ -996,7 +996,7 @@ describe('MapView', () => {
     const currentButton = screen.getByRole('button', { name: 'Open Ari on map' });
     expect(currentButton).toBe(originalButton);
     expect(currentButton).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-rerender')).toHaveClass('scale-[1.16]');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-rerender')).toHaveClass('scale-[1.34]');
     expect(screen.getByTestId('marker-signal-stack-user-touch-rerender')).toHaveClass('opacity-100');
     expect(onPinClick).not.toHaveBeenCalled();
   });

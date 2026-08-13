@@ -292,7 +292,7 @@ describe("policy mapper", () => {
       penalty_decays: false,
       enforcement_action: {
         type: "suspend",
-        permanent: true
+        permanent: false
       }
     });
     expect(decision.feature_restrictions?.map((restriction) => restriction.feature)).toEqual([

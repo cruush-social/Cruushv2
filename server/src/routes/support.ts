@@ -1,7 +1,11 @@
 import type { FastifyInstance } from "fastify";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { authEmailSchema } from "../auth-schema.js";
 import { runTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
+import { encryptMediaBytes } from "../media-encryption.js";
+import { deleteEncryptedMediaObject, writeEncryptedMediaObject } from "../media-storage.js";
 import { sendSupportRequestInboxEmail, sendSupportRequestReplyEmail } from "../mailer.js";
 import { getModeratorUser } from "../moderator-auth.js";
 import { getOptionalAuthenticatedUserId } from "../request-auth.js";
@@ -62,6 +66,9 @@ const supportRequestReplyParamsSchema = z.object({
   requestId: z.uuid()
 }).strict();
 
+const appealEvidenceTypes = ["id", "selfie"] as const;
+const MAX_APPEAL_IMAGE_BYTES = 5 * 1024 * 1024;
+
 function getUserAgent(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
     return value.join(" ");
@@ -71,6 +78,158 @@ function getUserAgent(value: string | string[] | undefined) {
 }
 
 export async function registerSupportRoutes(app: FastifyInstance) {
+  app.post("/api/support-requests/suspension-appeal", async (request, reply) => {
+    const requesterUserId = await getOptionalAuthenticatedUserId(request);
+    await app.rateLimiter.assert({
+      key: requesterUserId ? `suspension-appeal:user:${requesterUserId}` : `suspension-appeal:ip:${request.ip}`,
+      max: 2,
+      windowMs: 24 * 60 * 60 * 1000,
+      message: "Too many suspension appeals. Try again tomorrow."
+    });
+
+    let contactEmail = "";
+    const uploads = new Map<typeof appealEvidenceTypes[number], {
+      buffer: Buffer;
+      mimetype: string;
+      truncated: boolean;
+    }>();
+
+    try {
+      for await (const part of request.parts({
+        limits: {
+          fileSize: MAX_APPEAL_IMAGE_BYTES,
+          files: 2,
+          fields: 1
+        }
+      })) {
+        if (part.type === "field") {
+          if (part.fieldname === "contactEmail") {
+            contactEmail = String(part.value ?? "").trim();
+          }
+          continue;
+        }
+
+        if (part.fieldname !== "idDocument" && part.fieldname !== "selfie") {
+          throw new ApiError(400, "VALIDATION_ERROR", "Upload only an ID photo and a selfie.");
+        }
+        if (!(["image/jpeg", "image/png", "image/webp"] as string[]).includes(part.mimetype)) {
+          throw new ApiError(400, "VALIDATION_ERROR", "Use a JPEG, PNG, or WebP image.");
+        }
+        uploads.set(part.fieldname as typeof appealEvidenceTypes[number], {
+          buffer: await part.toBuffer(),
+          mimetype: part.mimetype,
+          truncated: part.file.truncated
+        });
+      }
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(400, "VALIDATION_ERROR", "Each appeal image must be 5 MB or smaller.");
+    }
+
+    const normalizedEmail = authEmailSchema.parse(contactEmail);
+    for (const type of appealEvidenceTypes) {
+      const upload = uploads.get(type);
+      if (!upload || upload.buffer.length === 0 || upload.truncated) {
+        throw new ApiError(400, "VALIDATION_ERROR", "Include both the redacted ID photo and the selfie.");
+      }
+    }
+
+    const metadata = {
+      userAgent: getUserAgent(request.headers["user-agent"]),
+      evidenceStoredPrivately: true,
+      evidenceExpiresInHours: 24
+    };
+    const requestResult = await app.db.query<SupportRequestRow>(
+      `insert into support_requests (
+         requester_user_id,
+         contact_email,
+         category,
+         subject,
+         message,
+         source,
+         page_url,
+         metadata
+       )
+       values ($1, $2, 'suspension_appeal', 'Suspension appeal', $3, 'auth', '/support?appeal=1', $4::jsonb)
+       returning id::text as id, status, ai_triage_status, created_at`,
+      [
+        requesterUserId,
+        normalizedEmail,
+        "Please review my suspension appeal. I submitted a redacted ID showing only my date of birth and photo, plus a selfie holding a handwritten card with my account email and today’s date.",
+        metadata
+      ]
+    );
+    const created = requestResult.rows[0];
+    if (!created) throw new ApiError(500, "INTERNAL_ERROR", "Failed to create suspension appeal.");
+
+    const writtenKeys: string[] = [];
+    try {
+      for (const type of appealEvidenceTypes) {
+        const upload = uploads.get(type);
+        if (!upload) throw new ApiError(400, "VALIDATION_ERROR", "Include both appeal images.");
+        const encrypted = encryptMediaBytes(app.config, upload.buffer);
+        const objectKey = `suspension-appeals/${created.id}/${type}-${randomUUID()}.enc`;
+        await writeEncryptedMediaObject(app.config, objectKey, encrypted.ciphertext);
+        writtenKeys.push(objectKey);
+        await app.db.query(
+          `insert into suspension_appeal_evidence (
+             support_request_id, evidence_type, object_key, mime_type, byte_size,
+             encrypted_data_key, data_key_nonce, data_key_auth_tag,
+             content_nonce, content_auth_tag, key_version
+           ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [
+            created.id,
+            type,
+            objectKey,
+            upload.mimetype,
+            upload.buffer.length,
+            encrypted.encryptedDataKey,
+            encrypted.dataKeyNonce,
+            encrypted.dataKeyAuthTag,
+            encrypted.nonce,
+            encrypted.authTag,
+            encrypted.keyVersion
+          ]
+        );
+      }
+    } catch (error) {
+      await Promise.all(writtenKeys.map((key) => deleteEncryptedMediaObject(app.config, key).catch(() => undefined)));
+      await app.db.query("delete from support_requests where id = $1", [created.id]);
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(500, "INTERNAL_ERROR", "Failed to store suspension appeal evidence.");
+    }
+
+    if (app.config.RESEND_API_KEY && app.config.MAIL_FROM) {
+      await sendSupportRequestInboxEmail({
+        config: app.config,
+        logger: app.log,
+        request: {
+          id: created.id,
+          category: "suspension_appeal",
+          contactEmail: normalizedEmail,
+          createdAt: new Date(created.created_at).toISOString(),
+          message: "A suspension appeal with private ID and selfie evidence is ready for human review.",
+          pageUrl: "/support?appeal=1",
+          requesterUserId,
+          screenshot: null,
+          source: "auth",
+          subject: "Suspension appeal"
+        }
+      }).catch((error) => {
+        app.log.error({ err: error, supportRequestId: created.id }, "suspension appeal inbox email delivery failed");
+      });
+    }
+
+    return reply.code(201).send({
+      data: {
+        id: created.id,
+        status: created.status,
+        aiTriageStatus: created.ai_triage_status,
+        createdAt: new Date(created.created_at).toISOString()
+      }
+    });
+  });
+
   app.get("/api/admin/support-requests", async (request, reply) => {
     const moderator = await getModeratorUser(request);
     await app.rateLimiter.assert({

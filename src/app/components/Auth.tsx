@@ -169,7 +169,7 @@ export default function Auth({ onAuth }: AuthProps) {
     }
 
     if (isSignUp && betaAccessRequired && !betaAccessLocation) {
-      setError('Beta access is currently available within 15 miles of NYC. Check your location to continue.');
+      setError('NYC open beta. Check your location to continue.');
       setIsLoading(false);
       return;
     }
@@ -480,7 +480,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 text-[#ff0072]" />
                   <p>
-                    Launch beta access is available within 15 miles of NYC.
+                    NYC open beta.
                   </p>
                 </div>
                 <p className="text-white/50">Join the newsletter and request your city.</p>
@@ -490,7 +490,7 @@ export default function Auth({ onAuth }: AuthProps) {
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 text-[#0ba8ff]" />
                   <p>
-                    Beta access is available within 15 miles of NYC.
+                    NYC open beta.
                   </p>
                 </div>
                 <button
@@ -591,8 +591,15 @@ export default function Auth({ onAuth }: AuthProps) {
           </div>
 
           {error && (
-            <div className="p-3 bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff0072] text-sm rounded">
-              {error}
+            <div className="space-y-2 rounded p-3 text-sm">
+              <div className="bg-[#d11f3a]/10 border border-[#d11f3a]/30 text-[#ff0072] rounded p-3">
+                {error}
+              </div>
+              {/(suspend|ban)/i.test(error) ? (
+                <a className="text-white/75 underline" href="/support?appeal=1">
+                  Submit a suspension appeal
+                </a>
+              ) : null}
             </div>
           )}
 
@@ -652,7 +659,7 @@ export default function Auth({ onAuth }: AuthProps) {
 	              <div className="flex items-start gap-2">
 	                <MapPin className="mt-0.5 h-4 w-4 text-[#0ba8ff]" />
 	                <p>
-                  Beta access is available within 15 miles of NYC.
+                  NYC open beta.
 	                </p>
 	              </div>
 	              <button
@@ -859,6 +866,9 @@ export default function Auth({ onAuth }: AuthProps) {
           href="mailto:hello@cruush.app"
         >
           hello@cruush.app
+        </a>
+        <a className="launch-login-auth-contact" href="/support?appeal=1">
+          Appeal a suspension
         </a>
 
         <PublicPolicyLinks variant="compact" />

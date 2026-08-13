@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   ArrowLeft,
   Bell,
@@ -264,12 +264,18 @@ function dialogCopy(action: ActionDialogState | null) {
     return { title: 'Remove the reported content?', description: 'This permanently removes the post, message, or photo and resolves the report.', confirm: 'Remove content' };
   }
   return {
-    title: action.status === 'banned'
-      ? 'Permanently ban this account?'
-      : `Set account to ${accountStatusLabels[action.status]}?`,
-    description: accountDescriptions[action.status],
-    confirm: action.status === 'banned'
-      ? 'Ban account'
+    title: action.status === 'active'
+      ? 'Restore this account?'
+      : action.status === 'banned'
+        ? 'Permanently ban this account?'
+        : `Set account to ${accountStatusLabels[action.status]}?`,
+    description: action.status === 'active'
+      ? 'Clear the account status, active suspensions, feature restrictions, and access bans.'
+      : accountDescriptions[action.status],
+    confirm: action.status === 'active'
+      ? 'Restore account'
+      : action.status === 'banned'
+        ? 'Ban account'
       : action.status === 'suspended'
         ? 'Suspend account'
         : `Set ${accountStatusLabels[action.status].toLowerCase()}`,
@@ -291,6 +297,7 @@ export default function ModeratorReview() {
   const [page, setPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
   const [refreshing, setRefreshing] = useState(false);
   const [selected, setSelected] = useState<{ kind: 'report' | 'review'; id: string } | null>(null);
+  const detailSectionRef = useRef<HTMLElement | null>(null);
   const [detail, setDetail] = useState<ModerationQueueDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -575,7 +582,8 @@ export default function ModeratorReview() {
     event.preventDefault();
     if (!actionDialog || pendingAction) return;
     if (actionDialog.kind === 'account' ? !subject?.userId : (!detail || !selected)) return;
-    const noteRequired = actionDialog.kind !== 'report';
+    const noteRequired = actionDialog.kind !== 'report'
+      && !(actionDialog.kind === 'account' && actionDialog.status === 'active');
     if (noteRequired && !notes.trim()) {
       setValidationError('Add an audit note before confirming this action.');
       return;
@@ -643,8 +651,10 @@ export default function ModeratorReview() {
           await loadDetail(selected);
         }
       }
-    } catch {
-      setValidationError('The moderation action could not be completed. Nothing was confirmed.');
+    } catch (error) {
+      setValidationError(error instanceof Error && error.message
+        ? error.message
+        : 'The moderation action could not be completed. Nothing was confirmed.');
     } finally {
       setPendingAction(false);
     }
@@ -917,6 +927,31 @@ export default function ModeratorReview() {
                       </div>
                       <h3 className="mt-3 font-medium">{request.subject}</h3>
                       <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{request.message}</p>
+                      {request.appealEvidence?.length ? (
+                        <div className="mt-4 space-y-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Private appeal evidence</p>
+                          <div className="flex flex-wrap gap-3">
+                            {request.appealEvidence.map((evidence) => (
+                              <a
+                                key={evidence.type}
+                                className="block overflow-hidden rounded-md border border-border bg-muted/30"
+                                href={resolveMediaUrl(evidence.previewUrl)}
+                                rel="noreferrer"
+                                target="_blank"
+                              >
+                                <img
+                                  alt={evidence.type === 'id' ? 'Redacted ID showing date of birth and photo' : 'Appeal selfie'}
+                                  className="h-32 w-24 object-cover"
+                                  loading="lazy"
+                                  src={resolveMediaUrl(evidence.previewUrl)}
+                                />
+                                <span className="block px-2 py-1 text-center text-xs capitalize">{evidence.type}</span>
+                              </a>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Evidence is private, expires after 24 hours, and is deleted when the review is closed.</p>
+                        </div>
+                      ) : null}
                       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span>Source {formatCode(request.source)}</span>
                         {request.pageUrl ? <span className="truncate">Page {request.pageUrl}</span> : null}
@@ -1071,10 +1106,14 @@ export default function ModeratorReview() {
                           key={accountStatus}
                           size="sm"
                           variant={destructiveStatus(accountStatus) ? 'destructive' : 'outline'}
-                          disabled={userDetail.user.accountStatus === accountStatus}
+                          disabled={userDetail.user.accountStatus === accountStatus && accountStatus !== 'active'}
                           onClick={() => setActionDialog({ kind: 'account', status: accountStatus })}
                         >
-                          {accountActionLabels[accountStatus]}
+                          {accountStatus === 'active' && userDetail.user.accountStatus === 'banned'
+                            ? 'Unban'
+                            : accountStatus === 'active' && userDetail.user.accountStatus === 'suspended'
+                              ? 'Unsuspend'
+                              : accountActionLabels[accountStatus]}
                         </Button>
                       ))}
                     </div>
@@ -1136,7 +1175,7 @@ export default function ModeratorReview() {
         </main>
       ) : (
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(25rem,1fr)]">
-        <section aria-labelledby="queue-heading" className="min-w-0">
+        <section aria-labelledby="queue-heading" className="min-w-0 lg:order-1">
           <div className="space-y-4 border-b border-border pb-4">
             <div className="flex items-end justify-between gap-3">
               <div>
@@ -1177,7 +1216,13 @@ export default function ModeratorReview() {
                   aria-label={`Open ${sourceLabel(item)} ${item.id}`}
                   aria-pressed={selected?.kind === item.kind && selected.id === item.id}
                   className={`flex w-full items-center gap-4 px-2 py-4 text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected?.kind === item.kind && selected.id === item.id ? 'bg-accent/60' : ''}`}
-                  onClick={() => setSelected({ kind: item.kind, id: item.id })}
+                  onClick={() => {
+                    const nextSelection = { kind: item.kind, id: item.id } as const;
+                    setSelected(nextSelection);
+                    if (typeof window !== 'undefined' && window.innerWidth <= 1023) {
+                      window.requestAnimationFrame(() => detailSectionRef.current?.scrollIntoView({ block: 'start' }));
+                    }
+                  }}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1196,7 +1241,7 @@ export default function ModeratorReview() {
           )}
         </section>
 
-        <section aria-labelledby="detail-heading" className="min-w-0 border-t border-border pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+        <section ref={detailSectionRef} aria-labelledby="detail-heading" className={`${selected ? 'order-first' : 'order-last'} min-w-0 border-t border-border pt-5 lg:order-2 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0`}>
           <h2 id="detail-heading" className="text-lg">Review detail</h2>
           {!selected ? <p className="mt-4 text-sm text-muted-foreground">Select a queue item to inspect its evidence and content context.</p> : null}
           {detailLoading ? <p className="mt-4 text-sm text-muted-foreground">Loading moderation context...</p> : null}
@@ -1280,10 +1325,14 @@ export default function ModeratorReview() {
                         key={accountStatus}
                         size="sm"
                         variant={destructiveStatus(accountStatus) ? 'destructive' : 'outline'}
-                        disabled={subject.accountStatus === accountStatus}
+                        disabled={subject.accountStatus === accountStatus && accountStatus !== 'active'}
                         onClick={() => setActionDialog({ kind: 'account', status: accountStatus })}
                       >
-                        {accountActionLabels[accountStatus]}
+                        {accountStatus === 'active' && subject.accountStatus === 'banned'
+                          ? 'Unban'
+                          : accountStatus === 'active' && subject.accountStatus === 'suspended'
+                            ? 'Unsuspend'
+                            : accountActionLabels[accountStatus]}
                       </Button>
                     ))}
                   </div>

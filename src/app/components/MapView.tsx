@@ -104,6 +104,9 @@ const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
+// Keep the existing 20-mile service mask for close map work. At a wider
+// zoom, leave the public basemap visible so the full city remains navigable.
+const MAP_SERVICE_MASK_REVEAL_ZOOM = 11.5;
 export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
 export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
 // Rendered footprint of a heart pin, so no two pins may sit inside one another.
@@ -189,7 +192,13 @@ function addMapServiceOutsideMask(map: MapLibreMap) {
       paint: {
         'fill-antialias': false,
         'fill-color': '#080808',
-        'fill-opacity': 1,
+        'fill-opacity': [
+          'step',
+          ['zoom'],
+          0,
+          MAP_SERVICE_MASK_REVEAL_ZOOM,
+          1,
+        ],
       },
     });
   }
@@ -1103,7 +1112,7 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
       data-active-ping={pingActive ? 'true' : 'false'}
     >
       <span
-        className={`relative flex h-20 w-[103px] items-center justify-center transition-transform duration-150 ${previewed ? 'scale-[1.16]' : ''} ${pingActive ? 'cruush-map-ping-heart' : ''}`}
+        className={`relative flex h-20 w-[103px] items-center justify-center transition-transform duration-150 ${previewed ? 'scale-[1.34]' : ''} ${pingActive ? 'cruush-map-ping-heart' : ''}`}
         data-testid={`marker-heart-layer-${marker.id}`}
       >
             <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
@@ -1206,6 +1215,7 @@ function createMarkerElement(
       : `Open ${name} on map`);
     if (marker.kind == null || marker.kind === 'person') {
       button.setAttribute('aria-pressed', 'false');
+      button.title = 'Tap to open profile; hover for details';
     }
     const recordMarkerInteraction = (event: Event) => {
       event.stopPropagation();
@@ -1571,7 +1581,11 @@ function MapView({
         });
         map.on('zoomend', () => {
           if (typeof map.getZoom === 'function') {
-            setCurrentZoom(map.getZoom());
+            const nextZoom = map.getZoom();
+            setCurrentZoom(nextZoom);
+            if (typeof map.setMaxBounds === 'function') {
+              map.setMaxBounds(nextZoom <= MAP_SERVICE_MASK_REVEAL_ZOOM ? null : MAP_SERVICE_MAX_BOUNDS);
+            }
           }
         });
         map.on('style.load', handleMapStyleLoad);

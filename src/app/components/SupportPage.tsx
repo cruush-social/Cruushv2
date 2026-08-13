@@ -6,6 +6,7 @@ import SupportRequestForm from './SupportRequestForm';
 
 export default function SupportPage() {
   const navigate = useNavigate();
+  const appealMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('appeal') === '1';
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -17,7 +18,12 @@ export default function SupportPage() {
       </header>
 
       <main className="max-w-2xl mx-auto p-6 space-y-4">
-        <SupportRequestForm source="settings" />
+        <SupportRequestForm appealMode={appealMode} requireContactEmail={appealMode} source={appealMode ? 'auth' : 'settings'} />
+        {!appealMode ? (
+          <p className="text-sm text-muted-foreground">
+            Need to appeal an age-related suspension? <a className="underline" href="/support?appeal=1">Submit an appeal</a>.
+          </p>
+        ) : null}
         <PublicPolicyLinks />
       </main>
     </div>

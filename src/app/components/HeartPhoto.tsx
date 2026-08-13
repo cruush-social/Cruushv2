@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { useId } from 'react';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { HEART_PIN_PATH, HEART_PIN_THEMES, type HeartPinTheme } from '../lib/heartPin';
@@ -13,6 +13,7 @@ interface HeartPhotoProps {
   photo?: string | null;
   theme?: HeartPinTheme;
   userId?: string | null;
+  onClick?: () => void;
 }
 
 export default function HeartPhoto({
@@ -24,6 +25,7 @@ export default function HeartPhoto({
   photo = null,
   theme = 'nearby',
   userId = null,
+  onClick,
 }: HeartPhotoProps) {
   const id = useId();
   const patternId = `heart-photo-${id}`;
@@ -33,9 +35,34 @@ export default function HeartPhoto({
   const gradientStops = userId && !showPhoto && theme !== 'current' ? getProfileGradientStops(userId) : resolvedTheme.stops;
   const resolvedBorderColor = borderColor ?? resolvedTheme.border;
   const resolvedPhoto = showPhoto && photo ? resolveMediaUrl(photo) : null;
+  const handleClick = onClick
+    ? (event: MouseEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onClick();
+      }
+    : undefined;
+  const handleKeyDown = onClick
+    ? (event: KeyboardEvent<HTMLDivElement>) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        onClick();
+      }
+    : undefined;
 
   return (
-    <div className={`relative aspect-square ${className}`.trim()}>
+    <div
+      className={`relative aspect-square ${onClick ? 'cursor-pointer' : ''} ${className}`.trim()}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? label : undefined}
+    >
       <svg
         aria-label={label}
         role="img"

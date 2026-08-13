@@ -27,16 +27,16 @@ function signedArea(ring: Array<[number, number]>) {
 }
 
 describe('mapServiceArea', () => {
-  it('defines a fifteen-mile boundary around the configured service center', () => {
+  it('defines a twenty-mile boundary around the configured service center', () => {
     const [[west, south], [east, north]] = MAP_SERVICE_MAX_BOUNDS;
     const northSouthMiles = (north - MAP_SERVICE_CENTER.latitude) * 69;
     const eastWestMiles = (east - MAP_SERVICE_CENTER.longitude)
       * 69
       * Math.cos(MAP_SERVICE_CENTER.latitude * Math.PI / 180);
 
-    expect(MAP_SERVICE_RADIUS_MILES).toBe(15);
-    expect(northSouthMiles).toBeCloseTo(15, 5);
-    expect(eastWestMiles).toBeCloseTo(15, 5);
+    expect(MAP_SERVICE_RADIUS_MILES).toBe(20);
+    expect(northSouthMiles).toBeCloseTo(20, 5);
+    expect(eastWestMiles).toBeCloseTo(20, 5);
     expect(MAP_SERVICE_CENTER.latitude - south).toBeCloseTo(north - MAP_SERVICE_CENTER.latitude, 8);
     expect(MAP_SERVICE_CENTER.longitude - west).toBeCloseTo(east - MAP_SERVICE_CENTER.longitude, 8);
   });

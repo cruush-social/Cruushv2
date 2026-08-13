@@ -208,6 +208,10 @@ export type SupportRequest = {
   triageAttempts: number;
   triageClaimedAt: string | null;
   metadata: Record<string, unknown>;
+  appealEvidence?: Array<{
+    type: 'id' | 'selfie';
+    previewUrl: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 };

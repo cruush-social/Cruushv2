@@ -160,6 +160,9 @@ const permanentAccessRestrictions: FeatureRestriction[] = [
 function minorFaceReviewSuspension(label: ProviderLabel): PolicyDecision {
   return {
     ...zeroTolerance(label, "minor_face_detected"),
+    // Hold the account for human review without turning a photo-age signal
+    // into a permanent account ban or revoking every session.
+    enforcement_action: suspension("minor_face_detected", false),
     feature_restrictions: permanentAccessRestrictions,
     user_message_code: "minor_face_review_suspension"
   };

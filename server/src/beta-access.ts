@@ -6,7 +6,7 @@ const BETA_LAUNCH_CENTER = {
   lat: 40.6828509,
   lng: -73.9521325
 };
-const BETA_LAUNCH_RADIUS_MILES = 15;
+const BETA_LAUNCH_RADIUS_MILES = 20;
 
 export type BetaAccessLocation = {
   lat: number;
@@ -83,7 +83,7 @@ export function assertBetaAccessAllowed(config: AppConfig, location: BetaAccessL
     throw new ApiError(
       403,
       "BETA_ACCESS_LOCATION_REQUIRED",
-      "Beta access is available within 15 miles of NYC. Share location to continue."
+      "NYC open beta. Share location to continue."
     );
   }
 
@@ -91,7 +91,7 @@ export function assertBetaAccessAllowed(config: AppConfig, location: BetaAccessL
     throw new ApiError(
       403,
       "BETA_ACCESS_OUTSIDE_RADIUS",
-      "Beta access is currently available within 15 miles of NYC."
+      "NYC open beta."
     );
   }
 

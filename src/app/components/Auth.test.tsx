@@ -305,7 +305,7 @@ describe('Auth', () => {
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
-    expect(screen.getByText('Beta access is available within 15 miles of NYC.')).toBeInTheDocument();
+    expect(screen.getAllByText('NYC open beta.').length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Launch rave tickets' })).not.toBeInTheDocument();
   });
 
@@ -321,7 +321,7 @@ describe('Auth', () => {
     expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Alpha password')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check my location' })).toBeInTheDocument();
-    expect(screen.getByText('Beta access is available within 15 miles of NYC.')).toBeInTheDocument();
+    expect(screen.getAllByText('NYC open beta.').length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: 'Launch rave tickets' })).not.toBeInTheDocument();
   });
 

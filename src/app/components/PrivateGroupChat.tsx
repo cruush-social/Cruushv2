@@ -916,6 +916,7 @@ export default function PrivateGroupChat() {
                 photo={conversation.user.photo}
                 theme={conversation.kind === 'group' || conversation.mutual ? 'mutual' : 'nearby'}
                 userId={conversation.user.id}
+                onClick={conversation.kind === 'dm' ? openDmProfile : undefined}
                 fallback={
                   conversation.kind === 'group'
                     ? <CruushIcon name="profile" className="size-5 opacity-80" />

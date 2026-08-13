@@ -29,6 +29,7 @@ const categoryLabels: Record<SupportRequestAdminRecord['category'], string> = {
   comment: 'Comment',
   question: 'Question',
   policy: 'Policy',
+  suspension_appeal: 'Suspension appeal',
 };
 
 const sourceLabels: Record<SupportRequestSource, string> = {

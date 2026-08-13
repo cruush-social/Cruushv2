@@ -69,7 +69,15 @@ function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
   );
 }
 
-function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem | ProfileViewActivityItem; fallbackLabel: string }) {
+function PersonHeart({
+  item,
+  fallbackLabel,
+  onOpenProfile,
+}: {
+  item: CruushLockableActivityItem | ProfileViewActivityItem;
+  fallbackLabel: string;
+  onOpenProfile?: (userId: string) => void;
+}) {
   const dlModeActive = useDlMode();
   if (item.locked || !item.user) {
     return <LockedHeart label={fallbackLabel} />;
@@ -83,6 +91,7 @@ function PersonHeart({ item, fallbackLabel }: { item: CruushLockableActivityItem
       photo={item.user.photo}
       userId={item.user.id}
       theme={'mutual' in item && item.mutual ? 'mutual' : 'nearby'}
+      onClick={onOpenProfile ? () => onOpenProfile(item.user!.id) : undefined}
       fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-25" />}
     />
   );
@@ -144,7 +153,7 @@ function IncomingRow({
 
   return (
     <div className="flex items-center gap-4 border-b border-white/8 py-3 last:border-b-0">
-      <PersonHeart item={item} fallbackLabel="Locked incoming cruush" />
+      <PersonHeart item={item} fallbackLabel="Locked incoming cruush" onOpenProfile={onOpenProfile} />
       <button
         type="button"
         className="min-w-0 flex-1 text-left"
@@ -299,7 +308,7 @@ function ViewRow({ item, onOpenProfile }: { item: ProfileViewActivityItem; onOpe
 
   return (
     <div className="flex items-center gap-4 border-b border-white/8 py-3 last:border-b-0">
-      <PersonHeart item={item} fallbackLabel="Locked profile view" />
+      <PersonHeart item={item} fallbackLabel="Locked profile view" onOpenProfile={onOpenProfile} />
       <button
         type="button"
         className="min-w-0 flex-1 text-left"
@@ -494,6 +503,7 @@ export default function CruushActivity() {
             mutuals={messageableMutuals}
             onClose={() => setDirectComposerOpen(false)}
             onMessage={openMessage}
+            onOpenProfile={openProfile}
           />
         ) : null}
 
@@ -647,10 +657,12 @@ function MutualDirectOverlay({
   mutuals,
   onClose,
   onMessage,
+  onOpenProfile,
 }: {
   mutuals: MutualCruushActivityItem[];
   onClose: () => void;
   onMessage: (userId: string) => void;
+  onOpenProfile: (userId: string) => void;
 }) {
   const dlModeActive = useDlMode();
   return (
@@ -685,6 +697,7 @@ function MutualDirectOverlay({
                   masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
                   photo={item.user.photo}
                   userId={item.user.id}
+                  onClick={() => onOpenProfile(item.user.id)}
                   fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-25" />}
                 />
                 <span className="min-w-0">

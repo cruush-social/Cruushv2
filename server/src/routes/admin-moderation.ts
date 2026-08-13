@@ -79,6 +79,11 @@ const supportRequestParamsSchema = z.object({
   requestId: uuidSchema
 }).strict();
 
+const supportRequestEvidenceParamsSchema = z.object({
+  requestId: uuidSchema,
+  evidenceType: z.enum(["id", "selfie"])
+}).strict();
+
 const supportRequestStatusSchema = z.object({
   status: z.enum(supportRequestStatuses)
 }).strict();
@@ -231,6 +236,7 @@ type SupportRequestRow = {
   metadata: Record<string, unknown> | string | null;
   created_at: string | Date;
   updated_at: string | Date;
+  appeal_evidence_types?: string[] | null;
   total_count?: string | number;
 };
 
@@ -272,6 +278,12 @@ type EncryptedMediaRow = {
   content_nonce: string;
   content_auth_tag: string;
   key_version: string;
+};
+
+type SuspensionAppealEvidenceRow = EncryptedMediaRow & {
+  evidence_type: "id" | "selfie";
+  object_key: string;
+  support_request_id: string;
 };
 
 function parseJson<T>(value: T | string | null | undefined, fallback: T): T {
@@ -482,9 +494,47 @@ function mapSupportRequestRow(row: SupportRequestRow, role: ModeratorRole) {
     triageAttempts: Number(row.triage_attempts ?? 0),
     triageClaimedAt: row.triage_claimed_at ? new Date(row.triage_claimed_at).toISOString() : null,
     metadata: parseJson(row.metadata, {} as Record<string, unknown>),
+    appealEvidence: (row.appeal_evidence_types ?? [])
+      .filter((type): type is "id" | "selfie" => type === "id" || type === "selfie")
+      .map((type) => ({
+        type,
+        previewUrl: `/api/admin/moderation/support-requests/${encodeURIComponent(row.id)}/appeal-evidence/${type}`
+      })),
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString()
   };
+}
+
+async function purgeSuspensionAppealEvidence(
+  app: FastifyInstance,
+  requestId: string,
+  reviewed: boolean
+) {
+  const result = await app.db.query<{ id: string; object_key: string }>(
+    `select id::text as id, object_key
+     from suspension_appeal_evidence
+     where support_request_id = $1 and deleted_at is null`,
+    [requestId]
+  );
+  await Promise.all(result.rows.map((row) => deleteEncryptedMediaObject(app.config, row.object_key).catch(() => undefined)));
+  if (result.rows.length > 0) {
+    await app.db.query(
+      `update suspension_appeal_evidence
+       set deleted_at = now(), reviewed_at = case when $2::boolean then now() else reviewed_at end
+       where support_request_id = $1 and deleted_at is null`,
+      [requestId, reviewed]
+    );
+  }
+}
+
+async function purgeExpiredSuspensionAppeals(app: FastifyInstance) {
+  const result = await app.db.query<{ support_request_id: string }>(
+    `select distinct support_request_id::text
+     from suspension_appeal_evidence
+     where deleted_at is null and expires_at <= now()
+     limit 100`,
+  );
+  await Promise.all(result.rows.map((row) => purgeSuspensionAppealEvidence(app, row.support_request_id, false)));
 }
 
 function mapAdminNotificationRow(row: AdminNotificationRow, role: ModeratorRole) {
@@ -1086,6 +1136,7 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
 
   app.get("/api/admin/moderation/support-requests", async (request, reply) => {
     const moderator = await getModeratorUser(request);
+    await purgeExpiredSuspensionAppeals(app);
     const query = supportRequestListQuerySchema.parse(request.query);
     const status = query.status === "all" ? null : query.status;
     const result = await app.db.query<SupportRequestRow>(
@@ -1110,10 +1161,18 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
          support.metadata,
          support.created_at,
          support.updated_at,
+         appeal_evidence.evidence_types as appeal_evidence_types,
          count(*) over() as total_count
        from support_requests support
        left join app_users requester on requester.id = support.requester_user_id
        left join profiles profile on profile.id = requester.id
+       left join lateral (
+         select array_agg(evidence.evidence_type order by evidence.evidence_type) as evidence_types
+         from suspension_appeal_evidence evidence
+         where evidence.support_request_id = support.id
+           and evidence.deleted_at is null
+           and evidence.expires_at > now()
+       ) appeal_evidence on true
        where ($1::text is null or support.status = $1)
        order by support.created_at desc, support.id desc
        limit $2 offset $3`,
@@ -1131,6 +1190,56 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
         }
       }
     });
+  });
+
+  app.get("/api/admin/moderation/support-requests/:requestId/appeal-evidence/:evidenceType", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    const { requestId, evidenceType } = supportRequestEvidenceParamsSchema.parse(request.params);
+    const result = await app.db.query<SuspensionAppealEvidenceRow>(
+      `select
+         evidence.support_request_id::text as support_request_id,
+         evidence.evidence_type,
+         evidence.object_key,
+         evidence.mime_type,
+         evidence.encrypted_data_key,
+         evidence.data_key_nonce,
+         evidence.data_key_auth_tag,
+         evidence.content_nonce,
+         evidence.content_auth_tag,
+         evidence.key_version
+       from suspension_appeal_evidence evidence
+       join support_requests support on support.id = evidence.support_request_id
+       where evidence.support_request_id = $1
+         and evidence.evidence_type = $2
+         and evidence.deleted_at is null
+         and evidence.expires_at > now()
+         and support.category = 'suspension_appeal'
+       limit 1`,
+      [requestId, evidenceType]
+    );
+    const evidence = result.rows[0];
+    if (!evidence) throw new ApiError(404, "NOT_FOUND", "Appeal evidence is no longer available.");
+    const ciphertext = await readEncryptedMediaObject(app.config, evidence.object_key);
+    const bytes = decryptMediaBytes(app.config, {
+      ciphertext,
+      encryptedDataKey: evidence.encrypted_data_key,
+      dataKeyNonce: evidence.data_key_nonce,
+      dataKeyAuthTag: evidence.data_key_auth_tag,
+      nonce: evidence.content_nonce,
+      authTag: evidence.content_auth_tag,
+      keyVersion: evidence.key_version
+    });
+    await recordModeratorAccess(app.db, {
+      actorUserId: moderator.userId,
+      accessType: "media_preview",
+      metadata: { endpoint: "suspension_appeal_evidence", requestId, evidenceType }
+    });
+    return reply
+      .type(evidence.mime_type)
+      .header("cache-control", "private, no-store, max-age=0")
+      .header("pragma", "no-cache")
+      .header("referrer-policy", "no-referrer")
+      .send(bytes);
   });
 
   app.patch("/api/admin/moderation/support-requests/:requestId", async (request, reply) => {
@@ -1160,12 +1269,16 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
          triage_attempts,
          triage_claimed_at,
          metadata,
+         null::text[] as appeal_evidence_types,
          created_at,
          updated_at`,
       [requestId, payload.status]
     );
     const row = result.rows[0];
     if (!row) throw new ApiError(404, "NOT_FOUND", "Support request not found.");
+    if (payload.status === "closed" || payload.status === "dismissed") {
+      await purgeSuspensionAppealEvidence(app, requestId, true);
+    }
     await recordModeratorAccess(app.db, {
       actorUserId: moderator.userId,
       accessType: "queue_detail",
@@ -1505,6 +1618,51 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
         [userId, payload.status]
       );
       const updated = updatedResult.rows[0];
+
+      if (payload.status === "active") {
+        // Updating app_users alone leaves the trust/suspension rows active, so
+        // Restore appears to succeed while every unsafe action stays blocked.
+        await db.query(
+          `update suspensions
+           set ends_at = now(), permanent = false
+           where user_id = $1
+             and (permanent or ends_at is null or ends_at > now())`,
+          [userId]
+        );
+        await db.query(
+          `update feature_restrictions
+           set ends_at = now()
+           where user_id = $1
+             and (ends_at is null or ends_at > now())`,
+          [userId]
+        );
+        await db.query(
+          `delete from severe_access_bans where user_id = $1`,
+          [userId]
+        );
+        await db.query(
+          `insert into user_trust_profiles (user_id)
+           values ($1)
+           on conflict (user_id) do nothing`,
+          [userId]
+        );
+        await db.query(
+          `update user_trust_profiles
+           set is_suspended = false,
+               trust_score = greatest(trust_score, 50),
+               trust_level = case
+                 when greatest(trust_score, 50) <= 49 then 'new'
+                 when greatest(trust_score, 50) <= 74 then 'established'
+                 when greatest(trust_score, 50) <= 89 then 'trusted'
+                 else 'verified_trusted'
+               end,
+               report_weight = greatest(report_weight, 50),
+               max_future_trust = greatest(coalesce(max_future_trust, 100), 50),
+               updated_at = now()
+           where user_id = $1`,
+          [userId]
+        );
+      }
       const moderationAction = await createModerationAction(db, {
         actorUserId: moderator.userId,
         targetUserId: userId,

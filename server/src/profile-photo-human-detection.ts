@@ -38,6 +38,10 @@ const MINOR_LABEL_PATTERN = /\b(?:baby|babies|boy|boys|child|children|girl|girls
 const NUDITY_MODERATION_LABEL_PATTERN = /\b(?:explicit nudity|nudity|non-explicit nudity|partial nudity|graphic (?:male|female) nudity|illustrated explicit nudity|sexual activity|sexual situations|sex toy|sex toys)\b/i;
 const REKOGNITION_REQUEST_MIN_CONFIDENCE = 70;
 const REKOGNITION_MODERATION_MIN_CONFIDENCE = 50;
+// Account-level child enforcement must be reserved for faces that cannot
+// plausibly be read as adult. Teen/young-adult age ranges stay ambiguous.
+const UNAMBIGUOUS_CHILD_MAX_AGE = 13;
+const UNAMBIGUOUS_CHILD_FACE_CONFIDENCE = 95;
 
 function createRekognitionImageClient(region: string): RekognitionImageClient {
   return new RekognitionClient({ region }) as unknown as RekognitionImageClient;
@@ -77,7 +81,9 @@ function highConfidenceFaces(faces: FaceDetail[], requiredFaceConfidence: number
 
 function faceAgeOutcome(faces: FaceDetail[], minimumAge: number) {
   const definiteMinor = faces.find((face) => (
-    typeof face.AgeRange?.High === "number" && face.AgeRange.High < minimumAge
+    (face.Confidence ?? 0) >= UNAMBIGUOUS_CHILD_FACE_CONFIDENCE &&
+    typeof face.AgeRange?.High === "number" &&
+    face.AgeRange.High <= Math.min(minimumAge - 1, UNAMBIGUOUS_CHILD_MAX_AGE)
   ));
 
   if (definiteMinor) {
@@ -137,7 +143,10 @@ function childFaceLabels(
 } {
   const requiredFaceConfidence = config.PROFILE_PHOTO_REKOGNITION_FACE_CONFIDENCE ?? 90;
   const minimumAge = config.PROFILE_PHOTO_REKOGNITION_MINIMUM_AGE ?? 18;
-  const consideredFaces = highConfidenceFaces(faces, requiredFaceConfidence);
+  const consideredFaces = highConfidenceFaces(
+    faces,
+    Math.max(requiredFaceConfidence, UNAMBIGUOUS_CHILD_FACE_CONFIDENCE)
+  );
   const ageOutcome = consideredFaces.length === 0
     ? "no_face" as const
     : faceAgeOutcome(consideredFaces, minimumAge);

@@ -210,7 +210,7 @@ describe('BottomNav', () => {
     expect(profileIcon).toHaveAttribute('data-tone', 'gradient');
     expect(profileIcon).toHaveStyle({
       background:
-        'linear-gradient(90deg, #ff0072 0%, #ff0072 30%, #d000ff 48%, #6f00ff 62%, #004bff 82%, #03ecfc 100%)',
+        'linear-gradient(90deg, #ff0072 0%, #ff0072 10%, #d000ff 28%, #6f00ff 50%, #004bff 80%, #03ecfc 100%)',
     });
     expect(profileIcon).toHaveClass('h-11', 'w-11');
     expect(profileIcon.getAttribute('style')).toContain('humanity-profile-selected-winged-heart');

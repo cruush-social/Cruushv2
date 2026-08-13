@@ -1,4 +1,4 @@
-export const MAP_SERVICE_RADIUS_MILES = 15;
+export const MAP_SERVICE_RADIUS_MILES = 20;
 
 export const MAP_SERVICE_CENTER = {
   latitude: 40.6828509,
@@ -74,7 +74,7 @@ function createServiceAreaHole(): Position[] {
 
 /**
  * A solid world polygon with the approved circular service area cut out as a
- * hole. Rendering it above map tiles hides everything outside the 15-mile
+ * hole. Rendering it above map tiles hides everything outside the 20-mile
  * circle without tinting or decorating anything inside it.
  */
 export const MAP_SERVICE_OUTSIDE_MASK: MapServiceOutsideMask = {
