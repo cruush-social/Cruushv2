@@ -366,10 +366,14 @@ describe('DirectMessages', () => {
     expect(screen.getByText('Choose the order people appear in.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sort by Recently online' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Sort by Distance' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.queryByRole('button', { name: 'Seeking filters' })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByLabelText('Seeking filter'));
+    fireEvent.click(screen.getByRole('button', { name: 'Seeking filters' }));
+    const lookingTab = await screen.findByRole('tab', { name: 'Looking' });
+    fireEvent.mouseDown(lookingTab);
+    fireEvent.mouseUp(lookingTab);
+    fireEvent.click(lookingTab);
+    fireEvent.click(screen.getByRole('button', { name: 'Looking For' }));
     fireEvent.click(await screen.findByRole('option', { name: 'right now' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
     expect(screen.queryByText('River')).not.toBeInTheDocument();
     const alex = screen.getByText('Alex');
