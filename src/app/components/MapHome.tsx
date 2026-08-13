@@ -1708,7 +1708,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
         .filter((ping) => Date.parse(ping.expiresAt) > mapPingClock)
         .map((ping) => [ping.sourceUserId, { id: ping.id, expiresAt: ping.expiresAt }]),
     );
-    const nearbyMarkers = displayedUsers.map((user) => {
+    const nearbyMarkers = displayedUsers
+      .filter((user) => !user.isCurrentUser && user.id !== currentProfile?.id)
+      .map((user) => {
       return {
         id: user.id,
         userId: user.id,
@@ -1734,7 +1736,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             }
           : null,
       };
-    });
+      });
 
     const eventMarkers = activeEvents.map((event) => ({
       id: `event-${event.slug}`,
