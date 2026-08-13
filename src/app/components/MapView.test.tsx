@@ -1389,20 +1389,12 @@ describe('MapView', () => {
     });
 
     expect(onPinClick).not.toHaveBeenCalled();
-    expect(mapInstances[0].setZoom).toHaveBeenCalledWith(15.5);
-    // The cluster centroid lands on the current user's own coordinates here, so
-    // it is pushed clear of the pin footprint rather than stacking on top of it.
-    const center = mapInstances[0].setCenter.mock.calls.at(-1)?.[0] as [number, number];
-    expect(pixelDistance(
-      { approximateLongitude: center[0], approximateLatitude: center[1] },
-      { approximateLongitude: -73.99, approximateLatitude: 40.7128 },
-      12,
-    )).toBeGreaterThanOrEqual(MARKER_CLEARANCE_PX - 0.5);
-    expect(await screen.findByRole('button', { name: 'Open A on map' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open B on map' })).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Zoom into 2 nearby people on map' })).not.toBeInTheDocument();
-    });
+    expect(mapInstances[0].fitBounds).toHaveBeenCalledWith(
+      [[-73.9902, 40.7128], [-73.99, 40.713]],
+      expect.objectContaining({ maxZoom: 15.25 }),
+    );
+    expect(mapInstances[0].setCenter).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Zoom into 2 nearby people on map' })).toBeInTheDocument();
   });
 
   it('keeps active Ping hearts above ordinary people clusters during zoom-out', async () => {

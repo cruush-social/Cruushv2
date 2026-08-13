@@ -258,8 +258,8 @@ describe('LocalFeed', () => {
 
     expect(await screen.findByText('explicit author post')).toBeInTheDocument();
 
-    const maskedPhoto = screen.getByLabelText('river preview');
-    const visiblePhoto = screen.getByLabelText('sky preview');
+    const maskedPhoto = screen.getAllByLabelText('river preview').at(-1)!;
+    const visiblePhoto = screen.getAllByLabelText('sky preview').at(-1)!;
 
     expect(maskedPhoto.querySelector('image')).toBeNull();
     expect(visiblePhoto.querySelector('image')).not.toBeNull();
@@ -290,7 +290,7 @@ describe('LocalFeed', () => {
     );
 
     expect(await screen.findByText('explicit author post')).toBeInTheDocument();
-    expect(screen.getByLabelText('river preview').querySelector('image')).not.toBeNull();
+    expect(screen.getAllByLabelText('river preview').at(-1)?.querySelector('image')).not.toBeNull();
   });
 
   it('lets users delete their own feed posts without showing delete for other posts', async () => {
@@ -652,6 +652,7 @@ describe('LocalFeed', () => {
       locationPinVisibility: 'mutuals',
       showDistanceLabels: true,
       postExpiryDefault: '7d',
+      feedWindow: '7d',
     }));
     expect(within(composer).getByRole('button', { name: '7d' })).toHaveClass('bg-primary');
   });
@@ -692,6 +693,7 @@ describe('LocalFeed', () => {
       locationPinVisibility: 'mutuals',
       showDistanceLabels: true,
       postExpiryDefault: '6h',
+      feedWindow: '7d',
     });
     expect(sevenDayButton).toHaveClass('bg-primary');
 
