@@ -1709,7 +1709,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         .map((ping) => [ping.sourceUserId, { id: ping.id, expiresAt: ping.expiresAt }]),
     );
     const nearbyMarkers = displayedUsers
-      .filter((user) => !user.isCurrentUser && user.id !== currentProfile?.id)
+      .filter((user) => !user.isCurrentUser && user.id !== currentProfile?.id && user.id !== 'me')
       .map((user) => {
       return {
         id: user.id,

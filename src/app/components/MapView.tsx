@@ -1089,7 +1089,7 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
 }
 
 function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previewed?: boolean }) {
-  const isCurrentUser = marker.id === 'me' || marker.isCurrentUser === true;
+  const isCurrentUser = marker.isCurrentUser === true;
   const isPerson = marker.kind == null || marker.kind === 'person';
   const signalPreview = isPerson ? truncateMarkerPreview(marker.signal) : '';
   const postPreview = isPerson ? truncateMarkerPreview(marker.latestFeedPostPreview) : '';
