@@ -40,6 +40,7 @@
     "server/src/moderation-service.ts",
     "src/app/components/MapHome.test.tsx",
     "src/app/components/ProfileEdit.test.tsx",
+    "src/app/components/Changelog.tsx",
     "server/src/app.test.ts",
     "server/src/dev-seed-profiles.test.ts",
     "server/src/reviewer-test-accounts.test.ts",
@@ -55,7 +56,7 @@
     "Existing dirty artifacts: .claude/launch.json, menu-harness.html, src/menu-harness.tsx, and server/pnpm-lock.yaml."
   ],
   "nonGoals": [
-    "No public copy, changelog, email, audience, waitlist, promotion, or unrelated product work in this audit batch.",
+    "Update the in-app v1.3 changelog only; no email, broadcast, audience, waitlist, promotion, or unrelated product work.",
     "No GitHub issue closure, credential change, or unrelated deployment. This batch may deploy the reviewed age-gate frontend/API pair and migration 081 only.",
     "Do not synchronize Messages filters with Map Seeking or alter server authorization rules.",
     "Do not change map provider, MapLibre behavior, map data access, or add glass effects.",
@@ -71,7 +72,8 @@
     "Rendered map at http://127.0.0.1:5181/ confirms the v2 tile style, contrast, and label treatment while pins and Ghost behavior remain usable.",
     "Focused mini gates cover location sync failure, onboarding handoff, photo upload/persistence, recipient-wide nearby dedupe, and provider-outage queue handling.",
     "Canonical local release candidate rebuilds after the completed source mirror.",
-    "Legal-age gate: under-18 signup is rejected server-side; existing accounts without age verification are routed to DOB confirmation and cannot use normal account APIs."
+    "Legal-age gate: under-18 signup is rejected server-side; existing accounts without age verification are routed to DOB confirmation and cannot use normal account APIs.",
+    "In-app v1.3 changelog copy matches shipped d522d4a user-facing behavior; no email or broadcast sent."
   ],
-  "publicationTarget": "Coolify production frontend and API; origin/main receives the age-gate commit, migration 081 runs before API health. No public copy or email."
+  "publicationTarget": "In-app v1.3 changelog only; no email, broadcast, audience, waitlist, promotion, or deployment."
 }
