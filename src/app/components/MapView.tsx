@@ -110,7 +110,9 @@ const MAP_SERVICE_MASK_REVEAL_ZOOM = 11.5;
 export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
 export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
 // Rendered footprint of a heart pin, so no two pins may sit inside one another.
-export const MARKER_CLEARANCE_PX = 64;
+// Heart markers are roughly 103px wide on mobile; keep neighboring indigo
+// mutual pins visibly separate instead of letting their outlines overlap.
+export const MARKER_CLEARANCE_PX = 112;
 // Markers sharing a spot to this many decimal places are treated as one place
 // and collapsed into a cluster that fans out on tap rather than stacking.
 const SAME_LOCATION_CLUSTER_PRECISION = 6;
