@@ -1969,7 +1969,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 data-tutorial-target="ping"
                 aria-label="Send a Ping"
                 title="Send a Ping"
-                className="absolute left-1/2 top-full mt-3.5 size-8 -translate-x-1/2 rounded-full border border-white/10 bg-background/35 text-white/90 backdrop-blur-md hover:bg-white/10 sm:mt-5 sm:size-9 lg:mt-4 lg:size-11"
+                className="absolute left-1/2 top-full mt-3.5 size-8 -translate-x-1/2 rounded-full border border-[#c8ff31]/45 bg-background/45 text-[#c8ff31] backdrop-blur-md hover:bg-[#c8ff31]/15 sm:mt-5 sm:size-9 lg:mt-4 lg:size-11"
               >
                 <Radio aria-hidden="true" className="h-5 w-5 lg:h-7 lg:w-7" />
               </Button>
