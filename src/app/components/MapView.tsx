@@ -1404,10 +1404,20 @@ function MapView({
   const focusLatitude = focusCoordinates?.approximateLatitude ?? null;
   const focusLongitude = focusCoordinates?.approximateLongitude ?? null;
   const renderedMarkers = useMemo(
-    () => separateOverlappingMarkers(
-      applyPersonMarkerClusters(denseMarkerResult.markers, currentZoom, focusCoordinates, spiderfiedCluster),
-      currentZoom,
-    ),
+    () => {
+      const clusteredMarkers = applyPersonMarkerClusters(
+        denseMarkerResult.markers,
+        currentZoom,
+        focusCoordinates,
+        spiderfiedCluster,
+      );
+      // At map scale, clustering already represents nearby people. Moving the
+      // remaining individual hearts would make their displayed locations drift
+      // away from server coordinates while zoomed out.
+      return currentZoom < PERSON_CLUSTER_MAX_ZOOM
+        ? clusteredMarkers
+        : separateOverlappingMarkers(clusteredMarkers, currentZoom);
+    },
     [currentZoom, denseMarkerResult.markers, focusCoordinates, spiderfiedCluster],
   );
   const renderedMarkerSignature = useMemo(() => JSON.stringify(renderedMarkers), [renderedMarkers]);
