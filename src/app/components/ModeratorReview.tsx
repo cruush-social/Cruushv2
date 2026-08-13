@@ -1098,19 +1098,23 @@ export default function ModeratorReview() {
                 <div className="space-y-3 border-b border-border pb-5">
                   <h3 className="font-medium">Account enforcement</h3>
                   {userDetail.user.isOwner ? (
-                    userDetail.user.accountStatus === 'active' ? (
-                      <p className="text-sm text-muted-foreground">Owner account is active.</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      {accountStatusOrder.map((accountStatus) => (
                         <Button
+                          key={accountStatus}
                           size="sm"
-                          variant="outline"
-                          onClick={() => setActionDialog({ kind: 'account', status: 'active' })}
+                          variant={destructiveStatus(accountStatus) ? 'destructive' : 'outline'}
+                          disabled={userDetail.user.accountStatus === accountStatus && accountStatus !== 'active'}
+                          onClick={() => setActionDialog({ kind: 'account', status: accountStatus })}
                         >
-                          {userDetail.user.accountStatus === 'banned' ? 'Unban' : 'Unsuspend'}
+                          {accountStatus === 'active' && userDetail.user.accountStatus === 'banned'
+                            ? 'Unban'
+                            : accountStatus === 'active' && userDetail.user.accountStatus === 'suspended'
+                              ? 'Unsuspend'
+                              : accountActionLabels[accountStatus]}
                         </Button>
-                      </div>
-                    )
+                      ))}
+                    </div>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {accountStatusOrder.map((accountStatus) => (
