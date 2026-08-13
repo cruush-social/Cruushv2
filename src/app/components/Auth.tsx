@@ -867,8 +867,8 @@ export default function Auth({ onAuth }: AuthProps) {
         >
           hello@cruush.app
         </a>
-        <a className="launch-login-auth-contact" href="/support?appeal=1">
-          Appeal a suspension
+        <a className="launch-login-auth-contact" href="mailto:reports@cruush.app?subject=cruush%20bug%20report">
+          Report a bug
         </a>
 
         <PublicPolicyLinks variant="compact" />

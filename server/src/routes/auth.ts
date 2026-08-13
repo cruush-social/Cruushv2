@@ -48,6 +48,7 @@ import { encryptReferralSignupPrivacy } from "../referral-privacy.js";
 import { verifyLoginSecondFactor } from "../two-factor.js";
 import { isOwnerFullAccessEmail, ownerCanBypassAccountStatus } from "../owner-access.js";
 import { birthYearFromDateOfBirth } from "../profile-schema.js";
+import { syncVerifiedMemberToResendAudience } from "../resend-audience.js";
 
 type SessionLookupRow = {
   user_id: string;
@@ -1231,6 +1232,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
       "delete from email_verification_tokens where user_id = $1",
       [verificationToken.user_id]
     );
+
+    void syncVerifiedMemberToResendAudience({ config: request.server.config, email: updatedUser.rows[0].email, logger: request.log });
 
     return reply.send({
       data: {

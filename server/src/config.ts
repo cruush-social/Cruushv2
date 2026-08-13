@@ -143,6 +143,7 @@ const configSchema = z.object({
   GITHUB_BUG_TRIAGE_TOKEN: z.string().optional().default(""),
   GITHUB_BUG_TRIAGE_LABEL: z.string().trim().max(50).optional().default("bug-report"),
   RESEND_API_KEY: z.string().optional().default(""),
+  RESEND_CRUUSH_APP_AUDIENCE_ID: z.string().trim().optional().default(""),
   MAIL_FROM: z.string().optional().default(""),
   EMAIL_PREVIEW_ENABLED: booleanEnvSchema,
   DEVELOPMENT_ADMIN_ENABLED: booleanEnvSchema,
@@ -729,13 +730,15 @@ type BugTriageConfigKey =
   | "GITHUB_BUG_TRIAGE_LABEL";
 type BuildInfoConfigKey =
   | "APP_BUILD_SHA";
+type AudienceConfigKey =
+  | "RESEND_CRUUSH_APP_AUDIENCE_ID";
 
 export type AppConfig = Omit<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey
 > & Partial<Pick<
   ParsedAppConfig,
-  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey
+  GhostModeConfigKey | ModerationConfigKey | WebPushConfigKey | TwoFactorConfigKey | AlphaTestConfigKey | LaunchPartyConfigKey | BetaAccessConfigKey | BugTriageConfigKey | BuildInfoConfigKey | AudienceConfigKey
 >>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
