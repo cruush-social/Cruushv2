@@ -308,8 +308,8 @@ describe("shared Stream profile-photo automod route", () => {
       }
     });
     expect(JSON.stringify(query.mock.calls)).toContain("minor_face_detected");
-    expect(sql.some((text) => text.includes("account_status = 'suspended'"))).toBe(true);
-    expect(sql.some((text) => text.includes("delete from app_sessions"))).toBe(true);
+    expect(sql.some((text) => text.includes("insert into suspensions"))).toBe(true);
+    expect(sql.some((text) => text.includes("user_trust_profiles"))).toBe(true);
     expect(sql.filter((text) => text.includes("insert into severe_access_bans"))).toHaveLength(0);
     expect(sql.some((text) => text.includes("insert into profiles"))).toBe(false);
 

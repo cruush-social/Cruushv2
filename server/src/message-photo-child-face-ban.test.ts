@@ -71,7 +71,7 @@ describe("message-photo child-face enforcement", () => {
   });
 
   it.each(["direct_message", "group_message"] as const)(
-    "suspends child-face uploads for human review on %s",
+    "restricts child-face uploads for human review on %s",
     async (surface) => {
       const query = vi.fn().mockResolvedValue({ rows: [] });
       const app = {
@@ -104,8 +104,8 @@ describe("message-photo child-face enforcement", () => {
       });
 
       const sql = query.mock.calls.map(([text]) => String(text));
-      expect(sql.some((text) => text.includes("account_status = 'suspended'"))).toBe(true);
-      expect(sql.some((text) => text.includes("delete from app_sessions"))).toBe(true);
+      expect(sql.some((text) => text.includes("insert into suspensions"))).toBe(true);
+      expect(sql.some((text) => text.includes("user_trust_profiles"))).toBe(true);
       expect(sql.filter((text) => text.includes("insert into severe_access_bans"))).toHaveLength(0);
     }
   );

@@ -62,6 +62,7 @@
     "server/src/dev-seed-profiles.test.ts",
     "server/src/reviewer-test-accounts.test.ts",
     "server/src/profile-photo-stream-automod-routes.test.ts",
+    "server/src/message-photo-child-face-ban.test.ts",
     "server/src/nearby-notifications.test.ts",
     "server/src/moderation-service.test.ts",
     "server/src/beta-access.ts",

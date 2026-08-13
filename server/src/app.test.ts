@@ -6717,6 +6717,7 @@ describe("server", () => {
     const requestId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";
     query
       .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: requestId,
@@ -6750,7 +6751,7 @@ describe("server", () => {
     });
 
     expect(listResponse.statusCode).toBe(200);
-    expect(query.mock.calls[1]?.[0]).toContain("from support_requests");
+    expect(query.mock.calls.find(([sql]) => String(sql).includes("from support_requests"))?.[0]).toContain("from support_requests");
     expect(listResponse.json().data.requests[0]).toMatchObject({
       subject: "Messages are missing",
       contactEmail: "c******@example.com",
@@ -6788,6 +6789,7 @@ describe("server", () => {
           updated_at: "2026-04-29T12:30:00.000Z"
         }]
       })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
     const updateResponse = await app.inject({
@@ -6800,7 +6802,7 @@ describe("server", () => {
     expect(updateResponse.statusCode).toBe(200);
     expect(query.mock.calls[1]?.[0]).toContain("update support_requests");
     expect(query.mock.calls[1]?.[1]).toEqual([requestId, "closed"]);
-    expect(query.mock.calls[2]?.[0]).toContain("insert into moderation_access_events");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into moderation_access_events");
     expect(updateResponse.json().data.request).toMatchObject({
       id: requestId,
       status: "closed"
@@ -9823,7 +9825,7 @@ describe("server", () => {
     expect(query.mock.calls[1]?.[0]).toContain("from user_blocks block");
     expect(query.mock.calls[1]?.[0]).toContain("blocker_user_id = $1");
     expect(query.mock.calls[1]?.[0]).toContain("blocked_user_id = p.user_id");
-    expect(query.mock.calls[1]?.[1]).toEqual([userId, "24h", null, null, 15, null, 30]);
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, "7d", null, null, 15, null, 30]);
   });
 
   it("filters crowd-targeted posts by the reader's crowd memberships at the query boundary", async () => {
@@ -9876,12 +9878,13 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain(
       "feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default)"
     );
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, "24h"]);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "mutuals", true, "24h", null]);
     expect(response.json()).toEqual({
       data: {
         locationPinVisibility: "mutuals",
         showDistanceLabels: true,
-        postExpiryDefault: "24h"
+        postExpiryDefault: "24h",
+        feedWindow: "7d"
       }
     });
   });
@@ -9908,7 +9911,8 @@ describe("server", () => {
       data: {
         locationPinVisibility: "off",
         showDistanceLabels: false,
-        postExpiryDefault: "7d"
+        postExpiryDefault: "7d",
+        feedWindow: "7d"
       }
     });
   });
@@ -9938,7 +9942,7 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain(
       "feed_post_expiry_default = coalesce($4::text, user_privacy_settings.feed_post_expiry_default)"
     );
-    expect(query.mock.calls[0]?.[1]).toEqual([userId, "public", false, null]);
+    expect(query.mock.calls[0]?.[1]).toEqual([userId, "public", false, null, null]);
     expect(response.json().data.postExpiryDefault).toBe("24h");
   });
 
