@@ -1098,7 +1098,19 @@ export default function ModeratorReview() {
                 <div className="space-y-3 border-b border-border pb-5">
                   <h3 className="font-medium">Account enforcement</h3>
                   {userDetail.user.isOwner ? (
-                    <p className="text-sm text-muted-foreground">The owner account cannot be restricted.</p>
+                    userDetail.user.accountStatus === 'active' ? (
+                      <p className="text-sm text-muted-foreground">Owner account is active.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setActionDialog({ kind: 'account', status: 'active' })}
+                        >
+                          {userDetail.user.accountStatus === 'banned' ? 'Unban' : 'Unsuspend'}
+                        </Button>
+                      </div>
+                    )
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {accountStatusOrder.map((accountStatus) => (
