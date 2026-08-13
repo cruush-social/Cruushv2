@@ -584,7 +584,7 @@ test('uses a pink-forward cruush gradient only while the profile nav icon is act
   await expect(activeIcon).toHaveAttribute('data-tone', 'gradient');
   await expect(activeIcon).toHaveAttribute(
     'style',
-    /linear-gradient\(90deg, rgb\(255, 0, 114\) 0%, rgb\(255, 0, 114\) 30%, rgb\(208, 0, 255\) 48%, rgb\(111, 0, 255\) 62%, rgb\(0, 75, 255\) 82%, rgb\(3, 236, 252\) 100%\)/,
+    /linear-gradient\(90deg, rgb\(255, 0, 114\) 0%, rgb\(255, 0, 114\) 10%, rgb\(208, 0, 255\) 28%, rgb\(111, 0, 255\) 50%, rgb\(0, 75, 255\) 80%, rgb\(3, 236, 252\) 100%\)/,
   );
   await expect(activeIcon).toHaveCSS('width', '44px');
   await expect(activeIcon).toHaveCSS('height', '44px');
@@ -705,7 +705,7 @@ test('short tap opens the profile and press-and-hold reveals the signal', async 
   });
   await page.waitForTimeout(500);
   await expect(marker).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('marker-heart-layer-nearby-ghost-no-photo')).toHaveClass(/scale-\[1\.16\]/);
+  await expect(page.getByTestId('marker-heart-layer-nearby-ghost-no-photo')).toHaveClass(/scale-\[1\.34\]/);
   await expect(page.getByTestId('marker-signal-stack-nearby-ghost-no-photo')).toHaveClass(/opacity-100/);
   await cdp.send('Input.dispatchTouchEvent', {
     type: 'touchEnd',
@@ -723,9 +723,9 @@ test('keeps Ghost location styling separate from profile-photo and DL rendering'
 
   const ownerHeart = page.getByTestId('marker-heart-me');
   await expect(ownerHeart).toHaveAttribute('data-has-photo', 'false');
-  await expect(ownerHeart.locator('path[stroke="#0BA8FF"]')).toHaveCount(1);
-  await expect(ownerHeart.locator('path[fill="#0BA8FF"]')).toHaveCount(0);
+  await expect(ownerHeart.locator('path[stroke="#0BA8FF"]')).toHaveCount(0);
   await expect(page.getByTestId('marker-photo-fill-me')).toHaveCount(0);
+  await expect(page.getByTestId('marker-heart-me-ghost-decoy')).toHaveCount(0);
 
   const nearbyNoPhoto = page.getByTestId('marker-heart-nearby-ghost-no-photo');
   await expect(nearbyNoPhoto).toHaveAttribute('data-marker-theme', 'nearby');

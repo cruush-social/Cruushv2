@@ -2,7 +2,7 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Audit every open GitHub item against the deployed cruush v1.3 source. Treat every automatic bug report (#20–#80) as a release blocker until its exact path is fixed or evidence shows it is no longer reproducible; verify older product tickets (#1–#14) are represented by current behavior without adding unrelated product work.",
+  "job": "Apply the reported map and group-composer UI corrections only: keep automatic map framing within the useful NYC view, render mutual pins purple, show mutual Vibe tags in group selection, and expose the existing bug-report control on the messages composer.",
   "base": "origin/main at d522d4a17278fe3f1d4c5bfd50ca57b7db48f7fb",
   "branch": "security/v12-combined",
   "allowedPaths": [
@@ -123,7 +123,8 @@
     "Do not change map provider or map data access beyond the approved NYC-and-Yonkers beta geofence expansion; keep private service-center coordinates out of public copy and payloads.",
     "Do not create a new map style; port only the existing v2 tile, contrast, label, and glyph configuration.",
     "Keep nearby alerts opt-in and cap each recipient to one alert in the existing four-day return window without changing location-disclosure policy.",
-    "Do not weaken moderation, delete content, or bypass provider failures; preserve pending-review and retry behavior."
+    "Do not weaken moderation, delete content, or bypass provider failures; preserve pending-review and retry behavior.",
+    "Do not change map providers, discovery scope, group membership rules, or unrelated messages behavior."
   ],
   "proof": [
     "Issue-by-issue audit maps each automatic GitHub report to its current source path and separates verified source fixes from evidence gaps.",
