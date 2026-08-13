@@ -19,12 +19,14 @@ type SessionLookupRow = {
   user_id: string;
   email?: string | null;
   account_status?: string | null;
+  age_verified_at?: string | Date | null;
 };
 
 type SessionLookup = {
   userId: string;
   accountStatus: AccountStatus;
   ownerFullAccess: boolean;
+  ageVerified: boolean;
   tokenHash: string;
 };
 
@@ -34,7 +36,8 @@ async function lookupSession(request: FastifyRequest, sessionToken: string) {
     `select
        s.user_id,
        u.email,
-       coalesce(u.account_status, 'active') as account_status
+       coalesce(u.account_status, 'active') as account_status,
+       u.age_verified_at
      from app_sessions s
      join app_users u on u.id = s.user_id
      where s.token_hash = $1
@@ -57,6 +60,7 @@ async function lookupSession(request: FastifyRequest, sessionToken: string) {
     userId: session.user_id,
     accountStatus: normalizeAccountStatus(session.account_status),
     ownerFullAccess: isOwnerFullAccessEmail(session.email),
+    ageVerified: Boolean(session.age_verified_at),
     tokenHash
   } satisfies SessionLookup;
 }
@@ -85,6 +89,10 @@ export async function getAuthenticatedUserId(request: FastifyRequest) {
     const session = await lookupSession(request, sessionToken);
 
     if (session) {
+      if (!session.ageVerified) {
+        throw new ApiError(403, "AGE_VERIFICATION_REQUIRED", "Confirm your date of birth to continue.");
+      }
+
       if (
         accountCanAuthenticate(session.accountStatus) ||
         ownerFullAccessCanBypassAccountStatus(session.ownerFullAccess, session.accountStatus)
@@ -113,6 +121,10 @@ export async function getActiveAccountUserId(request: FastifyRequest) {
     const session = await lookupSession(request, sessionToken);
 
     if (session) {
+      if (!session.ageVerified) {
+        throw new ApiError(403, "AGE_VERIFICATION_REQUIRED", "Confirm your date of birth to continue.");
+      }
+
       if (
         accountCanPerformUnsafeAction(session.accountStatus) ||
         ownerFullAccessCanBypassAccountStatus(session.ownerFullAccess, session.accountStatus)
@@ -149,6 +161,10 @@ export async function getOptionalAuthenticatedUserId(request: FastifyRequest) {
     const session = await lookupSession(request, sessionToken);
 
     if (session) {
+      if (!session.ageVerified) {
+        return null;
+      }
+
       if (
         accountCanAuthenticate(session.accountStatus) ||
         ownerFullAccessCanBypassAccountStatus(session.ownerFullAccess, session.accountStatus)

@@ -15,6 +15,7 @@ export type AuthSessionPayload = {
     yearOfBirth: number | null;
   } | null;
   needsOnboarding: boolean;
+  needsAgeVerification?: boolean;
   needsCodeOfConduct: boolean;
   codeOfConductVersion: string;
   acceptedCodeOfConductVersion: string | null;
@@ -71,8 +72,15 @@ export function getAuthSession() {
   return requestApi<AuthSessionPayload>('/api/auth/me');
 }
 
-export function signUp(payload: { email: string; password: string; alphaPassword?: string; captchaToken?: string; clientCheck?: ClientSecurityCheckPayload; referralCode?: string; betaAccessLocation?: BetaAccessLocationPayload }) {
+export function signUp(payload: { email: string; password: string; dateOfBirth: string; alphaPassword?: string; captchaToken?: string; clientCheck?: ClientSecurityCheckPayload; referralCode?: string; betaAccessLocation?: BetaAccessLocationPayload }) {
   return requestApi<VerificationDeliveryPayload>('/api/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function verifyAge(payload: { dateOfBirth: string }) {
+  return requestApi<AuthSessionPayload>('/api/auth/age-verification', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

@@ -87,7 +87,8 @@ const migrationFiles = [
   "077_notification_type_preferences.sql",
   "078_activity_reward_earned_guard.sql",
   "079_daily_check_in_rewards.sql",
-  "080_reward_invariants.sql"
+  "080_reward_invariants.sql",
+  "081_signup_age_verification.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

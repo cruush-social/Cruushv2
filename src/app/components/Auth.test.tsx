@@ -336,6 +336,7 @@ describe('Auth', () => {
     fireEvent.click(screen.getByRole('button', { name: "Don't have an account? Sign up" }));
     expect(screen.queryByLabelText('Display Name')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
+    fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '1994-06-15' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });
     await screen.findByText('Mock Turnstile');
@@ -374,6 +375,7 @@ describe('Auth', () => {
     const alphaPasswordInput = await screen.findByLabelText('Alpha password');
     expect(screen.queryByLabelText('Display Name')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'river@example.com' } });
+    fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '1994-06-15' } });
     fireEvent.change(alphaPasswordInput, { target: { value: 'door-password' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password-123' } });
     fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password-123' } });

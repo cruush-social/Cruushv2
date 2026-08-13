@@ -2423,6 +2423,8 @@ describe("server", () => {
           created_at: "2026-04-28T12:00:00.000Z",
           profile_display_name: "River",
           year_of_birth: 1998,
+          signup_birth_year: 1998,
+          age_verified_at: "2026-04-28T12:00:00.000Z",
           code_of_conduct_accepted_version: null,
           code_of_conduct_accepted_at: null
         }]
@@ -2453,12 +2455,85 @@ describe("server", () => {
           yearOfBirth: 1998
         },
         needsOnboarding: false,
+        needsAgeVerification: false,
         needsCodeOfConduct: true,
         codeOfConductVersion: "2026-07-07",
         acceptedCodeOfConductVersion: null,
         codeOfConductAcceptedAt: null
       }
     });
+  });
+
+  it("requires verified age before a legacy session can use account APIs", async () => {
+    query.mockResolvedValueOnce({
+      rows: [{
+        user_id: userId,
+        email: "river@example.com",
+        account_status: "active",
+        age_verified_at: null
+      }]
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/profiles/me",
+      cookies: {
+        cruush_session: "legacy-session-token"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      error: {
+        code: "AGE_VERIFICATION_REQUIRED",
+        message: "Confirm your date of birth to continue.",
+        details: null
+      }
+    });
+    expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
+  });
+
+  it("records adult age verification for a legacy session", async () => {
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          email: "river@example.com",
+          account_status: "active"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [{ id: userId }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          email: "river@example.com",
+          app_display_name: "River",
+          email_verified_at: "2026-04-28T12:00:00.000Z",
+          created_at: "2026-04-28T12:00:00.000Z",
+          profile_display_name: "River",
+          year_of_birth: 1998,
+          signup_birth_year: 1998,
+          age_verified_at: "2026-08-13T12:00:00.000Z",
+          code_of_conduct_accepted_version: "2026-07-07",
+          code_of_conduct_accepted_at: "2026-08-13T12:00:00.000Z"
+        }]
+      });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/age-verification",
+      cookies: {
+        cruush_session: "legacy-session-token"
+      },
+      payload: {
+        dateOfBirth: "1998-06-15"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("set signup_birth_year = $2");
+    expect(query.mock.calls[1]?.[1]).toEqual([userId, 1998]);
+    expect(response.json().data.needsAgeVerification).toBe(false);
   });
 
   it("deletes the current user's account and queues media cleanup", async () => {

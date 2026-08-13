@@ -17,6 +17,7 @@ const LocalFeed = lazy(() => import('./components/LocalFeed'));
 const ProfileView = lazy(() => import('./components/ProfileView'));
 const ProfileEdit = lazy(() => import('./components/ProfileEdit'));
 const ProfileOnboarding = lazy(() => import('./components/ProfileOnboarding'));
+const AgeVerification = lazy(() => import('./components/AgeVerification'));
 const FiltersPanel = lazy(() => import('./components/FiltersPanel'));
 const GroupDetail = lazy(() => import('./components/GroupDetail'));
 const EventDetail = lazy(() => import('./components/EventDetail'));
@@ -224,6 +225,11 @@ export default function App({
     }
   };
 
+  const handleAgeVerified = (nextSession: AuthSessionPayload) => {
+    setSession(nextSession);
+    setNeedsOnboarding(nextSession.needsOnboarding);
+  };
+
   const handleCodeOfConductAccepted = (nextSession: AuthSessionPayload) => {
     setSession(nextSession);
     setNeedsOnboarding(nextSession.needsOnboarding);
@@ -319,6 +325,21 @@ export default function App({
             />
           </Routes>
           {alphaBugControl}
+        </Suspense>
+      </BrowserRouter>
+    );
+  }
+
+  if (session?.needsAgeVerification) {
+    return (
+      <BrowserRouter key="age-verification-router">
+        <GoogleAnalyticsPageTracker />
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="*" element={<AgeVerification onVerified={handleAgeVerified} />} />
+          </Routes>
         </Suspense>
       </BrowserRouter>
     );

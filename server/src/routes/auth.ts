@@ -24,6 +24,7 @@ import {
 } from "../auth.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../mailer.js";
 import {
+  ageVerificationPayloadSchema,
   changePasswordPayloadSchema,
   deleteAccountPayloadSchema,
   forgotPasswordPayloadSchema,
@@ -46,6 +47,7 @@ import { prepareSignupReferral } from "../referrals-service.js";
 import { encryptReferralSignupPrivacy } from "../referral-privacy.js";
 import { verifyLoginSecondFactor } from "../two-factor.js";
 import { isOwnerFullAccessEmail, ownerCanBypassAccountStatus } from "../owner-access.js";
+import { birthYearFromDateOfBirth } from "../profile-schema.js";
 
 type SessionLookupRow = {
   user_id: string;
@@ -61,6 +63,8 @@ type AuthUserRow = {
   created_at: string | Date;
   profile_display_name: string | null;
   year_of_birth: number | null;
+  signup_birth_year: number | null;
+  age_verified_at: string | Date | null;
   code_of_conduct_accepted_version: string | null;
   code_of_conduct_accepted_at: string | Date | null;
   account_status?: string | null;
@@ -141,6 +145,7 @@ const acceptCodeOfConductPayloadSchema = z.object({
 function mapSessionRow(row: AuthUserRow) {
   const displayName = row.app_display_name?.trim() || row.profile_display_name?.trim() || row.email;
   const profileDisplayName = row.profile_display_name?.trim() || null;
+  const needsAgeVerification = !row.age_verified_at;
   const needsOnboarding = !profileDisplayName || !row.year_of_birth;
   const acceptedCodeOfConductVersion = row.code_of_conduct_accepted_version?.trim() || null;
   const moderatorRole = row.moderator_role ?? (isOwnerFullAccessEmail(row.email) ? "admin" : null);
@@ -162,6 +167,7 @@ function mapSessionRow(row: AuthUserRow) {
         }
       : null,
     needsOnboarding,
+    needsAgeVerification,
     needsCodeOfConduct: acceptedCodeOfConductVersion !== CURRENT_CODE_OF_CONDUCT_VERSION,
     codeOfConductVersion: CURRENT_CODE_OF_CONDUCT_VERSION,
     acceptedCodeOfConductVersion,
@@ -242,6 +248,8 @@ async function loadAuthSession(app: FastifyInstance, userId: string) {
        u.created_at,
        p.display_name as profile_display_name,
        p.year_of_birth,
+       u.signup_birth_year,
+       u.age_verified_at,
        u.code_of_conduct_accepted_version,
        u.code_of_conduct_accepted_at,
        coalesce(u.account_status, 'active') as account_status,
@@ -457,7 +465,19 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post("/api/auth/signup", async (request, reply) => {
     await assertRequestNotSeverelyBanned(app, request);
-    const payload = signUpPayloadSchema.parse(request.body);
+    const signupResult = signUpPayloadSchema.safeParse(request.body);
+
+    if (!signupResult.success) {
+      const dateOfBirthIssue = signupResult.error.issues.find((issue) => issue.path[0] === "dateOfBirth");
+
+      if (dateOfBirthIssue) {
+        throw new ApiError(400, "VALIDATION_ERROR", dateOfBirthIssue.message);
+      }
+
+      throw signupResult.error;
+    }
+
+    const payload = signupResult.data;
     ensureAlphaTestActive(app.config);
     await applyRateLimits(app, [
       {
@@ -492,8 +512,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     try {
       const result = await app.db.query<CreatedUserRow>(
         `with created_user as (
-           insert into app_users (email, password_hash, display_name)
-           values ($1, $2, $3)
+           insert into app_users (email, password_hash, display_name, signup_birth_year, age_verified_at)
+           values ($1, $2, $3, $15, now())
            returning id, email, display_name, email_verified_at, created_at
          ),
          created_trust_profile as (
@@ -555,7 +575,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
           referralPrivacy?.ciphertext ?? null,
           referralPrivacy?.nonce ?? null,
           referralPrivacy?.authTag ?? null,
-          referralPrivacy?.keyVersion ?? null
+          referralPrivacy?.keyVersion ?? null,
+          birthYearFromDateOfBirth(payload.dateOfBirth)
         ]
       );
 
@@ -1038,6 +1059,45 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.get("/api/auth/me", async (request, reply) => {
     const userId = await resolveSessionUserId(request);
+
+    return reply.send({
+      data: await loadAuthSession(app, userId)
+    });
+  });
+
+  app.post("/api/auth/age-verification", async (request, reply) => {
+    const userId = await resolveSessionUserId(request);
+    const ageVerificationResult = ageVerificationPayloadSchema.safeParse(request.body);
+
+    if (!ageVerificationResult.success) {
+      const dateOfBirthIssue = ageVerificationResult.error.issues.find((issue) => issue.path[0] === "dateOfBirth");
+
+      if (dateOfBirthIssue) {
+        throw new ApiError(400, "VALIDATION_ERROR", dateOfBirthIssue.message);
+      }
+
+      throw ageVerificationResult.error;
+    }
+
+    const payload = ageVerificationResult.data;
+    const birthYear = birthYearFromDateOfBirth(payload.dateOfBirth);
+
+    if (birthYear === null) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Enter a valid date of birth.");
+    }
+
+    const result = await app.db.query<{ id: string }>(
+      `update app_users
+       set signup_birth_year = $2,
+           age_verified_at = coalesce(age_verified_at, now())
+       where id = $1
+       returning id`,
+      [userId, birthYear]
+    );
+
+    if (!result.rows[0]) {
+      throw new ApiError(401, "AUTH_REQUIRED", "Authentication required.");
+    }
 
     return reply.send({
       data: await loadAuthSession(app, userId)

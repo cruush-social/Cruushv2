@@ -33,9 +33,20 @@ export function ageFromDateOfBirth(value: string, today = new Date()) {
     return null;
   }
 
-  const currentYear = today.getUTCFullYear();
-  const currentMonth = today.getUTCMonth() + 1;
-  const currentDay = today.getUTCDate();
+  const currentDate = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric"
+  }).formatToParts(today).reduce<Record<string, number>>((parts, part) => {
+    if (part.type === "year" || part.type === "month" || part.type === "day") {
+      parts[part.type] = Number(part.value);
+    }
+    return parts;
+  }, {});
+  const currentYear = currentDate.year ?? today.getUTCFullYear();
+  const currentMonth = currentDate.month ?? today.getUTCMonth() + 1;
+  const currentDay = currentDate.day ?? today.getUTCDate();
   const birthdayHasPassed = currentMonth > birthDate.month ||
     (currentMonth === birthDate.month && currentDay >= birthDate.day);
 
@@ -46,23 +57,26 @@ export function birthYearFromDateOfBirth(value: string) {
   return calendarDateParts(value)?.year ?? null;
 }
 
-const adultDateOfBirthSchema = z.string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter your complete date of birth.")
-  .superRefine((value, ctx) => {
-    const age = ageFromDateOfBirth(value);
+const adultDateOfBirthSchema = z.preprocess(
+  (value) => typeof value === "string" ? value : "",
+  z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter your complete date of birth.")
+    .superRefine((value, ctx) => {
+      const age = ageFromDateOfBirth(value);
 
-    if (age === null || age > 120) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Enter a valid date of birth."
-      });
-    } else if (age < 18) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "You must be at least 18 to use cruush."
-      });
-    }
-  });
+      if (age === null || age < 0 || age > 120) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Enter a valid date of birth."
+        });
+      } else if (age < 18) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "You must be at least 18 to use cruush."
+        });
+      }
+    })
+);
 
 const shortStringField = optionalSingleLineTextSchema(120);
 const arrayField = z.array(singleLineTextSchema({ min: 1, max: 120 })).max(25).optional().default([]);

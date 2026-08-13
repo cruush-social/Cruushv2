@@ -36,6 +36,7 @@ export default function Auth({ onAuth }: AuthProps) {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -189,6 +190,11 @@ export default function Auth({ onAuth }: AuthProps) {
         setIsLoading(false);
         return;
       }
+      if (!dateOfBirth) {
+        setError('Enter your date of birth.');
+        setIsLoading(false);
+        return;
+      }
     }
 
     if (turnstileSiteKey && !captchaToken) {
@@ -203,6 +209,7 @@ export default function Auth({ onAuth }: AuthProps) {
         const delivery = await signUp({
           email,
           password,
+          dateOfBirth,
           alphaPassword: alphaPasswordRequired ? alphaPassword.trim() : undefined,
           captchaToken,
           clientCheck: buildHumanCheck(),
@@ -227,6 +234,7 @@ export default function Auth({ onAuth }: AuthProps) {
           setPassword('');
         }
         setConfirmPassword('');
+        setDateOfBirth('');
         setAlphaPassword('');
         setShowPassword(false);
         setShowConfirmPassword(false);
@@ -358,6 +366,7 @@ export default function Auth({ onAuth }: AuthProps) {
     setNotice('');
     setVerificationRetryAvailable(false);
     setConfirmPassword('');
+    setDateOfBirth('');
     setAlphaPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
@@ -375,6 +384,7 @@ export default function Auth({ onAuth }: AuthProps) {
     setVerificationRetryAvailable(false);
     setPassword('');
     setConfirmPassword('');
+    setDateOfBirth('');
     setAlphaPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
@@ -692,6 +702,22 @@ export default function Auth({ onAuth }: AuthProps) {
               disabled={isLoading}
             />
           </div>
+
+          {isSignUp ? (
+            <div className="space-y-2">
+              <label htmlFor="dateOfBirth" className="sr-only">Date of birth</label>
+              <input
+                id="dateOfBirth"
+                type="date"
+                autoComplete="bday"
+                value={dateOfBirth}
+                onChange={(event) => setDateOfBirth(event.target.value)}
+                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          ) : null}
 
           {!isForgotPassword && (
             <div className="space-y-2">

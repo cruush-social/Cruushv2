@@ -1,8 +1,8 @@
 {
-  "status": "ready_to_publish",
+  "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Finish the accepted cruush v1.3 release candidate. Current release-blocker batch: resolve the remaining reported location-sharing, onboarding completion, profile-photo persistence, nearby-alert volume, and moderation-outage queue failures while preserving the accepted Messages and v2 map work.",
+  "job": "Audit every open GitHub item against the deployed cruush v1.3 source. Treat every automatic bug report (#20–#80) as a release blocker until its exact path is fixed or evidence shows it is no longer reproducible; verify older product tickets (#1–#14) are represented by current behavior without adding unrelated product work.",
   "base": "origin/main at 557e4fcdd67d2034e8fcbef8da1f6fc381b18ae6",
   "branch": "security/v12-combined",
   "allowedPaths": [
@@ -12,12 +12,25 @@
     "src/app/components/MapHome.tsx",
     "src/app/components/ProfileOnboarding.tsx",
     "src/app/components/ProfileOnboarding.test.tsx",
+    "src/app/components/AgeVerification.tsx",
+    "src/app/components/AgeVerification.test.tsx",
+    "src/app/components/Auth.tsx",
+    "src/app/components/Auth.test.tsx",
     "src/app/components/ProfileEdit.tsx",
     "src/app/App.tsx",
+    "src/app/lib/authApi.ts",
+    "src/app/lib/authApi.test.ts",
     "src/app/lib/locationApi.ts",
     "src/app/lib/profileApi.ts",
     "server/src/routes/auth.ts",
     "server/src/routes/profiles.ts",
+    "server/src/auth-schema.ts",
+    "server/src/errors.ts",
+    "server/src/profile-schema.ts",
+    "server/src/request-auth.ts",
+    "server/src/migrate.ts",
+    "server/src/migrate.test.ts",
+    "server/sql/081_signup_age_verification.sql",
     "server/src/routes/media.ts",
     "server/src/routes/admin-moderation.ts",
     "server/src/nearby-notifications.ts",
@@ -37,8 +50,8 @@
     "Existing dirty artifacts: .claude/launch.json, menu-harness.html, src/menu-harness.tsx, and server/pnpm-lock.yaml."
   ],
   "nonGoals": [
-    "No public copy, changelog, email, audience, waitlist, promotion, migration, or deployment change in this batch.",
-    "No production data mutation, GitHub issue closure, credential change, or deploy. Publish only the reviewed tracked release files to origin/main.",
+    "No public copy, changelog, email, audience, waitlist, promotion, or unrelated product work in this audit batch.",
+    "No GitHub issue closure, credential change, or unrelated deployment. This batch may deploy the reviewed age-gate frontend/API pair and migration 081 only.",
     "Do not synchronize Messages filters with Map Seeking or alter server authorization rules.",
     "Do not change map provider, MapLibre behavior, map data access, or add glass effects.",
     "Do not create a new map style; port only the existing v2 tile, contrast, label, and glyph configuration.",
@@ -46,12 +59,14 @@
     "Do not weaken moderation, delete content, or bypass provider failures; preserve pending-review and retry behavior."
   ],
   "proof": [
+    "Issue-by-issue audit maps each automatic GitHub report to its current source path and separates verified source fixes from evidence gaps.",
     "Canonical local release candidate rendered at http://127.0.0.1:5181/.",
     "Rendered Messages chooser: opened Gender Identities, selected a value, applied it, then used Back to return to message options.",
     "Snapshot frontend production build passed after this source mirror.",
     "Rendered map at http://127.0.0.1:5181/ confirms the v2 tile style, contrast, and label treatment while pins and Ghost behavior remain usable.",
     "Focused mini gates cover location sync failure, onboarding handoff, photo upload/persistence, recipient-wide nearby dedupe, and provider-outage queue handling.",
-    "Canonical local release candidate rebuilds after the completed source mirror."
+    "Canonical local release candidate rebuilds after the completed source mirror.",
+    "Legal-age gate: under-18 signup is rejected server-side; existing accounts without age verification are routed to DOB confirmation and cannot use normal account APIs."
   ],
-  "publicationTarget": "origin/main"
+  "publicationTarget": "Coolify production frontend and API; origin/main receives the age-gate commit, migration 081 runs before API health. No public copy or email."
 }
