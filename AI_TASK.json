@@ -43,6 +43,10 @@
     "src/app/components/BottomNav.test.tsx",
     "src/app/components/ProfileEdit.test.tsx",
     "src/app/components/Changelog.tsx",
+    "src/app/components/AlphaBugButton.tsx",
+    "src/app/components/AlphaBugButton.test.tsx",
+    "src/app/components/Survey.tsx",
+    "src/app/components/Survey.test.tsx",
     "src/app/components/ProfileOnboarding.tsx",
     "src/app/components/ProfileOnboarding.test.tsx",
     "src/app/lib/rewardsApi.ts",
@@ -96,7 +100,8 @@
     "server/sql/084_suspension_appeals.sql",
     "server/sql/085_feed_window_default.sql",
     "server/src/post-schema.ts",
-    "server/src/routes/posts.ts"
+    "server/src/routes/posts.ts",
+    "src/app/App.tsx"
   ],
   "preserved": [
     "All deployed Ghost, Stealth, location-sharing, moderation, messaging, profile persistence, and security fixes.",

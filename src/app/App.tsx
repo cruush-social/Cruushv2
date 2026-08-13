@@ -55,6 +55,7 @@ const TwoFactorSettings = lazy(() => import('./components/TwoFactorSettings'));
 const PublicInfoPage = lazy(() => import('./components/PublicInfoPage'));
 const Tutorial = lazy(() => import('./components/Tutorial'));
 const Changelog = lazy(() => import('./components/Changelog'));
+const Survey = lazy(() => import('./components/Survey'));
 
 const PUBLIC_INFO_ROUTES = [
   { path: '/about', page: 'about' },
@@ -434,6 +435,7 @@ export default function App({
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
               <Route path="/settings/tutorial" element={<Tutorial />} />
               <Route path="/settings/changelog" element={<Changelog />} />
+              <Route path="/survey" element={<Survey />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />
