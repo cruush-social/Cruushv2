@@ -12,6 +12,7 @@ import { runTransaction, type DbClient } from "./db.js";
 import { ApiError } from "./errors.js";
 import { hashPassword, verifyPassword } from "./auth.js";
 import { loadRewardConfig } from "./reward-config.js";
+import { grantPromotionalDaysInTransaction } from "./rewards-service.js";
 import { insertTrustEvent, recalculateTrustProfile } from "./trust-engine.js";
 
 type TwoFactorRow = {
@@ -30,6 +31,24 @@ type CredentialRow = {
   email: string;
   password_hash: string;
 };
+
+function asDate(value: string | Date | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isEligibleForTwoFactorPromotion(
+  createdAt: string | Date | null | undefined,
+  cutoverAt: string | Date | null | undefined
+) {
+  const accountCreatedAt = asDate(createdAt);
+  const promotionCutoverAt = asDate(cutoverAt);
+  return Boolean(accountCreatedAt && promotionCutoverAt && accountCreatedAt >= promotionCutoverAt);
+}
 
 function encryptionSecret(config: AppConfig) {
   return config.TWO_FACTOR_ENCRYPTION_KEY || config.SESSION_SECRET;
@@ -312,9 +331,32 @@ export async function completeTwoFactorSetup(
       );
     }
 
+    const account = await db.query<{ created_at: string | Date | null }>(
+      "select created_at from app_users where id = $1 limit 1",
+      [userId]
+    );
+    const promotionGrant = rewardConfig.twoFactorPromoDays > 0 &&
+      isEligibleForTwoFactorPromotion(
+        account.rows[0]?.created_at,
+        rewardConfig.twoFactorPromoCutoverAt
+      )
+      ? await grantPromotionalDaysInTransaction(db, {
+          userId,
+          source: "admin",
+          days: rewardConfig.twoFactorPromoDays,
+          idempotencyKey: `two-factor-cruush-plus-day:${userId}`,
+          milestoneKey: `two-factor-cruush-plus-day:${userId}`,
+          auditMetadata: {
+            promotion: "two_factor_one_day",
+            method: "totp"
+          }
+        }, rewardConfig)
+      : null;
+
     return {
       enabled: true,
-      recoveryCodes
+      recoveryCodes,
+      promotionalDaysGranted: promotionGrant?.days ?? 0
     };
   });
 }

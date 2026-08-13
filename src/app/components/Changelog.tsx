@@ -19,6 +19,7 @@ const changelogReleases = [
       'Messages now use the same detailed Seeking filters as the map without changing your map filters.',
       'Profile changes save immediately, including display name and photos.',
       'Sign-up now confirms that you are 18 or older with a simple date-of-birth check.',
+      'New accounts receive one free day of cruush+ when they enable 2FA.',
     ],
   },
   {

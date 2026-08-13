@@ -108,7 +108,7 @@ export function startTwoFactorSetup(password: string) {
 }
 
 export function completeTwoFactorSetup(token: string) {
-  return requestApi<{ enabled: true; recoveryCodes: string[] }>('/api/auth/2fa/setup/complete', {
+  return requestApi<{ enabled: true; recoveryCodes: string[]; promotionalDaysGranted: number }>('/api/auth/2fa/setup/complete', {
     method: 'POST',
     body: JSON.stringify({ token }),
   });

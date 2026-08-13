@@ -12,6 +12,15 @@ import {
   verifyLoginSecondFactor
 } from "./two-factor.js";
 
+const { grantPromotionalDaysInTransaction } = vi.hoisted(() => ({
+  grantPromotionalDaysInTransaction: vi.fn()
+}));
+
+vi.mock("./rewards-service.js", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./rewards-service.js")>(),
+  grantPromotionalDaysInTransaction
+}));
+
 const userId = "8b2f51cf-65e2-4cb3-b09b-c8cc3e3bbb21";
 let credentialHash = "";
 
@@ -31,6 +40,9 @@ class TwoFactorTestDb implements DbClient {
   recovery = new Map<string, { hash: string; used: boolean }>();
   recoveryIndex = 0;
   trustEventCount = 0;
+  promoDays = 0;
+  promoCutoverAt: Date | null = null;
+  userCreatedAt = new Date("2026-07-27T12:00:00.000Z");
 
   async query<T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<DbQueryResult<T>> {
     const sql = text.replace(/\s+/g, " ").trim();
@@ -38,6 +50,8 @@ class TwoFactorTestDb implements DbClient {
 
     if (sql === "select email, password_hash from app_users where id = $1 limit 1") {
       rows = [{ email: "member@cruush.test", password_hash: credentialHash }];
+    } else if (sql === "select created_at from app_users where id = $1 limit 1") {
+      rows = [{ created_at: this.userCreatedAt }];
     } else if (sql.includes("from user_two_factor_auth") && sql.includes("for update")) {
       rows = this.state
         ? [{
@@ -69,7 +83,12 @@ class TwoFactorTestDb implements DbClient {
         this.state.trust_awarded_at = new Date();
       }
     } else if (sql.includes("from reward_settings")) {
-      rows = [];
+      rows = this.promoDays > 0 && this.promoCutoverAt
+        ? [
+            { key: "two_factor_promo_reward_days", value: this.promoDays },
+            { key: "two_factor_promo_cutover_at", value: this.promoCutoverAt.toISOString() }
+          ]
+        : [];
     } else if (sql.includes("insert into trust_events")) {
       if (this.trustEventCount === 0) {
         this.trustEventCount += 1;
@@ -128,6 +147,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   vi.useRealTimers();
+  grantPromotionalDaysInTransaction.mockReset();
 });
 
 describe("internal TOTP two-factor authentication", () => {
@@ -180,6 +200,38 @@ describe("internal TOTP two-factor authentication", () => {
     await expect(
       verifyLoginSecondFactor(app, userId, recoveryCode)
     ).rejects.toMatchObject({ code: "INVALID_TWO_FACTOR_CODE" });
+  });
+
+  it("grants one idempotent cruush+ day to a new account when 2FA is enabled", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-15T12:00:00.000Z"));
+    const db = new TwoFactorTestDb();
+    db.userCreatedAt = new Date("2026-08-14T12:00:00.000Z");
+    db.promoCutoverAt = new Date("2026-08-13T12:00:00.000Z");
+    db.promoDays = 1;
+    grantPromotionalDaysInTransaction.mockResolvedValueOnce({
+      id: "grant-2fa-day",
+      source: "admin",
+      days: 1,
+      createdAt: "2026-08-15T12:00:00.000Z"
+    });
+
+    const app = appFor(db);
+    const setup = await startTwoFactorSetup(app, userId, "correct-password");
+    const completed = await completeTwoFactorSetup(app, userId, await generate({ secret: setup.secret }));
+
+    expect(completed.promotionalDaysGranted).toBe(1);
+    expect(grantPromotionalDaysInTransaction).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        userId,
+        source: "admin",
+        days: 1,
+        idempotencyKey: `two-factor-cruush-plus-day:${userId}`,
+        milestoneKey: `two-factor-cruush-plus-day:${userId}`
+      }),
+      expect.objectContaining({ twoFactorPromoDays: 1 })
+    );
   });
 
   it("requires the current password and a fresh authenticator code to regenerate codes", async () => {

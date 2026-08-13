@@ -52,6 +52,16 @@ describe("migration runner", () => {
     expect(rewardsSql).not.toContain("'[\"cruush\",\"message\",\"post\"]'::jsonb");
   });
 
+  it("keeps the one-day 2FA promotion cutover replay-safe", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const promoSql = await readFile(path.join(serverRoot, "sql", "082_two_factor_cruush_plus_reward.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"081_signup_age_verification\.sql",\s*"082_two_factor_cruush_plus_reward\.sql"/);
+    expect(promoSql).toContain("two_factor_promo_reward_days");
+    expect(promoSql).toContain("two_factor_promo_cutover_at");
+    expect(promoSql).toContain("on conflict (key) do nothing");
+  });
+
   it("keeps the daily-login migration replay on the final reward cap", async () => {
     const loginRewardsSql = await readFile(path.join(serverRoot, "sql", "056_daily_login_bonus_rewards.sql"), "utf8");
 

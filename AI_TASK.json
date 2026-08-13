@@ -41,7 +41,17 @@
     "src/app/components/MapHome.test.tsx",
     "src/app/components/ProfileEdit.test.tsx",
     "src/app/components/Changelog.tsx",
+    "src/app/components/ProfileOnboarding.tsx",
+    "src/app/components/ProfileOnboarding.test.tsx",
+    "src/app/lib/rewardsApi.ts",
+    "server/src/reward-config.ts",
+    "server/src/rewards-service.ts",
+    "server/src/two-factor.ts",
+    "server/src/two-factor.test.ts",
     "server/src/app.test.ts",
+    "server/src/migrate.ts",
+    "server/src/migrate.test.ts",
+    "server/sql/082_two_factor_cruush_plus_reward.sql",
     "server/src/dev-seed-profiles.test.ts",
     "server/src/reviewer-test-accounts.test.ts",
     "server/src/profile-photo-stream-automod-routes.test.ts",
@@ -56,7 +66,7 @@
     "Existing dirty artifacts: .claude/launch.json, menu-harness.html, src/menu-harness.tsx, and server/pnpm-lock.yaml."
   ],
   "nonGoals": [
-    "Update the in-app v1.3 changelog only; no email, broadcast, audience, waitlist, promotion, or unrelated product work.",
+    "Update the in-app v1.3 changelog and add the one-day 2FA cruush+ promotion only; no email, broadcast, audience, waitlist, or unrelated product work.",
     "No GitHub issue closure, credential change, or unrelated deployment. This batch may deploy the reviewed age-gate frontend/API pair and migration 081 only.",
     "Do not synchronize Messages filters with Map Seeking or alter server authorization rules.",
     "Do not change map provider, MapLibre behavior, map data access, or add glass effects.",
@@ -73,7 +83,8 @@
     "Focused mini gates cover location sync failure, onboarding handoff, photo upload/persistence, recipient-wide nearby dedupe, and provider-outage queue handling.",
     "Canonical local release candidate rebuilds after the completed source mirror.",
     "Legal-age gate: under-18 signup is rejected server-side; existing accounts without age verification are routed to DOB confirmation and cannot use normal account APIs.",
-    "In-app v1.3 changelog copy matches shipped d522d4a user-facing behavior; no email or broadcast sent."
+    "In-app v1.3 changelog copy matches shipped d522d4a user-facing behavior; no email or broadcast sent.",
+    "Migration 082 creates a replay-safe one-day 2FA cruush+ promotion cutover; focused server migration/2FA checks passed (25 tests), server build passed, and onboarding check passed (9 tests)."
   ],
-  "publicationTarget": "In-app v1.3 changelog only; no email, broadcast, audience, waitlist, promotion, or deployment."
+  "publicationTarget": "Local branch only; no email, broadcast, audience, waitlist, or deployment."
 }

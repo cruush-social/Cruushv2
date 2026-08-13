@@ -90,7 +90,7 @@ const STEP_COPY: Record<OnboardingStep, { rite: string; title: string; detail: s
   twoFactor: {
     rite: 'protect your key',
     title: 'Set up 2FA?',
-    detail: 'Optional, but affiliate-link signups count when the referred account verifies its 2FA code.',
+    detail: 'Optional. New accounts can receive one free day of cruush+ when 2FA is enabled.',
   },
   affiliateShare: {
     rite: 'summon your circle',
@@ -243,6 +243,7 @@ export default function ProfileOnboarding({
   const [twoFactorRecoveryCodes, setTwoFactorRecoveryCodes] = useState<string[]>([]);
   const [twoFactorSaving, setTwoFactorSaving] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorPromoDaysGranted, setTwoFactorPromoDaysGranted] = useState(0);
   const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
   const [rewardSummary, setRewardSummary] = useState<RewardSummary | null>(null);
   const [rewardSummaryLoading, setRewardSummaryLoading] = useState(false);
@@ -376,6 +377,7 @@ export default function ProfileOnboarding({
     try {
       const result = await completeTwoFactorSetup(twoFactorToken);
       setTwoFactorRecoveryCodes(result.recoveryCodes);
+      setTwoFactorPromoDaysGranted(result.promotionalDaysGranted ?? 0);
       setTwoFactorSetup(null);
       setTwoFactorToken('');
       setTwoFactorEnabled(true);
@@ -675,6 +677,11 @@ export default function ProfileOnboarding({
                         <ShieldCheck className="h-5 w-5" />
                         <p className="text-sm font-semibold">2FA is active.</p>
                       </div>
+                      {twoFactorPromoDaysGranted > 0 ? (
+                        <p className="text-sm leading-6 text-white/78">
+                          One free day of cruush+ has been added to your account.
+                        </p>
+                      ) : null}
                       <div className="grid grid-cols-2 gap-2 rounded-md bg-black/40 p-3 font-mono text-xs text-white/78">
                         {twoFactorRecoveryCodes.map((code) => (
                           <span key={code}>{code}</span>

@@ -173,10 +173,11 @@ describe('ProfileOnboarding', () => {
       otpauthUri: 'otpauth://totp/cruush:river',
       qrCodeDataUrl: 'data:image/png;base64,qr',
     });
-    completeTwoFactorSetup.mockResolvedValue({
-      enabled: true,
-      recoveryCodes: ['alpha-111', 'beta-222'],
-    });
+  completeTwoFactorSetup.mockResolvedValue({
+    enabled: true,
+    recoveryCodes: ['alpha-111', 'beta-222'],
+    promotionalDaysGranted: 0,
+  });
   });
 
   it('blocks completion on the oath step until the code of conduct is checked', async () => {
@@ -385,12 +386,18 @@ describe('ProfileOnboarding', () => {
   });
 
   it('lets users enable 2FA directly during onboarding before entering the map', async () => {
+    completeTwoFactorSetup.mockResolvedValueOnce({
+      enabled: true,
+      recoveryCodes: ['alpha-111', 'beta-222'],
+      promotionalDaysGranted: 1,
+    });
     const onComplete = vi.fn();
     render(<ProfileOnboarding onComplete={onComplete} />);
 
     await fillProfileRites();
 
     expect(screen.getByText('protect your key')).toBeInTheDocument();
+    expect(screen.getByText('Optional. New accounts can receive one free day of cruush+ when 2FA is enabled.')).toBeInTheDocument();
     expect(screen.getByText('Use the same password you use to sign in. This is not a separate 2FA password.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/cruush login password/i), {
       target: { value: 'current-password' },
@@ -407,6 +414,7 @@ describe('ProfileOnboarding', () => {
 
     await waitFor(() => expect(completeTwoFactorSetup).toHaveBeenCalledWith('123456'));
     expect(await screen.findByText('2FA is active.')).toBeInTheDocument();
+    expect(screen.getByText('One free day of cruush+ has been added to your account.')).toBeInTheDocument();
     expect(screen.getByText('alpha-111')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /continue/i }));
