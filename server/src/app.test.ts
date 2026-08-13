@@ -1460,19 +1460,16 @@ describe("server", () => {
       payload: {
         email: "river@example.com",
         password: "password-123",
-        dateOfBirth: "1994-06-15",
-        emailUpdatesOptIn: true
+        dateOfBirth: "1994-06-15"
       }
     });
 
     expect(response.statusCode).toBe(201);
     expect(query.mock.calls[0]?.[0]).toContain("insert into app_users");
-    expect(query.mock.calls[0]?.[0]).toContain("email_updates_opt_in");
     expect(query.mock.calls[0]?.[0]).toContain("signup_birth_year");
     expect(query.mock.calls[0]?.[0]).not.toContain("insert into profiles (id, year_of_birth)");
     expect(query.mock.calls[0]?.[1]?.[2]).toBeNull();
-    expect(query.mock.calls[0]?.[1]?.[14]).toBe(true);
-    expect(query.mock.calls[0]?.[1]?.[15]).toBe(1994);
+    expect(query.mock.calls[0]?.[1]?.[14]).toBe(1994);
     expect(query.mock.calls[1]?.[0]).toContain("delete from email_verification_tokens");
     expect(query.mock.calls[2]?.[0]).toContain("insert into email_verification_tokens");
     expect(response.headers["set-cookie"]).toBeUndefined();
@@ -1891,6 +1888,7 @@ describe("server", () => {
             email: "admin@cruush.local",
             app_display_name: "Admin",
             email_verified_at: "2026-04-28T12:00:00.000Z",
+            age_verified_at: "2026-04-28T12:00:00.000Z",
             created_at: "2026-04-28T12:00:00.000Z",
             profile_display_name: "Admin",
             year_of_birth: 1990
@@ -1953,6 +1951,7 @@ describe("server", () => {
           yearOfBirth: 1990
         },
         needsOnboarding: false,
+        needsAgeVerification: false,
         needsCodeOfConduct: true,
         codeOfConductVersion: "2026-07-07",
         acceptedCodeOfConductVersion: null,
@@ -2831,7 +2830,8 @@ describe("server", () => {
     query.mockResolvedValueOnce({
       rows: [{
         user_id: userId,
-        account_status: "under_review"
+        account_status: "under_review",
+        age_verified_at: "2026-04-28T12:00:00.000Z"
       }]
     });
 
@@ -2859,9 +2859,10 @@ describe("server", () => {
     const postId = "59e01d61-4a76-4359-915a-1f25b7815ff4";
     query
       .mockResolvedValueOnce({
-        rows: [{
-          user_id: userId,
-          account_status: "active"
+      rows: [{
+        user_id: userId,
+        account_status: "active",
+        age_verified_at: "2026-04-28T12:00:00.000Z"
         }]
       })
       .mockResolvedValueOnce({
@@ -2887,9 +2888,10 @@ describe("server", () => {
   it("revokes suspended cookie-backed sessions on routes using the shared auth helper", async () => {
     query
       .mockResolvedValueOnce({
-        rows: [{
-          user_id: userId,
-          account_status: "suspended"
+      rows: [{
+        user_id: userId,
+        account_status: "suspended",
+        age_verified_at: "2026-04-28T12:00:00.000Z"
         }]
       })
       .mockResolvedValueOnce({
@@ -2913,9 +2915,10 @@ describe("server", () => {
   it("revokes deleted cookie-backed sessions on routes using the shared auth helper", async () => {
     query
       .mockResolvedValueOnce({
-        rows: [{
-          user_id: userId,
-          account_status: "deleted"
+      rows: [{
+        user_id: userId,
+        account_status: "deleted",
+        age_verified_at: "2026-04-28T12:00:00.000Z"
         }]
       })
       .mockResolvedValueOnce({
@@ -5446,7 +5449,8 @@ describe("server", () => {
           rows: [{
             user_id: userId,
             email: "julienlenazny@gmail.com",
-            account_status: "under_review"
+            account_status: "under_review",
+            age_verified_at: "2026-04-28T12:00:00.000Z"
           }]
         };
       }
@@ -7876,6 +7880,7 @@ describe("server", () => {
     expect(response.json()).toEqual({
       data: {
         url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/),
+        photos: [expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/)],
         explicit: true
       }
     });
@@ -8974,7 +8979,7 @@ describe("server", () => {
       if (normalizedSql.includes("from app_sessions")) {
         return Promise.resolve({
           rows: params[0] === hashSessionToken(sessionToken)
-            ? [{ user_id: userId }]
+            ? [{ user_id: userId, age_verified_at: "2026-04-28T12:00:00.000Z" }]
             : []
         });
       }
@@ -9657,7 +9662,8 @@ describe("server", () => {
     query
       .mockResolvedValueOnce({
         rows: [{
-          user_id: userId
+          user_id: userId,
+          age_verified_at: "2026-04-28T12:00:00.000Z"
         }]
       })
       .mockResolvedValueOnce({
@@ -9708,7 +9714,7 @@ describe("server", () => {
   it("returns Ping feed posts through normal feed privacy without exposing their internal Ping link", async () => {
     query
       .mockResolvedValueOnce({
-        rows: [{ user_id: userId }]
+        rows: [{ user_id: userId, age_verified_at: "2026-04-28T12:00:00.000Z" }]
       })
       .mockResolvedValueOnce({
         rows: [{
@@ -9769,7 +9775,8 @@ describe("server", () => {
     query
       .mockResolvedValueOnce({
         rows: [{
-          user_id: userId
+          user_id: userId,
+          age_verified_at: "2026-04-28T12:00:00.000Z"
         }]
       })
       .mockResolvedValueOnce({ rows: [] });
@@ -9793,7 +9800,8 @@ describe("server", () => {
     query
       .mockResolvedValueOnce({
         rows: [{
-          user_id: userId
+          user_id: userId,
+          age_verified_at: "2026-04-28T12:00:00.000Z"
         }]
       })
       .mockResolvedValueOnce({ rows: [] });

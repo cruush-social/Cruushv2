@@ -201,7 +201,7 @@ describe("reviewer test account seeding", () => {
     expect(userUpserts).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
     expect(profileUpserts).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
     expect(encryptedLocationCalls).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
-    expect(encryptedPolicyCalls).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
+    expect(encryptedPolicyCalls).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT * 2);
     expect(legacyPrivacyCalls).toHaveLength(REVIEWER_TEST_ACCOUNT_COUNT);
     const encryptedLocationParams = JSON.stringify(encryptedLocationCalls.map(([, params]) => params));
     expect(encryptedLocationParams).not.toContain("40.7359");

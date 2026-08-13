@@ -222,6 +222,7 @@ describe("shared Stream profile-photo automod route", () => {
     expect(response.json()).toEqual({
       data: {
         url: expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/),
+        photos: [expect.stringMatching(/^\/api\/media\/assets\/[0-9a-f-]{36}\/display$/)],
         explicit: false
       }
     });

@@ -191,7 +191,7 @@ describe("development profile seeding", () => {
     expect(result.profileCount).toBe(TEST_PROFILE_COUNT);
     expect(encryptedLocationCalls).toHaveLength(TEST_PROFILE_COUNT + 1);
     expect(seededProfileLocationCalls).toHaveLength(TEST_PROFILE_COUNT);
-    expect(encryptedPolicyCalls).toHaveLength(TEST_PROFILE_COUNT + 1);
+    expect(encryptedPolicyCalls).toHaveLength((TEST_PROFILE_COUNT + 1) * 2);
     expect(legacyPrivacyCalls).toHaveLength(TEST_PROFILE_COUNT);
     expect(mediaObjectCalls).toHaveLength(TEST_PROFILE_COUNT + 1);
     expect(profileCalls).toHaveLength(TEST_PROFILE_COUNT);

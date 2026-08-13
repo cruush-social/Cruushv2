@@ -41,6 +41,9 @@
     "src/app/components/MapHome.test.tsx",
     "src/app/components/ProfileEdit.test.tsx",
     "server/src/app.test.ts",
+    "server/src/dev-seed-profiles.test.ts",
+    "server/src/reviewer-test-accounts.test.ts",
+    "server/src/profile-photo-stream-automod-routes.test.ts",
     "server/src/nearby-notifications.test.ts",
     "server/src/moderation-service.test.ts"
   ],
