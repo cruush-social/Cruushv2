@@ -85,6 +85,7 @@ const FOCUSED_ZOOM = 14;
 export const MIN_DISCOVERY_ZOOM = 0;
 export const MAX_DISCOVERY_ZOOM = 22;
 const AUTO_FIT_MAX_ZOOM = 15;
+const AUTO_FIT_MIN_ZOOM = 10.5;
 const DEFAULT_TILE_URLS = [
   'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
   'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
@@ -1709,22 +1710,21 @@ function MapView({
       const lats = coordinates.map((coordinate) => coordinate.lat);
       const lngs = coordinates.map((coordinate) => coordinate.lng);
 
-      map.fitBounds(
-        [
-          [Math.min(...lngs), Math.min(...lats)],
-          [Math.max(...lngs), Math.max(...lats)],
-        ],
-        {
-          padding: {
-            top: 140,
-            right: 120,
-            bottom: 170,
-            left: 120,
-          },
-          maxZoom: AUTO_FIT_MAX_ZOOM,
+      const bounds: [[number, number], [number, number]] = [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ];
+      const padding = { top: 140, right: 120, bottom: 170, left: 120 };
+      if (typeof map.cameraForBounds === 'function' && typeof map.easeTo === 'function') {
+        const camera = map.cameraForBounds(bounds, { padding, maxZoom: AUTO_FIT_MAX_ZOOM });
+        map.easeTo({
+          ...camera,
+          zoom: Math.max(camera.zoom ?? AUTO_FIT_MIN_ZOOM, AUTO_FIT_MIN_ZOOM),
           duration: 500,
-        }
-      );
+        });
+      } else {
+        map.fitBounds(bounds, { padding, maxZoom: AUTO_FIT_MAX_ZOOM, duration: 500 });
+      }
       hasAppliedAutoFitRef.current = true;
       return;
     }

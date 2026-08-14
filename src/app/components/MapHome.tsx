@@ -1728,11 +1728,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
         privacyRadiusMeters: user.privacyRadiusMeters,
         npcGhostDemo: user.npcGhostDemo,
         activePing: activeReceivedPings.get(user.id) ?? null,
-        relationship: user.relationship?.mutualCruush
+        relationship: (user.relationship?.mutualCruush || user.relationshipContext === 'MUTUAL_CRUUSH')
           ? {
               kind: 'mutual_cruush',
-              precision: user.relationship.precision,
-              canMessage: user.relationship.canMessage,
+              precision: user.relationship?.precision,
+              canMessage: user.relationship?.canMessage ?? true,
             }
           : null,
       };

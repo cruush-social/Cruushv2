@@ -37,6 +37,9 @@ export default function Auth({ onAuth }: AuthProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [productUpdatesOptIn, setProductUpdatesOptIn] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -195,6 +198,11 @@ export default function Auth({ onAuth }: AuthProps) {
         setIsLoading(false);
         return;
       }
+      if (!termsAccepted || !privacyAccepted) {
+        setError('Accept the Terms and Privacy Policy to create an account.');
+        setIsLoading(false);
+        return;
+      }
     }
 
     if (turnstileSiteKey && !captchaToken) {
@@ -210,6 +218,9 @@ export default function Auth({ onAuth }: AuthProps) {
           email,
           password,
           dateOfBirth,
+          termsAccepted: true,
+          privacyAccepted: true,
+          productUpdatesOptIn,
           alphaPassword: alphaPasswordRequired ? alphaPassword.trim() : undefined,
           captchaToken,
           clientCheck: buildHumanCheck(),
@@ -723,6 +734,44 @@ export default function Auth({ onAuth }: AuthProps) {
                 required
                 disabled={isLoading}
               />
+            </div>
+          ) : null}
+
+          {isSignUp ? (
+            <div className="space-y-3 rounded-sm border border-white/10 bg-black/25 p-3 text-sm text-white/70">
+              <label className="flex items-start gap-3">
+                <input
+                type="checkbox"
+                  aria-label="Accept the Terms of Service"
+                  checked={termsAccepted}
+                  onChange={(event) => setTermsAccepted(event.target.checked)}
+                  disabled={isLoading}
+                  className="mt-1"
+                />
+                <span>I accept the <a className="underline" href="/terms" target="_blank" rel="noreferrer">Terms of Service</a>.</span>
+              </label>
+              <label className="flex items-start gap-3">
+                <input
+                type="checkbox"
+                  aria-label="Accept the Privacy Policy"
+                  checked={privacyAccepted}
+                  onChange={(event) => setPrivacyAccepted(event.target.checked)}
+                  disabled={isLoading}
+                  className="mt-1"
+                />
+                <span>I accept the <a className="underline" href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.</span>
+              </label>
+              <label className="flex items-start gap-3">
+                <input
+                type="checkbox"
+                  aria-label="Send me cruush product updates"
+                  checked={productUpdatesOptIn}
+                  onChange={(event) => setProductUpdatesOptIn(event.target.checked)}
+                  disabled={isLoading}
+                  className="mt-1"
+                />
+                <span>Send me cruush product updates by email. Optional.</span>
+              </label>
             </div>
           ) : null}
 

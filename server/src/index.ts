@@ -42,6 +42,7 @@ import { startMessageExpiryScheduler } from "./message-expiry.js";
 import { startAccountDeletionMediaCleanupScheduler } from "./account-deletion-media-cleanup.js";
 import { startPendingPhotoModerationRetryScheduler } from "./recheck-pending-photo-moderations.js";
 import { startMapPingCleanupScheduler } from "./map-ping-cleanup.js";
+import { syncAllVerifiedMembersToResendAudience } from "./resend-audience.js";
 
 const config = loadConfig();
 const app = buildServer(config);
@@ -78,3 +79,10 @@ stopMessageExpiryScheduler = startMessageExpiryScheduler(app);
 stopAccountDeletionMediaCleanupScheduler = startAccountDeletionMediaCleanupScheduler(app);
 stopPendingPhotoModerationRetryScheduler = startPendingPhotoModerationRetryScheduler(app);
 stopMapPingCleanupScheduler = startMapPingCleanupScheduler(app);
+void syncAllVerifiedMembersToResendAudience({
+  config,
+  db: app.db,
+  logger: app.log
+}).catch((error) => {
+  app.log.warn({ err: error }, "verified member audience reconciliation failed");
+});

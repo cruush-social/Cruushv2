@@ -92,7 +92,8 @@ const migrationFiles = [
   "082_two_factor_cruush_plus_reward.sql",
   "084_suspension_appeals.sql",
   "085_feed_window_default.sql",
-  "086_waitlist30_promo_code.sql"
+  "086_waitlist30_promo_code.sql",
+  "087_signup_consent.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

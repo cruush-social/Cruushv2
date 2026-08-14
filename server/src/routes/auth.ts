@@ -513,8 +513,19 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     try {
       const result = await app.db.query<CreatedUserRow>(
         `with created_user as (
-           insert into app_users (email, password_hash, display_name, signup_birth_year, age_verified_at)
-           values ($1, $2, $3, $15, now())
+           insert into app_users (
+             email,
+             password_hash,
+             display_name,
+             signup_birth_year,
+             age_verified_at,
+             terms_accepted_at,
+             privacy_accepted_at,
+             terms_version,
+             privacy_version,
+             product_updates_opt_in
+           )
+           values ($1, $2, $3, $15, now(), now(), now(), '2026-07-10', '2026-07-21', $16)
            returning id, email, display_name, email_verified_at, created_at
          ),
          created_trust_profile as (
@@ -577,7 +588,8 @@ export async function registerAuthRoutes(app: FastifyInstance) {
           referralPrivacy?.nonce ?? null,
           referralPrivacy?.authTag ?? null,
           referralPrivacy?.keyVersion ?? null,
-          birthYearFromDateOfBirth(payload.dateOfBirth)
+          birthYearFromDateOfBirth(payload.dateOfBirth),
+          payload.productUpdatesOptIn
         ]
       );
 

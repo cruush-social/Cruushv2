@@ -20,6 +20,7 @@ import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMyBillingStatus } from '../lib/billingApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -495,9 +496,12 @@ export default function DirectMessages() {
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Group chat</p>
                 <h3 className="text-2xl">New group</h3>
               </div>
-              <Button type="button" variant="ghost" size="icon" aria-label="Close group composer" onClick={resetGroupComposer}>
-                <X className="size-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <div data-testid="direct-messages-group-bug-button-slot" ref={registerBugButtonSlot} />
+                <Button type="button" variant="ghost" size="icon" aria-label="Close group composer" onClick={resetGroupComposer}>
+                  <X className="size-4" />
+                </Button>
+              </div>
             </div>
 
             {groupError ? (
@@ -559,12 +563,22 @@ export default function DirectMessages() {
                       masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
                       photo={item.user.photo}
                       userId={item.user.id}
+                      theme="mutual"
                       onClick={() => navigate(`/profile/${item.user.id}`)}
                       fallback={<div className="text-xs text-white/80">{getConversationInitials(item.user.name)}</div>}
                     />
                     <span className="min-w-0">
                       <span className="block truncate">{item.user.name}</span>
                       <span className="block text-xs text-muted-foreground">{item.distance}</span>
+                      {item.vibes.length > 0 ? (
+                        <span className="mt-1 flex flex-wrap gap-1">
+                          {item.vibes.slice(0, 3).map((vibe) => (
+                            <span key={vibe} className="rounded-md border border-[#8B5CF6]/45 bg-[#8B5CF6]/15 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#DCC7FF]">
+                              {vibe}
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
                     </span>
                   </label>
                 ))}
