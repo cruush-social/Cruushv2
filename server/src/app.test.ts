@@ -1460,7 +1460,10 @@ describe("server", () => {
       payload: {
         email: "river@example.com",
         password: "password-123",
-        dateOfBirth: "1994-06-15"
+        dateOfBirth: "1994-06-15",
+        termsAccepted: true,
+        privacyAccepted: true,
+        productUpdatesOptIn: false
       }
     });
 
@@ -1532,7 +1535,10 @@ describe("server", () => {
         payload: {
           email: "river@example.com",
           password: "password-123",
-          dateOfBirth: "1994-06-15"
+          dateOfBirth: "1994-06-15",
+          termsAccepted: true,
+          privacyAccepted: true,
+          productUpdatesOptIn: false
         }
       });
 
@@ -1591,6 +1597,9 @@ describe("server", () => {
           email: "river@example.com",
           password: "password-123",
           dateOfBirth: "1994-06-15",
+          termsAccepted: true,
+          privacyAccepted: true,
+          productUpdatesOptIn: false,
           betaAccessLocation: {
             lat: 40.7099,
             lng: -73.9226
@@ -1635,6 +1644,9 @@ describe("server", () => {
         email: "river@example.com",
         password: "password-123",
         dateOfBirth: "1994-06-15",
+        termsAccepted: true,
+        privacyAccepted: true,
+        productUpdatesOptIn: false,
         displayName: "River"
       }
     });
@@ -1681,6 +1693,9 @@ describe("server", () => {
         email: "river@example.com",
         password: "password-123",
         dateOfBirth: "1994-06-15",
+        termsAccepted: true,
+        privacyAccepted: true,
+        productUpdatesOptIn: false,
         displayName: "River"
       }
     });
@@ -1708,6 +1723,9 @@ describe("server", () => {
           email: "river@example.com",
           password: "password-123",
           dateOfBirth: "1994-06-15",
+          termsAccepted: true,
+          privacyAccepted: true,
+          productUpdatesOptIn: false,
           displayName: "River"
         }
       });
@@ -1722,6 +1740,9 @@ describe("server", () => {
         email: "river@example.com",
         password: "password-123",
         dateOfBirth: "1994-06-15",
+        termsAccepted: true,
+        privacyAccepted: true,
+        productUpdatesOptIn: false,
         displayName: "River"
       }
     });
@@ -1751,6 +1772,9 @@ describe("server", () => {
         email: "river@example.com",
         password: "password-123",
         dateOfBirth: "1994-06-15",
+        termsAccepted: true,
+        privacyAccepted: true,
+        productUpdatesOptIn: false,
         displayName: "River",
         captchaToken: "invalid-captcha"
       }
