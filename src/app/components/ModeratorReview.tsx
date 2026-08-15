@@ -698,8 +698,8 @@ export default function ModeratorReview() {
               <p className="text-xs text-muted-foreground">Reports, automated reviews, and account enforcement</p>
             </div>
           </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex min-w-0 flex-1 overflow-x-auto rounded-md border border-border p-0.5" role="tablist" aria-label="Moderation views">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 w-full overflow-x-auto rounded-md border border-border p-0.5 sm:flex-1" role="tablist" aria-label="Moderation views">
               <Button
                 className="shrink-0"
                 role="tab"
@@ -711,7 +711,7 @@ export default function ModeratorReview() {
                 Queue
               </Button>
               <Button
-                className="shrink-0"
+                className="w-full shrink-0 sm:w-auto"
                 role="tab"
                 aria-selected={view === 'users'}
                 size="sm"
@@ -756,7 +756,7 @@ export default function ModeratorReview() {
               </Button>
             </div>
             <Button
-              className="shrink-0"
+              className="w-full shrink-0 sm:w-auto"
               variant="outline"
               disabled={refreshing || usersLoading || notificationsLoading || systemErrorsLoading || supportLoading}
               onClick={() => {
