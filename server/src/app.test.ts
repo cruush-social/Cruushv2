@@ -11833,6 +11833,8 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(query).toHaveBeenCalledWith(expect.stringContaining("from profiles"), [userId]);
+    expect(query.mock.calls[0]?.[0]).toContain("media.explicit_classification = 'explicit'");
+    expect(query.mock.calls[0]?.[0]).not.toContain("media.explicit_classification is distinct from 'non_explicit'");
     expect(response.json()).toEqual({
       data: {
         id: userId,
