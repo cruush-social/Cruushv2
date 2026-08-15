@@ -499,7 +499,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
         ref={cardRef}
         aria-label="Map controls tutorial"
         aria-live="polite"
-        className="pointer-events-auto fixed w-[min(22rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-background/95 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+        className="pointer-events-auto fixed w-[min(22rem,calc(100vw-2rem))] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-background/95 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl"
         data-testid="map-controls-tutorial-card"
         role="dialog"
         style={cardStyle}
