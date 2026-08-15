@@ -35,6 +35,7 @@ import {
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -451,110 +452,113 @@ export default function LocalFeed() {
         <div>
           <h2 className="text-xl">Local Feed</h2>
         </div>
-        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <DialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="ml-auto rounded-full text-white/88 hover:bg-white/10"
-              aria-label="Feed settings"
-              title="Feed settings"
-            >
-              <CruushIcon name="settings" className="h-5 w-5" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-            <DialogHeader>
-              <DialogTitle>Feed settings</DialogTitle>
-              <DialogDescription>
-                Control which nearby posts load and how your feed location appears.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-                <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
-                <div className="grid grid-cols-5 gap-2">
-                  {FEED_WINDOW_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={[
-                        'h-10 rounded-full border text-sm font-semibold transition',
-                        feedWindow === option.value
-                          ? 'border-white/15 text-white'
-                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                      ].join(' ')}
-                      style={feedWindow === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
-                      aria-pressed={feedWindow === option.value}
-                      onClick={() => void handleFeedWindowChange(option.value)}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </section>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="contents" data-testid="local-feed-bug-button-slot" ref={registerBugButtonSlot} />
+          <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full text-white/88 hover:bg-white/10"
+                aria-label="Feed settings"
+                title="Feed settings"
+              >
+                <CruushIcon name="settings" className="h-5 w-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+              <DialogHeader>
+                <DialogTitle>Feed settings</DialogTitle>
+                <DialogDescription>
+                  Control which nearby posts load and how your feed location appears.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+                  <p className="mb-2 text-sm font-semibold text-white">Posted within</p>
+                  <div className="grid grid-cols-5 gap-2">
+                    {FEED_WINDOW_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={[
+                          'h-10 rounded-full border text-sm font-semibold transition',
+                          feedWindow === option.value
+                            ? 'border-white/15 text-white'
+                            : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
+                        ].join(' ')}
+                        style={feedWindow === option.value ? { background: 'var(--cruush-gradient)' } : undefined}
+                        aria-pressed={feedWindow === option.value}
+                        onClick={() => void handleFeedWindowChange(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </section>
 
-              <section className="rounded-lg border border-white/10 bg-black/42 p-3">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-white">Distance</p>
-                  <span className="rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-xs text-white/70">
-                    {feedDistanceMiles} mi
-                  </span>
-                </div>
-                <input
-                  aria-label="Feed distance radius"
-                  className="w-full accent-primary"
-                  max={15}
-                  min={1}
-                  step={1}
-                  type="range"
-                  value={feedDistanceMiles}
-                  onChange={(event) => handleFeedDistanceChange(Number(event.target.value))}
-                />
-              </section>
+                <section className="rounded-lg border border-white/10 bg-black/42 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white">Distance</p>
+                    <span className="rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-xs text-white/70">
+                      {feedDistanceMiles} mi
+                    </span>
+                  </div>
+                  <input
+                    aria-label="Feed distance radius"
+                    className="w-full accent-primary"
+                    max={15}
+                    min={1}
+                    step={1}
+                    type="range"
+                    value={feedDistanceMiles}
+                    onChange={(event) => handleFeedDistanceChange(Number(event.target.value))}
+                  />
+                </section>
 
-              <section className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/42 p-3">
-                <div>
-                  <p className="text-sm font-semibold text-white">Distance labels</p>
-                  <p className="mt-1 text-xs text-white/58">Show broad ranges like 1-3 mi.</p>
-                </div>
-                <Switch
-                  checked={feedSettings.showDistanceLabels !== false}
-                  disabled={settingsSaving || !feedSettingsLoaded}
-                  onCheckedChange={(checked) => void handleDistanceLabelVisibilityChange(checked)}
-                />
-              </section>
+                <section className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/42 p-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Distance labels</p>
+                    <p className="mt-1 text-xs text-white/58">Show broad ranges like 1-3 mi.</p>
+                  </div>
+                  <Switch
+                    checked={feedSettings.showDistanceLabels !== false}
+                    disabled={settingsSaving || !feedSettingsLoaded}
+                    onCheckedChange={(checked) => void handleDistanceLabelVisibilityChange(checked)}
+                  />
+                </section>
 
-              <section className="space-y-2 rounded-lg border border-white/10 bg-black/42 p-3">
-                <p className="text-sm font-semibold text-white">Feed map pin</p>
-                {FEED_LOCATION_PIN_OPTIONS.map((option) => {
-                  const active = feedSettings.locationPinVisibility === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={[
-                        'w-full rounded-lg border p-3 text-left transition',
-                        active
-                          ? 'border-primary/70 bg-primary/12 text-white'
-                          : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
-                      ].join(' ')}
-                      aria-pressed={active}
-                      disabled={settingsSaving || !feedSettingsLoaded}
-                      onClick={() => void handleFeedPinVisibilityChange(option.value)}
-                    >
-                      <span className="flex items-center justify-between gap-3">
-                        <span className="font-semibold">{option.label}</span>
-                        {active ? <span className="text-xs uppercase tracking-[0.16em] text-primary">active</span> : null}
-                      </span>
-                      <span className="mt-1 block text-xs text-white/58">{option.description}</span>
-                    </button>
-                  );
-                })}
-              </section>
-            </div>
-          </DialogContent>
-        </Dialog>
+                <section className="space-y-2 rounded-lg border border-white/10 bg-black/42 p-3">
+                  <p className="text-sm font-semibold text-white">Feed map pin</p>
+                  {FEED_LOCATION_PIN_OPTIONS.map((option) => {
+                    const active = feedSettings.locationPinVisibility === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={[
+                          'w-full rounded-lg border p-3 text-left transition',
+                          active
+                            ? 'border-primary/70 bg-primary/12 text-white'
+                            : 'border-white/10 bg-black/40 text-white/72 hover:bg-white/8',
+                        ].join(' ')}
+                        aria-pressed={active}
+                        disabled={settingsSaving || !feedSettingsLoaded}
+                        onClick={() => void handleFeedPinVisibilityChange(option.value)}
+                      >
+                        <span className="flex items-center justify-between gap-3">
+                          <span className="font-semibold">{option.label}</span>
+                          {active ? <span className="text-xs uppercase tracking-[0.16em] text-primary">active</span> : null}
+                        </span>
+                        <span className="mt-1 block text-xs text-white/58">{option.description}</span>
+                      </button>
+                    );
+                  })}
+                </section>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </header>
 
       <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-hidden px-3 pt-4" data-testid="local-feed-content">
