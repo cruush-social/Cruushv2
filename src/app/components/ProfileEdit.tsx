@@ -87,9 +87,18 @@ function getSaveDisplayName(profile: ProfilePayload) {
     return profileDisplayName;
   }
 
-  const storedUser = getStoredCurrentUser();
+  if (profileDisplayName.length > 0) {
+    throw new Error('Display name must be at least 2 characters.');
+  }
 
-  return (storedUser?.display_name ?? storedUser?.name ?? 'cruush user').trim();
+  const storedUser = getStoredCurrentUser();
+  const fallbackDisplayName = (storedUser?.display_name ?? storedUser?.name ?? '').trim();
+
+  if (fallbackDisplayName.length >= 2) {
+    return fallbackDisplayName;
+  }
+
+  throw new Error('Display name must be at least 2 characters.');
 }
 
 function uniqueValues(values: string[]) {
@@ -1335,6 +1344,19 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
           </TabsContent>
         </Tabs>
+        {!embedded ? (
+          <div className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+            <p className="text-sm text-muted-foreground">Need to permanently delete your account?</p>
+            <Button
+              className="mt-3 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => navigate('/settings?dialog=delete-account')}
+              type="button"
+              variant="outline"
+            >
+              Delete account
+            </Button>
+          </div>
+        ) : null}
       </div>
       {pendingPhoto ? (
         <ProfilePhotoCropper

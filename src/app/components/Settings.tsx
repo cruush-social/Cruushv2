@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, ChevronRight, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, UserX, type LucideIcon } from 'lucide-react';
 import { Button } from './ui/button';
@@ -49,6 +49,7 @@ type SettingsItem = {
 
 export default function Settings() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -95,6 +96,13 @@ export default function Settings() {
   }, []);
   useEffect(() => addProfileChangedListener(setProfile), []);
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+  useEffect(() => {
+    const dialogParam = new URLSearchParams(location.search).get('dialog');
+
+    if (dialogParam === 'delete-account') {
+      setIsDeleteDialogOpen(true);
+    }
+  }, [location.search]);
 
   const resetPasswordDialog = () => {
     setCurrentPassword('');
