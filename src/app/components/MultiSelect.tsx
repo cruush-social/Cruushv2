@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Badge } from './ui/badge';
@@ -57,6 +57,7 @@ export default function MultiSelect({
   const [resolvedMenuPlacement, setResolvedMenuPlacement] = useState<ResolvedMenuPlacement>(menuPlacement);
   const [localMenuStyle, setLocalMenuStyle] = useState<CSSProperties | null>(null);
   const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
+  const skipNextOptionClickRef = useRef(false);
   const groups = useMemo(() => optionGroups ?? [{ label: '', options }], [optionGroups, options]);
   const hasCategoryPicker = Boolean(optionGroups?.length && optionGroups.length > 1);
   const [activeGroupLabel, setActiveGroupLabel] = useState(groups[0]?.label ?? '');
@@ -229,6 +230,25 @@ export default function MultiSelect({
     onChange?.(newSelected);
   };
 
+  const handleOptionTouchPointerUp = (option: string, event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType !== 'touch') {
+      return;
+    }
+
+    skipNextOptionClickRef.current = true;
+    event.preventDefault();
+    toggleOption(option);
+  };
+
+  const handleOptionClick = (option: string) => {
+    if (skipNextOptionClickRef.current) {
+      skipNextOptionClickRef.current = false;
+      return;
+    }
+
+    toggleOption(option);
+  };
+
   const menuContent = (
     <>
       {hasCategoryPicker ? (
@@ -272,7 +292,8 @@ export default function MultiSelect({
                   type="button"
                   role="option"
                   aria-selected={selected.includes(option)}
-                  onClick={() => toggleOption(option)}
+                  onPointerUp={(event) => handleOptionTouchPointerUp(option, event)}
+                  onClick={() => handleOptionClick(option)}
                   className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
                     selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
                   }`}
@@ -298,7 +319,8 @@ export default function MultiSelect({
                   type="button"
                   role="option"
                   aria-selected={selected.includes(option)}
-                  onClick={() => toggleOption(option)}
+                  onPointerUp={(event) => handleOptionTouchPointerUp(option, event)}
+                  onClick={() => handleOptionClick(option)}
                   className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
                     selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
                   }`}
