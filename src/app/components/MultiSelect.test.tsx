@@ -247,6 +247,38 @@ describe('MultiSelect', () => {
     }
   });
 
+  it('selects an option from a touch pointerup even when click is not fired', async () => {
+    const onChange = vi.fn();
+
+    render(
+      <MultiSelect
+        ariaLabel="Looking For"
+        menuPortal
+        onChange={onChange}
+        options={['friends', 'dates']}
+        value={[]}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Looking For' });
+    mockTriggerRect(trigger, {
+      bottom: 250,
+      left: 20,
+      top: 210,
+      width: 280,
+    });
+
+    fireEvent.click(trigger);
+
+    const option = await screen.findByRole('option', { name: 'friends' });
+    const touchPointerUp = new Event('pointerup', { bubbles: true });
+    Object.defineProperty(touchPointerUp, 'pointerType', { value: 'touch' });
+    fireEvent(option, touchPointerUp);
+
+    expect(onChange).toHaveBeenCalledWith(['friends']);
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
   it('does not render a full-screen blocker over portaled menus', async () => {
     const onOutsideTap = vi.fn();
 
