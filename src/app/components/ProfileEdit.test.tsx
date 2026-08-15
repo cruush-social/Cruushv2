@@ -574,6 +574,43 @@ describe('ProfileEdit', () => {
     expect(screen.getByText('Add up to 4 photos of yourself. Your first photo will be your profile picture. SFW photos are suggested, not required.')).toBeInTheDocument();
   });
 
+  it('allows selecting another photo when only 3 unique photos are saved', async () => {
+    const { emptyProfilePayload } = await import('../lib/profileApi');
+    getMyProfile.mockResolvedValueOnce({
+      ...emptyProfilePayload,
+      id: 'user-1',
+      display_name: 'Jordan',
+      year_of_birth: 1998,
+      photos: [
+        '/api/media/assets/11111111-1111-4111-8111-111111111111/display',
+        '/api/media/assets/22222222-2222-4222-8222-222222222222/display',
+        '/api/media/assets/33333333-3333-4333-8333-333333333333/display',
+        '/api/media/assets/22222222-2222-4222-8222-222222222222/display',
+      ],
+      updated_at: '2026-04-29T12:00:00.000Z',
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Photos' }));
+
+    const uploadInput = screen.getByText('Upload photo').closest('label')?.querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+
+    fireEvent.change(uploadInput as HTMLInputElement, {
+      target: {
+        files: [new File([new Uint8Array([1, 2, 3])], 'profile.png', { type: 'image/png' })],
+      },
+    });
+
+    expect(await screen.findByRole('dialog', { name: 'Crop profile photo' })).toBeInTheDocument();
+    expect(screen.queryByText('Photo rejected: You can add up to 4 photos.')).not.toBeInTheDocument();
+  });
+
   it('disables profile photo upload when the API marks uploads unavailable', async () => {
     getAppMeta.mockResolvedValueOnce({
       service: 'cruush-server',

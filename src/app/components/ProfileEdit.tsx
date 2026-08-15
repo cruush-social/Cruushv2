@@ -749,7 +749,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       return;
     }
 
-    if ((profile.photos ?? []).length >= MAX_PROFILE_PHOTOS) {
+    if (sanitizeProfilePhotos(profile.photos ?? []).length >= MAX_PROFILE_PHOTOS) {
       setPhotoUploadError(`Photo rejected: You can add up to ${MAX_PROFILE_PHOTOS} photos.`);
       return;
     }
