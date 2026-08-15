@@ -911,8 +911,9 @@ function getMarkerBorderClass(marker: MapMarker, isCurrentUser: boolean) {
 function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
   const badge = marker.badge;
   const Icon = getBadgeIcon(badge);
+  const isOwnGhostMarker = isCurrentUser && marker.displayMode === 'GHOST';
 
-  if (!isCurrentUser && (!badge || !Icon)) {
+  if (isOwnGhostMarker || (!isCurrentUser && (!badge || !Icon))) {
     return null;
   }
 
@@ -1033,7 +1034,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
           />
           <path d={HEART_PIN_PATH} fill="none" stroke={borderPaint} strokeWidth={3.2} />
         </>
-      ) : isCurrentUser && !isMutualCruush ? (
+      ) : isCurrentUser && !isOwnGhostMarker && !isMutualCruush ? (
         <>
           <path
             d={HEART_PIN_PATH}
