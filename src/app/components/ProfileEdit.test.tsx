@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientError } from '../lib/apiClient';
 import ProfileEdit, { getPhotoUploadRejectedMessage } from './ProfileEdit';
+import Settings from './Settings';
 
 const { getAppMeta, getMyProfile, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   getAppMeta: vi.fn(),
@@ -28,6 +29,11 @@ vi.mock('../lib/profileApi', async () => {
 
 const existingProfilePhoto = '/api/media/assets/11111111-1111-4111-8111-111111111111/display';
 const uploadedProfilePhoto = '/api/media/assets/d271f6da-c51d-4d73-a322-d9c56f45d4fa/display';
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
+}
 
 describe('ProfileEdit', () => {
   afterEach(() => {
@@ -190,6 +196,39 @@ describe('ProfileEdit', () => {
 
     expect(await screen.findByText('Nothing was saved because we could not check this text for harmful content.')).toBeInTheDocument();
     expect(displayName).toHaveValue('Still here');
+  });
+
+  it('shows a clear error when display name is too short instead of silently keeping the old one', async () => {
+    render(
+      <MemoryRouter>
+        <ProfileEdit />
+      </MemoryRouter>
+    );
+
+    const displayName = await screen.findByPlaceholderText('Your display name');
+    fireEvent.change(displayName, { target: { value: 'A' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Display name must be at least 2 characters.')).toBeInTheDocument();
+    expect(saveMyProfile).not.toHaveBeenCalled();
+  });
+
+  it('offers account deletion from edit profile and opens settings delete dialog', async () => {
+    render(
+      <MemoryRouter initialEntries={['/profile/edit']}>
+        <Routes>
+          <Route path="/profile/edit" element={<ProfileEdit />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+        <LocationProbe />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete account' }));
+
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings?dialog=delete-account');
+    expect(await screen.findByRole('heading', { name: 'Delete account' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Type DELETE')).toBeInTheDocument();
   });
 
   it('crops, uploads, promotes, removes, and persists profile photos immediately', async () => {
