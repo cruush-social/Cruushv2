@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import AlphaBugButton from './AlphaBugButton';
 import LocalFeed from './LocalFeed';
 import { HEART_PIN_THEMES } from '../lib/heartPin';
 import type { FeedSettings } from '../lib/postApi';
+import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 const {
   createFeedPost,
@@ -38,6 +40,15 @@ const { createReport } = vi.hoisted(() => ({
 const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+}));
+
+const { createSupportRequest } = vi.hoisted(() => ({
+  createSupportRequest: vi.fn(),
+}));
+
+const { dismissUserNotice, getUserNoticeDismissal } = vi.hoisted(() => ({
+  dismissUserNotice: vi.fn(),
+  getUserNoticeDismissal: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({
@@ -91,12 +102,25 @@ vi.mock('../lib/reportApi', async () => {
   return { ...actual, createReport };
 });
 
+vi.mock('../lib/supportApi', () => ({
+  createSupportRequest,
+}));
+
+vi.mock('../lib/userNoticesApi', () => ({
+  dismissUserNotice,
+  getUserNoticeDismissal,
+}));
+
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-probe">{location.pathname}</div>;
 }
 
 describe('LocalFeed', () => {
+  afterEach(() => {
+    registerBugButtonSlot(null);
+  });
+
   beforeEach(() => {
     createFeedPost.mockReset();
     deleteFeedPost.mockReset();
@@ -107,6 +131,9 @@ describe('LocalFeed', () => {
     getMyBillingStatus.mockReset();
     blockUser.mockReset();
     createReport.mockReset();
+    createSupportRequest.mockReset();
+    dismissUserNotice.mockReset();
+    getUserNoticeDismissal.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
     window.localStorage.removeItem('cruush:dl-mode-enabled');
@@ -139,6 +166,14 @@ describe('LocalFeed', () => {
       status: 'open',
       createdAt: '2026-07-11T12:00:00.000Z',
     });
+    createSupportRequest.mockResolvedValue({
+      id: 'support-1',
+      status: 'open',
+      aiTriageStatus: 'pending',
+      createdAt: '2026-07-28T12:00:00.000Z',
+    });
+    dismissUserNotice.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
+    getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-07-31T12:00:00.000Z' });
   });
 
   it('keeps the feed top visible below mobile webview chrome', async () => {
@@ -216,6 +251,27 @@ describe('LocalFeed', () => {
       'pb-[calc(1.5rem+env(safe-area-inset-bottom))]',
     );
     expect(within(dialog).getByRole('button', { name: /off/i })).toBeEnabled();
+  });
+
+  it('docks the alpha bug reporter inside the feed header instead of underneath it', async () => {
+    getFeedPosts.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <LocalFeed />
+        <AlphaBugButton enabled />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('heading', { name: 'Local Feed' });
+
+    const header = screen.getByTestId('local-feed-header');
+    const slot = screen.getByTestId('local-feed-bug-button-slot');
+    const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
+
+    expect(header).toContainElement(reportButton);
+    expect(slot).toContainElement(reportButton);
+    expect(reportButton).not.toHaveClass('fixed', 'z-20');
   });
 
   it('masks explicit author photos in the feed while DL Mode is on', async () => {
