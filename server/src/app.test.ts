@@ -858,6 +858,7 @@ describe("server", () => {
     expect(response.headers["x-content-type-options"]).toBe("nosniff");
     expect(response.headers["x-frame-options"]).toBe("DENY");
     expect(response.headers["referrer-policy"]).toBe("no-referrer");
+    expect(response.headers["permissions-policy"]).toBe("camera=(), microphone=(), geolocation=(self)");
     expect(response.json()).toEqual({
       service: "cruush-server",
       auth: "session-cookie",
