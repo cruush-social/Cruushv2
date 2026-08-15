@@ -923,7 +923,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     });
   });
 
-  app.delete("/api/auth/me", async (request, reply) => {
+  const handleAccountDeletion = async (request: FastifyRequest, reply: FastifyReply) => {
     const session = await resolveCurrentSession(request, { allowAccountDeletion: true });
     const payload = deleteAccountPayloadSchema.parse(request.body);
     await applyRateLimits(app, [{
@@ -995,7 +995,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     clearSessionCookie(reply, request);
 
     return reply.code(204).send();
-  });
+  };
+
+  app.delete("/api/auth/me", handleAccountDeletion);
+  app.post("/api/auth/me/delete", handleAccountDeletion);
 
   app.post("/api/auth/verification/resend", async (request, reply) => {
     const payload = resendVerificationPayloadSchema.parse(request.body);
