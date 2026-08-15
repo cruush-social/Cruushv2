@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CruushMatchSettings from './CruushMatchSettings';
@@ -84,5 +84,44 @@ describe('CruushMatchSettings', () => {
       nsfwMessageVisibility: 'public',
       nsfwSendVisibility: 'public',
     }));
+  });
+
+  it('keeps the latest message visibility selection when save responses resolve out of order', async () => {
+    const resolveQueue: Array<() => void> = [];
+    saveCruushMatchSettings.mockImplementation((settings) => new Promise((resolve) => {
+      resolveQueue.push(() => resolve({
+        ...settings,
+        updatedAt: '2026-07-31T05:57:00.000Z',
+      }));
+    }));
+
+    render(
+      <MemoryRouter>
+        <CruushMatchSettings />
+      </MemoryRouter>,
+    );
+
+    const publicButton = await screen.findByRole('button', { name: /^Public/i });
+    const crowdButton = screen.getByRole('button', { name: /^Crowd/i });
+
+    fireEvent.click(publicButton);
+    fireEvent.click(crowdButton);
+
+    expect(resolveQueue).toHaveLength(2);
+
+    await act(async () => {
+      resolveQueue[1]();
+    });
+
+    await waitFor(() => expect(crowdButton).toHaveClass('border-primary/45'));
+
+    await act(async () => {
+      resolveQueue[0]();
+    });
+
+    await waitFor(() => {
+      expect(crowdButton).toHaveClass('border-primary/45');
+      expect(publicButton).not.toHaveClass('border-primary/45');
+    });
   });
 });
