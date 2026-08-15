@@ -698,9 +698,10 @@ async function loadDiscoveryRows(app: FastifyInstance, currentUserId: string, fi
          fuzzy_lng
        from profiles
        where last_active >= now() - interval '4 days'
+         and id <> $1
        order by last_active desc nulls last
-       limit $1`,
-      [filters.limit]
+       limit $2`,
+      [currentUserId, filters.limit]
     );
 
     const blockedUserIds = await loadBlockedRelationshipUserIds(app, currentUserId);
