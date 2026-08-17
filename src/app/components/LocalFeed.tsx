@@ -639,6 +639,7 @@ export default function LocalFeed() {
         <div
           className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(9rem+env(safe-area-inset-bottom))] pr-1"
           data-testid="local-feed-posts-scroll"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
         >
           {loading ? (
             <div className="rounded-2xl border border-white/10 bg-black/72 p-12 text-center">
