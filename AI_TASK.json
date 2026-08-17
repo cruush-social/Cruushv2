@@ -17,7 +17,7 @@
     "secrets/**",
     ".github/workflows/**"
   ],
-  "publicationTarget": "none",
+  "publicationTarget": "origin/codex/fix-all-issues-20260817",
   "requiredEvidence": [
     "Every implemented issue has focused automated coverage or an explicit reason existing coverage is sufficient.",
     "Affected user flows are rendered and exercised where the environment permits.",
@@ -25,7 +25,7 @@
   ],
   "nonGoals": [
     "Do not touch the dirty source checkout at /Volumes/good/Cruushv2-1.",
-    "Do not deploy, push, close issues, or send public communications.",
+    "Do not deploy, close issues, or send public communications.",
     "Do not invent requirements for vague or feature-request issues; record them as needing product decisions.",
     "Do not change secrets, provider settings, permissions, or deployment configuration."
   ]
