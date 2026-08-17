@@ -456,7 +456,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     const requesterUserId = await getOptionalAuthenticatedUserId(request);
     const payload = createSupportRequestPayloadSchema.parse(request.body);
 
-    if (!requesterUserId && !payload.contactEmail) {
+    if (!requesterUserId && !payload.contactEmail && payload.source !== "survey") {
       throw new ApiError(400, "VALIDATION_ERROR", "Enter an email so support can reply.");
     }
 

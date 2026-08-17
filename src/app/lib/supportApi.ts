@@ -2,7 +2,7 @@ import { requestApi } from './apiClient';
 
 export type SupportRequestCategory = 'bug' | 'comment' | 'question' | 'policy';
 export type SupportRequestAdminCategory = SupportRequestCategory | 'suspension_appeal';
-export type SupportRequestSource = 'auth' | 'settings' | 'policy' | 'unknown';
+export type SupportRequestSource = 'auth' | 'settings' | 'policy' | 'survey' | 'unknown';
 
 export type CreateSupportRequestPayload = {
   category: SupportRequestAdminCategory;

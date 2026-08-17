@@ -21,6 +21,7 @@ export const supportRequestSourceSchema = z.enum([
   "auth",
   "settings",
   "policy",
+  "survey",
   "unknown"
 ]);
 
