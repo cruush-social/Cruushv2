@@ -252,6 +252,7 @@ describe('ProfileOnboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
     expect(await screen.findByRole('option', { name: 'trans man' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'trans woman' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'dyke' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('option', { name: 'trans man' }));
     fireEvent.click(screen.getByRole('option', { name: 'trans woman' }));
     fireEvent.click(screen.getByRole('option', { name: 'nonbinary' }));

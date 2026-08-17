@@ -1,6 +1,6 @@
 export const IDENTITIES = [
   'agender', 'androgynous', 'bakla', 'bigender', 'cis man', 'cis woman', 'crossdresser', 'demiboy', 'demigirl',
-  'demi-nonbinary', "fa'afafine", 'femme', 'gender nonconforming', 'genderfluid',
+  'demi-nonbinary', 'dyke', "fa'afafine", 'femme', 'gender nonconforming', 'genderfluid',
   'genderpunk', 'genderqueer', 'hijra', 'intersex', 'kathoey', 'man', 'māhū', 'maverique', 'muxé',
   'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'trans man', 'trans woman', 'travesti',
   'transfemme', 'transmasc', 'two-spirit', 'woman', 'x-gender'
@@ -48,13 +48,13 @@ export const VIBE_GROUPS = [
     label: 'Style & Energy',
     options: [
       'Alt', 'Artsy', 'Chill', 'Clean-cut', 'Corporate', 'Cottagecore', 'E-Girl/E-Boy', 'Geek', 'Goth', 'Granola',
-      'Homebody', 'Hippie', 'Punk', 'Rugged', 'Sober', 'Spiritual', 'Sporty'
+      'Homebody', 'Hippie', 'Punk', 'Rugged', 'Spiritual', 'Sporty'
     ].sort(),
   },
   {
     label: 'Scenes',
     options: [
-      'Ballroom', 'Drag', 'Furry', 'Leather', 'Rave', 'Wolf'
+      'Ballroom', 'Burner', 'Camping', 'Circuit', 'Club Kid', 'Cosplay', 'Country', 'Drag', 'Festival', 'Furry', 'Jock', 'Leather', 'Rave', 'Rubber', 'Sober', 'Sports', 'Stoner', 'Wolf'
     ].sort(),
   },
   {

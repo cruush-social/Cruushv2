@@ -2,7 +2,7 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Broaden the direct-message chooser within existing authorization, fix Mutuals/mobile scrolling, allow up to three sexualities, add transmasc and transfemme gender identities, and reduce gender/trans/crowd change locks to three days.",
+  "job": "Broaden the direct-message chooser within existing authorization, fix Mutuals/mobile scrolling, allow up to three sexualities, add dyke, transmasc, and transfemme gender identities, expand the Scenes vibe options, and reduce gender/trans/crowd change locks to three days.",
   "base": "origin/main at ae61f563ef6ed81d6a7b2a297169cbca040c270b",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [

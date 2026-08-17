@@ -677,6 +677,12 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
     const scenesGroup = screen.getByRole('group', { name: 'Scenes' });
     expect(within(scenesGroup).queryByRole('option', { name: 'Bear' })).not.toBeInTheDocument();
+    for (const scene of ['Jock', 'Circuit', 'Club Kid', 'Camping', 'Cosplay', 'Country', 'Festival', 'Rubber', 'Leather', 'Burner', 'Sports', 'Sober', 'Stoner']) {
+      expect(within(scenesGroup).getByRole('option', { name: scene })).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole('tab', { name: 'Style & Energy' }));
+    const styleGroup = screen.getByRole('group', { name: 'Style & Energy' });
+    expect(within(styleGroup).queryByRole('option', { name: 'Sober' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Archetypes' }));
     const archetypesGroup = screen.getByRole('group', { name: 'Archetypes' });
