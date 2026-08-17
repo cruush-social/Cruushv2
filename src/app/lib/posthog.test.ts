@@ -39,9 +39,9 @@ describe('PostHog analytics', () => {
       persistence: 'memory',
     }));
     expect(capture).toHaveBeenCalledWith('$pageview', {
-      $current_url: 'http://localhost:3000/profile/:userId?mode=preview',
-      $pathname: '/profile/:userId?mode=preview',
-      $title: 'Profile',
-    });
+        $current_url: 'http://localhost:3000/profile/:userId?mode=preview',
+        $pathname: '/profile/:userId?mode=preview',
+        $title: 'Profile',
+      }, { send_instantly: true });
   });
 });

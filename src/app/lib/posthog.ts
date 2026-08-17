@@ -50,7 +50,7 @@ export function trackPostHogPageView(
     $current_url: `${window.location.origin}${sanitizedPath}`,
     $pathname: sanitizedPath,
     $title: title,
-  });
+  }, { send_instantly: true });
 
   return true;
 }
