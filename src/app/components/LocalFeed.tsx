@@ -572,26 +572,26 @@ export default function LocalFeed() {
               ? 'Checking cruush+ access...'
               : canPost
                 ? 'Share something with nearby people...'
-                : 'Upgrade to post on the local feed.'}
+                : 'Unlock feed posting with cruush+.'}
             className="bg-input-background mb-3 min-h-[100px]"
             disabled={!canPost}
           />
           {billingStatus !== null && !canPost ? (
             <div
-              className="mb-3 flex flex-col gap-3 rounded-lg border border-primary/25 bg-primary/10 p-3 text-sm text-white/78 sm:flex-row sm:items-center sm:justify-between"
+              className="mb-3 flex flex-col gap-3 rounded-2xl border border-primary/35 bg-[linear-gradient(135deg,rgba(255,0,128,0.18),rgba(49,46,129,0.24))] p-4 text-sm text-white/78 shadow-[0_12px_36px_rgba(0,0,0,0.24)] sm:flex-row sm:items-center sm:justify-between"
               data-testid="local-feed-cruush-plus-notice"
             >
               <div>
-                <p className="text-white">Post on the local feed with <CruushPlusWord />.</p>
-                <p className="mt-1 text-xs text-white/58">Free users can still read nearby posts.</p>
+                <p className="font-medium text-white">Make the feed yours with <CruushPlusWord />.</p>
+                <p className="mt-1 text-xs text-white/68">Post updates, plans, and moments for nearby people. Unlock feed posting with <CruushPlusWord />.</p>
               </div>
               <Button
                 type="button"
-                className="h-10 shrink-0 rounded-lg text-white"
+                className="h-10 shrink-0 rounded-full px-5 font-semibold text-white shadow-[0_8px_24px_rgba(255,0,128,0.25)]"
                 style={{ background: 'var(--cruush-gradient)' }}
                 onClick={() => navigate('/rewards')}
               >
-                Get <CruushPlusWord />
+                Unlock <CruushPlusWord />
               </Button>
             </div>
           ) : null}

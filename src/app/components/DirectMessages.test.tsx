@@ -14,6 +14,10 @@ const { getNearbyUsers } = vi.hoisted(() => ({
   getNearbyUsers: vi.fn(),
 }));
 
+const { getMyProfile } = vi.hoisted(() => ({
+  getMyProfile: vi.fn(),
+}));
+
 const { openConversationOrInbox } = vi.hoisted(() => ({
   openConversationOrInbox: vi.fn(),
 }));
@@ -47,6 +51,15 @@ vi.mock('../lib/usersApi', async () => {
   };
 });
 
+vi.mock('../lib/profileApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi');
+
+  return {
+    ...actual,
+    getMyProfile,
+  };
+});
+
 vi.mock('../lib/openConversation', () => ({
   openConversationOrInbox,
 }));
@@ -58,6 +71,8 @@ describe('DirectMessages', () => {
     getConversations.mockReset();
     getMyCruushActivity.mockReset();
     getNearbyUsers.mockReset();
+    getMyProfile.mockReset();
+    getMyProfile.mockResolvedValue({ location: null });
     openConversationOrInbox.mockReset();
   });
 
@@ -294,6 +309,14 @@ describe('DirectMessages', () => {
   it('filters public message options by seeking and sorts by online recency or distance', async () => {
     getConversations.mockResolvedValue([]);
     getMyCruushActivity.mockResolvedValue({ mutual: [] });
+    getMyProfile.mockResolvedValue({
+      location: {
+        fuzzy_lat: 40.75,
+        fuzzy_lng: -73.98,
+        lat: 40.75,
+        lng: -73.98,
+      },
+    });
     getNearbyUsers.mockResolvedValue([
       {
         id: 'river',
@@ -359,6 +382,14 @@ describe('DirectMessages', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
     fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
+
+    await waitFor(() => {
+      expect(getNearbyUsers).toHaveBeenCalledWith(
+        { lat: 40.75, lng: -73.98 },
+        expect.anything(),
+        { limit: 500 },
+      );
+    });
 
     expect(await screen.findByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('River')).toBeInTheDocument();

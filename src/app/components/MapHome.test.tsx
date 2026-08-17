@@ -1156,7 +1156,7 @@ describe('MapHome', () => {
     const recentPanel = screen.getByTestId('recently-active-panel');
     const recentToggle = screen.getByRole('button', { name: 'Show recently active bar' });
 
-    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(5.25rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
     expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
@@ -1164,9 +1164,9 @@ describe('MapHome', () => {
     fireEvent.click(recentToggle);
 
     expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
-    expect(recentPanel).toHaveClass('w-fit', 'max-w-full', 'p-2');
+    expect(recentPanel).toHaveClass('w-fit', 'max-w-full', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
-    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-14');
+    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
   });
 
   it('does not show a saved launch pass icon outside the one-mile live radius or duplicate the chat invite', async () => {

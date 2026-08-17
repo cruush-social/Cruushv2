@@ -1399,7 +1399,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const recentlyActiveVisibleCount = Math.min(recentlyActiveUsers.length, 5);
   const recentlyActiveNeedsScroll = recentlyActiveUsers.length > 5;
   const recentlyActiveTrayWidth = isMobile
-    ? `${recentlyActiveVisibleCount * 3.5 + Math.max(0, recentlyActiveVisibleCount - 1) * 0.5}rem`
+    ? `${recentlyActiveVisibleCount * 4 + Math.max(0, recentlyActiveVisibleCount - 1) * 0.5}rem`
     : `${recentlyActiveVisibleCount * 5 + Math.max(0, recentlyActiveVisibleCount - 1) * 0.75}rem`;
   const savedProfileMapLocation = useMemo(
     () => profileLocationToApproximateCoordinates(currentProfile),
@@ -2441,7 +2441,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           <div
             className={`pointer-events-none absolute ${
               isMobile
-                ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
+                ? 'bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
                 : shouldAlignRecentlyActiveWithPreview
                 ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-[calc(23rem+1.5rem)] right-4 z-30 pl-2 pr-0'
                 : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-4 z-30 pl-4 pr-0'
@@ -2451,7 +2451,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               className={`mx-auto ${
                 isRecentlyActiveOpen
                   ? isMobile
-                    ? 'w-fit max-w-full rounded-2xl border border-white/10 bg-background/50 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                    ? 'w-fit max-w-full rounded-2xl border border-white/10 bg-background/50 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
                     : 'w-fit max-w-[30rem] rounded-2xl border border-white/10 bg-background/40 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl'
                   : 'max-w-max p-0'
               } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''} pointer-events-auto`}
@@ -2463,7 +2463,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   aria-controls="recently-active-tray"
                   aria-expanded={isRecentlyActiveOpen}
                   aria-label={isRecentlyActiveOpen ? 'Hide recently active bar' : 'Show recently active bar'}
-                  className="h-8 rounded-full border border-white/10 px-4 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
+                  className="h-9 rounded-full border border-white/10 px-5 text-[11px] uppercase tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65"
                   onClick={() => setIsRecentlyActiveOpen((open) => !open)}
                   style={{
                     background: isRecentlyActiveOpen ? 'var(--cruush-gradient)' : 'rgba(0,0,0,0.82)',
@@ -2493,7 +2493,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       key={user.id}
                       aria-label={`Open ${user.name} profile`}
                       onClick={() => handleUserSelect(user)}
-                      className={`${isMobile ? 'w-14' : 'w-20'} group block flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
+                      className={`${isMobile ? 'w-16' : 'w-20'} group block flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                       data-testid={`recently-active-tile-${user.id}`}
                     >
                       <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">

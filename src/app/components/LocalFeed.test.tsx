@@ -516,13 +516,14 @@ describe('LocalFeed', () => {
     );
 
     const notice = await screen.findByTestId('local-feed-cruush-plus-notice');
-    expect(notice).toHaveTextContent('Post on the local feed with cruush+.');
-    expect(within(notice).getAllByText('cruush+')).toHaveLength(2);
+    expect(notice).toHaveTextContent('Make the feed yours with cruush+.');
+    expect(notice).toHaveTextContent('Post updates, plans, and moments for nearby people. Unlock feed posting with cruush+.');
+    expect(within(notice).getAllByText('cruush+')).toHaveLength(3);
     for (const cruushPlusText of within(notice).getAllByText('cruush+')) {
       expect(cruushPlusText).toHaveClass('cruush-logo-font');
     }
 
-    fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock cruush+' }));
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/rewards');
     expect(createFeedPost).not.toHaveBeenCalled();

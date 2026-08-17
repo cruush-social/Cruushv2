@@ -18,6 +18,7 @@ import {
 import { getMyCruushActivity, sendCruush, type MutualCruushActivityItem } from '../lib/cruushApi';
 import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMyBillingStatus } from '../lib/billingApi';
+import { getMyProfile } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
@@ -275,11 +276,23 @@ export default function DirectMessages() {
     setDirectLoading(true);
 
     try {
-      const [nearbyUsers, activity, billing] = await Promise.all([
-        getNearbyUsers(null, filters, { limit: DIRECT_MESSAGE_DISCOVERY_LIMIT }),
+      const [profile, activity, billing] = await Promise.all([
+        getMyProfile().catch(() => null),
         getMyCruushActivity().catch(() => ({ mutual: [] })),
         getMyBillingStatus().catch(() => null),
       ]);
+      const savedLocation = profile?.location;
+      const coordinates = savedLocation
+        ? {
+            lat: savedLocation.fuzzy_lat ?? savedLocation.lat,
+            lng: savedLocation.fuzzy_lng ?? savedLocation.lng,
+          }
+        : null;
+      const nearbyUsers = await getNearbyUsers(
+        typeof coordinates?.lat === 'number' && typeof coordinates?.lng === 'number' ? coordinates : null,
+        filters,
+        { limit: DIRECT_MESSAGE_DISCOVERY_LIMIT },
+      );
       setDirectOptions(nearbyUsers.filter((user) => user.relationship?.canMessage !== false));
       setMutualOptions((activity.mutual ?? []).filter((item) => item.canMessage !== false));
       setDirectHasCruushPlus(billing?.cruushPlus === true);
