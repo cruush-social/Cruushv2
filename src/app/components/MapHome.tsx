@@ -1113,6 +1113,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const activeCrowdNotice = formatActiveCrowdNotice(safeVisibility.activeCrowdModes);
 
   const filteredUsers = users.filter((user) => {
+    // The discovery response can include the signed-in user. The map renders
+    // the current user separately so Ghost/precise state and the own-location
+    // controls stay authoritative; keeping both entries creates two pins for
+    // the same account.
+    if (currentProfile?.id && user.id === currentProfile.id) {
+      return false;
+    }
+
     const distanceMiles = Number.parseFloat(user.distance);
     if (Number.isFinite(distanceMiles) && distanceMiles > filters.distance) {
       return false;

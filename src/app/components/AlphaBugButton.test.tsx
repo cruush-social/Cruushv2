@@ -94,6 +94,16 @@ describe('AlphaBugButton', () => {
     );
   });
 
+  it.each(['/feed', '/profile/edit'])('clears top-surface controls on %s', (route) => {
+    renderAlphaBugButton(true, route);
+
+    expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
+      'left-4',
+      'bottom-[calc(6.25rem+env(safe-area-inset-bottom))]',
+      'z-20',
+    );
+  });
+
   it('uses the map chrome slot instead of floating over map controls', () => {
     const slot = document.createElement('div');
     document.body.appendChild(slot);
