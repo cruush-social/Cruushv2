@@ -2649,6 +2649,8 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('data-scrollable', 'false');
     expect(screen.getByTestId('recently-active-tray')).toHaveStyle({ width: '5rem', maxWidth: '100%' });
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('tabindex', '0');
+    expect(screen.getByTestId('recently-active-tray').style.touchAction).toBe('pan-x');
+    expect(screen.getByTestId('recently-active-tray').style.getPropertyValue('-webkit-overflow-scrolling')).toBe('touch');
     fireEvent.click(recentTile);
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toBeInTheDocument();

@@ -2485,7 +2485,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   onPointerMove={handleRecentlyActivePointerMove}
                   onPointerUp={handleRecentlyActivePointerEnd}
                   onWheel={handleRecentlyActiveWheel}
-                  style={{ width: recentlyActiveTrayWidth, maxWidth: '100%' }}
+                  style={{ width: recentlyActiveTrayWidth, maxWidth: '100%', WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
                   tabIndex={0}
                 >
                 {recentlyActiveUsers.map((user) => (
