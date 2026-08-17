@@ -4,6 +4,7 @@ import { getSanitizedAnalyticsPath } from './googleAnalytics';
 const DEFAULT_POSTHOG_HOST = 'https://us.i.posthog.com';
 
 let initialized = false;
+let pendingPageView: { path: string; title: string } | null = null;
 
 function getPostHogKey() {
   return import.meta.env.VITE_POSTHOG_KEY?.trim() ?? '';
@@ -31,6 +32,15 @@ export function initializePostHog() {
     capture_pageleave: false,
     disable_session_recording: true,
     persistence: 'memory',
+    loaded: () => {
+      if (!pendingPageView) {
+        return;
+      }
+
+      const { path, title } = pendingPageView;
+      pendingPageView = null;
+      capturePostHogPageView(path, title);
+    },
   });
   initialized = true;
 
@@ -41,9 +51,26 @@ export function trackPostHogPageView(
   path: string,
   title = typeof document === 'undefined' ? '' : document.title,
 ) {
+  const wasInitialized = initialized;
+
+  if (!wasInitialized) {
+    pendingPageView = { path, title };
+  }
+
   if (!initializePostHog()) {
+    pendingPageView = null;
     return false;
   }
+
+  if (!wasInitialized) {
+    return true;
+  }
+
+  capturePostHogPageView(path, title);
+  return true;
+}
+
+function capturePostHogPageView(path: string, title: string) {
 
   const sanitizedPath = getSanitizedAnalyticsPath(path);
   posthog.capture('$pageview', {
@@ -52,5 +79,4 @@ export function trackPostHogPageView(
     $title: title,
   }, { send_instantly: true });
 
-  return true;
 }

@@ -25,6 +25,7 @@ describe('PostHog analytics', () => {
   it('initializes once and captures only a sanitized page path', async () => {
     vi.stubEnv('VITE_POSTHOG_KEY', 'phc_test');
     vi.stubEnv('VITE_POSTHOG_HOST', 'https://example.posthog.test');
+    init.mockImplementation((_key, options: { loaded?: () => void }) => options.loaded?.());
     const { trackPostHogPageView } = await import('./posthog');
 
     expect(trackPostHogPageView('/profile/secret-user?mode=preview&token=secret', 'Profile')).toBe(true);
