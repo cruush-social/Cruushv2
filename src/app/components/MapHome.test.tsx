@@ -2256,6 +2256,52 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-me')).toHaveAttribute('data-photo', 'https://example.com/me.jpg');
   });
 
+  it('does not render a duplicate discovery pin when the API includes the signed-in user', async () => {
+    useIsMobile.mockReturnValue(false);
+    window.sessionStorage.setItem('cruush-location-permission-prompted', 'true');
+    getMyProfile.mockResolvedValue({
+      id: 'me',
+      display_name: 'Me',
+      photos: ['https://example.com/me.jpg'],
+      location: {
+        id: 'me',
+        fuzzy_lat: 40.713,
+        fuzzy_lng: -74.005,
+        fuzz_radius_meters: 250,
+      },
+    });
+    getNearbyUsers.mockResolvedValue([
+      {
+        id: 'me',
+        name: 'Me',
+        display_name: 'Me',
+        age: 32,
+        pronouns: 'they/them',
+        lat: 40.713,
+        lng: -74.005,
+        lastActive: 'Now',
+        distance: 'You',
+        lookingFor: [],
+        vibes: [],
+        position: [],
+        hostingTravel: [],
+        photo: 'https://example.com/me.jpg',
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByTestId('marker-me')).toBeInTheDocument());
+    expect(screen.getAllByTestId('marker-me')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Pin Me' })).not.toBeInTheDocument();
+  });
+
   it('uses a saved NYC account location on entry without prompting for browser geolocation', async () => {
     useIsMobile.mockReturnValue(false);
     getMyProfile.mockResolvedValue({
