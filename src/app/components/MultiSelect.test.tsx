@@ -88,6 +88,22 @@ describe('MultiSelect', () => {
     expect(onChange).toHaveBeenCalledWith(['Drag']);
   });
 
+  it('enables native vertical touch scrolling inside option lists', () => {
+    render(
+      <MultiSelect
+        ariaLabel="Gender Identity"
+        options={['agender', 'androgynous', 'bakla']}
+        value={[]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identity' }));
+
+    const listbox = screen.getByRole('listbox', { name: 'Gender Identity' });
+    expect(listbox.style.touchAction).toBe('pan-y');
+    expect(listbox.style.getPropertyValue('-webkit-overflow-scrolling')).toBe('touch');
+  });
+
   it('opens local menus upward when the trigger is near the bottom of the viewport', async () => {
     Object.defineProperty(window, 'innerHeight', {
       configurable: true,
