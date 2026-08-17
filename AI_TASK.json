@@ -62,6 +62,7 @@
     "server/src/notification-service.ts",
     "server/src/moderation-access-log.ts",
     "server/sql/089_site_wide_announcements.sql",
+    "server/sql/090_feed_orphaned_author_cleanup.sql",
     "server/src/moderation-service.ts",
     "src/app/components/MapHome.test.tsx",
     "src/app/components/BottomNav.tsx",

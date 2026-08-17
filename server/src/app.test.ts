@@ -9787,6 +9787,7 @@ describe("server", () => {
     expect(response.statusCode).toBe(200);
     expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
     expect(query.mock.calls[1]?.[0]).toContain("from posts p");
+    expect(query.mock.calls[1]?.[0]).toContain("join profiles pr on pr.id = p.user_id");
     expect(query.mock.calls[1]?.[0]).toContain("p.map_ping_id");
     expect(response.json()).toEqual({
       data: [{

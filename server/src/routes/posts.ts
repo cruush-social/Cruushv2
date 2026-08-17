@@ -270,7 +270,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
       `select ${POST_COLUMNS}
        from posts p
        join app_users author on author.id = p.user_id
-       left join profiles pr on pr.id = p.user_id
+       join profiles pr on pr.id = p.user_id
        left join user_privacy_settings pin_settings on pin_settings.user_id = p.user_id
        where p.expires_at > now()
          and coalesce(author.account_status, 'active') <> 'deleted'
