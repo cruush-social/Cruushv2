@@ -17,6 +17,10 @@ const MENU_FLIP_THRESHOLD = 220;
 const MENU_MOBILE_BREAKPOINT = 640;
 const MENU_PORTAL_Z_INDEX = 120;
 const MULTI_SELECT_OPEN_EVENT = 'cruush:multiselect-open';
+const TOUCH_SCROLL_STYLE: CSSProperties = {
+  WebkitOverflowScrolling: 'touch',
+  touchAction: 'pan-y',
+};
 
 type ResolvedMenuPlacement = 'bottom' | 'top';
 
@@ -264,7 +268,7 @@ export default function MultiSelect({
             })}
           </div>
 
-          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle max-h-[inherit] overflow-y-auto py-1">
+          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle max-h-[inherit] overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
             <div role="group" aria-label={activeGroup.label || undefined}>
               {activeGroup.options.map((option) => (
                 <button
@@ -284,7 +288,7 @@ export default function MultiSelect({
           </div>
         </div>
       ) : (
-        <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle max-h-[inherit] overflow-y-auto">
+        <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle max-h-[inherit] overflow-y-auto" style={TOUCH_SCROLL_STYLE}>
           {groups.map((group) => (
             <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
               {group.label ? (
