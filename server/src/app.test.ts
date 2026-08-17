@@ -6736,6 +6736,46 @@ describe("server", () => {
     });
   });
 
+  it("lets moderators send a site-wide notification to active verified accounts", async () => {
+    const recipientOne = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const recipientTwo = "63fd68d7-24fc-4cff-8cd7-a97ec0cadf98";
+    const notificationRow = (userId: string, id: string) => ({
+      id,
+      user_id: userId,
+      type: "announcement",
+      title: "New release",
+      body: "The latest cruush updates are live.",
+      link_url: "/changelog",
+      actor_user_id: null,
+      conversation_id: null,
+      metadata: { kind: "site_wide_announcement" },
+      read_at: null,
+      created_at: "2026-08-17T12:00:00.000Z"
+    });
+    query
+      .mockResolvedValueOnce({ rows: [{ role: "moderator" }] })
+      .mockResolvedValueOnce({ rows: [{ id: recipientOne }, { id: recipientTwo }] })
+      .mockResolvedValueOnce({ rows: [notificationRow(recipientOne, "notification-1")] })
+      .mockResolvedValueOnce({ rows: [notificationRow(recipientTwo, "notification-2")] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/moderation/announcements",
+      headers: { "x-user-id": userId },
+      payload: {
+        title: "New release",
+        body: "The latest cruush updates are live.",
+        linkUrl: "/changelog"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(query.mock.calls[1]?.[0]).toContain("email_verified_at is not null");
+    expect(response.json().data).toEqual({ recipients: 2, notificationsCreated: 2, pushesAttempted: 2 });
+    expect(query.mock.calls[4]?.[0]).toContain("insert into moderation_access_events");
+  });
+
   it("returns and updates support requests from the email dashboard", async () => {
     const targetUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
     const requestId = "2f35619f-e09d-4f65-a7ea-8f6dd149ec11";

@@ -2,7 +2,7 @@ import type { DbClient } from "./db.js";
 
 export const MODERATOR_ACCESS_LOG_RETENTION_DAYS = 180;
 
-export type ModeratorAccessType = "queue_detail" | "media_preview" | "review_preview";
+export type ModeratorAccessType = "queue_detail" | "media_preview" | "review_preview" | "site_wide_announcement";
 
 export async function recordModeratorAccess(db: DbClient, input: {
   actorUserId: string;

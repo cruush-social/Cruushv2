@@ -28,6 +28,7 @@ import {
   moderateReport,
   removeReportedContent,
   searchModeratedUsers,
+  sendSiteWideAnnouncement,
   updateSupportRequestStatus,
   type AdminNotification,
   type AdminNotificationFilter,
@@ -334,6 +335,10 @@ export default function ModeratorReview() {
   const [supportLoading, setSupportLoading] = useState(false);
   const [supportError, setSupportError] = useState<string | null>(null);
   const [supportUpdatingId, setSupportUpdatingId] = useState<string | null>(null);
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementBody, setAnnouncementBody] = useState('');
+  const [announcementLink, setAnnouncementLink] = useState('');
+  const [announcementSending, setAnnouncementSending] = useState(false);
 
   const loadQueue = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (mode === 'initial' && accessState !== 'ready') setAccessState('checking');
@@ -578,6 +583,28 @@ export default function ModeratorReview() {
     }
   };
 
+  const sendAnnouncement = async (event: FormEvent) => {
+    event.preventDefault();
+    if (announcementSending) return;
+    if (!window.confirm('Send this notification to every active verified account?')) return;
+    setAnnouncementSending(true);
+    try {
+      const result = await sendSiteWideAnnouncement({
+        title: announcementTitle,
+        body: announcementBody,
+        linkUrl: announcementLink || undefined,
+      });
+      toast.success(`Announcement sent to ${result.notificationsCreated} verified active accounts.`);
+      setAnnouncementTitle('');
+      setAnnouncementBody('');
+      setAnnouncementLink('');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to send the announcement.');
+    } finally {
+      setAnnouncementSending(false);
+    }
+  };
+
   const performAction = async (event: FormEvent) => {
     event.preventDefault();
     if (!actionDialog || pendingAction) return;
@@ -695,7 +722,6 @@ export default function ModeratorReview() {
             </Button>
             <div>
               <h1 className="text-xl">Moderation dashboard</h1>
-              <p className="text-xs text-muted-foreground">Reports, automated reviews, and account enforcement</p>
             </div>
           </div>
           <div className="flex min-w-0 items-center gap-2">
@@ -842,6 +868,19 @@ export default function ModeratorReview() {
                 <option value="unread">Unread only</option>
               </select>
             </div>
+
+            <form onSubmit={(event) => void sendAnnouncement(event)} className="mt-4 space-y-3 rounded-lg border border-border bg-card/50 p-4">
+              <div>
+                <h3 className="font-medium">Site-wide notification</h3>
+                <p className="text-sm text-muted-foreground">Send an in-app notification and push to active verified accounts.</p>
+              </div>
+              <Input aria-label="Announcement title" value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} placeholder="Title" maxLength={120} required />
+              <Textarea aria-label="Announcement message" value={announcementBody} onChange={(event) => setAnnouncementBody(event.target.value)} placeholder="Message" maxLength={2000} required />
+              <div className="flex flex-wrap gap-2">
+                <Input aria-label="Announcement link" value={announcementLink} onChange={(event) => setAnnouncementLink(event.target.value)} placeholder="Internal link, e.g. /feed" maxLength={300} />
+                <Button type="submit" disabled={announcementSending || !announcementTitle.trim() || !announcementBody.trim()}>{announcementSending ? 'Sending...' : 'Send notification'}</Button>
+              </div>
+            </form>
 
             {notificationsError ? (
               <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{notificationsError}</div>

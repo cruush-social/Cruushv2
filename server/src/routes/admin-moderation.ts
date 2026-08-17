@@ -9,6 +9,7 @@ import { decryptMediaBytes } from "../media-encryption.js";
 import { deleteEncryptedMediaObject, readEncryptedMediaObject } from "../media-storage.js";
 import { recordModeratorAccess } from "../moderation-access-log.js";
 import { getModeratorUser, type ModeratorRole } from "../moderator-auth.js";
+import { createAppNotificationAndPush } from "../notification-service.js";
 import { isOwnerFullAccessEmail } from "../owner-access.js";
 import {
   approvePendingProfilePhotoReview,
@@ -92,6 +93,13 @@ const adminNotificationListQuerySchema = z.object({
   filter: z.enum(["all", "unread"]).optional().default("all"),
   limit: z.coerce.number().int().min(1).max(100).optional().default(25),
   offset: z.coerce.number().int().min(0).optional().default(0)
+}).strict();
+
+const siteWideAnnouncementSchema = z.object({
+  title: singleLineTextSchema({ min: 1, max: 120 }),
+  body: multilineTextSchema({ min: 1, max: 2000 }),
+  linkUrl: z.string().trim().max(300).optional().default("")
+    .refine((value) => value === "" || value.startsWith("/"), "Link must be an internal app path.")
 }).strict();
 
 const reviewDecisionSchema = z.object({
@@ -1329,6 +1337,43 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
         }
       }
     });
+  });
+
+  app.post("/api/admin/moderation/announcements", async (request, reply) => {
+    const moderator = await getModeratorUser(request);
+    const payload = siteWideAnnouncementSchema.parse(request.body);
+    const recipients = await app.db.query<{ id: string }>(
+      `select id::text as id
+       from app_users
+       where account_status = 'active'
+         and email_verified_at is not null
+       order by id`
+    );
+
+    let notificationsCreated = 0;
+    let pushesAttempted = 0;
+    for (const recipient of recipients.rows) {
+      const notification = await createAppNotificationAndPush(app, {
+        userId: recipient.id,
+        type: "announcement",
+        title: payload.title,
+        body: payload.body,
+        linkUrl: payload.linkUrl,
+        metadata: { kind: "site_wide_announcement", actorUserId: moderator.userId }
+      });
+      if (notification) {
+        notificationsCreated += 1;
+        pushesAttempted += 1;
+      }
+    }
+
+    await recordModeratorAccess(app.db, {
+      actorUserId: moderator.userId,
+      accessType: "site_wide_announcement",
+      metadata: { recipients: recipients.rows.length, notificationsCreated, pushesAttempted, title: payload.title }
+    });
+
+    return reply.send({ data: { recipients: recipients.rows.length, notificationsCreated, pushesAttempted } });
   });
 
   app.get("/api/admin/moderation/reports/:reportId", async (request, reply) => {

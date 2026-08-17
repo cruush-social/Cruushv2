@@ -257,6 +257,18 @@ export type AdminNotificationListResponse = {
   };
 };
 
+export type SiteWideAnnouncementPayload = {
+  title: string;
+  body: string;
+  linkUrl?: string;
+};
+
+export type SiteWideAnnouncementResult = {
+  recipients: number;
+  notificationsCreated: number;
+  pushesAttempted: number;
+};
+
 export type ModerationSystemError = {
   id: string;
   provider: string;
@@ -404,6 +416,13 @@ export function getAdminNotifications(options: {
     offset: String(options.offset ?? 0),
   });
   return requestApi<AdminNotificationListResponse>(`/api/admin/moderation/notifications?${searchParams.toString()}`);
+}
+
+export function sendSiteWideAnnouncement(payload: SiteWideAnnouncementPayload) {
+  return requestApi<SiteWideAnnouncementResult>('/api/admin/moderation/announcements', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function getModerationSystemErrors(options: {

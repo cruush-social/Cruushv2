@@ -16,6 +16,7 @@ const {
   moderateReport,
   removeReportedContent,
   searchModeratedUsers,
+  sendSiteWideAnnouncement,
   updateSupportRequestStatus,
 } = vi.hoisted(() => ({
   changeModeratedAccountStatus: vi.fn(),
@@ -29,6 +30,7 @@ const {
   moderateReport: vi.fn(),
   removeReportedContent: vi.fn(),
   searchModeratedUsers: vi.fn(),
+  sendSiteWideAnnouncement: vi.fn(),
   updateSupportRequestStatus: vi.fn(),
 }));
 
@@ -52,6 +54,7 @@ vi.mock('../lib/moderationApi', async () => {
     moderateReport,
     removeReportedContent,
     searchModeratedUsers,
+    sendSiteWideAnnouncement,
     updateSupportRequestStatus,
   };
 });
@@ -422,6 +425,33 @@ describe('ModeratorReview', () => {
     expect(screen.getByText('Casey sent you a message.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Notification filter'), { target: { value: 'unread' } });
     await waitFor(() => expect(getAdminNotifications).toHaveBeenLastCalledWith(expect.objectContaining({ filter: 'unread' })));
+  });
+
+  it('sends a site-wide notification from the notification dashboard', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    getAdminNotifications.mockResolvedValue({
+      notifications: [],
+      page: { limit: 25, offset: 0, total: 0, hasMore: false },
+    });
+    sendSiteWideAnnouncement.mockResolvedValue({
+      recipients: 4,
+      notificationsCreated: 4,
+      pushesAttempted: 4,
+    });
+    renderReview();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Notifications' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement title' }), { target: { value: 'New release' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement message' }), { target: { value: 'The latest cruush updates are live.' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement link' }), { target: { value: '/changelog' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send notification' }));
+
+    await waitFor(() => expect(sendSiteWideAnnouncement).toHaveBeenCalledWith({
+      title: 'New release',
+      body: 'The latest cruush updates are live.',
+      linkUrl: '/changelog',
+    }));
+    expect(toastSuccess).toHaveBeenCalledWith('Announcement sent to 4 verified active accounts.');
   });
 
   it('loads grouped provider failures in their own moderator view', async () => {

@@ -94,7 +94,8 @@ const migrationFiles = [
   "085_feed_window_default.sql",
   "086_waitlist30_promo_code.sql",
   "087_signup_consent.sql",
-  "088_feed_deleted_account_cleanup.sql"
+  "088_feed_deleted_account_cleanup.sql",
+  "089_site_wide_announcements.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",
