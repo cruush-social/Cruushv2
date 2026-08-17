@@ -45,10 +45,13 @@ function getBugButtonPlacement(pathname: string) {
   }
 
   if (pathname === '/feed' || pathname === '/profile/edit') {
+    // These surfaces reserve the top edge for their header and primary content
+    // controls. Keep the report trigger above the bottom navigation instead of
+    // covering the unread capsule or profile-photo actions.
     return 'left-4 bottom-[calc(6.25rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
   }
 
-  return 'left-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
+  return 'left-4 top-[calc(4rem+env(safe-area-inset-top))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
 }
 
 function getBugTipPlacement(pathname: string) {
@@ -58,10 +61,6 @@ function getBugTipPlacement(pathname: string) {
 
   if (pathname === '/map' || pathname.startsWith('/map/')) {
     return 'left-4 top-[calc(19.5rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))] lg:left-5';
-  }
-
-  if (pathname === '/cruush') {
-    return 'left-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
   }
 
   return 'left-4 top-[calc(7.25rem+env(safe-area-inset-top))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
@@ -238,19 +237,18 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
     }
   };
 
-  const useLargeSlotButton = buttonSlot?.dataset.bugButtonSize === 'large';
   const trigger = (
     <DialogTrigger asChild>
       <button
         aria-label="Report alpha bug"
         className={buttonSlot
-          ? `inline-flex shrink-0 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${useLargeSlotButton ? 'size-9 sm:size-10 lg:size-11' : 'size-8 sm:size-9'}`
+          ? 'inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive sm:size-9'
           : `fixed z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${getBugButtonPlacement(location.pathname)}`}
         data-testid="alpha-bug-button"
         title="Report a bug"
         type="button"
       >
-        <Bug className={useLargeSlotButton ? 'h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6 lg:h-7 lg:w-7' : 'h-5 w-5'} />
+        <Bug className="h-5 w-5" />
       </button>
     </DialogTrigger>
   );
