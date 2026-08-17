@@ -180,6 +180,9 @@ describe('LocalFeed', () => {
       'overscroll-contain',
       'pb-[calc(9rem+env(safe-area-inset-bottom))]',
     );
+    const postsScroll = screen.getByTestId('local-feed-posts-scroll');
+    expect(postsScroll.style.touchAction).toBe('pan-y');
+    expect(postsScroll.style.getPropertyValue('-webkit-overflow-scrolling')).toBe('touch');
   });
 
   it('focuses the composer when onboarding sends the user to write a post', async () => {
