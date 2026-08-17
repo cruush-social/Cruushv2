@@ -42,6 +42,7 @@ export function initializePostHog() {
       capturePostHogPageView(path, title);
     },
   });
+  posthog.opt_in_capturing();
   initialized = true;
 
   return true;

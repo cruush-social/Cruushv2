@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const init = vi.fn();
 const capture = vi.fn();
+const optIn = vi.fn();
 
 vi.mock('posthog-js', () => ({
-  default: { init, capture },
+  default: { init, capture, opt_in_capturing: optIn },
 }));
 
 describe('PostHog analytics', () => {
@@ -12,6 +13,7 @@ describe('PostHog analytics', () => {
     vi.resetModules();
     init.mockReset();
     capture.mockReset();
+    optIn.mockReset();
   });
 
   it('does nothing when the public project key is absent', async () => {
