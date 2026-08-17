@@ -2078,6 +2078,8 @@ describe('MapHome', () => {
     expect(recentPanel).toHaveClass('max-w-[29.5rem]', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('cursor-grab', 'overflow-x-auto', 'overscroll-x-contain', 'scroll-smooth');
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('tabindex', '0');
+    expect(screen.getByTestId('recently-active-tray').style.touchAction).toBe('pan-x');
+    expect(screen.getByTestId('recently-active-tray').style.getPropertyValue('-webkit-overflow-scrolling')).toBe('touch');
     fireEvent.click(recentTile);
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toBeInTheDocument();

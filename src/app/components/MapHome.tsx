@@ -2264,6 +2264,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                   aria-label="Recently active profiles"
                   className={`${isMobile ? 'gap-2' : 'gap-3'} flex cursor-grab overflow-x-auto overscroll-x-contain scroll-smooth scrollbar-hide active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                   data-testid="recently-active-tray"
+                  style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
                   onClickCapture={handleRecentlyActiveClickCapture}
                   onPointerCancel={handleRecentlyActivePointerEnd}
                   onPointerDown={handleRecentlyActivePointerDown}
