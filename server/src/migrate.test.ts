@@ -164,6 +164,16 @@ describe("migration runner", () => {
     expect(deletionIntegritySql).toContain("before delete on app_users");
   });
 
+  it("cleans feed posts owned by deleted or orphaned accounts", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const cleanupSql = await readFile(path.join(serverRoot, "sql", "088_feed_deleted_account_cleanup.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"087_signup_consent\.sql",\s*"088_feed_deleted_account_cleanup\.sql"/);
+    expect(cleanupSql).toContain("delete from posts post");
+    expect(cleanupSql).toContain("author.account_status = 'deleted'");
+    expect(cleanupSql).toContain("author.id is null");
+  });
+
   it("adds notification-type preferences after account deletion integrity", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const preferencesSql = await readFile(path.join(serverRoot, "sql", "077_notification_type_preferences.sql"), "utf8");

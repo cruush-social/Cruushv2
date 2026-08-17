@@ -269,9 +269,11 @@ export async function registerPostRoutes(app: FastifyInstance) {
     const result = await app.db.query<PostRow>(
       `select ${POST_COLUMNS}
        from posts p
+       join app_users author on author.id = p.user_id
        left join profiles pr on pr.id = p.user_id
        left join user_privacy_settings pin_settings on pin_settings.user_id = p.user_id
        where p.expires_at > now()
+         and coalesce(author.account_status, 'active') <> 'deleted'
          and p.created_at >= now() - case
            when $2 = '1h' then interval '1 hour'
            when $2 = '3h' then interval '3 hours'
