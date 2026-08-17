@@ -2,11 +2,17 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Apply the reported map and group-composer UI corrections only: keep automatic map framing within the useful NYC view, render mutual pins purple, show mutual Vibe tags in group selection, and expose the existing bug-report control on the messages composer.",
-  "base": "origin/main at d522d4a17278fe3f1d4c5bfd50ca57b7db48f7fb",
-  "branch": "security/v12-combined",
+  "job": "Wire privacy-safe PostHog product analytics into the existing cruush frontend page-tracking path without removing Google Analytics or collecting session recordings, autocaptured content, or unsanitized identifiers.",
+  "base": "origin/main at ae61f563ef6ed81d6a7b2a297169cbca040c270b",
+  "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
     "AI_TASK.json",
+    "package.json",
+    "pnpm-lock.yaml",
+    ".env.example",
+    "src/app/lib/posthog.ts",
+    "src/app/lib/posthog.test.ts",
+    "src/app/components/GoogleAnalyticsPageTracker.tsx",
     "src/app/components/DirectMessages.tsx",
     "src/app/components/DirectMessages.test.tsx",
     "src/app/components/MapView.tsx",
@@ -129,6 +135,8 @@
     "Existing dirty artifacts: .claude/launch.json, menu-harness.html, src/menu-harness.tsx, and server/pnpm-lock.yaml."
   ],
   "nonGoals": [
+    "Do not remove or replace Google Analytics, add feature flags, enable session recording, enable autocapture, or send unsanitized route identifiers.",
+    "Do not change backend analytics, consent copy, authentication, deployment settings, or PostHog project configuration in this source-only task.",
     "Update the in-app v1.3 changelog, add the one-day 2FA cruush+ promotion, and expand the beta geofence to 20 miles only; no unrelated product work.",
     "No GitHub issue closure, credential change, or unrelated product work. Deploy only the reviewed v1.3 bug-fix batch after the release gates pass.",
     "Do not synchronize Messages filters with Map Seeking or alter server authorization rules.",
@@ -140,6 +148,8 @@
     "Record required Terms and Privacy acceptance and optional product-updates consent at signup; preserve unsubscribe state and do not send email in this task."
   ],
   "proof": [
+    "Focused PostHog tests prove missing-key no-op behavior, one-time initialization, sanitized pageview paths, and disabled autocapture/session recording options.",
+    "Frontend production build passes; live PostHog ingestion remains unverified until this branch is published with VITE_POSTHOG_KEY configured in Coolify.",
     "Issue-by-issue audit maps each automatic GitHub report to its current source path and separates verified source fixes from evidence gaps.",
     "Canonical local release candidate rendered at http://127.0.0.1:5181/.",
     "Rendered Messages chooser: opened Gender Identities, selected a value, applied it, then used Back to return to message options.",
@@ -152,5 +162,5 @@
     "Migration 082 creates a replay-safe one-day 2FA cruush+ promotion cutover; focused server migration/2FA checks passed (25 tests), server build passed, and onboarding check passed (9 tests).",
     "Beta access now covers the 20-mile NYC launch area; focused geofence checks passed (2 tests), map-boundary/Auth checks passed (18 and 15 tests), and the rendered local map includes Yonkers without exposing the private service center."
   ],
-  "publicationTarget": "origin/main via the verified Coolify deployment; email remains draft-only until the pre-August 1 audience is verified."
+  "publicationTarget": "Source branch only until separately authorized; if published, origin/main via the verified Coolify frontend deployment. Email remains draft-only until the pre-August 1 audience is verified."
 }
