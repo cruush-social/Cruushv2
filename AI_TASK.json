@@ -13,6 +13,7 @@
     "src/app/lib/posthog.ts",
     "src/app/lib/posthog.test.ts",
     "src/app/components/GoogleAnalyticsPageTracker.tsx",
+    "nginx.conf",
     "src/app/components/DirectMessages.tsx",
     "src/app/components/DirectMessages.test.tsx",
     "src/app/components/MapView.tsx",
@@ -150,6 +151,7 @@
   "proof": [
     "Focused PostHog tests prove missing-key no-op behavior, one-time initialization, sanitized pageview paths, and disabled autocapture/session recording options.",
     "Frontend production build passes; live PostHog ingestion remains unverified until this branch is published with VITE_POSTHOG_KEY configured in Coolify.",
+    "Rendered public frontend no longer reports CSP violations for PostHog assets or ingestion, and a real page load produces a PostHog pageview.",
     "Issue-by-issue audit maps each automatic GitHub report to its current source path and separates verified source fixes from evidence gaps.",
     "Canonical local release candidate rendered at http://127.0.0.1:5181/.",
     "Rendered Messages chooser: opened Gender Identities, selected a value, applied it, then used Back to return to message options.",
