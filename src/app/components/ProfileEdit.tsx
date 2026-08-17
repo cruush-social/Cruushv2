@@ -42,6 +42,7 @@ import {
   IDENTITIES,
   KINK_GROUPS,
   LOOKING_FOR,
+  MAX_PROFILE_SEXUALITIES,
   MPOX_VACCINE,
   normalizeCrowdValues,
   POSITIONS,
@@ -494,7 +495,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     ethnicity: profile.ethnicity ?? '',
     identities: limitGenderIdentities(profile.identities ?? []),
     presentation: singleValue(profile.presentation ?? []),
-    sexuality: singleValue(profile.sexuality ?? []),
+    sexuality: limitToThree(profile.sexuality ?? []),
     body_type: limitToThree(profile.body_type ?? []),
     height: profile.height ?? '',
     weight: profile.weight ?? '',
@@ -892,7 +893,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),
     presentation: singleValue(profile.presentation || []),
-    sexuality: singleValue(profile.sexuality || []),
+    sexuality: limitToThree(profile.sexuality || []),
     body_type: limitToThree(profile.body_type || []),
     position: singleValue(profile.position || []),
     role: singleValue(profile.role || []),
@@ -929,7 +930,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
       ] as const)
   );
   const profileMenuProps = {
-    menuPortal: embedded,
+    menuPortal: true,
   };
   return (
     <div className={embedded ? 'bg-transparent pb-0' : 'min-h-screen bg-background pb-20'}>
@@ -1170,7 +1171,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Sexuality</Label>
-              <MultiSelect {...profileMenuProps} options={SEXUALITY} value={normalizedProfile.sexuality} onChange={(vals) => handleChange('sexuality', singleValue(vals))} selectionMode="single" />
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_SEXUALITIES} options={SEXUALITY} value={normalizedProfile.sexuality} onChange={(vals) => handleChange('sexuality', limitToThree(vals))} />
+              <p className="text-xs text-muted-foreground">Select up to {MAX_PROFILE_SEXUALITIES}</p>
             </div>
 
             <div className="space-y-3 rounded-md border border-border bg-card/40 p-4">

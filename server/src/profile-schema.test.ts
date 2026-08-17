@@ -7,6 +7,17 @@ import {
 } from "./profile-schema.js";
 
 describe("profile schema", () => {
+  it("accepts up to three sexualities and trims older selections", () => {
+    const parsed = profilePayloadSchema.parse({
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994,
+      sexuality: ["gay", "queer", "pansexual", "bisexual"]
+    });
+
+    expect(parsed.sexuality).toEqual(["queer", "pansexual", "bisexual"]);
+  });
+
   it("accepts only PING as the optional location sync reason", () => {
     const ordinaryLocation = profileLocationPayloadSchema.parse({
       lat: 40.711,

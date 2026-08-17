@@ -905,8 +905,9 @@ function DirectUserOverlay({
   const filteredPublicUsers = useMemo(() => {
     return publicUsers.filter((user) => matchesMessageFilterBasics(user, filters));
   }, [publicUsers, filters]);
+  const broadenedPublicUsers = filteredPublicUsers.length > 0 ? filteredPublicUsers : publicUsers;
   const sortedPublicUsers = useMemo(() => {
-    return [...filteredPublicUsers].sort((a, b) => {
+    return [...broadenedPublicUsers].sort((a, b) => {
       if (sortMode === 'distance') {
         return parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
       }
@@ -915,7 +916,7 @@ function DirectUserOverlay({
         || seekingSortScore(b) - seekingSortScore(a)
         || parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
     });
-  }, [filteredPublicUsers, sortMode]);
+  }, [broadenedPublicUsers, sortMode]);
 
   const requestMutual = async (user: DiscoveryUser) => {
     if (requestingUserId || requestedCruushIds.includes(user.id)) {
@@ -940,8 +941,8 @@ function DirectUserOverlay({
   };
 
   return (
-    <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
-      <div className="mx-auto max-w-2xl space-y-5">
+    <div className="fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 py-6 backdrop-blur-md" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="mx-auto min-h-full max-w-2xl space-y-5 pb-8">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-1">
             <Button type="button" variant="ghost" size="icon" aria-label="Back to message options" onClick={onBack}>
@@ -1032,6 +1033,11 @@ function DirectUserOverlay({
         {!loading && activeComposerTab === 'public' && sortedPublicUsers.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
             No nearby people are available right now.
+          </div>
+        ) : null}
+        {!loading && activeComposerTab === 'public' && filteredPublicUsers.length === 0 && publicUsers.length > 0 ? (
+          <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3 text-sm text-muted-foreground">
+            Showing more messageable people because no one matched every seeking filter.
           </div>
         ) : null}
         {!loading && activeComposerTab === 'mutuals' && mutuals.length === 0 ? (

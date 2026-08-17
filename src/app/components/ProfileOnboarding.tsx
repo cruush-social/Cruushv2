@@ -1,12 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { CROWDS, IDENTITIES, LOOKING_FOR, PRONOUNS, VIBE_GROUPS } from '../lib/profileOptions';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { CROWDS, IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, PRONOUNS, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { acceptCodeOfConduct, getAuthSession, type AuthSessionPayload } from '../lib/authApi';
 import { CODE_OF_CONDUCT_ITEMS } from '../lib/codeOfConduct';
-import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload } from '../lib/profileApi';
+import { saveMyProfile, toDefaultKinkInterest, type ProfilePayload, uploadProfilePhoto } from '../lib/profileApi';
 import {
   completeTwoFactorSetup,
   getRewardSummary,
@@ -237,6 +237,9 @@ export default function ProfileOnboarding({
   const [oathAccepted, setOathAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
   const [twoFactorPassword, setTwoFactorPassword] = useState('');
   const [twoFactorToken, setTwoFactorToken] = useState('');
   const [twoFactorSetup, setTwoFactorSetup] = useState<TwoFactorSetup | null>(null);
@@ -254,6 +257,35 @@ export default function ProfileOnboarding({
 
   const setProfileField = <K extends keyof OnboardingProfileState>(field: K, value: OnboardingProfileState[K]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleOnboardingPhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const photo = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!photo) {
+      return;
+    }
+
+    setPhotoUploading(true);
+    setPhotoUploadError(null);
+    setPhotoUploadNotice(null);
+
+    try {
+      const uploaded = await uploadProfilePhoto(photo);
+
+      if (uploaded.status === 'pending_review') {
+        setPhotoUploadNotice('Photo submitted for review. You can continue onboarding.');
+        return;
+      }
+
+      setProfileField('photos', (uploaded.photos ?? [...profile.photos, uploaded.url]).slice(0, 4));
+      setPhotoUploadNotice('Photo added. You can change it later in Edit Profile.');
+    } catch (error) {
+      setPhotoUploadError(error instanceof Error ? error.message : 'Failed to upload profile photo.');
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   const loadRewardSummary = async () => {
@@ -522,7 +554,7 @@ export default function ProfileOnboarding({
           switch (field) {
             case 'name':
               return (
-                <div>
+                <div className="space-y-4">
                   <label className="text-sm mb-2 block">Display Name</label>
                   <Input
                     type="text"
@@ -530,6 +562,21 @@ export default function ProfileOnboarding({
                     value={profile.name}
                     onChange={e => setProfileField('name', e.target.value)}
                   />
+                  <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+                    <label className="text-sm block text-white/82" htmlFor="onboarding-profile-photo">Profile photo</label>
+                    <p className="text-xs leading-5 text-white/58">Add a photo so people can recognize you. Optional for now; you can add one later.</p>
+                    <Input
+                      id="onboarding-profile-photo"
+                      aria-label="Profile photo"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      disabled={photoUploading}
+                      onChange={(event) => void handleOnboardingPhotoUpload(event)}
+                    />
+                    {photoUploading ? <p className="text-xs text-white/58">Uploading...</p> : null}
+                    {photoUploadNotice ? <p className="text-xs text-primary">{photoUploadNotice}</p> : null}
+                    {photoUploadError ? <p role="alert" className="text-xs text-destructive">{photoUploadError}</p> : null}
+                  </div>
                 </div>
               );
             case 'pronouns':
@@ -537,6 +584,7 @@ export default function ProfileOnboarding({
                 <div>
                   <label className="text-sm mb-2 block text-white/82">Pronouns</label>
                   <MultiSelect
+                    menuPortal
                     ariaLabel="Pronouns"
                     maxSelections={3}
                     options={PRONOUNS}
@@ -552,6 +600,7 @@ export default function ProfileOnboarding({
                   <div>
                     <label className="text-sm mb-2 block text-white/82">Gender Identity</label>
                     <MultiSelect
+                      menuPortal
                       ariaLabel="Gender Identity"
                       maxSelections={3}
                       options={IDENTITIES}
@@ -569,6 +618,18 @@ export default function ProfileOnboarding({
                     />
                     <span>I am trans</span>
                   </label>
+                  <div>
+                    <label className="text-sm mb-2 block text-white/82">Sexuality</label>
+                    <MultiSelect
+                      menuPortal
+                      ariaLabel="Sexuality"
+                      maxSelections={MAX_PROFILE_SEXUALITIES}
+                      options={SEXUALITY}
+                      value={profile.sexuality}
+                      onChange={(values) => setProfileField('sexuality', limitToThree(values))}
+                    />
+                    <p className="text-xs text-white/58 mt-1">Optional · select up to {MAX_PROFILE_SEXUALITIES}</p>
+                  </div>
                 </div>
               );
             case 'crowds':
@@ -576,6 +637,7 @@ export default function ProfileOnboarding({
                 <div>
                   <label className="text-sm mb-2 block text-white/82">Crowds</label>
                   <MultiSelect
+                    menuPortal
                     ariaLabel="Crowds"
                     maxSelections={3}
                     options={availableCrowds}
@@ -590,6 +652,7 @@ export default function ProfileOnboarding({
                 <div>
                   <label className="text-sm mb-2 block text-white/82">Looking For</label>
                   <MultiSelect
+                    menuPortal
                     ariaLabel="Looking For"
                     maxSelections={3}
                     options={LOOKING_FOR}
@@ -604,6 +667,7 @@ export default function ProfileOnboarding({
                 <div>
                   <label className="text-sm mb-2 block text-white/82">Vibes</label>
                   <MultiSelect
+                    menuPortal
                     ariaLabel="Vibes"
                     maxSelections={5}
                     optionGroups={VIBE_GROUPS}

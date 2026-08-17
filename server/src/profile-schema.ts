@@ -177,7 +177,7 @@ export const profilePayloadSchema = z.object({
   ethnicity: optionalSingleLineTextSchema(120),
   identities: upToThreeArrayField,
   presentation: singleArrayField,
-  sexuality: singleArrayField,
+  sexuality: upToThreeArrayField,
   body_type: upToThreeArrayField,
   height: shortStringField,
   weight: shortStringField,

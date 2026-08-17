@@ -87,7 +87,7 @@ const visibilityRulesPayloadSchema = z.object({
 }).strict();
 const FREE_VISIBILITY_EXCLUSION_LIMIT = 3;
 const VISIBILITY_EXCLUSION_LIMIT_MESSAGE = "Free accounts can use up to 3 visibility filters. Upgrade to cruush+ for more.";
-export const IDENTITY_GATE_LOCK_DAYS = 7;
+export const IDENTITY_GATE_LOCK_DAYS = 3;
 
 const crowdIdSchema = z.preprocess((value) => normalizeCrowdOption(value) ?? value, z.enum(CROWD_OPTIONS));
 
@@ -1247,7 +1247,7 @@ function assertIdentityGateChangeAllowed(existingState: ExistingIdentityState, h
     throw new ApiError(
       400,
       "VALIDATION_ERROR",
-      "Gender identity, trans status, and crowd selection can only be changed once every 7 days."
+      "Gender identity, trans status, and crowd selection can only be changed once every 3 days."
     );
   }
 }

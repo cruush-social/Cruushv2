@@ -3,7 +3,7 @@ export const IDENTITIES = [
   'demi-nonbinary', "fa'afafine", 'femme', 'gender nonconforming', 'genderfluid',
   'genderpunk', 'genderqueer', 'hijra', 'intersex', 'kathoey', 'man', 'māhū', 'maverique', 'muxé',
   'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'trans man', 'trans woman', 'travesti',
-  'two-spirit', 'woman', 'x-gender'
+  'transfemme', 'transmasc', 'two-spirit', 'woman', 'x-gender'
 ];
 
 export const PRESENTATIONS = [
@@ -15,10 +15,12 @@ export const PRONOUNS = ['ask me', 'fae/faer', 'he/him', 'she/her', 'they/them',
 
 export const SEXUALITY = ['asexual', 'bisexual', 'straight', 'gay', 'queer', 'questioning', 'other', 'pansexual', 'curious', 'demisexual', 'aromantic', 'lesbian', 'dyke'];
 
+export const MAX_PROFILE_SEXUALITIES = 3;
+
 export const ETHNICITIES = ['Black', 'East Asian', 'Indigenous', 'Latino/Latina', 'Middle Eastern', 'Mixed', 'Other', 'Pacific Islander', 'South Asian', 'Southeast Asian', 'White'];
 
 export const BODY_TYPES = [
-  'BBW', 'BBM', 'athletic', 'average', 'bear', 'chubby', 'curvy', 'full-figured', 'muscular', 'otter', 'petite', 'plus-size', 'slim', 'stocky', 'toned', 'twink'
+  'BBW', 'BBM', 'athletic', 'average', 'bear', 'chubby', 'chub', 'cub', 'curvy', 'full-figured', 'muscular', 'otter', 'petite', 'plus-size', 'slim', 'stocky', 'toned', 'twink'
 ].sort();
 
 export const POSITIONS = [
@@ -52,7 +54,7 @@ export const VIBE_GROUPS = [
   {
     label: 'Scenes',
     options: [
-      'Ballroom', 'Chub', 'Cub', 'Drag', 'Furry', 'Leather', 'Rave', 'Wolf'
+      'Ballroom', 'Drag', 'Furry', 'Leather', 'Rave', 'Wolf'
     ].sort(),
   },
   {

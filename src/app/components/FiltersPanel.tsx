@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect from './MultiSelect';
 import {
   AVAILABILITY,
+  BODY_TYPES,
   CROWDS,
   HOBBIES,
   HOSTING,
@@ -62,24 +63,29 @@ export default function FiltersPanel() {
 
             <div className="space-y-2">
               <Label>Gender Identities</Label>
-              <MultiSelect options={IDENTITIES} />
+              <MultiSelect menuPortal options={IDENTITIES} />
             </div>
 
             <div className="space-y-2">
               <Label>Presentation</Label>
-              <MultiSelect options={PRESENTATIONS} />
+              <MultiSelect menuPortal options={PRESENTATIONS} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Body Type</Label>
+              <MultiSelect menuPortal ariaLabel="Body Type" options={BODY_TYPES} />
             </div>
 
             <div className="space-y-2">
               <Label>Crowds</Label>
-              <MultiSelect ariaLabel="Crowds" options={CROWDS} />
+              <MultiSelect menuPortal ariaLabel="Crowds" options={CROWDS} />
             </div>
           </TabsContent>
 
           <TabsContent value="looking" className="space-y-6 mt-6">
             <div className="space-y-2">
               <Label>Looking For</Label>
-              <MultiSelect options={LOOKING_FOR} />
+              <MultiSelect menuPortal options={LOOKING_FOR} />
             </div>
 
             <div className="space-y-2">
@@ -95,34 +101,34 @@ export default function FiltersPanel() {
 
             <div className="space-y-2">
               <Label>Hosting/Travel</Label>
-              <MultiSelect options={HOSTING} />
+              <MultiSelect menuPortal options={HOSTING} />
             </div>
 
             <div className="space-y-2">
               <Label>Vibes</Label>
-              <MultiSelect ariaLabel="Vibes" optionGroups={VIBE_GROUPS} />
+              <MultiSelect menuPortal ariaLabel="Vibes" optionGroups={VIBE_GROUPS} />
             </div>
 
             <div className="space-y-2">
               <Label>Hobbies</Label>
-              <MultiSelect options={HOBBIES} />
+              <MultiSelect menuPortal options={HOBBIES} />
             </div>
           </TabsContent>
 
           <TabsContent value="intimacy" className="space-y-6 mt-6">
             <div className="space-y-2">
               <Label>Position</Label>
-              <MultiSelect options={POSITIONS} />
+              <MultiSelect menuPortal options={POSITIONS} />
             </div>
 
             <div className="space-y-2">
               <Label>Role</Label>
-              <MultiSelect options={ROLES} />
+              <MultiSelect menuPortal options={ROLES} />
             </div>
 
             <div className="space-y-2">
               <Label>Kinks & Fetishes</Label>
-              <MultiSelect ariaLabel="Kinks & Fetishes" optionGroups={KINK_GROUPS} />
+              <MultiSelect menuPortal ariaLabel="Kinks & Fetishes" optionGroups={KINK_GROUPS} />
             </div>
 
           </TabsContent>
@@ -130,7 +136,7 @@ export default function FiltersPanel() {
           <TabsContent value="lifestyle" className="space-y-6 mt-6">
             <div className="space-y-2">
               <Label>Substance Boundaries</Label>
-              <MultiSelect options={SUBSTANCE_BOUNDARIES} />
+              <MultiSelect menuPortal options={SUBSTANCE_BOUNDARIES} />
             </div>
           </TabsContent>
         </Tabs>

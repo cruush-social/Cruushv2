@@ -3,11 +3,12 @@ import type { ComponentType } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileOnboarding from './ProfileOnboarding';
 
-const { acceptCodeOfConduct, getAuthSession, persistCurrentUser, saveMyProfile } = vi.hoisted(() => ({
+const { acceptCodeOfConduct, getAuthSession, persistCurrentUser, saveMyProfile, uploadProfilePhoto } = vi.hoisted(() => ({
   acceptCodeOfConduct: vi.fn(),
   getAuthSession: vi.fn(),
   persistCurrentUser: vi.fn(),
   saveMyProfile: vi.fn(),
+  uploadProfilePhoto: vi.fn(),
 }));
 
 const { completeTwoFactorSetup, getRewardSummary, startTwoFactorSetup } = vi.hoisted(() => ({
@@ -25,6 +26,7 @@ vi.mock('../lib/authApi', () => ({
 
 vi.mock('../lib/profileApi', () => ({
   saveMyProfile,
+  uploadProfilePhoto,
   toDefaultKinkInterest: (kink: string) => ({
     kink_id: kink.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
     label: kink,
