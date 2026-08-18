@@ -2,8 +2,8 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Fix the three remaining v1.4 browser failures, commit all current v1.4 verification updates and the restored v1.3 changelog, push the resulting commit to origin/main, and deploy the same commit to the production frontend and API.",
-  "base": "origin/main at a397f39443d6cc02de0c3da3d1a94cf46599305d",
+  "job": "Finish the v1.4 production release and repair the replay-unsafe notification constraints that block the API container during migration 042.",
+  "base": "origin/main at 7191881d3fcc41cf711f08ec5aad7cd31dda091c",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
     "AI_TASK.json",
@@ -12,7 +12,10 @@
     "e2e/regression/session-interactions.spec.ts",
     "server/src/app.test.ts",
     "server/src/dev-seed-profiles.test.ts",
+    "server/src/migrate.test.ts",
     "server/src/moderation-service.test.ts",
+    "server/sql/042_rewards_and_two_factor.sql",
+    "server/sql/069_nearby_activity_notifications.sql",
     "src/app/components/Auth.test.tsx",
     "src/app/components/AlphaBugButton.test.tsx",
     "src/app/components/AlphaBugButton.tsx",
@@ -39,7 +42,8 @@
     "Publish only the current tracked changes in this worktree.",
     "Deploy the frontend and API from the same origin/main commit.",
     "Keep first-post prompting once per account and only after tutorial completion.",
-    "Keep the map bug button in its current top-right corner and move adjacent controls instead."
+    "Keep the map bug button in its current top-right corner and move adjacent controls instead.",
+    "Preserve every existing notification row and keep announcement notifications valid while historical migrations replay."
   ],
   "nonGoals": [
     "Do not rewrite release copy or add new product behavior.",
@@ -54,10 +58,14 @@
     "Restore the missing 8-pixel mobile gap between the map top bar and Seeking.",
     "Remove the narrow-screen sibling gap that pushed the top-right bug button outside the viewport."
   ],
+  "deploymentFixes": [
+    "Keep the final announcement notification type in migrations 042 and 069 so replay cannot narrow the live constraint before migration 089."
+  ],
   "proof": [
     "Use the completed full frontend, server, build, copy, casing, security, and layout results from this release candidate.",
     "Use the completed focused Changelog test and local authenticated changelog render.",
     "Run only focused tests for the Ghost tutorial target, first-post flow, and map bug-button size.",
+    "Run the focused migration replay test for notification constraint compatibility.",
     "Visually confirm each affected browser state at mobile and desktop release viewports.",
     "Verify the staged paths and staged secret scan before commit.",
     "Verify origin/main resolves to the new commit after push.",

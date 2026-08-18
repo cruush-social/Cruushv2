@@ -20,7 +20,8 @@ alter table app_notifications
     'group_message',
     'group_membership',
     'nearby_activity',
-    'reward'
+    'reward',
+    'announcement'
   ));
 
 create table if not exists reward_settings (

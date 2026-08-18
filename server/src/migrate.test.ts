@@ -192,6 +192,20 @@ describe("migration runner", () => {
     expect(preferencesSql).toContain("add column if not exists rewards_enabled boolean not null default true");
   });
 
+  it("keeps historical notification constraints compatible with announcements", async () => {
+    for (const file of [
+      "042_rewards_and_two_factor.sql",
+      "069_nearby_activity_notifications.sql"
+    ]) {
+      const sql = await readFile(path.join(serverRoot, "sql", file), "utf8");
+      const typeConstraint = sql.match(
+        /add constraint app_notifications_type_check[\s\S]*?\)\);/i
+      )?.[0];
+
+      expect(typeConstraint).toContain("'announcement'");
+    }
+  });
+
   it("keeps the pre-079 reward guard fail-closed on the final check-in rule", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const rewardGuardSql = await readFile(path.join(serverRoot, "sql", "078_activity_reward_earned_guard.sql"), "utf8");
