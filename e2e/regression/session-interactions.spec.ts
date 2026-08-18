@@ -482,15 +482,33 @@ async function expectTopActionSizing(
     page.getByRole('button', { name: 'Settings', exact: true }),
     page.getByRole('button', { name: 'Report alpha bug' }),
   ];
+  const controlBoxes: { label: string; x: number; y: number; width: number; height: number }[] = [];
   for (const control of controls) {
     const buttonBox = await control.boundingBox();
     expect(buttonBox).not.toBeNull();
     expect(buttonBox!.width).toBeGreaterThanOrEqual(minimumButtonSize);
     expect(buttonBox!.height).toBeGreaterThanOrEqual(minimumButtonSize);
+    expect(buttonBox!.x).toBeGreaterThanOrEqual(0);
+    expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(viewportWidth);
+    controlBoxes.push({
+      label: await control.getAttribute('aria-label') ?? 'unlabeled control',
+      ...buttonBox!,
+    });
     const iconBox = await control.locator('img, svg').first().boundingBox();
     expect(iconBox).not.toBeNull();
     expect(iconBox!.width).toBeGreaterThanOrEqual(minimumIconSize);
     expect(iconBox!.height).toBeGreaterThanOrEqual(minimumIconSize);
+  }
+  for (let first = 0; first < controlBoxes.length; first += 1) {
+    for (let second = first + 1; second < controlBoxes.length; second += 1) {
+      const firstBox = controlBoxes[first];
+      const secondBox = controlBoxes[second];
+      const overlaps = firstBox.x < secondBox.x + secondBox.width
+        && firstBox.x + firstBox.width > secondBox.x
+        && firstBox.y < secondBox.y + secondBox.height
+        && firstBox.y + firstBox.height > secondBox.y;
+      expect(overlaps, `${firstBox.label} overlaps ${secondBox.label}`).toBe(false);
+    }
   }
 }
 
@@ -548,9 +566,13 @@ async function expectViewportControlsToReceivePointerInput(page: Page, route: st
 }
 
 test('renders a full-width mobile top bar and a centered capped desktop top bar', async ({ page, browser }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 320, height: 844 });
   await installAppMocks(page);
   await openMap(page);
+  await expectTopActionSizing(page, 44, 36, 20, 'mobile-full');
+  await expectSeekingTopSpacing(page);
+
+  await page.setViewportSize({ width: 390, height: 844 });
   await expectTopActionSizing(page, 44, 36, 20, 'mobile-full');
   await expectSeekingTopSpacing(page);
 
@@ -596,7 +618,7 @@ test('uses a pink-forward cruush gradient only while the profile nav icon is act
   await expect(inactiveIcon).toHaveCSS('height', '44px');
 });
 
-test('previews five recently active profiles before horizontal scrolling on desktop', async ({ page }) => {
+test('previews four enlarged recently active profiles before horizontal scrolling on desktop', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await installAppMocks(page, { users: desktopRecentlyActiveUsers });
   await page.goto('/map');
@@ -609,18 +631,18 @@ test('previews five recently active profiles before horizontal scrolling on desk
 
   const trayBox = await tray.boundingBox();
   expect(trayBox).not.toBeNull();
-  for (let index = 0; index < 5; index += 1) {
+  for (let index = 0; index < 4; index += 1) {
     const tileBox = await tiles.nth(index).boundingBox();
     expect(tileBox).not.toBeNull();
     expect(tileBox!.x).toBeGreaterThanOrEqual(trayBox!.x);
     expect(tileBox!.x + tileBox!.width).toBeLessThanOrEqual(trayBox!.x + trayBox!.width);
   }
 
-  const sixthTileBox = await tiles.nth(5).boundingBox();
-  expect(sixthTileBox).not.toBeNull();
-  expect(sixthTileBox!.x).toBeGreaterThanOrEqual(trayBox!.x + trayBox!.width);
-  await expect(tiles.nth(4)).toBeInViewport();
-  await tiles.nth(4).click();
+  const fifthTileBox = await tiles.nth(4).boundingBox();
+  expect(fifthTileBox).not.toBeNull();
+  expect(fifthTileBox!.x + fifthTileBox!.width).toBeGreaterThan(trayBox!.x + trayBox!.width);
+  await expect(tiles.nth(3)).toBeInViewport();
+  await tiles.nth(3).click();
   await expect(page.getByRole('button', { name: 'Close profile preview' })).toBeVisible();
   await page.getByRole('button', { name: 'Close profile preview' }).click();
 
@@ -705,7 +727,7 @@ test('short tap opens the profile and press-and-hold reveals the signal', async 
   });
   await page.waitForTimeout(500);
   await expect(marker).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('marker-heart-layer-nearby-ghost-no-photo')).toHaveClass(/scale-\[1\.34\]/);
+  await expect(page.getByTestId('marker-heart-layer-nearby-ghost-no-photo')).toHaveClass(/scale-120/);
   await expect(page.getByTestId('marker-signal-stack-nearby-ghost-no-photo')).toHaveClass(/opacity-100/);
   await cdp.send('Input.dispatchTouchEvent', {
     type: 'touchEnd',
@@ -744,36 +766,37 @@ test('keeps Ghost location styling separate from profile-photo and DL rendering'
   await expect(mutualPhoto).toHaveAttribute('data-has-photo', 'true');
   await expect(mutualPhoto.locator('path[fill="none"][stroke="#6f00ff"]')).toHaveCount(1);
   await expect(mutualPhoto.locator('path[fill="#0BA8FF"]')).toHaveCount(0);
-  await expect(page.getByText('Ghost Mode Active', { exact: true })).toBeVisible();
+  await expect(page.getByText('Ghost Mode Active', { exact: true })).toHaveCount(0);
 });
 
 test('resumes the map tutorial after Ghost and Feed route actions', async ({ page }) => {
   await installAppMocks(page);
   await page.goto('/map?replayTutorial=1');
   await expect(page.getByRole('dialog', { name: 'Map controls tutorial' })).toBeVisible();
+  const tutorial = page.getByTestId('map-controls-tutorial-card');
 
   await page.getByTestId('tutorial-skip-step').tap();
   await page.getByTestId('tutorial-skip-step').tap();
   await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();
-  await expect(page.getByRole('heading', { name: 'Ghost Mode' })).toBeVisible();
+  await expect(tutorial.getByRole('heading', { name: 'Ghost Mode' })).toBeVisible();
 
   await page.getByTestId('tutorial-try-step').tap();
   await expect(page.getByText('Shifting public map location')).toBeVisible();
   await page.getByRole('button', { name: 'Map', exact: true }).tap();
-  await expect(page.getByRole('heading', { name: 'Ghost Mode' })).toBeVisible();
+  await expect(tutorial.getByRole('heading', { name: 'Ghost Mode' })).toBeVisible();
 
   await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();
-  await expect(page.getByRole('heading', { name: 'Feed' })).toBeVisible();
+  await expect(tutorial.getByRole('heading', { name: 'Feed' })).toBeVisible();
 
   await page.getByTestId('tutorial-try-step').tap();
   await expect(page.getByRole('heading', { name: 'Local Feed' })).toBeVisible();
   await page.getByRole('button', { name: 'Map', exact: true }).tap();
-  await expect(page.getByRole('heading', { name: 'Feed' })).toBeVisible();
+  await expect(tutorial.getByRole('heading', { name: 'Feed' })).toBeVisible();
 });
 
 test('keeps visible controls pointer-reachable across routed user pages', async ({ page }) => {

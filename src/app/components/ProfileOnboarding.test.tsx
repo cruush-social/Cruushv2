@@ -139,6 +139,10 @@ async function skipTwoFactorAndEnter() {
 
 describe('ProfileOnboarding', () => {
   beforeEach(() => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      configurable: true,
+      value: vi.fn(),
+    });
     acceptCodeOfConduct.mockReset();
     getAuthSession.mockReset();
     completeTwoFactorSetup.mockReset();

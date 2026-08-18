@@ -116,6 +116,7 @@ describe('GhostModeSettings', () => {
     const ghostSwitch = screen.getByRole('switch', {
       name: 'Toggle Ghost Mode',
     });
+    expect(ghostSwitch).toHaveAttribute('data-tutorial-target', 'ghost');
 
     await waitFor(() => expect(preciseSwitch).not.toBeDisabled());
     fireEvent.click(preciseSwitch);

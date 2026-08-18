@@ -55,7 +55,7 @@ describe('CruiseCarouselSlot', () => {
     expect(screen.queryByRole('button', { name: 'Spin again' })).not.toBeInTheDocument();
   });
 
-  it('keeps profile tiles and the featured frame at a 4:5 ratio', () => {
+  it('keeps profile tiles at 4:5 and fits the featured frame to the current item', async () => {
     render(
       <CruiseCarouselSlot
         mode="profile"
@@ -77,10 +77,15 @@ describe('CruiseCarouselSlot', () => {
           hostingTravel: [],
           photo: null,
         }}
+        browseDurationMs={1}
       />,
     );
 
     expect(screen.getByTestId('cruise-carousel-profile-tile')).toHaveClass('aspect-[4/5]');
+    expect(screen.getByTestId('cruise-carousel-featured-frame')).toHaveClass('h-[7rem]', 'w-[7rem]');
+
+    await screen.findByText('Found Nearby user nearby.');
+
     expect(screen.getByTestId('cruise-carousel-featured-frame')).toHaveClass('aspect-[4/5]');
   });
 });

@@ -8510,7 +8510,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(9);
+    expect(query).toHaveBeenCalledTimes(10);
     expect(query.mock.calls[1]?.[0]).toContain("from profiles");
     expect(query.mock.calls[1]?.[0]).toContain("join encrypted_location_envelopes");
     expect(query.mock.calls[1]?.[0]).toContain("profiles.display_name as display_name");
@@ -8763,6 +8763,10 @@ describe("server", () => {
 
       if (normalizedSql.includes("from encrypted_location_envelopes")) {
         return Promise.resolve({ rows: locationRows });
+      }
+
+      if (normalizedSql.includes("from map_pings")) {
+        return Promise.resolve({ rows: [] });
       }
 
       return Promise.resolve({ rows: [] });
@@ -9360,18 +9364,39 @@ describe("server", () => {
         accuracyM: 50
       })
     ]);
+    const t4tPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: "t4t-user",
+      baseMode: "PUBLIC_PRECISE"
+    });
 
-    query.mockImplementation((sql: string) => {
+    query.mockImplementation((sql: string, params: unknown[] = []) => {
       const normalizedSql = sql.toLowerCase();
 
       if (normalizedSql.includes("from encrypted_location_envelopes")) {
         return Promise.resolve({ rows: locationRows });
       }
 
+      if (normalizedSql.includes("from map_pings")) {
+        return Promise.resolve({ rows: [] });
+      }
+
+      if (normalizedSql.includes("insert into encrypted_visibility_tokens") ||
+          normalizedSql.includes("insert into ghost_rotation_tokens")) {
+        return Promise.resolve({ rows: [{ subject_user_id: params[0] }] });
+      }
+
+      if (normalizedSql.includes("from encrypted_visibility_tokens")) {
+        return Promise.resolve({ rows: params[0] === "t4t-user" ? [t4tPolicy] : [] });
+      }
+
+      if (normalizedSql.startsWith("select true as exists from user_blocks")) {
+        return Promise.resolve({ rows: [] });
+      }
+
       if (normalizedSql.includes("from encrypted_relationship_records") ||
           normalizedSql.includes("from encrypted_relationship_tokens") ||
-          normalizedSql.includes("from encrypted_visibility_tokens") ||
-          normalizedSql.includes("from encrypted_privacy_audit_events")) {
+          normalizedSql.includes("from encrypted_privacy_audit_events") ||
+          normalizedSql.includes("from ghost_rotation_tokens")) {
         return Promise.resolve({ rows: [] });
       }
 
@@ -9526,7 +9551,7 @@ describe("server", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(query).toHaveBeenCalledTimes(5);
+    expect(query).toHaveBeenCalledTimes(6);
     expect(query.mock.calls[2]?.[0]).toContain("tribes as legacy_vibe_tags");
     expect(query.mock.calls[2]?.[0]).toContain("where last_active >= now() - interval '4 days'");
 

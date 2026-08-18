@@ -241,8 +241,8 @@ describe('MapView', () => {
       'group-hover:scale-120',
       'group-focus-within:scale-120',
     );
-    expect(screen.getByTestId('marker-pin-unit-user-1')).toHaveClass('origin-bottom', 'scale-[1.0625]');
-    expect(MAP_PIN_UNIT_SCALE).toBe(1.0625);
+    expect(screen.getByTestId('marker-pin-unit-user-1')).toHaveClass('origin-bottom', 'scale-100');
+    expect(MAP_PIN_UNIT_SCALE).toBe(1);
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(markerInstances[0].element.className).not.toContain('drop-shadow');
     expect(markerInstances[1].element.className).not.toContain('drop-shadow');
@@ -1144,7 +1144,7 @@ describe('MapView', () => {
     expect(heart).not.toHaveClass('cruush-map-ping-heart');
     expect(heartLayer).toHaveClass('cruush-map-ping-heart');
     expect(heartLayer).toHaveClass('group-hover:scale-120', 'group-focus-within:scale-120');
-    expect(pinUnit).toHaveClass('scale-[1.0625]');
+    expect(pinUnit).toHaveClass('scale-100');
     expect(heart.querySelector('path[stroke="#C8FF31"]')).not.toBeNull();
     expect(signalBadge).toHaveClass('border-[#C8FF31]');
     expect(signalBadge).toHaveClass('shadow-[0_12px_30px_rgba(0,0,0,0.45)]');

@@ -106,6 +106,7 @@ describe('AlphaBugButton', () => {
 
   it('uses the map chrome slot instead of floating over map controls', () => {
     const slot = document.createElement('div');
+    slot.dataset.bugButtonSize = 'large';
     document.body.appendChild(slot);
     registerBugButtonSlot(slot);
 
@@ -113,7 +114,9 @@ describe('AlphaBugButton', () => {
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
     expect(slot).toContainElement(reportButton);
-    expect(reportButton).toHaveClass('size-8');
+    expect(reportButton).toHaveClass('size-11');
+    expect(reportButton).not.toHaveClass('size-8', 'sm:size-9');
+    expect(reportButton.querySelector('svg')).toHaveClass('h-5', 'w-5', 'lg:h-7', 'lg:w-7');
     expect(reportButton).not.toHaveClass('fixed', 'z-20');
   });
 
@@ -126,7 +129,7 @@ describe('AlphaBugButton', () => {
     const tipCopy = await screen.findByText('Alpha test: tap the bug icon to report anything broken.');
     const tip = tipCopy.closest('div');
     expect(tip).toHaveClass(
-      'top-[calc(19.5rem+env(safe-area-inset-top))]',
+      'top-[calc(20.125rem+env(safe-area-inset-top))]',
       'sm:top-[calc(9.25rem+env(safe-area-inset-top))]',
     );
   });

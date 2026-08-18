@@ -20,6 +20,21 @@ const changelogReleases = [
     ],
   },
   {
+    version: 'v1.3',
+    items: [
+      'Ghost Mode has clearer controls and status feedback on the map.',
+      'Choose each notification type separately, including nearby activity and rewards.',
+      'Nearby activity can reach you inside cruush whenever you have it enabled.',
+      'Daily check-ins now include a bonus day for every seven-day streak.',
+      'Stealth Mode adds a new cruush+ privacy control, while Ghost Mode and precise-location controls are available to basic and cruush+ accounts.',
+      'Ping is easier to find, with a clear cooldown between signals.',
+      'The map feels smoother, with clearer tiles, easier-to-read labels, larger controls, better tap and press interactions, steadier navigation, and a simpler mobile tutorial.',
+      'Messages now have the same detailed Seeking filters as the map, without changing your map filters.',
+      'New accounts can receive one free day of cruush+ when they enable 2FA.',
+      'General bug fixes and quality improvements make cruush feel more reliable across the app.',
+    ],
+  },
+  {
     version: 'v1.2',
     items: [
       'Ping briefly activates your map heart and posts your signal to the local feed for your saved post duration.',

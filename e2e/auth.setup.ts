@@ -52,7 +52,7 @@ setup('authenticate once and save browser state', async ({ page }) => {
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Sign In' }).click();
 
-    const twoFactorField = page.getByLabel('Authenticator or recovery code');
+    const twoFactorField = page.getByLabel('MFA code or recovery code');
     if (await twoFactorField.isVisible({ timeout: 2_000 }).catch(() => false)) {
       const twoFactorCode = process.env.CRUUSH_E2E_2FA_CODE?.trim();
       if (!twoFactorCode) {

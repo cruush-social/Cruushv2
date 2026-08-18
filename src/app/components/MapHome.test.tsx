@@ -1669,36 +1669,7 @@ describe('MapHome', () => {
 
     expect(await screen.findByTestId('map-controls-tutorial')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-skip-step'));
-    expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-skip-step'));
-    expect(screen.getByRole('heading', { name: 'Seeking' })).toBeInTheDocument();
-    expect(screen.getByText(/filters the people you see on the map/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Visibility' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Crowd Mode' })).toBeInTheDocument();
-    expect(screen.getByText(/only people in those crowds to see you/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-try-step'));
-    expect(await screen.findByTestId('crowd-mode-tutorial-target')).toHaveAttribute('data-tutorial-target', 'crowds');
-    fireEvent.keyDown(document, { key: 'Escape' });
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'DL Mode' })).toBeInTheDocument();
-    expect(screen.getByText(/replaces explicit or NSFW photos with gradients/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-try-step'));
-    expect(screen.getByRole('button', { name: 'Turn DL Mode on' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Ping' })).toBeInTheDocument();
-    expect(screen.getByText(/briefly marks your heart as active on the map/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Zoom' })).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-next'));
-    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
-    expect(screen.getByText(/start with a short signal, question, or invitation/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('tutorial-next'));
+    fireEvent.click(screen.getByTestId('skip-map-controls-tutorial'));
 
     await waitFor(() => expect(screen.queryByTestId('map-controls-tutorial')).not.toBeInTheDocument());
     expect(window.localStorage.getItem('cruush:tutorial-v4-seen')).toBe('true');
@@ -1901,7 +1872,7 @@ describe('MapHome', () => {
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveClass('z-50');
-    expect(screen.getByRole('complementary')).toHaveClass('bottom-[calc(0.75rem+env(safe-area-inset-bottom))]');
+    expect(screen.getByRole('complementary')).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]');
     expect(screen.getByRole('complementary')).toHaveClass('top-[8.75rem]');
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-subtle')).not.toBeInTheDocument();

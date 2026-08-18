@@ -416,7 +416,7 @@ describe('LocalFeed', () => {
 
     const preview = await screen.findByRole('img', { name: 'River preview' });
     expect(preview.parentElement).toHaveClass('w-20');
-    expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('min-w-0', 'flex-1', 'truncate');
+    expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('max-w-[32%]', 'shrink-0', 'truncate');
     expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex-wrap');
     expect(screen.queryByText('he/him')).not.toBeInTheDocument();
   });

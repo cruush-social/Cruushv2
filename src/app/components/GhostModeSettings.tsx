@@ -255,6 +255,7 @@ export default function GhostModeSettings() {
             <Switch
               aria-label="Toggle Ghost Mode"
               checked={privacySettings.ghostModeEnabled}
+              data-tutorial-target="ghost"
               disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
               onCheckedChange={(ghostModeEnabled) => {
                 void persistPrivacySettings({

@@ -421,7 +421,7 @@ describe('Auth', () => {
     await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
 
-    const codeInput = await screen.findByLabelText('Authenticator or recovery code');
+    const codeInput = await screen.findByLabelText('MFA code or recovery code');
     fireEvent.change(codeInput, { target: { value: '123456' } });
     await screen.findByText('Mock Turnstile');
     fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));

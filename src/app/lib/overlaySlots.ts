@@ -60,7 +60,7 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     z: 40,
     // Includes the widest state: crowd/ghost notices, Seeking, Visibility and the
     // complete vertical map-control stack.
-    mobile: { top: 3.875, right: 0.75, width: 12.117188, height: 15.25 },
+    mobile: { top: 4.375, right: 0.75, width: 12.117188, height: 15.25 },
     desktop: { top: 4.875, right: 1, width: 12.117188, height: 15.25 },
   },
   {
@@ -126,7 +126,7 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
     source: 'src/app/components/AlphaBugButton.tsx',
     z: 30,
     exclusiveWith: ['alpha-bug-button', 'alpha-bug-tip'],
-    mobile: { top: 19.5, left: 1, width: 18, height: 5.625 },
+    mobile: { top: 20.125, left: 1, width: 18, height: 5.625 },
     desktop: { top: 9.25, left: 1.25, width: 18, height: 5.625 },
   },
 ];

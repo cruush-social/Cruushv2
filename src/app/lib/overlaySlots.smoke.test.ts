@@ -87,7 +87,7 @@ describe('smoke: declared overlay geometry matches the components', () => {
     [
       'alpha-bug-button',
       'src/app/components/AlphaBugButton.tsx',
-      ['bottom-[calc(6rem+env(safe-area-inset-bottom))]', 'lg:left-5', 'fixed z-20'],
+      ['bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'lg:left-5', 'fixed z-20'],
     ],
     [
       'alpha-bug-tip',
@@ -97,7 +97,7 @@ describe('smoke: declared overlay geometry matches the components', () => {
     [
       'map-alpha-bug-tip',
       'src/app/components/AlphaBugButton.tsx',
-      ['top-[calc(19.5rem+env(safe-area-inset-top))]', 'sm:top-[calc(9.25rem+env(safe-area-inset-top))]', 'fixed z-30'],
+      ['top-[calc(20.125rem+env(safe-area-inset-top))]', 'sm:top-[calc(9.25rem+env(safe-area-inset-top))]', 'fixed z-30'],
     ],
     [
       'map-ping-button',
@@ -107,7 +107,7 @@ describe('smoke: declared overlay geometry matches the components', () => {
     [
       'map-right-actions',
       'src/app/components/MapHome.tsx',
-      ['right-3 top-[3.875rem]', 'sm:right-4 sm:top-[4.875rem]', 'data-testid="map-right-actions"'],
+      ['right-3 top-[4.375rem]', 'sm:right-4 sm:top-[4.875rem]', 'data-testid="map-right-actions"'],
     ],
     [
       'mobile-install-prompt',

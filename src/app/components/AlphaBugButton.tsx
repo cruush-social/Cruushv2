@@ -64,7 +64,7 @@ function getBugTipPlacement(pathname: string) {
   }
 
   if (pathname === '/map' || pathname.startsWith('/map/')) {
-    return 'left-4 top-[calc(19.5rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))] lg:left-5';
+    return 'left-4 top-[calc(20.125rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))] lg:left-5';
   }
 
   return 'left-4 top-[calc(7.25rem+env(safe-area-inset-top))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
@@ -246,13 +246,13 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       <button
         aria-label="Report alpha bug"
         className={buttonSlot
-          ? 'inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive sm:size-9'
+          ? `inline-flex shrink-0 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${buttonSlot.dataset.bugButtonSize === 'large' ? 'size-11' : 'size-8 sm:size-9'}`
           : `fixed z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${getBugButtonPlacement(location.pathname)}`}
         data-testid="alpha-bug-button"
         title="Report a bug"
         type="button"
       >
-        <Bug className="h-5 w-5" />
+        <Bug className={buttonSlot?.dataset.bugButtonSize === 'large' ? 'h-5 w-5 lg:h-7 lg:w-7' : 'h-5 w-5'} />
       </button>
     </DialogTrigger>
   );

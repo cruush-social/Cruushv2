@@ -135,7 +135,9 @@ describe('ProfileEdit', () => {
     expect(screen.queryByLabelText('leather receive')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Position' }));
-    await waitFor(() => expect(screen.getByRole('listbox', { name: 'Position' }).parentElement).toHaveClass('top-full', 'mt-2'));
+    const positionListbox = await screen.findByRole('listbox', { name: 'Position' });
+    expect(positionListbox.parentElement).toHaveClass('overflow-hidden', 'overscroll-contain', 'rounded-md');
+    expect(positionListbox).toHaveClass('scrollbar-subtle', 'overflow-y-auto');
     expect(screen.getByRole('option', { name: 'pillow princess' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'stone top' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'vers bottom' })).toBeInTheDocument();
@@ -287,7 +289,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Basics' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
@@ -328,7 +330,7 @@ describe('ProfileEdit', () => {
     const uploadedImage = await screen.findByAltText('Primary profile photo');
     expect(uploadedImage).toHaveAttribute('src', expect.stringContaining(uploadedPhoto));
 
-    const profileTab = screen.getByRole('tab', { name: 'Profile' });
+    const profileTab = screen.getByRole('tab', { name: 'Basics' });
     fireEvent.click(profileTab);
     expect(profileTab).toHaveAttribute('aria-selected', 'true');
 
@@ -668,7 +670,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const profileTab = await screen.findByRole('tab', { name: 'Profile' });
+    const profileTab = await screen.findByRole('tab', { name: 'Basics' });
     fireEvent.click(profileTab);
 
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
@@ -794,7 +796,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Basics' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
@@ -833,7 +835,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Basics' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
@@ -865,7 +867,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Basics' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
@@ -917,7 +919,7 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Basics' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to profile preview' }));
     expect(onCancel).toHaveBeenCalledTimes(1);

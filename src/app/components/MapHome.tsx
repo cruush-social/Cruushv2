@@ -1971,7 +1971,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           ) : null}
 
           <div
-            className="pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-0.5 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md sm:gap-1 sm:p-1.5 lg:mx-auto lg:max-w-[52rem] lg:flex-none"
+            className="pointer-events-auto mt-0 flex w-full min-w-0 flex-1 items-center justify-between gap-0 rounded-full border border-white/10 bg-background/25 p-1 backdrop-blur-md sm:gap-1 sm:p-1.5 lg:mx-auto lg:max-w-[52rem] lg:flex-none"
             data-testid="map-top-actions"
           >
             <div className="relative shrink-0" data-testid="map-plus-stack">
@@ -2350,7 +2350,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-[3.875rem] z-40 flex flex-col items-end gap-2 sm:right-4 sm:top-[4.875rem]"
+          className="pointer-events-auto absolute right-3 top-[4.375rem] z-40 flex flex-col items-end gap-2 sm:right-4 sm:top-[4.875rem]"
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (

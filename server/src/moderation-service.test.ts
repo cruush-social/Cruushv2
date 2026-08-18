@@ -26,6 +26,8 @@ const { detectImageChildFaces, detectProfilePhotoHuman, detectPublicImageSafety 
   detectPublicImageSafety: vi.fn()
 }));
 
+let streamAppSequence = 0;
+
 vi.mock("@stream-io/node-sdk", () => ({
   StreamClient: class {
     moderation = {
@@ -71,7 +73,7 @@ function createStreamApp() {
       STREAM_MODERATION_ENABLED: true,
       STREAM_API_KEY: "stream-key",
       STREAM_API_SECRET: "stream-secret",
-      STREAM_MODERATION_CONFIG_KEY: "cruush-test"
+      STREAM_MODERATION_CONFIG_KEY: `cruush-test-${++streamAppSequence}`
     }
   } as unknown as FastifyInstance;
 }

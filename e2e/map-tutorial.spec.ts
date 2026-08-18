@@ -129,9 +129,12 @@ test.describe('authenticated map tutorial', () => {
       await route.continue();
     });
 
-    await page.goto('/map');
+    // Clear notice cookies before the first app bootstrap. Otherwise a stale
+    // tutorial cookie can open and dismiss the mocked first-post prompt before
+    // this test resets its local state.
     await page.context().clearCookies({ name: 'cruush_tutorial-v4-seen' });
     await page.context().clearCookies({ name: /^cruush_first-feed-post-prompt-seen_/ });
+    await page.goto('/map');
     await page.evaluate((key) => localStorage.removeItem(key), tutorialStorageKey);
     await retryLocalNavigation(() => page.goto('/map'));
 

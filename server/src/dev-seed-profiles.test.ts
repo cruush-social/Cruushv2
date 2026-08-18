@@ -173,7 +173,9 @@ describe("development profile seeding", () => {
     const encryptedLocationCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_location_envelopes"));
     const encryptedPolicyCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into encrypted_visibility_tokens"));
     const mediaObjectCalls = query.mock.calls.filter(([sql]) => String(sql).includes("insert into media_objects"));
-    const profileCalls = query.mock.calls.filter(([sql]) => String(sql).includes("profile_sensitive_ciphertext"));
+    const profileCalls = query.mock.calls.filter(([sql]) => (
+      String(sql).includes("insert into profiles") && String(sql).includes("profile_sensitive_ciphertext")
+    ));
     const adminPhotoCalls = query.mock.calls.filter(([sql]) => String(sql).includes("set photos = $2"));
     const legacyPrivacyCalls = query.mock.calls.filter(([sql]) => String(sql).includes(
       "insert into user_privacy_settings (user_id, ghost_mode_enabled, precise_location_visibility)"
@@ -196,7 +198,7 @@ describe("development profile seeding", () => {
     expect(mediaObjectCalls).toHaveLength(TEST_PROFILE_COUNT + 1);
     expect(profileCalls).toHaveLength(TEST_PROFILE_COUNT);
     expect(adminPhotoCalls).toHaveLength(1);
-    expect(adminPhotoCalls[0]?.[1]).toEqual([
+    expect(((adminPhotoCalls[0]?.[1] ?? []) as unknown[]).slice(0, 2)).toEqual([
       seededUserId(1),
       [expect.stringMatching(/^\/api\/media\/profile-photos\/[0-9a-f-]+\.png$/)]
     ]);
