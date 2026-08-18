@@ -2112,6 +2112,224 @@ describe("server", () => {
     });
   });
 
+  it("does not count successful logins against a shared IP limit", async () => {
+    const passwordHash = await hashPassword("password-123");
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      const normalizedSql = sql.toLowerCase();
+      const email = String(params[0] ?? "");
+
+      if (normalizedSql.includes("from app_users u") && normalizedSql.includes("left join profiles")) {
+        return {
+          rows: [{
+            id: userId,
+            email,
+            app_display_name: email.split("@")[0],
+            email_verified_at: "2026-04-28T12:00:00.000Z",
+            created_at: "2026-04-28T12:00:00.000Z",
+            profile_display_name: email.split("@")[0],
+            year_of_birth: 1990,
+            age_verified_at: "2026-04-28T12:00:00.000Z",
+            code_of_conduct_accepted_version: "2026-07-07",
+            code_of_conduct_accepted_at: "2026-07-07T12:00:00.000Z",
+            account_status: "active"
+          }]
+        };
+      }
+
+      if (normalizedSql.includes("from app_users") && normalizedSql.includes("where email = $1")) {
+        return {
+          rows: [{
+            id: userId,
+            email,
+            password_hash: passwordHash,
+            display_name: email.split("@")[0],
+            email_verified_at: "2026-04-28T12:00:00.000Z",
+            created_at: "2026-04-28T12:00:00.000Z",
+            account_status: "active",
+            two_factor_enabled: false
+          }]
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    for (let account = 0; account < 6; account += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        payload: {
+          email: `member-${account}@example.com`,
+          password: "password-123"
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+    }
+  });
+
+  it("keeps failed password limits account-scoped on a shared IP", async () => {
+    const passwordHash = await hashPassword("password-123");
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      const normalizedSql = sql.toLowerCase();
+      const email = String(params[0] ?? "");
+
+      if (normalizedSql.includes("from app_users u") && normalizedSql.includes("left join profiles")) {
+        return {
+          rows: [{
+            id: userId,
+            email,
+            app_display_name: "Sage",
+            email_verified_at: "2026-04-28T12:00:00.000Z",
+            created_at: "2026-04-28T12:00:00.000Z",
+            profile_display_name: "Sage",
+            year_of_birth: 1990,
+            age_verified_at: "2026-04-28T12:00:00.000Z",
+            code_of_conduct_accepted_version: "2026-07-07",
+            code_of_conduct_accepted_at: "2026-07-07T12:00:00.000Z",
+            account_status: "active"
+          }]
+        };
+      }
+
+      if (normalizedSql.includes("from app_users") && normalizedSql.includes("where email = $1")) {
+        return email === "sage@example.com"
+          ? {
+              rows: [{
+                id: userId,
+                email,
+                password_hash: passwordHash,
+                display_name: "Sage",
+                email_verified_at: "2026-04-28T12:00:00.000Z",
+                created_at: "2026-04-28T12:00:00.000Z",
+                account_status: "active",
+                two_factor_enabled: false
+              }]
+            }
+          : { rows: [] };
+      }
+
+      return { rows: [] };
+    });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        payload: {
+          email: "river@example.com",
+          password: "wrong-password"
+        }
+      });
+
+      expect(response.statusCode).toBe(401);
+    }
+
+    const limitedResponse = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "river@example.com",
+        password: "wrong-password"
+      }
+    });
+    expect(limitedResponse.statusCode).toBe(429);
+
+    const validResponse = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "sage@example.com",
+        password: "password-123"
+      }
+    });
+    expect(validResponse.statusCode).toBe(200);
+  });
+
+  it("does not count a missing MFA code as a failed sign-in", async () => {
+    const passwordHash = await hashPassword("password-123");
+    query.mockImplementation(async (sql: string, params: unknown[] = []) => {
+      const normalizedSql = sql.toLowerCase();
+
+      if (normalizedSql.includes("from app_users") && normalizedSql.includes("where email = $1")) {
+        return {
+          rows: [{
+            id: userId,
+            email: String(params[0]),
+            password_hash: passwordHash,
+            display_name: "River",
+            email_verified_at: "2026-04-28T12:00:00.000Z",
+            created_at: "2026-04-28T12:00:00.000Z",
+            account_status: "active",
+            two_factor_enabled: true
+          }]
+        };
+      }
+
+      if (normalizedSql.includes("from user_two_factor_auth") && normalizedSql.includes("for update")) {
+        return {
+          rows: [{
+            user_id: userId,
+            secret_ciphertext: "unused",
+            secret_nonce: "unused",
+            secret_auth_tag: "unused",
+            secret_key_version: "v1",
+            enabled_at: "2026-04-28T12:00:00.000Z",
+            setup_created_at: "2026-04-28T12:00:00.000Z",
+            trust_awarded_at: null,
+            last_used_time_step: null
+          }]
+        };
+      }
+
+      if (normalizedSql.includes("from user_two_factor_recovery_codes")) {
+        return { rows: [] };
+      }
+
+      return { rows: [] };
+    });
+
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        payload: {
+          email: "river@example.com",
+          password: "password-123"
+        }
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json().error.code).toBe("TWO_FACTOR_REQUIRED");
+    }
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        payload: {
+          email: "river@example.com",
+          password: "password-123",
+          twoFactorCode: "RECOVERY-INVALID"
+        }
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json().error.code).toBe("INVALID_TWO_FACTOR_CODE");
+    }
+
+    const limitedResponse = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "river@example.com",
+        password: "password-123",
+        twoFactorCode: "RECOVERY-INVALID"
+      }
+    });
+    expect(limitedResponse.statusCode).toBe(429);
+  });
+
   it("sends a password reset email without leaking whether the account exists", async () => {
     query
       .mockResolvedValueOnce({
@@ -9342,6 +9560,11 @@ describe("server", () => {
       hiv_status: [],
       custom_hiv_status: ""
     });
+    const t4tVisibility = encryptProfileVisibility(app.config, {
+      ...emptyProfile.visibility_rules,
+      active_crowd_modes: ["T4T"],
+      distance: 5
+    });
     const dykeSensitive = encryptSensitiveProfile(app.config, {
       is_trans: false,
       crowds: ["Dyke"],
@@ -9449,10 +9672,7 @@ describe("server", () => {
             fuzzy_lat: 40.7115,
             fuzzy_lng: -74.0025,
             ...t4tSensitive,
-            profile_visibility_ciphertext: null,
-            profile_visibility_nonce: null,
-            profile_visibility_auth_tag: null,
-            profile_visibility_key_version: "v1",
+            ...t4tVisibility,
             updated_at: "2026-04-28T12:00:00.000Z"
           },
           {
@@ -9493,6 +9713,11 @@ describe("server", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data.profiles.map((user: { profileToken: string }) => user.profileToken)).toEqual(["t4t-user"]);
+    const viewerProfileQuery = query.mock.calls.find(([sql]) =>
+      String(sql).includes("profile_visibility_ciphertext") && String(sql).includes("where id = $1")
+    );
+    expect(viewerProfileQuery?.[0]).toContain("fuzzy_lat");
+    expect(viewerProfileQuery?.[0]).not.toContain("null::double precision as fuzzy_lat");
   });
 
   it("returns an empty array when no nearby profiles have stored coordinates", async () => {
@@ -10921,6 +11146,189 @@ describe("server", () => {
     });
     expect(response.json().data.profiles[0]).not.toHaveProperty("lat");
     expect(response.json().data.profiles[0]).not.toHaveProperty("lng");
+  });
+
+  it("enforces both sides of Crowd Mode on mutual map pins", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "crowd-mode-match",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: otherUserId
+    });
+    const matchToken = await encryptedMatchTokenRow({
+      relationshipRecordId: matchRecord.id,
+      userOneId: userId,
+      userTwoId: otherUserId
+    });
+    const viewerLocation = await encryptedLocationEnvelopeRow({
+      subjectUserId: userId,
+      lat: 40.7128,
+      lng: -74.006
+    });
+    const targetLocation = await encryptedLocationEnvelopeRow({
+      subjectUserId: otherUserId,
+      lat: 40.711,
+      lng: -74.002
+    });
+    const targetPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: otherUserId,
+      baseMode: "PUBLIC_PRECISE"
+    });
+    const viewerSensitive = encryptSensitiveProfile(app.config, {
+      is_trans: true,
+      crowds: ["T4T"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+    const viewerVisibility = encryptProfileVisibility(app.config, {
+      ...emptyProfile.visibility_rules,
+      active_crowd_modes: ["T4T"]
+    });
+    let targetSensitive = encryptSensitiveProfile(app.config, {
+      is_trans: false,
+      crowds: ["Dyke"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+    let targetVisibility = encryptProfileVisibility(app.config, emptyProfile.visibility_rules);
+
+    query.mockImplementation((sql: string, params: unknown[] = []) => {
+      const normalizedSql = sql.toLowerCase();
+
+      if (normalizedSql.includes("from encrypted_location_envelopes")) {
+        return Promise.resolve({
+          rows: params[0] === userId ? [viewerLocation] : [targetLocation]
+        });
+      }
+
+      if (normalizedSql.includes("from encrypted_visibility_tokens")) {
+        return Promise.resolve({ rows: params[0] === otherUserId ? [targetPolicy] : [] });
+      }
+
+      if (normalizedSql.includes("participant_one_index") && normalizedSql.includes("from encrypted_relationship_records")) {
+        return Promise.resolve({ rows: [matchRecord] });
+      }
+
+      if (normalizedSql.includes("record_lookup_index = $1") && normalizedSql.includes("from encrypted_relationship_records")) {
+        return Promise.resolve({ rows: params[0] === matchRecord.record_lookup_index ? [matchRecord] : [] });
+      }
+
+      if (normalizedSql.includes("from encrypted_relationship_tokens")) {
+        return Promise.resolve({ rows: params[0] === matchRecord.id ? [matchToken] : [] });
+      }
+
+      if (normalizedSql.includes("where profiles.id = any")) {
+        return Promise.resolve({
+          rows: [{
+            id: otherUserId,
+            display_name: "Alex",
+            pronouns: ["they/them"],
+            photos: ["https://example.com/alex.jpg"],
+            updated_at: "2026-04-28T12:00:00.000Z",
+            year_of_birth: 1994,
+            lat: null,
+            lng: null,
+            fuzzy_lat: null,
+            fuzzy_lng: null,
+            looking_for: [],
+            vibes: ["Chill"],
+            scenes: [],
+            archetypes: [],
+            identities: [],
+            presentation: [],
+            sexuality: [],
+            body_type: [],
+            availability: [],
+            hobbies: [],
+            position: [],
+            role: [],
+            hosting_travel: [],
+            substance_boundaries: [],
+            ...targetSensitive,
+            ...targetVisibility,
+            ghost_mode_enabled: false,
+            precise_location_visibility: "none"
+          }]
+        });
+      }
+
+      if (normalizedSql.includes("from profiles") && normalizedSql.includes("where id = $1")) {
+        return Promise.resolve({
+          rows: [{
+            year_of_birth: 1994,
+            looking_for: [],
+            vibes: [],
+            scenes: [],
+            archetypes: [],
+            identities: [],
+            presentation: [],
+            sexuality: [],
+            body_type: [],
+            availability: [],
+            hobbies: [],
+            position: [],
+            role: [],
+            hosting_travel: [],
+            substance_boundaries: [],
+            lat: null,
+            lng: null,
+            fuzzy_lat: null,
+            fuzzy_lng: null,
+            ...viewerSensitive,
+            ...viewerVisibility
+          }]
+        });
+      }
+
+      return Promise.resolve({ rows: [] });
+    });
+
+    const getProfiles = async (queryString = "") => {
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/cruush/mutual-map${queryString}`,
+        headers: {
+          "x-user-id": userId
+        }
+      });
+
+      expect(response.statusCode).toBe(200);
+      return response.json().data.profiles;
+    };
+
+    expect(await getProfiles()).toEqual([]);
+
+    targetSensitive = encryptSensitiveProfile(app.config, {
+      is_trans: true,
+      crowds: ["T4T"],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+    targetVisibility = encryptProfileVisibility(app.config, {
+      ...emptyProfile.visibility_rules,
+      active_crowd_modes: ["Gay"]
+    });
+    expect(await getProfiles()).toEqual([]);
+
+    targetVisibility = encryptProfileVisibility(app.config, {
+      ...emptyProfile.visibility_rules,
+      active_crowd_modes: ["T4T"],
+      distance: 5
+    });
+    expect(await getProfiles()).toEqual([
+      expect.objectContaining({
+        profileToken: otherUserId,
+        relationshipContext: "MUTUAL_CRUUSH"
+      })
+    ]);
+    expect(await getProfiles("?identities=Trans")).toEqual([]);
   });
 
   it("filters blocked users out of the mutual cruush map", async () => {

@@ -48,7 +48,7 @@ export const VIBE_GROUPS = [
     label: 'Style & Energy',
     options: [
       'Alt', 'Artsy', 'Chill', 'Clean-cut', 'Corporate', 'Cottagecore', 'E-Girl/E-Boy', 'Geek', 'Goth', 'Granola',
-      'Homebody', 'Hippie', 'Punk', 'Rugged', 'Spiritual', 'Sporty'
+      'Hacker', 'Homebody', 'Hippie', 'Punk', 'Rugged', 'Spiritual', 'Sporty', 'Techie'
     ].sort(),
   },
   {

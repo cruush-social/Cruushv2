@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import SupportPage from './SupportPage';
 
 describe('SupportPage', () => {
@@ -54,5 +54,71 @@ describe('SupportPage', () => {
       }),
     })));
     expect(await screen.findByText('Support request sent')).toBeInTheDocument();
+  });
+
+  it('shows the private age suspension evidence workflow without authentication', async () => {
+    window.history.pushState({}, '', '/support?appeal=1');
+
+    render(
+      <MemoryRouter initialEntries={['/support?appeal=1']}>
+        <SupportPage appealOnly />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('form', { name: 'Suspension appeal' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Reply email')).toBeRequired();
+    expect(screen.getByLabelText('ID photo')).toHaveAttribute('accept', 'image/jpeg,image/png,image/webp');
+    expect(screen.getByLabelText('Selfie with handwritten card')).toHaveAttribute('capture', 'user');
+    expect(screen.getByText(/Leave only the date of birth and photo visible\./)).toBeInTheDocument();
+    expect(screen.getByText(/Hold a card showing your account email and today.s date\./)).toBeInTheDocument();
+  });
+
+  it('submits general support before authentication with a reply email', async () => {
+    window.history.pushState({}, '', '/support');
+
+    render(
+      <MemoryRouter initialEntries={['/support']}>
+        <SupportPage publicAccess />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('form', { name: 'Contact support' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Reply email')).toBeRequired();
+    fireEvent.change(screen.getByLabelText('Reply email'), {
+      target: { value: 'person@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Support subject'), {
+      target: { value: 'Sign-in question' },
+    });
+    fireEvent.change(screen.getByLabelText('Support message'), {
+      target: { value: 'I need help before I can sign in.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send to support' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/support-requests', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({
+        category: 'question',
+        subject: 'Sign-in question',
+        message: 'I need help before I can sign in.',
+        contactEmail: 'person@example.com',
+        source: 'auth',
+        pageUrl: '/support',
+      }),
+    })));
+  });
+
+  it('returns a directly opened signed-out appeal to sign in', async () => {
+    render(
+      <MemoryRouter initialEntries={['/support?appeal=1']}>
+        <Routes>
+          <Route path="/support" element={<SupportPage appealOnly />} />
+          <Route path="/" element={<div>Mock sign in</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to sign in' }));
+    expect(await screen.findByText('Mock sign in')).toBeInTheDocument();
   });
 });

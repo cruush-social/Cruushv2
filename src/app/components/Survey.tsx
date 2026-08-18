@@ -1,15 +1,15 @@
 import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { ArrowLeft, Star } from 'lucide-react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { createSupportRequest } from '../lib/supportApi';
+import { useBackOrFallback } from '../lib/useBackOrFallback';
 
 const SURVEY_RECIPIENT = 'reports@cruush.app';
 
 export default function Survey() {
-  const navigate = useNavigate();
+  const goBack = useBackOrFallback('/');
   const [ratings, setRatings] = useState<Record<string, string>>({});
   const [bestPart, setBestPart] = useState('');
   const [improvement, setImprovement] = useState('');
@@ -56,7 +56,7 @@ export default function Survey() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-card/80 p-4 backdrop-blur-sm">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Back">
+        <Button variant="ghost" size="icon" onClick={goBack} aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl">Tell us what you think</h1>

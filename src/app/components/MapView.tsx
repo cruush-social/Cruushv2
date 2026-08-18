@@ -33,7 +33,11 @@ import {
 } from '../lib/mapMarkers';
 import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
-import { shouldReduceMotion } from '../lib/accessibilityPreferences';
+import {
+  addAccessibilityPreferencesChangedListener,
+  getAccessibilityPreferences,
+  shouldReduceMotion,
+} from '../lib/accessibilityPreferences';
 import {
   MAP_SERVICE_CENTER,
   MAP_SERVICE_MAX_BOUNDS,
@@ -98,12 +102,13 @@ const DEFAULT_VECTOR_TILEJSON_URL = 'https://tiles.openfreemap.org/planet';
 const MAP_ERROR_MESSAGE = 'Map tiles could not load. Check the map style or tile URL configuration.';
 const MAP_READY_FALLBACK_TIMEOUT_MS = 4500;
 const MAP_RENDER_READY_TIMEOUT_MS = 1200;
-const MOBILE_MARKER_LONG_PRESS_MS = 450;
+const MOBILE_MARKER_LONG_PRESS_MS = 300;
 const MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 10;
 const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 export const MAP_TILE_LABEL_SCALE = 1.25;
+const MAP_ACCESSIBILITY_TEXT_SCALE = 1.25;
 export const MAP_PIN_UNIT_SCALE = 1;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
@@ -1389,6 +1394,10 @@ function MapView({
   const autoFitFocusKeyRef = useRef<string | null>(null);
   const hasAppliedAutoFitRef = useRef(false);
   const directFocusRef = useRef<{ map: MapLibreMap; key: string } | null>(null);
+  const mapLabelTextSizesRef = useRef<{
+    map: MapLibreMap | null;
+    sizes: Map<string, ReturnType<MapLibreMap['getLayoutProperty']>>;
+  }>({ map: null, sizes: new Map() });
   const onPinClickRef = useRef(onPinClick);
   const onMapClickRef = useRef(onMapClick);
   const onMapReadyRef = useRef(onMapReady);
@@ -1397,6 +1406,9 @@ function MapView({
   const [mapLoadStatus, setMapLoadStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [mapError, setMapError] = useState<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
+  const [largerMapText, setLargerMapText] = useState(
+    () => getAccessibilityPreferences().largerText,
+  );
   const [spiderfiedCluster, setSpiderfiedCluster] = useState<SpiderfiedCluster | null>(null);
   const mapStyle = useMemo(() => getMapStyle(), []);
   const denseMarkerResult = useMemo(
@@ -1454,6 +1466,10 @@ function MapView({
   useEffect(() => {
     onMapReadyRef.current = onMapReady;
   }, [onMapReady]);
+
+  useEffect(() => addAccessibilityPreferencesChangedListener((preferences) => {
+    setLargerMapText(preferences.largerText);
+  }), []);
 
   useEffect(() => {
     viewportMarkersRef.current = renderedMarkers.filter(isMapMarker);
@@ -1665,6 +1681,49 @@ function MapView({
       setMapInstance(null);
     };
   }, [mapStyle]);
+
+  useEffect(() => {
+    const map = mapInstance ?? mapRef.current;
+    if (!map || mapLoadStatus !== 'ready') {
+      return;
+    }
+
+    if (
+      typeof map.getStyle !== 'function'
+      || typeof map.getLayoutProperty !== 'function'
+      || typeof map.setLayoutProperty !== 'function'
+    ) {
+      return;
+    }
+
+    if (mapLabelTextSizesRef.current.map !== map) {
+      mapLabelTextSizesRef.current = { map, sizes: new Map() };
+    }
+
+    const { sizes } = mapLabelTextSizesRef.current;
+    for (const layer of map.getStyle().layers ?? []) {
+      if (layer.type !== 'symbol') {
+        continue;
+      }
+
+      const textField = map.getLayoutProperty(layer.id, 'text-field');
+      const currentTextSize = map.getLayoutProperty(layer.id, 'text-size');
+      if (textField == null || currentTextSize == null) {
+        continue;
+      }
+
+      if (!sizes.has(layer.id)) {
+        sizes.set(layer.id, currentTextSize);
+      }
+
+      const baseTextSize = sizes.get(layer.id);
+      map.setLayoutProperty(
+        layer.id,
+        'text-size',
+        largerMapText ? ['*', baseTextSize, MAP_ACCESSIBILITY_TEXT_SCALE] : baseTextSize,
+      );
+    }
+  }, [largerMapText, mapInstance, mapLoadStatus]);
 
   useEffect(() => {
     const map = mapInstance ?? mapRef.current;

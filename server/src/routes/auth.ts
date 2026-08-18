@@ -656,21 +656,6 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const payload = signInPayloadSchema.parse(request.body);
     ensureAlphaTestActive(app.config);
 
-    await applyRateLimits(app, [
-      {
-        key: `login:ip:${getRequestIp(request)}`,
-        max: AUTH_ATTEMPT_MAX,
-        windowMs: AUTH_ATTEMPT_WINDOW_MS,
-        message: "Too many sign-in attempts. Try again later."
-      },
-      {
-        key: `login:email:${payload.email}`,
-        max: AUTH_ATTEMPT_MAX,
-        windowMs: AUTH_ATTEMPT_WINDOW_MS,
-        message: "Too many sign-in attempts. Try again later."
-      }
-    ]);
-
     if (isDevelopmentAdminLogin(app, payload.email, payload.password)) {
       const userId = await ensureDevelopmentAdminUser(app);
       const session = await createSession(app, userId);
@@ -707,6 +692,20 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const user = result.rows[0];
 
     if (!user || !(await verifyPassword(payload.password, user.password_hash))) {
+      await applyRateLimits(app, [
+        {
+          key: `login:email:${payload.email}`,
+          max: AUTH_ATTEMPT_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many sign-in attempts. Try again later."
+        },
+        {
+          key: `login:ip:${getRequestIp(request)}`,
+          max: SHARED_IP_FAILURE_MAX,
+          windowMs: AUTH_ATTEMPT_WINDOW_MS,
+          message: "Too many sign-in attempts. Try again later."
+        }
+      ]);
       throw new ApiError(401, "AUTH_REQUIRED", "Invalid email or password.");
     }
 
@@ -721,21 +720,28 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     }
 
     if (user.two_factor_enabled) {
-      await applyRateLimits(app, [
-        {
-          key: `two-factor-login:user:${user.id}`,
-          max: AUTH_ATTEMPT_MAX,
-          windowMs: AUTH_ATTEMPT_WINDOW_MS,
-          message: "Too many two-factor attempts. Try again later."
-        },
-        {
-          key: `two-factor-login:ip:${getRequestIp(request)}`,
-          max: AUTH_ATTEMPT_MAX * 2,
-          windowMs: AUTH_ATTEMPT_WINDOW_MS,
-          message: "Too many two-factor attempts. Try again later."
+      try {
+        await verifyLoginSecondFactor(app, user.id, payload.twoFactorCode);
+      } catch (error) {
+        if (error instanceof ApiError && error.code === "INVALID_TWO_FACTOR_CODE") {
+          await applyRateLimits(app, [
+            {
+              key: `two-factor-login:user:${user.id}`,
+              max: AUTH_ATTEMPT_MAX,
+              windowMs: AUTH_ATTEMPT_WINDOW_MS,
+              message: "Too many two-factor attempts. Try again later."
+            },
+            {
+              key: `two-factor-login:ip:${getRequestIp(request)}`,
+              max: SHARED_IP_FAILURE_MAX,
+              windowMs: AUTH_ATTEMPT_WINDOW_MS,
+              message: "Too many two-factor attempts. Try again later."
+            }
+          ]);
         }
-      ]);
-      await verifyLoginSecondFactor(app, user.id, payload.twoFactorCode);
+
+        throw error;
+      }
     }
 
     const session = await createSession(app, user.id);

@@ -115,7 +115,8 @@ export async function registerSupportRoutes(app: FastifyInstance) {
         if (!(["image/jpeg", "image/png", "image/webp"] as string[]).includes(part.mimetype)) {
           throw new ApiError(400, "VALIDATION_ERROR", "Use a JPEG, PNG, or WebP image.");
         }
-        uploads.set(part.fieldname as typeof appealEvidenceTypes[number], {
+        const evidenceType = part.fieldname === "idDocument" ? "id" : "selfie";
+        uploads.set(evidenceType, {
           buffer: await part.toBuffer(),
           mimetype: part.mimetype,
           truncated: part.file.truncated

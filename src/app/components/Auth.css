@@ -854,3 +854,58 @@
     line-height: 1.08;
   }
 }
+
+html[data-cruush-larger-text] .launch-login-auth-shell {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+html[data-cruush-larger-text] .launch-login-auth-card {
+  max-height: none;
+}
+
+html[data-cruush-larger-text] .launch-login-auth-tagline {
+  overflow: visible;
+  font-size: clamp(1.2rem, 2.55dvh, 1.45rem);
+  white-space: normal;
+}
+
+html[data-cruush-larger-text] .launch-login-auth-input {
+  font-size: 0.975rem;
+}
+
+html[data-cruush-larger-text] .launch-login-auth-submit {
+  font-size: 1.025rem;
+}
+
+html[data-cruush-larger-text] .launch-login-auth-secondary,
+html[data-cruush-larger-text] .launch-login-auth-contact {
+  font-size: 1.125rem;
+}
+
+html[data-cruush-larger-text] .launch-login-auth-footer [aria-label="Legal and safety links"] {
+  font-size: 0.975rem;
+}
+
+html[data-cruush-high-contrast] .launch-login-auth-tagline,
+html[data-cruush-high-contrast] .launch-login-auth-secondary,
+html[data-cruush-high-contrast] .launch-login-auth-footer [aria-label="Legal and safety links"],
+html[data-cruush-high-contrast] .launch-login-auth-contact {
+  color: #ffffff;
+  filter: none;
+}
+
+html[data-cruush-high-contrast] .launch-login-auth-input {
+  border-color: rgba(255, 255, 255, 0.68);
+  background-color: #09090c;
+  color: #ffffff;
+}
+
+html[data-cruush-high-contrast] .launch-login-auth-input::placeholder {
+  color: rgba(255, 255, 255, 0.88);
+}

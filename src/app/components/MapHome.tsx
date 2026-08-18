@@ -689,7 +689,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
       return;
     }
 
-    mapInstance?.zoomIn();
+    if (step === 'zoom') {
+      mapInstance?.zoomIn();
+    }
   };
 
   const followMapTutorialStep = (step: MapControlsTutorialStepId) => {
@@ -1025,7 +1027,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     }
     try {
       if (isMutualMapMode) {
-        const mutualMapItems = await getMutualCruushMap();
+        const mutualMapItems = await getMutualCruushMap(filterParams);
         setUsers(mutualMapItems
           .filter((item) => item.coordinates)
           .map(mutualMapItemToDiscoveryUser));
@@ -1310,6 +1312,12 @@ export default function MapHome(_props: MapHomeProps = {}) {
     // the same account.
     if (currentProfile?.id && user.id === currentProfile.id) {
       return false;
+    }
+
+    // Mutual-map Seeking is enforced by the server before display tokens are
+    // issued. Do not re-filter its intentionally minimal response fields.
+    if (isMutualMapMode) {
+      return true;
     }
 
     const distanceMiles = Number.parseFloat(user.distance);
@@ -2485,7 +2493,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <div
                   id="recently-active-tray"
                   aria-label="Recently active profiles"
-                  className={`${isMobile ? 'gap-2' : 'gap-3'} ${recentlyActiveNeedsScroll ? 'overflow-x-auto pb-1 scrollbar-subtle' : 'overflow-x-hidden'} flex cursor-grab overscroll-x-contain scroll-smooth active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
+                  className={`${isMobile ? 'gap-2' : 'gap-3'} ${recentlyActiveNeedsScroll ? 'overflow-x-auto pb-2 scrollbar-subtle' : 'overflow-x-hidden'} flex cursor-grab overscroll-x-contain scroll-smooth active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                   data-testid="recently-active-tray"
                   data-scrollable={recentlyActiveNeedsScroll ? 'true' : 'false'}
                   onClickCapture={handleRecentlyActiveClickCapture}

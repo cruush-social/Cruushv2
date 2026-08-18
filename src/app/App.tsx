@@ -77,12 +77,15 @@ const PUBLIC_INFO_ROUTES = [
   { path: '/2257', page: '2257' },
 ] as const;
 
-function renderPublicRoutes() {
+function renderPublicRoutes(includeSupport = false) {
   return [
     ...PUBLIC_INFO_ROUTES.map((route) => (
       <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
     )),
     <Route key="/survey" path="/survey" element={<Survey />} />,
+    ...(includeSupport
+      ? [<Route key="/support" path="/support" element={<SupportPage publicAccess />} />]
+      : []),
   ];
 }
 
@@ -96,6 +99,35 @@ function redirectToRewards() {
 
 function getInitialAppRoute() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+export function getInitialAppEntries(initialRoute = getInitialAppRoute()) {
+  const url = new URL(initialRoute, 'https://cruush.app');
+  const { pathname } = url;
+  let fallback: string | null = null;
+
+  const eventPassGuideMatch = pathname.match(/^\/events\/([^/]+)\/pass-guide\/?$/);
+
+  if (eventPassGuideMatch) {
+    fallback = `/events/${eventPassGuideMatch[1]}`;
+  } else if (pathname.startsWith('/chat/')) {
+    fallback = '/messages';
+  } else if (pathname === '/profile/edit') {
+    fallback = '/profile';
+  } else if (pathname === '/cruush/settings') {
+    fallback = '/cruush';
+  } else if (
+    pathname.startsWith('/settings/')
+    || pathname.startsWith('/privacy/')
+    || pathname === '/support'
+    || pathname === '/requests'
+  ) {
+    fallback = '/settings';
+  } else if (pathname !== '/' && pathname !== '/map') {
+    fallback = '/map';
+  }
+
+  return fallback ? [fallback, initialRoute] : [initialRoute];
 }
 
 function CanonicalAppAddressBar() {
@@ -354,7 +386,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes()}
+            {renderPublicRoutes(true)}
             <Route path="*" element={<Auth onAuth={handleAuth} />} />
           </Routes>
           {alphaBugControl}
@@ -372,7 +404,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes()}
+            {renderPublicRoutes(true)}
             <Route
               path="*"
               element={(
@@ -399,7 +431,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes()}
+            {renderPublicRoutes(true)}
             <Route path="*" element={<AgeVerification onVerified={handleAgeVerified} />} />
           </Routes>
           {alphaBugControl}
@@ -417,7 +449,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes()}
+            {renderPublicRoutes(true)}
             <Route
               path="*"
               element={(
@@ -444,7 +476,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicRoutes()}
+            {renderPublicRoutes(true)}
             <Route
               path="*"
               element={(
@@ -463,7 +495,7 @@ export default function App({
   }
 
   return (
-    <MemoryRouter key="app-router" initialEntries={[getInitialAppRoute()]}>
+    <MemoryRouter key="app-router" initialEntries={getInitialAppEntries()}>
       <CanonicalAppAddressBar />
       <GoogleAnalyticsPageTracker />
       <AppErrorBoundary>

@@ -702,8 +702,8 @@ export default function Auth({ onAuth }: AuthProps) {
           </div>
 
           {isSignUp ? (
-            <div className="space-y-2">
-              <label htmlFor="dateOfBirth" className="sr-only">Date of birth</label>
+            <div className="space-y-1.5">
+              <label htmlFor="dateOfBirth" className="block px-1 text-xs font-medium text-white/72">Date of birth</label>
               <input
                 id="dateOfBirth"
                 type="date"
@@ -918,6 +918,12 @@ export default function Auth({ onAuth }: AuthProps) {
         </a>
         <a className="launch-login-auth-contact" href="mailto:reports@cruush.app?subject=cruush%20bug%20report">
           Report a bug
+        </a>
+        <a className="launch-login-auth-contact" href="/support">
+          Contact support
+        </a>
+        <a className="launch-login-auth-contact" href="/support?appeal=1">
+          Appeal an age-related suspension
         </a>
 
         <PublicPolicyLinks variant="compact" />

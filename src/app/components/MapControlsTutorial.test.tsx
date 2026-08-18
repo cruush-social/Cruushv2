@@ -14,6 +14,7 @@ const TARGET_STEP_IDS: MapControlsTutorialStepId[] = [
   'ghost',
   'dl-mode',
   'ping',
+  'profile-pin',
   'zoom',
   'feed',
 ];
@@ -198,7 +199,7 @@ describe('MapControlsTutorial', () => {
 
     render(<MapControlsTutorial open onActivateStep={onActivateStep} onComplete={onComplete} />);
 
-    expect(screen.getByText('Map tutorial · Step 1 of 10')).toBeInTheDocument();
+    expect(screen.getByText('Map tutorial · Step 1 of 11')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Install cruush' })).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('install', 'Install cruush'));
     expect(onActivateStep).toHaveBeenLastCalledWith('install');
@@ -242,7 +243,14 @@ describe('MapControlsTutorial', () => {
     expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', 'ping');
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
+    expect(screen.getByRole('heading', { name: 'Profile pins' })).toBeInTheDocument();
+    expect(screen.getByText(/tap a profile pin briefly to open its profile/i)).toBeInTheDocument();
+    expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', 'profile-pin');
+    expect(screen.queryByTestId('tutorial-try-step')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Zoom' })).toBeInTheDocument();
+    expect(screen.getByText('Use the highlighted controls to zoom the map in or out.')).toBeInTheDocument();
     expectHighlightedAction('zoom', 'Zoom in');
     fireEvent.click(screen.getByTestId('tutorial-next'));
 
@@ -337,6 +345,7 @@ describe('MapControlsTutorial', () => {
     );
     expect(screen.getByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
 
+    fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));
     fireEvent.click(screen.getByTestId('tutorial-next'));

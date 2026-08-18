@@ -104,4 +104,29 @@ describe('cruushApi', () => {
     expect(profiles[0]).not.toHaveProperty('animationHint');
     expect(profiles[0]).not.toHaveProperty('ghostRotationExpiresAtMs');
   });
+
+  it('sends active Seeking filters with mutual map requests', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      text: vi.fn().mockResolvedValue(JSON.stringify({
+        data: {
+          mapEpochMs: 1780520000000,
+          profiles: [],
+        },
+      })),
+    } as Response);
+
+    await getMutualCruushMap({
+      ageRange: [25, 40],
+      distance: 10,
+      identities: ['trans woman'],
+      vibes: ['Club kid'],
+      crowds: ['T4T'],
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/cruush/mutual-map?distance=10&minAge=25&maxAge=40&identities=trans+woman&vibes=Club+kid&crowds=T4T',
+      expect.any(Object),
+    );
+  });
 });

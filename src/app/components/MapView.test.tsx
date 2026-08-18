@@ -985,7 +985,12 @@ describe('MapView', () => {
     const pointerDown = new Event('pointerdown', { bubbles: true });
     Object.defineProperty(pointerDown, 'pointerType', { value: 'touch' });
     fireEvent(markerButton, pointerDown);
-    act(() => vi.advanceTimersByTime(500));
+
+    act(() => vi.advanceTimersByTime(299));
+    expect(markerButton).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('marker-signal-stack-user-touch-hold')).toHaveClass('opacity-0');
+
+    act(() => vi.advanceTimersByTime(1));
 
     expect(markerButton).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).toHaveClass('scale-120');
@@ -1023,7 +1028,7 @@ describe('MapView', () => {
     Object.defineProperty(pointerDown, 'pointerType', { value: 'touch' });
     fireEvent(originalButton, pointerDown);
     rerender(<MapView onPinClick={onPinClick} markers={[{ ...marker }]} />);
-    act(() => vi.advanceTimersByTime(500));
+    act(() => vi.advanceTimersByTime(300));
 
     const currentButton = screen.getByRole('button', { name: 'Open Ari on map' });
     expect(currentButton).toBe(originalButton);
@@ -1066,7 +1071,7 @@ describe('MapView', () => {
       pointerType: { value: 'touch' },
     });
     fireEvent(markerButton, pointerMove);
-    act(() => vi.advanceTimersByTime(500));
+    act(() => vi.advanceTimersByTime(300));
 
     expect(markerButton).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByTestId('marker-heart-layer-user-touch-pan')).not.toHaveClass('scale-[1.16]');

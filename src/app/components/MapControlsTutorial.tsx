@@ -12,13 +12,13 @@ export function notifyMapControlsTutorialCompleted() {
   }
 }
 
-export type MapControlsTutorialStepId = 'install' | 'notifications' | 'seeking' | 'visibility' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'zoom' | 'feed';
+export type MapControlsTutorialStepId = 'install' | 'notifications' | 'seeking' | 'visibility' | 'crowds' | 'ghost' | 'dl-mode' | 'ping' | 'profile-pin' | 'zoom' | 'feed';
 
 type TutorialStep = {
   id: MapControlsTutorialStepId;
   title: string;
   description: string;
-  actionLabel: string;
+  actionLabel?: string;
   optional?: boolean;
 };
 
@@ -74,9 +74,14 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     actionLabel: 'Open Ping',
   },
   {
+    id: 'profile-pin',
+    title: 'Profile pins',
+    description: 'Tap a profile pin briefly to open its profile. Press and hold on touch to make the pin and its details bigger. On desktop, hover a pin to reveal its details.',
+  },
+  {
     id: 'zoom',
     title: 'Zoom',
-    description: 'Tap a profile pin briefly to open its profile. Press and hold on touch to make the pin and its details bigger. On desktop, hover a pin to reveal its details. Use the highlighted controls to zoom the map.',
+    description: 'Use the highlighted controls to zoom the map in or out.',
     actionLabel: 'Zoom in',
   },
   {
@@ -292,7 +297,7 @@ function readTargetElements(targetId: MapControlsTutorialStepId): HTMLElement[] 
     return Array.from(document.querySelectorAll<HTMLElement>('[data-tutorial-target="visibility"]'));
   }
 
-  if (targetId === 'zoom') {
+  if (targetId === 'profile-pin') {
     const viewportCenterX = window.innerWidth / 2;
     const viewportCenterY = readBottomBoundary(window.innerHeight) / 2;
     const profilePin = Array.from(document.querySelectorAll<HTMLElement>('[data-map-marker-pin="true"][data-map-marker-kind="person"]'))
@@ -320,7 +325,7 @@ function readTargetElements(targetId: MapControlsTutorialStepId): HTMLElement[] 
         return rect.width > 0 && rect.height > 0;
       });
 
-    return profilePin ? [...directTargets, profilePin] : directTargets;
+    return profilePin ? [profilePin] : directTargets;
   }
 
   return directTargets;
@@ -634,18 +639,20 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
             {actionError}
           </p>
         ) : null}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-          <Button
-            type="button"
-            className="rounded-lg border border-white/25 text-white ring-2 ring-primary/60 ring-offset-2 ring-offset-background"
-            data-tutorial-action={step.id}
-            data-testid="tutorial-try-step"
-            disabled={actionPending}
-            onClick={() => void activateCurrentStep()}
-            style={{ background: 'var(--cruush-gradient)' }}
-          >
-            {actionPending ? 'Working...' : step.actionLabel}
-          </Button>
+        <div className={`mt-4 flex flex-wrap items-center gap-2 ${step.actionLabel ? 'justify-between' : 'justify-end'}`}>
+          {step.actionLabel ? (
+            <Button
+              type="button"
+              className="rounded-lg border border-white/25 text-white ring-2 ring-primary/60 ring-offset-2 ring-offset-background"
+              data-tutorial-action={step.id}
+              data-testid="tutorial-try-step"
+              disabled={actionPending}
+              onClick={() => void activateCurrentStep()}
+              style={{ background: 'var(--cruush-gradient)' }}
+            >
+              {actionPending ? 'Working...' : step.actionLabel}
+            </Button>
+          ) : null}
           <div className="flex gap-2">
             {stepIndex > 0 ? (
               <Button

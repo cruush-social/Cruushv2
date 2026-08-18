@@ -2617,7 +2617,7 @@ describe('MapHome', () => {
     expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0');
     expect(recentPanel).toHaveClass('max-w-[30rem]', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('cursor-grab', 'overflow-x-hidden', 'overscroll-x-contain', 'scroll-smooth');
-    expect(screen.getByTestId('recently-active-tray')).not.toHaveClass('scrollbar-subtle', 'pb-1');
+    expect(screen.getByTestId('recently-active-tray')).not.toHaveClass('scrollbar-subtle', 'pb-2');
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('data-scrollable', 'false');
     expect(screen.getByTestId('recently-active-tray')).toHaveStyle({ width: '6.25rem', maxWidth: '100%' });
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('tabindex', '0');
@@ -2705,7 +2705,7 @@ describe('MapHome', () => {
 
     const recentTray = await screen.findByTestId('recently-active-tray');
     expect(recentTray).toHaveAttribute('data-scrollable', 'true');
-    expect(recentTray).toHaveClass('overflow-x-auto', 'pb-1', 'scrollbar-subtle');
+    expect(recentTray).toHaveClass('overflow-x-auto', 'pb-2', 'scrollbar-subtle');
     expect(recentTray).not.toHaveClass('scrollbar-hide');
     expect(recentTray).toHaveStyle({ width: '34.25rem', maxWidth: '100%' });
     expect(within(recentTray).getAllByRole('button')).toHaveLength(10);

@@ -243,7 +243,7 @@ export default function MultiSelect({
   const menuContent = (
     <>
       {hasCategoryPicker ? (
-        <div className="grid max-h-[inherit] sm:grid-cols-[11rem_minmax(0,1fr)]">
+        <div className="grid max-h-[inherit] grid-rows-[auto_minmax(0,1fr)] sm:grid-cols-[11rem_minmax(0,1fr)] sm:grid-rows-1">
           <div
             role="tablist"
             aria-label={`${ariaLabel ?? 'Options'} categories`}
@@ -275,7 +275,7 @@ export default function MultiSelect({
             })}
           </div>
 
-          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle max-h-[inherit] overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
+          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle min-h-0 max-h-[inherit] overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
             <div role="group" aria-label={activeGroup.label || undefined}>
               {activeGroup.options.map((option) => (
                 <button

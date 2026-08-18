@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import App from './App';
+import { useNavigate } from 'react-router';
+import App, { getInitialAppEntries } from './App';
 
 const { loadCurrentSession, persistSessionUser, recordDailyRewardCheckIn, routeModuleLoads, updateRewardTimezone } = vi.hoisted(() => ({
   loadCurrentSession: vi.fn(),
@@ -32,7 +33,16 @@ vi.mock('./components/MapHome', () => {
 vi.mock('./components/LocalFeed', () => {
   routeModuleLoads.push('LocalFeed');
   return {
-    default: () => <div>Mock Feed</div>
+    default: () => {
+      const navigate = useNavigate();
+
+      return (
+        <div>
+          Mock Feed
+          <button type="button" onClick={() => navigate('/settings')}>Open settings from feed</button>
+        </div>
+      );
+    }
   };
 });
 
@@ -175,7 +185,16 @@ vi.mock('./components/ResetPassword', () => ({
 }));
 
 vi.mock('./components/Settings', () => ({
-  default: () => <div>Mock Settings</div>
+  default: () => {
+    const navigate = useNavigate();
+
+    return (
+      <div>
+        Mock Settings
+        <button type="button" onClick={() => navigate(-1)}>Back from settings</button>
+      </div>
+    );
+  }
 }));
 
 vi.mock('./components/GhostModeSettings', () => ({
@@ -222,6 +241,13 @@ vi.mock('./components/Survey', () => ({
   default: () => <div>Mock Survey</div>
 }));
 
+vi.mock('./components/SupportPage', () => ({
+  default: ({ appealOnly }: { appealOnly?: boolean; publicAccess?: boolean }) => {
+    const appealMode = appealOnly || new URLSearchParams(window.location.search).get('appeal') === '1';
+    return <div>{appealMode ? 'Mock Age Suspension Appeal' : 'Mock Support'}</div>;
+  },
+}));
+
 vi.mock('./components/ui/sonner', () => ({
   Toaster: () => <div data-testid="toaster" />
 }));
@@ -251,6 +277,64 @@ describe('App', () => {
     recordDailyRewardCheckIn.mockResolvedValue({ credited: false, grants: [] });
     updateRewardTimezone.mockReset();
     updateRewardTimezone.mockResolvedValue({ timezone: 'America/New_York' });
+  });
+
+  it('seeds direct authenticated routes with their expected Back destination', () => {
+    expect(getInitialAppEntries('/settings/notifications')).toEqual(['/settings', '/settings/notifications']);
+    expect(getInitialAppEntries('/privacy/ghost-mode')).toEqual(['/settings', '/privacy/ghost-mode']);
+    expect(getInitialAppEntries('/chat/group/thread-1')).toEqual(['/messages', '/chat/group/thread-1']);
+    expect(getInitialAppEntries('/events/event-1/pass-guide')).toEqual(['/events/event-1', '/events/event-1/pass-guide']);
+    expect(getInitialAppEntries('/feed?view=nearby#latest')).toEqual(['/map', '/feed?view=nearby#latest']);
+    expect(getInitialAppEntries('/map')).toEqual(['/map']);
+  });
+
+  it('makes Back work after a direct authenticated page load', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    window.history.replaceState({}, '', '/settings');
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back from settings' }));
+    expect(await screen.findByText('Mock Map')).toBeInTheDocument();
+  });
+
+  it('uses real in-app history before a direct-route fallback', async () => {
+    loadCurrentSession.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerifiedAt: '2026-04-28T12:00:00.000Z',
+        createdAt: '2026-04-28T12:00:00.000Z',
+      },
+      profile: {
+        displayName: 'Test User',
+        yearOfBirth: 1998,
+      },
+      needsOnboarding: false,
+      ...acceptedConductSession,
+    });
+    window.history.replaceState({}, '', '/feed');
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open settings from feed' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Back from settings' }));
+    expect(await screen.findByText('Mock Feed')).toBeInTheDocument();
   });
 
   it('does not load signed-in route modules before signed-out users authenticate', async () => {
@@ -284,6 +368,26 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Survey')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mock Auth' })).not.toBeInTheDocument();
+  });
+
+  it('renders the age suspension appeal before authentication', async () => {
+    window.history.replaceState({}, '', '/support?appeal=1');
+    loadCurrentSession.mockResolvedValue(null);
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Age Suspension Appeal')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mock Auth' })).not.toBeInTheDocument();
+  });
+
+  it('renders general support before authentication', async () => {
+    window.history.replaceState({}, '', '/support');
+    loadCurrentSession.mockResolvedValue(null);
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Support')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Mock Auth' })).not.toBeInTheDocument();
   });
 

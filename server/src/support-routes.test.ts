@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { buildServer } from "./app.js";
 import type { AppConfig } from "./config.js";
 import { createMemoryRateLimiter } from "./rate-limit.js";
@@ -46,6 +49,38 @@ function buildSupportApp(overrides: Partial<AppConfig> = {}) {
   });
 }
 
+function suspensionAppealMultipart() {
+  const boundary = "----cruush-suspension-appeal-test";
+  const field = Buffer.from(
+    `--${boundary}\r\n` +
+    'Content-Disposition: form-data; name="contactEmail"\r\n\r\n' +
+    'appeal@example.com\r\n'
+  );
+  const idHead = Buffer.from(
+    `--${boundary}\r\n` +
+    'Content-Disposition: form-data; name="idDocument"; filename="redacted-id.jpg"\r\n' +
+    'Content-Type: image/jpeg\r\n\r\n'
+  );
+  const selfieHead = Buffer.from(
+    `\r\n--${boundary}\r\n` +
+    'Content-Disposition: form-data; name="selfie"; filename="selfie.jpg"\r\n' +
+    'Content-Type: image/jpeg\r\n\r\n'
+  );
+  const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+
+  return {
+    contentType: `multipart/form-data; boundary=${boundary}`,
+    payload: Buffer.concat([
+      field,
+      idHead,
+      Buffer.from('synthetic-redacted-id'),
+      selfieHead,
+      Buffer.from('synthetic-selfie-with-sign'),
+      tail
+    ])
+  };
+}
+
 beforeEach(() => {
   query.mockReset();
   end.mockClear();
@@ -58,6 +93,71 @@ afterEach(() => {
 
 describe("support routes", () => {
   const userId = "d271f6da-c51d-4d73-a322-d9c56f45d4fa";
+
+  it("accepts a signed-out age suspension appeal and stores both evidence files encrypted", async () => {
+    const mediaDir = await mkdtemp(join(tmpdir(), "cruush-appeal-test-"));
+    const appealId = "f5318c56-f1aa-4cc4-8a4b-ea73c4fc4149";
+    const app = buildSupportApp({
+      MEDIA_STORAGE_DIR: mediaDir,
+      MEDIA_OBJECT_STORAGE_DRIVER: "local",
+      MEDIA_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef",
+      MEDIA_ENCRYPTION_KEY_VERSION: "v1"
+    });
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: appealId,
+          status: "open",
+          ai_triage_status: "pending",
+          created_at: "2026-08-18T12:00:00.000Z"
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    const multipart = suspensionAppealMultipart();
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/support-requests/suspension-appeal",
+        headers: {
+          "content-type": multipart.contentType,
+          "user-agent": "vitest"
+        },
+        payload: multipart.payload
+      });
+
+      expect(response.statusCode, response.body).toBe(201);
+      expect(response.json()).toEqual({
+        data: {
+          id: appealId,
+          status: "open",
+          aiTriageStatus: "pending",
+          createdAt: "2026-08-18T12:00:00.000Z"
+        }
+      });
+      expect(query.mock.calls[0]?.[1]).toEqual([
+        null,
+        "appeal@example.com",
+        expect.stringContaining("redacted ID"),
+        expect.objectContaining({
+          evidenceStoredPrivately: true,
+          evidenceExpiresInHours: 24
+        })
+      ]);
+      expect(query.mock.calls.slice(1, 3).every((call) => String(call[0]).includes("insert into suspension_appeal_evidence"))).toBe(true);
+
+      const evidenceDir = join(mediaDir, "objects", "suspension-appeals", appealId);
+      const evidenceFiles = await readdir(evidenceDir);
+      expect(evidenceFiles).toHaveLength(2);
+      const encryptedBytes = await Promise.all(evidenceFiles.map((file) => readFile(join(evidenceDir, file))));
+      expect(Buffer.concat(encryptedBytes).toString()).not.toContain("synthetic-redacted-id");
+      expect(Buffer.concat(encryptedBytes).toString()).not.toContain("synthetic-selfie-with-sign");
+    } finally {
+      await app.close();
+      await rm(mediaDir, { recursive: true, force: true });
+    }
+  });
 
   it("creates an anonymous support request with contact email", async () => {
     const app = buildSupportApp();

@@ -7,6 +7,8 @@ import {
   saveCruushMatchSettings
 } from "../cruush-match-settings.js";
 import { createCruushPayloadSchema } from "../cruush-schema.js";
+import { hasPremiumDiscoveryFilters, requireCruushPlus } from "../billing.js";
+import { normalizeSingleLineText } from "../input-schema.js";
 import { recordMeaningfulActivitySafely } from "../rewards-service.js";
 import { createAppNotificationAndPush } from "../notification-service.js";
 import {
@@ -27,7 +29,17 @@ import {
   type EncryptedRelationshipRecord
 } from "../encrypted-relationships.js";
 import { formatDistanceMiles, formatLastActiveFromDate } from "../discovery-users.js";
-import { decryptSensitiveProfile } from "../profile-sensitive.js";
+import {
+  CROWD_OPTIONS,
+  decryptProfileVisibility,
+  decryptSensitiveProfile,
+  normalizeCrowdOption
+} from "../profile-sensitive.js";
+import {
+  canSubjectViewProfile,
+  type VisibilityCoordinates,
+  type VisibilitySubjectProfile
+} from "../profile-visibility.js";
 import { getActiveAccountUserId, getAuthenticatedUserId } from "../request-auth.js";
 import { assertUsersNotBlocked, loadBlockedRelationshipUserIds } from "../user-blocks.js";
 import {
@@ -46,6 +58,58 @@ const cruushActivityParamsSchema = z.object({
 const revokeMatchParamsSchema = z.object({
   otherUserId: z.uuid()
 }).strict();
+
+const mutualMapQueryArrayField = z.preprocess((value) => {
+  if (value === undefined) {
+    return [];
+  }
+
+  const values = Array.isArray(value) ? value : [value];
+  return values.flatMap((item) => typeof item === "string"
+    ? item.split(",").map(normalizeSingleLineText).filter(Boolean)
+    : []);
+}, z.array(z.string().min(1).max(120)).max(50).default([]));
+
+const mutualMapCrowdQueryArrayField = z.preprocess((value) => {
+  if (value === undefined) {
+    return [];
+  }
+
+  const values = Array.isArray(value) ? value : [value];
+  return values.flatMap((item) => typeof item === "string"
+    ? item.split(",").map((part) => normalizeCrowdOption(part.trim()) ?? part.trim()).filter(Boolean)
+    : []);
+}, z.array(z.enum(CROWD_OPTIONS)).max(3).default([]));
+
+const mutualMapQuerySchema = z.object({
+  distance: z.coerce.number().min(1).max(100).optional(),
+  minAge: z.coerce.number().int().min(18).max(99).optional(),
+  maxAge: z.coerce.number().int().min(18).max(99).optional(),
+  identities: mutualMapQueryArrayField,
+  presentations: mutualMapQueryArrayField,
+  lookingFor: mutualMapQueryArrayField,
+  timing: mutualMapQueryArrayField,
+  hosting: mutualMapQueryArrayField,
+  vibes: mutualMapQueryArrayField,
+  crowds: mutualMapCrowdQueryArrayField,
+  hobbies: mutualMapQueryArrayField,
+  positions: mutualMapQueryArrayField,
+  roles: mutualMapQueryArrayField,
+  kinks: mutualMapQueryArrayField,
+  bodyTypes: mutualMapQueryArrayField,
+  sexuality: mutualMapQueryArrayField,
+  substanceBoundaries: mutualMapQueryArrayField
+}).strict().superRefine((query, context) => {
+  if (query.minAge != null && query.maxAge != null && query.minAge > query.maxAge) {
+    context.addIssue({
+      code: "custom",
+      message: "Minimum age cannot exceed maximum age.",
+      path: ["minAge"]
+    });
+  }
+});
+
+type MutualMapQuery = z.infer<typeof mutualMapQuerySchema>;
 
 type ReceivedCruushRow = {
   id: string;
@@ -118,17 +182,33 @@ type MutualCruushRow = {
   photo_explicit?: boolean | null;
   badges?: string[] | null;
   updated_at: string | Date;
+  year_of_birth: number | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
   fuzzy_lng: number | null;
+  looking_for: string[] | null;
   vibes: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
+  identities: string[] | null;
+  presentation: string[] | null;
+  sexuality: string[] | null;
+  body_type: string[] | null;
+  availability: string[] | null;
+  hobbies: string[] | null;
+  position: string[] | null;
+  role: string[] | null;
+  hosting_travel: string[] | null;
+  substance_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
   profile_sensitive_key_version: string | null;
+  profile_visibility_ciphertext: string | null;
+  profile_visibility_nonce: string | null;
+  profile_visibility_auth_tag: string | null;
+  profile_visibility_key_version: string | null;
   ghost_mode_enabled: boolean | null;
   precise_location_visibility: "none" | "mutual_cruushes" | null;
   can_message: boolean | null;
@@ -136,6 +216,21 @@ type MutualCruushRow = {
 };
 
 type CurrentProfileLocationRow = {
+  year_of_birth: number | null;
+  looking_for: string[] | null;
+  vibes: string[] | null;
+  scenes: string[] | null;
+  archetypes: string[] | null;
+  identities: string[] | null;
+  presentation: string[] | null;
+  sexuality: string[] | null;
+  body_type: string[] | null;
+  availability: string[] | null;
+  hobbies: string[] | null;
+  position: string[] | null;
+  role: string[] | null;
+  hosting_travel: string[] | null;
+  substance_boundaries: string[] | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
@@ -144,6 +239,10 @@ type CurrentProfileLocationRow = {
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
   profile_sensitive_key_version: string | null;
+  profile_visibility_ciphertext: string | null;
+  profile_visibility_nonce: string | null;
+  profile_visibility_auth_tag: string | null;
+  profile_visibility_key_version: string | null;
 };
 
 type ActivityProfileRow = {
@@ -154,17 +253,33 @@ type ActivityProfileRow = {
   photo_explicit?: boolean | null;
   badges?: string[] | null;
   updated_at: string | Date;
+  year_of_birth: number | null;
   lat: number | null;
   lng: number | null;
   fuzzy_lat: number | null;
   fuzzy_lng: number | null;
+  looking_for: string[] | null;
   vibes: string[] | null;
   scenes: string[] | null;
   archetypes: string[] | null;
+  identities: string[] | null;
+  presentation: string[] | null;
+  sexuality: string[] | null;
+  body_type: string[] | null;
+  availability: string[] | null;
+  hobbies: string[] | null;
+  position: string[] | null;
+  role: string[] | null;
+  hosting_travel: string[] | null;
+  substance_boundaries: string[] | null;
   profile_sensitive_ciphertext: string | null;
   profile_sensitive_nonce: string | null;
   profile_sensitive_auth_tag: string | null;
   profile_sensitive_key_version: string | null;
+  profile_visibility_ciphertext: string | null;
+  profile_visibility_nonce: string | null;
+  profile_visibility_auth_tag: string | null;
+  profile_visibility_key_version: string | null;
   ghost_mode_enabled: boolean | null;
   precise_location_visibility: "none" | "mutual_cruushes" | null;
 };
@@ -317,10 +432,132 @@ function uniqueStrings(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
+function hasAnyCrowd(requiredCrowds: string[], actualCrowds: string[]) {
+  if (requiredCrowds.length === 0) {
+    return true;
+  }
+
+  const actual = new Set(actualCrowds.map((crowd) => crowd.trim().toLowerCase()));
+  return requiredCrowds.some((crowd) => actual.has(crowd.trim().toLowerCase()));
+}
+
+function matchesAnySelected(selected: string[], actual: string[] | null | undefined) {
+  if (selected.length === 0) {
+    return true;
+  }
+
+  const actualValues = new Set((actual ?? []).map((value) => value.trim().toLowerCase()));
+  return selected.some((value) => actualValues.has(value.trim().toLowerCase()));
+}
+
+function mapDistanceMiles(first: VisibilityCoordinates, second: VisibilityCoordinates) {
+  if (first.lat == null || first.lng == null || second.lat == null || second.lng == null) {
+    return null;
+  }
+
+  const earthRadiusMiles = 3958.8;
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const latDelta = toRadians(second.lat - first.lat);
+  const lngDelta = toRadians(second.lng - first.lng);
+  const firstLat = toRadians(first.lat);
+  const secondLat = toRadians(second.lat);
+  const a = Math.sin(latDelta / 2) ** 2 +
+    Math.cos(firstLat) * Math.cos(secondLat) * Math.sin(lngDelta / 2) ** 2;
+
+  return 2 * earthRadiusMiles * Math.asin(Math.sqrt(a));
+}
+
+function matchesMutualMapSeeking(
+  target: VisibilitySubjectProfile,
+  targetCoordinates: VisibilityCoordinates,
+  viewerCoordinates: VisibilityCoordinates | null,
+  filters: MutualMapQuery
+) {
+  if (filters.minAge != null || filters.maxAge != null) {
+    const age = target.year_of_birth ? new Date().getFullYear() - target.year_of_birth : null;
+    if (age == null || (filters.minAge != null && age < filters.minAge) || (filters.maxAge != null && age > filters.maxAge)) {
+      return false;
+    }
+  }
+
+  if (filters.distance != null) {
+    const distance = viewerCoordinates ? mapDistanceMiles(viewerCoordinates, targetCoordinates) : null;
+    if (distance == null || distance > filters.distance) {
+      return false;
+    }
+  }
+
+  return matchesAnySelected(filters.identities, target.identities) &&
+    matchesAnySelected(filters.presentations, target.presentations) &&
+    matchesAnySelected(filters.lookingFor, target.looking_for) &&
+    matchesAnySelected(filters.timing, target.timing) &&
+    matchesAnySelected(filters.hosting, target.hosting) &&
+    matchesAnySelected(filters.vibes, [
+      ...(target.vibes ?? []),
+      ...(target.scenes ?? []),
+      ...(target.archetypes ?? [])
+    ]) &&
+    matchesAnySelected(filters.crowds, target.crowds) &&
+    matchesAnySelected(filters.hobbies, target.hobbies) &&
+    matchesAnySelected(filters.positions, target.positions) &&
+    matchesAnySelected(filters.roles, target.roles) &&
+    matchesAnySelected(filters.kinks, target.kinks) &&
+    matchesAnySelected(filters.bodyTypes, target.body_types) &&
+    matchesAnySelected(filters.sexuality, target.sexuality) &&
+    matchesAnySelected(filters.substanceBoundaries, target.substance_boundaries);
+}
+
+function toMapVisibilitySubject(
+  app: FastifyInstance,
+  row: CurrentProfileLocationRow | MutualCruushRow,
+  coordinates: VisibilityCoordinates | null
+): VisibilitySubjectProfile {
+  const sensitiveProfile = decryptSensitiveProfile(app.config, row);
+  const kinks = sensitiveProfile?.kink_interests.length
+    ? sensitiveProfile.kink_interests.map((interest) => interest.label ?? interest.kink_id)
+    : sensitiveProfile?.kinks ?? [];
+
+  return {
+    year_of_birth: row.year_of_birth,
+    identities: row.identities ?? [],
+    presentations: row.presentation ?? [],
+    looking_for: row.looking_for ?? [],
+    timing: row.availability ?? [],
+    hosting: row.hosting_travel ?? [],
+    vibes: row.vibes ?? [],
+    scenes: row.scenes ?? [],
+    archetypes: row.archetypes ?? [],
+    crowds: sensitiveProfile?.crowds ?? [],
+    hobbies: row.hobbies ?? [],
+    positions: row.position ?? [],
+    roles: row.role ?? [],
+    kinks,
+    body_types: row.body_type ?? [],
+    sexuality: row.sexuality ?? [],
+    substance_boundaries: row.substance_boundaries ?? [],
+    coordinates
+  };
+}
+
 async function loadCurrentProfileLocation(app: FastifyInstance, userId: string) {
   return (await safeQueryRows<CurrentProfileLocationRow>(
     app,
     `select
+       year_of_birth,
+       looking_for,
+       vibes,
+       scenes,
+       archetypes,
+       identities,
+       presentation,
+       sexuality,
+       body_type,
+       availability,
+       hobbies,
+       position,
+       role,
+       hosting_travel,
+       substance_boundaries,
        null::double precision as lat,
        null::double precision as lng,
        null::double precision as fuzzy_lat,
@@ -328,7 +565,11 @@ async function loadCurrentProfileLocation(app: FastifyInstance, userId: string) 
        profile_sensitive_ciphertext,
        profile_sensitive_nonce,
        profile_sensitive_auth_tag,
-       profile_sensitive_key_version
+       profile_sensitive_key_version,
+       profile_visibility_ciphertext,
+       profile_visibility_nonce,
+       profile_visibility_auth_tag,
+       profile_visibility_key_version
      from profiles
      where id = $1
      limit 1`,
@@ -360,17 +601,33 @@ async function loadActivityProfiles(app: FastifyInstance, userIds: string[]) {
          limit 1
        ), true) as photo_explicit,
        profiles.updated_at,
+       profiles.year_of_birth,
        null::double precision as lat,
        null::double precision as lng,
        null::double precision as fuzzy_lat,
        null::double precision as fuzzy_lng,
+       profiles.looking_for,
        profiles.vibes,
        profiles.scenes,
        profiles.archetypes,
+       profiles.identities,
+       profiles.presentation,
+       profiles.sexuality,
+       profiles.body_type,
+       profiles.availability,
+       profiles.hobbies,
+       profiles.position,
+       profiles.role,
+       profiles.hosting_travel,
+       profiles.substance_boundaries,
        profiles.profile_sensitive_ciphertext,
        profiles.profile_sensitive_nonce,
        profiles.profile_sensitive_auth_tag,
        profiles.profile_sensitive_key_version,
+       profiles.profile_visibility_ciphertext,
+       profiles.profile_visibility_nonce,
+       profiles.profile_visibility_auth_tag,
+       profiles.profile_visibility_key_version,
        null::boolean as ghost_mode_enabled,
        null::text as precise_location_visibility,
        coalesce((
@@ -432,17 +689,33 @@ async function loadMutualCruushRows(app: FastifyInstance, userId: string) {
       photo_explicit: profile.photo_explicit,
       badges: profile.badges,
       updated_at: profile.updated_at,
+      year_of_birth: profile.year_of_birth,
       lat: profile.lat,
       lng: profile.lng,
       fuzzy_lat: profile.fuzzy_lat,
       fuzzy_lng: profile.fuzzy_lng,
+      looking_for: profile.looking_for,
       vibes: profile.vibes,
       scenes: profile.scenes,
       archetypes: profile.archetypes,
+      identities: profile.identities,
+      presentation: profile.presentation,
+      sexuality: profile.sexuality,
+      body_type: profile.body_type,
+      availability: profile.availability,
+      hobbies: profile.hobbies,
+      position: profile.position,
+      role: profile.role,
+      hosting_travel: profile.hosting_travel,
+      substance_boundaries: profile.substance_boundaries,
       profile_sensitive_ciphertext: profile.profile_sensitive_ciphertext,
       profile_sensitive_nonce: profile.profile_sensitive_nonce,
       profile_sensitive_auth_tag: profile.profile_sensitive_auth_tag,
       profile_sensitive_key_version: profile.profile_sensitive_key_version,
+      profile_visibility_ciphertext: profile.profile_visibility_ciphertext,
+      profile_visibility_nonce: profile.profile_visibility_nonce,
+      profile_visibility_auth_tag: profile.profile_visibility_auth_tag,
+      profile_visibility_key_version: profile.profile_visibility_key_version,
       ghost_mode_enabled: profile.ghost_mode_enabled,
       precise_location_visibility: profile.precise_location_visibility,
       can_message: relationship.canMessage,
@@ -473,8 +746,18 @@ async function mapTokenizedMutualCruushRow(
   options: {
     currentCoordinates: { lat: number | null; lng: number | null } | null;
     currentCrowds: string[];
+    activeCrowdModes: string[];
+    viewerSubject: VisibilitySubjectProfile | null;
+    filters: MutualMapQuery;
   }
 ) {
+  const sensitiveProfile = decryptSensitiveProfile(app.config, row);
+  const otherCrowds = sensitiveProfile?.crowds ?? [];
+
+  if (!hasAnyCrowd(options.activeCrowdModes, otherCrowds)) {
+    return null;
+  }
+
   const location = await loadLocationEnvelope(app, row.other_user_id).catch((error) => {
     if (isSchemaCompatibilityError(error)) {
       return null;
@@ -484,6 +767,16 @@ async function mapTokenizedMutualCruushRow(
   });
 
   if (!location) {
+    return null;
+  }
+
+  const preciseCoordinates = locationPayloadToCoordinates(location);
+  const targetSubject = toMapVisibilitySubject(app, row, preciseCoordinates);
+  if (!matchesMutualMapSeeking(targetSubject, preciseCoordinates, options.currentCoordinates, options.filters)) {
+    return null;
+  }
+  const targetVisibilityRules = decryptProfileVisibility(app.config, row);
+  if (options.viewerSubject && !canSubjectViewProfile(targetVisibilityRules, options.viewerSubject, preciseCoordinates)) {
     return null;
   }
 
@@ -507,9 +800,6 @@ async function mapTokenizedMutualCruushRow(
     displayMode,
     relationshipGrantVersion: relationship.isMutualCruush ? 1 : 0
   });
-  const preciseCoordinates = locationPayloadToCoordinates(location);
-  const sensitiveProfile = decryptSensitiveProfile(app.config, row);
-  const otherCrowds = sensitiveProfile?.crowds ?? [];
   const currentCrowds = new Set(options.currentCrowds.map((crowd) => crowd.toLowerCase()));
   const sharedCrowds = otherCrowds.filter((crowd) => currentCrowds.has(crowd.toLowerCase()));
   const vibes = uniqueStrings([
@@ -803,6 +1093,10 @@ export async function registerCruushRoutes(app: FastifyInstance) {
 
   app.get("/api/cruush/mutual-map", async (request, reply) => {
     const authenticatedUserId = await getAuthenticatedUserId(request);
+    const filters = mutualMapQuerySchema.parse(request.query);
+    if (hasPremiumDiscoveryFilters(filters)) {
+      await requireCruushPlus(app, authenticatedUserId, "Upgrade to cruush+ to use all seeking filters.");
+    }
     const currentLocation = await loadLocationEnvelope(app, authenticatedUserId).catch((error) => {
       if (isSchemaCompatibilityError(error)) {
         return null;
@@ -817,10 +1111,19 @@ export async function registerCruushRoutes(app: FastifyInstance) {
     const currentSensitiveProfile = currentProfile
       ? decryptSensitiveProfile(app.config, currentProfile)
       : null;
+    const currentVisibilityRules = currentProfile
+      ? decryptProfileVisibility(app.config, currentProfile)
+      : null;
+    const viewerSubject = currentProfile
+      ? toMapVisibilitySubject(app, currentProfile, currentCoordinates)
+      : null;
     const rows = await loadMutualCruushRows(app, authenticatedUserId);
     const items = await Promise.all(rows.map((row) => mapTokenizedMutualCruushRow(app, request, authenticatedUserId, row, {
       currentCoordinates,
-      currentCrowds: currentSensitiveProfile?.crowds ?? []
+      currentCrowds: currentSensitiveProfile?.crowds ?? [],
+      activeCrowdModes: currentVisibilityRules?.active_crowd_modes ?? [],
+      viewerSubject,
+      filters
     })));
 
     return reply.send({

@@ -33,6 +33,7 @@ import {
   type FeedSettings,
 } from '../lib/postApi';
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
+import { getMyCruushActivity } from '../lib/cruushApi';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
@@ -96,6 +97,9 @@ const DEFAULT_FEED_SETTINGS: FeedSettings = {
   feedWindow: '7d',
 };
 const CRUUSH_PLUS_FEED_NOTICE_KEY = 'cruush:feed-cruush-plus-notice-dismissed';
+const feedVibeTagBaseClassName = 'min-w-0 max-w-[6.25rem] shrink truncate rounded-full border px-1 py-0.5 text-center text-[11px] uppercase leading-tight tracking-[0.06em]';
+const mutualFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#6F00FF]/55 bg-[#6F00FF]/12 text-[#DCC7FF]`;
+const nearbyFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#FF0072]/55 bg-[#FF0072]/12 text-[#FF8BBB]`;
 
 type FeedCoordinates = {
   lat: number;
@@ -121,6 +125,7 @@ export default function LocalFeed() {
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [mutualUserIds, setMutualUserIds] = useState<Set<string>>(() => new Set());
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [availableCrowdTargets, setAvailableCrowdTargets] = useState<string[]>([]);
@@ -263,6 +268,9 @@ export default function LocalFeed() {
     void getCurrentUserId()
       .then(setCurrentUserId)
       .catch(() => setCurrentUserId(null));
+    void getMyCruushActivity()
+      .then((activity) => setMutualUserIds(new Set((activity.mutual ?? []).map((item) => item.user.id))))
+      .catch(() => setMutualUserIds(new Set()));
     loadBillingStatus();
     void getMyProfile()
       .then((profile) => {
@@ -682,7 +690,9 @@ export default function LocalFeed() {
 
           {!loading ? (
             <div className="space-y-3">
-              {posts.map((post) => (
+              {posts.map((post) => {
+                const mutualAuthor = mutualUserIds.has(post.user.id);
+                return (
                 <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
                   <div className="flex gap-3">
                     <HeartPhoto
@@ -690,7 +700,7 @@ export default function LocalFeed() {
                       label={`${post.user.name} preview`}
                       masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)}
                       photo={post.user?.photo}
-                      theme={currentUserId && post.user.id === currentUserId ? 'current' : 'nearby'}
+                      theme={currentUserId && post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
                       userId={post.user.id}
                       onClick={() => navigate(`/profile/${post.user.id}`)}
                       fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
@@ -706,7 +716,7 @@ export default function LocalFeed() {
                             {post.user.vibes?.slice(0, 3).map((vibe) => (
                               <span
                                 key={vibe}
-                                className="min-w-0 max-w-[6.25rem] shrink truncate rounded-full border border-[#6F00FF]/32 bg-[#6F00FF]/10 px-1 py-0.5 text-center text-[11px] uppercase leading-tight tracking-[0.06em] text-white/68"
+                                className={mutualAuthor ? mutualFeedVibeTagClassName : nearbyFeedVibeTagClassName}
                                 title={vibe}
                               >
                                 {vibe}
@@ -797,7 +807,8 @@ export default function LocalFeed() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               {hasMorePosts || loadingMore ? (
                 <div
                   ref={loadMoreRef}

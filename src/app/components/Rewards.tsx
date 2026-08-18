@@ -149,7 +149,6 @@ export default function Rewards() {
               <Sparkles className="h-5 w-5 text-primary" />
               What <CruushPlusWord /> unlocks
             </CardTitle>
-            <CardDescription>Every cruush+ feature available in the app.</CardDescription>
           </CardHeader>
           <CardContent>
             <ul aria-label="cruush+ features" className="grid gap-3 sm:grid-cols-2">

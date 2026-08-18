@@ -36,6 +36,7 @@ import {
   createCoarseIndexTokens,
   buildDefaultVisibilityPolicy,
   formatDistanceLabel,
+  isPreciseLocationRevoked,
   loadLocationEnvelopes,
   locationPayloadToCoordinates,
   makeDisplayLocationToken,
@@ -425,10 +426,10 @@ async function loadDiscoveryViewer(app: FastifyInstance, currentUserId: string) 
          profile_visibility_nonce,
          profile_visibility_auth_tag,
          profile_visibility_key_version,
-         null::double precision as lat,
-         null::double precision as lng,
-         null::double precision as fuzzy_lat,
-         null::double precision as fuzzy_lng
+         lat,
+         lng,
+         fuzzy_lat,
+         fuzzy_lng
        from profiles
        where id = $1`,
       [currentUserId]
@@ -468,10 +469,30 @@ function hasAnyCrowd(requiredCrowds: string[], subject: VisibilitySubjectProfile
   return requiredCrowds.some((crowd) => subjectCrowds.has(crowd.toLowerCase()));
 }
 
+function hasActiveSameCrowdPrecisionGrant(
+  policy: Awaited<ReturnType<typeof getEffectiveVisibilityPolicy>>,
+  viewerCrowds: string[],
+  targetCrowds: string[]
+) {
+  const normalizedViewerCrowds = new Set(viewerCrowds.map((crowd) => crowd.trim().toLowerCase()).filter(Boolean));
+  const normalizedTargetCrowds = new Set(targetCrowds.map((crowd) => crowd.trim().toLowerCase()).filter(Boolean));
+
+  return policy.preciseToMutualCrowds.some((crowdPolicy) => {
+    const normalizedCrowd = crowdPolicy.crowdId.trim().toLowerCase();
+
+    return crowdPolicy.precisionEnabled &&
+      (crowdPolicy.revokedAtMs ?? null) === null &&
+      crowdPolicy.minimumTrustLevel === "MEMBER" &&
+      normalizedViewerCrowds.has(normalizedCrowd) &&
+      normalizedTargetCrowds.has(normalizedCrowd);
+  });
+}
+
 function discoveryRowIsVisibleToViewer(
   app: FastifyInstance,
   row: DiscoveryProfileRow,
-  viewer: { subject: VisibilitySubjectProfile | null; activeCrowdModes: string[] }
+  viewer: { subject: VisibilitySubjectProfile | null; activeCrowdModes: string[] },
+  targetCoordinates: VisibilityCoordinates = getCoordinates(row)
 ) {
   if (!viewer.subject) {
     return true;
@@ -485,7 +506,7 @@ function discoveryRowIsVisibleToViewer(
 
   const targetVisibilityRules = decryptProfileVisibility(app.config, row);
 
-  return canSubjectViewProfile(targetVisibilityRules, viewer.subject, getCoordinates(row));
+  return canSubjectViewProfile(targetVisibilityRules, viewer.subject, targetCoordinates);
 }
 
 function canViewLatestFeedPreview(
@@ -764,6 +785,7 @@ async function mapModernDiscoveryRow(
   encryptedLocation: LocationPayload | null = null,
   options: {
     npcGhostDemoRadiusMeters?: number | null;
+    viewerCrowds?: string[];
   } = {}
 ) {
   const fallbackLat = row.fuzzy_lat ?? row.lat;
@@ -802,9 +824,30 @@ async function mapModernDiscoveryRow(
       }
     : storedPolicy;
 
+  const targetCrowds = toVisibilitySubject(app, row).crowds ?? [];
+  const sameCrowdPrecisionCandidate = !npcGhostDemoActive && hasActiveSameCrowdPrecisionGrant(
+    policy,
+    options.viewerCrowds ?? [],
+    targetCrowds
+  );
+  const sameCrowdPrecisionRevoked = sameCrowdPrecisionCandidate
+    ? await isPreciseLocationRevoked(app, {
+        subjectUserId: row.id,
+        viewerUserId,
+        permissionType: "mutual_crowd"
+      }).catch((error) => {
+        if (isSchemaCompatibilityError(error)) {
+          return false;
+        }
+
+        throw error;
+      })
+    : false;
+  const canRevealSameCrowdPreciseLocation = sameCrowdPrecisionCandidate && !sameCrowdPrecisionRevoked;
+
   const displayMode: DisplayMode = npcGhostDemoActive
     ? "GHOST"
-    : relationship?.canRevealPreciseLocation
+    : relationship?.canRevealPreciseLocation || canRevealSameCrowdPreciseLocation
     ? "PRECISE"
     : policy.baseMode === "GHOST"
       ? "GHOST"
@@ -815,7 +858,7 @@ async function mapModernDiscoveryRow(
     policy,
     location,
     displayMode,
-    relationshipGrantVersion: relationship?.isMutualCruush ? 1 : 0
+    relationshipGrantVersion: relationship?.isMutualCruush || canRevealSameCrowdPreciseLocation ? 1 : 0
   });
   const latestFeedPostPreview = canViewLatestFeedPreview(row, viewerUserId, relationship)
     ? decryptTextContentOrFallback(app.config, "feed", {
@@ -872,9 +915,7 @@ async function mapModernDiscoveryRow(
       ? {
           mutualCruush: relationship.isMutualCruush,
           canMessage: await canStartDirectMessage(app, viewerUserId, row.id, relationship ?? undefined),
-          ...(relationship.isMutualCruush
-            ? { precision: displayMode === "PRECISE" ? "precise" as const : "fuzzy" as const }
-            : {})
+          precision: displayMode === "PRECISE" ? "precise" as const : "fuzzy" as const
         }
       : null
   };
@@ -993,7 +1034,10 @@ export async function registerUserRoutes(app: FastifyInstance) {
       ? (await loadPolicyOrDefault(app, currentUserId)).ghostRadiusMeters ?? DEFAULT_GHOST_RADIUS_METERS
       : DEFAULT_GHOST_RADIUS_METERS;
     const encryptedLocations = discoveryRows.mode === "modern"
-      ? await loadLocationEnvelopes(app, discoveryRows.rows.map((row) => row.id)).catch((error) => {
+      ? await loadLocationEnvelopes(app, [
+          currentUserId,
+          ...discoveryRows.rows.map((row) => row.id)
+        ]).catch((error) => {
           if (isSchemaCompatibilityError(error)) {
             return new Map<string, LocationPayload>();
           }
@@ -1001,9 +1045,21 @@ export async function registerUserRoutes(app: FastifyInstance) {
           throw error;
         })
       : new Map<string, LocationPayload>();
+    const viewerLocation = encryptedLocations.get(currentUserId);
+    if (viewerLocation && discoveryViewer.subject) {
+      discoveryViewer.subject.coordinates = locationPayloadToCoordinates(viewerLocation);
+    }
     const realUsers = discoveryRows.mode === "modern"
       ? (await Promise.all(discoveryRows.rows
-          .filter((row) => discoveryRowIsVisibleToViewer(app, row, discoveryViewer))
+          .filter((row) => {
+            const targetLocation = encryptedLocations.get(row.id);
+            return discoveryRowIsVisibleToViewer(
+              app,
+              row,
+              discoveryViewer,
+              targetLocation ? locationPayloadToCoordinates(targetLocation) : getCoordinates(row)
+            );
+          })
           .map(async (row) => {
             usedIds.add(row.id);
             const relationship = await getRelationshipPermissions(app, currentUserId, row.id);
@@ -1019,7 +1075,8 @@ export async function registerUserRoutes(app: FastifyInstance) {
               {
                 npcGhostDemoRadiusMeters: shouldApplyNpcGhostDemo(app, row, npcGhostDemoEnabled)
                   ? viewerGhostRadiusMeters
-                  : null
+                  : null,
+                viewerCrowds: discoveryViewer.subject?.crowds ?? []
               }
             );
           })))

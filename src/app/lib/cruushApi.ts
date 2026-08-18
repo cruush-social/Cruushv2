@@ -92,6 +92,25 @@ type MutualMapResponse = {
   profiles: TokenizedMutualMapItem[];
 };
 
+export type MutualCruushMapFilters = {
+  ageRange?: [number, number];
+  distance?: number;
+  identities?: string[];
+  presentations?: string[];
+  lookingFor?: string[];
+  timing?: string[];
+  hosting?: string[];
+  vibes?: string[];
+  crowds?: string[];
+  hobbies?: string[];
+  positions?: string[];
+  roles?: string[];
+  kinks?: string[];
+  bodyTypes?: string[];
+  sexuality?: string[];
+  substanceBoundaries?: string[];
+};
+
 export type ProfileViewActivityItem = CruushLockableActivityItem & {
   viewedAt: string;
 };
@@ -158,8 +177,43 @@ export async function getMyLegacyCruushActivity() {
   return requestApi<{ received: CruushActivityItem[]; sent: CruushActivityItem[] }>(`/api/cruush/${userId}`);
 }
 
-export async function getMutualCruushMap() {
-  const response = await requestApi<MutualMapResponse | MutualCruushActivityItem[]>('/api/cruush/mutual-map');
+function appendMutualMapListParams(params: URLSearchParams, key: string, values?: string[]) {
+  for (const value of values ?? []) {
+    if (value.trim()) {
+      params.append(key, value);
+    }
+  }
+}
+
+export async function getMutualCruushMap(filters?: MutualCruushMapFilters) {
+  const params = new URLSearchParams();
+  if (filters?.distance != null && filters.distance !== 100) {
+    params.set('distance', String(filters.distance));
+  }
+  if (filters?.ageRange && filters.ageRange[0] !== 18) {
+    params.set('minAge', String(filters.ageRange[0]));
+  }
+  if (filters?.ageRange && filters.ageRange[1] !== 99) {
+    params.set('maxAge', String(filters.ageRange[1]));
+  }
+  appendMutualMapListParams(params, 'identities', filters?.identities);
+  appendMutualMapListParams(params, 'presentations', filters?.presentations);
+  appendMutualMapListParams(params, 'lookingFor', filters?.lookingFor);
+  appendMutualMapListParams(params, 'timing', filters?.timing);
+  appendMutualMapListParams(params, 'hosting', filters?.hosting);
+  appendMutualMapListParams(params, 'vibes', filters?.vibes);
+  appendMutualMapListParams(params, 'crowds', filters?.crowds);
+  appendMutualMapListParams(params, 'hobbies', filters?.hobbies);
+  appendMutualMapListParams(params, 'positions', filters?.positions);
+  appendMutualMapListParams(params, 'roles', filters?.roles);
+  appendMutualMapListParams(params, 'kinks', filters?.kinks);
+  appendMutualMapListParams(params, 'bodyTypes', filters?.bodyTypes);
+  appendMutualMapListParams(params, 'sexuality', filters?.sexuality);
+  appendMutualMapListParams(params, 'substanceBoundaries', filters?.substanceBoundaries);
+  const query = params.toString();
+  const response = await requestApi<MutualMapResponse | MutualCruushActivityItem[]>(
+    query ? `/api/cruush/mutual-map?${query}` : '/api/cruush/mutual-map',
+  );
 
   if (Array.isArray(response)) {
     return response;

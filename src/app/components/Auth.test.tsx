@@ -90,11 +90,30 @@ describe('Auth', () => {
     expect(authCss).toContain('width: 100%;');
   });
 
-  it('does not pin the mobile footer actions over the form', () => {
+  it('allows the auth page to scroll only when larger text needs more room', () => {
     render(<Auth onAuth={vi.fn()} />);
 
-    expect(authCss).not.toContain('overflow-y-auto');
+    expect(authCss).toContain('html[data-cruush-larger-text] .launch-login-auth-shell');
+    expect(authCss).toContain('overflow-y: auto;');
     expect(authCss).not.toContain('overflow: visible !important');
+  });
+
+  it('keeps the age suspension appeal reachable from sign in', () => {
+    render(<Auth onAuth={vi.fn()} />);
+
+    expect(screen.getByRole('link', { name: 'Appeal an age-related suspension' })).toHaveAttribute(
+      'href',
+      '/support?appeal=1',
+    );
+  });
+
+  it('keeps general support reachable from sign in', () => {
+    render(<Auth onAuth={vi.fn()} />);
+
+    expect(screen.getByRole('link', { name: 'Contact support' })).toHaveAttribute(
+      'href',
+      '/support',
+    );
   });
 
   it('keeps readable spacing between mobile auth form controls', () => {

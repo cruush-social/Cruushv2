@@ -86,7 +86,9 @@ function canDeleteConversation(conversation: ConversationThread) {
 
 const mutualBadgeClassName = 'rounded-md border border-[#8B5CF6]/45 bg-[#8B5CF6]/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#DCC7FF]';
 const quietBadgeClassName = 'rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/52';
-const vibeBadgeClassName = 'rounded-full border border-[#6F00FF]/32 bg-[#6F00FF]/10 px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em] text-white/68';
+const vibeBadgeBaseClassName = 'rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]';
+const mutualVibeBadgeClassName = `${vibeBadgeBaseClassName} border-[#6F00FF]/55 bg-[#6F00FF]/12 text-[#DCC7FF]`;
+const nearbyVibeBadgeClassName = `${vibeBadgeBaseClassName} border-[#FF0072]/55 bg-[#FF0072]/12 text-[#FF8BBB]`;
 
 function topVibeTags(...groups: Array<string[] | undefined>) {
   return [...new Set(groups.flatMap((group) => group ?? []).map((value) => value.trim()).filter(Boolean))].slice(0, 3);
@@ -514,6 +516,11 @@ export default function DirectMessages() {
           onApplyFilters={loadDirectMessageOptions}
           onUpgrade={() => navigate('/rewards')}
           onMessage={handleStartDirectChat}
+          onOpenMap={(userId, mutual) => navigate(
+            mutual
+              ? `/map?mode=mutuals&focusUserId=${encodeURIComponent(userId)}`
+              : `/map?focusUserId=${encodeURIComponent(userId)}`,
+          )}
           onOpenProfile={(userId) => navigate(`/profile/${userId}`)}
         />
       ) : null}
@@ -603,7 +610,7 @@ export default function DirectMessages() {
                       {item.vibes.length > 0 ? (
                         <span className="mt-1 flex flex-wrap gap-1">
                           {item.vibes.slice(0, 3).map((vibe) => (
-                            <span key={vibe} className="rounded-md border border-[#8B5CF6]/45 bg-[#8B5CF6]/15 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#DCC7FF]">
+                            <span key={vibe} className={mutualVibeBadgeClassName}>
                               {vibe}
                             </span>
                           ))}
@@ -895,6 +902,7 @@ function DirectUserOverlay({
   onApplyFilters,
   onUpgrade,
   onMessage,
+  onOpenMap,
   onOpenProfile,
 }: {
   error: string | null;
@@ -909,6 +917,7 @@ function DirectUserOverlay({
   onApplyFilters: (filters: FilterState) => Promise<void>;
   onUpgrade: () => void;
   onMessage: (userId: string) => void;
+  onOpenMap: (userId: string, mutual: boolean) => void;
   onOpenProfile: (userId: string) => void;
 }) {
   const dlModeActive = useDlMode();
@@ -955,7 +964,7 @@ function DirectUserOverlay({
       });
       onAskMutual(user);
     } catch (error) {
-      setRequestError(error instanceof Error ? error.message : 'Failed to ask for a mutual cruush.');
+      setRequestError(error instanceof Error ? error.message : 'Failed to send cruush.');
     } finally {
       setRequestingUserId(null);
     }
@@ -1058,7 +1067,8 @@ function DirectUserOverlay({
         <div className="space-y-2">
           {activeComposerTab === 'public' && sortedPublicUsers.length > 0 ? sortedPublicUsers.map((user) => {
             const requested = requestedCruushIds.includes(user.id);
-            const canMessageNow = user.relationship?.canMessage !== false;
+            const canMessageNow = user.relationship?.canMessage === true;
+            const hasPreciseLocation = user.displayMode === 'PRECISE';
             const vibeTags = topVibeTags(user.vibes, user.scenes, user.archetypes);
             return (
               <div
@@ -1086,7 +1096,7 @@ function DirectUserOverlay({
                       <Badge variant="outline" className={quietBadgeClassName}>{user.distance}</Badge>
                       {user.hasSharedCrowd ? <Badge variant="outline" className={mutualBadgeClassName}>Crowd</Badge> : null}
                       {vibeTags.map((vibe) => (
-                        <Badge key={vibe} variant="outline" className={vibeBadgeClassName}>{vibe}</Badge>
+                        <Badge key={vibe} variant="outline" className={nearbyVibeBadgeClassName}>{vibe}</Badge>
                       ))}
                       {user.latestFeedPostPreview ? (
                         <Badge variant="outline" className="max-w-[12rem] border-white/10 bg-white/[0.04] text-[10px] text-white/62">
@@ -1097,54 +1107,102 @@ function DirectUserOverlay({
                     </span>
                   </span>
                 </button>
-                {!canMessageNow ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0 rounded-full border-[#8B5CF6]/45 bg-[#8B5CF6]/12 text-[#DCC7FF] hover:bg-[#8B5CF6]/18"
-                    disabled={requested || requestingUserId === user.id}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      void requestMutual(user);
-                    }}
-                  >
-                    {requested ? 'Sent' : 'Ask mutual'}
-                  </Button>
-                ) : null}
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  {canMessageNow ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-[#FF0072]/55 bg-[#FF0072]/12 text-[#FF8BBB] hover:bg-[#FF0072]/18"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onMessage(user.id);
+                      }}
+                    >
+                      Message
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-[#8B5CF6]/45 bg-[#8B5CF6]/12 text-[#DCC7FF] hover:bg-[#8B5CF6]/18"
+                      disabled={requested || requestingUserId === user.id}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void requestMutual(user);
+                      }}
+                    >
+                      {requested ? 'Sent' : 'cruush'}
+                    </Button>
+                  )}
+                  {hasPreciseLocation ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-9 rounded-full border-white/16 bg-background/72 text-white/78 hover:bg-white/10"
+                      aria-label={`View ${user.name}'s precise location on the map`}
+                      title="Precise location"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenMap(user.id, false);
+                      }}
+                    >
+                      <MapPin className="size-4" />
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             );
           }) : mutuals.map((item) => (
-            <button
+            <div
               key={item.user.id}
-              type="button"
               className="flex w-full items-center gap-3 rounded-2xl border border-[#8B5CF6]/35 bg-card/70 p-3 text-left transition-colors hover:bg-accent/60"
-              onClick={() => onMessage(item.user.id)}
             >
-              <HeartPhoto
-                className="w-20 shrink-0"
-                label={`${item.user.name} avatar`}
-                masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
-                photo={item.user.photo}
-                theme="mutual"
-                userId={item.user.id}
-                onClick={() => onOpenProfile(item.user.id)}
-                fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-base">{item.user.name}</span>
-                <span className="mt-0.5 block truncate text-xs text-muted-foreground">{[item.user.pronouns, item.distance].filter(Boolean).join(' · ')}</span>
-                <span className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <Badge variant="outline" className={mutualBadgeClassName}>Mutual</Badge>
-                  {topVibeTags(item.vibes).map((vibe) => (
-                    <Badge key={vibe} variant="outline" className={vibeBadgeClassName}>{vibe}</Badge>
-                  ))}
-                  {item.mutualCrowds.map((crowd) => (
-                    <Badge key={crowd} variant="outline" className={quietBadgeClassName}>{crowd}</Badge>
-                  ))}
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                onClick={() => onMessage(item.user.id)}
+              >
+                <HeartPhoto
+                  className="w-20 shrink-0"
+                  label={`${item.user.name} avatar`}
+                  masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+                  photo={item.user.photo}
+                  theme="mutual"
+                  userId={item.user.id}
+                  onClick={() => onOpenProfile(item.user.id)}
+                  fallback={<div className="text-base text-white/80">{getConversationInitials(item.user.name)}</div>}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-base">{item.user.name}</span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">{[item.user.pronouns, item.distance].filter(Boolean).join(' · ')}</span>
+                  <span className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <Badge variant="outline" className={mutualBadgeClassName}>Mutual</Badge>
+                    {topVibeTags(item.vibes).map((vibe) => (
+                      <Badge key={vibe} variant="outline" className={mutualVibeBadgeClassName}>{vibe}</Badge>
+                    ))}
+                    {item.mutualCrowds.map((crowd) => (
+                      <Badge key={crowd} variant="outline" className={quietBadgeClassName}>{crowd}</Badge>
+                    ))}
+                  </span>
                 </span>
-              </span>
-            </button>
+              </button>
+              {item.coordinates?.precision === 'precise' ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-9 shrink-0 rounded-full border-white/16 bg-background/72 text-white/78 hover:bg-white/10"
+                  aria-label={`View ${item.user.name}'s precise location on the map`}
+                  title="Precise location"
+                  onClick={() => onOpenMap(item.user.id, true)}
+                >
+                  <MapPin className="size-4" />
+                </Button>
+              ) : null}
+            </div>
           ))}
         </div>
 
