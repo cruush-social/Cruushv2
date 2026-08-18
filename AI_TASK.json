@@ -1,8 +1,8 @@
 {
-  "status": "verified",
+  "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Call the completed current-session bug fixes and UI updates cruush v1.4. Add no new product scope. Preserve the verified clipboard controls and onboarding viewport behavior. Remove the visible scrollbar from the map tutorial card while retaining overflow reachability on unusually short screens. Keep the tutorial open when its flow navigates away from the map, and route forward and back steps to the map, Ghost Mode, or Feed destination they describe. Visually confirm the tutorial route handoff and in-app changelog label, then create one local commit. Do not push or deploy.",
+  "job": "Finish the reviewed cruush v1.4 bug-fix and interface batch. Add persisted Accessibility controls, horizontal Cruise Carousel profile-reel motion, consistent thin scrollbar styling, and the mutual-cruush badge icon without the pink cruush-button drop-shadow. Preserve the completed session fixes already on this branch. Visually confirm the affected authenticated flows, run only fast build and contract gates without tests, create one final commit, publish the complete linear branch to origin/main, deploy the existing production frontend and API through Coolify without changing environment variables, and verify remote SHA, frontend delivery, API health, API build metadata, and the affected live UI.",
   "base": "origin/main at ae61f563ef6ed81d6a7b2a297169cbca040c270b",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
@@ -13,8 +13,15 @@
     "pnpm-lock.yaml",
     ".env.example",
     "src/app/lib/posthog.ts",
+    "src/app/lib/accessibilityPreferences.ts",
     "src/app/lib/posthog.test.ts",
     "src/app/components/GoogleAnalyticsPageTracker.tsx",
+    "src/app/components/Settings.tsx",
+    "src/app/components/MapView.tsx",
+    "src/app/components/CruiseCarouselSlot.tsx",
+    "src/app/components/LaunchLoginMapTeaser.tsx",
+    "src/main.tsx",
+    "src/styles/theme.css",
     "nginx.conf",
     "src/app/components/MapHome.tsx",
     "src/app/lib/usersApi.ts",
@@ -115,6 +122,7 @@
     "src/app/components/CruiseCarouselSlot.test.tsx",
     "src/app/components/FeelingLucky.tsx",
     "src/app/components/ProfileCard.tsx",
+    "src/app/components/MapProfilePopup.tsx",
     "src/app/assets/brand/cruush-logo.png",
     "public/email/cruush-v1.2-logo-transparent.png",
     "public/icons/apple-touch-icon.png",
@@ -199,7 +207,7 @@
   "nonGoals": [
     "Do not change map data, zoom, discovery eligibility, pin contents beyond active Ping state, hover behavior, or non-person markers.",
     "Do not add onboarding steps or change moderation, profile visibility, or backend persistence beyond supporting up to three Hosting/Travel values.",
-    "Do not touch production data or services, push, merge, deploy, create tests, edit tests, or run tests.",
+    "Do not touch production data, create tests, edit tests, or run tests. Publish only this reviewed linear v1.4 branch to origin/main and deploy the existing production frontend and API without changing environment variables.",
     "Do not remove or replace Google Analytics, add feature flags, enable session recording, enable autocapture, or send unsanitized route identifiers.",
     "Do not weaken recipient authorization, expose precise location, alter message visibility settings, or change map discovery policy; use only existing approximate saved coordinates and existing canMessage checks. Broader chooser results may relax local preference filters only.",
     "Do not change backend analytics, consent copy, authentication, deployment settings, or PostHog project configuration in this source-only task.",
@@ -214,6 +222,10 @@
     "Record required Terms and Privacy acceptance and optional product-updates consent at signup; preserve unsubscribe state and do not send email in this task."
   ],
   "proof": [
+    "Rendered 390 by 844 Cruise Carousel card and full-profile actions show the existing white mutual-cruush badge heart on the cruush control with computed box-shadow none; the mutual profile state still exposes its Remove mutual cruush action.",
+    "Rendered authenticated Settings shows Reduce motion, Larger text, and Increase contrast switches. Enabling them through the visible controls applies all three root attributes immediately, changes the root font size to 18px, raises muted contrast, and persists one on-device preference object; the local test account was restored to all-off afterward.",
+    "Rendered 390 by 844 Cruise Carousel shows five distinct authorized profile IDs in the horizontal reel, advances through seven distinct profile windows during one spin, translates the reel beneath fixed pink stop markers, blurs at speed, slows, and opens the selected profile after locking.",
+    "Rendered mobile Settings keeps vertical scrolling and reports scrollbar-width thin with a transparent track and the same subtle thumb color as the Recently Active horizontal tray; intentional scrollbar-hide surfaces remain unchanged.",
     "Rendered 390 by 844 map tutorial card has no visible internal scrollbar; Crowd Mode Next navigates to Ghost Mode settings with the tutorial still open, and Ghost Mode Next returns to the map at DL Mode.",
     "Rendered authenticated in-app changelog header and release card both show cruush v1.4.",
     "Rendered 390 by 844 onboarding uses an internal vertical scroll container: short rites fit without scrolling, tall 2FA and oath states scroll to reachable actions above the bottom navigation, step changes return to the top, and horizontal overflow remains absent.",
@@ -248,5 +260,5 @@
     "Migration 082 creates a replay-safe one-day 2FA cruush+ promotion cutover; focused server migration/2FA checks passed (25 tests), server build passed, and onboarding check passed (9 tests).",
     "Beta access now covers the 20-mile NYC launch area; focused geofence checks passed (2 tests), map-boundary/Auth checks passed (18 and 15 tests), and the rendered local map includes Yonkers without exposing the private service center."
   ],
-  "publicationTarget": "One local cruush v1.4 commit on codex/fix-all-issues-20260817 only. Do not push, merge, deploy, or send communications."
+  "publicationTarget": "origin/main, then the existing Coolify production frontend at cruush.app and API at api.cruush.app. Do not send communications."
 }

@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
-import CruushIconImage from './CruushIconImage';
+import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
 import ProfileEdit from './ProfileEdit';
 import { ProfileDetailsTabs, profileRecordToProfileView } from './ProfileView';
@@ -12,7 +12,6 @@ import { sendCruush } from '../lib/cruushApi';
 import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { emptyProfilePayload, getMyProfile, getProfileById, type ProfileRecord } from '../lib/profileApi';
-import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import sendIconWhite from '../assets/ui-icons/send-white.png';
 
@@ -293,7 +292,7 @@ export default function MapProfilePopup({
               }}
               aria-label={isDemo ? 'Demo profile' : isAlreadyMutual ? 'Already mutual' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
             >
-              <CruushIconImage src={cruushIconWhite} className={`h-6 w-6 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} />
+              <CruushIcon name="safety" className={`h-6 w-6 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
             </Button>
 
             <Button

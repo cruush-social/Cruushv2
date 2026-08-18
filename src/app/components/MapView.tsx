@@ -33,6 +33,7 @@ import {
 } from '../lib/mapMarkers';
 import { HEART_PIN_PATH, HEART_PIN_THEMES } from '../lib/heartPin';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
+import { shouldReduceMotion } from '../lib/accessibilityPreferences';
 import {
   MAP_SERVICE_CENTER,
   MAP_SERVICE_MAX_BOUNDS,
@@ -860,12 +861,6 @@ function truncateMarkerPreview(value: string | null | undefined, maxCharacters =
     .trim();
 
   return `${clippedValue || normalizedValue.slice(0, maxCharacters).trim()}...`;
-}
-
-function shouldReduceMotion() {
-  return typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 function getBadgeIcon(badge: MapMarkerBadge | null | undefined) {

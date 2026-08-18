@@ -6,6 +6,7 @@ import CruushPlusWord from './CruushPlusWord';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import type { DiscoveryUser } from '../lib/usersApi';
+import { ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, shouldReduceMotion } from '../lib/accessibilityPreferences';
 
 export type CruiseCarouselSlotMode = 'profile' | 'locked' | 'empty';
 export type CruiseCarouselSlotVariant = 'panel' | 'page';
@@ -25,6 +26,7 @@ type CarouselItem =
 type CruiseCarouselSlotProps = {
   mode: CruiseCarouselSlotMode;
   variant: CruiseCarouselSlotVariant;
+  candidateUsers?: DiscoveryUser[];
   targetUser?: DiscoveryUser | null;
   onClose?: () => void;
   onComplete?: () => void;
@@ -33,8 +35,10 @@ type CruiseCarouselSlotProps = {
   browseDurationMs?: number;
 };
 
-const DEFAULT_BROWSE_DURATION_MS = 1100;
+const DEFAULT_BROWSE_DURATION_MS = 2400;
 const FEATURED_ITEM_INDEX = 2;
+const PROFILE_CYCLE_START_INTERVAL_MS = 70;
+const PROFILE_CYCLE_END_INTERVAL_MS = 280;
 
 const CAROUSEL_ICONS: CarouselItem[] = [
   { kind: 'icon', icon: 'cruush', label: 'cruush' },
@@ -48,7 +52,7 @@ const CAROUSEL_ICONS: CarouselItem[] = [
 ];
 
 function usePrefersReducedMotion() {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(shouldReduceMotion);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -56,20 +60,93 @@ function usePrefersReducedMotion() {
     }
 
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const syncPreference = () => setPrefersReducedMotion(media.matches);
+    const syncPreference = () => setPrefersReducedMotion(shouldReduceMotion());
 
     syncPreference();
     media.addEventListener?.('change', syncPreference);
+    window.addEventListener(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, syncPreference);
 
     return () => {
       media.removeEventListener?.('change', syncPreference);
+      window.removeEventListener(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, syncPreference);
     };
   }, []);
 
   return prefersReducedMotion;
 }
 
-function makeBrowseItems(mode: CruiseCarouselSlotMode, targetUser?: DiscoveryUser | null) {
+function uniqueProfileCandidates(candidateUsers: DiscoveryUser[], targetUser?: DiscoveryUser | null) {
+  const candidatesById = new Map<string, DiscoveryUser>();
+
+  candidateUsers.forEach((user) => candidatesById.set(user.id, user));
+  if (targetUser) {
+    candidatesById.set(targetUser.id, targetUser);
+  }
+
+  return Array.from(candidatesById.values());
+}
+
+function makeProfileBrowseItems(
+  candidateUsers: DiscoveryUser[],
+  targetUser: DiscoveryUser,
+  cycleStep: number,
+  settled: boolean,
+): CarouselItem[] {
+  const profileCandidates = uniqueProfileCandidates(candidateUsers, targetUser);
+  const targetIndex = Math.max(0, profileCandidates.findIndex((user) => user.id === targetUser.id));
+  const startIndex = settled
+    ? targetIndex - FEATURED_ITEM_INDEX
+    : cycleStep;
+  const orderedProfiles = Array.from({ length: profileCandidates.length }, (_, offset) => (
+    profileCandidates[(startIndex + offset + profileCandidates.length * 2) % profileCandidates.length]
+  ));
+  const profileItems: CarouselItem[] = orderedProfiles.slice(0, 5).map((user) => ({
+    kind: 'profile',
+    user,
+    label: user.name,
+  }));
+
+  const fallbackIcons = CAROUSEL_ICONS.filter((item) => item.kind === 'icon');
+  if (settled) {
+    const selectedItem: CarouselItem = { kind: 'profile', user: targetUser, label: targetUser.name };
+    const otherItems = profileItems.filter((item) => item.kind !== 'profile' || item.user.id !== targetUser.id);
+    const leftItems = otherItems.slice(0, FEATURED_ITEM_INDEX);
+    const rightItems = otherItems.slice(FEATURED_ITEM_INDEX, 4);
+
+    while (leftItems.length < FEATURED_ITEM_INDEX) {
+      leftItems.unshift(fallbackIcons[leftItems.length % fallbackIcons.length]);
+    }
+    while (rightItems.length < 2) {
+      rightItems.push(fallbackIcons[(FEATURED_ITEM_INDEX + rightItems.length) % fallbackIcons.length]);
+    }
+
+    return [...leftItems, selectedItem, ...rightItems];
+  }
+
+  while (profileItems.length < 5) {
+    profileItems.push(fallbackIcons[profileItems.length % fallbackIcons.length]);
+  }
+
+  return profileItems;
+}
+
+function makeBrowseItems(
+  mode: CruiseCarouselSlotMode,
+  targetUser: DiscoveryUser | null,
+  candidateUsers: DiscoveryUser[],
+  cycleStep: number,
+  settled: boolean,
+) {
+  if (mode === 'profile' && targetUser) {
+    return makeProfileBrowseItems(candidateUsers, targetUser, cycleStep, settled);
+  }
+
+  if (!settled) {
+    return Array.from({ length: 5 }, (_, offset) => (
+      CAROUSEL_ICONS[(cycleStep + offset) % CAROUSEL_ICONS.length]
+    ));
+  }
+
   const featuredItem: CarouselItem = mode === 'profile' && targetUser
     ? {
         kind: 'profile',
@@ -91,13 +168,26 @@ function makeBrowseItems(mode: CruiseCarouselSlotMode, targetUser?: DiscoveryUse
   ];
 }
 
-function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolean }) {
+function CarouselTile({ item, featured, itemIndex, spinning }: {
+  item: CarouselItem;
+  featured: boolean;
+  itemIndex: number;
+  spinning: boolean;
+}) {
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const profileSizeClass = featured ? 'aspect-[4/5] w-[6rem]' : 'aspect-[4/5] w-[4.8rem]';
   const iconSizeClass = featured ? 'h-[6.25rem] w-[6.25rem]' : 'h-[5rem] w-[5rem]';
   const frameClass = featured
     ? 'border-white/34 bg-white/[0.12] shadow-[0_0_34px_rgba(255,0,114,0.26)]'
     : 'border-white/12 bg-white/[0.055]';
+  const positionClass = featured
+    ? 'scale-110 rotate-0 opacity-100'
+    : itemIndex < FEATURED_ITEM_INDEX
+    ? '-rotate-3 scale-90 opacity-70'
+    : itemIndex > FEATURED_ITEM_INDEX
+    ? 'rotate-3 scale-90 opacity-70'
+    : 'scale-100 rotate-0 opacity-100';
+  const cycleClass = spinning ? 'cruise-carousel-profile-spinning' : '';
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
@@ -109,8 +199,9 @@ function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolea
 
     return (
       <div
+        data-carousel-profile-id={item.user.id}
         data-testid="cruise-carousel-profile-tile"
-        className={`flex ${profileSizeClass} shrink-0 items-center justify-center overflow-hidden rounded-[1.375rem] border ${frameClass} transition-all duration-500`}
+        className={`flex ${profileSizeClass} shrink-0 items-center justify-center overflow-hidden rounded-[1.375rem] border ${frameClass} ${positionClass} ${cycleClass} transition-all duration-300`}
       >
         {photo ? (
           <img
@@ -131,7 +222,7 @@ function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolea
 
   return (
     <div
-      className={`flex ${iconSizeClass} shrink-0 items-center justify-center rounded-[1.375rem] border ${frameClass} transition-all duration-500`}
+      className={`flex ${iconSizeClass} shrink-0 items-center justify-center rounded-[1.375rem] border ${frameClass} ${positionClass} transition-all duration-300`}
     >
       <CruushIcon name={item.icon} className={featured ? 'h-12 w-12' : 'h-10 w-10'} variant={featured ? 'colored' : 'white'} />
     </div>
@@ -141,6 +232,7 @@ function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolea
 export default function CruiseCarouselSlot({
   mode,
   variant,
+  candidateUsers = [],
   targetUser = null,
   onClose,
   onComplete,
@@ -150,7 +242,13 @@ export default function CruiseCarouselSlot({
 }: CruiseCarouselSlotProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
   const [settled, setSettled] = useState(false);
+  const [cycleStep, setCycleStep] = useState(0);
   const onCompleteRef = useRef(onComplete);
+  const profileCandidates = useMemo(
+    () => uniqueProfileCandidates(candidateUsers, targetUser),
+    [candidateUsers, targetUser],
+  );
+  const profileCandidateKey = profileCandidates.map((user) => user.id).join(':');
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -158,9 +256,27 @@ export default function CruiseCarouselSlot({
 
   useEffect(() => {
     setSettled(false);
+    setCycleStep(0);
 
     const duration = prefersReducedMotion ? 140 : browseDurationMs;
+    const hasCyclingItems = mode === 'profile' ? profileCandidates.length > 1 : true;
+    const cycleStartedAt = window.performance.now();
+    let cycleTimer: number | null = null;
+    const advanceReel = () => {
+      setCycleStep((currentStep) => currentStep + 1);
+      const progress = Math.min(1, (window.performance.now() - cycleStartedAt) / duration);
+      const nextDelay = PROFILE_CYCLE_START_INTERVAL_MS
+        + Math.round((PROFILE_CYCLE_END_INTERVAL_MS - PROFILE_CYCLE_START_INTERVAL_MS) * progress ** 3);
+      cycleTimer = window.setTimeout(advanceReel, nextDelay);
+    };
+
+    if (!prefersReducedMotion && hasCyclingItems) {
+      cycleTimer = window.setTimeout(advanceReel, PROFILE_CYCLE_START_INTERVAL_MS);
+    }
     const timer = window.setTimeout(() => {
+      if (cycleTimer !== null) {
+        window.clearTimeout(cycleTimer);
+      }
       setSettled(true);
       if (mode === 'profile') {
         onCompleteRef.current?.();
@@ -169,12 +285,15 @@ export default function CruiseCarouselSlot({
 
     return () => {
       window.clearTimeout(timer);
+      if (cycleTimer !== null) {
+        window.clearTimeout(cycleTimer);
+      }
     };
-  }, [browseDurationMs, mode, prefersReducedMotion, targetUser?.id]);
+  }, [browseDurationMs, mode, prefersReducedMotion, profileCandidateKey, profileCandidates.length, targetUser?.id]);
 
   const browseItems = useMemo(
-    () => makeBrowseItems(mode, targetUser),
-    [mode, targetUser],
+    () => makeBrowseItems(mode, targetUser, profileCandidates, cycleStep, settled),
+    [cycleStep, mode, profileCandidates, settled, targetUser],
   );
   const featuredFrameClass = browseItems[FEATURED_ITEM_INDEX]?.kind === 'profile'
     ? 'aspect-[4/5] w-[6.6rem]'
@@ -216,14 +335,21 @@ export default function CruiseCarouselSlot({
         <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
           <div className="pointer-events-none absolute inset-y-4 left-0 z-10 w-14 bg-gradient-to-r from-black/75 to-transparent" />
           <div className="pointer-events-none absolute inset-y-4 right-0 z-10 w-14 bg-gradient-to-l from-black/75 to-transparent" />
-          <div data-testid="cruise-carousel-featured-frame" className={`pointer-events-none absolute left-1/2 top-1/2 z-10 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]`} />
+          <div data-testid="cruise-carousel-featured-frame" className={`pointer-events-none absolute left-1/2 top-1/2 z-10 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${settled ? '' : 'cruise-carousel-frame-spinning'}`} />
+          <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-2 z-20 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-primary shadow-[0_0_14px_rgba(255,0,114,0.9)]" />
+          <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 z-20 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-primary shadow-[0_0_14px_rgba(255,0,114,0.9)]" />
           <div className="relative flex h-[9rem] items-center justify-center overflow-hidden" aria-hidden="true">
-            <div className={`flex items-center gap-3 transition-transform duration-500 ease-out ${settled ? '' : 'cruise-carousel-browse'}`}>
+            <div
+              key={settled ? 'settled' : `reel-${cycleStep}`}
+              className={`flex items-center gap-3 ${settled ? 'cruise-carousel-reel-lock' : 'cruise-carousel-reel-step'}`}
+            >
               {browseItems.map((item, itemIndex) => (
                 <CarouselTile
                   key={`${item.kind}-${item.kind === 'icon' ? item.icon : item.user.id}-${itemIndex}`}
                   item={item}
                   featured={settled && itemIndex === FEATURED_ITEM_INDEX}
+                  itemIndex={itemIndex}
+                  spinning={!settled && mode === 'profile'}
                 />
             ))}
             </div>

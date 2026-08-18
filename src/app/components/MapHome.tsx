@@ -2139,6 +2139,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           <CruiseCarouselSlot
             key={`map-lucky-${luckySlot.mode}-${luckySlot.nonce}`}
             mode={luckySlot.mode}
+            candidateUsers={displayedUsers}
             targetUser={luckySlot.mode === 'profile' ? luckySlot.targetUser : null}
             variant="panel"
             onClose={() => setLuckySlot(null)}

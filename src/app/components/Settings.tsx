@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowLeft, BookOpen, ChevronRight, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, UserX, type LucideIcon } from 'lucide-react';
+import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, type LucideIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
 import {
@@ -22,6 +22,7 @@ import {
 } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Switch } from './ui/switch';
 import { CruushIcon, type CruushIconName, type CruushIconVariant } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import PublicPolicyLinks from './PublicPolicyLinks';
@@ -36,8 +37,13 @@ import {
   setVerificationPreviewUrl,
 } from '../lib/sessionUser';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
+import {
+  getAccessibilityPreferences,
+  saveAccessibilityPreferences,
+  type AccessibilityPreferences,
+} from '../lib/accessibilityPreferences';
 
-type SettingsItem = {
+type SettingsActionItem = {
   icon?: LucideIcon;
   iconName?: CruushIconName;
   iconVariant?: CruushIconVariant;
@@ -46,6 +52,15 @@ type SettingsItem = {
   action: () => void;
   destructive?: boolean;
 };
+
+type SettingsToggleItem = {
+  checked: boolean;
+  icon: LucideIcon;
+  label: string;
+  onCheckedChange: (checked: boolean) => void;
+};
+
+type SettingsItem = SettingsActionItem | SettingsToggleItem;
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -68,6 +83,7 @@ export default function Settings() {
   const storedUser = useMemo(() => getStoredCurrentUser(), []);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const [accessibilityPreferences, setAccessibilityPreferences] = useState(getAccessibilityPreferences);
   const [previewUrl, setPreviewUrlState] = useState(() => getVerificationPreviewUrl());
   const isEmailVerified = Boolean(storedUser?.email_verified_at);
   const displayName = profile?.display_name?.trim() || storedUser?.display_name || storedUser?.name || 'cruush user';
@@ -95,6 +111,18 @@ export default function Settings() {
   }, []);
   useEffect(() => addProfileChangedListener(setProfile), []);
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
+  const updateAccessibilityPreference = (
+    preference: keyof AccessibilityPreferences,
+    checked: boolean,
+  ) => {
+    const nextPreferences = {
+      ...accessibilityPreferences,
+      [preference]: checked,
+    };
+    setAccessibilityPreferences(nextPreferences);
+    saveAccessibilityPreferences(nextPreferences);
+  };
 
   const resetPasswordDialog = () => {
     setCurrentPassword('');
@@ -250,6 +278,29 @@ export default function Settings() {
         },
       ],
     },
+    {
+      title: 'Accessibility',
+      items: [
+        {
+          icon: Accessibility,
+          label: 'Reduce motion',
+          checked: accessibilityPreferences.reduceMotion,
+          onCheckedChange: (checked: boolean) => updateAccessibilityPreference('reduceMotion', checked),
+        },
+        {
+          icon: Type,
+          label: 'Larger text',
+          checked: accessibilityPreferences.largerText,
+          onCheckedChange: (checked: boolean) => updateAccessibilityPreference('largerText', checked),
+        },
+        {
+          icon: Contrast,
+          label: 'Increase contrast',
+          checked: accessibilityPreferences.highContrast,
+          onCheckedChange: (checked: boolean) => updateAccessibilityPreference('highContrast', checked),
+        },
+      ],
+    },
   ];
 
   return (
@@ -363,7 +414,29 @@ export default function Settings() {
             <h3 className="text-sm text-muted-foreground px-2">{section.title}</h3>
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
               {section.items.map((item, index) => {
-                const Icon = 'icon' in item ? item.icon : null;
+                const dividerClass = index !== section.items.length - 1 ? 'border-b border-border' : '';
+
+                if ('checked' in item) {
+                  const Icon = item.icon;
+                  const inputId = `accessibility-${item.label.toLowerCase().replace(/\s+/g, '-')}`;
+
+                  return (
+                    <div
+                      key={`${section.title}-${item.label}`}
+                      className={`flex w-full items-center gap-3 p-4 ${dividerClass}`}
+                    >
+                      <Icon className="h-5 w-5 text-muted-foreground" />
+                      <Label className="flex-1" htmlFor={inputId}>{item.label}</Label>
+                      <Switch
+                        checked={item.checked}
+                        id={inputId}
+                        onCheckedChange={item.onCheckedChange}
+                      />
+                    </div>
+                  );
+                }
+
+                const Icon = item.icon ?? null;
                 return (
                   <button
                     key={`${section.title}-${index}`}
@@ -371,9 +444,7 @@ export default function Settings() {
                     onClick={item.action}
                     className={`w-full p-4 flex items-center gap-3 hover:bg-accent transition-colors ${
                       item.destructive ? 'text-destructive' : ''
-                    } ${
-                      index !== section.items.length - 1 ? 'border-b border-border' : ''
-                    }`}
+                    } ${dividerClass}`}
                   >
                     {'iconName' in item ? (
                       <CruushIcon

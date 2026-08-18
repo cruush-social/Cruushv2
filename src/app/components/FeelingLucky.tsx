@@ -150,6 +150,7 @@ export default function FeelingLucky() {
           <CruiseCarouselSlot
             key={`profile-${targetUser.id}-${browseNonce}`}
             mode="profile"
+            candidateUsers={candidateUsers}
             targetUser={targetUser}
             variant="page"
             onComplete={() => setStatus('profile')}

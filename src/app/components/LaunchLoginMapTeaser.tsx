@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import './LaunchLoginMapTeaser.css';
+import { ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, shouldReduceMotion } from '../lib/accessibilityPreferences';
 
 export type LaunchLoginMapTeaserPlaybackState = {
   isMobileRecording: boolean;
@@ -20,7 +21,7 @@ function getTeaserVideoSource() {
     return DESKTOP_TEASER_VIDEO;
   }
 
-  if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+  if (shouldReduceMotion()) {
     return null;
   }
 
@@ -46,7 +47,7 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
     const reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
     const updateVideoSource = () => {
       setIsVideoReady(false);
-      setVideoSource(reducedMotionQuery.matches
+      setVideoSource(shouldReduceMotion()
         ? null
         : mobileQuery.matches
           ? MOBILE_TEASER_VIDEO
@@ -56,10 +57,12 @@ export default function LaunchLoginMapTeaser({ onPlaybackStateChange }: LaunchLo
     updateVideoSource();
     mobileQuery.addEventListener?.('change', updateVideoSource);
     reducedMotionQuery.addEventListener?.('change', updateVideoSource);
+    window.addEventListener(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, updateVideoSource);
 
     return () => {
       mobileQuery.removeEventListener?.('change', updateVideoSource);
       reducedMotionQuery.removeEventListener?.('change', updateVideoSource);
+      window.removeEventListener(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, updateVideoSource);
     };
   }, []);
 

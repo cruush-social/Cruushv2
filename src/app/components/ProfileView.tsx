@@ -486,7 +486,7 @@ export default function ProfileView() {
                     ? 'border-[#FF0072]/45 bg-[#FF0072]/10 text-[#FF8BBB] hover:bg-[#FF0072]/16'
                     : cruushDisabled
                       ? 'border-white/10 bg-white/[0.06] text-white/45'
-                      : 'border-transparent text-white shadow-[0_10px_28px_rgba(255,0,114,0.26)] hover:brightness-110'}`}
+                      : 'border-transparent text-white hover:brightness-110'}`}
                   onClick={() => {
                     void (isAlreadyMutual ? handleRevokeMutualCruush() : handleCruush());
                   }}
@@ -496,7 +496,7 @@ export default function ProfileView() {
                     background: !isAlreadyMutual && !cruushDisabled ? 'var(--cruush-gradient)' : undefined,
                   }}
                 >
-                  <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={isAlreadyMutual ? 'colored' : 'white'} />
+                  <CruushIcon name="safety" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
                   {revokingMutual ? 'removing...' : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
                 </Button>
                 <Button
