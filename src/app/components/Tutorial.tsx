@@ -70,6 +70,14 @@ export default function Tutorial() {
               <p className="mt-1 text-sm text-white/58">
                 Feed settings control post windows, distance, and whether your feed pin appears to mutuals, shared crowds, or public viewers.
               </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button className="rounded-full" variant="outline" onClick={() => navigate('/feed')}>
+                  Open Feed
+                </Button>
+                <Button className="rounded-full" variant="outline" onClick={() => navigate('/profile/edit')}>
+                  Edit profile
+                </Button>
+              </div>
             </div>
           </div>
         </section>

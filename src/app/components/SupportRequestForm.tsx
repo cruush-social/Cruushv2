@@ -259,7 +259,6 @@ export default function SupportRequestForm({
                 <Label htmlFor={`${idPrefix}-id-document`}>ID photo</Label>
                 <Input
                   accept="image/jpeg,image/png,image/webp"
-                  capture="environment"
                   disabled={status === 'submitting'}
                   id={`${idPrefix}-id-document`}
                   onChange={(event) => selectIdDocument(event.target.files?.[0])}
@@ -286,7 +285,6 @@ export default function SupportRequestForm({
                 <Label htmlFor={`${idPrefix}-selfie`}>Selfie with handwritten card</Label>
                 <Input
                   accept="image/jpeg,image/png,image/webp"
-                  capture="user"
                   disabled={status === 'submitting'}
                   id={`${idPrefix}-selfie`}
                   onChange={(event) => setSelfie(event.target.files?.[0] ?? null)}

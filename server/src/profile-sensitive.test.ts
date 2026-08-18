@@ -47,7 +47,8 @@ describe("profile-sensitive encryption", () => {
       kinks: ["leather"],
       kink_interests: [{ kink_id: "leather", label: "Leather" }],
       hiv_status: ["undetectable"],
-      custom_hiv_status: ""
+      custom_hiv_status: "",
+      health_preferences: ["COVID tested", "Masks"]
     };
     const first = encryptSensitiveProfile(config, sensitiveProfile);
     const second = encryptSensitiveProfile(config, sensitiveProfile);
@@ -56,6 +57,19 @@ describe("profile-sensitive encryption", () => {
     expect(first.profile_sensitive_nonce).not.toBe(second.profile_sensitive_nonce);
     expect(first.profile_sensitive_ciphertext).not.toBe(second.profile_sensitive_ciphertext);
     expect(decryptSensitiveProfile(config, first)).toEqual(sensitiveProfile);
+  });
+
+  it("defaults legacy encrypted profiles to no health preferences", () => {
+    const encrypted = encryptSensitiveProfile(config, {
+      is_trans: false,
+      crowds: [],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    });
+
+    expect(decryptSensitiveProfile(config, encrypted)?.health_preferences).toEqual([]);
   });
 
   it("fails closed when profile-sensitive ciphertext metadata is tampered", () => {

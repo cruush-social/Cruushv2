@@ -36,6 +36,7 @@ import {
   CROWDS,
   DOXYPEP,
   ETHNICITIES,
+  HEALTH_PREFERENCES,
   HIV_STATUS,
   HOBBIES,
   HOSTING,
@@ -528,6 +529,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     custom_covid_vaccine: (profile.custom_covid_vaccine ?? '').trim(),
     mpox_vaccine: singleValue(profile.mpox_vaccine ?? []),
     custom_mpox_vaccine: (profile.custom_mpox_vaccine ?? '').trim(),
+    health_preferences: profile.health_preferences ?? [],
     substance_boundaries: profile.substance_boundaries ?? [],
     visibility_rules: sanitizeVisibilityRules(profile),
   };
@@ -917,6 +919,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     doxypep: singleValue(profile.doxypep || []),
     covid_vaccine: singleValue(profile.covid_vaccine || []),
     mpox_vaccine: singleValue(profile.mpox_vaccine || []),
+    health_preferences: profile.health_preferences || [],
     substance_boundaries: profile.substance_boundaries || [],
     visibility_rules: sanitizeVisibilityRules(profile),
     year_of_birth: profile.year_of_birth,
@@ -1308,6 +1311,16 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 value={normalizedProfile.mpox_vaccine}
                 onChange={vals => handleChange('mpox_vaccine', singleValue(vals))}
                 selectionMode="single"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Health Preferences</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Health Preferences"
+                options={HEALTH_PREFERENCES}
+                value={normalizedProfile.health_preferences}
+                onChange={vals => handleChange('health_preferences', vals)}
               />
             </div>
             <div className="space-y-2">

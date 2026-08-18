@@ -345,7 +345,9 @@ export default function App({
   }
 
   const tokenLinkType = getTokenLinkType();
-  const alphaBugControl = <AlphaBugButton enabled />;
+  const alphaBugControl = (
+    <AlphaBugButton enabled requireContactEmail={authStatus === 'signed_out'} />
+  );
   const accessibilityQuickAccess = <AccessibilityQuickAccess />;
 
   if (tokenLinkType === 'verify-email') {

@@ -6,6 +6,7 @@ import { createSupportRequest } from '../lib/supportApi';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ import { Textarea } from './ui/textarea';
 
 type AlphaBugButtonProps = {
   enabled?: boolean;
+  requireContactEmail?: boolean;
 };
 
 export const ALPHA_BUG_TIP_STORAGE_KEY = 'cruush:alpha-bug-tip-seen';
@@ -120,9 +122,13 @@ async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined>
   }
 }
 
-export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps) {
+export default function AlphaBugButton({
+  enabled = false,
+  requireContactEmail = false,
+}: AlphaBugButtonProps) {
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [contactEmail, setContactEmail] = useState('');
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [error, setError] = useState('');
@@ -196,6 +202,14 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
+    const trimmedContactEmail = contactEmail.trim();
+
+    if (requireContactEmail && !trimmedContactEmail) {
+      setError('Enter an email so support can reply.');
+      setErrorCode('BUG_REPORT_EMAIL_REQUIRED');
+      return;
+    }
+
     if (message.trim().length < 10) {
       setError('Add a few more details before sending.');
       setErrorCode('BUG_REPORT_TOO_SHORT');
@@ -212,11 +226,13 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
         category: 'bug',
         subject: `Alpha bug: ${pageUrl}`,
         message: message.trim(),
+        ...(trimmedContactEmail ? { contactEmail: trimmedContactEmail } : {}),
         source: 'unknown',
         pageUrl,
         ...(screenshot ? { screenshot } : {}),
       });
       setStatus('success');
+      setContactEmail('');
       setMessage('');
     } catch (bugError) {
       setError(bugError instanceof Error ? bugError.message : 'Unable to send this bug report.');
@@ -293,6 +309,22 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
               <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" data-testid="bug-report-error" role="alert">
                 <p>{error}</p>
                 <p className="mt-1 font-mono text-xs">Error code: {errorCode || 'BUG_REPORT_UNKNOWN'}</p>
+              </div>
+            ) : null}
+            {requireContactEmail ? (
+              <div className="space-y-2">
+                <Label htmlFor="alpha-bug-contact-email">Reply email</Label>
+                <Input
+                  autoComplete="email"
+                  disabled={status === 'submitting'}
+                  id="alpha-bug-contact-email"
+                  maxLength={320}
+                  onChange={(event) => setContactEmail(event.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  type="email"
+                  value={contactEmail}
+                />
               </div>
             ) : null}
             <div className="space-y-2">

@@ -70,6 +70,7 @@ export type ProfileViewModel = {
   hivStatus: string | null;
   covidStatus: string | null;
   mpoxStatus: string | null;
+  healthPreferences: string[];
   substanceBoundaries: string | null;
   relationship: ProfileRecord['viewer_relationship'] | null;
 };
@@ -146,6 +147,7 @@ export function profileRecordToProfileView(
     hivStatus: formatSingle(profile.hiv_status),
     covidStatus: formatSingle(profile.covid_vaccine),
     mpoxStatus: formatSingle(profile.mpox_vaccine),
+    healthPreferences: profile.health_preferences ?? [],
     substanceBoundaries: formatJoined(profile.substance_boundaries),
     relationship: profile.viewer_relationship ?? null,
   };
@@ -638,6 +640,12 @@ export function ProfileDetailsTabs({
             <DetailItem label="COVID" value={profileView.covidStatus} compact={compact} emptyFallback="" />
             <DetailItem label="Mpox" value={profileView.mpoxStatus} compact={compact} emptyFallback="" />
           </div>
+          {profileView.healthPreferences.length > 0 ? (
+            <div className="mt-3">
+              <p className="mb-2 text-sm text-muted-foreground">Preferences</p>
+              <BadgeList items={profileView.healthPreferences} compact={compact} />
+            </div>
+          ) : null}
         </Section>
 
         <Section title="Lifestyle" compact={compact}>

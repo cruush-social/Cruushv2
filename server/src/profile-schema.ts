@@ -109,6 +109,7 @@ const singleArrayField = cappedArrayField(1);
 const kinkArrayField = upToFiveKinkArrayField;
 
 const profileVisibilitySchema = z.enum(["public", "mutual_cruushes", "mutual_crowds"]);
+const healthPreferenceSchema = z.enum(["COVID tested", "Masks"]);
 const transStatusSchema = z.boolean().nullable().optional().default(null);
 const crowdSchema = z.preprocess((value) => {
   if (typeof value !== "string") {
@@ -210,6 +211,7 @@ export const profilePayloadSchema = z.object({
   custom_covid_vaccine: shortStringField,
   mpox_vaccine: singleArrayField,
   custom_mpox_vaccine: shortStringField,
+  health_preferences: z.array(healthPreferenceSchema).max(2).optional().default([]),
   substance_boundaries: arrayField,
   visibility_rules: profileVisibilityRulesSchema.optional().default({
     active_crowd_modes: [],
@@ -314,6 +316,7 @@ export const emptyProfile = {
   custom_covid_vaccine: "",
   mpox_vaccine: [],
   custom_mpox_vaccine: "",
+  health_preferences: [],
   substance_boundaries: [],
   visibility_rules: {
     active_crowd_modes: [],

@@ -7,6 +7,22 @@ import {
 } from "./profile-schema.js";
 
 describe("profile schema", () => {
+  it("accepts only the approved health preferences", () => {
+    expect(profilePayloadSchema.parse({
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994,
+      health_preferences: ["COVID tested", "Masks"]
+    }).health_preferences).toEqual(["COVID tested", "Masks"]);
+
+    expect(() => profilePayloadSchema.parse({
+      ...emptyProfile,
+      display_name: "Cruusher",
+      year_of_birth: 1994,
+      health_preferences: ["Unapproved"]
+    })).toThrow();
+  });
+
   it("accepts up to three sexualities and trims older selections", () => {
     const parsed = profilePayloadSchema.parse({
       ...emptyProfile,

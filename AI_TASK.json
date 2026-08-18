@@ -2,7 +2,7 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Release the complete current batch of recent cruush bug fixes and UI updates together, then repair stale-client delivery so already-open and installed app sessions receive the same frontend options as the deployed release.",
+  "job": "Restore the omitted approved v1.4 changes, then fix two public support regressions: allow signed-out users to provide the reply email required by the alpha bug reporter, and let mobile users choose existing appeal evidence photos instead of forcing the camera.",
   "base": "d532b3a2fd1c0467e9e3123b0d7af5a991dbea69",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
@@ -23,6 +23,9 @@
     "src/app/components/Auth.test.tsx",
     "src/app/components/SupportPage.tsx",
     "src/app/components/SupportPage.test.tsx",
+    "src/app/components/SupportRequestForm.tsx",
+    "src/app/components/AlphaBugButton.tsx",
+    "src/app/components/AlphaBugButton.test.tsx",
     "src/app/components/PublicInfoPage.tsx",
     "src/app/components/Survey.tsx",
     "src/app/components/AccessibilityQuickAccess.tsx",
@@ -49,7 +52,16 @@
     "public/service-worker-recovery.js",
     "src/main.tsx",
     "src/serviceWorkerUpdate.test.ts",
-    "index.html"
+    "index.html",
+    "src/app/components/Tutorial.tsx",
+    "src/app/lib/profileApi.ts",
+    "src/app/components/ProfileEdit.tsx",
+    "src/app/components/ProfileView.tsx",
+    "server/src/profile-schema.ts",
+    "server/src/profile-sensitive.ts",
+    "server/src/routes/profiles.ts",
+    "server/src/profile-schema.test.ts",
+    "server/src/profile-sensitive.test.ts"
   ],
   "preserved": [
     "Preserve the existing 300 millisecond mobile map profile-pin hold change and its focused tests.",
@@ -67,9 +79,12 @@
     "Preserve the existing accessibility controls, preference storage, cross-tab synchronization, and Reduce motion behavior.",
     "Preserve map layout, navigation placement, supplied media, brand gradients, and the existing 25 percent baseline map-label enlargement.",
     "Keep signed-in support behavior and the private age-suspension appeal evidence safeguards unchanged.",
+    "Keep signed-in alpha bug reporting session-based and avoid requesting a redundant reply email from signed-in users.",
+    "Keep appeal evidence types, accepted image formats, redaction requirements, encryption, access controls, expiration, and deletion behavior unchanged.",
     "Do not add fixed-height clipping. Let content scroll only when its enlarged layout cannot fit.",
     "Preserve unrelated tracked and untracked work.",
     "Keep every existing Style & Energy, Scenes, Archetypes, rewards, accessibility, map, support, and authentication behavior unchanged.",
+    "Preserve network-first requests, no-store navigation, push notifications, and all service-worker behavior while advancing only the release identifier.",
     "Preserve every existing tutorial step, order, action, route transition, spotlight style, Back, Next, skip behavior, progress persistence, and bottom-navigation clearance except for splitting the combined profile-pin and zoom step.",
     "Keep emergency vertical scrolling available only when a genuinely short viewport or enlarged accessibility text cannot fit the focused step.",
     "Preserve Recently Active profile dimensions, tray placement, drag and wheel behavior, scrollbar styling, profile order, and bottom-navigation clearance.",
@@ -87,6 +102,7 @@
   "nonGoals": [
     "Do not redesign the map, filter sheets, profile cards, or navigation.",
     "Do not change suspension policy, automated age detection, moderator decisions, authentication disclosure rules, storage providers, environment variables, database migrations, checkout, rewards, or production user settings.",
+    "Do not change appeal evidence storage, moderation routing, screenshot capture, bug-report placement, or server validation policy.",
     "Do not upload or use a real government ID during verification.",
     "Do not redesign generic support, authentication, moderation dashboards, page navigation UI, or router architecture.",
     "Do not add accessibility options, taglines, public internal implementation copy, providers, or new support policy.",
@@ -97,7 +113,6 @@
     "Do not redesign categorized menus or change their category tabs, portal placement, scrollbar style, or selection behavior.",
     "Do not change profile-pin gestures, zoom behavior, map markers, map controls, tutorial styling, navigation, accessibility preferences, or tutorial completion policy.",
     "Do not redesign the Recently Active panel or change any global scrollbar style.",
-    "Do not implement the proposed Tutorial links, Style & Energy options, or Health Preferences until the user approves that separate proposal.",
     "Do not change the authentication shell, footer, CAPTCHA, provider configuration, or backend signup flow.",
     "Do not change relationship creation, direct-message permission rules, database schema, profile-page actions, or map-marker styling.",
     "Do not recolor non-user tags, Crowd badges, distance badges, moderation badges, or event tags."
@@ -115,7 +130,12 @@
     "Visually confirm the MFA input appears below Password only after an MFA-enabled account submits valid credentials without a code.",
     "Commit the complete authorized dirty batch, push it to origin/main, deploy that exact main SHA, and confirm frontend, API, and Coolify health.",
     "Only after successful production deployment confirmation, run the full repository suite and report any post-deploy failures separately.",
-    "Confirm the deployed profile-options chunk contains the approved options and the new service-worker release activates a client refresh without requiring manual cache clearing."
+    "Confirm the deployed profile-options chunk contains the approved options and the new service-worker release activates a client refresh without requiring manual cache clearing.",
+    "Render profile edit and confirm Health Preferences offers COVID tested and Masks, then confirm saved choices render in the profile Health tab.",
+    "Confirm Health preferences round-trip through the encrypted sensitive-profile payload without a database migration."
+    ,"Render the signed-out alpha bug reporter on /support?appeal=1 at mobile and desktop widths, confirm Reply email is required, and submit one local report with contactEmail included."
+    ,"Confirm both appeal evidence inputs retain their image MIME restrictions and no longer declare a camera capture mode on mobile or desktop."
+    ,"Confirm app-shell release v24 is consistent across the worker, recovery script, app entry, and index cache-busting URL."
   ],
   "proofResults": [
     "Authenticated mobile New Message at 390 by 844 rendered mutual purple and non-mutual pink heart and vibe-tag borders with uppercase no-wrap tags and no horizontal overflow.",
@@ -133,6 +153,16 @@
     "Frontend and server production builds passed. No environment variable, provider, schema, or production-data change was made."
     ,"The deployed 07d01ad profile-options chunk contained Hacker, Techie, all approved Scenes additions, dyke, and fag, while the unchanged v22 service-worker release identifier allowed already-open clients to remain on their prior JavaScript until reload."
     ,"The stale-client hotfix bumps every app-shell identifier to v23, keeps network-first and no-store behavior unchanged, passes the focused service-worker update test 3 of 3, and passes the frontend production build."
+    ,"The real local full-stack profile editor rendered Health Preferences with COVID tested and Masks at 390 by 844 and 1440 by 900 with no horizontal overflow."
+    ,"Selecting both Health preferences through the mobile UI saved with HTTP 200, and a fresh profile load rendered both choices under the Health tab."
+    ,"The real onboarding preview and profile editor both rendered Disabled and Neurodivergent under Style & Energy. Screenshots stayed outside the repository."
+    ,"The final Tutorial capsule rendered Open Feed and Edit profile without bottom-navigation overlap at mobile and desktop sizes; both buttons opened their intended real app surfaces."
+    ,"Focused frontend profile tests passed 45 of 45, focused server schema and encryption tests passed 16 of 16, and the frontend and server production builds passed."
+    ,"The app-shell v24 identifiers are consistent, and the focused service-worker update test passed 3 of 3 without changing caching or notification behavior."
+    ,"The signed-out alpha bug reporter rendered a required Reply email field on /support?appeal=1 at 390 by 844 and 1440 by 900 without horizontal overflow."
+    ,"A real local signed-out bug report submitted successfully with contactEmail and the exact appeal page context; the temporary local support row was removed afterward."
+    ,"Both appeal evidence inputs rendered Choose File, retained JPEG, PNG, and WebP restrictions, and had no capture attribute at mobile and desktop widths."
+    ,"Focused AlphaBugButton and SupportPage tests passed 14 of 14, and the frontend production build passed."
   ],
   "environmentChanges": [],
   "publicationTarget": "main and production"

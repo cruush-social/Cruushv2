@@ -9,8 +9,8 @@ const nginxConfig = readFileSync('nginx.conf', 'utf8');
 
 describe('service worker update delivery', () => {
   it('bypasses stale mobile app shells when the login surface changes', () => {
-    expect(serviceWorkerSource).toContain("const CACHE_NAME = 'cruush-app-shell-v23';");
-    expect(serviceWorkerSource).toContain("const REFRESH_ID = 'v23';");
+    expect(serviceWorkerSource).toContain("const CACHE_NAME = 'cruush-app-shell-v24';");
+    expect(serviceWorkerSource).toContain("const REFRESH_ID = 'v24';");
     expect(serviceWorkerSource).toContain('keys.map((key) => caches.delete(key))');
     expect(serviceWorkerSource).toContain("fetch(request, { cache: 'no-store' })");
     expect(serviceWorkerSource).toContain("event.data?.type === 'SKIP_WAITING'");
@@ -24,7 +24,7 @@ describe('service worker update delivery', () => {
   });
 
   it('registers the worker without HTTP cache reuse and reloads controlled clients', () => {
-    expect(appEntrySource).toContain('const APP_SHELL_REFRESH_ID = "v23";');
+    expect(appEntrySource).toContain('const APP_SHELL_REFRESH_ID = "v24";');
     expect(appEntrySource).toContain('const SERVICE_WORKER_SCRIPT_URL = `/sw.js?release=${APP_SHELL_REFRESH_ID}`;');
     expect(appEntrySource).toContain('navigator.serviceWorker.register(SERVICE_WORKER_SCRIPT_URL, { updateViaCache: "none" })');
     expect(appEntrySource).toContain('navigator.serviceWorker.addEventListener("controllerchange"');
@@ -35,8 +35,8 @@ describe('service worker update delivery', () => {
     expect(appEntrySource).toContain('window.addEventListener("beforeinstallprompt", captureInstallPrompt)');
     expect(appEntrySource).toContain('registration?.waiting?.postMessage({ type: "SKIP_WAITING" })');
     expect(appEntrySource).toContain('registration?.active?.postMessage({ type: "CLIENT_REFRESH_REQUESTED", refreshId: APP_SHELL_REFRESH_ID })');
-    expect(indexSource).toContain('<script src="/service-worker-recovery.js?release=v23"></script>');
-    expect(recoverySource).toContain("const APP_SHELL_REFRESH_ID = 'v23';");
+    expect(indexSource).toContain('<script src="/service-worker-recovery.js?release=v24"></script>');
+    expect(recoverySource).toContain("const APP_SHELL_REFRESH_ID = 'v24';");
     expect(recoverySource).toContain('navigator.serviceWorker.getRegistrations()');
     expect(recoverySource).toContain("navigator.serviceWorker.register(SERVICE_WORKER_SCRIPT_URL, { updateViaCache: 'none' })");
     expect(recoverySource).toContain('refreshServiceWorker();');

@@ -23,10 +23,14 @@ vi.mock('../lib/userNoticesApi', () => ({
   getUserNoticeDismissal,
 }));
 
-function renderAlphaBugButton(enabled = true, initialEntry = '/map?layer=nearby') {
+function renderAlphaBugButton(
+  enabled = true,
+  initialEntry = '/map?layer=nearby',
+  requireContactEmail = false,
+) {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
-      <AlphaBugButton enabled={enabled} />
+      <AlphaBugButton enabled={enabled} requireContactEmail={requireContactEmail} />
     </MemoryRouter>
   );
 }
@@ -83,6 +87,31 @@ describe('AlphaBugButton', () => {
     }));
     expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
     expect(screen.getByText('This report includes the current page and attaches a screenshot when your browser allows it.')).toBeInTheDocument();
+  });
+
+  it('includes a required reply email in signed-out bug reports', async () => {
+    window.history.replaceState({}, '', '/support?appeal=1');
+    renderAlphaBugButton(true, '/support?appeal=1', true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report alpha bug' }));
+    expect(screen.getByLabelText('Reply email')).toBeRequired();
+    fireEvent.change(screen.getByLabelText('Reply email'), {
+      target: { value: 'person@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('What broke?'), {
+      target: { value: 'The appeal upload opens the camera instead of my photo picker.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send bug report' }));
+
+    await waitFor(() => expect(createSupportRequest).toHaveBeenCalledWith({
+      category: 'bug',
+      subject: 'Alpha bug: /support?appeal=1',
+      message: 'The appeal upload opens the camera instead of my photo picker.',
+      contactEmail: 'person@example.com',
+      source: 'unknown',
+      pageUrl: '/support?appeal=1',
+    }));
+    expect(await screen.findByText('Bug report sent')).toBeInTheDocument();
   });
 
   it('keeps the same upper-right corner on chat routes', () => {

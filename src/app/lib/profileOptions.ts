@@ -47,8 +47,8 @@ export const VIBE_GROUPS = [
   {
     label: 'Style & Energy',
     options: [
-      'Alt', 'Artsy', 'Chill', 'Clean-cut', 'Corporate', 'Cottagecore', 'E-Girl/E-Boy', 'Geek', 'Goth', 'Granola',
-      'Hacker', 'Homebody', 'Hippie', 'Punk', 'Rugged', 'Spiritual', 'Sporty', 'Techie'
+      'Alt', 'Artsy', 'Chill', 'Clean-cut', 'Corporate', 'Cottagecore', 'Disabled', 'E-Girl/E-Boy', 'Geek', 'Goth', 'Granola',
+      'Hacker', 'Homebody', 'Hippie', 'Neurodivergent', 'Punk', 'Rugged', 'Spiritual', 'Sporty', 'Techie'
     ].sort(),
   },
   {
@@ -85,6 +85,7 @@ export const PREP = ['no', 'prefer not to say', 'yes'];
 export const DOXYPEP = ['no', 'prefer not to say', 'yes'];
 export const COVID_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
 export const MPOX_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
+export const HEALTH_PREFERENCES = ['COVID tested', 'Masks'];
 export const SUBSTANCE_BOUNDARIES = [
   'No alcohol involved',
   'No cannabis involved',
