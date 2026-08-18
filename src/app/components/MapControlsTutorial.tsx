@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from './ui/button';
 
 export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v4-seen';
@@ -279,12 +280,53 @@ export function calculateTutorialCardPlacement({
   }, bottomPlacement);
 }
 
-function readTargetRects(targetId: MapControlsTutorialStepId): TutorialPlacementRect[] {
+function readTargetElements(targetId: MapControlsTutorialStepId): HTMLElement[] {
   if (typeof document === 'undefined') {
     return [];
   }
 
-  return Array.from(document.querySelectorAll<HTMLElement>(`[data-tutorial-target="${targetId}"]`))
+  const directTargets = Array.from(document.querySelectorAll<HTMLElement>(`[data-tutorial-target="${targetId}"]`));
+
+  if (targetId === 'crowds' && directTargets.length === 0) {
+    return Array.from(document.querySelectorAll<HTMLElement>('[data-tutorial-target="visibility"]'));
+  }
+
+  if (targetId === 'zoom') {
+    const viewportCenterX = window.innerWidth / 2;
+    const viewportCenterY = readBottomBoundary(window.innerHeight) / 2;
+    const profilePin = Array.from(document.querySelectorAll<HTMLElement>('[data-map-marker-pin="true"][data-map-marker-kind="person"]'))
+      .map((target) => ({ target, rect: target.getBoundingClientRect() }))
+      .filter(({ rect }) => (
+        rect.bottom > 0
+        && rect.right > 0
+        && rect.top < window.innerHeight
+        && rect.left < window.innerWidth
+      ))
+      .sort((first, second) => {
+        const firstDistance = Math.hypot(
+          first.rect.left + first.rect.width / 2 - viewportCenterX,
+          first.rect.top + first.rect.height / 2 - viewportCenterY,
+        );
+        const secondDistance = Math.hypot(
+          second.rect.left + second.rect.width / 2 - viewportCenterX,
+          second.rect.top + second.rect.height / 2 - viewportCenterY,
+        );
+        return firstDistance - secondDistance;
+      })
+      .map(({ target }) => target)
+      .find((target) => {
+        const rect = target.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+
+    return profilePin ? [...directTargets, profilePin] : directTargets;
+  }
+
+  return directTargets;
+}
+
+function readTargetRects(targetId: MapControlsTutorialStepId): TutorialPlacementRect[] {
+  return readTargetElements(targetId)
     .map((target) => target.getBoundingClientRect())
     .filter((rect) => rect.width > 0 && rect.height > 0)
     .map((rect) => ({
@@ -385,6 +427,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
     }
 
     let animationFrame = 0;
+    let measureUntil = 0;
     const measure = () => {
       const viewportWidth = window.innerWidth || DEFAULT_VIEWPORT_WIDTH_PX;
       const viewportHeight = window.innerHeight || DEFAULT_VIEWPORT_HEIGHT_PX;
@@ -408,15 +451,28 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
         sameMeasurements(currentMeasurements, nextMeasurements) ? currentMeasurements : nextMeasurements
       ));
     };
+    const measureDuringMotion = () => {
+      animationFrame = 0;
+      measure();
+      if (window.performance.now() < measureUntil) {
+        animationFrame = window.requestAnimationFrame(measureDuringMotion);
+      }
+    };
+    const scheduleMeasurementBurst = () => {
+      measureUntil = Math.max(measureUntil, window.performance.now() + 700);
+      if (animationFrame === 0) {
+        animationFrame = window.requestAnimationFrame(measureDuringMotion);
+      }
+    };
 
     measure();
-    animationFrame = window.requestAnimationFrame(measure);
+    scheduleMeasurementBurst();
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
 
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
-    const mutationObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(measure);
-    const targets = document.querySelectorAll<HTMLElement>(`[data-tutorial-target="${step.id}"]`);
+    const mutationObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(scheduleMeasurementBurst);
+    const targets = readTargetElements(step.id);
     const bottomNav = document.querySelector('[data-testid="bottom-nav-pill"]');
 
     if (cardRef.current) {
@@ -493,7 +549,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
     return null;
   }
 
-  return (
+  return createPortal((
     <div className="pointer-events-none fixed inset-0 z-[100]" data-testid="map-controls-tutorial">
       {targetRects.length > 0 ? (
         <svg
@@ -544,7 +600,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
         ref={cardRef}
         aria-label="Map controls tutorial"
         aria-live="polite"
-        className="pointer-events-auto fixed w-[min(22rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-background/95 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+        className="pointer-events-auto fixed w-[min(22rem,calc(100vw-2rem))] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-background/95 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl"
         data-testid="map-controls-tutorial-card"
         role="dialog"
         style={cardStyle}
@@ -569,7 +625,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
             {actionError}
           </p>
         ) : null}
-        <div className="mt-4 flex items-center justify-between gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <Button
             type="button"
             className="rounded-lg border border-white/25 text-white ring-2 ring-primary/60 ring-offset-2 ring-offset-background"
@@ -618,5 +674,5 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
         </div>
       </section>
     </div>
-  );
+  ), document.body);
 }

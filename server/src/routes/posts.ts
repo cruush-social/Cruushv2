@@ -24,6 +24,9 @@ type PostRow = {
   display_name: string | null;
   pronouns: string[] | null;
   photos: string[] | null;
+  vibes?: string[] | null;
+  scenes?: string[] | null;
+  archetypes?: string[] | null;
   photo_explicit?: boolean | null;
   badges?: string[] | null;
   crowd_targets?: string[] | null;
@@ -94,6 +97,14 @@ function normalizePartyStatus(value: PostRow["party_status"]) {
   };
 }
 
+function topVibeTags(row: Pick<PostRow, "vibes" | "scenes" | "archetypes">) {
+  return [...new Set([
+    ...(row.vibes ?? []),
+    ...(row.scenes ?? []),
+    ...(row.archetypes ?? [])
+  ].map((value) => value.trim()).filter(Boolean))].slice(0, 3);
+}
+
 async function canViewLocationPin(app: FastifyInstance, viewerUserId: string, row: PostRow) {
   const visibility = row.feed_location_pin_visibility ?? "mutuals";
 
@@ -121,6 +132,7 @@ async function canViewLocationPin(app: FastifyInstance, viewerUserId: string, ro
 async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: string) {
   const partyStatus = normalizePartyStatus(row.party_status);
   const crowdTargets = row.crowd_targets ?? [];
+  const vibeTags = topVibeTags(row);
   const locationPinVisible = await canViewLocationPin(app, viewerUserId, row);
 
   return {
@@ -151,6 +163,7 @@ async function mapPostRow(app: FastifyInstance, row: PostRow, viewerUserId: stri
       pronouns: row.pronouns?.join(", ") ?? "",
       photo: row.photos?.[0] ?? null,
       photoExplicit: row.photo_explicit === true,
+      ...(vibeTags.length > 0 ? { vibes: vibeTags } : {}),
       ...(row.attending_launch_party === true ? { attendingLaunchParty: true } : {}),
       ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
     }
@@ -186,6 +199,9 @@ const POST_COLUMNS = `
   pr.display_name,
   pr.pronouns,
   pr.photos,
+  pr.vibes,
+  pr.scenes,
+  pr.archetypes,
   ${feedAuthorPhotoExplicitSelect("p", "pr")},
   coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as feed_location_pin_visibility,
   case
@@ -545,6 +561,9 @@ export async function registerPostRoutes(app: FastifyInstance) {
          pr.display_name,
          pr.pronouns,
          pr.photos,
+         pr.vibes,
+         pr.scenes,
+         pr.archetypes,
          ${feedAuthorPhotoExplicitSelect("i", "pr")},
          coalesce(pin_settings.feed_location_pin_visibility, 'mutuals') as feed_location_pin_visibility,
          exists (

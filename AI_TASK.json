@@ -1,8 +1,8 @@
 {
-  "status": "validating",
+  "status": "verified",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Update the full-stack local build with the latest profile and map changes, allow up to three Hosting/Travel choices, enrich deterministic seeded profiles with signals and profile details, and show an active Ping on its sender whenever that sender is included in the viewer's loaded map results.",
+  "job": "Fix Public Messages so loaded non-mutual discovery profiles remain visible as candidates, show up to three readable all-caps vibe tags on Public and Mutual recipient cards and feed posts, truncate long feed author names without wrapping, keep authorization and Ask mutual behavior intact, make the Cruise Carousel page card fill the available viewport down to the bottom navigation, theme profile cruush and Message actions consistently while preserving uncruush, enforce the 20-mile NYC map zoom-out floor, ensure tutorial spotlights cover every control discussed by Crowd Mode and Zoom without an unnecessary horizontal scrollbar, add lowercase fag to shared Gender Identity and Sexuality options, visually walk through every onboarding rite at mobile size with local-only review screenshots, and commit the completed session changes to the current source branch.",
   "base": "origin/main at ae61f563ef6ed81d6a7b2a297169cbca040c270b",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
@@ -111,6 +111,8 @@
     "src/app/lib/mapServiceArea.test.ts",
     "src/app/components/CruiseCarouselSlot.tsx",
     "src/app/components/CruiseCarouselSlot.test.tsx",
+    "src/app/components/FeelingLucky.tsx",
+    "src/app/components/ProfileCard.tsx",
     "src/app/assets/brand/cruush-logo.png",
     "public/email/cruush-v1.2-logo-transparent.png",
     "public/icons/apple-touch-icon.png",
@@ -210,6 +212,16 @@
     "Record required Terms and Privacy acceptance and optional product-updates consent at signup; preserve unsubscribe state and do not send email in this task."
   ],
   "proof": [
+    "Rendered full-stack local admin flow shows populated Public Messages candidates; a mutual-only candidate exposes Ask mutual without opening a forbidden direct message.",
+    "Rendered mobile Public and Mutual recipient cards show up to three existing vibe tags per person without blocking scrolling or actions.",
+    "Rendered mobile feed posts show up to three readable all-caps existing author vibe tags, keep the author row on one line, and truncate long author names while preserving the current media ratio and feed scrolling.",
+    "Rendered mobile and desktop Cruise Carousel routes show the page card filling the available viewport and ending above the bottom navigation.",
+    "Rendered Cruise Carousel and full-profile actions use the cruush gradient theme; mutual profiles retain a visible enabled remove-mutual action.",
+    "Rendered authenticated profile controls visibly show dyke, the requested scene options, transmasc and transfemme, up to three Hosting/Travel selections, and Vibes under Basics where those controls are available.",
+    "Rendered desktop map remains at the 20-mile NYC launch view after ten repeated zoom-out actions.",
+    "Rendered mobile and desktop tutorial shows a Crowd Mode spotlight before its panel opens, highlights one visible profile pin together with both Zoom controls, and has no horizontal scrollbar.",
+    "Authenticated dev-only onboarding preview is walked through at 390 by 844 without saving profile data; each rite is visually inspected and screenshots are stored outside the repository for review.",
+    "Rendered onboarding Gender Identity and Sexuality menus both visibly include lowercase fag through the shared profile options.",
     "Full-stack local frontend and API reflect current source; local sign-in works, Hosting/Travel accepts up to three values, seeded profiles expose populated signals/details, and a loaded seeded sender's real active Ping appears on that sender's map marker.",
     "Rendered local map shows the complete heart-pin unit at 1.0 scale with 20 percent hover growth preserved.",
     "Rendered Profile and Profile Edit show Vibes in Basics, no separate Profile edit tab, and intimacy fields aligned with the visible profile.",
@@ -229,5 +241,5 @@
     "Migration 082 creates a replay-safe one-day 2FA cruush+ promotion cutover; focused server migration/2FA checks passed (25 tests), server build passed, and onboarding check passed (9 tests).",
     "Beta access now covers the 20-mile NYC launch area; focused geofence checks passed (2 tests), map-boundary/Auth checks passed (18 and 15 tests), and the rendered local map includes Yonkers without exposing the private service center."
   ],
-  "publicationTarget": "Source branch only until separately authorized; if published, origin/main via the verified Coolify frontend deployment. Email remains draft-only until the pre-August 1 audience is verified."
+  "publicationTarget": "One local commit on codex/fix-all-issues-20260817 only. Do not push, merge, deploy, or send communications."
 }

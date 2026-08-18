@@ -699,8 +699,19 @@ export default function LocalFeed() {
                     <div className="min-w-0 flex-1 space-y-2">
                       <div className="min-w-0 space-y-1">
                         <div className="flex min-w-0 items-center gap-2">
-                          <span className="min-w-0 flex-1 truncate" data-testid={`feed-post-author-${post.id}`}>
-                            {post.user.name}
+                          <span className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden whitespace-nowrap">
+                            <span className="max-w-[32%] shrink-0 truncate" data-testid={`feed-post-author-${post.id}`} title={post.user.name}>
+                              {post.user.name}
+                            </span>
+                            {post.user.vibes?.slice(0, 3).map((vibe) => (
+                              <span
+                                key={vibe}
+                                className="min-w-0 max-w-[6.25rem] shrink truncate rounded-full border border-[#6F00FF]/32 bg-[#6F00FF]/10 px-1 py-0.5 text-center text-[11px] uppercase leading-tight tracking-[0.06em] text-white/68"
+                                title={vibe}
+                              >
+                                {vibe}
+                              </span>
+                            ))}
                           </span>
                           <CruushBadge badges={post.user.badges} compact />
                           {post.user.attendingLaunchParty ? (
@@ -732,6 +743,23 @@ export default function LocalFeed() {
                             {formatFeedExpiry(post.expiresIn)}
                           </span>
                           <div className="ml-auto flex items-center gap-2">
+                            {post.locationPin ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 shrink-0 rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10"
+                                aria-label={`Center map on ${post.user.name}`}
+                                title={`Center map on ${post.user.name}`}
+                                onClick={() => navigate('/map', {
+                                  state: {
+                                    focusUserId: post.locationPin?.userId,
+                                  },
+                                })}
+                              >
+                                <MapPin className="h-4 w-4" />
+                              </Button>
+                            ) : null}
                             {currentUserId && post.user.id === currentUserId ? (
                               <Button
                                 variant="ghost"
@@ -767,23 +795,6 @@ export default function LocalFeed() {
 
                       <p className="text-sm">{post.content}</p>
                     </div>
-                    {post.locationPin ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-10 w-10 shrink-0 self-center rounded-full border-white/18 bg-black/60 text-white/88 hover:bg-white/10"
-                        aria-label={`Center map on ${post.user.name}`}
-                        title={`Center map on ${post.user.name}`}
-                        onClick={() => navigate('/map', {
-                          state: {
-                            focusUserId: post.locationPin?.userId,
-                          },
-                        })}
-                      >
-                        <MapPin className="h-5 w-5" />
-                      </Button>
-                    ) : null}
                   </div>
                 </div>
               ))}

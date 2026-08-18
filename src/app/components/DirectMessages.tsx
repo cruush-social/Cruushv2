@@ -86,6 +86,11 @@ function canDeleteConversation(conversation: ConversationThread) {
 
 const mutualBadgeClassName = 'rounded-md border border-[#8B5CF6]/45 bg-[#8B5CF6]/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-[#DCC7FF]';
 const quietBadgeClassName = 'rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/52';
+const vibeBadgeClassName = 'rounded-full border border-[#6F00FF]/32 bg-[#6F00FF]/10 px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em] text-white/68';
+
+function topVibeTags(...groups: Array<string[] | undefined>) {
+  return [...new Set(groups.flatMap((group) => group ?? []).map((value) => value.trim()).filter(Boolean))].slice(0, 3);
+}
 
 function getConversationHeartTheme(conversation: ConversationThread) {
   if (conversation.kind === 'group' || conversation.mutual) {
@@ -300,7 +305,7 @@ export default function DirectMessages() {
           undefined,
           { limit: DIRECT_MESSAGE_DISCOVERY_LIMIT },
         );
-        setDirectOptions(nearbyUsers.filter((user) => user.relationship?.canMessage !== false));
+        setDirectOptions(nearbyUsers);
       } catch (error) {
         console.error('Error loading public people available for direct messaging:', error);
         setDirectOptions([]);
@@ -913,7 +918,11 @@ function DirectUserOverlay({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [requestingUserId, setRequestingUserId] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
-  const publicUsers = useMemo(() => users.filter((user) => user.relationship?.mutualCruush !== true), [users]);
+  const mutualUserIds = useMemo(() => new Set(mutuals.map((item) => item.user.id)), [mutuals]);
+  const publicUsers = useMemo(
+    () => users.filter((user) => user.relationship?.mutualCruush !== true && !mutualUserIds.has(user.id)),
+    [mutualUserIds, users],
+  );
   const filteredPublicUsers = useMemo(() => {
     return publicUsers.filter((user) => matchesMessageFilterBasics(user, filters));
   }, [publicUsers, filters]);
@@ -1049,6 +1058,8 @@ function DirectUserOverlay({
         <div className="space-y-2">
           {activeComposerTab === 'public' && sortedPublicUsers.length > 0 ? sortedPublicUsers.map((user) => {
             const requested = requestedCruushIds.includes(user.id);
+            const canMessageNow = user.relationship?.canMessage !== false;
+            const vibeTags = topVibeTags(user.vibes, user.scenes, user.archetypes);
             return (
               <div
                 key={user.id}
@@ -1057,7 +1068,7 @@ function DirectUserOverlay({
                 <button
                   type="button"
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                  onClick={() => onMessage(user.id)}
+                  onClick={() => canMessageNow ? onMessage(user.id) : onOpenProfile(user.id)}
                 >
                   <HeartPhoto
                     className="w-20 shrink-0"
@@ -1074,6 +1085,9 @@ function DirectUserOverlay({
                     <span className="mt-2 flex flex-wrap items-center gap-1.5">
                       <Badge variant="outline" className={quietBadgeClassName}>{user.distance}</Badge>
                       {user.hasSharedCrowd ? <Badge variant="outline" className={mutualBadgeClassName}>Crowd</Badge> : null}
+                      {vibeTags.map((vibe) => (
+                        <Badge key={vibe} variant="outline" className={vibeBadgeClassName}>{vibe}</Badge>
+                      ))}
                       {user.latestFeedPostPreview ? (
                         <Badge variant="outline" className="max-w-[12rem] border-white/10 bg-white/[0.04] text-[10px] text-white/62">
                           <CruushIcon name="map" className="mr-1 inline size-3 opacity-80" />
@@ -1083,19 +1097,21 @@ function DirectUserOverlay({
                     </span>
                   </span>
                 </button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 rounded-full border-[#8B5CF6]/45 bg-[#8B5CF6]/12 text-[#DCC7FF] hover:bg-[#8B5CF6]/18"
-                  disabled={requested || requestingUserId === user.id}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void requestMutual(user);
-                  }}
-                >
-                  {requested ? 'Sent' : 'Ask mutual'}
-                </Button>
+                {!canMessageNow ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 rounded-full border-[#8B5CF6]/45 bg-[#8B5CF6]/12 text-[#DCC7FF] hover:bg-[#8B5CF6]/18"
+                    disabled={requested || requestingUserId === user.id}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void requestMutual(user);
+                    }}
+                  >
+                    {requested ? 'Sent' : 'Ask mutual'}
+                  </Button>
+                ) : null}
               </div>
             );
           }) : mutuals.map((item) => (
@@ -1120,6 +1136,9 @@ function DirectUserOverlay({
                 <span className="mt-0.5 block truncate text-xs text-muted-foreground">{[item.user.pronouns, item.distance].filter(Boolean).join(' · ')}</span>
                 <span className="mt-2 flex flex-wrap items-center gap-1.5">
                   <Badge variant="outline" className={mutualBadgeClassName}>Mutual</Badge>
+                  {topVibeTags(item.vibes).map((vibe) => (
+                    <Badge key={vibe} variant="outline" className={vibeBadgeClassName}>{vibe}</Badge>
+                  ))}
                   {item.mutualCrowds.map((crowd) => (
                     <Badge key={crowd} variant="outline" className={quietBadgeClassName}>{crowd}</Badge>
                   ))}

@@ -1,6 +1,6 @@
 export const IDENTITIES = [
   'agender', 'androgynous', 'bakla', 'bigender', 'cis man', 'cis woman', 'crossdresser', 'demiboy', 'demigirl',
-  'demi-nonbinary', 'dyke', "fa'afafine", 'femme', 'gender nonconforming', 'genderfluid',
+  'demi-nonbinary', 'dyke', 'fag', "fa'afafine", 'femme', 'gender nonconforming', 'genderfluid',
   'genderpunk', 'genderqueer', 'hijra', 'intersex', 'kathoey', 'man', 'māhū', 'maverique', 'muxé',
   'neutrois', 'nonbinary', 'pangender', 'polygender', 'questioning', 'queer', 'third gender', 'trans man', 'trans woman', 'travesti',
   'transfemme', 'transmasc', 'two-spirit', 'woman', 'x-gender'
@@ -13,7 +13,7 @@ export const PRESENTATIONS = [
 
 export const PRONOUNS = ['ask me', 'fae/faer', 'he/him', 'she/her', 'they/them', 'xe/xem', 'ze/zir'];
 
-export const SEXUALITY = ['asexual', 'bisexual', 'straight', 'gay', 'queer', 'questioning', 'other', 'pansexual', 'curious', 'demisexual', 'aromantic', 'lesbian', 'dyke'];
+export const SEXUALITY = ['asexual', 'bisexual', 'straight', 'gay', 'queer', 'questioning', 'other', 'pansexual', 'curious', 'demisexual', 'aromantic', 'lesbian', 'dyke', 'fag'];
 
 export const MAX_PROFILE_SEXUALITIES = 3;
 

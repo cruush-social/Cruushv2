@@ -24,9 +24,10 @@ interface ProfileCardProps {
   onViewProfile: () => void;
   placement?: 'overlay' | 'inline';
   density?: 'regular' | 'compact';
+  fillAvailableHeight?: boolean;
 }
 
-export default function ProfileCard({ user, onClose, onViewProfile, placement = 'overlay', density = 'regular' }: ProfileCardProps) {
+export default function ProfileCard({ user, onClose, onViewProfile, placement = 'overlay', density = 'regular', fillAvailableHeight = false }: ProfileCardProps) {
   const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
@@ -41,7 +42,11 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   const cruushDisabled = sendingCruush || revokingMutual || hasSentCruush;
   const maskPhoto = shouldMaskPhoto(dlModeActive, user.photoExplicit);
   const compact = placement === 'inline' && density === 'compact';
-  const mediaStyle = compact ? PROFILE_CARD_COMPACT_MEDIA_STYLE : PROFILE_CARD_MEDIA_ASPECT_STYLE;
+  const mediaStyle = fillAvailableHeight
+    ? undefined
+    : compact
+      ? PROFILE_CARD_COMPACT_MEDIA_STYLE
+      : PROFILE_CARD_MEDIA_ASPECT_STYLE;
   const lookingForItems = Array.isArray(user.lookingFor)
     ? user.lookingFor.filter((item: string) => item.trim().length > 0)
     : [];
@@ -115,18 +120,18 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   };
 
   const cardClassName = placement === 'inline'
-    ? `bg-card rounded-2xl border border-border overflow-hidden shadow-2xl max-w-sm w-full mx-auto ${compact ? '' : 'overflow-y-auto'}`
+    ? `bg-card rounded-2xl border border-border overflow-hidden shadow-2xl max-w-sm w-full mx-auto ${fillAvailableHeight ? 'flex min-h-0 flex-1 flex-col' : compact ? '' : 'overflow-y-auto'}`
     : 'bg-card rounded-2xl border border-border overflow-hidden overflow-y-auto shadow-2xl max-w-sm w-full mx-auto fixed left-1/2 -translate-x-1/2 bottom-24 z-30';
 
   return (
     <div data-testid="profile-card" className={cardClassName} style={{ maxHeight: placement === 'inline' ? undefined : '80vh' }}>
       <div
         data-testid="profile-card-media"
-        className="relative w-full"
+        className={`relative w-full ${fillAvailableHeight ? 'min-h-0 flex-1' : ''}`}
         style={{ ...mediaStyle, background: 'var(--cruush-gradient)' }}
       >
         {user.photo && !maskPhoto ? (
-          <img src={resolveMediaUrl(user.photo)} alt={user.name} className="w-full h-full object-cover" style={mediaStyle} />
+          <img src={resolveMediaUrl(user.photo)} alt={user.name} className="h-full w-full object-cover" style={mediaStyle} />
         ) : maskPhoto ? (
           <div
             aria-label={user.name}
@@ -196,34 +201,31 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
 
         <div className="flex gap-2 pt-2">
           <Button
-            variant="outline"
-            className={actionButtonClassName}
+            className={`${actionButtonClassName} rounded-xl border ${isAlreadyMutual
+              ? 'border-[#FF0072]/45 bg-[#FF0072]/10 text-[#FF8BBB] hover:bg-[#FF0072]/16'
+              : cruushDisabled
+                ? 'border-white/10 bg-white/[0.06] text-white/45'
+                : 'border-transparent text-white shadow-[0_10px_28px_rgba(255,0,114,0.26)] hover:brightness-110'}`}
             onClick={() => {
               void (isAlreadyMutual ? handleRevokeMutualCruush() : handleCruush());
             }}
             disabled={cruushDisabled}
             aria-label={revokingMutual ? 'Removing mutual cruush' : isAlreadyMutual ? 'Remove mutual cruush' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
             style={{
-              borderColor: cruushDisabled || isAlreadyMutual ? '#73737C' : 'var(--cruush-pink)',
-              color: cruushDisabled || isAlreadyMutual ? '#A2A2AA' : 'var(--cruush-pink)',
+              background: !isAlreadyMutual && !cruushDisabled ? 'var(--cruush-gradient)' : undefined,
             }}
           >
-            <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={cruushDisabled ? 'white' : 'colored'} />
+            <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={isAlreadyMutual ? 'colored' : 'white'} />
             {revokingMutual ? 'removing...' : isAlreadyMutual ? 'remove' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
           </Button>
           <Button
-            variant="outline"
-            className={actionButtonClassName}
+            className={`${actionButtonClassName} rounded-xl border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[var(--cruush-gradient-soft-28)]`}
             disabled={openingMessage || !canMessage}
             onClick={() => {
               void handleMessage();
             }}
-            style={{
-              borderColor: 'var(--cruush-purple)',
-              color: 'var(--cruush-purple)',
-            }}
           >
-            <CruushIcon name="send" className="mr-2 h-4 w-4" variant="colored" />
+            <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
             {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
           </Button>
         </div>

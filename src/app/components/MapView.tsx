@@ -82,7 +82,7 @@ interface MapViewProps {
 const DEFAULT_CENTER: LngLatLike = [MAP_SERVICE_CENTER.longitude, MAP_SERVICE_CENTER.latitude];
 const DEFAULT_ZOOM = 12;
 const FOCUSED_ZOOM = 14;
-export const MIN_DISCOVERY_ZOOM = 9;
+export const MIN_DISCOVERY_ZOOM = 10.5;
 export const MAX_DISCOVERY_ZOOM = 22;
 const AUTO_FIT_MAX_ZOOM = 15;
 const AUTO_FIT_MIN_ZOOM = 10.5;

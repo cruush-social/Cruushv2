@@ -482,35 +482,32 @@ export default function ProfileView() {
             {!isOwnProfile ? (
               <div className="flex gap-2">
                 <Button
-                  className="flex-1"
+                  className={`flex-1 rounded-xl border ${isAlreadyMutual
+                    ? 'border-[#FF0072]/45 bg-[#FF0072]/10 text-[#FF8BBB] hover:bg-[#FF0072]/16'
+                    : cruushDisabled
+                      ? 'border-white/10 bg-white/[0.06] text-white/45'
+                      : 'border-transparent text-white shadow-[0_10px_28px_rgba(255,0,114,0.26)] hover:brightness-110'}`}
                   onClick={() => {
                     void (isAlreadyMutual ? handleRevokeMutualCruush() : handleCruush());
                   }}
                   disabled={cruushDisabled}
                   aria-label={revokingMutual ? 'removing mutual cruush' : isAlreadyMutual ? 'remove mutual cruush' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
                   style={{
-                    background: cruushDisabled || isAlreadyMutual
-                      ? '#666'
-                      : 'var(--cruush-gradient)',
+                    background: !isAlreadyMutual && !cruushDisabled ? 'var(--cruush-gradient)' : undefined,
                   }}
                 >
-                  <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={cruushDisabled ? 'white' : 'colored'} />
+                  <CruushIcon name="cruush" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant={isAlreadyMutual ? 'colored' : 'white'} />
                   {revokingMutual ? 'removing...' : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'sent' : sendingCruush ? 'sending...' : 'cruush'}
                 </Button>
                 <Button
-                  variant="outline"
-                  className="flex-1"
+                  className="flex-1 rounded-xl border border-[#6F00FF]/55 bg-[var(--cruush-gradient-soft-18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[var(--cruush-gradient-soft-28)]"
                   onClick={() => {
                     void handleMessage();
                   }}
                   disabled={openingMessage || !canMessage}
                   aria-label={canMessage ? 'Message' : 'Mutuals only'}
-                  style={{
-                    borderColor: 'var(--cruush-purple)',
-                    color: 'var(--cruush-purple)',
-                  }}
                 >
-                  <CruushIcon name="send" className="mr-2 h-4 w-4" variant="colored" />
+                  <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
                   {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
                 </Button>
               </div>

@@ -273,7 +273,7 @@ export default function CruiseCarouselSlot({
   return (
     <section
       aria-label="cruise carousel"
-      className="mx-auto w-full max-w-2xl rounded-[28px] border border-white/10 bg-black/78 shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl"
+      className="mx-auto h-full w-full max-w-2xl overflow-hidden rounded-[28px] border border-white/10 bg-black/78 shadow-[0_24px_80px_rgba(0,0,0,0.46)] backdrop-blur-xl"
     >
       {content}
     </section>
