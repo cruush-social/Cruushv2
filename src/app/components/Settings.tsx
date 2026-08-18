@@ -38,6 +38,7 @@ import {
 } from '../lib/sessionUser';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import {
+  addAccessibilityPreferencesChangedListener,
   getAccessibilityPreferences,
   saveAccessibilityPreferences,
   type AccessibilityPreferences,
@@ -111,6 +112,7 @@ export default function Settings() {
   }, []);
   useEffect(() => addProfileChangedListener(setProfile), []);
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+  useEffect(() => addAccessibilityPreferencesChangedListener(setAccessibilityPreferences), []);
 
   const updateAccessibilityPreference = (
     preference: keyof AccessibilityPreferences,

@@ -521,7 +521,7 @@ export default function DirectMessages() {
       {groupComposerOpen ? (
         <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
           <div className="mx-auto max-w-2xl space-y-5">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 pr-14">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Group chat</p>
                 <h3 className="text-2xl">New group</h3>
@@ -849,7 +849,7 @@ function ComposeChoiceOverlay({
   return (
     <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
       <div className="mx-auto max-w-2xl space-y-5">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 pr-14">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">new message</p>
             <h3 className="text-2xl">Start a conversation</h3>
@@ -964,7 +964,7 @@ function DirectUserOverlay({
   return (
     <div className="fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 py-6 backdrop-blur-md" style={{ WebkitOverflowScrolling: 'touch' }}>
       <div className="mx-auto min-h-full max-w-2xl space-y-5 pb-8">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 pr-14">
           <div className="flex min-w-0 items-center gap-1">
             <Button type="button" variant="ghost" size="icon" aria-label="Back to message options" onClick={onBack}>
               <ChevronLeft className="size-4" />

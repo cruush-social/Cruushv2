@@ -72,8 +72,8 @@ describe('smoke: floating overlays do not cover each other', () => {
 
     expect(bugButton).toBeDefined();
 
-    // The button deliberately lives in the left-side chrome now; the collision check
-    // above protects that separation while this assertion protects the registry entry.
+    // The button owns one universal viewport corner while this assertion protects the
+    // registry entry from being folded into map-only geometry again.
     for (const slot of mapChrome) {
       expect(bugButton!.source).not.toBe(slot.source);
     }
@@ -87,17 +87,17 @@ describe('smoke: declared overlay geometry matches the components', () => {
     [
       'alpha-bug-button',
       'src/app/components/AlphaBugButton.tsx',
-      ['bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'lg:left-5', 'fixed z-20'],
+      ['right-[calc(0.75rem+env(safe-area-inset-right))]', 'top-[calc(0.75rem+env(safe-area-inset-top))]', 'z-50'],
     ],
     [
       'alpha-bug-tip',
       'src/app/components/AlphaBugButton.tsx',
-      ['top-[calc(7.25rem+env(safe-area-inset-top))]', 'lg:left-5', 'fixed z-30'],
+      ['right-[calc(0.75rem+env(safe-area-inset-right))]', 'top-[calc(4.5rem+env(safe-area-inset-top))]', 'fixed z-50'],
     ],
     [
       'map-alpha-bug-tip',
       'src/app/components/AlphaBugButton.tsx',
-      ['top-[calc(20.125rem+env(safe-area-inset-top))]', 'sm:top-[calc(9.25rem+env(safe-area-inset-top))]', 'fixed z-30'],
+      ['top-[calc(20.125rem+env(safe-area-inset-top))]', 'sm:top-[calc(9.25rem+env(safe-area-inset-top))]', 'fixed z-50'],
     ],
     [
       'map-ping-button',

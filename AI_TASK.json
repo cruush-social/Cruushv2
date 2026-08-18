@@ -2,8 +2,8 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Finish the v1.4 production release and repair the replay-unsafe notification constraints that block the API container during migration 042.",
-  "base": "origin/main at 7191881d3fcc41cf711f08ec5aad7cd31dda091c",
+  "job": "Finish the v1.4 production release, make the survey available without login, use the canonical cruush gradient for the selected Profile navigation icon, keep accessibility controls synchronized, apply accessibility effects across every route, and keep the alpha bug-report button in the same upper-right corner without covering page controls or content.",
+  "base": "origin/main at 7c7cf6ab6d183e79ea252ddaa776d6db8925a5fb",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
     "AI_TASK.json",
@@ -14,26 +14,44 @@
     "server/src/dev-seed-profiles.test.ts",
     "server/src/migrate.test.ts",
     "server/src/moderation-service.test.ts",
+    "server/src/support-routes.test.ts",
     "server/sql/042_rewards_and_two_factor.sql",
     "server/sql/069_nearby_activity_notifications.sql",
+    "src/app/App.tsx",
+    "src/app/App.test.tsx",
+    "src/app/components/AccessibilityQuickAccess.test.tsx",
+    "src/app/components/AccessibilityQuickAccess.tsx",
     "src/app/components/Auth.test.tsx",
     "src/app/components/AlphaBugButton.test.tsx",
     "src/app/components/AlphaBugButton.tsx",
+    "src/app/components/BottomNav.test.tsx",
+    "src/app/components/BottomNav.tsx",
     "src/app/components/Changelog.test.tsx",
     "src/app/components/Changelog.tsx",
+    "src/app/components/CruushActivity.test.tsx",
+    "src/app/components/CruushActivity.tsx",
     "src/app/components/CruiseCarouselSlot.test.tsx",
+    "src/app/components/DirectMessages.tsx",
     "src/app/components/FeelingLucky.test.tsx",
     "src/app/components/GhostModeSettings.test.tsx",
     "src/app/components/GhostModeSettings.tsx",
     "src/app/components/LocalFeed.test.tsx",
+    "src/app/components/LocalFeed.tsx",
     "src/app/components/MapHome.tsx",
     "src/app/components/MapHome.test.tsx",
     "src/app/components/MapView.test.tsx",
     "src/app/components/ProfileEdit.test.tsx",
+    "src/app/components/ProfileEdit.tsx",
     "src/app/components/ProfileOnboarding.test.tsx",
     "src/app/components/Settings.test.tsx",
+    "src/app/components/Settings.tsx",
+    "src/app/components/Survey.test.tsx",
+    "src/app/lib/accessibilityPreferences.test.ts",
+    "src/app/lib/accessibilityPreferences.ts",
     "src/app/lib/overlaySlots.smoke.test.ts",
-    "src/app/lib/overlaySlots.ts"
+    "src/app/lib/overlaySlots.ts",
+    "src/main.tsx",
+    "src/styles/theme.css"
   ],
   "preserved": [
     "Keep v1.4 first and unchanged.",
@@ -43,12 +61,18 @@
     "Deploy the frontend and API from the same origin/main commit.",
     "Keep first-post prompting once per account and only after tutorial completion.",
     "Keep the map bug button in its current top-right corner and move adjacent controls instead.",
-    "Preserve every existing notification row and keep announcement notifications valid while historical migrations replay."
+    "Preserve every existing notification row and keep announcement notifications valid while historical migrations replay.",
+    "Keep the existing Reduce motion, Larger text, and Increase contrast preferences and storage key unchanged.",
+    "Keep signed-in Settings as the normal accessibility entry point and avoid adding another floating control over the map or bottom navigation.",
+    "Keep the alpha bug-report button at the map button's current upper-right viewport position on every page and move conflicting controls instead of moving the bug button.",
+    "Keep the existing Profile navigation icon shape and active-tab dimensions unchanged.",
+    "Keep every route except the existing public information, token, and survey routes behind its current authentication and setup gates."
   ],
   "nonGoals": [
-    "Do not rewrite release copy or add new product behavior.",
+    "Do not rewrite release copy or add unrelated product behavior.",
     "Do not change environment variables, provider settings, DNS, or costs.",
     "Do not modify or send the Resend broadcast.",
+    "Do not add the developer navigation guide to the tutorial or any public app surface.",
     "Do not change Ghost Mode behavior or owner-side layout beyond exposing its existing switch to the active tutorial."
   ],
   "browserFixes": [
@@ -56,10 +80,20 @@
     "Reset first-post notice cookies before the E2E app bootstrap can mutate the mocked server state.",
     "Honor the map's large bug-button slot so the control renders at least 44 by 44 pixels.",
     "Restore the missing 8-pixel mobile gap between the map top bar and Seeking.",
-    "Remove the narrow-screen sibling gap that pushed the top-right bug button outside the viewport."
+    "Remove the narrow-screen sibling gap that pushed the top-right bug button outside the viewport.",
+    "Use one fixed upper-right alpha bug-report button placement on every route and reserve that corner in sticky page headers and full-screen message overlays.",
+    "Replace the selected Profile icon's stale cyan-heavy fill with the canonical cruush gradient token.",
+    "Expose the existing survey route before login and through account setup gates without exposing any other protected route."
   ],
   "deploymentFixes": [
     "Keep the final announcement notification type in migrations 042 and 069 so replay cannot narrow the live constraint before migration 089."
+  ],
+  "accessibilityChanges": [
+    "Expose one shared accessibility control on signed-out, verification, age, onboarding, and code-of-conduct surfaces.",
+    "Apply the same stored preferences immediately across those surfaces and the signed-in app.",
+    "Respect the device reduced-motion and increased-contrast preferences globally without requiring sign-in.",
+    "Synchronize accessibility controls and root effects when preferences change in the current page or another browser tab.",
+    "Apply larger text, reduced motion, and increased contrast from the document root so route changes cannot drop them."
   ],
   "proof": [
     "Use the completed full frontend, server, build, copy, casing, security, and layout results from this release candidate.",
@@ -70,7 +104,12 @@
     "Verify the staged paths and staged secret scan before commit.",
     "Verify origin/main resolves to the new commit after push.",
     "Verify the production frontend and API report the same deployed commit.",
-    "Verify a public frontend response, direct API health, and the live changelog order."
+    "Verify a public frontend response, direct API health, and the live changelog order.",
+    "Run one focused accessibility component test and visually confirm the quick control at narrow and desktop entry viewports.",
+    "Visually confirm the alpha bug-report button at the same upper-right coordinates on map, feed, profile edit, messages, and one settings page at 390 by 844, with no intersecting interactive element.",
+    "Visually compare the selected Profile icon before and after at 390 by 844.",
+    "Toggle all accessibility controls in Settings, navigate to Feed and Map, and verify the stored preferences, root attributes, text scaling, contrast variables, and reduced transition duration remain active.",
+    "Verify the real survey renders while signed out and its anonymous POST remains accepted by the existing survey-only API exception."
   ],
   "environmentChanges": [],
   "publicationTarget": "origin/main and the production cruush frontend and API in Coolify."

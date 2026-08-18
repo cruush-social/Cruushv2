@@ -209,8 +209,7 @@ describe('BottomNav', () => {
     expect(profileIcon.tagName).toBe('SPAN');
     expect(profileIcon).toHaveAttribute('data-tone', 'gradient');
     expect(profileIcon).toHaveStyle({
-      background:
-        'linear-gradient(90deg, #ff0072 0%, #ff0072 10%, #d000ff 28%, #6f00ff 50%, #004bff 80%, #03ecfc 100%)',
+      background: 'var(--cruush-gradient)',
     });
     expect(profileIcon).toHaveClass('h-11', 'w-11');
     expect(profileIcon.getAttribute('style')).toContain('humanity-profile-selected-winged-heart');

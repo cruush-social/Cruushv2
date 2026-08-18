@@ -101,30 +101,28 @@ export const OVERLAY_SLOTS: OverlaySlot[] = [
   {
     id: 'alpha-bug-button',
     source: 'src/app/components/AlphaBugButton.tsx',
-    z: 20,
-    // On the map this trigger is portaled into map-header-row instead of using the
-    // generic fixed position declared here.
+    z: 50,
+    // Every route uses this same viewport corner. The map header keeps a same-size
+    // reserved slot so its Settings control never sits behind the fixed trigger.
     exclusiveWith: ['map-header-row', 'map-right-actions', 'map-ping-button', 'map-alpha-bug-tip'],
-    mobile: { top: 4, left: 1, width: 2.75, height: 2.75 },
-    desktop: { top: 0.75, left: 1.25, width: 2.75, height: 2.75 },
+    mobile: { top: 0.75, right: 0.75, width: 2.75, height: 2.75 },
+    desktop: { top: 0.75, right: 0.75, width: 2.75, height: 2.75 },
   },
   {
     id: 'alpha-bug-tip',
     source: 'src/app/components/AlphaBugButton.tsx',
-    z: 30,
+    z: 50,
     // A one-time coach mark anchored near the button, dismissed on first tap.
     // Deliberately NOT marked transient: nothing belonging to the bug reporter may sit
-    // on top of another control. On desktop it goes to the left of the button along the
-    // bottom edge, the only space clear of the install prompt, the Recently Active
-    // panel and the nav pill.
+    // on top of another control. The map keeps its separate below-controls placement.
     exclusiveWith: ['alpha-bug-button', 'map-header-row', 'map-right-actions', 'map-ping-button', 'map-alpha-bug-tip'],
-    mobile: { top: 7.25, left: 1, width: 18, height: 5 },
-    desktop: { top: 4.5, left: 1.25, width: 18, height: 5 },
+    mobile: { top: 4.5, right: 0.75, width: 18, height: 5 },
+    desktop: { top: 4.5, right: 0.75, width: 18, height: 5 },
   },
   {
     id: 'map-alpha-bug-tip',
     source: 'src/app/components/AlphaBugButton.tsx',
-    z: 30,
+    z: 50,
     exclusiveWith: ['alpha-bug-button', 'alpha-bug-tip'],
     mobile: { top: 20.125, left: 1, width: 18, height: 5.625 },
     desktop: { top: 9.25, left: 1.25, width: 18, height: 5.625 },

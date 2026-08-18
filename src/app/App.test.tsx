@@ -218,6 +218,10 @@ vi.mock('./components/PublicInfoPage', () => ({
   default: ({ page }: { page: string }) => <div>Mock Public Info {page}</div>
 }));
 
+vi.mock('./components/Survey', () => ({
+  default: () => <div>Mock Survey</div>
+}));
+
 vi.mock('./components/ui/sonner', () => ({
   Toaster: () => <div data-testid="toaster" />
 }));
@@ -271,6 +275,16 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('Mock Public Info about')).toBeInTheDocument();
+  });
+
+  it('renders the survey before authentication', async () => {
+    window.history.replaceState({}, '', '/survey');
+    loadCurrentSession.mockResolvedValue(null);
+
+    render(<App />);
+
+    expect(await screen.findByText('Mock Survey')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mock Auth' })).not.toBeInTheDocument();
   });
 
   it('renders the authenticated shell on the map by default', async () => {

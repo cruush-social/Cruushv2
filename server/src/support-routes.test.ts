@@ -112,6 +112,46 @@ describe("support routes", () => {
     });
   }, 10000);
 
+  it("creates an anonymous survey response without contact email", async () => {
+    const app = buildSupportApp();
+    query.mockResolvedValueOnce({
+      rows: [{
+        id: "survey-response-1",
+        status: "open",
+        ai_triage_status: "pending",
+        created_at: "2026-08-18T12:00:00.000Z"
+      }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/support-requests",
+      payload: {
+        category: "comment",
+        subject: "cruush survey response",
+        message: "Overall experience: 5",
+        source: "survey",
+        pageUrl: "https://cruush.test/survey"
+      }
+    });
+    await app.close();
+
+    expect(response.statusCode).toBe(201);
+    expect(query.mock.calls[0]?.[0]).toContain("insert into support_requests");
+    expect(query.mock.calls[0]?.[1]).toEqual([
+      null,
+      null,
+      "comment",
+      "cruush survey response",
+      "Overall experience: 5",
+      "survey",
+      "https://cruush.test/survey",
+      expect.objectContaining({
+        aiSupport: expect.objectContaining({ status: "pending" })
+      })
+    ]);
+  }, 10000);
+
   it("requires a reply email for signed-out support requests", async () => {
     const app = buildSupportApp();
 

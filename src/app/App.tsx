@@ -18,6 +18,7 @@ import MapControlsTutorial, {
   type MapControlsTutorialStepId,
 } from './components/MapControlsTutorial';
 import { markNoticeDismissed } from './lib/userNoticesApi';
+import AccessibilityQuickAccess from './components/AccessibilityQuickAccess';
 
 const MapHome = lazy(() => import('./components/MapHome'));
 const LocalFeed = lazy(() => import('./components/LocalFeed'));
@@ -76,10 +77,13 @@ const PUBLIC_INFO_ROUTES = [
   { path: '/2257', page: '2257' },
 ] as const;
 
-function renderPublicInfoRoutes() {
-  return PUBLIC_INFO_ROUTES.map((route) => (
-    <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
-  ));
+function renderPublicRoutes() {
+  return [
+    ...PUBLIC_INFO_ROUTES.map((route) => (
+      <Route key={route.path} path={route.path} element={<PublicInfoPage page={route.page} />} />
+    )),
+    <Route key="/survey" path="/survey" element={<Survey />} />,
+  ];
 }
 
 function redirectToMap() {
@@ -310,6 +314,7 @@ export default function App({
 
   const tokenLinkType = getTokenLinkType();
   const alphaBugControl = <AlphaBugButton enabled />;
+  const accessibilityQuickAccess = <AccessibilityQuickAccess />;
 
   if (tokenLinkType === 'verify-email') {
     return (
@@ -321,6 +326,7 @@ export default function App({
         <Suspense fallback={null}>
           {alphaBugControl}
         </Suspense>
+        {accessibilityQuickAccess}
       </BrowserRouter>
     );
   }
@@ -335,6 +341,7 @@ export default function App({
         <Suspense fallback={null}>
           {alphaBugControl}
         </Suspense>
+        {accessibilityQuickAccess}
       </BrowserRouter>
     );
   }
@@ -347,9 +354,11 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicInfoRoutes()}
+            {renderPublicRoutes()}
             <Route path="*" element={<Auth onAuth={handleAuth} />} />
           </Routes>
+          {alphaBugControl}
+          {accessibilityQuickAccess}
         </Suspense>
       </BrowserRouter>
     );
@@ -363,7 +372,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicInfoRoutes()}
+            {renderPublicRoutes()}
             <Route
               path="*"
               element={(
@@ -376,6 +385,7 @@ export default function App({
             />
           </Routes>
           {alphaBugControl}
+          {accessibilityQuickAccess}
         </Suspense>
       </BrowserRouter>
     );
@@ -389,8 +399,11 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {renderPublicRoutes()}
             <Route path="*" element={<AgeVerification onVerified={handleAgeVerified} />} />
           </Routes>
+          {alphaBugControl}
+          {accessibilityQuickAccess}
         </Suspense>
       </BrowserRouter>
     );
@@ -404,7 +417,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicInfoRoutes()}
+            {renderPublicRoutes()}
             <Route
               path="*"
               element={(
@@ -417,6 +430,7 @@ export default function App({
             />
           </Routes>
           {alphaBugControl}
+          {accessibilityQuickAccess}
         </Suspense>
       </BrowserRouter>
     );
@@ -430,7 +444,7 @@ export default function App({
           <Routes>
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {renderPublicInfoRoutes()}
+            {renderPublicRoutes()}
             <Route
               path="*"
               element={(
@@ -442,6 +456,7 @@ export default function App({
             />
           </Routes>
           {alphaBugControl}
+          {accessibilityQuickAccess}
         </Suspense>
       </BrowserRouter>
     );
@@ -464,7 +479,7 @@ export default function App({
               <Route path="/filters" element={<FiltersPanel />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              {renderPublicInfoRoutes()}
+              {renderPublicRoutes()}
               <Route path="/groups/:groupId" element={<GroupDetail />} />
               <Route path="/events/:eventId/pass-guide" element={<EventPassGuide />} />
               <Route path="/events/:eventId" element={<EventDetail />} />
@@ -485,7 +500,6 @@ export default function App({
               <Route path="/settings/2fa" element={<TwoFactorSettings />} />
               <Route path="/settings/tutorial" element={<Tutorial />} />
               <Route path="/settings/changelog" element={<Changelog />} />
-              <Route path="/survey" element={<Survey />} />
               <Route path="/support" element={<SupportPage />} />
               <Route path="/privacy/ghost-mode" element={<GhostModeSettings />} />
               <Route path="/privacy/dl-mode" element={<DlModeSettings />} />

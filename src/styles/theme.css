@@ -66,10 +66,23 @@ html[data-cruush-larger-text] {
 }
 
 html[data-cruush-high-contrast] {
-  --border: rgba(255, 255, 255, 0.24);
-  --input: rgba(255, 255, 255, 0.12);
-  --muted-foreground: #c8c8d2;
-  --switch-background: #444451;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #09090c;
+  --card-foreground: #ffffff;
+  --popover: #09090c;
+  --popover-foreground: #ffffff;
+  --secondary: #111117;
+  --secondary-foreground: #ffffff;
+  --muted: #111117;
+  --muted-foreground: #dedee5;
+  --accent: #1c1c24;
+  --accent-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.34);
+  --input: rgba(255, 255, 255, 0.2);
+  --input-background: #09090c;
+  --switch-background: #555568;
+  --ring: #ff4aa1;
 }
 
 html[data-cruush-reduce-motion] *,
@@ -81,6 +94,49 @@ html[data-cruush-reduce-motion] *::after {
   scroll-behavior: auto !important;
   transition-delay: 0s !important;
   transition-duration: 0.01ms !important;
+}
+
+html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0 {
+  padding-right: calc(4.5rem + env(safe-area-inset-right)) !important;
+}
+
+html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick-access'] {
+  right: calc(4.25rem + env(safe-area-inset-right));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-delay: 0s !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  html:root {
+    --background: #000000;
+    --foreground: #ffffff;
+    --card: #09090c;
+    --card-foreground: #ffffff;
+    --popover: #09090c;
+    --popover-foreground: #ffffff;
+    --secondary: #111117;
+    --secondary-foreground: #ffffff;
+    --muted: #111117;
+    --muted-foreground: #dedee5;
+    --accent: #1c1c24;
+    --accent-foreground: #ffffff;
+    --border: rgba(255, 255, 255, 0.34);
+    --input: rgba(255, 255, 255, 0.2);
+    --input-background: #09090c;
+    --switch-background: #555568;
+    --ring: #ff4aa1;
+  }
 }
 
 .dark {

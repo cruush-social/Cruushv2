@@ -10,8 +10,7 @@ import messagesIconWhite from '../assets/ui-icons/messages-white.png';
 import humanityProfileIcon from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
 import { useIsMobile } from './ui/use-mobile';
 
-const CRUUSH_GRADIENT =
-  'linear-gradient(90deg, #ff0072 0%, #ff0072 10%, #d000ff 28%, #6f00ff 50%, #004bff 80%, #03ecfc 100%)';
+const CRUUSH_GRADIENT = 'var(--cruush-gradient)';
 
 const navItems = [
   { path: '/map', icon: mapIconWhite, activeIcon: mapIconColored, label: 'Map' },

@@ -1,8 +1,12 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import Settings from './Settings';
 import BlockedUsersPage from './BlockedUsersPage';
+import {
+  ACCESSIBILITY_PREFERENCES_STORAGE_KEY,
+  saveAccessibilityPreferences,
+} from '../lib/accessibilityPreferences';
 
 const { getMyPrivacySettings, saveMyPrivacySettings } = vi.hoisted(() => ({
   getMyPrivacySettings: vi.fn(),
@@ -145,6 +149,10 @@ describe('Settings', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    window.localStorage.removeItem(ACCESSIBILITY_PREFERENCES_STORAGE_KEY);
+    document.documentElement.removeAttribute('data-cruush-high-contrast');
+    document.documentElement.removeAttribute('data-cruush-larger-text');
+    document.documentElement.removeAttribute('data-cruush-reduce-motion');
   });
 
   it('does not expose Safety Center or Ghost Mode switches in the general settings menu', async () => {
@@ -179,6 +187,30 @@ describe('Settings', () => {
     expect(icon).toHaveClass('h-5', 'w-5');
     expect(icon).not.toHaveClass('opacity-65');
     expect(icon).toHaveStyle({ background: 'var(--cruush-gradient)' });
+  });
+
+  it('keeps accessibility controls synchronized with the global preferences', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('switch', { name: 'Reduce motion' })).not.toBeChecked();
+
+    act(() => {
+      saveAccessibilityPreferences({
+        highContrast: true,
+        largerText: true,
+        reduceMotion: true,
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('switch', { name: 'Reduce motion' })).toBeChecked();
+      expect(screen.getByRole('switch', { name: 'Larger text' })).toBeChecked();
+      expect(screen.getByRole('switch', { name: 'Increase contrast' })).toBeChecked();
+    });
   });
 
   it('shows the v1.4 footer with the approved cruush logo and no redundant footer links', async () => {

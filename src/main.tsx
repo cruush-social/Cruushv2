@@ -2,10 +2,14 @@
   import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";
 import { captureInstallPrompt } from "./app/lib/installPrompt";
-import { applyAccessibilityPreferences } from "./app/lib/accessibilityPreferences";
+import {
+  applyAccessibilityPreferences,
+  installAccessibilityPreferencesStorageSync,
+} from "./app/lib/accessibilityPreferences";
 import "./styles/index.css";
 
 applyAccessibilityPreferences();
+installAccessibilityPreferencesStorageSync();
 
   window.addEventListener("vite:preloadError", () => {
   window.location.reload();

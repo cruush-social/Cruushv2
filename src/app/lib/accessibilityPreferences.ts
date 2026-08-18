@@ -7,6 +7,8 @@ export type AccessibilityPreferences = {
   reduceMotion: boolean;
 };
 
+export type AccessibilityPreferencesListener = (preferences: AccessibilityPreferences) => void;
+
 const DEFAULT_ACCESSIBILITY_PREFERENCES: AccessibilityPreferences = {
   highContrast: false,
   largerText: false,
@@ -55,6 +57,61 @@ export function saveAccessibilityPreferences(preferences: AccessibilityPreferenc
 
   applyAccessibilityPreferences(preferences);
   window.dispatchEvent(new CustomEvent(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, { detail: preferences }));
+}
+
+export function addAccessibilityPreferencesChangedListener(
+  listener: AccessibilityPreferencesListener,
+) {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  const syncPreferences = () => {
+    const preferences = getAccessibilityPreferences();
+    applyAccessibilityPreferences(preferences);
+    listener(preferences);
+  };
+
+  window.addEventListener(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, syncPreferences);
+
+  return () => window.removeEventListener(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, syncPreferences);
+}
+
+type AccessibilitySyncWindow = Window & {
+  __cruushAccessibilityStorageSync?: (event: StorageEvent) => void;
+};
+
+export function installAccessibilityPreferencesStorageSync() {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  const accessibilityWindow = window as AccessibilitySyncWindow;
+  if (accessibilityWindow.__cruushAccessibilityStorageSync) {
+    return () => {};
+  }
+
+  const syncStoredPreferences = (event: StorageEvent) => {
+    if (event.key !== null && event.key !== ACCESSIBILITY_PREFERENCES_STORAGE_KEY) {
+      return;
+    }
+
+    const preferences = getAccessibilityPreferences();
+    applyAccessibilityPreferences(preferences);
+    window.dispatchEvent(new CustomEvent(ACCESSIBILITY_PREFERENCES_CHANGED_EVENT, { detail: preferences }));
+  };
+
+  accessibilityWindow.__cruushAccessibilityStorageSync = syncStoredPreferences;
+  window.addEventListener('storage', syncStoredPreferences);
+
+  return () => {
+    if (accessibilityWindow.__cruushAccessibilityStorageSync !== syncStoredPreferences) {
+      return;
+    }
+
+    window.removeEventListener('storage', syncStoredPreferences);
+    delete accessibilityWindow.__cruushAccessibilityStorageSync;
+  };
 }
 
 export function shouldReduceMotion() {

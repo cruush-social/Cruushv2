@@ -55,7 +55,7 @@ describe('Changelog', () => {
     expect(screen.getByText(/Messages now default to Mutuals/i)).toBeInTheDocument();
   });
 
-  it('places the alpha bug button in the changelog header slot', () => {
+  it('keeps the fixed alpha bug button outside the changelog header slot', () => {
     render(
       <MemoryRouter>
         <Changelog />
@@ -66,8 +66,12 @@ describe('Changelog', () => {
     const slot = screen.getByTestId('changelog-bug-button-slot');
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
 
-    expect(slot).toContainElement(reportButton);
-    expect(reportButton).toHaveClass('size-8');
-    expect(reportButton).not.toHaveClass('fixed', 'z-20');
+    expect(slot).not.toContainElement(reportButton);
+    expect(reportButton).toHaveClass(
+      'fixed',
+      'right-[calc(0.75rem+env(safe-area-inset-right))]',
+      'top-[calc(0.75rem+env(safe-area-inset-top))]',
+      'z-50',
+    );
   });
 });

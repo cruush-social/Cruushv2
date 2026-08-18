@@ -157,7 +157,7 @@ describe('CruushActivity', () => {
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: null });
   });
 
-  it('docks the alpha bug reporter in the Activity header instead of the count grid', async () => {
+  it('keeps the fixed alpha bug reporter outside the Activity header', async () => {
     render(
       <MemoryRouter initialEntries={['/cruush']}>
         <CruushActivity />
@@ -171,9 +171,14 @@ describe('CruushActivity', () => {
     const slot = screen.getByTestId('cruush-activity-bug-button-slot');
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
 
-    expect(header).toContainElement(reportButton);
-    expect(slot).toContainElement(reportButton);
-    expect(reportButton).not.toHaveClass('fixed', 'z-20');
+    expect(header).not.toContainElement(reportButton);
+    expect(slot).not.toContainElement(reportButton);
+    expect(reportButton).toHaveClass(
+      'fixed',
+      'right-[calc(0.75rem+env(safe-area-inset-right))]',
+      'top-[calc(0.75rem+env(safe-area-inset-top))]',
+      'z-50',
+    );
     expect(screen.getByTestId('cruush-count-grid')).not.toContainElement(reportButton);
     expect(screen.getByTestId('cruush-tab-grid')).not.toContainElement(reportButton);
   });

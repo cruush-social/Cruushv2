@@ -1,9 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router';
 import { Bug, CheckCircle2 } from 'lucide-react';
 import { ApiClientError } from '../lib/apiClient';
-import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 import { createSupportRequest } from '../lib/supportApi';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
@@ -39,35 +37,12 @@ function getCurrentPageUrl() {
   return `${window.location.pathname}${window.location.search}` || '/';
 }
 
-function getBugButtonPlacement(pathname: string) {
-  if (pathname.startsWith('/chat/')) {
-    return 'left-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
-  }
-
-  if (pathname.startsWith('/admin/')) {
-    return 'left-4 bottom-[calc(6.25rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-5 lg:top-auto';
-  }
-
-  if (pathname === '/feed' || pathname === '/profile/edit') {
-    // These surfaces reserve the top edge for their header and primary content
-    // controls. Keep the report trigger above the bottom navigation instead of
-    // covering the unread capsule or profile-photo actions.
-    return 'left-4 bottom-[calc(6.25rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
-  }
-
-  return 'left-4 top-[calc(4rem+env(safe-area-inset-top))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
-}
-
 function getBugTipPlacement(pathname: string) {
-  if (pathname.startsWith('/chat/')) {
-    return 'left-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
-  }
-
   if (pathname === '/map' || pathname.startsWith('/map/')) {
-    return 'left-4 top-[calc(20.125rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))] lg:left-5';
+    return 'left-4 top-[calc(20.125rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))]';
   }
 
-  return 'left-4 top-[calc(7.25rem+env(safe-area-inset-top))] lg:left-5 lg:bottom-auto lg:top-[calc(4.5rem+env(safe-area-inset-top))]';
+  return 'right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(4.5rem+env(safe-area-inset-top))]';
 }
 
 function waitForVideoMetadata(video: HTMLVideoElement) {
@@ -147,7 +122,6 @@ async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined>
 
 export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps) {
   const location = useLocation();
-  const [buttonSlot, setButtonSlot] = useState<HTMLElement | null>(() => getBugButtonSlot());
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
@@ -156,7 +130,17 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
   const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
 
-  useEffect(() => subscribeToBugButtonSlot(() => setButtonSlot(getBugButtonSlot())), []);
+  useEffect(() => {
+    if (!enabled || typeof document === 'undefined') {
+      return;
+    }
+
+    document.documentElement.setAttribute('data-cruush-alpha-bug-corner', 'top-right');
+
+    return () => {
+      document.documentElement.removeAttribute('data-cruush-alpha-bug-corner');
+    };
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -245,14 +229,12 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
     <DialogTrigger asChild>
       <button
         aria-label="Report alpha bug"
-        className={buttonSlot
-          ? `inline-flex shrink-0 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${buttonSlot.dataset.bugButtonSize === 'large' ? 'size-11' : 'size-8 sm:size-9'}`
-          : `fixed z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive ${getBugButtonPlacement(location.pathname)}`}
+        className="fixed right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] z-50 inline-flex h-11 w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
         data-testid="alpha-bug-button"
         title="Report a bug"
         type="button"
       >
-        <Bug className={buttonSlot?.dataset.bugButtonSize === 'large' ? 'h-5 w-5 lg:h-7 lg:w-7' : 'h-5 w-5'} />
+        <Bug className="h-5 w-5 lg:h-7 lg:w-7" />
       </button>
     </DialogTrigger>
   );
@@ -272,7 +254,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
       }}
     >
       {showTip ? (
-        <div className={`fixed z-30 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
+        <div className={`fixed z-50 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
           <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"
@@ -283,7 +265,7 @@ export default function AlphaBugButton({ enabled = false }: AlphaBugButtonProps)
           </button>
         </div>
       ) : null}
-      {buttonSlot && typeof document !== 'undefined' ? createPortal(trigger, buttonSlot) : trigger}
+      {trigger}
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
           <DialogTitle>Report alpha bug</DialogTitle>

@@ -61,9 +61,11 @@ describe('AlphaBugButton', () => {
     renderAlphaBugButton();
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
-    expect(reportButton).toHaveClass('left-4', 'top-[calc(4rem+env(safe-area-inset-top))]');
-    expect(reportButton).toHaveClass('z-20');
-    expect(reportButton).not.toHaveClass('right-4', 'top-[calc(0.75rem+env(safe-area-inset-top))]');
+    expect(reportButton).toHaveClass(
+      'right-[calc(0.75rem+env(safe-area-inset-right))]',
+      'top-[calc(0.75rem+env(safe-area-inset-top))]',
+      'z-50',
+    );
 
     fireEvent.click(reportButton);
     expect(screen.getByText('/map?layer=nearby')).toBeInTheDocument();
@@ -83,28 +85,28 @@ describe('AlphaBugButton', () => {
     expect(screen.getByText('This report includes the current page and attaches a screenshot when your browser allows it.')).toBeInTheDocument();
   });
 
-  it('floats above the fixed chat composer on chat routes', () => {
+  it('keeps the same upper-right corner on chat routes', () => {
     window.history.replaceState({}, '', '/chat/group/group-1');
     renderAlphaBugButton(true, '/chat/group/group-1');
 
     expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
-      'left-4',
-      'bottom-[calc(19rem+env(safe-area-inset-bottom))]',
-      'z-20',
+      'right-[calc(0.75rem+env(safe-area-inset-right))]',
+      'top-[calc(0.75rem+env(safe-area-inset-top))]',
+      'z-50',
     );
   });
 
-  it.each(['/feed', '/profile/edit', '/admin/moderation'])('clears top-surface controls on %s', (route) => {
+  it.each(['/feed', '/profile/edit', '/admin/moderation'])('keeps the same upper-right corner on %s', (route) => {
     renderAlphaBugButton(true, route);
 
     expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(
-      'left-4',
-      'bottom-[calc(6.25rem+env(safe-area-inset-bottom))]',
-      'z-20',
+      'right-[calc(0.75rem+env(safe-area-inset-right))]',
+      'top-[calc(0.75rem+env(safe-area-inset-top))]',
+      'z-50',
     );
   });
 
-  it('uses the map chrome slot instead of floating over map controls', () => {
+  it('keeps the fixed upper-right placement outside the map chrome slot', () => {
     const slot = document.createElement('div');
     slot.dataset.bugButtonSize = 'large';
     document.body.appendChild(slot);
@@ -113,14 +115,18 @@ describe('AlphaBugButton', () => {
     renderAlphaBugButton();
 
     const reportButton = screen.getByRole('button', { name: 'Report alpha bug' });
-    expect(slot).toContainElement(reportButton);
-    expect(reportButton).toHaveClass('size-11');
-    expect(reportButton).not.toHaveClass('size-8', 'sm:size-9');
+    expect(slot).not.toContainElement(reportButton);
+    expect(reportButton).toHaveClass(
+      'fixed',
+      'h-11',
+      'w-11',
+      'right-[calc(0.75rem+env(safe-area-inset-right))]',
+      'top-[calc(0.75rem+env(safe-area-inset-top))]',
+    );
     expect(reportButton.querySelector('svg')).toHaveClass('h-5', 'w-5', 'lg:h-7', 'lg:w-7');
-    expect(reportButton).not.toHaveClass('fixed', 'z-20');
   });
 
-  it('moves the first-run map tip below the map controls and Ping button', async () => {
+  it('keeps the first-run map tip below the map controls', async () => {
     clearPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
     getUserNoticeDismissal.mockResolvedValueOnce({ dismissed: false, dismissedAt: null });
 
@@ -129,6 +135,7 @@ describe('AlphaBugButton', () => {
     const tipCopy = await screen.findByText('Alpha test: tap the bug icon to report anything broken.');
     const tip = tipCopy.closest('div');
     expect(tip).toHaveClass(
+      'left-4',
       'top-[calc(20.125rem+env(safe-area-inset-top))]',
       'sm:top-[calc(9.25rem+env(safe-area-inset-top))]',
     );
