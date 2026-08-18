@@ -89,7 +89,7 @@ export function createGithubIssueGateway(
 
 function buildDuplicateCommentBody(report: BugReportTriageView, total: number) {
   return [
-    `Another report landed in this cluster — **${total} total** now.`,
+    `Another report landed in this cluster: **${total} total** now.`,
     "",
     `- support request: \`${report.id}\``,
     `- reported: ${report.createdAt}`,

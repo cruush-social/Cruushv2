@@ -19,7 +19,7 @@ These are not suggestions you interpret. Run them.
 | --- | --- | --- |
 | `pnpm ship -m "message"` | A1, A2, A3, F1, I5 | Commits, pushes to `main`, deploys, and polls until the deployed commit matches the pushed SHA. This is what "push to main" means. |
 | `pnpm check:layout` | D1, D2, D5, D6, D7 | Drives the installed Chrome over the DevTools Protocol at 375/768/1280 and measures real bounding boxes. Add `--url https://www.cruush.app` to check production. |
-| `pnpm check:copy` | F1 | Fails on user-facing `cruush`. `--fix` rewrites it. |
+| `pnpm check:copy` | F1, F4 | Fails on user-facing `cruush` or public em dashes. `--fix` rewrites product-name casing only. |
 | `pnpm docs:worktrees` | J1 | Regenerates `docs/worktrees.md`. |
 | `pnpm docs:env` | I1, I2 | Regenerates `docs/env-matrix.md` and lists variables the code reads that `server/.env.example` does not document. |
 
@@ -96,6 +96,8 @@ These are not suggestions you interpret. Run them.
   sentence.
 - **F2.** Map viewing and messaging are always free. We never sell user data.
 - **F3.** Never describe the product as nightlife-only. It is for the whole queer community.
+- **F4.** Public-facing copy never uses the Unicode em dash character (U+2014). Use a
+  period, comma, colon, semicolon, parentheses, or a separate sentence instead.
 
 ## G. Product invariants
 

@@ -684,26 +684,6 @@ export default function Auth({ onAuth }: AuthProps) {
 	            </div>
 	          ) : null}
 
-          {!isForgotPassword && !isSignUp && twoFactorRequired ? (
-            <div className="space-y-2">
-              <label htmlFor="twoFactorCode" className="sr-only">
-                Authenticator or recovery code
-              </label>
-              <input
-                id="twoFactorCode"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={twoFactorCode}
-                onChange={(event) => setTwoFactorCode(event.target.value)}
-                placeholder="123456"
-                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
-                required
-                disabled={isLoading}
-              />
-            </div>
-          ) : null}
-
           <div className="space-y-2">
             <label htmlFor="email" className="sr-only">
               Email
@@ -805,6 +785,26 @@ export default function Auth({ onAuth }: AuthProps) {
               </div>
             </div>
           )}
+
+          {!isForgotPassword && !isSignUp && twoFactorRequired ? (
+            <div className="space-y-2">
+              <label htmlFor="twoFactorCode" className="sr-only">
+                MFA code or recovery code
+              </label>
+              <input
+                id="twoFactorCode"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={twoFactorCode}
+                onChange={(event) => setTwoFactorCode(event.target.value)}
+                placeholder="MFA code"
+                className="launch-login-auth-input w-full h-10 px-4 bg-black/45 border border-white/10 text-white placeholder:text-white/28 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_34px_rgba(0,0,0,0.22)] backdrop-blur-sm focus:outline-none focus:border-[#ff0072]/50 transition-colors rounded-sm"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          ) : null}
 
           {!isForgotPassword && isSignUp && (
             <div className="space-y-2">
