@@ -12361,6 +12361,7 @@ describe("server", () => {
         mpox_vaccine: ["Vaccinated"],
         custom_mpox_vaccine: "",
         substance_boundaries: ["No alcohol involved", "Let's discuss"],
+        health_preferences: [],
         visibility_rules: emptyProfile.visibility_rules,
         updated_at: "2026-04-28T12:00:00.000Z"
       }
@@ -13145,6 +13146,7 @@ describe("server", () => {
       data: {
         id: userId,
         ...payload,
+        health_preferences: [],
         year_of_birth: 1994,
         photo_metadata: [],
         is_trans: null,
