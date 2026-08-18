@@ -549,7 +549,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [photoUploadNotice, setPhotoUploadNotice] = useState<string | null>(null);
   const [profilePhotoUploadsAvailable, setProfilePhotoUploadsAvailable] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState('basics');
   const [pendingPhoto, setPendingPhoto] = useState<PendingProfilePhoto | null>(null);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const photoPreviewRequestRef = useRef(0);
@@ -958,10 +958,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
           </div>
         ) : null}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* ...existing code for TabsList... */}
-          <TabsList className="w-full grid grid-cols-5">
+          <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="photos" onClick={() => setActiveTab('photos')}>Photos</TabsTrigger>
-            <TabsTrigger value="profile" onClick={() => setActiveTab('profile')}>Profile</TabsTrigger>
             <TabsTrigger value="basics" onClick={() => setActiveTab('basics')}>Basics</TabsTrigger>
             <TabsTrigger value="intimacy" onClick={() => setActiveTab('intimacy')}>Intimacy</TabsTrigger>
             <TabsTrigger value="health" onClick={() => setActiveTab('health')}>Health</TabsTrigger>
@@ -1057,7 +1055,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             <p className="text-sm text-muted-foreground">Add up to {MAX_PROFILE_PHOTOS} photos of yourself. Your first photo will be your profile picture. SFW photos are suggested, not required.</p>
           </TabsContent>
 
-          <TabsContent value="profile" className="space-y-6 mt-6">
+          <TabsContent value="basics" className="space-y-6 mt-6">
             <div className="space-y-2">
               <Label htmlFor="display_name">Display Name</Label>
               <Input
@@ -1069,35 +1067,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Looking For</Label>
-              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', limitToThree(vals))} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Availability</Label>
-              <MultiSelect {...profileMenuProps} options={AVAILABILITY} value={normalizedProfile.availability} onChange={(vals) => handleChange('availability', singleValue(vals))} selectionMode="single" />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Hosting/Travel</Label>
-              <MultiSelect {...profileMenuProps} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={(vals) => handleChange('hosting_travel', singleValue(vals))} selectionMode="single" />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Vibes</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="Vibes"
-                maxSelections={MAX_PROFILE_VIBES}
-                optionGroups={VIBE_GROUPS}
-                value={normalizedProfile.vibes}
-                onChange={(vals) => handleChange('vibes', limitToFive(vals))}
-              />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="basics" className="space-y-6 mt-6">
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
               <Textarea
@@ -1218,9 +1187,26 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
               <Label>Hobbies</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_HOBBIES} options={HOBBIES} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToFive(vals))} />
             </div>
+
+            <div className="space-y-2">
+              <Label>Vibes</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Vibes"
+                maxSelections={MAX_PROFILE_VIBES}
+                optionGroups={VIBE_GROUPS}
+                value={normalizedProfile.vibes}
+                onChange={(vals) => handleChange('vibes', limitToFive(vals))}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="intimacy" className="space-y-6 mt-6">
+            <div className="space-y-2">
+              <Label>Looking For</Label>
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', limitToThree(vals))} />
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Position</Label>

@@ -592,6 +592,10 @@ export function ProfileDetailsTabs({
         <Section title="Hobbies" compact={compact}>
           <BadgeList items={profileView.hobbies} compact={compact} />
         </Section>
+
+        <Section title="Vibes" compact={compact}>
+          <BadgeList items={profileView.vibes} variant="gradient" compact={compact} />
+        </Section>
       </TabsContent>
 
       <TabsContent value="intimacy" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
@@ -624,9 +628,6 @@ export function ProfileDetailsTabs({
           <BadgeList items={profileView.kinks} compact={compact} />
         </Section>
 
-        <Section title="Vibes" compact={compact}>
-          <BadgeList items={profileView.vibes} variant="gradient" compact={compact} />
-        </Section>
       </TabsContent>
 
       <TabsContent value="health" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>
