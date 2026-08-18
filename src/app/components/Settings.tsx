@@ -567,7 +567,7 @@ export default function Settings() {
             draggable={false}
             src={cruushLogo}
           />
-          <p className="text-xs text-muted-foreground">Version 1.3</p>
+          <p className="text-xs text-muted-foreground">Version 1.4</p>
         </div>
       </div>
 

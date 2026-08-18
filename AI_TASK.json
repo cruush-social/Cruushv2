@@ -2,12 +2,13 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Publish the completed cruush v1.4 MFA, public-copy, and responsive panel fixes to main, deploy the same commit to both application services, verify the live frontend and API, and rewrite the existing Resend v1.4 broadcast as an unsent draft for review.",
-  "base": "origin/main at f0b71fae85409b606ab2c6093350ee1271b520a8",
+  "job": "Finish the cruush v1.4 release by correcting the stale Settings version label, publishing the completed MFA, public-copy, and responsive panel fixes to main, deploying the same commit to both application services, verifying the live frontend and API, and preserving the rewritten Resend v1.4 broadcast as an unsent draft for review.",
+  "base": "origin/main at daeb3ec0a82972951aa5137beba42047c05af7e9",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
     "AI_TASK.json",
     "src/app/components/Auth.tsx",
+    "src/app/components/Settings.tsx",
     "src/app/components/MapProfilePopup.tsx",
     "src/app/components/CruiseCarouselSlot.tsx",
     "server/src/bug-report-issue-sync.ts",
@@ -40,6 +41,7 @@
     "Inspect the staged path list, staged diff, staged secret scan, and staged diff check before committing.",
     "Fast-forward origin/main to the exact local commit and verify the remote SHA.",
     "Verify the deployed frontend commit, one public frontend response, direct API health, and the affected live responsive flows without running test suites.",
+    "Render live Settings and confirm the footer displays Version 1.4.",
     "Reload the Resend broadcast and confirm its subject, preview, HTML, survey link, unsubscribe placeholder, lack of Unicode em dashes, and Draft state persist."
   ],
   "publicationTarget": "origin/main, the production frontend and API at the same commit, and the existing unsent Resend broadcast draft"
