@@ -2,35 +2,32 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Make the Activity route use the full viewport width and keep the Feed header and composer stationary while only the feed-post list scrolls.",
-  "base": "dc4afdd6f6183e5ac8e150d5b7201a377df49ba2",
+  "job": "Fix the deterministic MapHome suite failure by synchronizing stale responsive-spacing assertions with the already approved v1.4 map layout.",
+  "base": "28e29aedc05c698ac44ec385d34194c96dd2e041",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/components/LocalFeed.tsx",
-    "src/styles/theme.css"
+    "src/app/components/MapHome.test.tsx"
   ],
   "preserved": [
-    "Keep all Activity data, tabs, actions, rows, navigation, and visual styling unchanged except for the page-width constraint.",
-    "Keep the Feed header, composer, settings, posts, posting behavior, and bottom navigation unchanged except for scroll containment.",
-    "Keep the alpha bug-report button in its fixed upper-right corner and reserve its space only in the Activity top control row.",
+    "Keep the approved v1.4 MapHome layout and responsive spacing unchanged.",
+    "Keep all runtime code and user-visible behavior unchanged.",
     "Preserve unrelated tracked and untracked work."
   ],
   "nonGoals": [
-    "Do not change APIs, providers, environment variables, permissions, copy, profile data, or moderation behavior.",
-    "Do not add features, redesign cards, change bottom navigation, or deploy."
+    "Do not change runtime source, APIs, providers, environment variables, permissions, copy, profile data, or moderation behavior.",
+    "Do not add features, redesign UI, or manually deploy."
   ],
   "proof": [
-    "Render the authenticated Activity route at 390 by 844 and a wider viewport, then confirm its header and activity content use the available width without horizontal overflow.",
-    "Render the authenticated Feed route at 390 by 844 with populated posts, scroll the post list, and confirm the header and composer coordinates do not move while the post-list scrollTop changes.",
-    "Confirm the bottom navigation and upper-right alpha bug-report button remain visible and do not move during the Feed scroll."
+    "Run the complete MapHome unit-test file and confirm all assertions pass.",
+    "Confirm the diff changes only AI_TASK.json and stale MapHome test expectations.",
+    "Stage only the authorized files, scan the staged diff for secrets, and verify git diff checks.",
+    "Push the exact commit to origin/main and verify the remote SHA."
   ],
   "proofResults": [
-    "Activity rendered at 390 by 844 and 768 by 844 with matching 18-pixel left and right gutters for counts, tabs, and activity content, plus no horizontal document overflow.",
-    "Activity settings and alpha bug-report controls remained visually separate at both viewports.",
-    "Feed rendered at 390 by 844 with its screen fixed to the viewport and document scrollTop at zero.",
-    "A real mobile touch gesture at 390 by 600 changed only the feed-post list scrollTop from 0 to 76.5 while header, composer, bug button, bottom navigation, window scroll, and document scroll coordinates stayed unchanged."
+    "The complete MapHome unit-test file passed: 66 of 66 tests in 24.00 seconds.",
+    "The previously failing frontend shard passed: 138 of 138 tests across 14 files in 17.75 seconds.",
+    "Only AI_TASK.json and the two stale MapHome responsive-spacing assertions changed. Runtime source and rendered UI remain unchanged."
   ],
   "environmentChanges": [],
   "publicationTarget": "origin/main"

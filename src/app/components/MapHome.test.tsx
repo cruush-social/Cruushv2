@@ -1343,8 +1343,9 @@ describe('MapHome', () => {
       'w-full',
       'flex-1',
       'justify-between',
-      'gap-0.5',
+      'gap-0',
       'p-1',
+      'sm:gap-1',
       'sm:p-1.5',
       'lg:mx-auto',
       'lg:max-w-[52rem]',
@@ -1379,7 +1380,7 @@ describe('MapHome', () => {
       'lg:size-11',
     );
     expect(pingButton).not.toHaveClass('mt-2');
-    expect(rightActions).toHaveClass('right-3', 'top-[3.875rem]', 'sm:right-4', 'sm:top-[4.875rem]');
+    expect(rightActions).toHaveClass('right-3', 'top-[4.375rem]', 'sm:right-4', 'sm:top-[4.875rem]');
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
       'cruush-logo-font',
