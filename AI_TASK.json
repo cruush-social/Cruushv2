@@ -2,33 +2,46 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Fix the deterministic MapHome suite failure by synchronizing stale responsive-spacing assertions with the already approved v1.4 map layout.",
-  "base": "28e29aedc05c698ac44ec385d34194c96dd2e041",
+  "job": "Restore vertical touch scrolling in map filter menus and make the Messages header controls use the full content width without overlapping the fixed bug reporter.",
+  "base": "07994b2a74fe2ddfe4c9dd807a12cf01c1aa999e",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapHome.test.tsx"
+    "src/app/components/MultiSelect.tsx",
+    "src/app/components/MultiSelect.test.tsx",
+    "src/app/components/MapFiltersSurface.test.tsx",
+    "src/app/components/MapVisibilitySurface.test.tsx",
+    "src/app/components/DirectMessages.tsx",
+    "src/app/components/DirectMessages.test.tsx",
+    "src/styles/theme.css"
   ],
   "preserved": [
-    "Keep the approved v1.4 MapHome layout and responsive spacing unchanged.",
-    "Keep all runtime code and user-visible behavior unchanged.",
+    "Keep Seeking and Visibility fields, options, selections, tabs, copy, layout, menu placement, and Clear and Apply behavior unchanged.",
+    "Keep the map, bottom navigation, fixed sheet footer, and all non-menu scrolling unchanged.",
+    "Keep the Messages content, thread cards, page inset, actions, and fixed upper-right bug reporter unchanged.",
     "Preserve unrelated tracked and untracked work."
   ],
   "nonGoals": [
-    "Do not change runtime source, APIs, providers, environment variables, permissions, copy, profile data, or moderation behavior.",
-    "Do not add features, redesign UI, or manually deploy."
+    "Do not redesign the sheets or Messages page, change filter matching, quotas, profile data, APIs, providers, environment variables, or permissions.",
+    "Do not deploy or run unrelated broad test suites."
   ],
   "proof": [
-    "Run the complete MapHome unit-test file and confirm all assertions pass.",
-    "Confirm the diff changes only AI_TASK.json and stale MapHome test expectations.",
-    "Stage only the authorized files, scan the staged diff for secrets, and verify git diff checks.",
-    "Push the exact commit to origin/main and verify the remote SHA."
+    "Run the focused MultiSelect tests and confirm modal menus portal within the owning Sheet or Dialog content.",
+    "Render the authenticated map at a 390 by 844 mobile viewport, open Seeking and Visibility, open long option menus, perform real vertical touch gestures, and confirm each menu scrollTop increases.",
+    "Confirm the sheet header and Clear and Apply footer remain fixed while menu scrolling works and no horizontal overflow appears.",
+    "Render the authenticated Messages page at mobile and desktop widths, confirm stats, search, and tabs align with the thread-card width, confirm no horizontal overflow, and confirm the fixed bug reporter does not overlap the header actions.",
+    "After pushing the verified commit to main, deploy that exact SHA and confirm Coolify health, one public frontend response, and direct API health."
   ],
   "proofResults": [
-    "The complete MapHome unit-test file passed: 66 of 66 tests in 24.00 seconds.",
-    "The previously failing frontend shard passed: 138 of 138 tests across 14 files in 17.75 seconds.",
-    "Only AI_TASK.json and the two stale MapHome responsive-spacing assertions changed. Runtime source and rendered UI remain unchanged."
+    "Focused mini suites passed: MultiSelect 9 of 9, MapFiltersSurface 3 of 3, and MapVisibilitySurface 3 of 3.",
+    "At 390 by 844, native touch-source gestures moved Seeking Gender Identities from scrollTop 1 to 82 and Visibility Gender Identities from scrollTop 1 to 381.",
+    "At 1440 by 900, native mouse-source gestures moved both Seeking and Visibility Gender Identities from scrollTop 0 to 120.",
+    "In all four rendered checks, the menu remained inside its owning modal, the sheet header and Clear and Apply footer stayed fixed, and the list had no horizontal overflow.",
+    "Focused DirectMessages suite passed 9 of 9 after the final layout change.",
+    "At 390 by 844 with a populated thread, stats, search, tabs, and the thread card each rendered from x 18 to x 372; the fixed bug reporter stayed 18 pixels clear of header actions and horizontal overflow was 0.",
+    "At 1440 by 900 with a populated thread, stats, search, tabs, and the thread card each rendered from x 360 to x 1080; the fixed bug reporter stayed clear and horizontal overflow was 0.",
+    "Mobile and desktop rendered captures were visually inspected from the real local full-stack app; temporary captures remain outside the repository."
   ],
   "environmentChanges": [],
-  "publicationTarget": "origin/main"
+  "publicationTarget": "main and production"
 }

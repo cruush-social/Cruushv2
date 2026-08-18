@@ -38,7 +38,7 @@ describe('MapFiltersSurface', () => {
     expect(screen.queryByText('Basic includes up to 3 seeking filter categories.')).not.toBeInTheDocument();
   });
 
-  it('keeps a portalled Seeking option pointer-enabled and applies the selected gender', () => {
+  it('keeps a portalled Seeking option inside the modal touch boundary and applies it', () => {
     render(<SeekingHarness />);
 
     const trigger = screen.getByRole('button', { name: 'Gender Identities' });
@@ -46,7 +46,7 @@ describe('MapFiltersSurface', () => {
 
     const option = screen.getByRole('option', { name: 'man', exact: true });
     const menu = option.parentElement?.parentElement;
-    expect(option.closest('[data-slot="sheet-content"]')).toBeNull();
+    expect(option.closest('[data-slot="sheet-content"]')).toBe(screen.getByRole('dialog', { name: 'Seeking' }));
     expect(menu).toHaveStyle({ pointerEvents: 'auto' });
 
     fireEvent.pointerDown(option, { isPrimary: true, pointerType: 'touch' });

@@ -104,6 +104,10 @@ html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0[data-testid='
   padding-right: 1rem !important;
 }
 
+html[data-cruush-alpha-bug-corner='top-right'] header.sticky.top-0[data-testid='direct-messages-header'] {
+  padding-right: 0 !important;
+}
+
 html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick-access'] {
   right: calc(4.25rem + env(safe-area-inset-right));
 }

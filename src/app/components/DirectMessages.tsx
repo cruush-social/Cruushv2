@@ -424,9 +424,9 @@ export default function DirectMessages() {
 
   return (
     <div className="relative min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] text-white">
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-        <div className="mx-auto max-w-2xl space-y-4">
-          <div className="flex items-center justify-between gap-4">
+      <header data-testid="direct-messages-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
+        <div data-testid="direct-messages-header-content" className="mx-auto max-w-2xl space-y-4 px-4">
+          <div data-testid="direct-messages-header-row" className="flex items-center justify-between gap-4 pr-[3.5rem]">
             <div>
               <h1 className="text-3xl leading-none text-white">Messages</h1>
             </div>

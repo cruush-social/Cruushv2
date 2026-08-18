@@ -68,7 +68,7 @@ describe('MapVisibilitySurface', () => {
     expect(screen.queryByText('Basic includes up to 3 hidden filters.')).not.toBeInTheDocument();
   });
 
-  it('keeps a portalled visibility option pointer-enabled while the sheet is modal', () => {
+  it('keeps a portalled Visibility option inside the modal touch boundary', () => {
     render(<VisibilityHarness hasCruushPlus />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
@@ -76,7 +76,7 @@ describe('MapVisibilitySurface', () => {
     const option = screen.getByRole('option', { name: 'man', exact: true });
     const menu = option.parentElement?.parentElement;
 
-    expect(option.closest('[data-slot="sheet-content"]')).toBeNull();
+    expect(option.closest('[data-slot="sheet-content"]')).toBe(screen.getByRole('dialog', { name: 'Visibility' }));
     expect(menu).toHaveStyle({ pointerEvents: 'auto' });
 
     fireEvent.pointerDown(option, { isPrimary: true, pointerType: 'touch' });

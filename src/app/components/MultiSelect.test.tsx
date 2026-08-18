@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import MultiSelect from './MultiSelect';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from './ui/sheet';
 
 function mockTriggerRect(button: HTMLElement, rect: Partial<DOMRect>) {
   vi.spyOn(button, 'getBoundingClientRect').mockReturnValue({
@@ -222,45 +223,48 @@ describe('MultiSelect', () => {
     expect(menuSurface?.style.top).toBe('');
   });
 
-  it('keeps portalled options pointer-enabled inside a modal Sheet', async () => {
+  it('portals options into the owning modal Sheet so touch scrolling stays inside its lock', async () => {
     const onChange = vi.fn();
-    const previousPointerEvents = document.body.style.pointerEvents;
-    document.body.style.pointerEvents = 'none';
+    render(
+      <Sheet open>
+        <SheetContent>
+          <SheetTitle>Seeking</SheetTitle>
+          <SheetDescription>Filter nearby profiles.</SheetDescription>
+          <MultiSelect
+            ariaLabel="Gender Identities"
+            menuPortal
+            onChange={onChange}
+            options={['nonbinary', 'woman']}
+            value={[]}
+          />
+        </SheetContent>
+      </Sheet>,
+    );
 
-    try {
-      render(
-        <MultiSelect
-          ariaLabel="Gender Identities"
-          menuPortal
-          onChange={onChange}
-          options={['nonbinary', 'woman']}
-          value={[]}
-        />,
-      );
+    const trigger = screen.getByRole('button', { name: 'Gender Identities' });
+    mockTriggerRect(trigger, {
+      bottom: 200,
+      left: 20,
+      top: 160,
+      width: 280,
+    });
 
-      const trigger = screen.getByRole('button', { name: 'Gender Identities' });
-      mockTriggerRect(trigger, {
-        bottom: 200,
-        left: 20,
-        top: 160,
-        width: 280,
-      });
+    fireEvent.click(trigger);
 
-      fireEvent.click(trigger);
+    const listbox = screen.getByRole('listbox', { name: 'Gender Identities' });
+    const menuSurface = listbox.parentElement!;
+    const sheetContent = screen.getByRole('dialog', { name: 'Seeking' });
+    await waitFor(() => {
+      expect(sheetContent).toContainElement(menuSurface);
+      expect(menuSurface).toHaveStyle({ pointerEvents: 'auto' });
+    });
+    expect(listbox.style.touchAction).toBe('pan-y');
 
-      const menuSurface = screen.getByRole('listbox', { name: 'Gender Identities' }).parentElement!;
-      await waitFor(() => {
-        expect(menuSurface).toHaveStyle({ pointerEvents: 'auto' });
-      });
-
-      const option = screen.getByRole('option', { name: 'nonbinary' });
-      fireEvent.pointerDown(option, { isPrimary: true, pointerType: 'touch' });
-      fireEvent.pointerUp(option, { isPrimary: true, pointerType: 'touch' });
-      fireEvent.click(option);
-      expect(onChange).toHaveBeenCalledWith(['nonbinary']);
-    } finally {
-      document.body.style.pointerEvents = previousPointerEvents;
-    }
+    const option = screen.getByRole('option', { name: 'nonbinary' });
+    fireEvent.pointerDown(option, { isPrimary: true, pointerType: 'touch' });
+    fireEvent.pointerUp(option, { isPrimary: true, pointerType: 'touch' });
+    fireEvent.click(option);
+    expect(onChange).toHaveBeenCalledWith(['nonbinary']);
   });
 
   it('does not render a full-screen blocker over portaled menus', async () => {

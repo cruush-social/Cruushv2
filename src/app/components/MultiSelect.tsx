@@ -58,6 +58,7 @@ export default function MultiSelect({
   const instanceId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const portalMenuRef = useRef<HTMLDivElement | null>(null);
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const [resolvedMenuPlacement, setResolvedMenuPlacement] = useState<ResolvedMenuPlacement>(menuPlacement);
   const [localMenuStyle, setLocalMenuStyle] = useState<CSSProperties | null>(null);
   const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
@@ -107,6 +108,7 @@ export default function MultiSelect({
       setResolvedMenuPlacement(menuPlacement);
       setLocalMenuStyle(null);
       setPortalStyle(null);
+      setPortalRoot(null);
       return;
     }
 
@@ -116,6 +118,8 @@ export default function MultiSelect({
       }
 
       const rect = triggerRef.current.getBoundingClientRect();
+      const ownerDocument = triggerRef.current.ownerDocument;
+      const modalContent = triggerRef.current.closest<HTMLElement>('[data-slot="sheet-content"], [data-slot="dialog-content"]');
       const bottomSpace = window.innerHeight - rect.bottom - MENU_VIEWPORT_PADDING - MENU_OFFSET;
       const topSpace = rect.top - MENU_VIEWPORT_PADDING - MENU_OFFSET;
       const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
@@ -132,6 +136,9 @@ export default function MultiSelect({
       const maxHeight = Math.max(MENU_MIN_HEIGHT, Math.min(MENU_MAX_HEIGHT, availableHeight));
       setResolvedMenuPlacement(placeAbove ? 'top' : 'bottom');
       setLocalMenuStyle(menuPortal ? null : { maxHeight });
+      // Radix locks touch scrolling outside modal content. Keep fixed portal
+      // geometry while mounting the menu inside that allowed scroll boundary.
+      setPortalRoot(menuPortal ? modalContent ?? ownerDocument.body : null);
 
       if (!menuPortal) {
         setPortalStyle(null);
@@ -317,7 +324,7 @@ export default function MultiSelect({
     </>
   );
 
-  const menu = isOpen && menuPortal && portalStyle
+  const menu = isOpen && menuPortal && portalStyle && portalRoot
     ? createPortal(
         <>
           <div
@@ -332,7 +339,7 @@ export default function MultiSelect({
             {menuContent}
           </div>
         </>,
-        document.body
+        portalRoot
       )
     : null;
 

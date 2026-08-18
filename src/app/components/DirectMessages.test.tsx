@@ -76,6 +76,24 @@ describe('DirectMessages', () => {
     openConversationOrInbox.mockReset();
   });
 
+  it('keeps full-width message controls clear of the fixed bug reporter', async () => {
+    getConversations.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter>
+        <DirectMessages />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
+    expect(screen.getByTestId('direct-messages-header')).not.toHaveClass('px-4');
+    expect(screen.getByTestId('direct-messages-header-content')).toHaveClass('max-w-2xl', 'px-4');
+    expect(screen.getByTestId('direct-messages-header-row')).toHaveClass('pr-[3.5rem]');
+    expect(screen.getByTestId('direct-messages-header-row')).not.toContainElement(
+      screen.getByPlaceholderText('Search people, threads, vibes'),
+    );
+  });
+
   it('shows an empty live inbox without preview conversations', async () => {
     getConversations.mockResolvedValue([]);
 
