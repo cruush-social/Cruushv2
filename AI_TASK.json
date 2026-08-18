@@ -23,7 +23,7 @@
   ],
   "nonGoals": [
     "Do not redesign the sheets or Messages page, change filter matching, quotas, profile data, APIs, providers, environment variables, or permissions.",
-    "Do not deploy or run unrelated broad test suites."
+    "Do not run unrelated broad test suites or change production environment variables."
   ],
   "proof": [
     "Run the focused MultiSelect tests and confirm modal menus portal within the owning Sheet or Dialog content.",
