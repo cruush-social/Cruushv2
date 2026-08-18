@@ -279,35 +279,27 @@ export function calculateTutorialCardPlacement({
   }, bottomPlacement);
 }
 
-function readTargetRect(targetId: MapControlsTutorialStepId): TutorialPlacementRect | null {
+function readTargetRects(targetId: MapControlsTutorialStepId): TutorialPlacementRect[] {
   if (typeof document === 'undefined') {
-    return null;
+    return [];
   }
 
-  const target = document.querySelector(`[data-tutorial-target="${targetId}"]`);
-  const rect = target?.getBoundingClientRect();
-
-  if (!rect || rect.width <= 0 || rect.height <= 0) {
-    return null;
-  }
-
-  return {
-    bottom: rect.bottom,
-    height: rect.height,
-    left: rect.left,
-    right: rect.right,
-    top: rect.top,
-    width: rect.width,
-  };
+  return Array.from(document.querySelectorAll<HTMLElement>(`[data-tutorial-target="${targetId}"]`))
+    .map((target) => target.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0)
+    .map((rect) => ({
+      bottom: rect.bottom,
+      height: rect.height,
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      width: rect.width,
+    }));
 }
 
-function sameTargetRect(first: TutorialPlacementRect | null, second: TutorialPlacementRect | null) {
+function sameTargetRect(first: TutorialPlacementRect, second: TutorialPlacementRect) {
   if (first === second) {
     return true;
-  }
-
-  if (!first || !second) {
-    return false;
   }
 
   return first.bottom === second.bottom
@@ -316,6 +308,31 @@ function sameTargetRect(first: TutorialPlacementRect | null, second: TutorialPla
     && first.right === second.right
     && first.top === second.top
     && first.width === second.width;
+}
+
+function sameTargetRects(first: TutorialPlacementRect[], second: TutorialPlacementRect[]) {
+  return first.length === second.length
+    && first.every((rect, index) => sameTargetRect(rect, second[index]));
+}
+
+function mergeTargetRects(rects: TutorialPlacementRect[]): TutorialPlacementRect | null {
+  if (rects.length === 0) {
+    return null;
+  }
+
+  const left = Math.min(...rects.map((rect) => rect.left));
+  const right = Math.max(...rects.map((rect) => rect.right));
+  const top = Math.min(...rects.map((rect) => rect.top));
+  const bottom = Math.max(...rects.map((rect) => rect.bottom));
+
+  return {
+    bottom,
+    height: bottom - top,
+    left,
+    right,
+    top,
+    width: right - left,
+  };
 }
 
 function sameMeasurements(first: TutorialMeasurements | null, second: TutorialMeasurements) {
@@ -341,13 +358,14 @@ function readBottomBoundary(viewportHeight: number) {
 export default function MapControlsTutorial({ open, onComplete, onActivateStep }: MapControlsTutorialProps) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [stepIndex, setStepIndex] = useState(readTutorialProgressIndex);
-  const [targetRect, setTargetRect] = useState<TutorialPlacementRect | null>(null);
+  const [targetRects, setTargetRects] = useState<TutorialPlacementRect[]>([]);
   const [measurements, setMeasurements] = useState<TutorialMeasurements | null>(null);
   const [actionPending, setActionPending] = useState(false);
   const [actionError, setActionError] = useState('');
   const [actionCompleted, setActionCompleted] = useState(false);
   const step = TUTORIAL_STEPS[stepIndex];
   const isLastStep = stepIndex === TUTORIAL_STEPS.length - 1;
+  const targetBounds = useMemo(() => mergeTargetRects(targetRects), [targetRects]);
 
   useEffect(() => {
     if (open) {
@@ -372,7 +390,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
       const viewportHeight = window.innerHeight || DEFAULT_VIEWPORT_HEIGHT_PX;
       const cardElement = cardRef.current;
       const cardRect = cardElement?.getBoundingClientRect();
-      const nextRect = readTargetRect(step.id);
+      const nextRects = readTargetRects(step.id);
       const nextMeasurements: TutorialMeasurements = {
         viewportWidth,
         viewportHeight,
@@ -385,7 +403,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
           : DEFAULT_CARD_HEIGHT_PX,
       };
 
-      setTargetRect((currentRect) => sameTargetRect(currentRect, nextRect) ? currentRect : nextRect);
+      setTargetRects((currentRects) => sameTargetRects(currentRects, nextRects) ? currentRects : nextRects);
       setMeasurements((currentMeasurements) => (
         sameMeasurements(currentMeasurements, nextMeasurements) ? currentMeasurements : nextMeasurements
       ));
@@ -398,15 +416,13 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
 
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
     const mutationObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(measure);
-    const target = document.querySelector(`[data-tutorial-target="${step.id}"]`);
+    const targets = document.querySelectorAll<HTMLElement>(`[data-tutorial-target="${step.id}"]`);
     const bottomNav = document.querySelector('[data-testid="bottom-nav-pill"]');
 
     if (cardRef.current) {
       resizeObserver?.observe(cardRef.current);
     }
-    if (target) {
-      resizeObserver?.observe(target);
-    }
+    targets.forEach((target) => resizeObserver?.observe(target));
     if (bottomNav) {
       resizeObserver?.observe(bottomNav);
     }
@@ -432,7 +448,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
       cardWidth: measurements?.cardWidth
         ?? Math.min(DEFAULT_CARD_WIDTH_PX, Math.max(0, viewportWidth - DEFAULT_EDGE_PADDING_PX * 2)),
       cardHeight: measurements?.cardHeight ?? DEFAULT_CARD_HEIGHT_PX,
-      targetRect,
+      targetRect: targetBounds,
     });
 
     return {
@@ -440,7 +456,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
       maxHeight: placement.maxHeight,
       top: placement.top,
     };
-  }, [measurements, targetRect]);
+  }, [measurements, targetBounds]);
 
   const completeTutorial = () => {
     window.localStorage.removeItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY);
@@ -479,20 +495,49 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[100]" data-testid="map-controls-tutorial">
-      {targetRect ? (
-        <div
+      {targetRects.length > 0 ? (
+        <svg
           aria-hidden="true"
-          className="pointer-events-none fixed border-2 border-primary shadow-[0_0_0_9999px_rgba(0,0,0,0.58)]"
+          className="pointer-events-none fixed inset-0 h-full w-full"
           data-tutorial-step={step.id}
           data-testid="tutorial-spotlight"
-          style={{
-            left: targetRect.left - 8,
-            top: targetRect.top - 8,
-            width: targetRect.width + 16,
-            height: targetRect.height + 16,
-            borderRadius: '0.75rem',
-          }}
-        />
+        >
+          <defs>
+            <mask id="cruush-map-tutorial-spotlight-mask" maskUnits="userSpaceOnUse">
+              <rect fill="white" height="100%" width="100%" />
+              {targetRects.map((rect, index) => (
+                <rect
+                  key={`${step.id}-hole-${index}`}
+                  fill="black"
+                  height={rect.height + 16}
+                  rx="12"
+                  width={rect.width + 16}
+                  x={rect.left - 8}
+                  y={rect.top - 8}
+                />
+              ))}
+            </mask>
+          </defs>
+          <rect
+            fill="rgba(0,0,0,0.58)"
+            height="100%"
+            mask="url(#cruush-map-tutorial-spotlight-mask)"
+            width="100%"
+          />
+          {targetRects.map((rect, index) => (
+            <rect
+              key={`${step.id}-ring-${index}`}
+              className="fill-none stroke-primary"
+              data-testid="tutorial-spotlight-ring"
+              height={rect.height + 16}
+              rx="12"
+              strokeWidth="2"
+              width={rect.width + 16}
+              x={rect.left - 8}
+              y={rect.top - 8}
+            />
+          ))}
+        </svg>
       ) : null}
 
       <section

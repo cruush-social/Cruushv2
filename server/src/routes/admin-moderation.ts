@@ -1749,7 +1749,7 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
                 or lower(coalesce(profile.display_name, '')) like '%' || $1 || '%'
                 or users.id::text = $1)
            and ($2::text is null or coalesce(users.account_status, 'active') = $2)`
-      )},
+      )}
        count(*) over() as total_count
        from base
        order by

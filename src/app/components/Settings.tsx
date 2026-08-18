@@ -449,7 +449,7 @@ export default function Settings() {
         </div>
 
         <div className="space-y-4">
-          <PublicPolicyLinks excludePaths={['/billing-policy']} />
+          <PublicPolicyLinks />
         </div>
 
         <div className="space-y-2">

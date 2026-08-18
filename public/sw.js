@@ -66,8 +66,8 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: '/icons/icon-192.png?v=20260817-no-notch',
+    badge: '/icons/icon-192.png?v=20260817-no-notch',
     silent: !soundEnabled,
     sound: soundEnabled ? sound : undefined,
     data: {

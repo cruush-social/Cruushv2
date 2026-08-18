@@ -10,12 +10,11 @@ export const PUBLIC_POLICY_LINKS = [
   { label: 'Privacy', path: '/privacy' },
   { label: 'Terms', path: '/terms' },
   { label: 'Security', path: '/security' },
-  { label: 'Billing policy', path: '/billing-policy' },
   { label: '2257', path: '/2257' },
   { label: 'Takedown policy', path: '/takedown-policy' },
 ];
 
-const AUTH_HIDDEN_POLICY_PATHS = ['/terms', '/privacy', '/billing-policy'];
+const AUTH_HIDDEN_POLICY_PATHS = ['/terms', '/privacy'];
 
 export const AUTH_POLICY_LINKS = [
   { label: 'Terms of Service', path: '/terms' },

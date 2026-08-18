@@ -274,6 +274,7 @@ export async function registerPostRoutes(app: FastifyInstance) {
        left join user_privacy_settings pin_settings on pin_settings.user_id = p.user_id
        where p.expires_at > now()
          and coalesce(author.account_status, 'active') <> 'deleted'
+         and lower(trim(coalesce(pr.display_name, ''))) <> 'user deleted profile'
          and p.created_at >= now() - case
            when $2 = '1h' then interval '1 hour'
            when $2 = '3h' then interval '3 hours'

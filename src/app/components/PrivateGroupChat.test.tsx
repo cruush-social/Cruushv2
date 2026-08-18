@@ -223,6 +223,7 @@ describe('PrivateGroupChat', () => {
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
     expect(screen.queryByText('Preview thread')).not.toBeInTheDocument();
     expect(screen.queryByText('hosting for another hour if you still want to swing by')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Open River profile' })).not.toBeInTheDocument();
   });
 
   it('does not show suggested reply chips or a quick-reply action', async () => {
@@ -819,6 +820,54 @@ describe('PrivateGroupChat', () => {
 
     expect(await screen.findByAltText('Message photo')).toHaveAttribute('src', '/api/media/message-photos/photo.png');
     expect(screen.getByText('street view')).toBeInTheDocument();
+  });
+
+  it('uses the DL Mode icon on an explicit message photo shield', async () => {
+    window.localStorage.setItem('cruush:dl-mode-enabled', 'true');
+    getConversationMessages.mockResolvedValue({
+      conversation: {
+        id: '7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2',
+        kind: 'dm',
+        user: {
+          id: 'user-2',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        distance: 'Nearby',
+        updatedAt: '2026-04-29T12:00:00.000Z',
+        lastMessage: 'photo',
+        unreadCount: 0,
+        pinned: false,
+        tags: [],
+        mutual: true,
+      },
+      messages: [{
+        id: 'msg-photo',
+        userId: 'user-2',
+        content: '',
+        timestamp: '2026-04-29T12:00:00.000Z',
+        attachments: [{
+          id: 'media-explicit',
+          url: '/api/media/message-photos/photo.png',
+          mediaType: 'message_photo',
+          mimeType: 'image/png',
+          explicit: true,
+        }],
+      }],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/chat/7fba9ce1-b9ca-44f3-a4b1-03ad861a24d2']}>
+        <Routes>
+          <Route path="/chat/:chatId" element={<PrivateGroupChat />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const shield = await screen.findByRole('img', { name: 'Explicit message photo hidden by DL Mode' });
+    expect(shield.querySelector('img')).toHaveAttribute('src', expect.stringContaining('dl-mode-white'));
+    expect(shield.querySelector('svg')).not.toBeInTheDocument();
   });
 
   it('sends a selected message photo with the current caption', async () => {

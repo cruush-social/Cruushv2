@@ -23,6 +23,7 @@ import { ApiError } from "./errors.js";
 const RETRY_CLAIM_MS = 5 * 60 * 1000;
 const MAX_RETRY_BATCH = 25;
 const MAX_PROFILE_PHOTOS = 4;
+export const PENDING_PHOTO_MODERATION_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 type PendingPhotoRow = {
   id: string;
@@ -81,6 +82,7 @@ async function claimPendingPhotos(app: FastifyInstance, limit: number) {
        where media.moderation_status = 'pending'
          and media.moderation_failure_reason = 'provider_unavailable'
          and media.moderation_next_retry_at <= now()
+         and media.created_at > now() - ($3 * interval '1 millisecond')
          and media.deleted_at is null
          and media.surface in ('profile_photo', 'message_photo')
        order by media.moderation_next_retry_at asc, media.created_at asc
@@ -113,10 +115,87 @@ async function claimPendingPhotos(app: FastifyInstance, limit: number) {
          where variant.media_object_id = media.id
            and variant.deleted_at is null
        ), '{}'::text[]) as variant_keys`,
-    [Math.min(limit, MAX_RETRY_BATCH), RETRY_CLAIM_MS]
+    [Math.min(limit, MAX_RETRY_BATCH), RETRY_CLAIM_MS, PENDING_PHOTO_MODERATION_RETENTION_MS]
   );
 
   return result.rows;
+}
+
+async function claimExpiredPendingPhotos(app: FastifyInstance, limit: number) {
+  const result = await app.db.query<PendingPhotoRow>(
+    `with candidates as (
+       select media.id
+       from media_objects media
+       where media.moderation_status = 'pending'
+         and media.moderation_failure_reason = 'provider_unavailable'
+         and media.created_at <= now() - ($2 * interval '1 millisecond')
+         and media.deleted_at is null
+         and media.surface in ('profile_photo', 'message_photo')
+       order by media.created_at asc
+       limit $1
+       for update skip locked
+     )
+     update media_objects media
+     set moderation_next_retry_at = now() + ($3 * interval '1 millisecond')
+     from candidates
+     where media.id = candidates.id
+     returning
+       media.id,
+       media.owner_user_id,
+       media.surface,
+       media.object_key,
+       media.mime_type,
+       media.byte_size,
+       media.width,
+       media.height,
+       media.encrypted_data_key,
+       media.data_key_nonce,
+       media.data_key_auth_tag,
+       media.content_nonce,
+       media.content_auth_tag,
+       media.key_version,
+       media.moderation_hold,
+       coalesce((
+         select array_agg(variant.object_key order by variant.variant_type)
+         from media_variants variant
+         where variant.media_object_id = media.id
+           and variant.deleted_at is null
+       ), '{}'::text[]) as variant_keys`,
+    [Math.min(limit, MAX_RETRY_BATCH), PENDING_PHOTO_MODERATION_RETENTION_MS, RETRY_CLAIM_MS]
+  );
+
+  return result.rows;
+}
+
+function pendingAssetForDeletion(row: PendingPhotoRow): PendingMediaAsset {
+  return {
+    id: row.id,
+    ownerUserId: row.owner_user_id,
+    surface: row.surface,
+    mimeType: row.mime_type as PendingMediaAsset["mimeType"],
+    width: row.width ?? 1,
+    height: row.height ?? 1,
+    byteSize: row.byte_size,
+    displayUrl: `/api/media/assets/${row.id}/display`,
+    thumbnailUrl: `/api/media/assets/${row.id}/thumbnail`,
+    canonicalBytes: Buffer.alloc(0),
+    objectKeys: [row.object_key, ...row.variant_keys]
+  };
+}
+
+export async function purgeExpiredPendingPhotoModerations(
+  app: FastifyInstance,
+  limit = MAX_RETRY_BATCH
+) {
+  const rows = await claimExpiredPendingPhotos(app, limit);
+  let purged = 0;
+
+  for (const row of rows) {
+    const deleted = await deletePendingMediaAsset(app, retryRequest(app), pendingAssetForDeletion(row));
+    if (deleted) purged += 1;
+  }
+
+  return { scanned: rows.length, purged };
 }
 
 async function toPendingAsset(app: FastifyInstance, row: PendingPhotoRow): Promise<PendingMediaAsset> {
@@ -461,6 +540,7 @@ async function processPendingPhoto(app: FastifyInstance, row: PendingPhotoRow) {
 }
 
 export async function recheckPendingPhotoModerations(app: FastifyInstance, limit = MAX_RETRY_BATCH) {
+  const expired = await purgeExpiredPendingPhotoModerations(app, limit);
   const rows = await claimPendingPhotos(app, limit);
   let completed = 0;
 
@@ -483,7 +563,7 @@ export async function recheckPendingPhotoModerations(app: FastifyInstance, limit
     }
   }
 
-  return { scanned: rows.length, completed };
+  return { scanned: rows.length, completed, purged: expired.purged };
 }
 
 export function startPendingPhotoModerationRetryScheduler(app: FastifyInstance) {

@@ -1166,7 +1166,7 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
     expect(recentPanel).toHaveClass('w-fit', 'max-w-full', 'p-3');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
-    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-16');
+    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-20');
   });
 
   it('does not show a saved launch pass icon outside the one-mile live radius or duplicate the chat invite', async () => {
@@ -2422,7 +2422,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-radius-lng', '-74.006');
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
     expect(decodeURIComponent(screen.getByRole('button', { name: 'Ghost Mode Settings' }).querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
-    expect(decodeURIComponent(screen.getByText('Ghost Mode Active').querySelector('img')?.getAttribute('src') ?? '')).toContain('linear-gradient');
+    expect(screen.queryByText('Ghost Mode Active')).not.toBeInTheDocument();
     expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
   });
 
@@ -2647,7 +2647,7 @@ describe('MapHome', () => {
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('cursor-grab', 'overflow-x-hidden', 'overscroll-x-contain', 'scroll-smooth');
     expect(screen.getByTestId('recently-active-tray')).not.toHaveClass('scrollbar-subtle', 'pb-1');
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('data-scrollable', 'false');
-    expect(screen.getByTestId('recently-active-tray')).toHaveStyle({ width: '5rem', maxWidth: '100%' });
+    expect(screen.getByTestId('recently-active-tray')).toHaveStyle({ width: '6.25rem', maxWidth: '100%' });
     expect(screen.getByTestId('recently-active-tray')).toHaveAttribute('tabindex', '0');
     expect(screen.getByTestId('recently-active-tray').style.touchAction).toBe('pan-x');
     expect(screen.getByTestId('recently-active-tray').style.getPropertyValue('-webkit-overflow-scrolling')).toBe('touch');
@@ -2680,7 +2680,7 @@ describe('MapHome', () => {
     expect(screen.queryByText('2m ago')).not.toBeInTheDocument();
     expect(screen.queryByText('Jordan')).not.toBeInTheDocument();
     expect(screen.queryByText('0.2 mi')).not.toBeInTheDocument();
-    expect(recentTile).toHaveClass('w-20');
+    expect(recentTile).toHaveClass('w-[6.25rem]');
     expect(recentMedia?.className).toContain('aspect-[4/5]');
     expect(within(recentTray).queryByText(/./)).not.toBeInTheDocument();
 
@@ -2735,7 +2735,7 @@ describe('MapHome', () => {
     expect(recentTray).toHaveAttribute('data-scrollable', 'true');
     expect(recentTray).toHaveClass('overflow-x-auto', 'pb-1', 'scrollbar-subtle');
     expect(recentTray).not.toHaveClass('scrollbar-hide');
-    expect(recentTray).toHaveStyle({ width: '28rem', maxWidth: '100%' });
+    expect(recentTray).toHaveStyle({ width: '34.25rem', maxWidth: '100%' });
     expect(within(recentTray).getAllByRole('button')).toHaveLength(10);
     expect(screen.getByTestId('recently-active-tile-user-10')).toBeInTheDocument();
     expect(screen.queryByTestId('recently-active-tile-user-11')).not.toBeInTheDocument();

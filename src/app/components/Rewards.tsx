@@ -265,7 +265,7 @@ export default function Rewards() {
             <Card>
               <CardHeader>
                 <CardTitle><CruushPlusWord /> time</CardTitle>
-                <CardDescription>Promotional access stays separate from paid subscriptions.</CardDescription>
+                <CardDescription>Earn cruush+ through check-ins, referrals, and promotional grants.</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-lg bg-muted/40 p-3">

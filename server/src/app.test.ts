@@ -7485,6 +7485,8 @@ describe("server", () => {
       totalReportCount: 5,
       isOwner: false
     });
+    expect(String(query.mock.calls[1]?.[0])).toContain('select base.*,\n       count(*) over() as total_count');
+    expect(String(query.mock.calls[1]?.[0])).not.toContain('base.*,,');
     expect(query.mock.calls[1]?.[1]?.[0]).toBe("jordan");
   });
 
@@ -9788,6 +9790,7 @@ describe("server", () => {
     expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
     expect(query.mock.calls[1]?.[0]).toContain("from posts p");
     expect(query.mock.calls[1]?.[0]).toContain("join profiles pr on pr.id = p.user_id");
+    expect(query.mock.calls[1]?.[0]).toContain("lower(trim(coalesce(pr.display_name, ''))) <> 'user deleted profile'");
     expect(query.mock.calls[1]?.[0]).toContain("p.map_ping_id");
     expect(response.json()).toEqual({
       data: [{

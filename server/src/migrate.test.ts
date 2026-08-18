@@ -174,6 +174,15 @@ describe("migration runner", () => {
     expect(cleanupSql).toContain("author.id is null");
   });
 
+  it("cleans posts left by the legacy deleted-profile sentinel", async () => {
+    const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
+    const cleanupSql = await readFile(path.join(serverRoot, "sql", "091_feed_legacy_deleted_profile_cleanup.sql"), "utf8");
+
+    expect(migrateSource).toMatch(/"090_feed_orphaned_author_cleanup\.sql",\s*"091_feed_legacy_deleted_profile_cleanup\.sql"/);
+    expect(cleanupSql).toContain("delete from posts post");
+    expect(cleanupSql).toContain("user deleted profile");
+  });
+
   it("adds notification-type preferences after account deletion integrity", async () => {
     const migrateSource = await readFile(path.join(currentDir, "migrate.ts"), "utf8");
     const preferencesSql = await readFile(path.join(serverRoot, "sql", "077_notification_type_preferences.sql"), "utf8");

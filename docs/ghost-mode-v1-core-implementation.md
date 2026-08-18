@@ -20,6 +20,136 @@ The implementation adds:
 - Privacy Audit and revoke APIs/UI
 - migration and backfill tooling
 
+## Product Contract: Ghost Mode
+
+Ghost Mode is a decoy-location mode. It does not hide the user from the map.
+When Ghost Mode is enabled, other people may still see that the user is present,
+but they must receive a server-generated decoy location instead of the user's
+current location. The decoy must be spatially separated from the true location,
+viewer-specific, short-lived, and rotated over time.
+
+The user-facing promise is:
+
+> Ghost Mode keeps you visible while showing other people a shifting location
+> near, but not at, where you really are.
+
+### What Ghost Mode must do
+
+1. Persist the `GHOST` policy before the next public discovery response is built.
+2. Immediately stop returning the subject's precise location to viewers who do
+   not have an explicit precise-location grant.
+3. Return a decoy location that is not the current true location when Ghost
+   Mode is activated. The minimum offset is half the configured Ghost radius.
+4. Derive decoys per subject, viewer, rotation epoch, policy version, and
+   rotation material. Two viewers must not be able to compare one shared decoy
+   and recover the subject's position.
+5. Keep the decoy stable during its rotation epoch so the map does not jitter
+   on every refresh.
+6. Rotate the decoy after the rotation deadline and refresh the rendered pin.
+7. Revoke precise-location grants immediately when the relevant privacy setting
+   is narrowed. The next permission resolution must use Ghost coordinates.
+8. Keep public discovery, mutual-map responses, map pings, distance labels, and
+   nearby notifications consistent with the viewer's allowed display mode.
+9. Keep the subject's own map usable. The owner-side UI may show both the true
+   pin and the decoy, plus the true-location radius/leash. This owner-side
+   presentation is intentional and must not be changed as part of a Ghost
+   privacy fix. Only other viewers must receive the decoy in place of the true
+   location.
+10. Replace stale public precise pins promptly after activation. A map refresh,
+    focus/visibility refresh, or the next short-lived token refresh must never
+    continue rendering an expired or superseded precise viewer token.
+
+### What Ghost Mode must not do
+
+- It must not expose raw `lat`/`lng` values to public or mutual viewers.
+- It must not return the subject's precise display token to an unauthorized
+  viewer and rely on the browser to hide it.
+- It must not place a decoy on top of, or inside the forbidden minimum-offset
+  band around, the true location.
+- It must not use one global decoy for every viewer.
+- It must not treat Ghost Mode as Stealth Mode.
+- It must not remove the subject from discovery merely because Ghost Mode is on.
+- It must not make the subject invisible to mutual cruushes when an explicit
+  precise-location relationship grant is valid and the policy allows it.
+- It must not make precise-location grants survive a revoke or policy change.
+- It must not use client-side randomization as the privacy boundary.
+- It must not reveal the configured Ghost radius to viewers through display
+  payloads, distance calculations, labels, or API metadata.
+- It must not silently convert a Ghost activation into a paid feature or
+  checkout path. Ghost Mode's behavior is a privacy contract independent of
+  purchasing.
+
+### Ghost Mode versus Stealth Mode
+
+| Mode | Public map presence | Viewer location | Intended use |
+| --- | --- | --- | --- |
+| `PUBLIC_PRECISE` | Visible | Precise when policy allows | Normal map presence |
+| `GHOST` | Visible | Viewer-specific shifting decoy | Be discoverable without revealing the current location |
+| `STEALTH` | Hidden | No public pin | Browse without appearing on the public map |
+
+If a report says “people can see me” while Ghost Mode is enabled, that alone is
+expected behavior. The actionable bug is that an unauthorized viewer can see the
+true location, or that activation leaves the old precise pin visible after the
+server policy has changed.
+
+### Activation and refresh sequence
+
+The required sequence is:
+
+1. The user enables Ghost Mode.
+2. The server writes the `GHOST` visibility policy transactionally.
+3. The server invalidates any narrowed precise-location grants or active map
+   pings where required by the policy transition.
+4. The next discovery, mutual-map, ping, notification, or profile-location
+   response resolves the current policy for each viewer.
+5. Unauthorized viewers receive a `GHOST` display token generated from the
+   current location and current rotation epoch.
+6. The owner map may continue showing its approved true-pin-and-decoy
+   presentation. This is not a public disclosure path and is not part of the
+   Ghost Mode bug contract.
+7. Existing open viewer maps refresh privacy-sensitive pins promptly; they must not
+   wait for a long general-purpose refresh interval when activation is known
+   locally.
+
+Deactivation reverses the display rule only after the server confirms the
+`PUBLIC_PRECISE` policy. A failed save must leave the prior mode and prior pin
+state intact rather than optimistically exposing a precise location.
+
+### Viewer authorization matrix
+
+| Viewer relationship | Ghost enabled | Allowed display |
+| --- | --- | --- |
+| Unrelated/public viewer | Yes | Viewer-specific decoy |
+| Shared crowd without a valid precise grant | Yes | Viewer-specific decoy |
+| Mutual cruush with valid precise grant and policy permission | Yes | Precise location |
+| Viewer blocked or restricted by policy | Yes | No pin or no authorized profile result |
+| Any viewer while Stealth is enabled | N/A | No public pin |
+
+The matrix describes location disclosure only. Messaging authorization remains a
+separate `canMessage` decision and must not be widened by Ghost Mode.
+
+### Required regression coverage
+
+Any Ghost Mode change must cover, at minimum:
+
+- activation changes the stored policy to `GHOST`
+- an unauthorized viewer receives a decoy token, not a precise token
+- the decoy is outside the minimum offset from the true location
+- two viewers receive independently derived decoys
+- rotation changes the decoy after the epoch deadline
+- mutual precise sharing works only when explicitly granted
+- revoking precise sharing falls back to Ghost on the next response
+- Stealth removes the profile instead of returning a decoy
+- the owner-side true pin and decoy remain unchanged unless the owner UI is
+  explicitly redesigned in a separate request
+- an already-open viewer map refreshes from precise to decoy without a full
+  reload
+- failed policy persistence does not switch the UI into Ghost optimistically
+
+Tests must distinguish these three cases: the viewer can see the profile, the
+viewer can see a decoy, and the viewer can see the true location. Only the third
+is a Ghost Mode privacy failure for an unauthorized viewer.
+
 The main runtime rule is:
 
 Map and location-display APIs should not return raw `lat`, `lng`, `ghost_mode_enabled`, Ghost radius, or precise-policy internals. The server resolves policy and relationship permissions, then returns short-lived encrypted display-location tokens. The browser decrypts those tokens in memory and passes coordinates directly to the map renderer.

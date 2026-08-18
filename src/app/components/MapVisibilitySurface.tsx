@@ -208,7 +208,11 @@ export default function MapVisibilitySurface({
             </div>
           ) : null}
 
-          <div className="space-y-2" data-testid="crowd-mode-tutorial-target" data-tutorial-target="crowds">
+          <div
+            className="space-y-2"
+            data-testid="crowd-mode-tutorial-target"
+            data-tutorial-target="crowds"
+          >
             <Label>Crowd Mode</Label>
             {visibleCrowdModes.length > 0 ? (
               <div className="grid gap-2 sm:grid-cols-3">
@@ -219,6 +223,7 @@ export default function MapVisibilitySurface({
                     <button
                       key={crowdMode}
                       type="button"
+                      data-tutorial-target="crowds"
                       aria-pressed={selected}
                       className={[
                         'flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-semibold shadow-[0_16px_38px_rgba(0,0,0,0.22)] transition-colors',

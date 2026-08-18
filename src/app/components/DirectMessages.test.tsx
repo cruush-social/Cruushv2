@@ -306,6 +306,45 @@ describe('DirectMessages', () => {
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97');
   });
 
+  it('shows messageable mutuals on Public when no public profiles are available', async () => {
+    getConversations.mockResolvedValue([]);
+    getNearbyUsers.mockResolvedValue([]);
+    getMyCruushActivity.mockResolvedValue({
+      mutual: [{
+        id: 'mutual-row-1',
+        matchId: 'match-1',
+        createdAt: '2026-04-29T12:00:00.000Z',
+        locked: false,
+        user: {
+          id: '53fd68d7-24fc-4cff-8cd7-a97ec0cadf97',
+          name: 'River',
+          pronouns: 'they/them',
+          photo: null,
+        },
+        mutualCrowds: [],
+        vibes: [],
+        distance: 'Nearby',
+        lastActive: 'now',
+        canMessage: true,
+        canRevealPreciseLocation: false,
+        coordinates: null,
+      }],
+    });
+
+    render(
+      <MemoryRouter>
+        <DirectMessages />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'New message' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Start chat with someone/ }));
+
+    expect(await screen.findByText('River')).toBeInTheDocument();
+    expect(screen.queryByText('Showing messageable mutuals because no public profiles are available.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No nearby people are available right now.')).not.toBeInTheDocument();
+  });
+
   it('filters public message options by seeking and sorts by online recency or distance', async () => {
     getConversations.mockResolvedValue([]);
     getMyCruushActivity.mockResolvedValue({ mutual: [] });
@@ -386,7 +425,7 @@ describe('DirectMessages', () => {
     await waitFor(() => {
       expect(getNearbyUsers).toHaveBeenCalledWith(
         { lat: 40.75, lng: -73.98 },
-        expect.anything(),
+        undefined,
         { limit: 500 },
       );
     });
@@ -394,7 +433,7 @@ describe('DirectMessages', () => {
     expect(await screen.findByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('River')).toBeInTheDocument();
     expect(screen.getByText('Sort people by')).toBeInTheDocument();
-    expect(screen.getByText('Choose the order people appear in.')).toBeInTheDocument();
+    expect(screen.queryByText('Choose the order people appear in.')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sort by Recently online' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Sort by Distance' })).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(screen.getByRole('button', { name: 'Seeking filters' }));

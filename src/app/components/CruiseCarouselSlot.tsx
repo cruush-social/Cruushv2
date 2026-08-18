@@ -93,7 +93,7 @@ function makeBrowseItems(mode: CruiseCarouselSlotMode, targetUser?: DiscoveryUse
 
 function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolean }) {
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
-  const profileSizeClass = featured ? 'h-[7.5rem] w-[6rem]' : 'h-[6rem] w-[4.8rem]';
+  const profileSizeClass = featured ? 'aspect-[4/5] w-[6rem]' : 'aspect-[4/5] w-[4.8rem]';
   const iconSizeClass = featured ? 'h-[6.25rem] w-[6.25rem]' : 'h-[5rem] w-[5rem]';
   const frameClass = featured
     ? 'border-white/34 bg-white/[0.12] shadow-[0_0_34px_rgba(255,0,114,0.26)]'
@@ -109,6 +109,7 @@ function CarouselTile({ item, featured }: { item: CarouselItem; featured: boolea
 
     return (
       <div
+        data-testid="cruise-carousel-profile-tile"
         className={`flex ${profileSizeClass} shrink-0 items-center justify-center overflow-hidden rounded-[1.375rem] border ${frameClass} transition-all duration-500`}
       >
         {photo ? (
@@ -176,7 +177,7 @@ export default function CruiseCarouselSlot({
     [mode, targetUser],
   );
   const featuredFrameClass = browseItems[FEATURED_ITEM_INDEX]?.kind === 'profile'
-    ? 'h-[8.25rem] w-[6.6rem]'
+    ? 'aspect-[4/5] w-[6.6rem]'
     : 'h-[7rem] w-[7rem]';
 
   const title = mode === 'profile'
@@ -215,7 +216,7 @@ export default function CruiseCarouselSlot({
         <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-black/55 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.4)]">
           <div className="pointer-events-none absolute inset-y-4 left-0 z-10 w-14 bg-gradient-to-r from-black/75 to-transparent" />
           <div className="pointer-events-none absolute inset-y-4 right-0 z-10 w-14 bg-gradient-to-l from-black/75 to-transparent" />
-          <div className={`pointer-events-none absolute left-1/2 top-1/2 z-10 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]`} />
+          <div data-testid="cruise-carousel-featured-frame" className={`pointer-events-none absolute left-1/2 top-1/2 z-10 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]`} />
           <div className="relative flex h-[9rem] items-center justify-center overflow-hidden" aria-hidden="true">
             <div className={`flex items-center gap-3 transition-transform duration-500 ease-out ${settled ? '' : 'cruise-carousel-browse'}`}>
               {browseItems.map((item, itemIndex) => (

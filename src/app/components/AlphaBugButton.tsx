@@ -44,6 +44,10 @@ function getBugButtonPlacement(pathname: string) {
     return 'left-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-auto lg:top-[calc(0.75rem+env(safe-area-inset-top))]';
   }
 
+  if (pathname.startsWith('/admin/')) {
+    return 'left-4 bottom-[calc(6.25rem+env(safe-area-inset-bottom))] lg:left-5 lg:bottom-5 lg:top-auto';
+  }
+
   if (pathname === '/feed' || pathname === '/profile/edit') {
     // These surfaces reserve the top edge for their header and primary content
     // controls. Keep the report trigger above the bottom navigation instead of

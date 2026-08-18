@@ -82,7 +82,7 @@ interface MapViewProps {
 const DEFAULT_CENTER: LngLatLike = [MAP_SERVICE_CENTER.longitude, MAP_SERVICE_CENTER.latitude];
 const DEFAULT_ZOOM = 12;
 const FOCUSED_ZOOM = 14;
-export const MIN_DISCOVERY_ZOOM = 0;
+export const MIN_DISCOVERY_ZOOM = 9;
 export const MAX_DISCOVERY_ZOOM = 22;
 const AUTO_FIT_MAX_ZOOM = 15;
 const AUTO_FIT_MIN_ZOOM = 10.5;
@@ -102,18 +102,17 @@ const MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX = 10;
 const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
+export const MAP_TILE_LABEL_SCALE = 1.25;
+export const MAP_PIN_UNIT_SCALE = 1.0625;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
-// Keep the existing 20-mile service mask for close map work. At a wider
-// zoom, leave the public basemap visible so the full city remains navigable.
-const MAP_SERVICE_MASK_REVEAL_ZOOM = 11.5;
 export const MAP_SERVICE_MASK_SOURCE_ID = 'cruush-map-service-mask';
 export const MAP_SERVICE_MASK_LAYER_ID = 'cruush-map-service-mask';
 // Rendered footprint of a heart pin, so no two pins may sit inside one another.
-// Heart markers are roughly 103px wide on mobile; keep neighboring indigo
-// mutual pins visibly separate instead of letting their outlines overlap.
-export const MARKER_CLEARANCE_PX = 112;
+// The complete heart-pin unit renders at 125% of its original footprint.
+// Keep neighboring units visibly separate instead of letting badges overlap.
+export const MARKER_CLEARANCE_PX = Math.round(112 * MAP_PIN_UNIT_SCALE);
 // Markers sharing a spot to this many decimal places are treated as one place
 // and collapsed into a cluster that fans out on tap rather than stacking.
 const SAME_LOCATION_CLUSTER_PRECISION = 6;
@@ -195,13 +194,7 @@ function addMapServiceOutsideMask(map: MapLibreMap) {
       paint: {
         'fill-antialias': false,
         'fill-color': '#080808',
-        'fill-opacity': [
-          'step',
-          ['zoom'],
-          0,
-          MAP_SERVICE_MASK_REVEAL_ZOOM,
-          1,
-        ],
+        'fill-opacity': 1,
       },
     });
   }
@@ -375,7 +368,7 @@ export function createCruushVectorStyle(
           'symbol-spacing': 120,
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9, 16, 12],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 9 * MAP_TILE_LABEL_SCALE, 16, 12 * MAP_TILE_LABEL_SCALE],
           'text-letter-spacing': 0.02,
           'text-padding': 1,
         },
@@ -402,7 +395,7 @@ export function createCruushVectorStyle(
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_REGULAR,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 11, 16, 14],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12, 11 * MAP_TILE_LABEL_SCALE, 16, 14 * MAP_TILE_LABEL_SCALE],
           'text-letter-spacing': 0.025,
           'text-padding': 2,
         },
@@ -423,7 +416,7 @@ export function createCruushVectorStyle(
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_BOLD,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 10, 12, 16, 15],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 10, 12 * MAP_TILE_LABEL_SCALE, 16, 15 * MAP_TILE_LABEL_SCALE],
           'text-letter-spacing': 0.03,
           'text-padding': 2,
         },
@@ -444,7 +437,7 @@ export function createCruushVectorStyle(
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']],
           'text-font': MAP_LABEL_FONT_BOLD,
-          'text-size': ['interpolate', ['linear'], ['zoom'], 9, 13, 16, 16],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 9, 13 * MAP_TILE_LABEL_SCALE, 16, 16 * MAP_TILE_LABEL_SCALE],
           'text-letter-spacing': 0.035,
           'text-padding': 2,
         },
@@ -468,9 +461,9 @@ export function createCruushVectorStyle(
             ['linear'],
             ['zoom'],
             8,
-            13,
+            13 * MAP_TILE_LABEL_SCALE,
             12,
-            17,
+            17 * MAP_TILE_LABEL_SCALE,
           ],
           'text-letter-spacing': 0.035,
           'text-padding': 4,
@@ -1122,11 +1115,12 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
 
   return (
     <span
-      className="group pointer-events-none relative flex h-[88px] w-[103px] items-start justify-center overflow-visible"
+      className="group pointer-events-auto relative flex h-[88px] w-[103px] origin-bottom scale-[1.0625] items-start justify-center overflow-visible"
+      data-testid={`marker-pin-unit-${marker.id}`}
       data-active-ping={pingActive ? 'true' : 'false'}
     >
       <span
-        className={`relative flex h-20 w-[103px] items-center justify-center transition-transform duration-150 ${previewed ? 'scale-[1.34]' : ''} ${pingActive ? 'cruush-map-ping-heart' : ''}`}
+        className={`relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-120 group-focus-within:scale-120 ${previewed ? 'scale-120' : ''} ${pingActive ? 'cruush-map-ping-heart' : ''}`}
         data-testid={`marker-heart-layer-${marker.id}`}
       >
             <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
@@ -1261,6 +1255,18 @@ function createMarkerElement(
       const movedY = Math.abs(pointerEvent.clientY - touchStartPoint.y);
       if (movedX > MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX || movedY > MOBILE_MARKER_LONG_PRESS_MOVE_TOLERANCE_PX) {
         clearLongPressTimer();
+      }
+    });
+    button.addEventListener('pointerenter', (event) => {
+      const pointerEvent = event as PointerEvent;
+      if ((marker.kind == null || marker.kind === 'person') && pointerEvent.pointerType !== 'touch') {
+        onPinPreview(marker);
+      }
+    });
+    button.addEventListener('pointerleave', (event) => {
+      const pointerEvent = event as PointerEvent;
+      if ((marker.kind == null || marker.kind === 'person') && pointerEvent.pointerType !== 'touch') {
+        setPreviewed(false);
       }
     });
     const finishPointerInteraction = () => {
@@ -1605,11 +1611,7 @@ function MapView({
         });
         map.on('zoomend', () => {
           if (typeof map.getZoom === 'function') {
-            const nextZoom = map.getZoom();
-            setCurrentZoom(nextZoom);
-            if (typeof map.setMaxBounds === 'function') {
-              map.setMaxBounds(nextZoom <= MAP_SERVICE_MASK_REVEAL_ZOOM ? null : MAP_SERVICE_MAX_BOUNDS);
-            }
+            setCurrentZoom(map.getZoom());
           }
         });
         map.on('style.load', handleMapStyleLoad);

@@ -384,10 +384,10 @@
 
   @keyframes cruush-map-ping-heart-pulse {
     0%, 100% {
-      transform: scale(1);
+      scale: 1;
     }
     50% {
-      transform: scale(1.06);
+      scale: 1.06;
     }
   }
 

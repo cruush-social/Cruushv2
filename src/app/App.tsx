@@ -63,7 +63,6 @@ const PUBLIC_INFO_ROUTES = [
   { path: '/privacy', page: 'privacy' },
   { path: '/safety', page: 'safety' },
   { path: '/security', page: 'security' },
-  { path: '/billing-policy', page: 'billing' },
   { path: '/content-removal', page: 'content-removal' },
   { path: '/human-trafficking-policy', page: 'human-trafficking' },
   { path: '/takedown-policy', page: 'takedown' },

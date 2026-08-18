@@ -2,7 +2,6 @@ import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import {
-  billingSections,
   legalContact,
   legalUpdated,
   privacySections,
@@ -21,7 +20,6 @@ export type PublicInfoPageId =
   | 'privacy'
   | 'safety'
   | 'security'
-  | 'billing'
   | 'content-removal'
   | 'human-trafficking'
   | 'takedown'
@@ -172,12 +170,6 @@ const pageContent: Record<PublicInfoPageId, PublicInfoPageContent> = {
     title: 'security faq',
     updated: securityUpdated,
     sections: securitySections,
-  },
-  billing: {
-    eyebrow: 'Billing',
-    title: 'billing policy',
-    updated: legalUpdated,
-    sections: billingSections,
   },
   'content-removal': {
     eyebrow: 'Removal request',

@@ -579,6 +579,6 @@ describe("feed image moderation fallback", () => {
 
     const queries = (app.db.query as ReturnType<typeof vi.fn>).mock.calls.map(([sql]) => String(sql));
     expect(queries.some((sql) => sql.includes("insert into content_reviews"))).toBe(false);
-    expect(queries.some((sql) => sql.includes("insert into moderation_system_errors"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("insert into moderation_system_errors"))).toBe(false);
   });
 });

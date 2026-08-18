@@ -9,7 +9,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
-import { CruushIcon } from './CruushIconImage';
+import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import HeartPhoto from './HeartPhoto';
 import { Textarea } from './ui/textarea';
 import { getCurrentUserId } from '../lib/sessionUser';
@@ -48,6 +48,7 @@ import { ApiClientError, resolveMediaUrl } from '../lib/apiClient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { MESSAGE_PHOTO_UPLOAD_ACCEPT, prepareMessagePhotoForUpload } from '../lib/messagePhotoProcessing';
 import { getProfileGradientCss } from '../lib/profileGradient';
+import dlModeWhite from '../assets/ui-icons/dl-mode-white.png';
 
 const timerOptions: Array<{ value: ConversationTimer; label: string }> = [
   { value: 'off', label: 'Off' },
@@ -189,7 +190,7 @@ function ExplicitMessagePhotoShield({ attachmentKey }: { attachmentKey: string }
       role="img"
       style={{ background: getProfileGradientCss(attachmentKey) }}
     >
-      <Eye className="h-7 w-7 opacity-88" strokeWidth={2.35} />
+      <CruushIconImage src={dlModeWhite} className="h-7 w-7 opacity-90" />
       <span className="text-[11px] uppercase tracking-[0.18em] text-white/88">DL Mode</span>
     </div>
   );
@@ -972,17 +973,6 @@ export default function PrivateGroupChat() {
             >
               <Star className="w-5 h-5" fill={favoriteGalleryOpen ? 'currentColor' : 'none'} />
             </Button>
-            {conversation?.kind === 'dm' ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                title="Open profile"
-                aria-label={`Open ${conversation.user.name} profile`}
-                onClick={openDmProfile}
-              >
-                <CruushIcon name="profile" className="h-5 w-5" />
-              </Button>
-            ) : null}
             {conversation ? (
               <ReportAction
                 targetType="conversation"
@@ -1617,7 +1607,7 @@ export default function PrivateGroupChat() {
                                     role="img"
                                     style={{ background: getProfileGradientCss(`favorite:${favorite.id}`) }}
                                   >
-                                    <Eye className="size-5" />
+                                    <CruushIconImage src={dlModeWhite} className="size-5" />
                                   </div>
                                 ) : (
                                   <img

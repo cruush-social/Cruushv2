@@ -1399,8 +1399,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const recentlyActiveVisibleCount = Math.min(recentlyActiveUsers.length, 5);
   const recentlyActiveNeedsScroll = recentlyActiveUsers.length > 5;
   const recentlyActiveTrayWidth = isMobile
-    ? `${recentlyActiveVisibleCount * 4 + Math.max(0, recentlyActiveVisibleCount - 1) * 0.5}rem`
-    : `${recentlyActiveVisibleCount * 5 + Math.max(0, recentlyActiveVisibleCount - 1) * 0.75}rem`;
+    ? `${recentlyActiveVisibleCount * 5 + Math.max(0, recentlyActiveVisibleCount - 1) * 0.5}rem`
+    : `${recentlyActiveVisibleCount * 6.25 + Math.max(0, recentlyActiveVisibleCount - 1) * 0.75}rem`;
   const savedProfileMapLocation = useMemo(
     () => profileLocationToApproximateCoordinates(currentProfile),
     [currentProfile],
@@ -2353,13 +2353,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
             </button>
           ) : null}
 
-          {privacySettings.ghostModeEnabled ? (
-            <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-background/68 px-3 text-[11px] uppercase tracking-[0.16em] text-white shadow-[0_12px_35px_rgba(0,0,0,0.25)] backdrop-blur-md">
-              <CruushIconImage src={ghostIconColored} className="h-4 w-4" />
-              Ghost Mode Active
-            </div>
-          ) : null}
-
           <Button
             className={`h-8 rounded-full border px-4 text-[11px] uppercase tracking-[0.18em] shadow-[0_12px_35px_rgba(0,0,0,0.25)] ${
               hasActiveFilters
@@ -2397,7 +2390,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
           <div
             className="flex flex-col gap-2"
             data-testid="map-zoom-controls"
-            data-tutorial-target="zoom"
           >
             <Button
               size="icon"
@@ -2416,6 +2408,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               variant="secondary"
               onClick={() => mapInstance?.zoomIn()}
               disabled={!mapInstance}
+              data-tutorial-target="zoom"
               aria-label="Zoom in on map"
               title="Zoom in on map"
               className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
@@ -2428,6 +2421,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               variant="secondary"
               onClick={() => mapInstance?.zoomOut()}
               disabled={!mapInstance}
+              data-tutorial-target="zoom"
               aria-label="Zoom out on map"
               title="Zoom out on map"
               className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
@@ -2493,7 +2487,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                       key={user.id}
                       aria-label={`Open ${user.name} profile`}
                       onClick={() => handleUserSelect(user)}
-                      className={`${isMobile ? 'w-16' : 'w-20'} group block flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
+                      className={`${isMobile ? 'w-20' : 'w-[6.25rem]'} group block flex-shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/65`}
                       data-testid={`recently-active-tile-${user.id}`}
                     >
                       <div className="flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.06] transition-transform group-hover:scale-[1.02]">

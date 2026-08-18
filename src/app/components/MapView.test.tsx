@@ -4,8 +4,10 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView, {
   MARKER_CLEARANCE_PX,
+  MAP_PIN_UNIT_SCALE,
   MAP_SERVICE_MASK_LAYER_ID,
   MAP_SERVICE_MASK_SOURCE_ID,
+  MAP_TILE_LABEL_SCALE,
   MAX_DISCOVERY_ZOOM,
   MIN_DISCOVERY_ZOOM,
   createCruushVectorStyle,
@@ -31,6 +33,7 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     zoomOut = vi.fn();
     setCenter = vi.fn();
     setZoom = vi.fn();
+    setMaxBounds = vi.fn();
     getZoom = vi.fn(() => 12);
     fitBounds = vi.fn();
     sources = new Map<string, any>();
@@ -192,6 +195,10 @@ describe('MapView', () => {
     }));
     expect(onMapReady).toHaveBeenCalledWith(mapInstances[0]);
 
+    mapInstances[0].getZoom.mockReturnValue(MIN_DISCOVERY_ZOOM);
+    act(() => mapInstances[0].trigger('zoomend'));
+    expect(mapInstances[0].setMaxBounds).not.toHaveBeenCalledWith(null);
+
     mapInstances[0].trigger('click');
     expect(onMapClick).toHaveBeenCalledTimes(1);
 
@@ -229,6 +236,13 @@ describe('MapView', () => {
     expect(screen.queryByTestId('marker-current-fallback-user-1')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-heart-me')).toHaveClass('h-20', 'w-20');
     expect(screen.getByTestId('marker-heart-layer-me')).toHaveClass('w-[103px]');
+    expect(screen.getByTestId('marker-heart-layer-user-1')).toHaveClass(
+      'origin-bottom',
+      'group-hover:scale-120',
+      'group-focus-within:scale-120',
+    );
+    expect(screen.getByTestId('marker-pin-unit-user-1')).toHaveClass('origin-bottom', 'scale-[1.0625]');
+    expect(MAP_PIN_UNIT_SCALE).toBe(1.0625);
     expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
     expect(markerInstances[0].element.className).not.toContain('drop-shadow');
     expect(markerInstances[1].element.className).not.toContain('drop-shadow');
@@ -283,7 +297,7 @@ describe('MapView', () => {
       paint: {
         'fill-antialias': false,
         'fill-color': '#080808',
-        'fill-opacity': ['step', ['zoom'], 0, 11.5, 1],
+        'fill-opacity': 1,
       },
     });
     expect(mapInstances[0].layers.get(MAP_SERVICE_MASK_LAYER_ID)).not.toHaveProperty('outline');
@@ -886,6 +900,7 @@ describe('MapView', () => {
             approximateLatitude: 40.72,
             approximateLongitude: -74.01,
             lastActiveLabel: '8m ago',
+            signal: 'Around tonight',
           },
         ]}
       />
@@ -895,6 +910,23 @@ describe('MapView', () => {
     expect(markerInstances[0].element.className).not.toContain('hover:scale');
     expect(markerInstances[0].element.className).not.toContain('hover:drop-shadow');
     expect(markerInstances[0].element.className).not.toContain('transition-[filter]');
+
+    const markerButton = screen.getByRole('button', { name: 'Open Noor on map' });
+    const pointerEnter = new Event('pointerenter', { bubbles: true });
+    Object.defineProperty(pointerEnter, 'pointerType', { value: 'mouse' });
+    fireEvent(markerButton, pointerEnter);
+
+    expect(markerButton).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('marker-heart-layer-user-hover')).toHaveClass('scale-120');
+    expect(screen.getByTestId('marker-signal-stack-user-hover')).toHaveClass('opacity-100');
+
+    const pointerLeave = new Event('pointerleave', { bubbles: true });
+    Object.defineProperty(pointerLeave, 'pointerType', { value: 'mouse' });
+    fireEvent(markerButton, pointerLeave);
+
+    expect(markerButton).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('marker-heart-layer-user-hover')).not.toHaveClass('scale-120');
+    expect(screen.getByTestId('marker-signal-stack-user-hover')).toHaveClass('opacity-0');
   });
 
   it('opens the profile on a short touch tap without leaving the pin previewed', async () => {
@@ -956,7 +988,7 @@ describe('MapView', () => {
     act(() => vi.advanceTimersByTime(500));
 
     expect(markerButton).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).toHaveClass('scale-[1.34]');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).toHaveClass('scale-120');
     expect(screen.getByTestId('marker-signal-stack-user-touch-hold')).toHaveClass('opacity-100');
     const contextMenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     fireEvent(markerButton, contextMenu);
@@ -969,7 +1001,7 @@ describe('MapView', () => {
     act(() => vi.advanceTimersByTime(351));
     mapInstances[0].trigger('click');
     expect(markerButton).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).not.toHaveClass('scale-[1.34]');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-hold')).not.toHaveClass('scale-120');
     expect(screen.getByTestId('marker-signal-stack-user-touch-hold')).toHaveClass('opacity-0');
   });
 
@@ -996,7 +1028,7 @@ describe('MapView', () => {
     const currentButton = screen.getByRole('button', { name: 'Open Ari on map' });
     expect(currentButton).toBe(originalButton);
     expect(currentButton).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('marker-heart-layer-user-touch-rerender')).toHaveClass('scale-[1.34]');
+    expect(screen.getByTestId('marker-heart-layer-user-touch-rerender')).toHaveClass('scale-120');
     expect(screen.getByTestId('marker-signal-stack-user-touch-rerender')).toHaveClass('opacity-100');
     expect(onPinClick).not.toHaveBeenCalled();
   });
@@ -1096,6 +1128,7 @@ describe('MapView', () => {
     const signalStack = await screen.findByTestId('marker-signal-stack-user-pinging');
     const heart = screen.getByTestId('marker-heart-user-pinging');
     const heartLayer = screen.getByTestId('marker-heart-layer-user-pinging');
+    const pinUnit = screen.getByTestId('marker-pin-unit-user-pinging');
     const signalBadge = screen.getByTestId('marker-signal-badge-user-pinging');
     const positionBadge = screen.getByTestId('marker-badge-user-pinging');
     const relationshipBadge = screen.getByTestId('marker-relationship-user-pinging');
@@ -1110,6 +1143,8 @@ describe('MapView', () => {
     expect(heart).toHaveClass('z-10');
     expect(heart).not.toHaveClass('cruush-map-ping-heart');
     expect(heartLayer).toHaveClass('cruush-map-ping-heart');
+    expect(heartLayer).toHaveClass('group-hover:scale-120', 'group-focus-within:scale-120');
+    expect(pinUnit).toHaveClass('scale-[1.0625]');
     expect(heart.querySelector('path[stroke="#C8FF31"]')).not.toBeNull();
     expect(signalBadge).toHaveClass('border-[#C8FF31]');
     expect(signalBadge).toHaveClass('shadow-[0_12px_30px_rgba(0,0,0,0.45)]');
@@ -1536,6 +1571,12 @@ describe('MapView', () => {
     expect(layerById.get('prominent-road-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('place-labels')?.layout['text-transform']).toBeUndefined();
     expect(layerById.get('place-labels')?.layout['text-letter-spacing']).toBe(0.035);
+    expect(MAP_TILE_LABEL_SCALE).toBe(1.25);
+    expect(layerById.get('minor-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 12, 11.25, 16, 15]);
+    expect(layerById.get('secondary-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 12, 13.75, 16, 17.5]);
+    expect(layerById.get('primary-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 10, 15, 16, 18.75]);
+    expect(layerById.get('prominent-road-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 9, 16.25, 16, 20]);
+    expect(layerById.get('place-labels')?.layout['text-size']).toEqual(['interpolate', ['linear'], ['zoom'], 8, 16.25, 12, 21.25]);
   });
 
   it('creates valid MapLibre style JSON for the default vector map', () => {

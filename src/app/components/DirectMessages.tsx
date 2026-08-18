@@ -271,7 +271,7 @@ export default function DirectMessages() {
     });
   };
 
-  const loadDirectMessageOptions = async (filters: FilterState = DEFAULT_FILTER_STATE) => {
+  const loadDirectMessageOptions = async (_filters: FilterState = DEFAULT_FILTER_STATE) => {
     setDirectError(null);
     setDirectLoading(true);
 
@@ -288,14 +288,26 @@ export default function DirectMessages() {
             lng: savedLocation.fuzzy_lng ?? savedLocation.lng,
           }
         : null;
-      const nearbyUsers = await getNearbyUsers(
-        typeof coordinates?.lat === 'number' && typeof coordinates?.lng === 'number' ? coordinates : null,
-        filters,
-        { limit: DIRECT_MESSAGE_DISCOVERY_LIMIT },
-      );
-      setDirectOptions(nearbyUsers.filter((user) => user.relationship?.canMessage !== false));
-      setMutualOptions((activity.mutual ?? []).filter((item) => item.canMessage !== false));
+      const messageableMutuals = (activity.mutual ?? []).filter((item) => item.canMessage !== false);
+      setMutualOptions(messageableMutuals);
       setDirectHasCruushPlus(billing?.cruushPlus === true);
+
+      try {
+        // Message seeking filters rank the inclusive authorized set locally.
+        // They must never remove every otherwise-messageable profile at the API boundary.
+        const nearbyUsers = await getNearbyUsers(
+          typeof coordinates?.lat === 'number' && typeof coordinates?.lng === 'number' ? coordinates : null,
+          undefined,
+          { limit: DIRECT_MESSAGE_DISCOVERY_LIMIT },
+        );
+        setDirectOptions(nearbyUsers.filter((user) => user.relationship?.canMessage !== false));
+      } catch (error) {
+        console.error('Error loading public people available for direct messaging:', error);
+        setDirectOptions([]);
+        if (messageableMutuals.length === 0) {
+          setDirectError(error instanceof Error ? error.message : 'Failed to load people to message.');
+        }
+      }
     } catch (error) {
       console.error('Error loading people available for direct messaging:', error);
       setDirectOptions([]);
@@ -977,15 +989,13 @@ function DirectUserOverlay({
             </Button>
 
             <section className="mt-3 border-t border-white/10 pt-3" aria-labelledby="message-picker-sort-title">
-              <div className="flex items-baseline justify-between gap-3 px-1">
+              <div className="px-1">
                 <p id="message-picker-sort-title" className="text-xs font-medium uppercase tracking-[0.14em] text-white/70">Sort people by</p>
-                <p id="message-picker-sort-description" className="text-[11px] text-white/48">Choose the order people appear in.</p>
               </div>
               <div
                 className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-background/55 p-1"
                 role="group"
                 aria-labelledby="message-picker-sort-title"
-                aria-describedby="message-picker-sort-description"
               >
                 {([
                   ['lastOnline', 'Recently online', 'Most recent first', Clock3],
@@ -1030,16 +1040,6 @@ function DirectUserOverlay({
           </div>
         ) : null}
 
-        {!loading && activeComposerTab === 'public' && sortedPublicUsers.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-            No nearby people are available right now.
-          </div>
-        ) : null}
-        {!loading && activeComposerTab === 'public' && filteredPublicUsers.length === 0 && publicUsers.length > 0 ? (
-          <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3 text-sm text-muted-foreground">
-            Showing more messageable people because no one matched every seeking filter.
-          </div>
-        ) : null}
         {!loading && activeComposerTab === 'mutuals' && mutuals.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
             No mutual cruushes are available right now.
@@ -1047,7 +1047,7 @@ function DirectUserOverlay({
         ) : null}
 
         <div className="space-y-2">
-          {activeComposerTab === 'public' ? sortedPublicUsers.map((user) => {
+          {activeComposerTab === 'public' && sortedPublicUsers.length > 0 ? sortedPublicUsers.map((user) => {
             const requested = requestedCruushIds.includes(user.id);
             return (
               <div
@@ -1133,7 +1133,7 @@ function DirectUserOverlay({
           open={filtersOpen}
           onOpenChange={setFiltersOpen}
           title="Seeking"
-          description="Refine who you can choose to message."
+          description=""
           value={filters}
           onChange={setFilters}
           hasCruushPlus={hasCruushPlus}

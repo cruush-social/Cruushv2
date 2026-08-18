@@ -121,7 +121,7 @@ export default function MobileInstallPrompt() {
   return (
     <div
       className="fixed bottom-24 left-4 right-[4.5rem] z-[90] mx-auto max-w-md rounded-lg border border-border bg-card p-4 text-card-foreground shadow-[0_20px_60px_rgba(0,0,0,0.45)] sm:right-4"
-      data-tutorial-target="install"
+      data-tutorial-target={manualInstallOnly ? 'install' : undefined}
       data-testid="mobile-install-prompt"
     >
       <div className="flex items-start gap-3">
@@ -158,7 +158,7 @@ export default function MobileInstallPrompt() {
               </Button>
             ) : (
               <>
-                <Button type="button" onClick={() => void install()} className="rounded-full">
+                <Button type="button" onClick={() => void install()} className="rounded-full" data-tutorial-target="install">
                   Install cruush
                 </Button>
                 <Button type="button" variant="outline" onClick={dismiss} className="rounded-full">

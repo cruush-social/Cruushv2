@@ -94,7 +94,7 @@ describe('AlphaBugButton', () => {
     );
   });
 
-  it.each(['/feed', '/profile/edit'])('clears top-surface controls on %s', (route) => {
+  it.each(['/feed', '/profile/edit', '/admin/moderation'])('clears top-surface controls on %s', (route) => {
     renderAlphaBugButton(true, route);
 
     expect(screen.getByRole('button', { name: 'Report alpha bug' })).toHaveClass(

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { Clock, MapPin, Settings2, Trash2 } from 'lucide-react';
+import { Clock, MapPin, Settings2, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
@@ -35,6 +35,7 @@ import {
 import { getMyProfile, type ProfileRecord } from '../lib/profileApi';
 import { CROWDS, normalizeCrowdValues } from '../lib/profileOptions';
 import { getCurrentUserId } from '../lib/sessionUser';
+import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 function formatRelativeTime(isoTimestamp: string) {
@@ -94,6 +95,7 @@ const DEFAULT_FEED_SETTINGS: FeedSettings = {
   postExpiryDefault: 'never',
   feedWindow: '7d',
 };
+const CRUUSH_PLUS_FEED_NOTICE_KEY = 'cruush:feed-cruush-plus-notice-dismissed';
 
 type FeedCoordinates = {
   lat: number;
@@ -132,6 +134,7 @@ export default function LocalFeed() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [feedSettingsLoaded, setFeedSettingsLoaded] = useState(false);
+  const [showCruushPlusNotice, setShowCruushPlusNotice] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -140,6 +143,12 @@ export default function LocalFeed() {
   const feedSettingsSaveChainRef = useRef<Promise<void>>(Promise.resolve());
   const latestFeedExpiryChoiceRef = useRef(0);
   const canPost = billingStatus?.cruushPlus === true;
+
+  useEffect(() => {
+    if (currentUserId && hasPersistentNoticeFlag(`${CRUUSH_PLUS_FEED_NOTICE_KEY}:${currentUserId}`)) {
+      setShowCruushPlusNotice(false);
+    }
+  }, [currentUserId]);
 
   const applyFeedSettings = (nextSettings: FeedSettings) => {
     feedSettingsRef.current = nextSettings;
@@ -576,23 +585,39 @@ export default function LocalFeed() {
             className="bg-input-background mb-3 min-h-[100px]"
             disabled={!canPost}
           />
-          {billingStatus !== null && !canPost ? (
+          {billingStatus !== null && !canPost && showCruushPlusNotice ? (
             <div
               className="mb-3 flex flex-col gap-3 rounded-2xl border border-primary/35 bg-[linear-gradient(135deg,rgba(255,0,128,0.18),rgba(49,46,129,0.24))] p-4 text-sm text-white/78 shadow-[0_12px_36px_rgba(0,0,0,0.24)] sm:flex-row sm:items-center sm:justify-between"
               data-testid="local-feed-cruush-plus-notice"
             >
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium text-white">Make the feed yours with <CruushPlusWord />.</p>
                 <p className="mt-1 text-xs text-white/68">Post updates, plans, and moments for nearby people. Unlock feed posting with <CruushPlusWord />.</p>
               </div>
-              <Button
-                type="button"
-                className="h-10 shrink-0 rounded-full px-5 font-semibold text-white shadow-[0_8px_24px_rgba(255,0,128,0.25)]"
-                style={{ background: 'var(--cruush-gradient)' }}
-                onClick={() => navigate('/rewards')}
-              >
-                Unlock <CruushPlusWord />
-              </Button>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  type="button"
+                  className="h-10 rounded-full px-5 font-semibold text-white shadow-[0_8px_24px_rgba(255,0,128,0.25)]"
+                  style={{ background: 'var(--cruush-gradient)' }}
+                  onClick={() => navigate('/rewards')}
+                >
+                  Unlock <CruushPlusWord />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Dismiss cruush+ notice"
+                  onClick={() => {
+                    setShowCruushPlusNotice(false);
+                    if (currentUserId) {
+                      setPersistentNoticeFlag(`${CRUUSH_PLUS_FEED_NOTICE_KEY}:${currentUserId}`);
+                    }
+                  }}
+                >
+                  <X aria-hidden="true" className="size-4" />
+                </Button>
+              </div>
             </div>
           ) : null}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

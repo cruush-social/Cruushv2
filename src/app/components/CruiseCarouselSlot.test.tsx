@@ -54,4 +54,33 @@ describe('CruiseCarouselSlot', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button', { name: 'Spin again' })).not.toBeInTheDocument();
   });
+
+  it('keeps profile tiles and the featured frame at a 4:5 ratio', () => {
+    render(
+      <CruiseCarouselSlot
+        mode="profile"
+        variant="page"
+        targetUser={{
+          id: 'nearby-user',
+          name: 'Nearby user',
+          display_name: 'Nearby user',
+          age: 30,
+          pronouns: 'they/them',
+          lat: 40.73,
+          lng: -73.97,
+          lastActive: '2m ago',
+          distance: '1 mi',
+          lookingFor: [],
+          vibes: [],
+          position: [],
+          role: [],
+          hostingTravel: [],
+          photo: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('cruise-carousel-profile-tile')).toHaveClass('aspect-[4/5]');
+    expect(screen.getByTestId('cruise-carousel-featured-frame')).toHaveClass('aspect-[4/5]');
+  });
 });

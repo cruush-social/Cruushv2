@@ -529,6 +529,25 @@ describe('LocalFeed', () => {
     expect(createFeedPost).not.toHaveBeenCalled();
   });
 
+  it('lets basic members dismiss the cruush+ feed gate', async () => {
+    getMyBillingStatus.mockResolvedValue({
+      cruushPlus: false,
+      expiresAt: null,
+      badges: [],
+      processor: 'fake',
+      testCheckout: true,
+    });
+    getFeedPosts.mockResolvedValue([]);
+
+    render(<MemoryRouter initialEntries={['/feed']}><LocalFeed /></MemoryRouter>);
+
+    const notice = await screen.findByTestId('local-feed-cruush-plus-notice');
+    fireEvent.click(within(notice).getByRole('button', { name: 'Dismiss cruush+ notice' }));
+
+    expect(screen.queryByTestId('local-feed-cruush-plus-notice')).not.toBeInTheDocument();
+    expect(window.localStorage.getItem('cruush:feed-cruush-plus-notice-dismissed:user-1')).toBe('true');
+  });
+
   it('posts to no crowds or multiple allowed crowds selected from the composer', async () => {
     getFeedPosts.mockResolvedValue([]);
     createFeedPost.mockResolvedValue({
