@@ -62,19 +62,22 @@ export default function OnboardingPreview() {
 
   if (showOnboarding) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-card/90 p-3 backdrop-blur-sm">
+      <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
+        <div className="z-20 flex shrink-0 items-center gap-3 border-b border-border bg-card/90 p-3 backdrop-blur-sm">
           <Button variant="ghost" size="sm" onClick={() => setShowOnboarding(false)}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Exit preview
           </Button>
           <p className="text-xs uppercase tracking-[0.16em] text-white/48">Onboarding preview</p>
         </div>
-        <ProfileOnboarding
-          onComplete={() => setShowOnboarding(false)}
-          needsCodeOfConduct
-          codeOfConductVersion="preview"
-        />
+        <div className="min-h-0 flex-1">
+          <ProfileOnboarding
+            onComplete={() => setShowOnboarding(false)}
+            needsCodeOfConduct
+            codeOfConductVersion="preview"
+            constrainedViewport
+          />
+        </div>
       </div>
     );
   }

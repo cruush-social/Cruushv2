@@ -44,8 +44,12 @@ export default function TwoFactorSettings() {
   }, [load]);
 
   const copy = async (value: string, label: string) => {
-    await navigator.clipboard.writeText(value);
-    toast.success(`${label} copied.`);
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copied.`);
+    } catch {
+      toast.error(`Unable to copy ${label.toLowerCase()}.`);
+    }
   };
 
   const handleStartSetup = async (event: FormEvent) => {
@@ -202,10 +206,12 @@ export default function TwoFactorSettings() {
                     <p className="text-xs text-muted-foreground">Can't scan? Enter this key once:</p>
                     <button
                       type="button"
-                      className="mt-1 break-all font-mono text-sm text-primary"
+                      aria-label="Copy setup key"
+                      className="mt-1 flex w-full items-start justify-between gap-3 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-left text-primary transition-colors hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       onClick={() => void copy(setup.secret, 'Setup key')}
                     >
-                      {setup.secret}
+                      <span className="min-w-0 break-all font-mono text-sm">{setup.secret}</span>
+                      <Clipboard className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                     </button>
                   </div>
                   <Input

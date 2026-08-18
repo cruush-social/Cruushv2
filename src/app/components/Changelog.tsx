@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 
 const changelogReleases = [
   {
-    version: 'v1.3',
+    version: 'v1.4',
     items: [
       'Ghost Mode has clearer controls and status feedback on the map.',
       'Choose each notification type separately, including nearby activity and rewards.',

@@ -2,7 +2,7 @@
   "status": "verified",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Fix Public Messages so loaded non-mutual discovery profiles remain visible as candidates, show up to three readable all-caps vibe tags on Public and Mutual recipient cards and feed posts, truncate long feed author names without wrapping, keep authorization and Ask mutual behavior intact, make the Cruise Carousel page card fill the available viewport down to the bottom navigation, theme profile cruush and Message actions consistently while preserving uncruush, enforce the 20-mile NYC map zoom-out floor, ensure tutorial spotlights cover every control discussed by Crowd Mode and Zoom without an unnecessary horizontal scrollbar, add lowercase fag to shared Gender Identity and Sexuality options, visually walk through every onboarding rite at mobile size with local-only review screenshots, and commit the completed session changes to the current source branch.",
+  "job": "Call the completed current-session bug fixes and UI updates cruush v1.4. Add no new product scope. Preserve the verified clipboard controls and onboarding viewport behavior. Remove the visible scrollbar from the map tutorial card while retaining overflow reachability on unusually short screens. Keep the tutorial open when its flow navigates away from the map, and route forward and back steps to the map, Ghost Mode, or Feed destination they describe. Visually confirm the tutorial route handoff and in-app changelog label, then create one local commit. Do not push or deploy.",
   "base": "origin/main at ae61f563ef6ed81d6a7b2a297169cbca040c270b",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
@@ -33,6 +33,8 @@
     "src/app/components/MapHome.tsx",
     "src/app/components/ProfileOnboarding.tsx",
     "src/app/components/ProfileOnboarding.test.tsx",
+    "src/app/components/OnboardingPreview.tsx",
+    "src/app/components/TwoFactorSettings.tsx",
     "src/app/components/FiltersPanel.tsx",
     "src/app/components/MultiSelect.tsx",
     "src/app/components/MultiSelect.test.tsx",
@@ -212,6 +214,11 @@
     "Record required Terms and Privacy acceptance and optional product-updates consent at signup; preserve unsubscribe state and do not send email in this task."
   ],
   "proof": [
+    "Rendered 390 by 844 map tutorial card has no visible internal scrollbar; Crowd Mode Next navigates to Ghost Mode settings with the tutorial still open, and Ghost Mode Next returns to the map at DL Mode.",
+    "Rendered authenticated in-app changelog header and release card both show cruush v1.4.",
+    "Rendered 390 by 844 onboarding uses an internal vertical scroll container: short rites fit without scrolling, tall 2FA and oath states scroll to reachable actions above the bottom navigation, step changes return to the top, and horizontal overflow remains absent.",
+    "Rendered mobile 2FA setup shows a visible clipboard control beside the manual setup key; tapping it writes the full key to the clipboard and shows copied confirmation.",
+    "Onboarding recovery-code state includes a visible Copy recovery codes action in source; it remains conditionally hidden until real 2FA confirmation, which is intentionally not submitted during this local visual check.",
     "Rendered full-stack local admin flow shows populated Public Messages candidates; a mutual-only candidate exposes Ask mutual without opening a forbidden direct message.",
     "Rendered mobile Public and Mutual recipient cards show up to three existing vibe tags per person without blocking scrolling or actions.",
     "Rendered mobile feed posts show up to three readable all-caps existing author vibe tags, keep the author row on one line, and truncate long author names while preserving the current media ratio and feed scrolling.",
@@ -241,5 +248,5 @@
     "Migration 082 creates a replay-safe one-day 2FA cruush+ promotion cutover; focused server migration/2FA checks passed (25 tests), server build passed, and onboarding check passed (9 tests).",
     "Beta access now covers the 20-mile NYC launch area; focused geofence checks passed (2 tests), map-boundary/Auth checks passed (18 and 15 tests), and the rendered local map includes Yonkers without exposing the private service center."
   ],
-  "publicationTarget": "One local commit on codex/fix-all-issues-20260817 only. Do not push, merge, deploy, or send communications."
+  "publicationTarget": "One local cruush v1.4 commit on codex/fix-all-issues-20260817 only. Do not push, merge, deploy, or send communications."
 }

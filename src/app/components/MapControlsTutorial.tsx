@@ -108,6 +108,7 @@ type MapControlsTutorialProps = {
   open: boolean;
   onComplete: () => void;
   onActivateStep: (step: MapControlsTutorialStepId) => void | Promise<void>;
+  onStepChange?: (step: MapControlsTutorialStepId) => void;
 };
 
 export type TutorialPlacementRect = {
@@ -397,7 +398,7 @@ function readBottomBoundary(viewportHeight: number) {
   return Math.max(0, viewportHeight - DEFAULT_BOTTOM_NAV_CLEARANCE_PX);
 }
 
-export default function MapControlsTutorial({ open, onComplete, onActivateStep }: MapControlsTutorialProps) {
+export default function MapControlsTutorial({ open, onComplete, onActivateStep, onStepChange }: MapControlsTutorialProps) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [stepIndex, setStepIndex] = useState(readTutorialProgressIndex);
   const [targetRects, setTargetRects] = useState<TutorialPlacementRect[]>([]);
@@ -519,13 +520,21 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
     onComplete();
   };
 
-  const advanceStep = () => {
-    if (isLastStep) {
+  const moveToStep = (nextIndex: number) => {
+    const nextStep = TUTORIAL_STEPS[nextIndex];
+
+    if (!nextStep) {
       completeTutorial();
       return;
     }
 
-    setStepIndex((currentIndex) => currentIndex + 1);
+    window.localStorage.setItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY, nextStep.id);
+    setStepIndex(nextIndex);
+    onStepChange?.(nextStep.id);
+  };
+
+  const advanceStep = () => {
+    moveToStep(stepIndex + 1);
   };
 
   const activateCurrentStep = async () => {
@@ -600,7 +609,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
         ref={cardRef}
         aria-label="Map controls tutorial"
         aria-live="polite"
-        className="pointer-events-auto fixed w-[min(22rem,calc(100vw-2rem))] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-background/95 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+        className="scrollbar-hide pointer-events-auto fixed w-[min(22rem,calc(100vw-2rem))] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-background/95 p-4 text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl"
         data-testid="map-controls-tutorial-card"
         role="dialog"
         style={cardStyle}
@@ -644,7 +653,7 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep }
                 variant="ghost"
                 className="rounded-lg text-white/70 hover:text-white"
                 data-testid="tutorial-back"
-                onClick={() => setStepIndex((currentIndex) => currentIndex - 1)}
+                onClick={() => moveToStep(stepIndex - 1)}
               >
                 Back
               </Button>

@@ -692,6 +692,17 @@ export default function MapHome(_props: MapHomeProps = {}) {
     mapInstance?.zoomIn();
   };
 
+  const followMapTutorialStep = (step: MapControlsTutorialStepId) => {
+    if (step === 'ghost') {
+      navigate('/privacy/ghost-mode');
+      return;
+    }
+
+    if (step === 'feed') {
+      navigate('/feed');
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -2575,6 +2586,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           open={mapControlsIntroOpen}
           onActivateStep={activateMapTutorialStep}
           onComplete={dismissMapControlsIntro}
+          onStepChange={followMapTutorialStep}
         />
       </div>
     </div>

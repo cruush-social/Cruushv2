@@ -1,4 +1,4 @@
-import { BrowserRouter, MemoryRouter, Routes, Route, Navigate } from 'react-router';
+import { BrowserRouter, MemoryRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import Auth from './components/Auth';
 import VerifyEmail from './components/VerifyEmail';
@@ -11,6 +11,13 @@ import { canUseDeveloperMapToolsEmail } from './lib/developerMapTools';
 import { recordDailyRewardCheckIn, updateRewardTimezone } from './lib/rewardsApi';
 import type { AuthSessionPayload } from './lib/authApi';
 import type { ProfileRecord } from './lib/profileApi';
+import MapControlsTutorial, {
+  getStoredMapControlsTutorialStep,
+  MAP_CONTROLS_TUTORIAL_STORAGE_KEY,
+  notifyMapControlsTutorialCompleted,
+  type MapControlsTutorialStepId,
+} from './components/MapControlsTutorial';
+import { markNoticeDismissed } from './lib/userNoticesApi';
 
 const MapHome = lazy(() => import('./components/MapHome'));
 const LocalFeed = lazy(() => import('./components/LocalFeed'));
@@ -102,6 +109,50 @@ function RouteLoading() {
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
       <div className="text-sm text-muted-foreground">Loading...</div>
     </div>
+  );
+}
+
+function mapTutorialRoute(step: MapControlsTutorialStepId) {
+  if (step === 'ghost') {
+    return '/privacy/ghost-mode';
+  }
+
+  if (step === 'feed') {
+    return '/feed';
+  }
+
+  return '/map';
+}
+
+function MapTutorialRouteFollower() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const savedStep = getStoredMapControlsTutorialStep();
+
+  if (!savedStep || location.pathname === '/map') {
+    return null;
+  }
+
+  const followStep = (step: MapControlsTutorialStepId) => {
+    const destination = mapTutorialRoute(step);
+
+    if (location.pathname !== destination) {
+      navigate(destination);
+    }
+  };
+
+  const completeTutorial = () => {
+    markNoticeDismissed(MAP_CONTROLS_TUTORIAL_STORAGE_KEY);
+    notifyMapControlsTutorialCompleted();
+  };
+
+  return (
+    <MapControlsTutorial
+      open
+      onActivateStep={followStep}
+      onComplete={completeTutorial}
+      onStepChange={followStep}
+    />
   );
 }
 
@@ -451,6 +502,7 @@ export default function App({
               <Route path="/checkout/:sessionId" element={<Navigate to="/rewards" replace />} />
               <Route path="*" element={<Navigate to="/map" replace />} />
             </Routes>
+            <MapTutorialRouteFollower />
             <MobileInstallPrompt />
             <DlModeDefaultNotice />
             <FirstFeedPostPrompt userId={session.user.id} />

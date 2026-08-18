@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { CROWDS, IDENTITIES, LOOKING_FOR, MAX_PROFILE_SEXUALITIES, PRONOUNS, SEXUALITY, VIBE_GROUPS } from '../lib/profileOptions';
 import { ArrowRight, Check, Clipboard, Gift, Share2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
@@ -22,6 +22,7 @@ interface ProfileOnboardingProps {
   onComplete: (session?: AuthSessionPayload, destination?: 'map' | 'rewards') => void;
   needsCodeOfConduct?: boolean;
   codeOfConductVersion?: string;
+  constrainedViewport?: boolean;
 }
 
 type OnboardingStep =
@@ -184,12 +185,14 @@ export default function ProfileOnboarding({
   onComplete,
   needsCodeOfConduct = false,
   codeOfConductVersion = '',
+  constrainedViewport = false,
 }: ProfileOnboardingProps) {
   // Minimal onboarding steps, but state includes all schema fields for upsert
   const steps: OnboardingStep[] = needsCodeOfConduct
     ? [...PROFILE_STEPS, 'oath', 'twoFactor', 'affiliateShare']
     : [...PROFILE_STEPS, 'twoFactor', 'affiliateShare'];
   const [step, setStep] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<OnboardingProfileState>({
     name: '',
     bio: '',
@@ -254,6 +257,10 @@ export default function ProfileOnboarding({
   const currentStep = steps[step];
   const affiliateLink = rewardSummary?.referrals.link ?? '';
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
+
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [step]);
 
   const setProfileField = <K extends keyof OnboardingProfileState>(field: K, value: OnboardingProfileState[K]) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -338,6 +345,15 @@ export default function ProfileOnboarding({
   const retryRewardSummary = () => {
     setRewardSummary(null);
     void loadRewardSummary();
+  };
+
+  const copyTwoFactorValue = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copied.`);
+    } catch {
+      toast.error(`Unable to copy ${label.toLowerCase()}.`);
+    }
   };
 
   const copyAffiliateLink = async () => {
@@ -521,12 +537,17 @@ export default function ProfileOnboarding({
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#050505] p-4 text-foreground">
-      <header className="mb-6 text-center">
-        <h1 className="cruush-logo-text text-5xl font-bold mb-2">cruush</h1>
-        <p className="text-center text-white/58 mt-2">the rites</p>
-      </header>
-      <div className="w-full max-w-md rounded-lg border border-white/12 bg-black/82 p-6 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur space-y-8">
+    <div
+      ref={scrollContainerRef}
+      className={`${constrainedViewport ? 'h-full' : 'h-[100dvh]'} scrollbar-subtle max-w-full overflow-x-hidden overflow-y-auto overscroll-contain bg-[#050505] text-foreground`}
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center px-3 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-3 sm:px-4 sm:pt-4">
+        <header className="mb-4 text-center sm:mb-6">
+          <h1 className="cruush-logo-text mb-2 text-5xl font-bold">cruush</h1>
+          <p className="mt-2 text-center text-white/58">the rites</p>
+        </header>
+        <div className="w-full space-y-5 rounded-lg border border-white/12 bg-black/82 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.52)] backdrop-blur sm:space-y-8 sm:p-6">
         {saveError ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             {saveError}
@@ -751,6 +772,15 @@ export default function ProfileOnboarding({
                           <span key={code}>{code}</span>
                         ))}
                       </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => void copyTwoFactorValue(twoFactorRecoveryCodes.join('\n'), 'Recovery codes')}
+                      >
+                        <Clipboard className="h-4 w-4" aria-hidden="true" />
+                        Copy recovery codes
+                      </Button>
                     </div>
                   ) : null}
 
@@ -780,9 +810,15 @@ export default function ProfileOnboarding({
                       <div className="rounded-lg border border-white/10 bg-white p-3">
                         <img src={twoFactorSetup.qrCodeDataUrl} alt="2FA QR code" className="mx-auto h-44 w-44" />
                       </div>
-                      <div className="rounded-md border border-white/10 bg-black/45 p-3 font-mono text-xs break-all text-white/72">
-                        {twoFactorSetup.secret}
-                      </div>
+                      <button
+                        type="button"
+                        aria-label="Copy setup key"
+                        className="flex w-full items-start justify-between gap-3 rounded-md border border-primary/30 bg-primary/10 p-3 text-left text-primary transition-colors hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => void copyTwoFactorValue(twoFactorSetup.secret, 'Setup key')}
+                      >
+                        <span className="min-w-0 break-all font-mono text-xs">{twoFactorSetup.secret}</span>
+                        <Clipboard className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                      </button>
                       <label className="space-y-2 block">
                         <span className="text-sm">Authenticator code</span>
                         <Input
@@ -855,7 +891,7 @@ export default function ProfileOnboarding({
               return null;
           }
         })()}
-        <div className="flex flex-wrap items-center justify-between gap-3 mt-8">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 sm:mt-8">
           <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
             Back
           </Button>
@@ -886,6 +922,7 @@ export default function ProfileOnboarding({
               </Button>
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
