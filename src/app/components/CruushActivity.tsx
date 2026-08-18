@@ -434,8 +434,8 @@ export default function CruushActivity() {
     <div className="min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
         <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-          <div className="mx-auto w-full max-w-2xl space-y-4">
-            <div className="grid grid-cols-[84px_minmax(0,1fr)_84px] items-center gap-2">
+          <div className="w-full space-y-4">
+            <div className="grid grid-cols-[84px_minmax(0,1fr)_84px] items-center gap-2 pr-[3.5rem]">
               <div className="flex items-center justify-start">
                 <Button
                   type="button"
@@ -507,7 +507,7 @@ export default function CruushActivity() {
           />
         ) : null}
 
-        <main className="mx-auto w-full max-w-2xl px-4 pt-4">
+        <main className="w-full px-4 pt-4">
               {error ? (
                 <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                   {error}

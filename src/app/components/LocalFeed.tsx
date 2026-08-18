@@ -450,7 +450,7 @@ export default function LocalFeed() {
 
   return (
     <div
-      className="flex h-[100dvh] max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] pt-[env(safe-area-inset-top)] text-foreground"
+      className="fixed inset-0 flex h-[100dvh] w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] pt-[env(safe-area-inset-top)] text-foreground"
       data-testid="local-feed-screen"
     >
       <header
