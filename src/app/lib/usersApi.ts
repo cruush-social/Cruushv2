@@ -43,6 +43,10 @@ export type DiscoveryUser = {
     canMessage: boolean;
     precision?: 'fuzzy' | 'precise';
   } | null;
+  activePing?: {
+    id: string;
+    expiresAt: string;
+  } | null;
 };
 
 type Coordinates = {
@@ -100,6 +104,7 @@ type TokenizedDiscoveryProfile = {
   photoExplicit?: boolean;
   badges?: CruushBadge[];
   relationship?: DiscoveryUser['relationship'];
+  activePing?: DiscoveryUser['activePing'];
 };
 
 type NearbyUsersResponse = {
@@ -195,6 +200,7 @@ export async function getNearbyUsers(
       hasSharedCrowd: profile.hasSharedCrowd === true || profile.relationshipContext === 'MUTUAL_CROWD',
       relationshipContext: profile.relationshipContext,
       relationship: profile.relationship,
+      activePing: profile.activePing ?? null,
     };
   }));
 }

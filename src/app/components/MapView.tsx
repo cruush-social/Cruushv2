@@ -103,7 +103,7 @@ const MAP_LABEL_FONT_FAMILY = 'Cormorant Garamond';
 const MAP_LABEL_FONT_REGULAR = ['Cormorant Garamond'];
 const MAP_LABEL_FONT_BOLD = ['Cormorant Garamond Bold', 'Cormorant Garamond'];
 export const MAP_TILE_LABEL_SCALE = 1.25;
-export const MAP_PIN_UNIT_SCALE = 1.0625;
+export const MAP_PIN_UNIT_SCALE = 1;
 const MARKER_INTERACTION_SUPPRESS_MS = 350;
 const PERSON_CLUSTER_MAX_ZOOM = 15.25;
 const PERSON_CLUSTER_RADIUS_PX = 84;
@@ -1115,7 +1115,7 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
 
   return (
     <span
-      className="group pointer-events-auto relative flex h-[88px] w-[103px] origin-bottom scale-[1.0625] items-start justify-center overflow-visible"
+      className="group pointer-events-auto relative flex h-[88px] w-[103px] origin-bottom scale-100 items-start justify-center overflow-visible"
       data-testid={`marker-pin-unit-${marker.id}`}
       data-active-ping={pingActive ? 'true' : 'false'}
     >

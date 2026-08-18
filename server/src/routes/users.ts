@@ -118,6 +118,12 @@ type LegacyDiscoveryProfileRow = {
   fuzzy_lng: number | null;
 };
 
+type ActiveDiscoveryMapPingRow = {
+  id: string;
+  user_id: string;
+  expires_at: string | Date;
+};
+
 const queryArrayField = z.preprocess((value) => {
   if (value === undefined) {
     return [];
@@ -936,6 +942,32 @@ async function canUseNpcGhostDemo(app: FastifyInstance, currentUserId: string, r
   return NPC_GHOST_DEMO_EMAILS.has(email.trim().toLowerCase());
 }
 
+async function loadActiveDiscoveryMapPings(app: FastifyInstance, profileIds: string[]) {
+  if (profileIds.length === 0) {
+    return new Map<string, { id: string; expiresAt: string }>();
+  }
+
+  const result = await app.db.query<ActiveDiscoveryMapPingRow>(
+    `select distinct on (user_id)
+       id::text as id,
+       user_id::text as user_id,
+       expires_at
+     from map_pings
+     where user_id = any($1::uuid[])
+       and expires_at > now()
+     order by user_id, created_at desc`,
+    [profileIds]
+  );
+
+  return new Map(result.rows.map((ping) => [
+    ping.user_id,
+    {
+      id: ping.id,
+      expiresAt: new Date(ping.expires_at).toISOString()
+    }
+  ]));
+}
+
 export async function registerUserRoutes(app: FastifyInstance) {
   app.get("/api/users", async (request, reply) => {
     const currentUserId = await getAuthenticatedUserId(request);
@@ -1052,10 +1084,19 @@ export async function registerUserRoutes(app: FastifyInstance) {
           };
         })).then((rows) => rows.filter((row): row is NonNullable<typeof row> => row !== null));
 
+    const visibleProfiles = realUsers.slice(0, parsedQuery.limit);
+    const activePings = await loadActiveDiscoveryMapPings(
+      app,
+      visibleProfiles.map((profile) => profile.profileToken)
+    );
+
     return reply.send({
       data: {
         mapEpochMs: Date.now(),
-        profiles: realUsers.slice(0, parsedQuery.limit)
+        profiles: visibleProfiles.map((profile) => ({
+          ...profile,
+          activePing: activePings.get(profile.profileToken) ?? null
+        }))
       }
     });
   });

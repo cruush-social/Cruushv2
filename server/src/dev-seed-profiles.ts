@@ -17,9 +17,11 @@ import {
 } from "./encrypted-relationships.js";
 import {
   createSensitiveProfileTokens,
+  encryptProfileVisibility,
   encryptSensitiveProfile,
   type SensitiveProfileData
 } from "./profile-sensitive.js";
+import { emptyProfile } from "./profile-schema.js";
 import { encryptMediaBytes } from "./media-encryption.js";
 import {
   deleteEncryptedMediaObject,
@@ -29,6 +31,7 @@ import {
 
 export const TEST_PROFILE_COUNT = 20;
 const TEST_PROFILE_PASSWORD = "cruush-test-profile-password";
+const DEVELOPMENT_CODE_OF_CONDUCT_VERSION = "2026-07-07";
 
 type DevelopmentSeedContext = {
   config: AppConfig;
@@ -38,6 +41,8 @@ type DevelopmentSeedContext = {
 export type DevelopmentTestProfile = {
   email: string;
   displayName: string;
+  bio: string;
+  signal: string;
   pronouns: string[];
   yearOfBirth: number;
   identities: string[];
@@ -51,6 +56,10 @@ export type DevelopmentTestProfile = {
   archetypes: string[];
   position: string[];
   role: string[];
+  bodyType: string[];
+  height: string;
+  weight: string;
+  hobbies: string[];
   photo: string;
   lat: number;
   lng: number;
@@ -119,6 +128,38 @@ const nycCoordinates = seedCoordinateOffsets.map(([latOffset, lngOffset]) => [
   Number((DEVELOPMENT_ADMIN_LOCATION.lat + latOffset).toFixed(6)),
   Number((DEVELOPMENT_ADMIN_LOCATION.lng + lngOffset).toFixed(6))
 ] as const);
+
+const seedSignals = [
+  "Coffee and a walk after work",
+  "Gallery hop, then dancing",
+  "Looking for a chill rooftop hang",
+  "Free for dinner tonight",
+  "Park picnic if the weather holds",
+  "Late-night noodles and a stroll",
+  "Museum afternoon this weekend",
+  "Dance floor energy tonight",
+  "Gym session, then smoothies",
+  "Board games and new friends",
+  "Bookstore browse and coffee",
+  "Cruising around the neighborhood",
+  "Live music and good conversation",
+  "Farmers market Saturday morning",
+  "Open to spontaneous plans",
+  "Bike ride before sunset",
+  "Karaoke crew wanted",
+  "Quiet tea and a long chat",
+  "Movie night or a casual drink",
+  "Exploring somewhere new today"
+] as const;
+
+const seedBodyTypes = ["athletic", "average", "bear", "curvy", "muscular", "otter", "petite", "slim", "stocky", "toned", "twink"] as const;
+const seedHobbies = ["art", "camping", "cooking", "dancing", "fitness", "gaming", "music", "photography", "reading", "thrifting"] as const;
+const seedHostingTravel = [
+  ["can host", "can travel"],
+  ["can travel", "hotel"],
+  ["can't host", "can travel", "outdoors"],
+  ["can host", "car"]
+] as const;
 
 function parseEnvFile(contents: string) {
   const result: Record<string, string> = {};
@@ -354,6 +395,8 @@ export function buildDevelopmentTestProfiles(now = new Date()): DevelopmentTestP
     return {
       email: `test-cruush-${String(index + 1).padStart(2, "0")}@cruush.local`,
       displayName,
+      bio: `${displayName} is a local development profile for checking discovery, profiles, messages, and Pings.`,
+      signal: seedSignals[index],
       pronouns: [...pronouns],
       yearOfBirth: 1995 - (index % 8),
       identities: crowds.includes("T4T") ? ["Trans"] : ["Queer"],
@@ -361,12 +404,16 @@ export function buildDevelopmentTestProfiles(now = new Date()): DevelopmentTestP
       sexuality: crowds.includes("Dyke") ? ["Dyke"] : ["Queer"],
       lookingFor: [...lookingFor],
       availability: index % 3 === 0 ? ["Tonight"] : ["This week"],
-      hostingTravel: index % 4 === 0 ? ["Can Host"] : ["Can Travel"],
+      hostingTravel: [...seedHostingTravel[index % seedHostingTravel.length]],
       vibes: ["cruush test", "NYC beta", crowds[0]],
       scenes: index % 2 === 0 ? ["late night"] : ["day date"],
       archetypes: index % 2 === 0 ? ["soft goth"] : ["city flirt"],
       position: [...position],
       role: index % 2 === 0 ? ["Switch"] : [],
+      bodyType: [seedBodyTypes[index % seedBodyTypes.length]],
+      height: `${5 + (index % 2)}'${4 + (index % 8)}\"`,
+      weight: `${135 + index * 5} lb`,
+      hobbies: [seedHobbies[index % seedHobbies.length], seedHobbies[(index + 3) % seedHobbies.length]],
       photo: createSeedPhoto(displayName, index),
       lat,
       lng,
@@ -421,14 +468,27 @@ async function upsertSensitiveTokens(context: DevelopmentSeedContext, userId: st
 async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile: DevelopmentTestProfile) {
   const passwordHash = await hashPassword(TEST_PROFILE_PASSWORD);
   const userResult = await context.db.query<{ id: string }>(
-    `insert into app_users (email, password_hash, display_name, email_verified_at)
-     values ($1, $2, $3, now())
+    `insert into app_users (
+       email,
+       password_hash,
+       display_name,
+       email_verified_at,
+       signup_birth_year,
+       age_verified_at,
+       code_of_conduct_accepted_version,
+       code_of_conduct_accepted_at
+     )
+     values ($1, $2, $3, now(), $4, now(), $5, now())
      on conflict (email) do update
      set password_hash = excluded.password_hash,
          display_name = excluded.display_name,
-         email_verified_at = coalesce(app_users.email_verified_at, now())
+         email_verified_at = coalesce(app_users.email_verified_at, now()),
+         signup_birth_year = excluded.signup_birth_year,
+         age_verified_at = coalesce(app_users.age_verified_at, now()),
+         code_of_conduct_accepted_version = excluded.code_of_conduct_accepted_version,
+         code_of_conduct_accepted_at = coalesce(app_users.code_of_conduct_accepted_at, now())
      returning id::text as id`,
-    [profile.email, passwordHash, profile.displayName]
+    [profile.email, passwordHash, profile.displayName, profile.yearOfBirth, DEVELOPMENT_CODE_OF_CONDUCT_VERSION]
   );
   const userId = userResult.rows[0]?.id;
 
@@ -438,6 +498,7 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
 
   const profilePhotoUrl = await upsertDevelopmentProfilePhoto(context, userId, profile);
   const encryptedSensitiveProfile = encryptSensitiveProfile(context.config, profile.sensitiveProfile);
+  const encryptedProfileVisibility = encryptProfileVisibility(context.config, emptyProfile.visibility_rules);
 
   await context.db.query(
     `insert into profiles (
@@ -457,6 +518,12 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
        archetypes,
        position,
        role,
+       bio,
+       signal,
+       body_type,
+       height,
+       weight,
+       hobbies,
        lat,
        lng,
        fuzzy_lat,
@@ -474,7 +541,8 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
        $1, $2, $3, $4, $5, $6, $7, $8,
        $9, $10, $11, $12, $13, $14, $15, $16,
        $17, $18, $19, $20, $21, $22,
-       $23, $24, $25, $26, $27, $28
+       $23, $24, $25, $26, $27, $28,
+       $29, $30, $31, $32, $33, $34
      )
      on conflict (id) do update
      set display_name = excluded.display_name,
@@ -492,6 +560,12 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
          archetypes = excluded.archetypes,
          position = excluded.position,
          role = excluded.role,
+         bio = excluded.bio,
+         signal = excluded.signal,
+         body_type = excluded.body_type,
+         height = excluded.height,
+         weight = excluded.weight,
+         hobbies = excluded.hobbies,
          lat = excluded.lat,
          lng = excluded.lng,
          fuzzy_lat = excluded.fuzzy_lat,
@@ -521,6 +595,12 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
       profile.archetypes,
       profile.position,
       profile.role,
+      profile.bio,
+      profile.signal,
+      profile.bodyType,
+      profile.height,
+      profile.weight,
+      profile.hobbies,
       profile.lat,
       profile.lng,
       profile.fuzzyLat,
@@ -533,6 +613,24 @@ async function upsertDevelopmentProfile(context: DevelopmentSeedContext, profile
       encryptedSensitiveProfile.profile_sensitive_key_version,
       encryptedSensitiveProfile.profile_sensitive_token_key_version,
       profile.updatedAt
+    ]
+  );
+
+  await context.db.query(
+    `update profiles
+     set profile_visibility_ciphertext = $2,
+         profile_visibility_nonce = $3,
+         profile_visibility_auth_tag = $4,
+         profile_visibility_key_version = $5,
+         profile_visibility_token_key_version = $6
+     where id = $1`,
+    [
+      userId,
+      encryptedProfileVisibility.profile_visibility_ciphertext,
+      encryptedProfileVisibility.profile_visibility_nonce,
+      encryptedProfileVisibility.profile_visibility_auth_tag,
+      encryptedProfileVisibility.profile_visibility_key_version,
+      encryptedProfileVisibility.profile_visibility_token_key_version
     ]
   );
 
@@ -569,14 +667,48 @@ export async function seedDevelopmentProfilesWithDb(context: DevelopmentSeedCont
       email: DEVELOPMENT_ADMIN_EMAIL,
       photo: createSeedPhoto(DEVELOPMENT_ADMIN_DISPLAY_NAME, TEST_PROFILE_COUNT)
     });
+    const adminSensitiveProfile: SensitiveProfileData = {
+      is_trans: null,
+      crowds: [],
+      kinks: [],
+      kink_interests: [],
+      hiv_status: [],
+      custom_hiv_status: ""
+    };
+    const encryptedAdminSensitiveProfile = encryptSensitiveProfile(context.config, adminSensitiveProfile);
+    const encryptedAdminProfileVisibility = encryptProfileVisibility(context.config, emptyProfile.visibility_rules);
 
     await context.db.query(
       `update profiles
        set photos = $2,
+           profile_sensitive_ciphertext = $3,
+           profile_sensitive_nonce = $4,
+           profile_sensitive_auth_tag = $5,
+           profile_sensitive_key_version = $6,
+           profile_sensitive_token_key_version = $7,
+           profile_visibility_ciphertext = $8,
+           profile_visibility_nonce = $9,
+           profile_visibility_auth_tag = $10,
+           profile_visibility_key_version = $11,
+           profile_visibility_token_key_version = $12,
            updated_at = now()
        where id = $1`,
-      [adminUserId, [adminPhotoUrl]]
+      [
+        adminUserId,
+        [adminPhotoUrl],
+        encryptedAdminSensitiveProfile.profile_sensitive_ciphertext,
+        encryptedAdminSensitiveProfile.profile_sensitive_nonce,
+        encryptedAdminSensitiveProfile.profile_sensitive_auth_tag,
+        encryptedAdminSensitiveProfile.profile_sensitive_key_version,
+        encryptedAdminSensitiveProfile.profile_sensitive_token_key_version,
+        encryptedAdminProfileVisibility.profile_visibility_ciphertext,
+        encryptedAdminProfileVisibility.profile_visibility_nonce,
+        encryptedAdminProfileVisibility.profile_visibility_auth_tag,
+        encryptedAdminProfileVisibility.profile_visibility_key_version,
+        encryptedAdminProfileVisibility.profile_visibility_token_key_version
+      ]
     );
+    await upsertSensitiveTokens(context, adminUserId, adminSensitiveProfile);
 
     for (const profile of profiles) {
       const profileUserId = await upsertDevelopmentProfile(context, profile);

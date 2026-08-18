@@ -1719,6 +1719,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
     const nearbyMarkers = displayedUsers
       .filter((user) => !user.isCurrentUser && user.id !== currentProfile?.id && user.id !== 'me')
       .map((user) => {
+      const loadedProfilePing = user.activePing && Date.parse(user.activePing.expiresAt) > mapPingClock
+        ? user.activePing
+        : null;
       return {
         id: user.id,
         userId: user.id,
@@ -1735,7 +1738,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         displayMode: user.displayMode,
         privacyRadiusMeters: user.privacyRadiusMeters,
         npcGhostDemo: user.npcGhostDemo,
-        activePing: activeReceivedPings.get(user.id) ?? null,
+        activePing: loadedProfilePing ?? activeReceivedPings.get(user.id) ?? null,
         relationship: (user.relationship?.mutualCruush || user.relationshipContext === 'MUTUAL_CRUUSH')
           ? {
               kind: 'mutual_cruush',

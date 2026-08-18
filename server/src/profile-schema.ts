@@ -187,7 +187,7 @@ export const profilePayloadSchema = z.object({
   trans_status_visibility: profileVisibilitySchema.optional().default("mutual_cruushes"),
   crowds: z.array(crowdSchema).max(3).optional().default([]),
   availability: singleArrayField,
-  hosting_travel: singleArrayField,
+  hosting_travel: upToThreeArrayField,
   kinks: kinkArrayField,
   kink_interests: z.array(profileKinkInterestSchema).max(5).optional().default([]),
   kinks_visibility: profileVisibilitySchema.optional().default("public"),

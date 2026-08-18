@@ -2,7 +2,7 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Align profile information architecture by moving Vibes to Basics on the profile view, removing the separate Profile tab from Profile Edit, and placing edit fields under Basics or Intimacy to mirror the visible profile.",
+  "job": "Update the full-stack local build with the latest profile and map changes, allow up to three Hosting/Travel choices, enrich deterministic seeded profiles with signals and profile details, and show an active Ping on its sender whenever that sender is included in the viewer's loaded map results.",
   "base": "origin/main at ae61f563ef6ed81d6a7b2a297169cbca040c270b",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
@@ -17,6 +17,8 @@
     "src/app/components/GoogleAnalyticsPageTracker.tsx",
     "nginx.conf",
     "src/app/components/MapHome.tsx",
+    "src/app/lib/usersApi.ts",
+    "server/src/routes/users.ts",
     "src/app/components/MapHome.test.tsx",
     "src/app/components/DirectMessages.tsx",
     "src/app/components/DirectMessages.test.tsx",
@@ -94,6 +96,7 @@
     "server/src/migrate.ts",
     "server/src/migrate.test.ts",
     "server/sql/082_two_factor_cruush_plus_reward.sql",
+    "server/src/dev-seed-profiles.ts",
     "server/src/dev-seed-profiles.test.ts",
     "server/src/reviewer-test-accounts.test.ts",
     "server/src/profile-photo-stream-automod-routes.test.ts",
@@ -179,16 +182,20 @@
     "docs/moderation.md"
   ],
   "preserved": [
-    "Profile values, save payloads, selection limits, photo editing, privacy, and visibility behavior remain unchanged; only section and tab placement changes.",
+    "The complete pin unit continues to scale as one unit, including the heart, signal, and marker badges; hover growth remains 20 percent.",
+    "Profile photo editing, privacy, visibility, and all selection limits except the explicitly requested Hosting/Travel maximum remain unchanged.",
     "All deployed Ghost, Stealth, location-sharing, moderation, messaging, profile persistence, and security fixes.",
     "Messages filter state remains independent from Map Seeking state.",
     "Ghost display and leash, controls, touch behavior, and the v2 tile source/style other than the explicitly authorized pin-unit and map-label scaling.",
+    "The owner-visible Ghost decoy keeps its Ghost Mode decoy signal.",
     "Private service-center coordinates remain absent from public copy and payloads.",
     "Public and Mutual recipient eligibility, existing online/distance sorting, and the existing close control.",
     "Existing dirty artifacts: .claude/launch.json, menu-harness.html, src/menu-harness.tsx, and server/pnpm-lock.yaml."
   ],
   "nonGoals": [
-    "Do not change profile schemas, onboarding, field options, moderation, profile visibility, or backend persistence.",
+    "Do not change map data, zoom, discovery eligibility, pin contents beyond active Ping state, hover behavior, or non-person markers.",
+    "Do not add onboarding steps or change moderation, profile visibility, or backend persistence beyond supporting up to three Hosting/Travel values.",
+    "Do not touch production data or services, push, merge, deploy, create tests, edit tests, or run tests.",
     "Do not remove or replace Google Analytics, add feature flags, enable session recording, enable autocapture, or send unsanitized route identifiers.",
     "Do not weaken recipient authorization, expose precise location, alter message visibility settings, or change map discovery policy; use only existing approximate saved coordinates and existing canMessage checks. Broader chooser results may relax local preference filters only.",
     "Do not change backend analytics, consent copy, authentication, deployment settings, or PostHog project configuration in this source-only task.",
@@ -203,6 +210,8 @@
     "Record required Terms and Privacy acceptance and optional product-updates consent at signup; preserve unsubscribe state and do not send email in this task."
   ],
   "proof": [
+    "Full-stack local frontend and API reflect current source; local sign-in works, Hosting/Travel accepts up to three values, seeded profiles expose populated signals/details, and a loaded seeded sender's real active Ping appears on that sender's map marker.",
+    "Rendered local map shows the complete heart-pin unit at 1.0 scale with 20 percent hover growth preserved.",
     "Rendered Profile and Profile Edit show Vibes in Basics, no separate Profile edit tab, and intimacy fields aligned with the visible profile.",
     "Focused PostHog tests prove missing-key no-op behavior, one-time initialization, sanitized pageview paths, and disabled autocapture/session recording options.",
     "Frontend production build passes; live PostHog ingestion remains unverified until this branch is published with VITE_POSTHOG_KEY configured in Coolify.",

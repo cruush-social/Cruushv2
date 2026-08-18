@@ -505,7 +505,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     trans_status_visibility: FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
     availability: singleValue(profile.availability ?? []),
-    hosting_travel: singleValue(profile.hosting_travel ?? []),
+    hosting_travel: limitToThree(profile.hosting_travel ?? []),
     kinks: limitToFiveKinks(profile.kinks ?? []),
     kink_interests: sanitizeKinkInterests(profile).slice(-MAX_PROFILE_KINKS),
     kinks_visibility: profile.kinks_visibility ?? 'public',
@@ -901,7 +901,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     trans_status_visibility: profile.trans_status_visibility ?? FIXED_PRIVATE_PROFILE_VISIBILITY,
     crowds: sanitizeCrowds(profile),
     availability: singleValue(profile.availability || []),
-    hosting_travel: singleValue(profile.hosting_travel || []),
+    hosting_travel: limitToThree(profile.hosting_travel || []),
     kinks: profile.kinks || [],
     kink_interests: profile.kink_interests || [],
     kinks_visibility: profile.kinks_visibility || 'public',
@@ -1237,7 +1237,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
             <div className="space-y-2">
               <Label>Hosting/Travel</Label>
-              <MultiSelect {...profileMenuProps} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', singleValue(vals))} selectionMode="single" />
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={vals => handleChange('hosting_travel', limitToThree(vals))} />
             </div>
             <div className="space-y-2">
               <Label>Kinks & Fetishes</Label>
