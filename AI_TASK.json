@@ -2,7 +2,7 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Release the complete current batch of recent cruush bug fixes and UI updates together, including account-scoped failed-login limits, conditional MFA entry, messaging permissions, precise-location actions, relationship-colored vibe tags, accessibility, appeals, navigation, tutorial, filters, and responsive layout fixes.",
+  "job": "Release the complete current batch of recent cruush bug fixes and UI updates together, then repair stale-client delivery so already-open and installed app sessions receive the same frontend options as the deployed release.",
   "base": "d532b3a2fd1c0467e9e3123b0d7af5a991dbea69",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
@@ -44,7 +44,12 @@
     "src/app/components/MapControlsTutorial.tsx",
     "src/app/components/MapControlsTutorial.test.tsx",
     "src/app/components/DirectMessages.tsx",
-    "src/app/components/LocalFeed.tsx"
+    "src/app/components/LocalFeed.tsx",
+    "public/sw.js",
+    "public/service-worker-recovery.js",
+    "src/main.tsx",
+    "src/serviceWorkerUpdate.test.ts",
+    "index.html"
   ],
   "preserved": [
     "Preserve the existing 300 millisecond mobile map profile-pin hold change and its focused tests.",
@@ -77,6 +82,7 @@
     ,"Keep invalid password limits scoped to the normalized account email, with only a high shared-IP ceiling for failed attempts."
     ,"Keep invalid MFA limits scoped to the user, with only a high shared-IP ceiling for invalid codes."
     ,"Keep the MFA input conditional and directly below Password after the backend returns TWO_FACTOR_REQUIRED."
+    ,"Preserve push notifications, notification navigation, network-first requests, and no-store navigation while changing only the app-shell release identifier."
   ],
   "nonGoals": [
     "Do not redesign the map, filter sheets, profile cards, or navigation.",
@@ -95,6 +101,7 @@
     "Do not change the authentication shell, footer, CAPTCHA, provider configuration, or backend signup flow.",
     "Do not change relationship creation, direct-message permission rules, database schema, profile-page actions, or map-marker styling.",
     "Do not recolor non-user tags, Crowd badges, distance badges, moderation badges, or event tags."
+    ,"Do not add offline caching, alter notification behavior, or change any profile option while repairing stale-client delivery."
   ],
   "proof": [
     "Render the authenticated New Message chooser at mobile and desktop widths with at least one mutual and one non-mutual profile that have vibe tags.",
@@ -107,7 +114,8 @@
     "Run focused authentication regression checks before publication: six successful accounts on one IP, one account's failures not blocking another, missing MFA not counting, and invalid MFA remaining limited.",
     "Visually confirm the MFA input appears below Password only after an MFA-enabled account submits valid credentials without a code.",
     "Commit the complete authorized dirty batch, push it to origin/main, deploy that exact main SHA, and confirm frontend, API, and Coolify health.",
-    "Only after successful production deployment confirmation, run the full repository suite and report any post-deploy failures separately."
+    "Only after successful production deployment confirmation, run the full repository suite and report any post-deploy failures separately.",
+    "Confirm the deployed profile-options chunk contains the approved options and the new service-worker release activates a client refresh without requiring manual cache clearing."
   ],
   "proofResults": [
     "Authenticated mobile New Message at 390 by 844 rendered mutual purple and non-mutual pink heart and vibe-tag borders with uppercase no-wrap tags and no horizontal overflow.",
@@ -123,6 +131,8 @@
     "Focused frontend authentication regression passed 1 of 1 and confirmed the MFA input remains conditional on TWO_FACTOR_REQUIRED.",
     "At 390 by 844, the real local full-stack login rendered MFA code directly below Password only after valid credentials for an MFA-enabled account were submitted without a code; the temporary MFA setup, recovery codes, trust event, reward grant, and derived trust change were removed or restored.",
     "Frontend and server production builds passed. No environment variable, provider, schema, or production-data change was made."
+    ,"The deployed 07d01ad profile-options chunk contained Hacker, Techie, all approved Scenes additions, dyke, and fag, while the unchanged v22 service-worker release identifier allowed already-open clients to remain on their prior JavaScript until reload."
+    ,"The stale-client hotfix bumps every app-shell identifier to v23, keeps network-first and no-store behavior unchanged, passes the focused service-worker update test 3 of 3, and passes the frontend production build."
   ],
   "environmentChanges": [],
   "publicationTarget": "main and production"
