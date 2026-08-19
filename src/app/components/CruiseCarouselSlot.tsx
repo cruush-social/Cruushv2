@@ -180,9 +180,9 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
   const profileSizeClass = featured ? 'aspect-[4/5] w-[9rem] sm:w-[11.5rem]' : 'aspect-[4/5] w-[4.8rem] sm:w-[5.6rem]';
   const iconSizeClass = featured ? 'h-[7.5rem] w-[7.5rem]' : 'h-[5rem] w-[5rem]';
-  const frameClass = featured
-    ? 'border-white/34 bg-white/[0.12] shadow-[0_0_34px_rgba(255,0,114,0.32)]'
-    : 'border-transparent bg-transparent';
+  const tileFrameClass = featured
+    ? 'border-white/34 bg-white/[0.12] shadow-[0_0_34px_rgba(255,0,114,0.32)] rounded-[1.375rem]'
+    : 'border-white/24 bg-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)] rounded-[1rem] sm:rounded-[1.25rem]';
   const positionClass = featured
     ? 'scale-110 rotate-0 opacity-100 z-20'
     : itemIndex < FEATURED_ITEM_INDEX
@@ -200,36 +200,17 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
       : item.user.photo
       ? [item.user.photo]
       : [];
-    const photoUrl = allPhotos[activePhotoIndex ?? 0] ?? item.user.photo;
+    const photoUrl = featured ? (allPhotos[activePhotoIndex ?? 0] ?? item.user.photo) : item.user.photo;
     const photo = photoUrl && !shouldMaskPhoto(dlModeActive, item.user.photoExplicit)
       ? resolveMediaUrl(photoUrl)
       : null;
     const initial = item.user.name.trim().charAt(0).toUpperCase() || '?';
 
-    if (!featured) {
-      return (
-        <div
-          data-carousel-profile-id={item.user.id}
-          data-testid="cruise-carousel-profile-tile"
-          className={`flex ${profileSizeClass} shrink-0 items-center justify-center ${positionClass} ${cycleClass} transition-all duration-300`}
-        >
-          <HeartPhoto
-            label={item.user.name}
-            photo={item.user.photo}
-            masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
-            theme="nearby"
-            userId={item.user.id}
-            className="h-16 w-16 sm:h-20 sm:w-20 shadow-[0_0_20px_rgba(255,0,114,0.35)]"
-          />
-        </div>
-      );
-    }
-
     return (
       <div
         data-carousel-profile-id={item.user.id}
         data-testid="cruise-carousel-profile-tile"
-        className={`relative flex ${profileSizeClass} shrink-0 items-center justify-center overflow-hidden rounded-[1.375rem] border ${frameClass} ${positionClass} ${cycleClass} transition-all duration-300`}
+        className={`relative flex ${profileSizeClass} shrink-0 items-center justify-center overflow-hidden border ${tileFrameClass} ${positionClass} ${cycleClass} transition-all duration-300`}
       >
         {photo ? (
           <img
@@ -239,7 +220,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
             src={photo}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-4xl font-bold text-white" style={{ background: 'var(--cruush-gradient)' }}>
+          <div className="flex h-full w-full items-center justify-center text-2xl sm:text-4xl font-bold text-white" style={{ background: 'var(--cruush-gradient)' }}>
             {initial}
           </div>
         )}
@@ -292,7 +273,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
 
   return (
     <div
-      className={`flex ${iconSizeClass} shrink-0 items-center justify-center rounded-[1.375rem] border ${frameClass} ${positionClass} transition-all duration-300`}
+      className={`flex ${iconSizeClass} shrink-0 items-center justify-center border ${tileFrameClass} ${positionClass} transition-all duration-300`}
     >
       <CruushIcon name={item.icon} className={featured ? 'h-14 w-14' : 'h-10 w-10'} variant={featured ? 'colored' : 'white'} />
     </div>
