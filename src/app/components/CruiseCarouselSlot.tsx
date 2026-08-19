@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Lock, RefreshCw, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock, RefreshCw, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { CruushIcon, type CruushIconName } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
+import HeartPhoto from './HeartPhoto';
 import { resolveMediaUrl } from '../lib/apiClient';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import type { DiscoveryUser } from '../lib/usersApi';
@@ -168,54 +169,123 @@ function makeBrowseItems(
   ];
 }
 
-function CarouselTile({ item, featured, itemIndex, spinning }: {
+function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, onSelectPhoto }: {
   item: CarouselItem;
   featured: boolean;
   itemIndex: number;
   spinning: boolean;
+  activePhotoIndex?: number;
+  onSelectPhoto?: (index: number) => void;
 }) {
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
-  const profileSizeClass = featured ? 'aspect-[4/5] w-[6rem]' : 'aspect-[4/5] w-[4.8rem]';
-  const iconSizeClass = featured ? 'h-[6.25rem] w-[6.25rem]' : 'h-[5rem] w-[5rem]';
+  const profileSizeClass = featured ? 'aspect-[4/5] w-[9rem] sm:w-[11.5rem]' : 'aspect-[4/5] w-[4.8rem] sm:w-[5.6rem]';
+  const iconSizeClass = featured ? 'h-[7.5rem] w-[7.5rem]' : 'h-[5rem] w-[5rem]';
   const frameClass = featured
-    ? 'border-white/34 bg-white/[0.12] shadow-[0_0_34px_rgba(255,0,114,0.26)]'
-    : 'border-white/12 bg-white/[0.055]';
+    ? 'border-white/34 bg-white/[0.12] shadow-[0_0_34px_rgba(255,0,114,0.32)]'
+    : 'border-transparent bg-transparent';
   const positionClass = featured
-    ? 'scale-110 rotate-0 opacity-100'
+    ? 'scale-110 rotate-0 opacity-100 z-20'
     : itemIndex < FEATURED_ITEM_INDEX
-    ? '-rotate-3 scale-90 opacity-70'
+    ? '-rotate-6 scale-90 opacity-80 hover:opacity-100 z-10'
     : itemIndex > FEATURED_ITEM_INDEX
-    ? 'rotate-3 scale-90 opacity-70'
-    : 'scale-100 rotate-0 opacity-100';
+    ? 'rotate-6 scale-90 opacity-80 hover:opacity-100 z-10'
+    : 'scale-100 rotate-0 opacity-100 z-10';
   const cycleClass = spinning ? 'cruise-carousel-profile-spinning' : '';
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
 
   if (item.kind === 'profile') {
-    const photo = item.user.photo && !shouldMaskPhoto(dlModeActive, item.user.photoExplicit)
-      ? resolveMediaUrl(item.user.photo)
+    const allPhotos = item.user.photos && item.user.photos.length > 0
+      ? item.user.photos
+      : item.user.photo
+      ? [item.user.photo]
+      : [];
+    const photoUrl = allPhotos[activePhotoIndex ?? 0] ?? item.user.photo;
+    const photo = photoUrl && !shouldMaskPhoto(dlModeActive, item.user.photoExplicit)
+      ? resolveMediaUrl(photoUrl)
       : null;
     const initial = item.user.name.trim().charAt(0).toUpperCase() || '?';
+
+    if (!featured) {
+      return (
+        <div
+          data-carousel-profile-id={item.user.id}
+          data-testid="cruise-carousel-profile-tile"
+          className={`flex ${profileSizeClass} shrink-0 items-center justify-center ${positionClass} ${cycleClass} transition-all duration-300`}
+        >
+          <HeartPhoto
+            label={item.user.name}
+            photo={item.user.photo}
+            masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+            theme="nearby"
+            userId={item.user.id}
+            className="h-16 w-16 sm:h-20 sm:w-20 shadow-[0_0_20px_rgba(255,0,114,0.35)]"
+          />
+        </div>
+      );
+    }
 
     return (
       <div
         data-carousel-profile-id={item.user.id}
         data-testid="cruise-carousel-profile-tile"
-        className={`flex ${profileSizeClass} shrink-0 items-center justify-center overflow-hidden rounded-[1.375rem] border ${frameClass} ${positionClass} ${cycleClass} transition-all duration-300`}
+        className={`relative flex ${profileSizeClass} shrink-0 items-center justify-center overflow-hidden rounded-[1.375rem] border ${frameClass} ${positionClass} ${cycleClass} transition-all duration-300`}
       >
         {photo ? (
           <img
-            alt=""
-            aria-hidden="true"
+            alt={item.user.name}
             className="h-full w-full object-cover"
             draggable={false}
             src={photo}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-3xl text-white" style={{ background: 'var(--cruush-gradient)' }}>
+          <div className="flex h-full w-full items-center justify-center text-4xl font-bold text-white" style={{ background: 'var(--cruush-gradient)' }}>
             {initial}
           </div>
         )}
+
+        {featured && allPhotos.length > 1 ? (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectPhoto?.(( (activePhotoIndex ?? 0) - 1 + allPhotos.length ) % allPhotos.length);
+              }}
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white/90 backdrop-blur-sm transition hover:bg-black/80 hover:scale-110 active:scale-95"
+              aria-label="Previous photo"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectPhoto?.(( (activePhotoIndex ?? 0) + 1 ) % allPhotos.length);
+              }}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white/90 backdrop-blur-sm transition hover:bg-black/80 hover:scale-110 active:scale-95"
+              aria-label="Next photo"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <div className="absolute bottom-2 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 backdrop-blur-sm">
+              {allPhotos.map((_, idx) => (
+                <button
+                  key={`photo-dot-${idx}`}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectPhoto?.(idx);
+                  }}
+                  className={`h-1.5 rounded-full transition-all ${
+                    (activePhotoIndex ?? 0) === idx ? 'w-3.5 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'
+                  }`}
+                  aria-label={`Go to photo ${idx + 1}`}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
     );
   }
@@ -224,7 +294,7 @@ function CarouselTile({ item, featured, itemIndex, spinning }: {
     <div
       className={`flex ${iconSizeClass} shrink-0 items-center justify-center rounded-[1.375rem] border ${frameClass} ${positionClass} transition-all duration-300`}
     >
-      <CruushIcon name={item.icon} className={featured ? 'h-12 w-12' : 'h-10 w-10'} variant={featured ? 'colored' : 'white'} />
+      <CruushIcon name={item.icon} className={featured ? 'h-14 w-14' : 'h-10 w-10'} variant={featured ? 'colored' : 'white'} />
     </div>
   );
 }
@@ -243,12 +313,17 @@ export default function CruiseCarouselSlot({
   const prefersReducedMotion = usePrefersReducedMotion();
   const [settled, setSettled] = useState(false);
   const [cycleStep, setCycleStep] = useState(0);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const onCompleteRef = useRef(onComplete);
   const profileCandidates = useMemo(
     () => uniqueProfileCandidates(candidateUsers, targetUser),
     [candidateUsers, targetUser],
   );
   const profileCandidateKey = profileCandidates.map((user) => user.id).join(':');
+
+  useEffect(() => {
+    setActivePhotoIndex(0);
+  }, [targetUser?.id]);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -296,8 +371,8 @@ export default function CruiseCarouselSlot({
     [cycleStep, mode, profileCandidates, settled, targetUser],
   );
   const featuredFrameClass = browseItems[FEATURED_ITEM_INDEX]?.kind === 'profile'
-    ? 'aspect-[4/5] w-[6.6rem]'
-    : 'h-[7rem] w-[7rem]';
+    ? 'aspect-[4/5] w-[9.6rem] sm:w-[12.2rem]'
+    : 'h-[7rem] w-[7rem] sm:h-[10rem] sm:w-[10rem]';
 
   const title = mode === 'profile'
     ? 'browsing nearby profiles'
@@ -338,10 +413,10 @@ export default function CruiseCarouselSlot({
           <div data-testid="cruise-carousel-featured-frame" className={`pointer-events-none absolute left-1/2 top-1/2 z-10 ${featuredFrameClass} -translate-x-1/2 -translate-y-1/2 rounded-[1.65rem] border border-white/18 bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${settled ? '' : 'cruise-carousel-frame-spinning'}`} />
           <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-2 z-20 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-primary shadow-[0_0_14px_rgba(255,0,114,0.9)]" />
           <span aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 z-20 h-2.5 w-2.5 -translate-x-1/2 rotate-45 bg-primary shadow-[0_0_14px_rgba(255,0,114,0.9)]" />
-          <div className="relative flex h-[9rem] items-center justify-center overflow-hidden" aria-hidden="true">
+          <div className="relative flex h-[13.5rem] sm:h-[16rem] items-center justify-center overflow-hidden" aria-hidden="true">
             <div
               key={settled ? 'settled' : `reel-${cycleStep}`}
-              className={`flex items-center gap-3 ${settled ? 'cruise-carousel-reel-lock' : 'cruise-carousel-reel-step'}`}
+              className={`flex items-center gap-3 sm:gap-5 ${settled ? 'cruise-carousel-reel-lock' : 'cruise-carousel-reel-step'}`}
             >
               {browseItems.map((item, itemIndex) => (
                 <CarouselTile
@@ -350,6 +425,8 @@ export default function CruiseCarouselSlot({
                   featured={settled && itemIndex === FEATURED_ITEM_INDEX}
                   itemIndex={itemIndex}
                   spinning={!settled && mode === 'profile'}
+                  activePhotoIndex={activePhotoIndex}
+                  onSelectPhoto={setActivePhotoIndex}
                 />
             ))}
             </div>
