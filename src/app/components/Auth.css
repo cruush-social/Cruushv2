@@ -608,24 +608,23 @@
 @media (max-width: 640px) {
   .launch-login-auth-shell {
     position: relative;
-    display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
-    row-gap: clamp(0.55rem, 1.15dvh, 0.9rem);
+    display: flex;
+    flex-direction: column;
     width: 100vw;
     width: 100dvw;
     max-width: none;
-    height: 100vh;
-    height: 100dvh;
-    min-height: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: auto;
     align-items: center;
-    justify-items: center;
-    place-items: center;
     justify-content: center;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
     padding:
-      max(0.5rem, env(safe-area-inset-top))
+      max(0.75rem, env(safe-area-inset-top))
       max(0.75rem, env(safe-area-inset-right))
-      max(0.55rem, env(safe-area-inset-bottom))
+      max(0.75rem, env(safe-area-inset-bottom))
       max(0.75rem, env(safe-area-inset-left));
   }
 
@@ -652,9 +651,10 @@
     max-width: calc(100dvw - 1.5rem);
     min-width: 0;
     margin-inline: auto;
+    margin-block: auto;
     overflow: visible;
     height: auto;
-    max-height: 100%;
+    max-height: none;
     padding-top: 0;
   }
 
