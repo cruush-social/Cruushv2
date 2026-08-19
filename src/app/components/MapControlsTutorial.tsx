@@ -550,7 +550,11 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
     };
   }, [measurements, targetBounds]);
 
-  const completeTutorial = () => {
+  const completeTutorial = (event?: React.SyntheticEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    window.localStorage.setItem(MAP_CONTROLS_TUTORIAL_STORAGE_KEY, 'true');
     window.localStorage.removeItem(MAP_CONTROLS_TUTORIAL_PROGRESS_KEY);
     onComplete();
   };
@@ -668,11 +672,15 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
           </div>
           <button
             type="button"
-            className="text-xs text-white/60 underline-offset-4 hover:text-white hover:underline"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-white/15 bg-white/10 text-xs font-medium text-white/80 hover:bg-white/20 hover:text-white active:scale-95 transition-all shadow-sm cursor-pointer"
             data-testid="skip-map-controls-tutorial"
             onClick={completeTutorial}
+            onTouchEnd={(event) => {
+              event.preventDefault();
+              completeTutorial(event);
+            }}
           >
-            Skip tutorial
+            <span>Skip tutorial</span>
           </button>
         </div>
 
