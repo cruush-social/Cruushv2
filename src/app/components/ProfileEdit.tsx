@@ -496,6 +496,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
     year_of_birth: profile.year_of_birth ?? null,
     ethnicity: profile.ethnicity ?? '',
+    identities: limitGenderIdentities(profile.identities || []),
     presentation: limitToThree(profile.presentation ?? []),
     sexuality: limitToThree(profile.sexuality ?? []),
     body_type: limitToThree(profile.body_type ?? []),
