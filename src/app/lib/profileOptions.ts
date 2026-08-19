@@ -54,13 +54,13 @@ export const VIBE_GROUPS = [
   {
     label: 'Scenes',
     options: [
-      'Ballroom', 'Burner', 'Camping', 'Circuit', 'Club Kid', 'Cosplay', 'Country', 'Drag', 'Festival', 'Furry', 'Jock', 'Leather', 'Rave', 'Rubber', 'Sober', 'Sports', 'Stoner', 'Wolf'
+      'Ballroom', 'Burner', 'Camping', 'Circuit', 'Club Kid', 'Cosplay', 'Country', 'Drag', 'Festival', 'Furry', 'Jock', 'Leather', 'Rave', 'Rubber', 'Sober', 'Stoner'
     ].sort(),
   },
   {
     label: 'Archetypes',
     options: [
-      'Baddie', 'Bimbo', 'Brat', 'Daddy', 'Doll', 'Goddess', 'Kitten', 'Mommy', 'Pixie', 'Pony', 'Princess', 'Pup', 'Service'
+      'Angel', 'Baddie', 'Bimbo', 'Brat', 'Cuck', 'Cuckquean', 'Cyborg', 'Daddy', 'Doll', 'Goddess', 'Handler', 'Himbo', 'Hothusband', 'Hotwife', 'Incubus', 'Jester', 'King', 'Kitten', 'Masochist', 'Mommy', 'Pixie', 'Pony', 'Prince', 'Princess', 'Pup', 'Queen', 'Rigger', 'Rope Bunny', 'Sadist', 'Service', 'Succubus', 'Trainer', 'Unicorn', 'Vampire', 'Wolf'
     ].sort(),
   },
 ];
@@ -86,6 +86,7 @@ export const DOXYPEP = ['no', 'prefer not to say', 'yes'];
 export const COVID_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
 export const MPOX_VACCINE = ['no', 'partial', 'prefer not to say', 'yes'];
 export const HEALTH_PREFERENCES = ['COVID tested', 'Masks'];
+export const BIRTH_CONTROL = ['hormonal', 'non-hormonal', 'IUD', 'implant', 'pill', 'patch', 'ring', 'shot', 'none', 'prefer not to say'];
 export const SUBSTANCE_BOUNDARIES = [
   'No alcohol involved',
   'No cannabis involved',

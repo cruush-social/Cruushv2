@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+<<<<<<< HEAD
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { authEmailSchema } from "../auth-schema.js";
@@ -8,11 +9,12 @@ import { encryptMediaBytes } from "../media-encryption.js";
 import { deleteEncryptedMediaObject, writeEncryptedMediaObject } from "../media-storage.js";
 import { sendSupportRequestInboxEmail, sendSupportRequestReplyEmail } from "../mailer.js";
 import { getModeratorUser } from "../moderator-auth.js";
+=======
+import { ApiError } from "../errors.js";
+import { sendSupportRequestInboxEmail } from "../mailer.js";
+>>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
 import { getOptionalAuthenticatedUserId } from "../request-auth.js";
-import {
-  createSupportRequestPayloadSchema,
-  replySupportRequestPayloadSchema
-} from "../support-schema.js";
+import { createSupportRequestPayloadSchema } from "../support-schema.js";
 
 type SupportRequestRow = {
   id: string;
@@ -21,6 +23,7 @@ type SupportRequestRow = {
   created_at: string | Date;
 };
 
+<<<<<<< HEAD
 type SupportRequestListRow = {
   id: string;
   requester_user_id: string | null;
@@ -468,11 +471,16 @@ export async function registerSupportRoutes(app: FastifyInstance) {
       message: "Too many support requests. Try again later."
     });
 
+    const isAgeAppeal =
+      payload.category === "policy" ||
+      /age|underage|birth|dob|suspension|appeal|18\+|minor/i.test(`${payload.subject} ${payload.message}`);
+
     const metadata = {
       userAgent: getUserAgent(request.headers["user-agent"]),
       screenshotAttached: Boolean(payload.screenshot),
+      isAgeSuspensionAppeal: isAgeAppeal,
       aiSupport: {
-        status: "pending",
+        status: isAgeAppeal ? "urgent_age_appeal" : "pending",
         provider: null
       }
     };
@@ -508,6 +516,10 @@ export async function registerSupportRoutes(app: FastifyInstance) {
     }
 
     if (app.config.RESEND_API_KEY && app.config.MAIL_FROM) {
+      const emailSubject = isAgeAppeal
+        ? `[AGE SUSPENSION APPEAL] ${payload.subject}`
+        : payload.subject;
+
       await sendSupportRequestInboxEmail({
         config: app.config,
         logger: app.log,
@@ -526,7 +538,7 @@ export async function registerSupportRoutes(app: FastifyInstance) {
               }
             : null,
           source: payload.source,
-          subject: payload.subject
+          subject: emailSubject
         }
       }).catch((error) => {
         app.log.error({ err: error, supportRequestId: row.id }, "support inbox email delivery failed");

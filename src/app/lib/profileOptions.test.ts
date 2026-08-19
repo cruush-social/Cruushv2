@@ -10,7 +10,15 @@ describe('profileOptions', () => {
     expect(optionsFor('Style & Energy')).toContain('Chill');
     expect(optionsFor('Style & Energy')).not.toContain('Raver');
     expect(optionsFor('Scenes')).toContain('Furry');
-    expect(optionsFor('Archetypes')).toContain('Pony');
+    expect(optionsFor('Scenes')).toContain('Thespian');
+    expect(optionsFor('Scenes')).not.toContain('Wolf');
+    expect(optionsFor('Archetypes')).toEqual(
+      expect.arrayContaining([
+        'Himbo', 'Angel', 'Prince', 'Queen', 'Jester', 'King', 'Handler', 'Rope Bunny', 'Rigger',
+        'Wolf', 'Trainer', 'Sadist', 'Masochist', 'Succubus', 'Incubus', 'Vampire', 'Cyborg',
+        'Unicorn', 'Cuck', 'Hotwife', 'Hothusband', 'Cuckquean'
+      ])
+    );
   });
 
   it('keeps looking-for choices focused on immediate local intent', () => {

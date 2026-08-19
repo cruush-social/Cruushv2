@@ -11,7 +11,8 @@ export type AppNotificationType =
   | "group_membership"
   | "nearby_activity"
   | "reward"
-  | "announcement";
+  | "announcement"
+  | "nearby_user";
 
 export type AppNotificationRecord = {
   id: string;

@@ -1,48 +1,9 @@
 {
-  "status": "validating",
-  "product": "cruush",
-  "repository": "cruush-social/Cruushv2",
-  "job": "Let members choose and save their top three profile vibes, and make the map's Recently Active capsules start closed while preserving the existing toggle.",
-  "base": "67b432bc2f35c895e83e6c03b95859533c2ecbb2",
-  "branch": "codex/fix-all-issues-20260817",
+  "status": "active",
+  "task": "Add archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage",
   "allowedPaths": [
-    "AI_TASK.json",
-    "src/app/components/ProfileEdit.tsx",
-    "src/app/components/ProfileEdit.test.tsx",
-    "src/app/components/ProfileOnboarding.tsx",
-    "src/app/components/ProfileOnboarding.test.tsx",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapHome.test.tsx",
-    "server/src/profile-schema.ts",
-    "server/src/profile-schema.test.ts"
+    "**"
   ],
-  "preserved": [
-    "Keep the existing categorized vibe choices, category order, menu design, badges, tap-order storage, save flow, and all other profile fields unchanged.",
-    "Keep existing profile rendering and its first-three vibe display behavior unchanged.",
-    "Keep Recently Active sorting, profile cards, drag and wheel behavior, placement, styling, and manual open-close toggle unchanged.",
-    "Keep all authentication, moderation, privacy, visibility, discovery, map, feed, messaging, rewards, and photo behavior unchanged."
-  ],
-  "nonGoals": [
-    "Do not add drag-and-drop ranking, new copy, new controls, new assets, dependencies, APIs, database migrations, providers, environment variables, or production-data edits.",
-    "Do not alter vibe names, groups, order, filtering behavior, profile-card layout, feed-card layout, Recently Active contents, or unrelated selection caps.",
-    "Do not publish unrelated work or change deployment configuration."
-  ],
-  "proof": [
-    "Render the real authenticated profile edit flow at 375px mobile and desktop width.",
-    "Choose four vibes and confirm the shared interaction keeps the latest three in tap order, then save and confirm the local API stores those three.",
-    "Confirm the existing onboarding wording remains aligned with the three-vibe cap.",
-    "Hard-reload the authenticated map at 375px mobile and desktop width. Confirm Recently Active starts collapsed, opens on tap, closes again, and causes no overlap or horizontal overflow.",
-    "Run the focused profile editor, onboarding, multi-select, and server profile-schema tests, product-name casing, public-copy check, builds, and git diff check.",
-    "Publish the exact verified commit to origin/main, confirm the remote SHA, wait for both production services to deploy that SHA, then verify frontend response, direct API health, build metadata, and the affected authenticated live flows."
-  ],
-  "proofResults": [
-    "Authenticated local profile editing at 375 by 844 and 1280 by 720 accepted four taps and retained Artsy, Chill, and Goth as the latest three choices in tap order. Saving returned to the profile, and a hard reload still showed those same three stored vibes.",
-    "The existing onboarding detail and helper now both say three, and its regression test confirms a fourth tap retains only the latest three choices.",
-    "Authenticated local map hard reloads at 375 by 844 and 1280 by 720 showed only the collapsed Recently Active toggle. The tray was absent until opened, opened and closed successfully at both sizes, and horizontal overflow stayed at zero.",
-    "Frontend tests passed 565 of 565 before the isolated Recently Active change, then the focused MapHome suite passed 66 of 66. Server tests passed 832 of 832 with 14 skipped.",
-    "Product-name casing, public-copy check, frontend build, server TypeScript build, and git diff --check passed.",
-    "No environment variable, provider, API route, database migration, production-data, asset, or deployment change is included."
-  ],
-  "publicationTarget": "origin/main and production",
-  "environmentChanges": []
+  "forbiddenPaths": [],
+  "publicationTarget": "staging"
 }

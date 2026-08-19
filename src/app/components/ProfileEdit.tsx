@@ -494,8 +494,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     custom_pronouns: (profile.custom_pronouns ?? '').trim(),
     year_of_birth: profile.year_of_birth ?? null,
     ethnicity: profile.ethnicity ?? '',
-    identities: limitGenderIdentities(profile.identities ?? []),
-    presentation: singleValue(profile.presentation ?? []),
+    presentation: limitToThree(profile.presentation ?? []),
     sexuality: limitToThree(profile.sexuality ?? []),
     body_type: limitToThree(profile.body_type ?? []),
     height: profile.height ?? '',
@@ -809,8 +808,16 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
       setProfile((prev) => ({
         ...prev,
+<<<<<<< HEAD
         photos: uploadedPhotos,
         photo_metadata: uploadedMetadata,
+=======
+        photos: [...(prev.photos ?? []), uploaded.url].slice(0, MAX_PROFILE_PHOTOS),
+        photo_metadata: [
+          ...(prev.photo_metadata ?? []).filter((metadata) => metadata.url !== uploaded.url),
+          { url: uploaded.url, explicit: uploaded.explicit !== false },
+        ].slice(-MAX_PROFILE_PHOTOS),
+>>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
       }));
 
       if (currentUserId) {
@@ -894,8 +901,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     signal: profile.signal ?? '',
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),
+<<<<<<< HEAD
     presentation: singleValue(profile.presentation || []),
     sexuality: limitToThree(profile.sexuality || []),
+=======
+    presentation: limitToThree(profile.presentation || []),
+    sexuality: singleValue(profile.sexuality || []),
+>>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
     body_type: limitToThree(profile.body_type || []),
     position: singleValue(profile.position || []),
     role: singleValue(profile.role || []),
@@ -1071,6 +1083,26 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
 
             <div className="space-y-2">
+<<<<<<< HEAD
+=======
+              <Label>Looking For</Label>
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', limitToThree(vals))} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Availability</Label>
+              <MultiSelect {...profileMenuProps} options={AVAILABILITY} value={normalizedProfile.availability} onChange={(vals) => handleChange('availability', singleValue(vals))} selectionMode="single" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Hosting/Travel</Label>
+              <MultiSelect {...profileMenuProps} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={(vals) => handleChange('hosting_travel', singleValue(vals))} selectionMode="single" />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="basics" className="space-y-6 mt-6">
+            <div className="space-y-2">
+>>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
               <Label htmlFor="bio">Bio</Label>
               <Textarea
                 id="bio"
@@ -1138,7 +1170,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
             <div className="space-y-2">
               <Label>Presentation</Label>
-              <MultiSelect {...profileMenuProps} options={PRESENTATIONS} value={normalizedProfile.presentation} onChange={(vals) => handleChange('presentation', singleValue(vals))} selectionMode="single" />
+              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={PRESENTATIONS} value={normalizedProfile.presentation} onChange={(vals) => handleChange('presentation', limitToThree(vals))} />
+              <p className="text-xs text-muted-foreground">Select up to 3</p>
             </div>
 
             <div className="space-y-2">
@@ -1184,6 +1217,18 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 <Label htmlFor="weight">Weight</Label>
                 <Input id="weight" placeholder="155 lbs" value={normalizedProfile.weight} onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('weight', e.target.value)} className="bg-input-background" />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Vibes</Label>
+              <MultiSelect
+                {...profileMenuProps}
+                ariaLabel="Vibes"
+                maxSelections={MAX_PROFILE_VIBES}
+                optionGroups={VIBE_GROUPS}
+                value={normalizedProfile.vibes}
+                onChange={(vals) => handleChange('vibes', limitToFive(vals))}
+              />
             </div>
 
             <div className="space-y-2">

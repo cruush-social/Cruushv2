@@ -283,7 +283,6 @@ export default function ProfileView() {
   }, [previewState?.distance, previewState?.lastActive, profile]);
 
   const isAlreadyMutual = cruushBecameMutual || profileView?.relationship?.mutual_cruush === true;
-  const hasSentCruush = !isAlreadyMutual && (cruushed || profileView?.relationship?.outgoing_cruush === true);
   const canMessage = profileView?.relationship?.can_message !== false;
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
   const cruushDisabled = sendingCruush || revokingCruush;
@@ -359,7 +358,7 @@ export default function ProfileView() {
       return;
     }
 
-    if (!canMessage) {
+    if (profileView?.relationship && !profileView.relationship.can_message) {
       notifyMutualCruushRequired();
       return;
     }
@@ -606,6 +605,10 @@ export function ProfileDetailsTabs({
           </div>
         </Section>
 
+        <Section title="Vibes" compact={compact}>
+          <BadgeList items={profileView.vibes} variant="gradient" compact={compact} />
+        </Section>
+
         <Section title="Hobbies" compact={compact}>
           <BadgeList items={profileView.hobbies} compact={compact} />
         </Section>
@@ -644,7 +647,6 @@ export function ProfileDetailsTabs({
         <Section title="Kinks & Fetishes" compact={compact}>
           <BadgeList items={profileView.kinks} compact={compact} />
         </Section>
-
       </TabsContent>
 
       <TabsContent value="health" className={`${compact ? 'mt-4 space-y-4' : 'mt-5 space-y-5'}`}>

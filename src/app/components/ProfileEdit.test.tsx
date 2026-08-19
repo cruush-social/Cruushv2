@@ -194,7 +194,7 @@ describe('ProfileEdit', () => {
     expect(displayName).toHaveValue('Still here');
   });
 
-  it('crops, uploads, promotes, removes, and persists profile photos immediately', async () => {
+  it('crops, uploads, promotes, removes, and saves profile photos', async () => {
     const { emptyProfilePayload } = await import('../lib/profileApi');
     const uploadedPhoto = uploadedProfilePhoto;
 
@@ -670,8 +670,8 @@ describe('ProfileEdit', () => {
       </MemoryRouter>
     );
 
-    const profileTab = await screen.findByRole('tab', { name: 'Basics' });
-    fireEvent.click(profileTab);
+    const basicsTab = await screen.findByRole('tab', { name: 'Basics' });
+    fireEvent.click(basicsTab);
 
     fireEvent.click(screen.getByRole('button', { name: 'Vibes' }));
     expect(screen.getByRole('tablist', { name: 'Vibes categories' })).toBeInTheDocument();
@@ -694,18 +694,15 @@ describe('ProfileEdit', () => {
     fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Goddess' }));
     fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Kitten' }));
 
-    const basicsTab = screen.getByRole('tab', { name: 'Basics' });
     fireEvent.click(basicsTab);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+    fireEvent.click(screen.getByRole('button', { name: /Gender Identit/ }));
     expect(screen.getByRole('option', { name: 'trans man' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'trans woman' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('option', { name: 'trans man' }));
     fireEvent.click(screen.getByRole('option', { name: 'trans woman' }));
     fireEvent.click(screen.getByRole('option', { name: 'nonbinary' }));
     fireEvent.click(screen.getByRole('option', { name: 'woman' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
-
     fireEvent.click(screen.getByRole('button', { name: 'Body Type' }));
     fireEvent.click(screen.getByRole('option', { name: 'bear' }));
     fireEvent.click(screen.getByRole('button', { name: 'Body Type' }));

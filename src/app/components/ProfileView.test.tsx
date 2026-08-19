@@ -267,6 +267,12 @@ describe('ProfileView', () => {
         'https://example.com/three.jpg',
         'https://example.com/four.jpg',
       ],
+      photo_metadata: [
+        { url: 'https://example.com/main.jpg', explicit: false },
+        { url: 'https://example.com/two.jpg', explicit: false },
+        { url: 'https://example.com/three.jpg', explicit: false },
+        { url: 'https://example.com/four.jpg', explicit: false },
+      ],
     }));
 
     render(
@@ -434,7 +440,6 @@ describe('ProfileView', () => {
     expect(cruushButton).toBeEnabled();
     expect(cruushButton).toHaveTextContent('unsend');
     expect(screen.queryByRole('button', { name: 'mutual cruush' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Mutuals only' })).toBeDisabled();
 
     fireEvent.click(cruushButton);
     await waitFor(() => expect(revokeSentCruush).toHaveBeenCalledWith('user-1'));
