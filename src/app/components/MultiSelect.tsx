@@ -70,6 +70,29 @@ export default function MultiSelect({
   const hasCategoryPicker = Boolean(optionGroups?.length && optionGroups.length > 1);
   const [activeGroupLabel, setActiveGroupLabel] = useState(groups[0]?.label ?? '');
   const activeGroup = groups.find((group) => group.label === activeGroupLabel) ?? groups[0] ?? { label: '', options: [] };
+  const tablistRef = useRef<HTMLDivElement | null>(null);
+  const touchDragState = useRef({ isDown: false, startX: 0, scrollLeft: 0 });
+
+  const handleTablistTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (tablistRef.current && e.touches.length === 1) {
+      touchDragState.current = {
+        isDown: true,
+        startX: e.touches[0].clientX,
+        scrollLeft: tablistRef.current.scrollLeft,
+      };
+    }
+  };
+
+  const handleTablistTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (touchDragState.current.isDown && tablistRef.current && e.touches.length === 1) {
+      const walk = (e.touches[0].clientX - touchDragState.current.startX) * 1.25;
+      tablistRef.current.scrollLeft = touchDragState.current.scrollLeft - walk;
+    }
+  };
+
+  const handleTablistTouchEnd = () => {
+    touchDragState.current.isDown = false;
+  };
 
   useEffect(() => {
     setSelected(value);
@@ -253,10 +276,14 @@ export default function MultiSelect({
         <div className="flex flex-col min-w-0 h-[18rem] max-h-[inherit] sm:grid sm:grid-cols-[11rem_minmax(0,1fr)] sm:h-full">
           {/* Horizontal Category Tabstrip for Mobile, Vertical Sidebar for Desktop */}
           <div
+            ref={tablistRef}
             role="tablist"
             aria-label={`${ariaLabel ?? 'Options'} categories`}
             className="scrollbar-subtle flex w-full min-w-0 max-w-full gap-1 overflow-x-auto overscroll-x-contain border-b border-border p-2 shrink-0 sm:max-h-[inherit] sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
             style={HORIZONTAL_TOUCH_SCROLL_STYLE}
+            onTouchStart={handleTablistTouchStart}
+            onTouchMove={handleTablistTouchMove}
+            onTouchEnd={handleTablistTouchEnd}
           >
             {groups.map((group) => {
               const selectedCount = group.options.filter((option) => selected.includes(option)).length;
@@ -275,7 +302,6 @@ export default function MultiSelect({
                   className={`flex shrink-0 whitespace-nowrap items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors sm:w-full sm:whitespace-normal ${
                     isActive ? 'bg-accent font-medium text-accent-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                   }`}
-                  style={HORIZONTAL_TOUCH_SCROLL_STYLE}
                 >
                   <span>{group.label}</span>
                   {selectedCount > 0 ? (
@@ -352,7 +378,6 @@ export default function MultiSelect({
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
-            onTouchStart={(event) => event.stopPropagation()}
           >
             {menuContent}
           </div>
