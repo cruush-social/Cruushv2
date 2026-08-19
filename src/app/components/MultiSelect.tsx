@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Badge } from './ui/badge';
-import { X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 export type MultiSelectOptionGroup = {
   label: string;
@@ -250,12 +250,32 @@ export default function MultiSelect({
   const menuContent = (
     <>
       {hasCategoryPicker ? (
-        <div className="grid min-w-0 h-[17.5rem] max-h-[inherit] grid-rows-[auto_minmax(0,1fr)] sm:grid-cols-[11rem_minmax(0,1fr)] sm:grid-rows-1 sm:h-full">
+        <div className="flex flex-col min-w-0 h-[18rem] max-h-[inherit] sm:grid sm:grid-cols-[11rem_minmax(0,1fr)] sm:h-full">
+          {/* Mobile Category Dropdown Selector */}
+          <div className="block sm:hidden border-b border-border bg-muted/40 p-2 shrink-0">
+            <select
+              aria-label={`${ariaLabel ?? 'Options'} category`}
+              value={activeGroupLabel}
+              onChange={(e) => setActiveGroupLabel(e.target.value)}
+              className="w-full h-9 rounded-md border border-input bg-input-background px-3 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {groups.map((group) => {
+                const count = group.options.filter((opt) => selected.includes(opt)).length;
+                return (
+                  <option key={group.label} value={group.label}>
+                    {group.label} {count > 0 ? `(${count})` : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* Desktop Category Sidebar */}
           <div
             role="tablist"
             aria-label={`${ariaLabel ?? 'Options'} categories`}
-            className="scrollbar-subtle flex w-full min-w-0 max-w-full gap-1 overflow-x-auto overscroll-x-contain border-b border-border p-2 sm:max-h-[inherit] sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
-            style={HORIZONTAL_TOUCH_SCROLL_STYLE}
+            className="hidden sm:flex scrollbar-subtle w-full min-w-0 max-w-full gap-1 p-2 sm:max-h-[inherit] sm:flex-col sm:overflow-y-auto sm:border-r border-border"
+            style={TOUCH_SCROLL_STYLE}
           >
             {groups.map((group) => {
               const selectedCount = group.options.filter((option) => selected.includes(option)).length;
@@ -268,10 +288,9 @@ export default function MultiSelect({
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setActiveGroupLabel(group.label)}
-                  className={`flex shrink-0 whitespace-nowrap items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors sm:w-full sm:whitespace-normal ${
-                    isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                  className={`flex shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors w-full ${
+                    isActive ? 'bg-accent font-medium text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                   }`}
-                  style={HORIZONTAL_TOUCH_SCROLL_STYLE}
                 >
                   <span>{group.label}</span>
                   {selectedCount > 0 ? (
@@ -284,22 +303,27 @@ export default function MultiSelect({
             })}
           </div>
 
-          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle min-h-0 h-full max-h-full overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
+          {/* Options List for Active Category */}
+          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle flex-1 min-h-0 h-full overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
             <div role="group" aria-label={activeGroup.label || undefined}>
-              {activeGroup.options.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  role="option"
-                  aria-selected={selected.includes(option)}
-                  onClick={() => toggleOption(option)}
-                  className={`w-full px-4 py-2 text-left text-sm hover:bg-accent transition-colors ${
-                    selected.includes(option) ? 'bg-accent text-accent-foreground' : ''
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
+              {activeGroup.options.map((option) => {
+                const isSelected = selected.includes(option);
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => toggleOption(option)}
+                    className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition-colors hover:bg-accent ${
+                      isSelected ? 'bg-accent/80 font-medium text-accent-foreground' : ''
+                    }`}
+                  >
+                    <span>{option}</span>
+                    {isSelected ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
