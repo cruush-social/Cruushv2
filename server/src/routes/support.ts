@@ -1,5 +1,4 @@
 import type { FastifyInstance } from "fastify";
-<<<<<<< HEAD
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { authEmailSchema } from "../auth-schema.js";
@@ -9,12 +8,11 @@ import { encryptMediaBytes } from "../media-encryption.js";
 import { deleteEncryptedMediaObject, writeEncryptedMediaObject } from "../media-storage.js";
 import { sendSupportRequestInboxEmail, sendSupportRequestReplyEmail } from "../mailer.js";
 import { getModeratorUser } from "../moderator-auth.js";
-=======
-import { ApiError } from "../errors.js";
-import { sendSupportRequestInboxEmail } from "../mailer.js";
->>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
 import { getOptionalAuthenticatedUserId } from "../request-auth.js";
-import { createSupportRequestPayloadSchema } from "../support-schema.js";
+import {
+  createSupportRequestPayloadSchema,
+  replySupportRequestPayloadSchema
+} from "../support-schema.js";
 
 type SupportRequestRow = {
   id: string;
@@ -23,7 +21,6 @@ type SupportRequestRow = {
   created_at: string | Date;
 };
 
-<<<<<<< HEAD
 type SupportRequestListRow = {
   id: string;
   requester_user_id: string | null;

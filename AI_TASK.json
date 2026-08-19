@@ -1,9 +1,9 @@
 {
   "status": "active",
-  "task": "Add archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage",
+  "task": "Resolve unresolved merge conflict markers that broke the production build; restore clear-notifications control; bug tip placement",
   "allowedPaths": [
     "**"
   ],
   "forbiddenPaths": [],
-  "publicationTarget": "staging"
+  "publicationTarget": "production"
 }

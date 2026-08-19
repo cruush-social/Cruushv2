@@ -30,6 +30,12 @@ These are not suggestions you interpret. Run them.
 - **A1.** Done = committed and pushed to `main`, unless told otherwise in the same message.
 - **A2.** After pushing, report the SHA, the deploy URL, and confirmation that the deployed
   commit matches what you pushed.
+- **A4.** A live bug outranks everything else. Write the fix, build it, deploy it, then verify.
+  Do not put a full test run, a visual pass, or planning work in front of a deploy that
+  unblocks users. Say afterward what is still unverified.
+- **A5.** Never commit a tree you have not built. Check every diff for conflict markers
+  (`<<<<<<<`, `=======`, `>>>>>>>`) before committing. Commit `4fa1d40` shipped markers in three
+  files, the build failed, and production could not move off `1c04c77`.
 - **A3.** If you cannot push safely (dirty tree from another session, unmerged branch,
   failing safety check), say so in one line and state exactly what you need. Do not
   silently stop on a green build with an unpushed tree.
@@ -59,6 +65,18 @@ These are not suggestions you interpret. Run them.
   request names the map.
 - **C6.** After a visual edit, measure the adjacent geometry too. The thing you did not
   intend to change is the thing that changed.
+- **C7.** Never delete or disable an existing feature, control, handler, import, or test.
+  Deletion happens only when the request names the thing to delete. This includes deletions
+  that look like cleanup: an unused-looking handler, a button that seems redundant, a state
+  flag, a test that no longer matches the component. If a change appears to require removing
+  something, stop and ask.
+- **C8.** Never delete, skip, or weaken a test to make a run pass. A failing test is either a
+  real regression in the code under test (fix the code) or a test that the request explicitly
+  authorized changing (say so in the same turn). Deleting the test is never the fix. The
+  "Clear notifications" feature was removed this way in `4fa1d40`, and the test that caught it
+  was deleted rather than the deletion reverted.
+- **C9.** Before committing, read your own full diff and account for every removed line. Any
+  removal not named by the request gets reverted before the commit, not explained after it.
 
 ## D. Layout invariants — do not regress
 
@@ -160,6 +178,13 @@ These are not suggestions you interpret. Run them.
   with one focused regression test. Overlap bugs, moderation-pipeline bugs, and the
   bug-report button qualify permanently.
 - **L3.** Verification (B4) is never optional and is not what L1 refers to.
+- **L4.** Never run the full test suite (`pnpm test`, bare `vitest run`, `pnpm smoke` across
+  every package). It takes too long and it blocks urgent deploys. Run the targeted files for
+  what you touched: `pnpm vitest run <path> [<path> ...]`. The full suite runs only when
+  Julien asks for it in that message, and `pnpm ship` runs its own gate.
+- **L5.** A broken production deploy outranks test coverage. When something urgent is broken,
+  ship the fix with the targeted tests for the files you touched; do not hold the deploy for a
+  broad run.
 
 ## M. Communication
 

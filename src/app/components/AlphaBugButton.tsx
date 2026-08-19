@@ -1,14 +1,7 @@
-<<<<<<< HEAD
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router';
-import { Bug, CheckCircle2 } from 'lucide-react';
-import { ApiClientError } from '../lib/apiClient';
-=======
 import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router';
 import { CheckCircle2, MessageCircleWarning } from 'lucide-react';
->>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
 import { createSupportRequest } from '../lib/supportApi';
 import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
@@ -56,12 +49,14 @@ function getBugButtonPlacement(pathname: string) {
 }
 
 function getBugTipPlacement(pathname: string) {
+  if (pathname === '/' || pathname === '/map') {
+    return 'right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(20.125rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))] fixed z-50';
+  }
   if (pathname.startsWith('/chat/')) {
     return 'right-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] sm:right-28 sm:bottom-[calc(0.5rem+env(safe-area-inset-bottom))]';
   }
 
-  return 'right-4 bottom-[calc(17.25rem+env(safe-area-inset-bottom))] sm:right-28 sm:bottom-[calc(0.5rem+env(safe-area-inset-bottom))]';
-}
+  return 'right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(4.5rem+env(safe-area-inset-top))] fixed z-50';
 }
 
 function waitForVideoMetadata(video: HTMLVideoElement) {
@@ -189,7 +184,7 @@ export default function AlphaBugButton({
   const [error, setError] = useState('');
   const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
-<<<<<<< HEAD
+  const dockSlot = useSyncExternalStore(subscribeToBugButtonSlot, getBugButtonSlot, () => null);
 
   useEffect(() => {
     if (!enabled || typeof document === 'undefined') {
@@ -202,9 +197,6 @@ export default function AlphaBugButton({
       document.documentElement.removeAttribute('data-cruush-alpha-bug-corner');
     };
   }, [enabled]);
-=======
-  const dockSlot = useSyncExternalStore(subscribeToBugButtonSlot, getBugButtonSlot, () => null);
->>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -264,7 +256,6 @@ export default function AlphaBugButton({
 
     if (requireContactEmail && !trimmedContactEmail) {
       setError('Enter an email so support can reply.');
-      setErrorCode('BUG_REPORT_EMAIL_REQUIRED');
       return;
     }
 
@@ -299,16 +290,8 @@ export default function AlphaBugButton({
   const trigger = (
     <DialogTrigger asChild>
       <button
-<<<<<<< HEAD
-        aria-label="Report alpha bug"
-        className="fixed right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] z-50 inline-flex h-9 w-9 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive sm:h-10 sm:w-10 lg:h-11 lg:w-11"
-        data-testid="alpha-bug-button"
-        title="Report a bug"
-        type="button"
-      >
-        <Bug className="h-5 w-5 lg:h-7 lg:w-7" />
-=======
         aria-label="Report bug"
+        data-testid="alpha-bug-button"
         className={dockSlot
           ? 'inline-flex size-8 shrink-0 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:size-9'
           : `cruush-glass-pill fixed z-50 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary pointer-events-auto ${getBugButtonPlacement(location.pathname)}`}
@@ -316,7 +299,6 @@ export default function AlphaBugButton({
         type="button"
       >
         <MessageCircleWarning className="h-5 w-5" />
->>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
       </button>
     </DialogTrigger>
   );
@@ -335,15 +317,9 @@ export default function AlphaBugButton({
         }
       }}
     >
-<<<<<<< HEAD
-      {showTip ? (
-        <div className={`fixed z-50 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
-          <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
-=======
       {showTip && !dockSlot ? (
         <div className={`cruush-glass-panel fixed z-50 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
           <p className="leading-snug">Tap the bug icon to report anything broken.</p>
->>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
           <button
             className="mt-2 text-xs font-semibold text-primary"
             onClick={dismissTip}
@@ -353,11 +329,7 @@ export default function AlphaBugButton({
           </button>
         </div>
       ) : null}
-<<<<<<< HEAD
-      {trigger}
-=======
       {dockSlot ? createPortal(trigger, dockSlot) : trigger}
->>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
           <DialogTitle>Report bug</DialogTitle>

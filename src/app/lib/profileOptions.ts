@@ -54,7 +54,7 @@ export const VIBE_GROUPS = [
   {
     label: 'Scenes',
     options: [
-      'Ballroom', 'Burner', 'Camping', 'Circuit', 'Club Kid', 'Cosplay', 'Country', 'Drag', 'Festival', 'Furry', 'Jock', 'Leather', 'Rave', 'Rubber', 'Sober', 'Stoner'
+      'Ballroom', 'Burner', 'Camping', 'Circuit', 'Club Kid', 'Cosplay', 'Country', 'Drag', 'Festival', 'Furry', 'Jock', 'Leather', 'Rave', 'Rubber', 'Sober', 'Stoner', 'Thespian'
     ].sort(),
   },
   {

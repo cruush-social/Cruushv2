@@ -283,6 +283,7 @@ export default function ProfileView() {
   }, [previewState?.distance, previewState?.lastActive, profile]);
 
   const isAlreadyMutual = cruushBecameMutual || profileView?.relationship?.mutual_cruush === true;
+  const hasSentCruush = !isAlreadyMutual && (cruushed || profileView?.relationship?.outgoing_cruush === true);
   const canMessage = profileView?.relationship?.can_message !== false;
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
   const cruushDisabled = sendingCruush || revokingCruush;

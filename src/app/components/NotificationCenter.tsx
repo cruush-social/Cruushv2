@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Bell, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Bell, CheckCheck, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
   emitNotificationsChanged,
+  clearNotifications,
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -30,6 +31,7 @@ export default function NotificationCenter() {
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -83,6 +85,21 @@ export default function NotificationCenter() {
       setError(error instanceof Error ? error.message : 'Failed to mark notifications read.');
     } finally {
       setIsMarkingAll(false);
+    }
+  };
+
+  const handleClearNotifications = async () => {
+    setIsClearing(true);
+    setError('');
+
+    try {
+      const summary = await clearNotifications();
+      setNotifications([]);
+      emitNotificationsChanged(summary);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to clear notifications.');
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -141,12 +158,23 @@ export default function NotificationCenter() {
           type="button"
           variant="outline"
           onClick={handleMarkAllRead}
-          disabled={unreadCount === 0 || isMarkingAll}
+          disabled={unreadCount === 0 || isMarkingAll || isClearing}
           aria-label="Mark all as read"
           className="gap-2 rounded-full"
         >
           <CheckCheck className="h-4 w-4" />
           <span className="hidden sm:inline">Mark all as read</span>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleClearNotifications}
+          disabled={notifications.length === 0 || isClearing}
+          aria-label="Clear notifications"
+          className="gap-2 rounded-full border-destructive/35 text-destructive hover:bg-destructive/10"
+        >
+          <Trash2 className="h-4 w-4" />
+          <span className="hidden sm:inline">Clear</span>
         </Button>
       </header>
 

@@ -808,16 +808,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
 
       setProfile((prev) => ({
         ...prev,
-<<<<<<< HEAD
         photos: uploadedPhotos,
         photo_metadata: uploadedMetadata,
-=======
-        photos: [...(prev.photos ?? []), uploaded.url].slice(0, MAX_PROFILE_PHOTOS),
-        photo_metadata: [
-          ...(prev.photo_metadata ?? []).filter((metadata) => metadata.url !== uploaded.url),
-          { url: uploaded.url, explicit: uploaded.explicit !== false },
-        ].slice(-MAX_PROFILE_PHOTOS),
->>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
       }));
 
       if (currentUserId) {
@@ -901,13 +893,8 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     signal: profile.signal ?? '',
     pronouns: profile.pronouns || [],
     identities: limitGenderIdentities(profile.identities || []),
-<<<<<<< HEAD
-    presentation: singleValue(profile.presentation || []),
-    sexuality: limitToThree(profile.sexuality || []),
-=======
     presentation: limitToThree(profile.presentation || []),
     sexuality: singleValue(profile.sexuality || []),
->>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
     body_type: limitToThree(profile.body_type || []),
     position: singleValue(profile.position || []),
     role: singleValue(profile.role || []),
@@ -1083,26 +1070,6 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
             </div>
 
             <div className="space-y-2">
-<<<<<<< HEAD
-=======
-              <Label>Looking For</Label>
-              <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_GROUP_SELECTIONS} options={LOOKING_FOR} value={normalizedProfile.looking_for} onChange={(vals) => handleChange('looking_for', limitToThree(vals))} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Availability</Label>
-              <MultiSelect {...profileMenuProps} options={AVAILABILITY} value={normalizedProfile.availability} onChange={(vals) => handleChange('availability', singleValue(vals))} selectionMode="single" />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Hosting/Travel</Label>
-              <MultiSelect {...profileMenuProps} options={HOSTING} value={normalizedProfile.hosting_travel} onChange={(vals) => handleChange('hosting_travel', singleValue(vals))} selectionMode="single" />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="basics" className="space-y-6 mt-6">
-            <div className="space-y-2">
->>>>>>> af4272d (feat: archetypes, presentation limit, vibe placement, nearby pin routing, age appeal triage)
               <Label htmlFor="bio">Bio</Label>
               <Textarea
                 id="bio"

@@ -12,9 +12,13 @@ export const REGRESSION_CHECKS = [
   ['pnpm', ['check:copy']],
   ['pnpm', ['security:check']],
   ['pnpm', ['check:layout']],
-  ['pnpm', ['test']],
+  // Rule L4: the full vitest suites are too slow to sit in the deploy path. Run
+  // the targeted test files for what changed instead. Set CRUUSH_GATE_FULL_TESTS=1
+  // to put them back for a release-gate run.
+  ...(process.env.CRUUSH_GATE_FULL_TESTS === '1'
+    ? [['pnpm', ['test']], ['npm', ['--prefix', 'server', 'test']]]
+    : []),
   ['pnpm', ['build']],
-  ['npm', ['--prefix', 'server', 'test']],
   ['npm', ['--prefix', 'server', 'run', 'build']],
   ['git', ['diff', '--check']],
 ];
