@@ -89,6 +89,35 @@ describe('MultiSelect', () => {
     expect(onChange).toHaveBeenCalledWith(['Drag']);
   });
 
+  it('supports mobile category dropdown selection for grouped options', () => {
+    const onChange = vi.fn();
+
+    render(
+      <MultiSelect
+        ariaLabel="Kinks & Fetishes"
+        optionGroups={[
+          { label: 'Body & Touch', options: ['anal', 'massage'] },
+          { label: 'Power', options: ['bondage', 'impact'] },
+        ]}
+        value={[]}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kinks & Fetishes' }));
+
+    const categorySelect = screen.getByRole('combobox', { name: 'Kinks & Fetishes category' });
+    expect(categorySelect).toBeInTheDocument();
+    expect(categorySelect).toHaveValue('Body & Touch');
+    expect(screen.getByRole('option', { name: 'anal' })).toBeInTheDocument();
+
+    fireEvent.change(categorySelect, { target: { value: 'Power' } });
+    expect(screen.getByRole('option', { name: 'bondage' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('option', { name: 'bondage' }));
+    expect(onChange).toHaveBeenCalledWith(['bondage']);
+  });
+
   it('enables native vertical touch scrolling inside option lists', () => {
     render(
       <MultiSelect
