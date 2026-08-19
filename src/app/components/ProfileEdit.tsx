@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Switch } from './ui/switch';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import MultiSelect from './MultiSelect';
@@ -28,6 +29,7 @@ import { getAppMeta } from '../lib/metaApi';
 import { getStoredCurrentUser, persistCurrentUser } from '../lib/sessionUser';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
+import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
 import {
   AVAILABILITY,
   BODY_TYPES,
@@ -542,6 +544,7 @@ interface ProfileEditProps {
 
 export default function ProfileEdit({ embedded = false, onCancel, onSaved }: ProfileEditProps = {}) {
   const navigate = useNavigate();
+  const distancePreferences = useDistancePreferences();
   const [profile, setProfile] = useState<ProfilePayload>(emptyProfilePayload);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1091,6 +1094,22 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 className="bg-input-background"
               />
               <p className="text-xs text-muted-foreground">This appears when someone hovers over your heart pin on the map.</p>
+            </div>
+
+            <div className="space-y-4 rounded-xl border border-border bg-card/60 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="profile-edit-approx-distance">Approximate distance labels</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {distancePreferences.mode === 'approximate' ? 'Distances across the app display as approximate (~0.5 mi)' : 'Distances across the app display as exact (0.4 mi)'}
+                  </p>
+                </div>
+                <Switch
+                  id="profile-edit-approx-distance"
+                  checked={distancePreferences.mode === 'approximate'}
+                  onCheckedChange={(checked) => saveDistancePreferences({ mode: checked ? 'approximate' : 'exact' })}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

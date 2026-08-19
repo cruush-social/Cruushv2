@@ -19,6 +19,7 @@ import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 
 interface ProfileCardProps {
   user: any;
@@ -31,6 +32,7 @@ interface ProfileCardProps {
 
 export default function ProfileCard({ user, onClose, onViewProfile, placement = 'overlay', density = 'regular', fillAvailableHeight = false }: ProfileCardProps) {
   const navigate = useNavigate();
+  const distancePreferences = useDistancePreferences();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
   const [sendingCruush, setSendingCruush] = useState(false);
@@ -190,7 +192,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
       <div className={contentClassName}>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CruushIcon name="map" className="h-4 w-4 opacity-70" />
-          <span>{user.distance} away</span>
+          <span>{formatDistanceLabel(user.distance, distancePreferences.mode)} away</span>
         </div>
 
         {!compact && lookingForItems.length > 0 ? (

@@ -22,6 +22,7 @@ import {
 } from '../lib/cruushNotifications';
 import { addProfileChangedListener, emptyProfilePayload, getMyProfile, getProfileById, ProfileApiError, type ProfileRecord } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
+import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import partyHatIcon from '../assets/ui-icons/party-hat.svg';
 
 type ProfileLocationState = {
@@ -161,6 +162,7 @@ export default function ProfileView() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const distancePreferences = useDistancePreferences();
   const isOwnProfile = !userId;
   const previewState = (location.state as ProfileLocationState | null) ?? null;
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
@@ -488,7 +490,7 @@ export default function ProfileView() {
               {profileView.distance ? (
                 <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                   <CruushIcon name="map" className="h-4 w-4 opacity-70" />
-                  <span>{profileView.distance} away</span>
+                  <span>{formatDistanceLabel(profileView.distance, distancePreferences.mode)} away</span>
                   {profileView.lastActive ? <span>• {profileView.lastActive}</span> : null}
                 </div>
               ) : null}

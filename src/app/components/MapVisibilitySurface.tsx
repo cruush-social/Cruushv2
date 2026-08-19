@@ -24,6 +24,7 @@ import {
 } from '../lib/profileOptions';
 import { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
+import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
 
 export interface VisibilityControlState extends FilterState {
   activeCrowdModes: string[];
@@ -150,6 +151,7 @@ export default function MapVisibilitySurface({
   onApply,
   onUpgrade,
 }: MapVisibilitySurfaceProps) {
+  const distancePreferences = useDistancePreferences();
   const visibleCrowdModes = availableCrowdModes.length > 0 ? availableCrowdModes : [];
   const [limitNotice, setLimitNotice] = useState<string | null>(null);
   const exclusionCount = countVisibilityExclusionFilters(value);
@@ -279,6 +281,14 @@ export default function MapVisibilitySurface({
                 <p className="text-sm text-muted-foreground">
                   {value.restrictDistance ? `Hide me from people farther than ${value.distance} miles` : 'No distance-based hiding'}
                 </p>
+                <div className="pt-2 flex items-center justify-between gap-4 border-t border-white/10">
+                  <Label htmlFor="visibility-approx-distance">Approximate distance labels</Label>
+                  <Switch
+                    id="visibility-approx-distance"
+                    checked={distancePreferences.mode === 'approximate'}
+                    onCheckedChange={(checked) => saveDistancePreferences({ mode: checked ? 'approximate' : 'exact' })}
+                  />
+                </div>
               </div>
 
               <div className="space-y-4">

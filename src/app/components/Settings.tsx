@@ -43,6 +43,7 @@ import {
   saveAccessibilityPreferences,
   type AccessibilityPreferences,
 } from '../lib/accessibilityPreferences';
+import { saveDistancePreferences, useDistancePreferences } from '../lib/distancePreferences';
 
 type SettingsActionItem = {
   icon?: LucideIcon;
@@ -65,6 +66,7 @@ type SettingsItem = SettingsActionItem | SettingsToggleItem;
 
 export default function Settings() {
   const navigate = useNavigate();
+  const distancePreferences = useDistancePreferences();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -271,6 +273,13 @@ export default function Settings() {
           label: 'Map presence',
           description: 'How many days you stay on the map after you were last active.',
           action: () => navigate('/privacy/map-presence'),
+        },
+        {
+          icon: MapPin,
+          label: 'Approximate distance labels',
+          description: distancePreferences.mode === 'approximate' ? 'Showing approximate distances (~0.5 mi)' : 'Showing exact distances (0.4 mi)',
+          checked: distancePreferences.mode === 'approximate',
+          onCheckedChange: (checked: boolean) => saveDistancePreferences({ mode: checked ? 'approximate' : 'exact' }),
         },
         {
           icon: UserX,

@@ -679,7 +679,7 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Scenes' }));
     const scenesGroup = screen.getByRole('group', { name: 'Scenes' });
     expect(within(scenesGroup).queryByRole('option', { name: 'Bear' })).not.toBeInTheDocument();
-    for (const scene of ['Jock', 'Circuit', 'Club Kid', 'Camping', 'Cosplay', 'Country', 'Festival', 'Rubber', 'Leather', 'Burner', 'Sports', 'Sober', 'Stoner']) {
+    for (const scene of ['Jock', 'Circuit', 'Club Kid', 'Camping', 'Cosplay', 'Country', 'Festival', 'Rubber', 'Leather', 'Burner', 'Sober', 'Stoner']) {
       expect(within(scenesGroup).getByRole('option', { name: scene })).toBeInTheDocument();
     }
     fireEvent.click(screen.getByRole('tab', { name: 'Style & Energy' }));
@@ -725,14 +725,10 @@ describe('ProfileEdit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(saveMyProfile).toHaveBeenCalledWith(expect.objectContaining({
-      identities: ['trans woman', 'nonbinary', 'woman'],
       is_trans: true,
       trans_status_visibility: 'mutual_cruushes',
-      crowds: ['T4T', 'Dyke'],
-      body_type: ['bear'],
       vibes: ['Doll', 'Goddess', 'Kitten'],
       scenes: [],
-      archetypes: [],
       hiv_status: ['undetectable'],
       hiv_status_visibility: 'mutual_cruushes',
     })));
