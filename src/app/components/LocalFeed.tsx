@@ -97,7 +97,7 @@ const DEFAULT_FEED_SETTINGS: FeedSettings = {
   feedWindow: '7d',
 };
 const CRUUSH_PLUS_FEED_NOTICE_KEY = 'cruush:feed-cruush-plus-notice-dismissed';
-const feedVibeTagBaseClassName = 'min-w-0 max-w-[6.25rem] shrink truncate rounded-full border px-1 py-0.5 text-center text-[11px] uppercase leading-tight tracking-[0.06em]';
+const feedVibeTagBaseClassName = 'w-full min-w-0 max-w-full shrink truncate rounded-full border px-1 py-0.5 text-center text-[11px] uppercase leading-tight tracking-[0.06em]';
 const mutualFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#6F00FF]/55 bg-[#6F00FF]/12 text-[#DCC7FF]`;
 const nearbyFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#FF0072]/55 bg-[#FF0072]/12 text-[#FF8BBB]`;
 
@@ -694,34 +694,46 @@ export default function LocalFeed() {
                 const mutualAuthor = mutualUserIds.has(post.user.id);
                 return (
                 <div key={post.id} className="rounded-2xl border border-white/10 bg-black/72 p-4 transition-colors hover:bg-black/86">
-                  <div className="flex gap-3">
-                    <HeartPhoto
-                      className="w-20 flex-shrink-0"
-                      label={`${post.user.name} preview`}
-                      masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)}
-                      photo={post.user?.photo}
-                      theme={currentUserId && post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
-                      userId={post.user.id}
-                      onClick={() => navigate(`/profile/${post.user.id}`)}
-                      fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
-                    />
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="-mt-2 flex w-20 flex-shrink-0 flex-col items-center gap-1"
+                      data-testid={`feed-post-profile-stack-${post.id}`}
+                    >
+                      <HeartPhoto
+                        className="w-full"
+                        label={`${post.user.name} preview`}
+                        masked={shouldMaskPhoto(dlModeActive, post.user.photoExplicit)}
+                        photo={post.user?.photo}
+                        theme={currentUserId && post.user.id === currentUserId ? 'current' : mutualAuthor ? 'mutual' : 'nearby'}
+                        userId={post.user.id}
+                        onClick={() => navigate(`/profile/${post.user.id}`)}
+                        fallback={<CruushIcon name="cruush" className="h-5 w-5 opacity-20" />}
+                      />
+                      {post.user.vibes?.length ? (
+                        <div
+                          className="flex w-full flex-col items-center gap-1"
+                          data-testid={`feed-post-vibes-${post.id}`}
+                        >
+                          {post.user.vibes.slice(0, 3).map((vibe) => (
+                            <span
+                              key={vibe}
+                              className={mutualAuthor ? mutualFeedVibeTagClassName : nearbyFeedVibeTagClassName}
+                              title={vibe}
+                            >
+                              {vibe}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
 
                     <div className="min-w-0 flex-1 space-y-2">
                       <div className="min-w-0 space-y-1">
                         <div className="flex min-w-0 items-center gap-2">
-                          <span className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden whitespace-nowrap">
-                            <span className="max-w-[32%] shrink-0 truncate" data-testid={`feed-post-author-${post.id}`} title={post.user.name}>
+                          <span className="flex min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap">
+                            <span className="min-w-0 flex-1 truncate" data-testid={`feed-post-author-${post.id}`} title={post.user.name}>
                               {post.user.name}
                             </span>
-                            {post.user.vibes?.slice(0, 3).map((vibe) => (
-                              <span
-                                key={vibe}
-                                className={mutualAuthor ? mutualFeedVibeTagClassName : nearbyFeedVibeTagClassName}
-                                title={vibe}
-                              >
-                                {vibe}
-                              </span>
-                            ))}
                           </span>
                           <CruushBadge badges={post.user.badges} compact />
                           {post.user.attendingLaunchParty ? (

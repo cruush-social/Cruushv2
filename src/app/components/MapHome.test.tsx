@@ -1345,6 +1345,7 @@ describe('MapHome', () => {
 
     const topActions = screen.getByTestId('map-top-actions');
     const plusStack = screen.getByTestId('map-plus-stack');
+    const bugButtonSlot = screen.getByTestId('map-bug-button-slot');
     const rightActions = screen.getByTestId('map-right-actions');
     const mapControls = screen.getByTestId('map-zoom-controls');
     const cruushPlusButton = await screen.findByRole('button', { name: 'cruush+ rewards' });
@@ -1382,6 +1383,8 @@ describe('MapHome', () => {
     expect(topActions.parentElement).toHaveClass('w-full');
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
+    expect(bugButtonSlot).toHaveClass('size-9', 'sm:size-10', 'lg:hidden');
+    expect(bugButtonSlot).not.toHaveClass('size-11');
     expect(plusStack).toContainElement(cruushPlusButton);
     expect(plusStack).not.toContainElement(pingButton);
     expect(topActions).toContainElement(cruushPlusButton);

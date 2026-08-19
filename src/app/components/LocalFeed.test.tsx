@@ -405,6 +405,7 @@ describe('LocalFeed', () => {
         name: 'River',
         pronouns: 'he/him',
         photo: null,
+        vibes: ['Chill', 'Geek', 'Service'],
       },
     }]);
 
@@ -415,8 +416,12 @@ describe('LocalFeed', () => {
     );
 
     const preview = await screen.findByRole('img', { name: 'River preview' });
-    expect(preview.parentElement).toHaveClass('w-20');
-    expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('max-w-[32%]', 'shrink-0', 'truncate');
+    expect(preview.parentElement).toHaveClass('w-full');
+    expect(screen.getByTestId('feed-post-profile-stack-post-other')).toHaveClass('-mt-2', 'w-20', 'flex-col');
+    expect(screen.getByTestId('feed-post-author-post-other')).toHaveClass('min-w-0', 'flex-1', 'truncate');
+    expect(screen.getByTestId('feed-post-author-post-other')).not.toHaveClass('max-w-[32%]');
+    expect(within(screen.getByTestId('feed-post-vibes-post-other')).getAllByTitle(/Chill|Geek|Service/).map((tag) => tag.textContent))
+      .toEqual(['Chill', 'Geek', 'Service']);
     expect(screen.getByTestId('feed-post-meta-post-other')).toHaveClass('flex-wrap');
     expect(screen.queryByText('he/him')).not.toBeInTheDocument();
   });

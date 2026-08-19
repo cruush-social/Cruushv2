@@ -2059,7 +2059,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 <CruushIconImage src={settingsIconWhite} className="h-[1.375rem] w-[1.375rem] scale-[1.18] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
               </Button>
               <div
-                className="size-11 shrink-0 lg:hidden"
+                className="size-9 shrink-0 sm:size-10 lg:hidden"
                 data-bug-button-size="large"
                 data-testid="map-bug-button-slot"
                 ref={registerBugButtonSlot}
