@@ -1,26 +1,27 @@
 .launch-login-auth-shell {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  row-gap: clamp(0.75rem, 1.8dvh, 1.35rem);
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-items: center;
-  place-items: center;
+  justify-content: center;
   width: 100vw;
   width: 100dvw;
-  height: 100vh;
-  height: 100dvh;
-  min-height: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: auto;
   box-sizing: border-box;
   padding:
-    max(0.6rem, env(safe-area-inset-top))
+    max(0.8rem, env(safe-area-inset-top))
     max(1rem, env(safe-area-inset-right))
-    max(0.7rem, env(safe-area-inset-bottom))
+    max(0.8rem, env(safe-area-inset-bottom))
     max(1rem, env(safe-area-inset-left));
   background: #000;
   --cruush-gradient: linear-gradient(90deg, #ff0072 0%, #d900b9 35%, #6f00ff 58%, #3826ff 78%, #004bff 100%);
   isolation: isolate;
-  overflow: hidden;
-  touch-action: manipulation;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -908,4 +909,42 @@ html[data-cruush-high-contrast] .launch-login-auth-input {
 
 html[data-cruush-high-contrast] .launch-login-auth-input::placeholder {
   color: rgba(255, 255, 255, 0.88);
+}
+
+.launch-login-auth-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  min-width: 1.15rem;
+  min-height: 1.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0.25rem;
+  background-color: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  margin-top: 0.15rem;
+  transition: all 0.15s ease-in-out;
+  accent-color: #ff0072;
+}
+
+.launch-login-auth-checkbox:checked {
+  background: var(--cruush-gradient);
+  border-color: rgba(255, 0, 114, 0.7);
+  box-shadow: 0 0 10px rgba(255, 0, 114, 0.4);
+}
+
+.launch-login-auth-checkbox:checked::before {
+  content: "";
+  width: 0.52rem;
+  height: 0.3rem;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  transform: rotate(-45deg) translate(0.5px, -0.5px);
+}
+
+.launch-login-auth-checkbox:focus-visible {
+  outline: 2px solid rgba(255, 0, 114, 0.7);
+  outline-offset: 2px;
 }
