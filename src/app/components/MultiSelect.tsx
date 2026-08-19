@@ -150,7 +150,10 @@ export default function MultiSelect({
       }
 
       const availableWidth = Math.max(0, viewportWidth - MENU_VIEWPORT_PADDING * 2);
-      const width = useMobileSheetWidth ? availableWidth : Math.min(rect.width, availableWidth);
+      const targetWidth = hasCategoryPicker
+        ? (useMobileSheetWidth ? availableWidth : Math.max(rect.width, Math.min(availableWidth, 480)))
+        : rect.width;
+      const width = useMobileSheetWidth ? availableWidth : Math.min(targetWidth, availableWidth);
       const left = useMobileSheetWidth
         ? MENU_VIEWPORT_PADDING
         : Math.min(
@@ -247,7 +250,7 @@ export default function MultiSelect({
   const menuContent = (
     <>
       {hasCategoryPicker ? (
-        <div className="grid min-w-0 h-full max-h-[inherit] grid-rows-[auto_minmax(0,1fr)] sm:grid-cols-[11rem_minmax(0,1fr)] sm:grid-rows-1">
+        <div className="grid min-w-0 h-[17.5rem] max-h-[inherit] grid-rows-[auto_minmax(0,1fr)] sm:grid-cols-[11rem_minmax(0,1fr)] sm:grid-rows-1 sm:h-full">
           <div
             role="tablist"
             aria-label={`${ariaLabel ?? 'Options'} categories`}
