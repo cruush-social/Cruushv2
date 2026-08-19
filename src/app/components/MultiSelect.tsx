@@ -247,7 +247,7 @@ export default function MultiSelect({
   const menuContent = (
     <>
       {hasCategoryPicker ? (
-        <div className="grid min-w-0 max-h-[inherit] grid-rows-[auto_minmax(0,1fr)] sm:grid-cols-[11rem_minmax(0,1fr)] sm:grid-rows-1">
+        <div className="grid min-w-0 h-full max-h-[inherit] grid-rows-[auto_minmax(0,1fr)] sm:grid-cols-[11rem_minmax(0,1fr)] sm:grid-rows-1">
           <div
             role="tablist"
             aria-label={`${ariaLabel ?? 'Options'} categories`}
@@ -268,6 +268,7 @@ export default function MultiSelect({
                   className={`flex shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors sm:w-full ${
                     isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                   }`}
+                  style={HORIZONTAL_TOUCH_SCROLL_STYLE}
                 >
                   <span>{group.label}</span>
                   {selectedCount > 0 ? (
@@ -280,7 +281,7 @@ export default function MultiSelect({
             })}
           </div>
 
-          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle min-h-0 max-h-[inherit] overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
+          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle min-h-0 h-full max-h-full overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
             <div role="group" aria-label={activeGroup.label || undefined}>
               {activeGroup.options.map((option) => (
                 <button
@@ -300,7 +301,7 @@ export default function MultiSelect({
           </div>
         </div>
       ) : (
-        <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle max-h-[inherit] overflow-y-auto" style={TOUCH_SCROLL_STYLE}>
+        <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle min-h-0 max-h-[inherit] overflow-y-auto" style={TOUCH_SCROLL_STYLE}>
           {groups.map((group) => (
             <div key={group.label || 'options'} role={group.label ? 'group' : undefined} aria-label={group.label || undefined}>
               {group.label ? (
@@ -335,7 +336,7 @@ export default function MultiSelect({
           <div
             ref={portalMenuRef}
             className="overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg"
-            style={{ ...portalStyle, pointerEvents: 'auto', zIndex: MENU_PORTAL_Z_INDEX + 1 }}
+            style={{ ...portalStyle, touchAction: 'pan-y', pointerEvents: 'auto', zIndex: MENU_PORTAL_Z_INDEX + 1 }}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
