@@ -123,8 +123,8 @@ describe("profile schema", () => {
 
     expect(profilePayloadSchema.parse({
       ...baseProfile,
-      vibes: ["Goth", "Rave", "Leather", "Punk", "Playful", "Kinky"]
-    }).vibes).toEqual(["Rave", "Leather", "Punk", "Playful", "Kinky"]);
+      vibes: ["Goth", "Rave", "Leather", "Punk"]
+    }).vibes).toEqual(["Rave", "Leather", "Punk"]);
 
     expect(profilePayloadSchema.parse({
       ...baseProfile,

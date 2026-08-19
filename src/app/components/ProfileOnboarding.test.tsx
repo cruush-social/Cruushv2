@@ -271,6 +271,10 @@ describe('ProfileOnboarding', () => {
     await chooseMultiSelect('Looking For', 'cruise');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
+    expect(screen.getByText('Select up to 3')).toBeInTheDocument();
+    await chooseMultiSelect('Vibes', 'Alt');
+    await chooseMultiSelect('Vibes', 'Artsy');
+    await chooseMultiSelect('Vibes', 'Chill');
     await chooseMultiSelect('Vibes', 'Goth');
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
@@ -282,6 +286,7 @@ describe('ProfileOnboarding', () => {
       identities: ['trans woman', 'nonbinary', 'woman'],
       is_trans: true,
       crowds: ['T4T'],
+      vibes: ['Artsy', 'Chill', 'Goth'],
     })));
   });
 

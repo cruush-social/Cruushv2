@@ -690,6 +690,9 @@ describe('ProfileEdit', () => {
     const archetypesGroup = screen.getByRole('group', { name: 'Archetypes' });
 
     fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Daddy' }));
+    fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Doll' }));
+    fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Goddess' }));
+    fireEvent.click(within(archetypesGroup).getByRole('option', { name: 'Kitten' }));
 
     const basicsTab = screen.getByRole('tab', { name: 'Basics' });
     fireEvent.click(basicsTab);
@@ -730,7 +733,7 @@ describe('ProfileEdit', () => {
       trans_status_visibility: 'mutual_cruushes',
       crowds: ['T4T', 'Dyke'],
       body_type: ['bear'],
-      vibes: ['Daddy'],
+      vibes: ['Doll', 'Goddess', 'Kitten'],
       scenes: [],
       archetypes: [],
       hiv_status: ['undetectable'],

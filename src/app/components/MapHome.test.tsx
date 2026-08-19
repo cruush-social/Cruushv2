@@ -1153,7 +1153,7 @@ describe('MapHome', () => {
     });
   });
 
-  it('opens recently active profiles above the mobile bottom nav and keeps the toggle working', async () => {
+  it('starts recently active closed above the mobile bottom nav and keeps the toggle working', async () => {
     useIsMobile.mockReturnValue(true);
 
     render(
@@ -1167,23 +1167,23 @@ describe('MapHome', () => {
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
     const recentPanel = screen.getByTestId('recently-active-panel');
-    const recentToggle = screen.getByRole('button', { name: 'Hide recently active bar' });
+    const recentToggle = screen.getByRole('button', { name: 'Show recently active bar' });
 
     expect(recentPanel.parentElement).toHaveClass('bottom-[calc(5.75rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
+    expect(recentPanel).toHaveClass('max-w-max', 'p-0');
+    expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
+
+    fireEvent.click(recentToggle);
+
+    expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
     expect(recentPanel).toHaveClass('w-fit', 'max-w-full', 'p-3');
-    expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
     expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-20');
 
     fireEvent.click(recentToggle);
-
     expect(recentToggle).toHaveAccessibleName('Show recently active bar');
-    expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
-
-    fireEvent.click(recentToggle);
-    expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
-    expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 
   it('does not show a saved launch pass icon outside the one-mile live radius or duplicate the chat invite', async () => {
@@ -1821,7 +1821,7 @@ describe('MapHome', () => {
 
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-0', 'right-4', 'pl-4', 'pr-0');
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('pointer-events-none');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[30rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('max-w-max', 'p-0', 'lg:ml-auto', 'lg:mr-0');
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('pointer-events-auto');
   });
 
@@ -1886,6 +1886,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Show recently active bar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
 
     expect(screen.queryByText('nyc open beta')).not.toBeInTheDocument();
@@ -1923,6 +1924,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Show recently active bar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
     expect(await screen.findByRole('button', { name: /message now/i })).toBeInTheDocument();
 
@@ -1947,6 +1949,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Show recently active bar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Report Jordan' }));
     fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'impersonation' } });
@@ -1975,6 +1978,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Show recently active bar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
     fireEvent.click(screen.getByRole('button', { name: /send cruush/i }));
 
@@ -2002,6 +2006,7 @@ describe('MapHome', () => {
       </MemoryRouter>
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Show recently active bar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open Jordan profile' }));
     const cruushButton = await screen.findByRole('button', { name: /send cruush/i });
 
@@ -2624,11 +2629,18 @@ describe('MapHome', () => {
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-last-active', '2m ago');
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-badge', 'top');
 
+    const recentToggle = screen.getByRole('button', { name: 'Show recently active bar' });
+    const recentPanel = screen.getByTestId('recently-active-panel');
+
+    expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(recentPanel).toHaveClass('max-w-max', 'p-0');
+    expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
+
+    fireEvent.click(recentToggle);
+
     const recentTray = screen.getByTestId('recently-active-tray');
     const recentTile = screen.getByTestId('recently-active-tile-user-1');
     const recentMedia = recentTile.firstElementChild;
-    const recentToggle = screen.getByRole('button', { name: 'Hide recently active bar' });
-    const recentPanel = screen.getByTestId('recently-active-panel');
 
     expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
     expect(recentToggle).toHaveTextContent('Recently Active');
@@ -2723,6 +2735,7 @@ describe('MapHome', () => {
       </MemoryRouter>,
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Show recently active bar' }));
     const recentTray = await screen.findByTestId('recently-active-tray');
     expect(recentTray).toHaveAttribute('data-scrollable', 'true');
     expect(recentTray).toHaveClass('overflow-x-auto', 'pb-2', 'scrollbar-subtle');
@@ -2745,6 +2758,7 @@ describe('MapHome', () => {
       </MemoryRouter>,
     );
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Show recently active bar' }));
     const recentTray = await screen.findByTestId('recently-active-tray');
     recentTray.setPointerCapture = vi.fn(() => {
       throw new DOMException('Pointer capture is no longer available', 'InvalidStateError');

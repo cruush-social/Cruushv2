@@ -59,7 +59,7 @@ import {
 
 const MAX_PROFILE_PHOTOS = 4;
 const MAX_PROFILE_GROUP_SELECTIONS = 3;
-const MAX_PROFILE_VIBES = 5;
+const MAX_PROFILE_VIBES = 3;
 const MAX_PROFILE_HOBBIES = 5;
 const MAX_PROFILE_KINKS = 5;
 const MAX_GENDER_IDENTITIES = MAX_PROFILE_GROUP_SELECTIONS;
@@ -510,7 +510,7 @@ function toProfileSavePayload(profile: ProfilePayload): ProfilePayload {
     kinks: limitToFiveKinks(profile.kinks ?? []),
     kink_interests: sanitizeKinkInterests(profile).slice(-MAX_PROFILE_KINKS),
     kinks_visibility: profile.kinks_visibility ?? 'public',
-    vibes: limitToFive(mergeCategorizedVibes(profile)),
+    vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
     hobbies: limitToFive(profile.hobbies ?? []),
@@ -907,7 +907,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
     kinks: profile.kinks || [],
     kink_interests: profile.kink_interests || [],
     kinks_visibility: profile.kinks_visibility || 'public',
-    vibes: limitToFive(mergeCategorizedVibes(profile)),
+    vibes: limitToThree(mergeCategorizedVibes(profile)),
     scenes: [],
     archetypes: [],
     hobbies: limitToFive(profile.hobbies || []),
@@ -1199,7 +1199,7 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 maxSelections={MAX_PROFILE_VIBES}
                 optionGroups={VIBE_GROUPS}
                 value={normalizedProfile.vibes}
-                onChange={(vals) => handleChange('vibes', limitToFive(vals))}
+                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
               />
             </div>
           </TabsContent>

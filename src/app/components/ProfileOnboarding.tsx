@@ -118,24 +118,6 @@ function limitToThree(values: string[]) {
   return nextValues.slice(-3);
 }
 
-function limitToFive(values: string[]) {
-  const seen = new Set<string>();
-  const nextValues: string[] = [];
-
-  for (let index = values.length - 1; index >= 0; index -= 1) {
-    const value = values[index]?.trim();
-
-    if (!value || seen.has(value)) {
-      continue;
-    }
-
-    seen.add(value);
-    nextValues.unshift(value);
-  }
-
-  return nextValues.slice(-5);
-}
-
 type OnboardingProfileState = {
   name: string;
   bio: string;
@@ -690,12 +672,12 @@ export default function ProfileOnboarding({
                   <MultiSelect
                     menuPortal
                     ariaLabel="Vibes"
-                    maxSelections={5}
+                    maxSelections={3}
                     optionGroups={VIBE_GROUPS}
                     value={profile.vibes}
-                    onChange={(values) => setProfileField('vibes', limitToFive(values))}
+                    onChange={(values) => setProfileField('vibes', limitToThree(values))}
                   />
-                  <p className="text-xs text-white/58 mt-1">Select up to 5</p>
+                  <p className="text-xs text-white/58 mt-1">Select up to 3</p>
                 </div>
               );
             case 'bio':

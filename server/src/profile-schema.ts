@@ -192,7 +192,7 @@ export const profilePayloadSchema = z.object({
   kinks: kinkArrayField,
   kink_interests: z.array(profileKinkInterestSchema).max(5).optional().default([]),
   kinks_visibility: profileVisibilitySchema.optional().default("public"),
-  vibes: upToFiveArrayField,
+  vibes: upToThreeArrayField,
   scenes: arrayField,
   archetypes: arrayField,
   hobbies: upToFiveArrayField,
