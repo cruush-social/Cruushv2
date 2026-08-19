@@ -185,11 +185,7 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
     : 'border-white/24 bg-white/[0.08] shadow-[0_4px_16px_rgba(0,0,0,0.3)] rounded-[1rem] sm:rounded-[1.25rem]';
   const positionClass = featured
     ? 'scale-110 rotate-0 opacity-100 z-20'
-    : itemIndex < FEATURED_ITEM_INDEX
-    ? '-rotate-6 scale-90 opacity-80 hover:opacity-100 z-10'
-    : itemIndex > FEATURED_ITEM_INDEX
-    ? 'rotate-6 scale-90 opacity-80 hover:opacity-100 z-10'
-    : 'scale-100 rotate-0 opacity-100 z-10';
+    : 'scale-90 rotate-0 opacity-85 hover:opacity-100 z-10';
   const cycleClass = spinning ? 'cruise-carousel-profile-spinning' : '';
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
