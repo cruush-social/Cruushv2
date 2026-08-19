@@ -83,7 +83,7 @@ describe('ProfileCard', () => {
     expect(screen.getByText('Jordan, 26')).toBeInTheDocument();
   });
 
-  it('uses compact inline media sizing without extra detail sections', () => {
+  it('uses compact inline media sizing with only the first three vibe capsules', () => {
     render(
       <MemoryRouter>
         <ProfileCard
@@ -96,7 +96,7 @@ describe('ProfileCard', () => {
             pronouns: 'they/them',
             distance: '0.2 mi',
             lookingFor: ['Fun'],
-            vibes: ['Goth'],
+            vibes: ['Goth', 'Punk', 'Club kid', 'Leather'],
             photo: null,
           }}
           onClose={vi.fn()}
@@ -112,6 +112,11 @@ describe('ProfileCard', () => {
     });
     expect(screen.queryByText('Looking for')).not.toBeInTheDocument();
     expect(screen.queryByText('Vibes')).not.toBeInTheDocument();
+    expect(screen.getByTestId('profile-card-vibes')).toHaveClass('flex-nowrap', 'overflow-hidden');
+    expect(screen.getByText('Goth')).toBeInTheDocument();
+    expect(screen.getByText('Punk')).toBeInTheDocument();
+    expect(screen.getByText('Club kid')).toBeInTheDocument();
+    expect(screen.queryByText('Leather')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'View Full Profile' })).toHaveClass('h-10');
   });
 });

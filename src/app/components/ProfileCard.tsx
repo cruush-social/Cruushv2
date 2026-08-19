@@ -54,6 +54,10 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   const lookingForItems = Array.isArray(user.lookingFor)
     ? user.lookingFor.filter((item: string) => item.trim().length > 0)
     : [];
+  const vibeItems = Array.isArray(user.vibes)
+    ? user.vibes.filter((item: string) => item.trim().length > 0)
+    : [];
+  const visibleVibeItems = compact ? vibeItems.slice(0, 3) : vibeItems;
   const contentClassName = compact ? 'p-3 space-y-3' : 'p-4 space-y-4';
   const titleClassName = compact ? 'text-xl' : 'text-2xl';
   const actionButtonClassName = compact ? 'h-10 min-w-0 flex-1' : 'flex-1';
@@ -202,22 +206,27 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
           </div>
         ) : null}
 
-        {!compact && user.vibes && user.vibes.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm">Vibes</p>
-            <div className="flex flex-wrap gap-2">
-              {user.vibes.map((vibe: string) => (
+        {visibleVibeItems.length > 0 ? (
+          <div className={compact ? '' : 'space-y-2'}>
+            {!compact ? <p className="text-sm">Vibes</p> : null}
+            <div
+              data-testid="profile-card-vibes"
+              className={compact ? 'flex min-w-0 flex-nowrap gap-1.5 overflow-hidden' : 'flex flex-wrap gap-2'}
+            >
+              {visibleVibeItems.map((vibe: string) => (
                 <Badge
                   key={vibe}
                   variant="outline"
-                  className="border-primary/50 text-primary"
+                  className={compact
+                    ? 'max-w-[calc(33.333%-0.25rem)] shrink truncate whitespace-nowrap border-primary/50 px-2 py-0.5 text-[11px] uppercase tracking-[0.08em] text-primary'
+                    : 'border-primary/50 text-primary'}
                 >
                   {vibe}
                 </Badge>
               ))}
             </div>
           </div>
-        )}
+        ) : null}
 
         <div className="flex gap-2 pt-2">
           <Button

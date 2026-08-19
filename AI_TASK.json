@@ -2,174 +2,98 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Run the complete release suite, commit the validated cruush v1.4 bug-fix and UI batch, publish the exact commit to origin/main, deploy it to production, and verify the deployed frontend and API.",
-  "base": "e995f1cceaab08a3778b04e86ea890337924238b",
+  "job": "Run the complete release gate, commit the verified cruush carousel, Recently Active, Stealth icon, admin badge, New group scrolling, and Ping pulse batch, publish the exact commit to origin/main, deploy it to production, and verify the deployed frontend, API, and affected live UI.",
+  "base": "4bf0d3699a06d315eeb9bc06267efcd53bc3077b",
   "branch": "codex/fix-all-issues-20260817",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/app.test.ts",
-    "server/src/mailer.test.ts",
-    "server/src/mailer.ts",
-    "server/src/match-relationships.ts",
-    "server/src/routes/cruush.ts",
-    "e2e/regression/session-interactions.spec.ts",
-    "src/app/components/AlphaBugButton.test.tsx",
-    "src/app/components/AlphaBugButton.tsx",
-    "src/app/components/BottomNav.test.tsx",
-    "src/app/components/BottomNav.tsx",
-    "src/app/components/CruushActivity.test.tsx",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/components/DirectMessages.test.tsx",
-    "src/app/components/DirectMessages.tsx",
-    "src/app/assets/ui-icons/ghost-stealth.svg",
-    "src/app/components/CruushIconImage.tsx",
-    "src/app/components/GhostModeSettings.test.tsx",
-    "src/app/components/GhostModeSettings.tsx",
-    "src/app/components/MapProfilePopup.test.tsx",
-    "src/app/components/MapProfilePopup.tsx",
-    "src/app/components/Rewards.test.tsx",
-    "src/app/components/Rewards.tsx",
-    "src/app/components/Settings.test.tsx",
-    "src/app/components/Settings.tsx",
-    "src/app/components/MapHome.test.tsx",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapControlsTutorial.test.tsx",
-    "src/app/components/MapControlsTutorial.tsx",
-    "src/app/components/MapView.test.tsx",
-    "src/app/components/MapView.tsx",
-    "src/app/components/ProfileCard.test.tsx",
     "src/app/components/ProfileCard.tsx",
-    "src/app/components/ProfileView.test.tsx",
-    "src/app/components/ProfileView.tsx",
-    "src/app/lib/cruushApi.ts",
-    "src/app/lib/cruushEvents.ts",
-    "src/app/lib/mapMarkers.ts",
-    "src/app/lib/cruushNotifications.ts",
-    "src/app/components/SupportPage.tsx"
+    "src/app/components/ProfileCard.test.tsx",
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx",
+    "src/app/assets/ui-icons/ghost-stealth.svg",
+    "src/app/components/CruushBadge.tsx",
+    "ATTRIBUTIONS.md",
+    "src/app/components/DirectMessages.tsx",
+    "src/app/components/DirectMessages.test.tsx",
+    "src/styles/theme.css",
+    "src/app/components/FeelingLucky.tsx"
   ],
   "preserved": [
-    "Preserve the uncommitted Support desktop-width fix exactly.",
-    "Revoking removes only the current user's outgoing cruush. Keep the other person's outgoing cruush active so it can still appear as an incoming cruush.",
-    "If the cruush is mutual, revoke the mutual relationship and its permission tokens while preserving messages, blocks, profile data, and the reciprocal cruush.",
-    "Keep cruush sending, mutual creation, activity locking, profile navigation, messaging permissions, and all current visual themes unchanged outside the sent-state action.",
-    "Keep relationship payloads encrypted and expose no new relationship identifiers or private profile data.",
-    "Keep the desktop panel's top edge, scrolling, profile content, edit flow, and visual treatment unchanged. Keep its approved 23rem width at xl and above.",
-    "Keep the profile panel hidden on mobile and preserve the current mobile profile route behavior.",
-    "Keep the alpha bug button fixed in the upper-right corner and match its responsive height to the cruush+ pill.",
-    "Keep the approved CSS-variable profile gradient and the split tutorial sequence. Update stale regression assertions instead of reverting either behavior.",
-    "Keep the Recently Active scrollbar design unchanged and reuse its existing scrollbar-subtle utility for the desktop profile panel.",
-    "Change only the visible cruush+ settings audience term from Free users to Basic users. Do not change entitlements, rewards, pricing, or access rules.",
-    "Keep Signal text, truncation, placement, dimensions, styling, hover timing, mobile hold timing, marker dimensions, marker positions, and badge positions unchanged.",
-    "Restore each marker's prior resting z-index when its Signal preview closes. Keep active Ping Signals floating above ordinary markers.",
-    "Keep verification links valid for 24 hours, password-reset links valid for their existing duration, and preserve existing recipients, sender, subjects, failure handling, and signed URLs.",
-    "Keep internal support, moderation, trust and safety, event-pass, and broadcast email paths unchanged."
-    ,"Keep every cruush+ benefit, check-in rule, referral link, referral reward, promotional grant, reward history, and promo-code behavior unchanged."
-    ,"Default the benefits accordion closed for conversion, then remember the user's explicit open or closed choice on that browser."
-    ,"Keep Ping behavior, allowance rules, dialog, icon, label, API calls, and tutorial order unchanged while moving only its map placement."
-    ,"Keep Seeking, Visibility, location, zoom, top navigation, Recently Active, and bottom navigation placement unchanged."
-    ,"Keep the approved no-notch cruush logo, its current size, the Version 1.4 text, Sign Out behavior and styling, and every Settings section unchanged."
-    ,"Keep Ghost Mode's approved colored icon, decoy location UI, leash, rotation behavior, switches, copy, and privacy behavior unchanged."
-    ,"Keep the Stealth icon silhouette, dimensions, placement, switch behavior, entitlement rules, copy, and privacy behavior unchanged."
-    ,"Show no active-mode capsule. Use only the icon treatment to indicate active Stealth Mode."
-    ,"Apply the Stealth border state only to the locally constructed current-user marker. Do not add Stealth state to discovery users, API responses, persisted profiles, or shared marker payloads."
-    ,"Keep the Recently Active toggle, close action, profile order, five-card viewport, ten-profile cap, 4:5 cards, horizontal scrolling, and desktop placement unchanged. Open it initially on mobile and restore a visible gap above the bottom navigation."
-    ,"Remove only the secondary Most recent first and Closest first lines from the direct-message sort buttons. Keep the Sort people by heading and primary button labels."
-    ,"Sort only the existing authorized Public message candidates. Keep Public and Mutuals membership, seeking filters, message permissions, cards, and actions unchanged."
-    ,"Distance sorting may use only the privacy-safe distance label returned for the current viewer. Treat hidden Nearby distance as unknown, never as zero miles, and never derive a ranking from precise or decrypted map coordinates."
+    "Keep the existing carousel animation, profile selection, card sizing, photo, actions, navigation, locked mode, empty mode, and reduced-motion behavior unchanged.",
+    "Keep regular profile cards and every non-carousel profile surface unchanged.",
+    "Use only the selected profile's existing vibe order and show no more than three capsules.",
+    "Keep the capsules on one line without wrapping.",
+    "Restore the mobile Recently Active position from 6.5rem to its prior 5.75rem offset. Keep desktop placement, dimensions, profile order, profile cards, horizontal scrolling, scrollbar, and toggle behavior unchanged.",
+    "Keep the active Recently Active label gradient unchanged. Change only the black glass surface treatment.",
+    "Keep Stealth Mode behavior, electric-blue starting color, icon shape, map border, visibility rules, labels, switches, and all non-Stealth icon variants unchanged.",
+    "Use the exact Pictogrammers MDI Duck path created by Austin Andrews under Apache 2.0. Keep the admin capsule text, size, spacing, colors, role checks, and every founder capsule unchanged.",
+    "Keep group creation fields, mutual membership, selection, timer, API payload, close action, bug-report slot, cards, and desktop layout unchanged. Reuse the existing scrollable full-screen overlay behavior already used by the direct-message chooser.",
+    "Keep Ping creation, radius, duration, allowance, visibility, signal stack, marker geometry, hover and focus scale, sorting, map movement, API payloads, and server behavior unchanged. Change only what the real remote-viewer reproduction proves broken.",
+    "Make the mobile carousel result card fill the available space flush below the top navigation and end above the bottom navigation. Keep source-photo proportions through object-cover, and keep its width, content, first-three vibe capsules, actions, browse-again control, and desktop spacing unchanged."
   ],
   "nonGoals": [
-    "Do not change database schema, encryption keys, providers, environment variables, notification delivery providers, or production data.",
-    "Do not delete conversations, messages, profiles, reciprocal cruushes, reports, or moderation evidence.",
-    "Do not redesign profile cards, activity rows, map popups, navigation, or unrelated relationship controls.",
-    "Do not change the desktop panel's left edge or add new copy, controls, or decoration.",
-    "Do not alter mobile profile-card sizing or placement for the desktop-only panel request.",
-    "Do not make the desktop scrollbar thicker, brighter, or structurally different from the Recently Active scrollbar.",
-    "Do not move Signal pills, pins, badges, clusters, Recently Active, navigation, or any map control except Ping.",
-    "Do not commit, push, or deploy without a later explicit request.",
-    "Do not send a test or production email, modify a completed broadcast, or publish a Resend draft without action-time confirmation.",
-    "Do not add or change environment variables, API keys, audiences, sender domains, or unsubscribe behavior."
-    ,"Do not reorder, rewrite, remove, or add reward actions or cruush+ benefits."
-    ,"Do not change reward eligibility, database state, APIs, navigation, bottom navigation, or other cards."
-    ,"Do not change Ping radius, duration, quotas, delivery, feed behavior, Ghost Mode, Stealth Mode, map zoom, or provider configuration."
-    ,"Do not move or resize the Settings header, alpha bug button, bottom navigation, Sign Out button, logo, account controls, or policy links."
-    ,"Do not add a release card, tagline, badge, separator, animation, or any public copy beyond OPEN BETA."
-    ,"Do not change backend privacy modes, API payloads, Ghost rotation, precise-location sharing, DL Mode, top-navigation layout, environment variables, providers, or production state."
-    ,"Do not change the approved Ghost radius circle, true pin, decoy pin, decoy Signal, leash, map bounds, zoom limits, clustering, tiles, marker size, or marker placement."
-    ,"Do not change discovery APIs, location tokens, privacy settings, backend ordering, database data, or message eligibility."
-    ,"Do not redesign the direct-message chooser or change Mutuals ordering."
+    "Do not change discovery, seeking, visibility, privacy, messaging, rewards, billing, APIs, production database data, providers, or environment variables. Temporary local-only admin-badge and map-Ping rows may be added for rendered proof and must be removed afterward.",
+    "Do not add copy, headings, taglines, animations, or unrelated card changes.",
+    "Do not change map controls, bottom navigation, top navigation, profiles, Recently Active data, or any map behavior outside the proven active-Ping pulse defect.",
+    "Do not change Ghost Mode behavior, privacy APIs, map data, server code, Stealth access, or marker-border behavior.",
+    "Do not change admin permissions, badge data, role names, founder icons, or any non-admin icon.",
+    "Do not change direct-message eligibility, group permissions, conversations, message settings, APIs, or server code.",
+    "Do not change global profile-photo ratios, full-profile media, Recently Active cards, carousel reel tiles, or ProfileCard internals for issue 114."
   ],
   "proof": [
-    "Render the authenticated map at desktop width with the own-profile panel in view and edit states. Confirm its bottom gap matches the bottom navigation gap and both states scroll internally.",
-    "Render the map at 1024px and the reported wide desktop size. Confirm the extended panel does not overlap the bottom navigation or recently active panel.",
-    "Render at 390px and confirm the desktop panel remains hidden and the mobile profile flow is unchanged.",
-    "Render the map at 320px and desktop width. Confirm the alpha bug button matches the cruush+ pill height and does not overlap neighboring controls.",
-    "Render the authenticated desktop profile panel in view and edit states. Confirm a subtle vertical scrollbar is visible and real wheel scrolling changes scrollTop.",
-    "Render cruush+ settings and confirm the feature copy says Basic users with no visible Free users reference.",
-    "Render a populated 390 by 844 map, reveal a Signal with a real mobile hold, and confirm its marker stacking context is above overlapping pins and clusters.",
-    "Render the populated desktop map, reveal a Signal by hover, and confirm the same floating behavior then restoration after hover ends.",
-    "Run only the four affected mobile browser regression cases from failed GitHub Actions run 32190290700, then run the nearest focused component checks and git diff --check.",
-    "Keep screenshots and temporary proof data outside the repository.",
-    "Confirm the verification send payload references Resend template 0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0 with VERIFICATION_URL and contains no inline HTML or text.",
-    "Confirm the password-reset send payload references Resend template c4c95694-b788-4862-804d-e0fb146304c3 with RESET_URL and contains no inline HTML or text.",
-    "Run only the focused mailer checks and git diff --check. Visually inspect both current Resend draft previews without sending email."
-    ,"Render Rewards at 390 by 844 and desktop width with the benefits accordion closed and open. Confirm the closed state places the check-in card near the top without overlap or horizontal overflow."
-    ,"Toggle the accordion closed and open, reload the real page after each state, and confirm the saved state returns."
-    ,"Run only the focused Rewards component checks and git diff --check."
-    ,"Render the authenticated map at 390 by 844 and desktop width. Confirm Ping sits directly below Visibility with an 8px gap and no overlap."
-    ,"Tap Ping on the real rendered map and confirm the existing Ping dialog opens without sending a Ping."
-    ,"Replay the real map tutorial and confirm the Ping step highlights the relocated control and describes its placement."
-    ,"Run only the focused MapHome and MapControlsTutorial checks plus git diff --check."
-    ,"Render the real Settings footer at 390 by 844 and 1440 by 900. Confirm OPEN BETA sits on the same line as Version 1.4, with no wrapping or horizontal overflow."
-    ,"Confirm the Sign Out-to-logo and logo-to-release gaps are visibly tighter without overlap with the bottom navigation."
-    ,"Run only the existing focused Settings footer check if needed, then git diff --check. Keep screenshots outside the repository."
-    ,"Render active Stealth Mode in the real authenticated settings flow at 390 by 844 and 1440 by 900. Confirm its icon uses electric blue fading into translucent white without changing size or placement."
-    ,"Render the real authenticated map at 390 by 844 and 1440 by 900 with Stealth Mode active. Confirm the top-navigation Ghost icon uses the same Stealth treatment, no capsule appears, and neighboring controls do not shift or overlap."
-    ,"Confirm Ghost Mode active still uses its approved colored icon and the inactive mode icon stays white. Restore the local privacy mode after visual proof, run only focused checks if needed, then run git diff --check. Keep screenshots outside the repository."
-    ,"With Stealth active, render the current user's own map pin at 390 by 844 and 1440 by 900. Confirm its heart, profile badge, and Signal border use #0BA8FF while nearby and mutual markers keep their existing borders."
-    ,"Confirm the Stealth border flag exists only on the locally constructed current-user marker and is absent from nearby discovery markers."
-    ,"Render the populated mobile map at 390 by 844 and confirm Recently Active opens with profile previews, has an 8px gap above the bottom navigation, scrolls horizontally, and can still be collapsed and reopened."
-    ,"Confirm Ping sits directly below Visibility and above the location and zoom controls. Keep the approved Ghost owner UI unchanged. Compare production and local rendering without publishing."
-    ,"Render the authenticated direct-message chooser at 390 by 844 and desktop width. Confirm the two secondary sort lines are absent with no wrapping or overlap."
-    ,"Click Recently online and Distance in the real populated chooser. Confirm the selected state changes and the visible Public order follows the selected mode."
-    ,"Confirm hidden Nearby distance is not treated as zero miles and no precise or decrypted coordinates are used for sorting. Run only the focused DirectMessages check and git diff --check."
+    "Render a populated carousel result at 390 by 844 and desktop width. Confirm exactly the first three available vibe capsules appear in source order on one line with no overflow.",
+    "Confirm profiles with fewer than three vibes show only available values and profiles without vibes show no empty capsule row.",
+    "Run only the focused ProfileCard check and git diff --check. Keep screenshots outside the repository.",
+    "Render the open and collapsed Recently Active capsule at 390 by 844 and 1728 by 1084. Confirm the same frosted black glass material is used at both widths, the mobile capsule is restored 12px lower without overlap, and desktop placement and profile scrolling remain unchanged.",
+    "Render Stealth Mode active in its settings and map header at 390 by 844 and in desktop settings. Confirm the gradient starts at #0BA8FF and ends in opaque #FFFFFF without tan contamination, while the owner's map border remains #0BA8FF.",
+    "Render an admin capsule at 390 by 844 and desktop width. Confirm the Pictogrammers rubber duck replaces only the admin crown, remains legible and centered, and does not change capsule dimensions or wrapping.",
+    "Render the real New group composer with enough mutual cruushes to exceed the viewport at 390 by 844 and desktop width. Confirm real touch or wheel input changes the overlay scroll position, every mutual remains reachable, Create group remains reachable, and there is no horizontal overflow.",
+    "Run only the focused DirectMessages regression check and git diff --check after rendered proof.",
+    "Reproduce a real active Ping from another local user's perspective through the actual local API at 390 by 844 and desktop width. Measure the remote marker's computed animation and geometry over time, exercise its adjacent interaction, and confirm zero horizontal overflow.",
+    "After the narrow Ping patch, repeat the real remote-viewer proof, run only focused MapView and Ping checks, remove every temporary local Ping row, and keep screenshots outside the repository.",
+    "Render the actual carousel result at 390 by 844 and desktop width. Confirm the mobile card starts flush below the top navigation, fills the available vertical result area above Browse again and the bottom navigation, keeps the source photo undistorted through object-cover, leaves all content and actions reachable, and has no horizontal or document overflow.",
+    "Run the complete local release gate against the exact staged slice, inspect the staged file list and diff, and confirm no environment variable, provider, schema, or production-data change is included.",
+    "Publish the exact release commit to origin/main and confirm git ls-remote returns the same SHA.",
+    "Confirm Coolify production frontend and API track main and the exact release SHA, verify the public frontend response plus direct API health and build metadata, then render and exercise each affected live UI at its required mobile and desktop state."
   ],
   "proofResults": [
-    "Authenticated 1440 by 900 view and edit panels render from y=140 to y=888, matching the bottom-navigation capsule's 12px viewport gap. Both panel states retain internal vertical scrolling.",
-    "Authenticated 1024 by 900 view and edit panels render 288px wide with a 16px horizontal gap from the centered bottom navigation and no overlap. At xl and above, the panel retains its 368px width.",
-    "Authenticated 390 by 844 rendering hides the desktop aside and opens the unchanged full-page mobile profile flow.",
-    "Authenticated 320 by 844 rendering shows both cruush+ and Report alpha bug at 36px high with no control overlap. Authenticated 1440 by 900 rendering shows both at 44px high with no overlap.",
-    "The focused MapHome component check passed 1 of 1. The four affected mobile browser regression cases passed 4 of 4 in 38 seconds total.",
-    "Authenticated 1440 by 900 view and edit panels render the same scrollbar-subtle utility used by Recently Active. The scrollbar is 6px, has the matching translucent rounded thumb, and real wheel input moved both panel states from scrollTop 0 to 420.",
-    "Authenticated 390 by 844 cruush+ settings renders Basic users can still read nearby posts, contains no visible Free users reference, and has no horizontal overflow.",
-    "The two focused MapHome and Rewards copy checks passed 2 of 2 with 69 unrelated tests skipped.",
-    "Authenticated 390 by 844 and 1440 by 900 map renders show the visible Signal marker at z-index 110, above every ordinary marker layer, with the pill fully above the enlarged heart and no geometry or copy change.",
-    "Moving desktop hover away restored the marker from z-index 110 to its prior auto layer and hid the Signal. The focused unit check also restored a simulated spiderfy layer from 110 to 37.",
-    "The focused mobile Chromium hold check passed 1 of 1 and confirmed a real 500ms touch hold reveals the Signal with z-index 110. The focused MapView hover and restoration check passed 1 of 1.",
-    "git diff --check passed. Screenshots remained in the operating system temporary directory. No commit, push, deploy, environment, provider, schema, or production-data change was made.",
-    "Resend currently shows the redesigned Verify your e-mail and Password Reset versions as Draft. Their previews render the approved dark gradient and glass card design with VERIFICATION_URL and RESET_URL variables.",
-    "The app mailer now sends verification and password-reset messages by exact Resend template ID and excludes stale inline HTML and text from those payloads. URL variables remain HTML escaped.",
-    "The focused mailer suite passed 5 of 5, the server TypeScript build passed, and git diff --check passed. The Resend drafts remain unpublished and the local code remains undeployed pending explicit publication authorization."
-    ,"At 390 by 844, the closed benefits accordion renders from y=85 to y=152, the check-in card begins at y=172, and the referral card begins at y=528. The first screen shows both earning paths with no horizontal overflow."
-    ,"At 1440 by 900, the closed benefits accordion, complete check-in card, referral card, and start of cruush+ time all render in the first screen without overlap or horizontal overflow."
-    ,"The real accordion expands to all seven unchanged benefits at mobile and desktop widths. Open persisted through a real reload, then closed persisted through another real reload."
-    ,"The focused Rewards component file passed 5 of 5 and git diff --check passed. No commit, push, deploy, API, schema, reward-rule, or production-data change was made."
-    ,"The prior local proof placed Ping below Zoom out; the current instruction supersedes that placement and requires fresh proof below Visibility."
-    ,"The prior desktop Ping placement proof is superseded by the current instruction to place Ping below Visibility."
-    ,"The real mobile tutorial renders Ping as step 8 of 11, spotlights the relocated control, shows the updated placement copy, and opens the existing Ping dialog from Open Ping."
-    ,"The two focused MapHome and MapControlsTutorial checks passed 2 of 2 in 87 seconds, and git diff --check passed. Screenshots remained outside the repository. No commit, push, deploy, API, schema, provider, environment, or production-data change was made."
-    ,"At 390 by 844 and 1440 by 900, the real Settings footer renders Version 1.4 and OPEN BETA on one line with no horizontal overflow."
-    ,"The Sign Out-to-logo gap is 16px instead of 64px, and the logo-to-release gap is 4px instead of 8px. The approved logo and Sign Out dimensions remain unchanged, and the release line stays above the bottom navigation."
-    ,"The existing focused Settings footer check passed 1 of 1 in 59 seconds, and git diff --check passed. Screenshots remained outside the repository. No commit, push, deploy, API, schema, provider, environment, or production-data change was made."
-    ,"Authenticated 390 by 844 and 1440 by 900 rendering confirms active Stealth uses the Ghost silhouette with an electric-blue to translucent-white treatment. Only the current user's heart, profile badge, and Signal border use #0BA8FF; nearby and mutual borders remain unchanged. Inactive and Ghost states retain their approved treatments."
-    ,"Authenticated 390 by 844 rendering confirms Recently Active opens populated, scrolls horizontally, collapses and reopens, and keeps an 8px gap above the bottom navigation with no horizontal overflow."
-    ,"Authenticated 390 by 844 and 1440 by 900 rendering confirms Ping sits directly below Visibility and directly above the location and zoom controls, with 8px vertical gaps. The existing Ping dialog opens and closes without sending a Ping."
-    ,"The real mobile tutorial reaches Ping at step 8 of 11, highlights the relocated Ping control, and explains that it is directly below Visibility. The two focused MapHome checks and one focused MapControlsTutorial check passed 3 of 3 in under 18 seconds per suite. git diff --check and AI_TASK.json validation passed. Screenshots remained outside the repository. No commit, push, deploy, API, schema, provider, environment, or production-data change was made."
-    ,"Authenticated direct-message chooser rendering at 390 by 844 and 1728 by 1084 shows only Recently online and Distance inside the sort buttons. Both secondary lines are absent, both buttons remain 48px high, and neither viewport has horizontal overflow."
-    ,"Real clicks changed the mobile Public order from sage, kai, atlas to ari, indigo, sasha for Distance, then restored the recent order. Desktop clicks produced the same mode-specific reordering and updated aria-pressed state."
-    ,"Distance sorting now uses only the privacy-safe displayed distance label. Hidden Nearby values are unknown and sort after known distances instead of being treated as zero miles; no latitude, longitude, or decrypted display coordinate is read by the comparator. The focused DirectMessages regression passed 1 of 1 in 6.31 seconds, jq validation and git diff --check passed, and no commit, push, deploy, API, schema, environment, provider, or production-data change was made."
-    ,"The complete local release gate passed: public-copy, product-name, security, and responsive-layout checks; frontend 565 of 565; server 832 of 832 with 14 skipped; frontend and server production builds; mobile browser regressions 8 of 8; and Coolify release checks 5 of 5."
-    ,"Disposable PostgreSQL reward and account-deletion databases accepted every migration, passed reward integrity 2 of 2 and account deletion integrity 8 of 8, and accepted full migration replay. Both disposable databases were removed afterward. git diff --check passed."
+    "Authenticated local cruush carousel rendering at 1728 by 1084 shows the first three source-order vibe capsules on one line, including the local cruush test fixture. The row is nowrap and contained within the card.",
+    "Authenticated local cruush carousel rendering at 390 by 844 shows the same three capsules on one line inside a 366px card with no horizontal overflow.",
+    "Compact cards slice existing non-empty vibes to three. Fewer values remain intact and an empty list renders no capsule row. Regular profile-card detail behavior is unchanged.",
+    "The focused ProfileCard file passed 3 of 3 in 21.67 seconds. git diff --check passed. Screenshots remained outside the repository.",
+    "Authenticated local Recently Active rendering at 390 by 844 and 1728 by 1084 shows the same background opacity, 12px backdrop blur, border, and shadow as the bottom navigation glass surface.",
+    "The open panel and collapsed capsule were visually confirmed at both widths. The active gradient stayed unchanged, profile cards stayed populated, and collapse and reopen interactions worked.",
+    "Before the requested position revert, mobile Recently Active horizontal scrolling moved from 0px to 160px. The tray remained 340px wide with 872px of content, and bottom-nav clearance measured 16px mobile and 12px desktop.",
+    "The mobile Recently Active offset was restored from 6.5rem to its prior 5.75rem value, moving the open and collapsed bar exactly 12px lower at 390 by 844.",
+    "Authenticated local mobile rendering confirms a 4px visible gap above the bottom navigation with no overlap. Horizontal scrolling still moved from 0px to 160px, and the frosted glass material stayed unchanged.",
+    "Authenticated local desktop rendering at 1728 by 1084 remained at the original 6.25rem offset with a 12px gap and unchanged layout.",
+    "Stealth Mode was activated locally and rendered in the 390 by 844 map header, 390 by 844 settings, and 1728 by 1084 settings. The icon visibly fades from electric blue into clean white without the prior warm contamination.",
+    "The active Stealth asset encodes #0BA8FF to opaque #FFFFFF and contains no stop-opacity. The owner's map-heart border remained #0BA8FF.",
+    "The local admin verification state was restored afterward to Ghost Mode on and Stealth Mode off.",
+    "The installed lucide-react package has no Duck export. The admin capsule instead uses the exact human-designed Pictogrammers MDI Duck path by Austin Andrews under Apache 2.0; the founder capsule still uses Lucide Crown.",
+    "Authenticated local rendering at 390 by 844 confirmed the filled rubber-duck silhouette inside the full admin capsule. The icon measured 14 by 14 pixels, the capsule remained exactly 73.578125 by 26 pixels, and the page had zero horizontal overflow.",
+    "Authenticated local rendering at 1728 by 1084 confirmed the rubber duck inside the compact desktop admin capsule. The icon measured 12 by 12 pixels, the capsule remained 61.984375 by 21 pixels, and the page had zero horizontal overflow.",
+    "ATTRIBUTIONS.md records the official icon page, creator, and Apache 2.0 license source.",
+    "The temporary local-only lifetime_founder row used for rendered proof was removed. The verification query returned zero remaining visual-proof rows.",
+    "git diff --check passed. No test suite was run because this was a rendered icon-only change and the real local Vite flow was visually confirmed at both target sizes.",
+    "No commit, push, deploy, environment, provider, API, schema, or production-data change was made.",
+    "The real local New group composer reproduced GitHub issues 119 and 127 at 390 by 844: its 1220px content used visible overflow, real scroll input left scrollTop at 0, and Create group remained below the viewport.",
+    "After the focused patch, real mobile touch input changed the composer scrollTop from 0px to 488px. The last mutual checkbox was selectable, Create group rendered from y=695.75px to 731.75px, and the bottom navigation began at y=748px, leaving 16.25px clearance with zero horizontal overflow.",
+    "At 1728 by 1084, real wheel input changed the composer scrollTop from 0px to 248px. Create group ended at y=971.75px and the bottom navigation began at y=988px, leaving 16.25px clearance with zero horizontal overflow.",
+    "The focused DirectMessages component file passed 9 of 9. The product-name casing check, git diff --check, and AI_TASK.json parsing passed. No commit, push, deploy, API, schema, environment, provider, or production-data change was made.",
+    "The actual local remote-viewer path reproduced GitHub issues 121 and 122 with an active Ping supplied by the real local API. The 1.35-second animation was running, but the original 1.06 peak changed the 103px heart layer by only about 6px and read as nearly static at 390 by 844.",
+    "The existing pulse now peaks at 1.12 with no new rings or effects. At 390 by 844, its rendered width moved from about 103.03px to 115.36px; at 1728 by 1084, it moved from about 103.03px to 115.33px. Both pages retained zero horizontal overflow.",
+    "Real remote-marker click and hover interactions remained functional. The signal stayed visible, the marker preview remained pressed during hover, and the pulse animation kept running.",
+    "The temporary local Ping row was deleted and the verification query returned zero remaining proof rows. MapView and theme focused files passed 52 of 52; their existing React act warnings remained non-failing. The product-name casing check, git diff --check, and AI_TASK.json parsing passed.",
+    "Authenticated 390 by 844 carousel rendering now starts the result card at y=69, exactly flush with the bottom of the y=0 to y=69 top navigation. The 366 by 611 card fills the mobile result area without document or horizontal scrolling.",
+    "The mobile photo renders at 364 by 418.5 pixels with object-cover, and all three vibe capsules, profile actions, Browse again control, and bottom navigation remain reachable. Browse again returned another result with the same geometry.",
+    "Authenticated 1728 by 1084 rendering retains the original 20px desktop gap below the top navigation with no overflow. The focused FeelingLucky file passed 3 of 3 and the focused ProfileCard file passed 3 of 3. Screenshots remained outside the repository.",
+    "The shipped Signal stacking fix was exercised on the real populated mobile map with a 600ms hold. The Signal preview moved to z-index 110 above the heart, then dismissed and restored its resting state without a new source change.",
+    "The first complete release-gate run passed product casing, public copy, security, and responsive layout, then stopped at 563 of 565 frontend tests because two MapHome assertions still expected the superseded Recently Active offset and collapsed surface. Only those stale expectations were updated, and both focused cases then passed.",
+    "The complete local release gate passed on rerun: product casing, public copy, security, and responsive layout; frontend 565 of 565; frontend production build; server 832 of 832 with 14 skipped; server TypeScript build; and git diff --check.",
+    "The focused Coolify release guard passed 5 of 5. The staged slice changes no environment variable, provider, schema, migration, or production data."
   ],
-  "environmentChanges": [],
-  "publicationTarget": "origin/main and production"
+  "publicationTarget": "origin/main and production",
+  "environmentChanges": []
 }

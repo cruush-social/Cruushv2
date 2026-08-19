@@ -2,7 +2,7 @@
   <defs>
     <linearGradient id="stealth-electric-blue" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="22%" stop-color="#0BA8FF"/>
-      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.62"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
     </linearGradient>
   </defs>
   <title>cruush Ghost icon, Stealth Mode</title>

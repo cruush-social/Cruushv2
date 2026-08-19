@@ -549,7 +549,10 @@ export default function DirectMessages() {
       ) : null}
 
       {groupComposerOpen ? (
-        <div className="fixed inset-0 z-40 bg-background/95 px-4 py-6 backdrop-blur-md">
+        <div
+          className="fixed inset-0 z-40 overflow-y-auto overscroll-contain bg-background/95 px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 backdrop-blur-md"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           <div className="mx-auto max-w-2xl space-y-5">
             <div className="flex items-center justify-between gap-3 pr-14">
               <div>

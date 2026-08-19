@@ -1169,7 +1169,7 @@ describe('MapHome', () => {
     const recentPanel = screen.getByTestId('recently-active-panel');
     const recentToggle = screen.getByRole('button', { name: 'Hide recently active bar' });
 
-    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.5rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(5.75rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
     expect(recentPanel).toHaveClass('w-fit', 'max-w-full', 'p-3');
     expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
@@ -2678,7 +2678,7 @@ describe('MapHome', () => {
     expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
     expect(recentToggle).toHaveAccessibleName('Show recently active bar');
     expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentToggle).toHaveStyle({ background: 'rgba(0, 0, 0, 0.82)' });
+    expect(recentToggle).toHaveClass('bg-background/68', 'backdrop-blur-md');
     expect(recentPanel).toHaveClass('max-w-max', 'p-0');
     expect(recentPanel).not.toHaveClass('rounded-2xl', 'bg-background/40', 'p-3');
     expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();

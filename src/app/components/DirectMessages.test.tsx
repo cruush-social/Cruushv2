@@ -248,6 +248,14 @@ describe('DirectMessages', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Create group message/ }));
     expect(await screen.findByText('River')).toBeInTheDocument();
 
+    const groupComposer = screen.getByRole('heading', { name: 'New group' }).closest('.fixed');
+    expect(groupComposer).toHaveClass(
+      'overflow-y-auto',
+      'overscroll-contain',
+      'pb-[calc(7rem+env(safe-area-inset-bottom))]',
+    );
+    expect(groupComposer?.style.getPropertyValue('-webkit-overflow-scrolling')).toBe('touch');
+
     fireEvent.change(screen.getByLabelText('Group name'), {
       target: { value: 'Beta crew' },
     });

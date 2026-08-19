@@ -130,7 +130,7 @@ export default function FeelingLucky() {
         </div>
       </header>
 
-      <main className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-4 px-3 pt-4 sm:px-6 sm:pt-5">
+      <main className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-4 px-3 pt-0 sm:px-6 sm:pt-5">
         {status === 'checking' ? (
           <div className="rounded-2xl border border-white/10 bg-black/72 p-5 text-center text-sm text-white/68">
             Loading cruise carousel...
