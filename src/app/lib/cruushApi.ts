@@ -251,3 +251,13 @@ export async function revokeMutualCruush(otherUserId: string) {
     method: 'DELETE',
   });
 }
+
+export async function revokeSentCruush(otherUserId: string) {
+  if (!isUuid(otherUserId)) {
+    throw new Error('This cruush cannot be unsent.');
+  }
+
+  return requestApi<{ revoked: boolean; mutualRevoked: boolean }>(`/api/cruush/${otherUserId}`, {
+    method: 'DELETE',
+  });
+}

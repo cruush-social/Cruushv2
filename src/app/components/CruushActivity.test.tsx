@@ -5,8 +5,9 @@ import AlphaBugButton from './AlphaBugButton';
 import CruushActivity from './CruushActivity';
 import { emitCruushChanged } from '../lib/cruushEvents';
 
-const { getMyCruushActivity, sendCruush } = vi.hoisted(() => ({
+const { getMyCruushActivity, revokeSentCruush, sendCruush } = vi.hoisted(() => ({
   getMyCruushActivity: vi.fn(),
+  revokeSentCruush: vi.fn(),
   sendCruush: vi.fn(),
 }));
 
@@ -25,6 +26,7 @@ vi.mock('../lib/cruushApi', async () => {
   return {
     ...actual,
     getMyCruushActivity,
+    revokeSentCruush,
     sendCruush,
   };
 });
@@ -141,11 +143,16 @@ const activityFixture = {
 describe('CruushActivity', () => {
   beforeEach(() => {
     getMyCruushActivity.mockReset();
+    revokeSentCruush.mockReset();
     sendCruush.mockReset();
     openConversationOrInbox.mockReset();
     dismissUserNotice.mockReset();
     getUserNoticeDismissal.mockReset();
     getMyCruushActivity.mockResolvedValue(activityFixture);
+    revokeSentCruush.mockResolvedValue({
+      revoked: true,
+      mutualRevoked: false,
+    });
     sendCruush.mockResolvedValue({
       id: 'cruush-return',
       fromUserId: 'me',
@@ -226,7 +233,7 @@ describe('CruushActivity', () => {
 
     selectTab(/sent/i);
     expect(await screen.findByText('jay')).toBeInTheDocument();
-    expect(screen.getByText('pending')).toBeInTheDocument();
+    expect(screen.getByText(/pending/i)).toBeInTheDocument();
     expectHeartPreviewSize('jay preview');
 
     selectTab(/mutual/i);
@@ -270,6 +277,36 @@ describe('CruushActivity', () => {
     fireEvent.click(screen.getByRole('button', { name: 'New cruush chat' }));
     fireEvent.click(screen.getByRole('button', { name: /^Create group message/ }));
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/messages?compose=group');
+  });
+
+  it('unsends a pending cruush from the sent activity list', async () => {
+    getMyCruushActivity
+      .mockResolvedValueOnce(activityFixture)
+      .mockResolvedValue({
+        ...activityFixture,
+        counts: {
+          ...activityFixture.counts,
+          sent: 0,
+        },
+        sent: [],
+      });
+
+    render(
+      <MemoryRouter>
+        <CruushActivity />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('luna')).toBeInTheDocument();
+    selectTab(/sent/i);
+
+    const unsendButton = await screen.findByRole('button', { name: 'Unsend cruush to jay' });
+    expect(unsendButton).toBeEnabled();
+    fireEvent.click(unsendButton);
+
+    await waitFor(() => expect(revokeSentCruush).toHaveBeenCalledWith('user-jay'));
+    await waitFor(() => expect(screen.queryByText('jay')).not.toBeInTheDocument());
+    expect(screen.getByText('No sent cruushes yet.')).toBeInTheDocument();
   });
 
   it('shows locked profile views for free users', async () => {

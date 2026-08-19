@@ -8,8 +8,15 @@ import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
 import ProfileEdit from './ProfileEdit';
 import { ProfileDetailsTabs, profileRecordToProfileView } from './ProfileView';
-import { sendCruush } from '../lib/cruushApi';
-import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
+import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
+import {
+  handleCruushSendSuccess,
+  handleMutualCruushRevokeSuccess,
+  handleSentCruushRevokeSuccess,
+  notifyCruushSendError,
+  notifyMutualCruushRevokeError,
+  notifySentCruushRevokeError,
+} from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { emptyProfilePayload, getMyProfile, getProfileById, type ProfileRecord } from '../lib/profileApi';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
@@ -35,6 +42,9 @@ export default function MapProfilePopup({
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
   const [sendingCruush, setSendingCruush] = useState(false);
+  const [revokingCruush, setRevokingCruush] = useState(false);
+  const [mutualRevoked, setMutualRevoked] = useState(false);
+  const [outgoingRevoked, setOutgoingRevoked] = useState(false);
   const [openingMessage, setOpeningMessage] = useState(false);
   const [activeTab, setActiveTab] = useState('basics');
   const [fullProfile, setFullProfile] = useState<ProfileRecord | null>(null);
@@ -51,6 +61,8 @@ export default function MapProfilePopup({
     setFullProfile(null);
     setCruushed(false);
     setCruushBecameMutual(false);
+    setMutualRevoked(false);
+    setOutgoingRevoked(false);
     setProfileError(null);
 
     if (isDemo) {
@@ -116,15 +128,16 @@ export default function MapProfilePopup({
   const displayBadges = profileView?.badges ?? user.badges;
   const displayDistance = profileView?.distance ?? user.distance;
   const displayLastActive = profileView?.lastActive ?? user.lastActive;
-  const isAlreadyMutual = !isOwnProfile && (cruushBecameMutual || profileView?.relationship?.mutual_cruush === true || user.relationship?.mutualCruush === true);
-  const hasSentCruush = cruushed || profileView?.relationship?.outgoing_cruush === true;
+  const isAlreadyMutual = !isOwnProfile && !mutualRevoked && (cruushBecameMutual || profileView?.relationship?.mutual_cruush === true || user.relationship?.mutualCruush === true);
+  const hasSentCruush = !isAlreadyMutual && !outgoingRevoked && (cruushed || profileView?.relationship?.outgoing_cruush === true);
+  const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
   const canMessage = profileView?.relationship ? profileView.relationship.can_message : user.relationship?.canMessage;
-  const cruushDisabled = isDemo || sendingCruush || hasSentCruush || isAlreadyMutual;
+  const cruushDisabled = isDemo || sendingCruush || revokingCruush;
 
-  const popupClassName = `${fixed ? 'fixed' : 'absolute'} bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-6 top-[8.75rem] z-50 hidden w-[23rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl lg:block`;
+  const popupClassName = `${fixed ? 'fixed' : 'absolute'} bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-6 top-[8.75rem] z-50 hidden w-72 max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl lg:block xl:w-[23rem]`;
 
   const handleCruush = async () => {
-    if (isDemo || isOwnProfile || sendingCruush || hasSentCruush || isAlreadyMutual) {
+    if (isDemo || isOwnProfile || sendingCruush || revokingCruush || hasSentCruush || isAlreadyMutual) {
       return;
     }
 
@@ -137,12 +150,48 @@ export default function MapProfilePopup({
       });
       setCruushed(true);
       setCruushBecameMutual(data.mutual === true);
+      setMutualRevoked(false);
+      setOutgoingRevoked(false);
       handleCruushSendSuccess(user.id, displayName, data);
     } catch (error) {
       console.error('Error sending cruush:', error);
       notifyCruushSendError(error);
     } finally {
       setSendingCruush(false);
+    }
+  };
+
+  const handleRevokeCruush = async () => {
+    if (isDemo || isOwnProfile || !hasRevocableCruush || sendingCruush || revokingCruush) {
+      return;
+    }
+
+    const mutual = isAlreadyMutual;
+    setRevokingCruush(true);
+    try {
+      if (mutual) {
+        await revokeMutualCruush(user.id);
+      } else {
+        await revokeSentCruush(user.id);
+      }
+      setCruushed(false);
+      setCruushBecameMutual(false);
+      setOutgoingRevoked(true);
+      if (mutual) {
+        setMutualRevoked(true);
+        handleMutualCruushRevokeSuccess(user.id, displayName);
+      } else {
+        handleSentCruushRevokeSuccess(user.id, displayName);
+      }
+    } catch (error) {
+      console.error('Error revoking cruush:', error);
+      if (mutual) {
+        notifyMutualCruushRevokeError(error);
+      } else {
+        notifySentCruushRevokeError(error);
+      }
+    } finally {
+      setRevokingCruush(false);
     }
   };
 
@@ -162,7 +211,7 @@ export default function MapProfilePopup({
   if (isOwnProfile && ownProfileMode === 'edit') {
     return (
       <aside className={popupClassName} aria-label="Edit profile preview">
-        <div className="scrollbar-hide h-full overflow-y-auto">
+        <div className="scrollbar-subtle h-full overflow-y-auto">
           <ProfileEdit
             embedded
             onCancel={() => setOwnProfileMode('view')}
@@ -184,7 +233,7 @@ export default function MapProfilePopup({
 
   return (
     <aside className={popupClassName}>
-      <div className="scrollbar-hide h-full overflow-y-auto">
+      <div className="scrollbar-subtle h-full overflow-y-auto">
         <div className="relative overflow-hidden">
           <ProfilePhotoGallery
             name={displayName}
@@ -282,15 +331,19 @@ export default function MapProfilePopup({
           <div className="sticky bottom-0 border-t border-white/10 bg-black/85 px-5 py-4 backdrop-blur-xl">
           <div className="grid grid-cols-[auto_1fr] gap-3">
             <Button
-              onClick={handleCruush}
+              onClick={() => {
+                void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
+              }}
               disabled={cruushDisabled}
               className="h-12 w-12 rounded-2xl border-0 px-0 text-white"
               style={{
-                background: cruushDisabled
+                background: hasRevocableCruush
+                  ? 'rgba(255,0,114,0.18)'
+                  : cruushDisabled
                   ? 'rgba(255,255,255,0.16)'
                   : 'var(--cruush-gradient)',
               }}
-              aria-label={isDemo ? 'Demo profile' : isAlreadyMutual ? 'Already mutual' : hasSentCruush ? 'cruush sent' : sendingCruush ? 'sending cruush' : 'send cruush'}
+              aria-label={isDemo ? 'Demo profile' : revokingCruush ? (isAlreadyMutual ? 'Removing mutual cruush' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual cruush' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
             >
               <CruushIcon name="safety" className={`h-6 w-6 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
             </Button>

@@ -429,6 +429,25 @@ describe('DirectMessages', () => {
         photo: null,
         relationship: { mutualCruush: false, canMessage: true },
       },
+      {
+        id: 'ghosted',
+        name: 'Ghosted',
+        display_name: 'Ghosted',
+        age: 30,
+        pronouns: 'they/them',
+        lat: 40.74,
+        lng: -73.95,
+        lastActive: '1m ago',
+        distance: 'Nearby',
+        displayMode: 'GHOST',
+        lookingFor: ['right now'],
+        vibes: [],
+        position: [],
+        role: [],
+        hostingTravel: [],
+        photo: null,
+        relationship: { mutualCruush: false, canMessage: true },
+      },
     ]);
 
     render(
@@ -452,6 +471,8 @@ describe('DirectMessages', () => {
     expect(screen.getByText('River')).toBeInTheDocument();
     expect(screen.getByText('Sort people by')).toBeInTheDocument();
     expect(screen.queryByText('Choose the order people appear in.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Most recent first')).not.toBeInTheDocument();
+    expect(screen.queryByText('Closest first')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sort by Recently online' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Sort by Distance' })).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(screen.getByRole('button', { name: 'Seeking filters' }));
@@ -465,7 +486,10 @@ describe('DirectMessages', () => {
 
     expect(screen.queryByText('River')).not.toBeInTheDocument();
     const alex = screen.getByText('Alex');
+    const ghosted = screen.getByText('Ghosted');
     const blake = screen.getByText('Blake');
+    expect(alex.compareDocumentPosition(ghosted) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ghosted.compareDocumentPosition(blake) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(alex.compareDocumentPosition(blake) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Distance/ }));
@@ -475,7 +499,9 @@ describe('DirectMessages', () => {
       expect(screen.getByRole('button', { name: 'Sort by Distance' })).toHaveAttribute('aria-pressed', 'true');
       const sortedBlake = screen.getByText('Blake');
       const sortedAlex = screen.getByText('Alex');
+      const sortedGhosted = screen.getByText('Ghosted');
       expect(sortedBlake.compareDocumentPosition(sortedAlex) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(sortedAlex.compareDocumentPosition(sortedGhosted) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   });
 });

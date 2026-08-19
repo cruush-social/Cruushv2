@@ -544,32 +544,37 @@ export default function Settings() {
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          className="w-full text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-          disabled={isSigningOut}
-          onClick={async () => {
-            setIsSigningOut(true);
-            try {
-              await signOut();
-            } finally {
-              clearCurrentUser();
-              window.location.href = '/';
-            }
-          }}
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-        </Button>
+        <div className="space-y-4" data-testid="settings-release-footer">
+          <Button
+            variant="outline"
+            className="w-full text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+            disabled={isSigningOut}
+            onClick={async () => {
+              setIsSigningOut(true);
+              try {
+                await signOut();
+              } finally {
+                clearCurrentUser();
+                window.location.href = '/';
+              }
+            }}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+          </Button>
 
-        <div className="text-center space-y-2 pt-8">
-          <img
-            alt="cruush"
-            className="mx-auto h-16 w-16 object-contain"
-            draggable={false}
-            src={cruushLogo}
-          />
-          <p className="text-xs text-muted-foreground">Version 1.4</p>
+          <div className="space-y-1 text-center">
+            <img
+              alt="cruush"
+              className="mx-auto h-16 w-16 object-contain"
+              draggable={false}
+              src={cruushLogo}
+            />
+            <p className="flex items-center justify-center gap-2 whitespace-nowrap text-xs text-muted-foreground">
+              <span>Version 1.4</span>
+              <span>OPEN BETA</span>
+            </p>
+          </div>
         </div>
       </div>
 

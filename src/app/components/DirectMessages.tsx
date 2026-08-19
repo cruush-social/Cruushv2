@@ -107,12 +107,13 @@ type DirectSortMode = 'distance' | 'lastOnline';
 const DIRECT_MESSAGE_DISCOVERY_LIMIT = 500;
 
 function parseDistanceMiles(distance: string) {
-  if (/nearby/i.test(distance)) {
-    return 0;
+  const match = distance.match(/[\d.]+/);
+  if (!match) {
+    return null;
   }
 
-  const match = distance.match(/[\d.]+/);
-  return match ? Number(match[0]) : Number.POSITIVE_INFINITY;
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function parseLastActiveRank(lastActive: string) {
@@ -136,6 +137,28 @@ function seekingSortScore(user: DiscoveryUser) {
   );
 }
 
+function comparePrivacySafeDistance(a: DiscoveryUser, b: DiscoveryUser) {
+  const aDistance = parseDistanceMiles(a.distance);
+  const bDistance = parseDistanceMiles(b.distance);
+
+  if (aDistance === null && bDistance === null) return 0;
+  if (aDistance === null) return 1;
+  if (bDistance === null) return -1;
+  return aDistance - bDistance;
+}
+
+function compareRecentActivity(a: DiscoveryUser, b: DiscoveryUser) {
+  return parseLastActiveRank(a.lastActive) - parseLastActiveRank(b.lastActive)
+    || seekingSortScore(b) - seekingSortScore(a)
+    || comparePrivacySafeDistance(a, b)
+    || a.name.localeCompare(b.name);
+}
+
+function compareDistance(a: DiscoveryUser, b: DiscoveryUser) {
+  return comparePrivacySafeDistance(a, b)
+    || compareRecentActivity(a, b);
+}
+
 function describeDiscoveryUser(user: DiscoveryUser) {
   return [user.pronouns, user.age ? String(user.age) : '', ...(user.presentation ?? []), ...(user.identities ?? [])]
     .filter(Boolean)
@@ -145,7 +168,7 @@ function describeDiscoveryUser(user: DiscoveryUser) {
 
 function matchesMessageFilterBasics(user: DiscoveryUser, filters: FilterState) {
   const distanceMiles = parseDistanceMiles(user.distance);
-  if (Number.isFinite(distanceMiles) && distanceMiles > filters.distance) {
+  if (distanceMiles !== null && distanceMiles > filters.distance) {
     return false;
   }
 
@@ -937,15 +960,7 @@ function DirectUserOverlay({
   }, [publicUsers, filters]);
   const broadenedPublicUsers = filteredPublicUsers.length > 0 ? filteredPublicUsers : publicUsers;
   const sortedPublicUsers = useMemo(() => {
-    return [...broadenedPublicUsers].sort((a, b) => {
-      if (sortMode === 'distance') {
-        return parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
-      }
-
-      return parseLastActiveRank(a.lastActive) - parseLastActiveRank(b.lastActive)
-        || seekingSortScore(b) - seekingSortScore(a)
-        || parseDistanceMiles(a.distance) - parseDistanceMiles(b.distance);
-    });
+    return [...broadenedPublicUsers].sort(sortMode === 'distance' ? compareDistance : compareRecentActivity);
   }, [broadenedPublicUsers, sortMode]);
 
   const requestMutual = async (user: DiscoveryUser) => {
@@ -1016,9 +1031,9 @@ function DirectUserOverlay({
                 aria-labelledby="message-picker-sort-title"
               >
                 {([
-                  ['lastOnline', 'Recently online', 'Most recent first', Clock3],
-                  ['distance', 'Distance', 'Closest first', MapPin],
-                ] as const).map(([value, label, description, Icon]) => (
+                  ['lastOnline', 'Recently online', Clock3],
+                  ['distance', 'Distance', MapPin],
+                ] as const).map(([value, label, Icon]) => (
                   <Button
                     key={value}
                     type="button"
@@ -1033,7 +1048,6 @@ function DirectUserOverlay({
                       <Icon className="size-3.5" />
                       {label}
                     </span>
-                    <span className="text-[10px] font-normal opacity-70">{description}</span>
                   </Button>
                 ))}
               </div>

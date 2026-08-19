@@ -40,7 +40,7 @@ const logger = {
 } as any;
 
 describe("mailer", () => {
-  it("escapes verification URLs before embedding them in HTML email", async () => {
+  it("sends verification emails with the current Resend template", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true
     });
@@ -54,17 +54,17 @@ describe("mailer", () => {
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.html).toContain("abc&amp;next=&quot; onclick=&quot;alert(1)");
-    expect(body.html).not.toContain("onclick=\"alert(1)");
-    expect(body.html).toContain("#050507");
-    expect(body.html).toContain("#ff0072");
-    expect(body.html).toContain("verify your email");
-    expect(body.html).toContain("https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e");
-    expect(body.html).toContain("This verification link expires in 24 hours.");
-    expect(body.text).toContain("onclick=\"alert(1)");
+    expect(body.template).toEqual({
+      id: "0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0",
+      variables: {
+        VERIFICATION_URL: "https://cruush.test/?verifyEmailToken=abc&amp;next=&quot; onclick=&quot;alert(1)"
+      }
+    });
+    expect(body).not.toHaveProperty("html");
+    expect(body).not.toHaveProperty("text");
   });
 
-  it("escapes password reset URLs before embedding them in HTML email", async () => {
+  it("sends password reset emails with the current Resend template", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true
     });
@@ -78,9 +78,14 @@ describe("mailer", () => {
     });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.html).toContain("abc&amp;next=&lt;script&gt;alert(1)&lt;/script&gt;");
-    expect(body.html).not.toContain("<script>");
-    expect(body.text).toContain("<script>alert(1)</script>");
+    expect(body.template).toEqual({
+      id: "c4c95694-b788-4862-804d-e0fb146304c3",
+      variables: {
+        RESET_URL: "https://cruush.test/?resetPasswordToken=abc&amp;next=&lt;script&gt;alert(1)&lt;/script&gt;"
+      }
+    });
+    expect(body).not.toHaveProperty("html");
+    expect(body).not.toHaveProperty("text");
   });
 
   it("sends PhotoDNA match alerts without evidence bytes or media object details", async () => {

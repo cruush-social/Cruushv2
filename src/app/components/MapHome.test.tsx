@@ -12,7 +12,9 @@ const { getMutualCruushMap } = vi.hoisted(() => ({
   getMutualCruushMap: vi.fn(),
 }));
 
-const { sendCruush } = vi.hoisted(() => ({
+const { revokeMutualCruush, revokeSentCruush, sendCruush } = vi.hoisted(() => ({
+  revokeMutualCruush: vi.fn(),
+  revokeSentCruush: vi.fn(),
   sendCruush: vi.fn(),
 }));
 
@@ -127,6 +129,8 @@ vi.mock('../lib/usersApi', () => ({
 
 vi.mock('../lib/cruushApi', () => ({
   getMutualCruushMap,
+  revokeMutualCruush,
+  revokeSentCruush,
   sendCruush,
 }));
 
@@ -388,6 +392,8 @@ describe('MapHome', () => {
   beforeEach(async () => {
     getNearbyUsers.mockReset();
     getMutualCruushMap.mockReset();
+    revokeMutualCruush.mockReset();
+    revokeSentCruush.mockReset();
     sendCruush.mockReset();
     getMyProfile.mockReset();
     getMyVisibilitySets.mockReset();
@@ -578,6 +584,8 @@ describe('MapHome', () => {
       createdAt: '2026-04-29T12:00:00.000Z',
       mutual: true,
     });
+    revokeMutualCruush.mockResolvedValue({ revoked: true });
+    revokeSentCruush.mockResolvedValue({ revoked: true });
     decryptDisplayLocationToken.mockResolvedValue({
       version: 1,
       subjectUserId: 'me',
@@ -834,10 +842,15 @@ describe('MapHome', () => {
     );
 
     const pingControl = await screen.findByRole('button', { name: 'Send a Ping' });
+    const rightActions = screen.getByTestId('map-right-actions');
+    const mapControls = screen.getByTestId('map-zoom-controls');
+    const visibilityControl = screen.getByTestId('map-visibility-button');
     expect(pingControl).toHaveAttribute('data-tutorial-target', 'ping');
     expect(screen.getByRole('button', { name: 'Notifications' })).toHaveAttribute('data-tutorial-target', 'notifications');
     expect(screen.getByRole('button', { name: 'Ghost Mode Settings' })).toHaveAttribute('data-tutorial-target', 'ghost');
-    expect(screen.getByTestId('map-top-actions')).toContainElement(pingControl);
+    expect(rightActions).toContainElement(pingControl);
+    expect(visibilityControl.nextElementSibling).toBe(pingControl);
+    expect(pingControl.nextElementSibling).toBe(mapControls);
 
     fireEvent.click(pingControl);
 
@@ -1140,7 +1153,7 @@ describe('MapHome', () => {
     });
   });
 
-  it('keeps the recently active button visible above the mobile bottom nav', async () => {
+  it('opens recently active profiles above the mobile bottom nav and keeps the toggle working', async () => {
     useIsMobile.mockReturnValue(true);
 
     render(
@@ -1154,19 +1167,23 @@ describe('MapHome', () => {
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
     const recentPanel = screen.getByTestId('recently-active-panel');
-    const recentToggle = screen.getByRole('button', { name: 'Show recently active bar' });
+    const recentToggle = screen.getByRole('button', { name: 'Hide recently active bar' });
 
-    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(5.75rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
-    expect(recentPanel).toHaveClass('max-w-max', 'p-0');
-    expect(recentToggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
+    expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.5rem+env(safe-area-inset-bottom))]', 'left-3', 'right-3', 'z-40');
+    expect(recentPanel).toHaveClass('w-fit', 'max-w-full', 'p-3');
+    expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
+    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-20');
 
     fireEvent.click(recentToggle);
 
+    expect(recentToggle).toHaveAccessibleName('Show recently active bar');
+    expect(recentPanel).toHaveClass('max-w-max', 'p-0');
+    expect(screen.queryByTestId('recently-active-tray')).not.toBeInTheDocument();
+
+    fireEvent.click(recentToggle);
     expect(recentToggle).toHaveAccessibleName('Hide recently active bar');
-    expect(recentPanel).toHaveClass('w-fit', 'max-w-full', 'p-3');
-    expect(screen.getByTestId('recently-active-tray')).toHaveClass('gap-2');
-    expect(screen.getByTestId('recently-active-tile-user-1')).toHaveClass('w-20');
+    expect(screen.getByTestId('recently-active-tray')).toBeInTheDocument();
   });
 
   it('does not show a saved launch pass icon outside the one-mile live radius or duplicate the chat invite', async () => {
@@ -1329,6 +1346,7 @@ describe('MapHome', () => {
     const topActions = screen.getByTestId('map-top-actions');
     const plusStack = screen.getByTestId('map-plus-stack');
     const rightActions = screen.getByTestId('map-right-actions');
+    const mapControls = screen.getByTestId('map-zoom-controls');
     const cruushPlusButton = await screen.findByRole('button', { name: 'cruush+ rewards' });
     const pingButton = screen.getByRole('button', { name: 'Send a Ping' });
     const pingIcon = pingButton.querySelector('svg');
@@ -1365,21 +1383,19 @@ describe('MapHome', () => {
     expect(topActions).not.toHaveClass('mt-11');
     expect(plusStack).toHaveClass('relative', 'shrink-0');
     expect(plusStack).toContainElement(cruushPlusButton);
-    expect(plusStack).toContainElement(pingButton);
-    expect(cruushPlusButton.nextElementSibling).toBe(pingButton);
+    expect(plusStack).not.toContainElement(pingButton);
     expect(topActions).toContainElement(cruushPlusButton);
-    expect(topActions).toContainElement(pingButton);
+    expect(topActions).not.toContainElement(pingButton);
+    expect(rightActions).toContainElement(pingButton);
+    expect(screen.getByTestId('map-visibility-button').nextElementSibling).toBe(pingButton);
+    expect(pingButton.nextElementSibling).toBe(mapControls);
     expect(pingButton).toHaveClass(
-      'absolute',
-      'left-1/2',
-      'top-full',
-      'mt-3.5',
-      'sm:mt-5',
-      'lg:mt-4',
-      '-translate-x-1/2',
+      'size-8',
+      'shrink-0',
+      'sm:size-9',
       'lg:size-11',
     );
-    expect(pingButton).not.toHaveClass('mt-2');
+    expect(pingButton).not.toHaveClass('absolute', 'mt-2');
     expect(rightActions).toHaveClass('right-3', 'top-[4.375rem]', 'sm:right-4', 'sm:top-[4.875rem]');
     expect(cruushPlusButton).toHaveClass(
       'cruush-plus-shimmer-button',
@@ -1873,10 +1889,11 @@ describe('MapHome', () => {
     expect(screen.getByRole('button', { name: /message now/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send cruush/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary')).toHaveClass('z-50');
-    expect(screen.getByRole('complementary')).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]');
+    expect(screen.getByRole('complementary')).toHaveClass('bottom-[calc(0.75rem+env(safe-area-inset-bottom))]');
     expect(screen.getByRole('complementary')).toHaveClass('top-[8.75rem]');
-    expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).toBeInTheDocument();
-    expect(screen.getByRole('complementary').querySelector('.scrollbar-subtle')).not.toBeInTheDocument();
+    expect(screen.getByRole('complementary')).toHaveClass('w-72', 'xl:w-[23rem]');
+    expect(screen.getByRole('complementary').querySelector('.scrollbar-subtle')).toBeInTheDocument();
+    expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).not.toBeInTheDocument();
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(23rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[30rem]', 'lg:ml-auto', 'lg:mr-0');
     expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
@@ -2776,7 +2793,7 @@ describe('MapHome', () => {
     expect(screen.queryByRole('button', { name: 'Pin Mika Demo' })).not.toBeInTheDocument();
   });
 
-  it('greys mutual discovery markers and disables the popup cruush action', async () => {
+  it('greys mutual discovery markers and exposes the popup mutual-revoke action', async () => {
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([{
       id: 'user-1',
@@ -2811,10 +2828,11 @@ describe('MapHome', () => {
 
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-can-message', 'true');
-    const mutualButton = screen.getByRole('button', { name: 'Already mutual' });
-    expect(mutualButton).toBeDisabled();
+    const mutualButton = screen.getByRole('button', { name: 'Remove mutual cruush' });
+    expect(mutualButton).toBeEnabled();
 
     fireEvent.click(mutualButton);
+    await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));
     expect(sendCruush).not.toHaveBeenCalled();
   });
 

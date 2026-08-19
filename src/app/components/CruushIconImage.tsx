@@ -8,6 +8,7 @@ import crowdsWhite from '../assets/ui-icons/crowds-white.svg';
 import feedColored from '../assets/ui-icons/feed-colored.png';
 import feedWhite from '../assets/ui-icons/feed-white.png';
 import ghostColored from '../assets/ui-icons/ghost-colored.svg';
+import ghostStealth from '../assets/ui-icons/ghost-stealth.svg';
 import ghostWhite from '../assets/ui-icons/ghost-white.svg';
 import luckyColored from '../assets/ui-icons/lucky-colored.png';
 import luckyWhite from '../assets/ui-icons/lucky-white.png';
@@ -49,9 +50,9 @@ export type CruushIconName =
   | 'settings'
   | 'visibility';
 
-export type CruushIconVariant = 'colored' | 'white' | 'gradient';
+export type CruushIconVariant = 'colored' | 'white' | 'gradient' | 'stealth';
 
-type CruushIconAssetVariant = Exclude<CruushIconVariant, 'gradient'>;
+type CruushIconAssetVariant = Exclude<CruushIconVariant, 'gradient' | 'stealth'>;
 
 const CRUUSH_ICON_SOURCES: Record<CruushIconName, Record<CruushIconAssetVariant, string>> = {
   camera: {
@@ -133,6 +134,10 @@ export function CruushIcon({
   name: CruushIconName;
   variant?: CruushIconVariant;
 }) {
+  if (variant === 'stealth') {
+    return <CruushIconImage className={className} src={name === 'ghost' ? ghostStealth : CRUUSH_ICON_SOURCES[name].white} />;
+  }
+
   if (variant === 'gradient') {
     const iconMask = CRUUSH_ICON_SOURCES[name].white;
     const style: CSSProperties = {

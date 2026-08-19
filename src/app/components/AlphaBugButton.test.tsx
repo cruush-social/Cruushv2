@@ -147,8 +147,12 @@ describe('AlphaBugButton', () => {
     expect(slot).not.toContainElement(reportButton);
     expect(reportButton).toHaveClass(
       'fixed',
-      'h-11',
-      'w-11',
+      'h-9',
+      'w-9',
+      'sm:h-10',
+      'sm:w-10',
+      'lg:h-11',
+      'lg:w-11',
       'right-[calc(0.75rem+env(safe-area-inset-right))]',
       'top-[calc(0.75rem+env(safe-area-inset-top))]',
     );

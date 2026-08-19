@@ -910,6 +910,7 @@ describe('MapView', () => {
     expect(markerInstances[0].element.className).not.toContain('hover:scale');
     expect(markerInstances[0].element.className).not.toContain('hover:drop-shadow');
     expect(markerInstances[0].element.className).not.toContain('transition-[filter]');
+    markerInstances[0].element.style.zIndex = '37';
 
     const markerButton = screen.getByRole('button', { name: 'Open Noor on map' });
     const pointerEnter = new Event('pointerenter', { bubbles: true });
@@ -917,6 +918,7 @@ describe('MapView', () => {
     fireEvent(markerButton, pointerEnter);
 
     expect(markerButton).toHaveAttribute('aria-pressed', 'true');
+    expect(markerInstances[0].element.style.zIndex).toBe('110');
     expect(screen.getByTestId('marker-heart-layer-user-hover')).toHaveClass('scale-120');
     expect(screen.getByTestId('marker-signal-stack-user-hover')).toHaveClass('opacity-100');
 
@@ -925,6 +927,7 @@ describe('MapView', () => {
     fireEvent(markerButton, pointerLeave);
 
     expect(markerButton).toHaveAttribute('aria-pressed', 'false');
+    expect(markerInstances[0].element.style.zIndex).toBe('37');
     expect(screen.getByTestId('marker-heart-layer-user-hover')).not.toHaveClass('scale-120');
     expect(screen.getByTestId('marker-signal-stack-user-hover')).toHaveClass('opacity-0');
   });

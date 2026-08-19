@@ -10,6 +10,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import CruushPlusWord from './CruushPlusWord';
 import { Input } from './ui/input';
 import { Progress } from './ui/progress';
@@ -33,7 +34,7 @@ const CRUUSH_PLUS_FEATURES = [
   },
   {
     title: 'Post nearby',
-    description: 'Create posts on the local feed. Free users can still read nearby posts.',
+    description: 'Create posts on the local feed. Basic users can still read nearby posts.',
   },
   {
     title: 'Cruise carousel',
@@ -52,6 +53,28 @@ const CRUUSH_PLUS_FEATURES = [
     description: 'Browse the map without appearing on it.',
   },
 ] as const;
+
+const BENEFITS_OPEN_STORAGE_KEY = 'cruush:rewards:benefits-open';
+
+function readBenefitsOpenPreference() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    return window.localStorage.getItem(BENEFITS_OPEN_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function saveBenefitsOpenPreference(open: boolean) {
+  try {
+    window.localStorage.setItem(BENEFITS_OPEN_STORAGE_KEY, String(open));
+  } catch {
+    // Some privacy modes block local storage. The accordion still works for this visit.
+  }
+}
 
 function sourceLabel(source: RewardSummary['recentGrants'][number]['source']) {
   switch (source) {
@@ -85,6 +108,7 @@ export default function Rewards() {
   const [loading, setLoading] = useState(true);
   const [promoSaving, setPromoSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [benefitsOpen, setBenefitsOpen] = useState(readBenefitsOpenPreference);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,6 +153,12 @@ export default function Rewards() {
     }
   };
 
+  const handleBenefitsOpenChange = (value: string) => {
+    const open = value === 'benefits';
+    setBenefitsOpen(open);
+    saveBenefitsOpenPreference(open);
+  };
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 border-b border-border bg-card/90 px-4 py-4 backdrop-blur">
@@ -143,23 +173,35 @@ export default function Rewards() {
       </header>
 
       <main className="mx-auto max-w-2xl space-y-5 p-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              What <CruushPlusWord /> unlocks
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul aria-label="cruush+ features" className="grid gap-3 sm:grid-cols-2">
-              {CRUUSH_PLUS_FEATURES.map((feature) => (
-                <li className="rounded-xl border border-border bg-muted/30 p-3" key={feature.title}>
-                  <p className="font-medium">{feature.title}</p>
-                  <p className="mt-1 text-sm leading-5 text-muted-foreground">{feature.description}</p>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
+        <Card className="gap-0">
+          <Accordion
+            collapsible
+            type="single"
+            value={benefitsOpen ? 'benefits' : ''}
+            onValueChange={handleBenefitsOpenChange}
+          >
+            <AccordionItem className="border-0" value="benefits">
+              <AccordionTrigger
+                aria-label={benefitsOpen ? 'Hide cruush+ benefits' : 'Show cruush+ benefits'}
+                className="px-6 py-5 text-base hover:no-underline"
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <span>What <CruushPlusWord /> unlocks</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <ul aria-label="cruush+ features" className="grid gap-3 sm:grid-cols-2">
+                  {CRUUSH_PLUS_FEATURES.map((feature) => (
+                    <li className="rounded-xl border border-border bg-muted/30 p-3" key={feature.title}>
+                      <p className="font-medium">{feature.title}</p>
+                      <p className="mt-1 text-sm leading-5 text-muted-foreground">{feature.description}</p>
+                    </li>
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </Card>
 
         {loading ? (

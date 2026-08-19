@@ -29,18 +29,20 @@ export default function SupportPage({ appealOnly = false, publicAccess = false }
         <h2 className="text-xl">Support</h2>
       </header>
 
-      <main className="max-w-2xl mx-auto p-6 space-y-4">
-        <SupportRequestForm
-          appealMode={appealMode}
-          requireContactEmail={appealMode || publicAccess}
-          source={appealMode || publicAccess ? 'auth' : 'settings'}
-        />
-        {!appealMode ? (
-          <p className="text-sm text-muted-foreground">
-            Need to appeal an age-related suspension? <a className="underline" href="/support?appeal=1">Submit an appeal</a>.
-          </p>
-        ) : null}
-        <PublicPolicyLinks />
+      <main className="w-full p-6">
+        <div className="mx-auto max-w-2xl space-y-4">
+          <SupportRequestForm
+            appealMode={appealMode}
+            requireContactEmail={appealMode || publicAccess}
+            source={appealMode || publicAccess ? 'auth' : 'settings'}
+          />
+          {!appealMode ? (
+            <p className="text-sm text-muted-foreground">
+              Need to appeal an age-related suspension? <a className="underline" href="/support?appeal=1">Submit an appeal</a>.
+            </p>
+          ) : null}
+        </div>
+        <PublicPolicyLinks className="mt-4 w-full" />
       </main>
     </div>
   );

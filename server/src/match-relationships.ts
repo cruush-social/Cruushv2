@@ -434,17 +434,29 @@ export async function ensureMutualCruushMatch(app: FastifyInstance, firstUserId:
   };
 }
 
-export async function revokeMutualCruushMatch(app: FastifyInstance, userId: string, otherUserId: string) {
+export async function revokeOutgoingCruush(app: FastifyInstance, userId: string, otherUserId: string) {
+  const outgoingCruush = await findEncryptedRelationshipRecord(app, {
+    type: "cruush",
+    actorUserId: userId,
+    targetUserId: otherUserId
+  });
   const [userOneId, userTwoId] = getOrderedMatchUserIds(userId, otherUserId);
   const activeMatch = await findEncryptedRelationshipRecord(app, {
     type: "mutual_cruush",
     actorUserId: userOneId,
     targetUserId: userTwoId
   });
+  const revokedAt = new Date();
+
+  if (outgoingCruush) {
+    await updateEncryptedRelationshipRecordStatus(app, outgoingCruush, "removed", {
+      revokedAt
+    });
+  }
 
   if (activeMatch) {
     await updateEncryptedRelationshipRecordStatus(app, activeMatch, "removed", {
-      revokedAt: new Date()
+      revokedAt
     });
     await revokeEncryptedRelationshipTokens(app, activeMatch.id);
   }
@@ -454,9 +466,18 @@ export async function revokeMutualCruushMatch(app: FastifyInstance, userId: stri
     status: "removed",
     actorUserId: userId,
     targetUserId: otherUserId,
-    createdAt: new Date(),
-    revokedAt: new Date()
+    createdAt: revokedAt,
+    revokedAt
   }));
+
+  return {
+    outgoingCruushId: outgoingCruush?.id ?? null,
+    matchId: activeMatch?.id ?? null
+  };
+}
+
+export async function revokeMutualCruushMatch(app: FastifyInstance, userId: string, otherUserId: string) {
+  return revokeOutgoingCruush(app, userId, otherUserId);
 }
 
 export async function getRelationshipPermissions(

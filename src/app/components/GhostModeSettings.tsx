@@ -223,7 +223,11 @@ export default function GhostModeSettings() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex items-center gap-3">
-          <CruushIcon name="ghost" variant={privacySettings.ghostModeEnabled ? 'colored' : 'white'} className="h-7 w-7" />
+          <CruushIcon
+            name="ghost"
+            variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : privacySettings.ghostModeEnabled ? 'colored' : 'white'}
+            className="h-7 w-7"
+          />
           <div>
             <h2 className="text-xl">Ghost Mode</h2>
             <p className="text-xs text-muted-foreground">Shifting public map location</p>
@@ -270,7 +274,7 @@ export default function GhostModeSettings() {
           <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-start gap-3">
-                <CruushIcon name="ghost" variant={privacySettings.baseMode === 'STEALTH' ? 'colored' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
+                <CruushIcon name="ghost" variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : 'white'} className="mt-1 h-5 w-5 opacity-80" />
                 <div>
                   <p>Stealth Mode</p>
                   <p className="text-sm text-muted-foreground">Browse the map without appearing on it.</p>

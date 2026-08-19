@@ -510,6 +510,9 @@ async function expectTopActionSizing(
       expect(overlaps, `${firstBox.label} overlaps ${secondBox.label}`).toBe(false);
     }
   }
+  const bugButtonBox = controlBoxes.find(({ label }) => label === 'Report alpha bug');
+  expect(bugButtonBox).toBeDefined();
+  expect(bugButtonBox!.height).toBe(cruushPlusBox!.height);
 }
 
 async function expectSeekingTopSpacing(page: Page) {
@@ -604,10 +607,16 @@ test('uses a pink-forward cruush gradient only while the profile nav icon is act
   const activeIcon = page.getByTestId('bottom-nav-profile-icon');
   await expect(profileButton).toHaveAttribute('aria-current', 'page');
   await expect(activeIcon).toHaveAttribute('data-tone', 'gradient');
-  await expect(activeIcon).toHaveAttribute(
-    'style',
-    /linear-gradient\(90deg, rgb\(255, 0, 114\) 0%, rgb\(255, 0, 114\) 10%, rgb\(208, 0, 255\) 28%, rgb\(111, 0, 255\) 50%, rgb\(0, 75, 255\) 80%, rgb\(3, 236, 252\) 100%\)/,
-  );
+  const sharedCruushGradient = await page.evaluate(() => {
+    const probe = document.createElement('span');
+    probe.style.backgroundImage = 'var(--cruush-gradient)';
+    document.body.appendChild(probe);
+    const backgroundImage = window.getComputedStyle(probe).backgroundImage;
+    probe.remove();
+    return backgroundImage;
+  });
+  expect(sharedCruushGradient).toContain('rgb(255, 0, 114)');
+  await expect(activeIcon).toHaveCSS('background-image', sharedCruushGradient);
   await expect(activeIcon).toHaveCSS('width', '44px');
   await expect(activeIcon).toHaveCSS('height', '44px');
 
@@ -727,6 +736,7 @@ test('short tap opens the profile and press-and-hold reveals the signal', async 
   });
   await page.waitForTimeout(500);
   await expect(marker).toHaveAttribute('aria-pressed', 'true');
+  await expect(marker).toHaveCSS('z-index', '110');
   await expect(page.getByTestId('marker-heart-layer-nearby-ghost-no-photo')).toHaveClass(/scale-120/);
   await expect(page.getByTestId('marker-signal-stack-nearby-ghost-no-photo')).toHaveClass(/opacity-100/);
   await cdp.send('Input.dispatchTouchEvent', {
@@ -787,6 +797,7 @@ test('resumes the map tutorial after Ghost and Feed route actions', async ({ pag
   await page.getByRole('button', { name: 'Map', exact: true }).tap();
   await expect(tutorial.getByRole('heading', { name: 'Ghost Mode' })).toBeVisible();
 
+  await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();
   await page.getByTestId('tutorial-next').tap();

@@ -32,6 +32,20 @@ export function notifyMutualCruushRevokeError(error: unknown) {
   toast.error(error instanceof Error ? error.message : 'Failed to remove mutual cruush.');
 }
 
+export function handleSentCruushRevokeSuccess(targetUserId: string, displayName: string) {
+  emitCruushChanged({
+    targetUserId,
+    mutual: false,
+    revoked: true,
+  });
+
+  toast.success(`Unsent your cruush to ${displayName}.`);
+}
+
+export function notifySentCruushRevokeError(error: unknown) {
+  toast.error(error instanceof Error ? error.message : 'Failed to unsend cruush.');
+}
+
 export function notifyMutualCruushRequired() {
   toast.info('You can message after a mutual cruush.');
 }

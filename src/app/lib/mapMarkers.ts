@@ -17,6 +17,8 @@ export type MapMarker = {
   photo?: string | null;
   photoExplicit?: boolean;
   isCurrentUser?: boolean;
+  // Local UI state for the signed-in user's marker. Never populate from discovery data.
+  ownerStealthActive?: boolean;
   displayMode?: 'PRECISE' | 'GHOST';
   privacyRadiusMeters?: number;
   npcGhostDemo?: boolean;

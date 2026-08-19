@@ -220,7 +220,9 @@ describe('Settings', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Version 1.4')).toBeInTheDocument();
+    const version = await screen.findByText('Version 1.4');
+    const openBeta = screen.getByText('OPEN BETA');
+    expect(version.parentElement).toContainElement(openBeta);
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).toHaveAttribute('alt', 'cruush');
     expect(screen.queryByRole('button', { name: 'Terms' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Privacy' })).not.toBeInTheDocument();

@@ -11,11 +11,18 @@ import { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { getMyCruushActivity, sendCruush, type CruushActivity, type CruushLockableActivityItem, type MutualCruushActivityItem, type ProfileViewActivityItem } from '../lib/cruushApi';
+import { getMyCruushActivity, revokeMutualCruush, revokeSentCruush, sendCruush, type CruushActivity, type CruushLockableActivityItem, type MutualCruushActivityItem, type ProfileViewActivityItem } from '../lib/cruushApi';
 import { DEBUG_CRUUSH_PLUS_EVENT } from '../lib/debugApi';
 import { CRUUSH_PLUS_CHANGED_EVENT } from '../lib/billingApi';
 import { addCruushChangedListener } from '../lib/cruushEvents';
-import { handleCruushSendSuccess, notifyCruushSendError } from '../lib/cruushNotifications';
+import {
+  handleCruushSendSuccess,
+  handleMutualCruushRevokeSuccess,
+  handleSentCruushRevokeSuccess,
+  notifyCruushSendError,
+  notifyMutualCruushRevokeError,
+  notifySentCruushRevokeError,
+} from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
@@ -196,39 +203,58 @@ function IncomingRow({
   );
 }
 
-function SentRow({ item, onOpenProfile }: { item: CruushLockableActivityItem; onOpenProfile: (userId: string) => void }) {
+function SentRow({
+  item,
+  pendingRevoke,
+  onOpenProfile,
+  onRevoke,
+}: {
+  item: CruushLockableActivityItem;
+  pendingRevoke: boolean;
+  onOpenProfile: (userId: string) => void;
+  onRevoke: (item: CruushLockableActivityItem) => void;
+}) {
   const dlModeActive = useDlMode();
   if (!item.user) {
     return null;
   }
 
   return (
-    <button
-      type="button"
-      className="flex w-full items-center gap-4 border-b border-white/8 py-3 text-left last:border-b-0"
-      onClick={() => onOpenProfile(item.user!.id)}
-    >
-      <HeartPhoto
-        className={activityHeartClassName}
-        label={`${item.user.name} preview`}
-        masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
-        photo={item.user.photo}
-        userId={item.user.id}
-        theme={item.mutual ? 'mutual' : 'nearby'}
-        fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-25" />}
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate text-base text-white">{item.user.name}</p>
-          <CruushBadge badges={item.user.badges} compact />
-          <ActivityBadge>{item.mutual ? 'Mutual' : 'Pending'}</ActivityBadge>
+    <div className="flex w-full items-center gap-3 border-b border-white/8 py-3 last:border-b-0">
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 items-center gap-4 text-left"
+        onClick={() => onOpenProfile(item.user!.id)}
+      >
+        <HeartPhoto
+          className={activityHeartClassName}
+          label={`${item.user.name} preview`}
+          masked={shouldMaskPhoto(dlModeActive, item.user.photoExplicit)}
+          photo={item.user.photo}
+          userId={item.user.id}
+          theme={item.mutual ? 'mutual' : 'nearby'}
+          fallback={<CruushIcon name="cruush" className="h-6 w-6 opacity-25" />}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+            <p className="min-w-0 truncate text-base text-white">{item.user.name}</p>
+            <CruushBadge badges={item.user.badges} compact />
+            <ActivityBadge>{item.mutual ? 'Mutual' : 'Pending'}</ActivityBadge>
+          </div>
+          <p className="mt-1 truncate text-sm text-white/62">{item.user.pronouns || 'Ask me'} - {formatRelativeTime(item.createdAt)}</p>
         </div>
-        <p className="mt-1 text-sm text-white/62">{item.user.pronouns || 'Ask me'} - {formatRelativeTime(item.createdAt)}</p>
-      </div>
-      <span className="rounded-lg border border-primary/35 px-3 py-1 text-sm text-primary">
-        {item.mutual ? 'mutual' : 'pending'}
-      </span>
-    </button>
+      </button>
+      <Button
+        type="button"
+        variant="secondary"
+        className="h-10 shrink-0 rounded-lg border border-[#FF0072]/35 bg-[#FF0072]/10 px-3 text-xs text-[#FF8BBB] hover:bg-[#FF0072]/16"
+        aria-label={pendingRevoke ? (item.mutual ? `Removing mutual cruush with ${item.user.name}` : `Unsending cruush to ${item.user.name}`) : item.mutual ? `Remove mutual cruush with ${item.user.name}` : `Unsend cruush to ${item.user.name}`}
+        disabled={pendingRevoke}
+        onClick={() => onRevoke(item)}
+      >
+        {pendingRevoke ? (item.mutual ? 'removing...' : 'unsending...') : item.mutual ? 'remove' : 'unsend'}
+      </Button>
+    </div>
   );
 }
 
@@ -345,6 +371,7 @@ export default function CruushActivity() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingCruushUserIds, setPendingCruushUserIds] = useState<Set<string>>(() => new Set());
+  const [pendingRevokeUserIds, setPendingRevokeUserIds] = useState<Set<string>>(() => new Set());
   const [composeChooserOpen, setComposeChooserOpen] = useState(false);
   const [directComposerOpen, setDirectComposerOpen] = useState(false);
 
@@ -409,6 +436,52 @@ export default function CruushActivity() {
       setPendingCruushUserIds((current) => {
         const next = new Set(current);
         next.delete(item.user!.id);
+        return next;
+      });
+    }
+  };
+
+  const handleRevokeSent = async (item: CruushLockableActivityItem) => {
+    if (!item.user || pendingRevokeUserIds.has(item.user.id)) {
+      return;
+    }
+
+    const targetUser = item.user;
+    const mutual = item.mutual === true;
+    setPendingRevokeUserIds((current) => new Set(current).add(targetUser.id));
+    try {
+      if (mutual) {
+        await revokeMutualCruush(targetUser.id);
+      } else {
+        await revokeSentCruush(targetUser.id);
+      }
+      setActivity((current) => current ? {
+        ...current,
+        counts: {
+          ...current.counts,
+          sent: Math.max(0, current.counts.sent - 1),
+          mutual: mutual ? Math.max(0, current.counts.mutual - 1) : current.counts.mutual,
+        },
+        sent: current.sent.filter((sentItem) => sentItem.id !== item.id),
+        mutual: mutual ? current.mutual.filter((mutualItem) => mutualItem.user.id !== targetUser.id) : current.mutual,
+      } : current);
+      if (mutual) {
+        handleMutualCruushRevokeSuccess(targetUser.id, targetUser.name);
+      } else {
+        handleSentCruushRevokeSuccess(targetUser.id, targetUser.name);
+      }
+    } catch (revokeError) {
+      console.error('Error revoking cruush:', revokeError);
+      if (mutual) {
+        notifyMutualCruushRevokeError(revokeError);
+      } else {
+        notifySentCruushRevokeError(revokeError);
+      }
+      setError(revokeError instanceof Error ? revokeError.message : 'Failed to unsend cruush.');
+    } finally {
+      setPendingRevokeUserIds((current) => {
+        const next = new Set(current);
+        next.delete(targetUser.id);
         return next;
       });
     }
@@ -538,7 +611,13 @@ export default function CruushActivity() {
                   <TabsContent value="sent" className="mt-0">
                     <ActivitySurface empty={activity.sent.length === 0} emptyText="No sent cruushes yet.">
                       {activity.sent.map((item) => (
-                        <SentRow key={item.id} item={item} onOpenProfile={openProfile} />
+                        <SentRow
+                          key={item.id}
+                          item={item}
+                          pendingRevoke={Boolean(item.user && pendingRevokeUserIds.has(item.user.id))}
+                          onOpenProfile={openProfile}
+                          onRevoke={handleRevokeSent}
+                        />
                       ))}
                     </ActivitySurface>
                   </TabsContent>

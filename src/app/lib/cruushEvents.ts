@@ -5,6 +5,7 @@ export const CRUUSH_CHANGED_EVENT = 'cruush:changed';
 export type CruushChangedPayload = {
   targetUserId: string;
   mutual: boolean;
+  revoked?: boolean;
   permissions?: CruushRecord['permissions'];
 };
 

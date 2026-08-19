@@ -70,7 +70,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'ping',
     title: 'Ping',
-    description: 'Ping briefly marks your heart as active on the map and shares your signal as a normal feed post.',
+    description: 'Ping is directly below Visibility. It briefly marks your heart as active on the map and shares your signal as a normal feed post.',
     actionLabel: 'Open Ping',
   },
   {

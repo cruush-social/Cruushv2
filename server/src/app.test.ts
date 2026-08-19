@@ -11419,6 +11419,105 @@ describe("server", () => {
     });
   });
 
+  it("unsends an outgoing cruush without touching a reciprocal cruush", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const outgoingCruush = await encryptedRelationshipRecordRow({
+      id: "outgoing-cruush",
+      type: "cruush",
+      actorUserId: userId,
+      targetUserId: otherUserId
+    });
+
+    query
+      .mockResolvedValueOnce({ rows: [outgoingCruush] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "removed-cruush" }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/cruush/${otherUserId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const relationshipUpdates = query.mock.calls.filter(([sql]) =>
+      String(sql).includes("update encrypted_relationship_records")
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        revoked: true,
+        mutualRevoked: false
+      }
+    });
+    expect(relationshipUpdates).toHaveLength(1);
+    expect(relationshipUpdates[0]?.[1]?.[0]).toBe("outgoing-cruush");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into encrypted_relationship_records");
+    expect(query.mock.calls[4]?.[0]).toContain("delete from app_notifications");
+    expect(query.mock.calls[4]?.[1]?.[1]).toEqual([
+      `incoming-cruush:outgoing-cruush:${otherUserId}`
+    ]);
+  });
+
+  it("unsends a mutual cruush while preserving the other user's outgoing cruush", async () => {
+    const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
+    const outgoingCruush = await encryptedRelationshipRecordRow({
+      id: "outgoing-mutual-cruush",
+      type: "cruush",
+      actorUserId: userId,
+      targetUserId: otherUserId
+    });
+    const matchRecord = await encryptedRelationshipRecordRow({
+      id: "mutual-match",
+      type: "mutual_cruush",
+      actorUserId: userId,
+      targetUserId: otherUserId
+    });
+
+    query
+      .mockResolvedValueOnce({ rows: [outgoingCruush] })
+      .mockResolvedValueOnce({ rows: [matchRecord] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: "removed-mutual-cruush" }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/api/cruush/${otherUserId}`,
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const relationshipUpdates = query.mock.calls.filter(([sql]) =>
+      String(sql).includes("update encrypted_relationship_records")
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        revoked: true,
+        mutualRevoked: true
+      }
+    });
+    expect(relationshipUpdates.map((call) => call[1]?.[0])).toEqual([
+      "outgoing-mutual-cruush",
+      "mutual-match"
+    ]);
+    expect(relationshipUpdates.map((call) => call[1]?.[0])).not.toContain("reciprocal-cruush");
+    expect(query.mock.calls[4]?.[0]).toContain("update encrypted_relationship_tokens");
+    expect(query.mock.calls[6]?.[0]).toContain("delete from app_notifications");
+    expect(query.mock.calls[6]?.[1]?.[1]).toEqual([
+      `incoming-cruush:outgoing-mutual-cruush:${otherUserId}`,
+      `mutual-cruush:mutual-match:${userId}`,
+      `mutual-cruush:mutual-match:${otherUserId}`
+    ]);
+  });
+
   it("blocks cruush creation when either user blocked the other", async () => {
     const otherUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
     query

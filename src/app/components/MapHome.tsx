@@ -57,8 +57,6 @@ import { canUseDeveloperMapToolsEmail } from '../lib/developerMapTools';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 import { createMapMarkerBadge, type CruushMapInstance, type MapMarker } from '../lib/mapMarkers';
 import cruushIconWhite from '../assets/ui-icons/cruush-white.png';
-import ghostIconColored from '../assets/ui-icons/ghost-colored.svg';
-import ghostIconWhite from '../assets/ui-icons/ghost-white.svg';
 import crowdIconColored from '../assets/ui-icons/crowds-colored.svg';
 import crowdIconWhite from '../assets/ui-icons/crowds-white.svg';
 import luckyIconWhite from '../assets/ui-icons/lucky-white.png';
@@ -520,7 +518,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [luckySlot, setLuckySlot] = useState<LuckySlotState | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(() => !isMobile);
+  const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(true);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
   const [visibility, setVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
@@ -1799,6 +1797,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       photo: currentProfile?.photos[0] ?? null,
       photoExplicit: currentProfile?.photo_metadata?.[0]?.explicit === true,
       isCurrentUser: true,
+      ownerStealthActive: privacySettings.baseMode === 'STEALTH',
       badge: createMapMarkerBadge(currentProfile?.position ?? []),
       displayMode: 'PRECISE',
       privacyRadiusMeters: privacySettings.ghostRadiusMeters,
@@ -1988,22 +1987,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 onClick={() => navigate('/rewards')}
                 aria-label="cruush+ rewards"
                 title="cruush+ rewards"
-                className="cruush-plus-shimmer-button cruush-logo-font pointer-events-auto h-9 rounded-full px-3 text-base font-normal leading-none tracking-normal normal-case text-white sm:h-10 sm:px-3.5 sm:text-lg lg:h-11 lg:px-4 lg:text-xl"
+                className="cruush-plus-shimmer-button cruush-logo-font pointer-events-auto h-9 rounded-full px-3 text-base font-normal leading-none tracking-normal normal-case text-white max-[340px]:px-2 max-[340px]:text-sm sm:h-10 sm:px-3.5 sm:text-lg lg:h-11 lg:px-4 lg:text-xl"
                 style={{ background: 'var(--cruush-gradient)' }}
               >
                 <CruushPlusWord />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMapPingSheetOpen(true)}
-                data-testid="map-ping-button"
-                data-tutorial-target="ping"
-                aria-label="Send a Ping"
-                title="Send a Ping"
-                className="absolute left-1/2 top-full mt-3.5 size-8 -translate-x-1/2 rounded-full border border-[#c8ff31]/45 bg-background/45 text-[#c8ff31] backdrop-blur-md hover:bg-[#c8ff31]/15 sm:mt-5 sm:size-9 lg:mt-4 lg:size-11"
-              >
-                <Radio aria-hidden="true" className="h-5 w-5 lg:h-7 lg:w-7" />
               </Button>
             </div>
             <Button
@@ -2025,7 +2012,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
               title="Ghost Mode Settings"
               className="size-9 rounded-full text-white/90 hover:bg-white/10 sm:size-10 lg:size-11"
             >
-              <CruushIconImage src={privacySettings.ghostModeEnabled ? ghostIconColored : ghostIconWhite} className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6 lg:h-7 lg:w-7" />
+              <CruushIcon
+                name="ghost"
+                variant={privacySettings.baseMode === 'STEALTH' ? 'stealth' : privacySettings.ghostModeEnabled ? 'colored' : 'white'}
+                className="h-[1.375rem] w-[1.375rem] sm:h-6 sm:w-6 lg:h-7 lg:w-7"
+              />
             </Button>
             <Button
               variant="ghost"
@@ -2410,6 +2401,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
             VISIBILITY
           </Button>
 
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMapPingSheetOpen(true)}
+            data-testid="map-ping-button"
+            data-tutorial-target="ping"
+            aria-label="Send a Ping"
+            title="Send a Ping"
+            className="size-8 shrink-0 rounded-full border border-[#c8ff31]/45 bg-background/45 text-[#c8ff31] backdrop-blur-md hover:bg-[#c8ff31]/15 sm:size-9 lg:size-11"
+          >
+            <Radio aria-hidden="true" className="h-5 w-5 lg:h-7 lg:w-7" />
+          </Button>
+
           <div
             className="flex flex-col gap-2"
             data-testid="map-zoom-controls"
@@ -2458,7 +2462,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           <div
             className={`pointer-events-none absolute ${
               isMobile
-                ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
+                ? 'bottom-[calc(6.5rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
                 : shouldAlignRecentlyActiveWithPreview
                 ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-[calc(23rem+1.5rem)] right-4 z-30 pl-2 pr-0'
                 : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-4 z-30 pl-4 pr-0'

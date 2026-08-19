@@ -91,6 +91,23 @@ export type EmailAttachment = {
   filename: string;
 };
 
+type ResendTemplate = {
+  id: string;
+  variables: Record<string, string | number>;
+};
+
+type ResendEmailContent =
+  | {
+      html: string;
+      template?: never;
+      text: string;
+    }
+  | {
+      html?: never;
+      template: ResendTemplate;
+      text?: never;
+    };
+
 type EventPassEmailInput = {
   attachment: EmailAttachment;
   config: AppConfig;
@@ -104,6 +121,8 @@ type EventPassEmailInput = {
 };
 
 const CRUUSH_EMAIL_LOGO_URL = "https://cdn.resend.app/ff1dfa96-8b85-4552-8e56-d09cf53fb13e";
+const VERIFICATION_EMAIL_TEMPLATE_ID = "0dc8f32c-76e2-45b2-aaf7-f4649ab48ab0";
+const PASSWORD_RESET_EMAIL_TEMPLATE_ID = "c4c95694-b788-4862-804d-e0fb146304c3";
 const REPORTS_INBOX_EMAIL = "reports@cruush.app";
 
 function escapeHtml(value: string) {
@@ -298,14 +317,15 @@ async function sendResendEmail(input: {
   attachments?: EmailAttachment[];
   config: AppConfig;
   email: string;
-  html: string;
   logger: FastifyBaseLogger;
   replyTo?: string | null;
   subject: string;
-  text: string;
   failureMessage: string;
-}) {
-  const { attachments, config, email, failureMessage, html, logger, replyTo, subject, text } = input;
+} & ResendEmailContent) {
+  const { attachments, config, email, failureMessage, logger, replyTo, subject } = input;
+  const content = input.template
+    ? { template: input.template }
+    : { html: input.html, text: input.text };
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -317,8 +337,7 @@ async function sendResendEmail(input: {
       from: config.MAIL_FROM,
       to: [email],
       subject,
-      html,
-      text,
+      ...content,
       ...(attachments && attachments.length > 0 ? { attachments } : {}),
       ...(replyTo ? { reply_to: replyTo } : {})
     })
@@ -382,8 +401,12 @@ export async function sendVerificationEmail(input: VerificationEmailInput): Prom
       email,
       logger,
       subject: "Verify your cruush email",
-      html: buildVerificationEmailHtml(escapedVerificationUrl),
-      text: `Verify your email for cruush within 24 hours: ${verificationUrl}\n\nIf you did not create a cruush account, you can ignore this email.`,
+      template: {
+        id: VERIFICATION_EMAIL_TEMPLATE_ID,
+        variables: {
+          VERIFICATION_URL: escapedVerificationUrl
+        }
+      },
       failureMessage: "verification email delivery failed"
     });
 
@@ -414,8 +437,12 @@ export async function sendPasswordResetEmail(input: PasswordResetEmailInput): Pr
       email,
       logger,
       subject: "Reset your cruush password",
-      html: `<p>Reset your cruush password.</p><p><a href="${escapedResetUrl}">Reset password</a></p><p>This link expires soon. If you did not request it, ignore this email.</p>`,
-      text: `Reset your cruush password: ${resetUrl}`,
+      template: {
+        id: PASSWORD_RESET_EMAIL_TEMPLATE_ID,
+        variables: {
+          RESET_URL: escapedResetUrl
+        }
+      },
       failureMessage: "password reset email delivery failed"
     });
 

@@ -237,7 +237,7 @@ describe('MapControlsTutorial', () => {
 
     fireEvent.click(screen.getByTestId('tutorial-next'));
     expect(screen.getByRole('heading', { name: 'Ping' })).toBeInTheDocument();
-    expect(screen.getByText('Ping briefly marks your heart as active on the map and shares your signal as a normal feed post.')).toBeInTheDocument();
+    expect(screen.getByText('Ping is directly below Visibility. It briefly marks your heart as active on the map and shares your signal as a normal feed post.')).toBeInTheDocument();
     fireEvent.click(expectHighlightedAction('ping', 'Open Ping'));
     expect(onActivateStep).toHaveBeenLastCalledWith('ping');
     expect(screen.getByTestId('tutorial-spotlight')).toHaveAttribute('data-tutorial-step', 'ping');

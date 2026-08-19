@@ -69,6 +69,7 @@ function renderRewards() {
 
 describe('Rewards', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     Object.values(api).forEach((mock) => mock.mockReset());
     toastSuccess.mockReset();
     api.updateRewardTimezone.mockResolvedValue({ timezone: 'America/Chicago' });
@@ -124,16 +125,28 @@ describe('Rewards', () => {
     renderRewards();
     await screen.findByText('6-day streak');
 
+    const benefitsToggle = screen.getByRole('button', { name: 'Show cruush+ benefits' });
+    expect(benefitsToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('list', { name: 'cruush+ features' })).not.toBeInTheDocument();
+
+    fireEvent.click(benefitsToggle);
+
+    expect(screen.getByRole('button', { name: 'Hide cruush+ benefits' })).toHaveAttribute('aria-expanded', 'true');
+    expect(window.localStorage.getItem('cruush:rewards:benefits-open')).toBe('true');
     const featureList = screen.getByRole('list', { name: 'cruush+ features' });
     expect(within(featureList).getAllByRole('listitem')).toHaveLength(7);
     expect(within(featureList).getByText('See your full incoming cruush and profile-view lists.')).toBeInTheDocument();
     expect(within(featureList).getByText('Send up to 3 Pings every 24 hours, with 4 hours between sends.')).toBeInTheDocument();
-    expect(within(featureList).getByText('Create posts on the local feed. Free users can still read nearby posts.')).toBeInTheDocument();
+    expect(within(featureList).getByText('Create posts on the local feed. Basic users can still read nearby posts.')).toBeInTheDocument();
     expect(within(featureList).getByText('Spin through nearby profiles and browse again.')).toBeInTheDocument();
     expect(within(featureList).getByText('Use more than 3 seeking filter categories at once.')).toBeInTheDocument();
     expect(within(featureList).getByText('Use more than 3 hidden filters at once.')).toBeInTheDocument();
     expect(within(featureList).getByText('Browse the map without appearing on it.')).toBeInTheDocument();
     expect(within(featureList).queryByText(/precise sharing|saved visibility sets|founder/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide cruush+ benefits' }));
+    expect(window.localStorage.getItem('cruush:rewards:benefits-open')).toBe('false');
+    expect(screen.queryByRole('list', { name: 'cruush+ features' })).not.toBeInTheDocument();
   });
 
   it('renders a recoverable error state', async () => {
@@ -142,7 +155,7 @@ describe('Rewards', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Rewards are temporarily unavailable.');
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
-    expect(screen.getByRole('list', { name: 'cruush+ features' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show cruush+ benefits' })).toBeInTheDocument();
   });
 
   it('copies the referral link only after the backend summary confirms it', async () => {

@@ -3,8 +3,9 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileView from './ProfileView';
 
-const { revokeMutualCruush, sendCruush } = vi.hoisted(() => ({
+const { revokeMutualCruush, revokeSentCruush, sendCruush } = vi.hoisted(() => ({
   revokeMutualCruush: vi.fn(),
+  revokeSentCruush: vi.fn(),
   sendCruush: vi.fn(),
 }));
 
@@ -41,6 +42,7 @@ vi.mock('../lib/cruushApi', async () => {
   return {
     ...actual,
     revokeMutualCruush,
+    revokeSentCruush,
     sendCruush,
   };
 });
@@ -118,6 +120,7 @@ function createProfileFixture(overrides: Record<string, unknown> = {}) {
 describe('ProfileView', () => {
   beforeEach(() => {
     revokeMutualCruush.mockReset();
+    revokeSentCruush.mockReset();
     sendCruush.mockReset();
     getMyProfile.mockReset();
     getProfileById.mockReset();
@@ -128,6 +131,10 @@ describe('ProfileView', () => {
     toastInfo.mockReset();
 
     revokeMutualCruush.mockResolvedValue({ revoked: true });
+    revokeSentCruush.mockResolvedValue({
+      revoked: true,
+      mutualRevoked: false,
+    });
     getProfileById.mockResolvedValue(createProfileFixture());
     blockUser.mockResolvedValue({
       userId: 'user-1',
@@ -392,15 +399,23 @@ describe('ProfileView', () => {
       mutual: false,
     });
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'cruush sent' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'unsend cruush' })).toBeEnabled());
   });
 
-  it('shows a persisted sent state for outgoing non-mutual cruushes', async () => {
-    getProfileById.mockResolvedValue(createProfileFixture({
+  it('unsends a persisted outgoing non-mutual cruush', async () => {
+    getProfileById.mockResolvedValueOnce(createProfileFixture({
       viewer_relationship: {
         match_id: null,
         mutual_cruush: false,
         outgoing_cruush: true,
+        can_message: false,
+        can_reveal_precise_location: false,
+      },
+    })).mockResolvedValue(createProfileFixture({
+      viewer_relationship: {
+        match_id: null,
+        mutual_cruush: false,
+        outgoing_cruush: false,
         can_message: false,
         can_reveal_precise_location: false,
       },
@@ -414,15 +429,18 @@ describe('ProfileView', () => {
       </MemoryRouter>
     );
 
-    const cruushButton = await screen.findByRole('button', { name: 'cruush sent' });
+    const cruushButton = await screen.findByRole('button', { name: 'unsend cruush' });
 
-    expect(cruushButton).toBeDisabled();
-    expect(cruushButton).toHaveTextContent('sent');
+    expect(cruushButton).toBeEnabled();
+    expect(cruushButton).toHaveTextContent('unsend');
     expect(screen.queryByRole('button', { name: 'mutual cruush' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mutuals only' })).toBeDisabled();
 
     fireEvent.click(cruushButton);
+    await waitFor(() => expect(revokeSentCruush).toHaveBeenCalledWith('user-1'));
     expect(sendCruush).not.toHaveBeenCalled();
+    expect(toastSuccess).toHaveBeenCalledWith('Unsent your cruush to Jordan.');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'send cruush' })).toBeEnabled());
   });
 
   it('removes profile sharing and revokes an existing mutual by tapping', async () => {

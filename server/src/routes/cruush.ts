@@ -17,6 +17,7 @@ import {
   getEffectiveVisibilityPolicy,
   getPrivacySettings,
   getRelationshipPermissions,
+  revokeOutgoingCruush,
   revokeMutualCruushMatch
 } from "../match-relationships.js";
 import {
@@ -404,6 +405,40 @@ async function notifyCruushEvent(app: FastifyInstance, input: {
     });
   } catch (error) {
     app.log.warn({ err: error, userId: input.userId, type: input.type }, "cruush notification dispatch failed");
+  }
+}
+
+async function removeRevokedCruushNotifications(app: FastifyInstance, input: {
+  userId: string;
+  otherUserId: string;
+  outgoingCruushId: string | null;
+  matchId: string | null;
+}) {
+  const dedupeKeys = [
+    input.outgoingCruushId
+      ? `incoming-cruush:${input.outgoingCruushId}:${input.otherUserId}`
+      : null,
+    input.matchId
+      ? `mutual-cruush:${input.matchId}:${input.userId}`
+      : null,
+    input.matchId
+      ? `mutual-cruush:${input.matchId}:${input.otherUserId}`
+      : null
+  ].filter((value): value is string => Boolean(value));
+
+  if (dedupeKeys.length === 0) {
+    return;
+  }
+
+  try {
+    await app.db.query(
+      `delete from app_notifications
+       where user_id = any($1::uuid[])
+         and dedupe_key = any($2::text[])`,
+      [[input.userId, input.otherUserId], dedupeKeys]
+    );
+  } catch (error) {
+    app.log.warn({ err: error, userId: input.userId, otherUserId: input.otherUserId }, "revoked cruush notification cleanup failed");
   }
 }
 
@@ -1138,11 +1173,39 @@ export async function registerCruushRoutes(app: FastifyInstance) {
     const authenticatedUserId = await getActiveAccountUserId(request);
     const { otherUserId } = revokeMatchParamsSchema.parse(request.params);
 
-    await revokeMutualCruushMatch(app, authenticatedUserId, otherUserId);
+    const revoked = await revokeMutualCruushMatch(app, authenticatedUserId, otherUserId);
+    await removeRevokedCruushNotifications(app, {
+      userId: authenticatedUserId,
+      otherUserId,
+      ...revoked
+    });
 
     return reply.send({
       data: {
         revoked: true
+      }
+    });
+  });
+
+  app.delete("/api/cruush/:otherUserId", async (request, reply) => {
+    const authenticatedUserId = await getActiveAccountUserId(request);
+    const { otherUserId } = revokeMatchParamsSchema.parse(request.params);
+
+    if (otherUserId === authenticatedUserId) {
+      throw new ApiError(400, "VALIDATION_ERROR", "You cannot revoke a cruush to yourself.");
+    }
+
+    const revoked = await revokeOutgoingCruush(app, authenticatedUserId, otherUserId);
+    await removeRevokedCruushNotifications(app, {
+      userId: authenticatedUserId,
+      otherUserId,
+      ...revoked
+    });
+
+    return reply.send({
+      data: {
+        revoked: true,
+        mutualRevoked: Boolean(revoked.matchId)
       }
     });
   });

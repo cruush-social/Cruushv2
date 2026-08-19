@@ -127,6 +127,7 @@ const SPIDERFY_SECOND_RING_RADIUS_PX = 122;
 const SPIDERFY_SECOND_RING_AFTER = 10;
 const PERSON_CLUSTER_ZOOM_STEP = 1.5;
 const ACTIVE_PING_MARKER_Z_INDEX = 100;
+const SIGNAL_PREVIEW_MARKER_Z_INDEX = ACTIVE_PING_MARKER_Z_INDEX + 10;
 
 type MapLibreModule = typeof import('maplibre-gl');
 type MapLibreExport = MapLibreModule['default'];
@@ -888,6 +889,10 @@ function getMarkerBorderClass(marker: MapMarker, isCurrentUser: boolean) {
     return 'border-[#C8FF31]';
   }
 
+  if (isCurrentUser && marker.ownerStealthActive) {
+    return 'border-[#0BA8FF]';
+  }
+
   if ((isCurrentUser && marker.displayMode === 'GHOST') || marker.npcGhostDemo) {
     return 'border-[#0BA8FF]';
   }
@@ -977,10 +982,11 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
   const isMutualCruush = marker.relationship?.kind === 'mutual_cruush';
   const isNpcGhostDemo = marker.npcGhostDemo === true;
   const isOwnGhostMarker = isCurrentUser && marker.displayMode === 'GHOST';
+  const isOwnStealthMarker = isCurrentUser && marker.ownerStealthActive === true;
   const pingActive = Boolean(marker.activePing);
   const theme = isCurrentUser || isNpcGhostDemo ? 'current' : isMutualCruush ? 'mutual' : 'nearby';
   const markerTheme = HEART_PIN_THEMES[theme];
-  const borderColor = pingActive ? '#C8FF31' : isOwnGhostMarker || isNpcGhostDemo ? '#0BA8FF' : markerTheme.border;
+  const borderColor = pingActive ? '#C8FF31' : isOwnStealthMarker || isOwnGhostMarker || isNpcGhostDemo ? '#0BA8FF' : markerTheme.border;
   const gradientStops = isNpcGhostDemo
     ? HEART_PIN_THEMES.ghost.stops
     : hasPhoto || isCurrentUser
@@ -999,6 +1005,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       data-testid={`marker-heart-${marker.id}`}
       data-has-photo={hasPhoto ? 'true' : 'false'}
       data-marker-theme={isNpcGhostDemo ? 'npc-ghost-demo' : theme}
+      data-owner-stealth={isOwnStealthMarker ? 'true' : 'false'}
       height="80"
       viewBox="0 0 64 64"
       width="80"
@@ -1101,7 +1108,7 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
   const pingActive = Boolean(marker.activePing);
   const signalBorderClass = pingActive
     ? 'border-[#C8FF31]'
-    : (isCurrentUser && marker.displayMode === 'GHOST') || marker.npcGhostDemo
+    : (isCurrentUser && (marker.ownerStealthActive || marker.displayMode === 'GHOST')) || marker.npcGhostDemo
       ? 'border-[#0BA8FF]'
       : 'border-white/12';
 
@@ -1178,7 +1185,9 @@ function createMarkerElement(
   element.dataset.mapMarkerKind = marker.kind ?? 'person';
   element.dataset.activePing = marker.activePing ? 'true' : 'false';
   const root = createRoot(element);
+  const hasSignalPreview = Boolean(truncateMarkerPreview(marker.signal));
   let previewed = false;
+  let restingZIndex: string | null = null;
   let lastPointerType = '';
   let longPressTimer: number | null = null;
   let longPressTriggered = false;
@@ -1201,6 +1210,15 @@ function createMarkerElement(
 
     previewed = nextPreviewed;
     element.dataset.markerPreviewed = nextPreviewed ? 'true' : 'false';
+    if (hasSignalPreview) {
+      if (nextPreviewed) {
+        restingZIndex = element.style.zIndex;
+        element.style.zIndex = String(SIGNAL_PREVIEW_MARKER_Z_INDEX);
+      } else if (restingZIndex != null) {
+        element.style.zIndex = restingZIndex;
+        restingZIndex = null;
+      }
+    }
     if (element instanceof HTMLButtonElement && (marker.kind == null || marker.kind === 'person')) {
       element.setAttribute('aria-pressed', nextPreviewed ? 'true' : 'false');
     }
@@ -1209,6 +1227,7 @@ function createMarkerElement(
 
   if (!isInteractive) {
     element.setAttribute('aria-label', 'Your approximate area');
+    element.setAttribute('role', 'img');
   } else {
     const button = element as HTMLButtonElement;
     button.type = 'button';
@@ -1257,18 +1276,10 @@ function createMarkerElement(
         clearLongPressTimer();
       }
     });
-    button.addEventListener('pointerenter', (event) => {
-      const pointerEvent = event as PointerEvent;
-      if ((marker.kind == null || marker.kind === 'person') && pointerEvent.pointerType !== 'touch') {
-        onPinPreview(marker);
-      }
-    });
-    button.addEventListener('pointerleave', (event) => {
-      const pointerEvent = event as PointerEvent;
-      if ((marker.kind == null || marker.kind === 'person') && pointerEvent.pointerType !== 'touch') {
-        setPreviewed(false);
-      }
-    });
+    if (marker.kind == null || marker.kind === 'person') {
+      button.addEventListener('focus', () => onPinPreview(marker));
+      button.addEventListener('blur', () => setPreviewed(false));
+    }
     const finishPointerInteraction = () => {
       clearLongPressTimer();
       touchStartPoint = null;
@@ -1300,6 +1311,21 @@ function createMarkerElement(
         });
       }
       onPinClick(marker);
+    });
+  }
+
+  if (marker.kind == null || marker.kind === 'person') {
+    element.addEventListener('pointerenter', (event) => {
+      const pointerEvent = event as PointerEvent;
+      if (pointerEvent.pointerType !== 'touch') {
+        onPinPreview(marker);
+      }
+    });
+    element.addEventListener('pointerleave', (event) => {
+      const pointerEvent = event as PointerEvent;
+      if (pointerEvent.pointerType !== 'touch') {
+        setPreviewed(false);
+      }
     });
   }
 
