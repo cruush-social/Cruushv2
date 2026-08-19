@@ -465,7 +465,7 @@ describe('ModeratorReview', () => {
 
   it('loads the email inbox dashboard and lets moderators change request status', async () => {
     renderReview();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Email' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Surveys & support' }));
     expect(await screen.findByText('Messages are missing')).toBeInTheDocument();
     expect(screen.getByText('The chat screen is blank.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Status for Messages are missing'), { target: { value: 'closed' } });

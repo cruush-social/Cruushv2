@@ -778,7 +778,7 @@ export default function ModeratorReview() {
                 onClick={() => setView('email')}
               >
                 <Mail className="h-4 w-4" />
-                Email
+                Surveys & support
               </Button>
             </div>
             <Button
@@ -921,8 +921,8 @@ export default function ModeratorReview() {
             <div className="space-y-4 border-b border-border pb-4">
               <div className="flex items-end justify-between gap-3">
                 <div>
-                  <h2 id="email-heading" className="text-lg">Email inbox</h2>
-                  <p className="text-sm text-muted-foreground">{supportPageStart}-{supportPageEnd} of {supportPage.total}</p>
+                  <h2 id="email-heading" className="text-lg">Survey responses & support requests</h2>
+                  <p className="text-sm text-muted-foreground">{supportPageStart}-{supportPageEnd} of {supportPage.total} survey submissions, bug reports, and support tickets</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="outline" aria-label="Previous email page" disabled={supportOffset === 0} onClick={() => setSupportOffset(Math.max(0, supportOffset - PAGE_SIZE))}>
