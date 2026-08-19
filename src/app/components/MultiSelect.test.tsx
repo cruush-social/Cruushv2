@@ -89,7 +89,7 @@ describe('MultiSelect', () => {
     expect(onChange).toHaveBeenCalledWith(['Drag']);
   });
 
-  it('supports mobile category dropdown selection for grouped options', () => {
+  it('supports category tab selection for grouped options', () => {
     const onChange = vi.fn();
 
     render(
@@ -106,12 +106,11 @@ describe('MultiSelect', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Kinks & Fetishes' }));
 
-    const categorySelect = screen.getByRole('combobox', { name: 'Kinks & Fetishes category' });
-    expect(categorySelect).toBeInTheDocument();
-    expect(categorySelect).toHaveValue('Body & Touch');
+    expect(screen.getByRole('tab', { name: 'Body & Touch' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('option', { name: 'anal' })).toBeInTheDocument();
 
-    fireEvent.change(categorySelect, { target: { value: 'Power' } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Power' }));
+    expect(screen.getByRole('tab', { name: 'Power' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('option', { name: 'bondage' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('option', { name: 'bondage' }));

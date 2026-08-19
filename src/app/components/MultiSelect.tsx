@@ -251,31 +251,12 @@ export default function MultiSelect({
     <>
       {hasCategoryPicker ? (
         <div className="flex flex-col min-w-0 h-[18rem] max-h-[inherit] sm:grid sm:grid-cols-[11rem_minmax(0,1fr)] sm:h-full">
-          {/* Mobile Category Dropdown Selector */}
-          <div className="block sm:hidden border-b border-border bg-muted/40 p-2 shrink-0">
-            <select
-              aria-label={`${ariaLabel ?? 'Options'} category`}
-              value={activeGroupLabel}
-              onChange={(e) => setActiveGroupLabel(e.target.value)}
-              className="w-full h-9 rounded-md border border-input bg-input-background px-3 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              {groups.map((group) => {
-                const count = group.options.filter((opt) => selected.includes(opt)).length;
-                return (
-                  <option key={group.label} value={group.label}>
-                    {group.label} {count > 0 ? `(${count})` : ''}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {/* Desktop Category Sidebar */}
+          {/* Horizontal Category Tabstrip for Mobile, Vertical Sidebar for Desktop */}
           <div
             role="tablist"
             aria-label={`${ariaLabel ?? 'Options'} categories`}
-            className="hidden sm:flex scrollbar-subtle w-full min-w-0 max-w-full gap-1 p-2 sm:max-h-[inherit] sm:flex-col sm:overflow-y-auto sm:border-r border-border"
-            style={TOUCH_SCROLL_STYLE}
+            className="scrollbar-subtle flex w-full min-w-0 max-w-full gap-1 overflow-x-auto overscroll-x-contain border-b border-border p-2 shrink-0 sm:max-h-[inherit] sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
+            style={HORIZONTAL_TOUCH_SCROLL_STYLE}
           >
             {groups.map((group) => {
               const selectedCount = group.options.filter((option) => selected.includes(option)).length;
@@ -287,10 +268,14 @@ export default function MultiSelect({
                   type="button"
                   role="tab"
                   aria-selected={isActive}
-                  onClick={() => setActiveGroupLabel(group.label)}
-                  className={`flex shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors w-full ${
-                    isActive ? 'bg-accent font-medium text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                  onClick={(e) => {
+                    setActiveGroupLabel(group.label);
+                    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                  }}
+                  className={`flex shrink-0 whitespace-nowrap items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors sm:w-full sm:whitespace-normal ${
+                    isActive ? 'bg-accent font-medium text-accent-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                   }`}
+                  style={HORIZONTAL_TOUCH_SCROLL_STYLE}
                 >
                   <span>{group.label}</span>
                   {selectedCount > 0 ? (
