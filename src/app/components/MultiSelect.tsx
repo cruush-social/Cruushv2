@@ -265,7 +265,7 @@ export default function MultiSelect({
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setActiveGroupLabel(group.label)}
-                  className={`flex shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors sm:w-full ${
+                  className={`flex shrink-0 whitespace-nowrap items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors sm:w-full sm:whitespace-normal ${
                     isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                   }`}
                   style={HORIZONTAL_TOUCH_SCROLL_STYLE}
@@ -336,7 +336,7 @@ export default function MultiSelect({
           <div
             ref={portalMenuRef}
             className="overflow-hidden overscroll-contain rounded-md border border-border bg-popover shadow-lg"
-            style={{ ...portalStyle, touchAction: 'pan-y', pointerEvents: 'auto', zIndex: MENU_PORTAL_Z_INDEX + 1 }}
+            style={{ ...portalStyle, touchAction: 'pan-x pan-y', pointerEvents: 'auto', zIndex: MENU_PORTAL_Z_INDEX + 1 }}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onPointerDown={(event) => event.stopPropagation()}
