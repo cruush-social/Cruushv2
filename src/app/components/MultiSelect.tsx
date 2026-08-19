@@ -21,6 +21,10 @@ const TOUCH_SCROLL_STYLE: CSSProperties = {
   WebkitOverflowScrolling: 'touch',
   touchAction: 'pan-y',
 };
+const HORIZONTAL_TOUCH_SCROLL_STYLE: CSSProperties = {
+  WebkitOverflowScrolling: 'touch',
+  touchAction: 'pan-x pan-y',
+};
 
 type ResolvedMenuPlacement = 'bottom' | 'top';
 
@@ -243,11 +247,12 @@ export default function MultiSelect({
   const menuContent = (
     <>
       {hasCategoryPicker ? (
-        <div className="grid max-h-[inherit] grid-rows-[auto_minmax(0,1fr)] sm:grid-cols-[11rem_minmax(0,1fr)] sm:grid-rows-1">
+        <div className="grid min-w-0 max-h-[inherit] grid-rows-[auto_minmax(0,1fr)] sm:grid-cols-[11rem_minmax(0,1fr)] sm:grid-rows-1">
           <div
             role="tablist"
             aria-label={`${ariaLabel ?? 'Options'} categories`}
-            className="scrollbar-subtle flex gap-1 overflow-x-auto border-b border-border p-2 sm:max-h-[inherit] sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
+            className="scrollbar-subtle flex w-full min-w-0 max-w-full gap-1 overflow-x-auto overscroll-x-contain border-b border-border p-2 sm:max-h-[inherit] sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
+            style={HORIZONTAL_TOUCH_SCROLL_STYLE}
           >
             {groups.map((group) => {
               const selectedCount = group.options.filter((option) => selected.includes(option)).length;
