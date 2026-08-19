@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Bell, Download, Eye, EyeOff, Ghost, MapPin, Radio, Rss, SlidersHorizontal, Users, ZoomIn } from 'lucide-react';
 import { Button } from './ui/button';
 
 export const MAP_CONTROLS_TUTORIAL_STORAGE_KEY = 'cruush:tutorial-v4-seen';
@@ -91,6 +92,35 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     actionLabel: 'Open Feed',
   },
 ];
+
+function StepIcon({ id }: { id: MapControlsTutorialStepId }) {
+  switch (id) {
+    case 'install':
+      return <Download className="h-5 w-5 text-primary" />;
+    case 'notifications':
+      return <Bell className="h-5 w-5 text-primary" />;
+    case 'seeking':
+      return <SlidersHorizontal className="h-5 w-5 text-primary" />;
+    case 'visibility':
+      return <EyeOff className="h-5 w-5 text-primary" />;
+    case 'crowds':
+      return <Users className="h-5 w-5 text-primary" />;
+    case 'ghost':
+      return <Ghost className="h-5 w-5 text-primary animate-pulse" />;
+    case 'dl-mode':
+      return <Eye className="h-5 w-5 text-primary" />;
+    case 'ping':
+      return <Radio className="h-5 w-5 text-primary" />;
+    case 'profile-pin':
+      return <MapPin className="h-5 w-5 text-primary" />;
+    case 'zoom':
+      return <ZoomIn className="h-5 w-5 text-primary" />;
+    case 'feed':
+      return <Rss className="h-5 w-5 text-primary" />;
+    default:
+      return <Ghost className="h-5 w-5 text-primary" />;
+  }
+}
 
 export function getStoredMapControlsTutorialStep(): MapControlsTutorialStepId | null {
   if (typeof window === 'undefined') {
@@ -595,17 +625,19 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
             width="100%"
           />
           {targetRects.map((rect, index) => (
-            <rect
-              key={`${step.id}-ring-${index}`}
-              className="fill-none stroke-primary"
-              data-testid="tutorial-spotlight-ring"
-              height={rect.height + 16}
-              rx="12"
-              strokeWidth="2"
-              width={rect.width + 16}
-              x={rect.left - 8}
-              y={rect.top - 8}
-            />
+            <g key={`${step.id}-ring-group-${index}`}>
+              <rect
+                className="fill-none stroke-primary animate-pulse"
+                data-testid="tutorial-spotlight-ring"
+                height={rect.height + 16}
+                rx="12"
+                strokeWidth="3"
+                width={rect.width + 16}
+                x={rect.left - 8}
+                y={rect.top - 8}
+                style={{ filter: 'drop-shadow(0 0 12px rgba(255, 0, 114, 0.85))' }}
+              />
+            </g>
           ))}
         </svg>
       ) : null}
@@ -620,9 +652,20 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
         style={cardStyle}
       >
         <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/55">
-            Map tutorial · Step {stepIndex + 1} of {TUTORIAL_STEPS.length}
-          </p>
+          <div className="flex items-center gap-1.5" aria-label={`Step ${stepIndex + 1} of ${TUTORIAL_STEPS.length}`}>
+            {TUTORIAL_STEPS.map((s, idx) => (
+              <span
+                key={s.id}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  idx === stepIndex
+                    ? 'w-4 bg-primary shadow-[0_0_8px_rgba(255,0,114,0.8)]'
+                    : idx < stepIndex
+                    ? 'w-1.5 bg-white/60'
+                    : 'w-1.5 bg-white/20'
+                }`}
+              />
+            ))}
+          </div>
           <button
             type="button"
             className="text-xs text-white/60 underline-offset-4 hover:text-white hover:underline"
@@ -632,8 +675,20 @@ export default function MapControlsTutorial({ open, onComplete, onActivateStep, 
             Skip tutorial
           </button>
         </div>
-        <h2 className="text-xl font-medium">{step.title}</h2>
-        <p className="mt-2 text-sm leading-6 text-white/70">{step.description}</p>
+
+        <div className="mt-2 flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/20 text-primary shadow-[0_0_15px_rgba(255,0,114,0.35)]">
+            <StepIcon id={step.id} />
+          </div>
+          <div>
+            <h2 className="text-xl font-medium">{step.title}</h2>
+            <p className="text-[10px] uppercase tracking-[0.15em] text-white/50">
+              Map tutorial · Step {stepIndex + 1} of {TUTORIAL_STEPS.length}
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-3 text-sm leading-6 text-white/70">{step.description}</p>
         {actionError ? (
           <p className="mt-3 rounded-lg border border-destructive/35 bg-destructive/10 px-3 py-2 text-xs leading-5 text-destructive" role="alert">
             {actionError}
