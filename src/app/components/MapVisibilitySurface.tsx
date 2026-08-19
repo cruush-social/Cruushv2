@@ -176,13 +176,13 @@ export default function MapVisibilitySurface({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
-        <SheetHeader className="border-b border-white/10 px-5 py-4">
+      <SheetContent side="right" className="flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
+        <SheetHeader className="shrink-0 border-b border-white/10 px-5 py-4">
           <SheetTitle>Visibility</SheetTitle>
           <SheetDescription>Hide yourself from selected audiences. No hidden filters means everyone can see you.</SheetDescription>
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 overscroll-contain">
           {error ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               {error}

@@ -1,9 +1,7 @@
-import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router';
-import { CheckCircle2, MessageCircleWarning } from 'lucide-react';
+import { Bug, CheckCircle2 } from 'lucide-react';
 import { createSupportRequest } from '../lib/supportApi';
-import { getBugButtonSlot, subscribeToBugButtonSlot } from '../lib/bugButtonSlot';
 import { hasPersistentNoticeFlag, setPersistentNoticeFlag } from '../lib/persistentNotice';
 import { dismissUserNotice, getUserNoticeDismissal } from '../lib/userNoticesApi';
 import { Button } from './ui/button';
@@ -40,20 +38,9 @@ function getCurrentPageUrl() {
   return `${window.location.pathname}${window.location.search}` || '/';
 }
 
-function getBugButtonPlacement(pathname: string) {
-  if (pathname.startsWith('/chat/')) {
-    return 'right-4 bottom-[calc(19rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]';
-  }
-
-  return 'right-4 bottom-[calc(14rem+env(safe-area-inset-bottom))] sm:right-5 sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]';
-}
-
 function getBugTipPlacement(pathname: string) {
-  if (pathname === '/' || pathname === '/map') {
-    return 'right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(20.125rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))] fixed z-50';
-  }
-  if (pathname.startsWith('/chat/')) {
-    return 'right-4 bottom-[calc(22.25rem+env(safe-area-inset-bottom))] sm:right-28 sm:bottom-[calc(0.5rem+env(safe-area-inset-bottom))]';
+  if (pathname === '/map' || pathname.startsWith('/map/')) {
+    return 'left-4 top-[calc(20.125rem+env(safe-area-inset-top))] sm:top-[calc(9.25rem+env(safe-area-inset-top))] fixed z-50';
   }
 
   return 'right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(4.5rem+env(safe-area-inset-top))] fixed z-50';
@@ -182,9 +169,9 @@ export default function AlphaBugButton({
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState('');
   const [showTip, setShowTip] = useState(false);
   const pageUrl = useMemo(() => getCurrentPageUrl(), [open]);
-  const dockSlot = useSyncExternalStore(subscribeToBugButtonSlot, getBugButtonSlot, () => null);
 
   useEffect(() => {
     if (!enabled || typeof document === 'undefined') {
@@ -256,22 +243,25 @@ export default function AlphaBugButton({
 
     if (requireContactEmail && !trimmedContactEmail) {
       setError('Enter an email so support can reply.');
+      setErrorCode('');
       return;
     }
 
     if (message.trim().length < 10) {
       setError('Add a few more details before sending.');
+      setErrorCode('');
       return;
     }
 
     setStatus('submitting');
     setError('');
+    setErrorCode('');
 
     try {
       const screenshot = await captureBugScreenshot();
       await createSupportRequest({
         category: 'bug',
-        subject: `Bug report: ${pageUrl}`,
+        subject: `Alpha bug: ${pageUrl}`,
         message: message.trim(),
         ...(trimmedContactEmail ? { contactEmail: trimmedContactEmail } : {}),
         source: 'unknown',
@@ -283,6 +273,7 @@ export default function AlphaBugButton({
       setMessage('');
     } catch (bugError) {
       setError(bugError instanceof Error ? bugError.message : 'Unable to send this bug report.');
+      setErrorCode('BUG_REPORT_SUBMIT_FAILED');
       setStatus('idle');
     }
   };
@@ -290,15 +281,13 @@ export default function AlphaBugButton({
   const trigger = (
     <DialogTrigger asChild>
       <button
-        aria-label="Report bug"
+        aria-label="Report alpha bug"
         data-testid="alpha-bug-button"
-        className={dockSlot
-          ? 'inline-flex size-8 shrink-0 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:size-9'
-          : `cruush-glass-pill fixed z-50 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-background/88 text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary pointer-events-auto ${getBugButtonPlacement(location.pathname)}`}
-        title="Report bug"
+        className="fixed z-50 inline-flex h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))]"
+        title="Report a bug"
         type="button"
       >
-        <MessageCircleWarning className="h-5 w-5" />
+        <Bug className="h-5 w-5 lg:h-7 lg:w-7" />
       </button>
     </DialogTrigger>
   );
@@ -313,13 +302,14 @@ export default function AlphaBugButton({
         }
         if (!nextOpen) {
           setError('');
+          setErrorCode('');
           setStatus('idle');
         }
       }}
     >
-      {showTip && !dockSlot ? (
-        <div className={`cruush-glass-panel fixed z-50 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
-          <p className="leading-snug">Tap the bug icon to report anything broken.</p>
+      {showTip ? (
+        <div className={`fixed z-50 w-[min(18rem,calc(100vw-2rem))] rounded-md border border-primary/25 bg-background/95 p-3 text-center text-sm text-foreground shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md ${getBugTipPlacement(location.pathname)}`}>
+          <p className="leading-snug">Alpha test: tap the bug icon to report anything broken.</p>
           <button
             className="mt-2 text-xs font-semibold text-primary"
             onClick={dismissTip}
@@ -329,10 +319,10 @@ export default function AlphaBugButton({
           </button>
         </div>
       ) : null}
-      {dockSlot ? createPortal(trigger, dockSlot) : trigger}
+      {trigger}
       <DialogContent className="max-w-md rounded-lg border-white/10 bg-background">
         <DialogHeader>
-          <DialogTitle>Report bug</DialogTitle>
+          <DialogTitle>Report alpha bug</DialogTitle>
           <DialogDescription>
             This report includes the current page and attaches a screenshot when your browser allows it.
           </DialogDescription>
@@ -354,8 +344,9 @@ export default function AlphaBugButton({
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>
             {error ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
+              <div data-testid="bug-report-error" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                <p>{error}</p>
+                <p className="mt-1 font-mono text-xs">Error code: {errorCode || 'BUG_REPORT_SUBMIT_FAILED'}</p>
               </div>
             ) : null}
             {requireContactEmail ? (

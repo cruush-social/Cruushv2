@@ -1194,25 +1194,13 @@ export default function ProfileEdit({ embedded = false, onCancel, onSaved }: Pro
                 maxSelections={MAX_PROFILE_VIBES}
                 optionGroups={VIBE_GROUPS}
                 value={normalizedProfile.vibes}
-                onChange={(vals) => handleChange('vibes', limitToFive(vals))}
+                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
               />
             </div>
 
             <div className="space-y-2">
               <Label>Hobbies</Label>
               <MultiSelect {...profileMenuProps} maxSelections={MAX_PROFILE_HOBBIES} options={HOBBIES} value={normalizedProfile.hobbies} onChange={(vals) => handleChange('hobbies', limitToFive(vals))} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Vibes</Label>
-              <MultiSelect
-                {...profileMenuProps}
-                ariaLabel="Vibes"
-                maxSelections={MAX_PROFILE_VIBES}
-                optionGroups={VIBE_GROUPS}
-                value={normalizedProfile.vibes}
-                onChange={(vals) => handleChange('vibes', limitToThree(vals))}
-              />
             </div>
           </TabsContent>
 

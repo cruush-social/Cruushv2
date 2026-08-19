@@ -131,13 +131,13 @@ export default function MapFiltersSurface({
 }: MapFiltersSurfaceProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
-        <SheetHeader className="border-b border-white/10 px-5 py-4">
+      <SheetContent side="right" className="flex h-full max-h-[100dvh] flex-col gap-0 overflow-hidden border-white/10 bg-background/95 p-0 sm:max-w-xl">
+        <SheetHeader className="shrink-0 border-b border-white/10 px-5 py-4">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 overscroll-contain">
           {!hasCruushPlus && onUpgrade ? (
             <div className="mb-5">
               <CruushPlusGateNotice
