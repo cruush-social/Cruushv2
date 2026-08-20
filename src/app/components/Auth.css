@@ -2,13 +2,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  place-items: center;
+  /* The shell must own its own scrolling: it is pinned to the viewport and
+     start-justified so overflowing sign-up content lays out below the scroll
+     origin. With height: auto it grew with its content, the overflow landed in
+     #root, and the shell's own overscroll-behavior swallowed touch pans, which
+     made the sign-up page unscrollable on phones. The card's auto block
+     margins keep it centred whenever the content fits. */
+  justify-content: flex-start;
   width: 100vw;
   width: 100dvw;
   min-height: 100vh;
   min-height: 100dvh;
-  height: auto;
+  height: 100vh;
+  height: 100dvh;
   box-sizing: border-box;
   padding:
     max(0.8rem, env(safe-area-inset-top))
@@ -54,6 +60,9 @@
   width: min(100%, calc(100dvw - 2rem));
   max-width: min(34rem, calc(100dvw - 2rem));
   max-height: calc(100dvh - max(1.3rem, env(safe-area-inset-top)) - max(1.3rem, env(safe-area-inset-bottom)));
+  /* Never let the pinned shell shrink the card: a shrunken card spills its
+     centred content above the scroll origin, where no scrolling can reach. */
+  flex-shrink: 0;
   margin-inline: auto;
   /* D5: the auto block margins soak up every pixel of leftover height above the
      footer, so the card stays optically centred while the footer sits flush to
@@ -403,6 +412,7 @@
   position: relative;
   z-index: 20;
   grid-row: 2;
+  flex-shrink: 0;
   width: min(34rem, calc(100vw - 2rem));
   width: min(34rem, calc(100dvw - 2rem));
   max-width: 100%;
@@ -621,9 +631,13 @@
     max-width: none;
     min-height: 100vh;
     min-height: 100dvh;
-    height: auto;
+    /* Keep the shell pinned to the viewport so it stays the scroller. */
+    height: 100vh;
+    height: 100dvh;
     align-items: center;
-    justify-content: center;
+    /* Start-justified so overflowing content stays below the scroll origin;
+       the card's auto block margins centre it whenever it fits. */
+    justify-content: flex-start;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior-y: contain;
@@ -864,7 +878,9 @@
 html[data-cruush-larger-text] .launch-login-auth-shell {
   width: 100%;
   max-width: 100%;
-  height: auto;
+  /* Larger-text mode overflows even sooner; the shell must keep scrolling it. */
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;

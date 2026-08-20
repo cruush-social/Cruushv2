@@ -84,7 +84,7 @@ describe('Auth', () => {
     const cssText = Array.from(document.styleSheets).map((sheet) => Array.from(sheet.cssRules ?? []).map((rule) => rule.cssText).join('\n')).join('\n');
 
     expect(cssText).not.toContain('--auth-mobile-center-shift');
-    expect(authCss).toContain('place-items: center;');
+    expect(authCss).toContain('align-items: center;');
     expect(authCss).toContain('width: 100dvw;');
     expect(authCss).toContain('width: min(20.5rem, calc(100dvw - 1.5rem));');
     expect(authCss).toContain('width: 100%;');
