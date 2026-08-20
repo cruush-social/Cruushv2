@@ -210,12 +210,46 @@ type AppProps = {
   humanModerationEnabled?: boolean;
 };
 
+export function useAuthShellControlsScrolled(enabled: boolean) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!enabled || typeof document === 'undefined') {
+      setScrolled(false);
+      return;
+    }
+
+    const sync = (shell: HTMLElement) => {
+      const nextScrolled = shell.scrollTop > 8;
+      setScrolled((currentScrolled) => currentScrolled === nextScrolled ? currentScrolled : nextScrolled);
+    };
+    const handleScroll = (event: Event) => {
+      if (event.target instanceof HTMLElement && event.target.classList.contains('launch-login-auth-shell')) {
+        sync(event.target);
+      }
+    };
+    const shell = document.querySelector<HTMLElement>('.launch-login-auth-shell');
+
+    if (shell) {
+      sync(shell);
+    }
+    document.addEventListener('scroll', handleScroll, true);
+
+    return () => {
+      document.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [enabled]);
+
+  return scrolled;
+}
+
 export default function App({
   humanModerationEnabled = true,
 }: AppProps = {}) {
   const [authStatus, setAuthStatus] = useState<'loading' | 'signed_out' | 'signed_in'>('loading');
   const [session, setSession] = useState<AuthSessionPayload | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const authShellControlsScrolled = useAuthShellControlsScrolled(authStatus === 'signed_out');
 
   useEffect(() => {
     let isActive = true;
@@ -346,9 +380,13 @@ export default function App({
 
   const tokenLinkType = getTokenLinkType();
   const alphaBugControl = (
-    <AlphaBugButton enabled requireContactEmail={authStatus === 'signed_out'} />
+    <AlphaBugButton
+      authShellScrolled={authShellControlsScrolled}
+      enabled
+      requireContactEmail={authStatus === 'signed_out'}
+    />
   );
-  const accessibilityQuickAccess = <AccessibilityQuickAccess />;
+  const accessibilityQuickAccess = <AccessibilityQuickAccess authShellScrolled={authShellControlsScrolled} />;
 
   if (tokenLinkType === 'verify-email') {
     return (

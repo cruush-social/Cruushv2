@@ -18,6 +18,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 
 type AlphaBugButtonProps = {
+  authShellScrolled?: boolean;
   enabled?: boolean;
   requireContactEmail?: boolean;
 };
@@ -160,6 +161,7 @@ async function captureBugScreenshot(): Promise<ScreenshotAttachment | undefined>
 }
 
 export default function AlphaBugButton({
+  authShellScrolled = false,
   enabled = false,
   requireContactEmail = false,
 }: AlphaBugButtonProps) {
@@ -282,8 +284,10 @@ export default function AlphaBugButton({
     <DialogTrigger asChild>
       <button
         aria-label="Report alpha bug"
+        aria-hidden={authShellScrolled || undefined}
         data-testid="alpha-bug-button"
-        className="fixed z-50 inline-flex h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-colors hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))]"
+        className={`fixed z-50 inline-flex h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11 items-center justify-center rounded-full border border-destructive/45 bg-destructive text-white shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-md transition-[background-color,opacity,transform] duration-150 hover:bg-destructive/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-destructive right-[calc(0.75rem+env(safe-area-inset-right))] top-[calc(0.75rem+env(safe-area-inset-top))] ${authShellScrolled ? 'pointer-events-none -translate-y-24 opacity-0' : 'translate-y-0 opacity-100'}`}
+        tabIndex={authShellScrolled ? -1 : undefined}
         title="Report a bug"
         type="button"
       >

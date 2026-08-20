@@ -159,6 +159,21 @@ describe('AlphaBugButton', () => {
     expect(reportButton.querySelector('svg')).toHaveClass('h-5', 'w-5', 'lg:h-7', 'lg:w-7');
   });
 
+  it('moves out of the interactive area while the signed-out auth shell is scrolled', () => {
+    render(
+      <MemoryRouter>
+        <AlphaBugButton authShellScrolled enabled requireContactEmail />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('alpha-bug-button')).toHaveClass(
+      'pointer-events-none',
+      '-translate-y-24',
+      'opacity-0',
+    );
+    expect(screen.getByTestId('alpha-bug-button')).toHaveAttribute('tabindex', '-1');
+  });
+
   it('keeps the first-run map tip below the map controls', async () => {
     clearPersistentNoticeFlag(ALPHA_BUG_TIP_STORAGE_KEY);
     getUserNoticeDismissal.mockResolvedValueOnce({ dismissed: false, dismissedAt: null });

@@ -150,8 +150,9 @@ vi.mock('./components/Auth', () => ({
     acceptedCodeOfConductVersion: string | null;
     codeOfConductAcceptedAt: string | null;
   }) => void }) => (
-    <button
-      onClick={() => onAuth({
+    <div className="launch-login-auth-shell">
+      <button
+        onClick={() => onAuth({
         user: {
           id: 'user-1',
           email: 'test@example.com',
@@ -165,10 +166,11 @@ vi.mock('./components/Auth', () => ({
         codeOfConductVersion: '2026-07-07',
         acceptedCodeOfConductVersion: '2026-07-07',
         codeOfConductAcceptedAt: '2026-07-07T15:00:00.000Z',
-      })}
-    >
-      Mock Auth
-    </button>
+        })}
+      >
+        Mock Auth
+      </button>
+    </div>
   )
 }));
 
@@ -230,7 +232,11 @@ vi.mock('./components/DebugCruushPlusToggle', () => ({
 }));
 
 vi.mock('./components/AlphaBugButton', () => ({
-  default: ({ enabled }: { enabled?: boolean }) => (enabled ? <button type="button">Mock Alpha Bug</button> : null)
+  default: ({ authShellScrolled, enabled }: { authShellScrolled?: boolean; enabled?: boolean }) => (
+    enabled
+      ? <button aria-label="Mock Alpha Bug" data-auth-shell-scrolled={String(Boolean(authShellScrolled))} type="button">Mock Alpha Bug</button>
+      : null
+  )
 }));
 
 vi.mock('./components/PublicInfoPage', () => ({
@@ -350,6 +356,28 @@ describe('App', () => {
       'ProfileEdit',
     ]));
     expect(recordDailyRewardCheckIn).not.toHaveBeenCalled();
+  });
+
+  it('moves global controls away when the signed-out auth shell scrolls', async () => {
+    loadCurrentSession.mockResolvedValue(null);
+
+    const { container } = render(<App />);
+    const shell = await waitFor(() => {
+      const element = container.querySelector<HTMLElement>('.launch-login-auth-shell');
+      expect(element).not.toBeNull();
+      return element!;
+    });
+
+    shell.scrollTop = 24;
+    fireEvent.scroll(shell);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toHaveAttribute('data-auth-shell-scrolled', 'true'));
+    expect(screen.getByTestId('accessibility-quick-access')).toHaveClass('-translate-y-24', 'opacity-0');
+
+    shell.scrollTop = 0;
+    fireEvent.scroll(shell);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mock Alpha Bug' })).toHaveAttribute('data-auth-shell-scrolled', 'false'));
   });
 
   it('renders public info pages before authentication', async () => {

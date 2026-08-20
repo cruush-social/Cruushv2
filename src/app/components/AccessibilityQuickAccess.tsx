@@ -23,7 +23,13 @@ const ACCESSIBILITY_OPTIONS = [
   { icon: Contrast, key: 'highContrast', label: 'Increase contrast' },
 ] as const;
 
-export default function AccessibilityQuickAccess() {
+type AccessibilityQuickAccessProps = {
+  authShellScrolled?: boolean;
+};
+
+export default function AccessibilityQuickAccess({
+  authShellScrolled = false,
+}: AccessibilityQuickAccessProps = {}) {
   const [preferences, setPreferences] = useState(getAccessibilityPreferences);
 
   useEffect(() => addAccessibilityPreferencesChangedListener(setPreferences), []);
@@ -45,8 +51,10 @@ export default function AccessibilityQuickAccess() {
       <DialogTrigger asChild>
         <button
           aria-label="Accessibility options"
-          className="fixed right-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-[70] inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-white/14 bg-background/82 px-3 text-foreground shadow-[0_14px_38px_rgba(0,0,0,0.4)] backdrop-blur-md transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-hidden={authShellScrolled || undefined}
+          className={`fixed right-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-[70] inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-white/14 bg-background/82 px-3 text-foreground shadow-[0_14px_38px_rgba(0,0,0,0.4)] backdrop-blur-md transition-[background-color,opacity,transform] duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${authShellScrolled ? 'pointer-events-none -translate-y-24 opacity-0' : 'translate-y-0 opacity-100'}`}
           data-testid="accessibility-quick-access"
+          tabIndex={authShellScrolled ? -1 : undefined}
           title="Accessibility options"
           type="button"
         >

@@ -55,4 +55,12 @@ describe('AccessibilityQuickAccess', () => {
     expect(screen.getByRole('switch', { name: 'Larger text' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Increase contrast' })).toBeChecked();
   });
+
+  it('moves out of the interactive area while the signed-out auth shell is scrolled', () => {
+    render(<AccessibilityQuickAccess authShellScrolled />);
+
+    const trigger = screen.getByTestId('accessibility-quick-access');
+    expect(trigger).toHaveClass('pointer-events-none', '-translate-y-24', 'opacity-0');
+    expect(trigger).toHaveAttribute('tabindex', '-1');
+  });
 });
