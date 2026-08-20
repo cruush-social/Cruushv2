@@ -77,6 +77,13 @@ const MAP_VIEWPORT_RESTORE_STORAGE_KEY = 'cruush:map-viewport-restore';
 const MAP_PING_STATUS_REFRESH_INTERVAL_MS = 20_000;
 const MAP_PING_IDEMPOTENCY_RETRY_WINDOW_MS = 10 * 60 * 1000;
 
+type MobileVisualViewportBounds = {
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+};
+
 const MapView = lazy(() => import('./MapView'));
 
 export { canUseDeveloperMapToolsEmail };
@@ -101,6 +108,70 @@ function getLastActiveMinutes(lastActive: string) {
 
 function uniqueValues(values: string[] = []) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function roundViewportValue(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function readMobileVisualViewportBounds(enabled: boolean): MobileVisualViewportBounds | null {
+  if (!enabled || typeof window === 'undefined') {
+    return null;
+  }
+
+  const viewport = window.visualViewport;
+  if (!viewport || viewport.width <= 0 || viewport.height <= 0) {
+    return null;
+  }
+
+  return {
+    height: roundViewportValue(viewport.height),
+    left: roundViewportValue(Math.max(0, viewport.offsetLeft)),
+    top: roundViewportValue(Math.max(0, viewport.offsetTop)),
+    width: roundViewportValue(viewport.width),
+  };
+}
+
+function visualViewportBoundsMatch(
+  first: MobileVisualViewportBounds | null,
+  second: MobileVisualViewportBounds | null,
+) {
+  return first?.height === second?.height
+    && first?.left === second?.left
+    && first?.top === second?.top
+    && first?.width === second?.width;
+}
+
+function useMobileVisualViewportBounds(enabled: boolean) {
+  const [bounds, setBounds] = useState<MobileVisualViewportBounds | null>(() => (
+    readMobileVisualViewportBounds(enabled)
+  ));
+
+  useEffect(() => {
+    const viewport = typeof window === 'undefined' ? null : window.visualViewport;
+    if (!enabled || !viewport) {
+      setBounds(null);
+      return;
+    }
+
+    const updateBounds = () => {
+      const nextBounds = readMobileVisualViewportBounds(true);
+      setBounds((currentBounds) => (
+        visualViewportBoundsMatch(currentBounds, nextBounds) ? currentBounds : nextBounds
+      ));
+    };
+
+    updateBounds();
+    viewport.addEventListener('resize', updateBounds);
+    viewport.addEventListener('scroll', updateBounds);
+
+    return () => {
+      viewport.removeEventListener('resize', updateBounds);
+      viewport.removeEventListener('scroll', updateBounds);
+    };
+  }, [enabled]);
+
+  return bounds;
 }
 
 function hasActiveSeekingFilters(filters: FilterState) {
@@ -526,6 +597,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [searchParams] = useSearchParams();
   const routeState = location.state as MapRouteState;
   const isMobile = useIsMobile();
+  const mobileVisualViewportBounds = useMobileVisualViewportBounds(isMobile);
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
   const [ownerGhostMapLocation, setOwnerGhostMapLocation] = useState<ApproximateCoordinates | null>(null);
@@ -1961,8 +2033,16 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
   return (
     <div
-      className={`cruush-map-shell ${isMobile ? 'fixed inset-0' : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
+      className={`cruush-map-shell ${isMobile ? `fixed${mobileVisualViewportBounds ? '' : ' inset-0'}` : 'relative'} overflow-hidden overscroll-none bg-background select-none`}
       data-testid="map-home-shell"
+      style={mobileVisualViewportBounds ? {
+        height: `${mobileVisualViewportBounds.height}px`,
+        left: `${mobileVisualViewportBounds.left}px`,
+        maxHeight: `${mobileVisualViewportBounds.height}px`,
+        minHeight: `${mobileVisualViewportBounds.height}px`,
+        top: `${mobileVisualViewportBounds.top}px`,
+        width: `${mobileVisualViewportBounds.width}px`,
+      } : undefined}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-background/90 via-background/45 to-transparent" />
       <div

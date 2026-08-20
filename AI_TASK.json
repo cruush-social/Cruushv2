@@ -2,47 +2,42 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Ship the verified Activity card and vibe work, then finish the cruise carousel selected-profile result as a complete 4:5 photo with profile information and existing actions overlaid in map-style dark glass controls.",
-  "base": "0e2b1dcbd7887191a6c8120f1823724ddf94edf2",
-  "branch": "main",
+  "job": "Keep the map top action bar and right-side crowd, Seeking, Visibility, Ping, location, and zoom controls fully inside the visible mobile viewport shown in the reported Android Chrome screenshot.",
+  "base": "101f4b2d55fa5a179701550c51f1a1bb74f339fa",
+  "branch": "codex/fix-mobile-map-controls-20260820",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/app.test.ts",
-    "server/src/routes/cruush.ts",
-    "src/app/components/CruushActivity.test.tsx",
-    "src/app/components/CruushActivity.tsx",
-    "src/app/components/FeelingLucky.test.tsx",
-    "src/app/components/FeelingLucky.tsx",
-    "src/app/components/ProfileCard.test.tsx",
-    "src/app/components/ProfileCard.tsx",
-    "src/app/lib/cruushApi.ts"
+    "docs/worktrees.md",
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx",
+    "src/styles/theme.css"
   ],
   "preserved": [
-    "Keep the verified Activity counts, tabs, locked and upgrade states, top-three vibe labels, and mutual cruush action behavior unchanged.",
-    "Keep carousel animation, candidate selection, cruush+ billing gate, empty and error states, reduced motion, and desktop versus mobile routing unchanged.",
-    "Keep close, browse again, send cruush, revoke cruush, message, and full-profile actions wired to their existing handlers.",
-    "Keep DL Mode photo masking, relationship state, distance formatting, badges, and three-vibe limit unchanged.",
-    "Keep every non-carousel ProfileCard rendering unchanged."
+    "Keep every map control, label, icon, color, size, order, handler, and active state unchanged.",
+    "Keep map rendering, markers, pins, filters, visibility rules, privacy behavior, viewport restoration, and discovery behavior unchanged.",
+    "Keep the Recently Active tray and bottom navigation unchanged.",
+    "Keep tablet and desktop layout unchanged except for preventing viewport clipping if the same browser condition occurs."
   ],
   "nonGoals": [
-    "Do not change map layout or styling, bottom navigation, profile editing, relationship rules, billing, discovery eligibility, APIs beyond the already verified Activity vibe payload, or database schema.",
-    "Do not add or replace visual assets, dependencies, copy, routes, analytics, notifications, moderation, deployment configuration, or environment variables.",
-    "Do not publish any unrelated worktree changes."
+    "Do not change the map vector style, street labels, canvas filter, assets, copy, routes, profile data, APIs, database schema, dependencies, deployment configuration, or environment variables.",
+    "Do not publish or deploy without explicit authorization.",
+    "Do not include changes from any other worktree."
   ],
   "proof": [
-    "Render the exact carousel result before and after at 360 by 800, 375 by 812, and desktop width, including long names, three vibes, missing photo, disabled message, and bottom navigation clearance.",
-    "Verify the selected profile uses a 4 by 5 media frame and that information, Browse again, send cruush, message, and full-profile controls are over the photo in dark glass surfaces.",
-    "Exercise Browse again and navigation locally; do not mutate a production relationship.",
-    "Run focused Activity, FeelingLucky, ProfileCard, carousel, and server Activity tests plus frontend and server production builds, copy, casing, layout, diff, conflict-marker, and secret gates.",
-    "Push the verified commit to origin/main, confirm the remote SHA, poll deployment until the deployed SHA matches, then verify one public frontend response, direct API health, and the live carousel route."
+    "Reproduce or model the reported mobile visual-viewport offset and show that the top bar and complete right-side control stack remain within the visible viewport.",
+    "Render the exact map route before and after at 360 by 800, 375 by 812, and the reported Android Chrome state; inspect the full viewport and adjacent bottom navigation.",
+    "Exercise Seeking, Visibility, Ping, location, and zoom controls without changing production relationships or privacy settings.",
+    "Add one focused overlap regression test because map overlap bugs qualify permanently, then run that test, the MapHome test file, the frontend build, and the nearest layout gate."
   ],
   "proofResults": [
-    "Current source inspection confirmed the prior carousel work shipped upright 4 by 5 reel tiles and photo switching, but the selected-profile result still placed distance, vibes, actions, and Browse again below the photo.",
-    "The exact production build rendered the carousel result at 360 by 800, 375 by 812, 768 by 1024, and 1280 by 720 with a 4 by 5 photo, dark glass information and controls, three vibes, long-name truncation, missing-photo fallback, and disabled-message state.",
-    "Browse again cycled to another profile and View Full Profile opened the profile route in the safe local flow. No production relationship was mutated.",
-    "Carousel tests passed 10 of 10, Activity tests passed 11 of 11, and focused server Activity tests passed 14 with 281 unrelated tests skipped.",
-    "Frontend and server production builds, public copy, product casing, security, layout invariants, JSON, diff, and allowed-path checks passed before publication.",
-    "No environment variables were added, removed, or changed. No provider or cost impact."
+    "The reported screenshot shows the map top bar above the visible area and the right-side control stack beyond the visible right edge, matching a visual viewport offset from Android browser chrome or page zoom.",
+    "The new visual-viewport regression failed before the source change and now passes for both the reported offset state and a later viewport resize.",
+    "MapHome tests passed 68 of 68. The frontend production build, product casing, public copy, security, JSON, diff, conflict-marker, and signed-out layout gates passed.",
+    "Ego Lite rendered the authenticated map with the exact T4T Crowd Active state at 360 by 800 and 375 by 812. The top bar, crowd notice, Seeking, Visibility, Ping, location, zoom controls, Recently Active bar, and bottom navigation remained fully visible without overlap or clipping.",
+    "At 360 by 800, the complete right control stack ended at x 348 inside the 360 pixel viewport and kept an 8 pixel gap below the top bar. At 375 by 812, it ended at x 363 inside the 375 pixel viewport with the same 8 pixel gap.",
+    "Ego Lite also modeled a 360 by 761.25 visual viewport offset 24 pixels right and 52 pixels down. The map shell matched those exact bounds, and every top and right control remained inside them.",
+    "Seeking, Visibility, Ping, location centering, zoom in, and zoom out were exercised against the local seeded account. Zoom moved map pins and zoom out restored their original coordinates. No production relationship or privacy setting changed.",
+    "No tracked or production environment variables, providers, secrets, dependencies, or costs changed."
   ],
   "publicationTarget": "origin/main and production",
   "environmentChanges": []

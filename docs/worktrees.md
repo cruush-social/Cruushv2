@@ -20,6 +20,7 @@ the branch name.
 | `worktree/corrupt-dirty-migration-v2` | `/Volumes/good/Cruushv2-1-corrupt-dirty-migration` | 2026-08-08 8ad39840 chore: define v2 consolidation scope | dirty (239 files) | +33/-146 |  |
 | `codex/github-issues-20260808` | `/Volumes/good/Cruushv2-github-issues-20260808` | 2026-08-09 8d5e7df9 fix: resolve open beta issue regressions | dirty (1 files) | +0/-0 | GitHub issue bug fixes; approved bounded scope; Codex; in progress |
 | `agent/ping-feature` | `.` | 2026-08-10 b0cd26e9 chore: trim v1.2 email preview | dirty (39 files) | +4/-0 | v1.2 Ping, target-aware tutorial, map boundary, messaging fixes, and changelog; Codex; in progress; unmerged. |
+| `codex/fix-mobile-map-controls-20260820` | `/Volumes/good/Cruushv2-mobile-map-controls-20260820` | 2026-08-20 101f4b2d fix: polish activity and cruise carousel | dirty (3 files) | +0/-0 | Android Chrome visual-viewport map chrome clipping fix; Codex; in progress; unmerged. |
 
 ## Rules that apply here
 

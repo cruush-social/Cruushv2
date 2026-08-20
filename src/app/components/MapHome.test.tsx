@@ -381,9 +381,21 @@ function browserPosition() {
   };
 }
 
+const originalVisualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+
+function restoreVisualViewport() {
+  if (originalVisualViewport) {
+    Object.defineProperty(window, 'visualViewport', originalVisualViewport);
+    return;
+  }
+
+  delete (window as { visualViewport?: VisualViewport }).visualViewport;
+}
+
 describe('MapHome', () => {
   afterEach(() => {
     vi.useRealTimers();
+    restoreVisualViewport();
   });
 
   it('allows the codeveloper NYC account to use developer-only map tools without bank reviewer access', () => {
@@ -833,6 +845,76 @@ describe('MapHome', () => {
       'select-none',
       'overscroll-none',
     );
+  });
+
+  it('keeps mobile map chrome inside an offset visual viewport', async () => {
+    useIsMobile.mockReturnValue(true);
+
+    const listeners = new Map<string, Set<EventListener>>();
+    const visualViewport = {
+      height: 714,
+      offsetLeft: 24,
+      offsetTop: 52,
+      pageLeft: 24,
+      pageTop: 52,
+      scale: 1,
+      width: 360,
+      addEventListener: vi.fn((type: string, listener: EventListener) => {
+        const typeListeners = listeners.get(type) ?? new Set<EventListener>();
+        typeListeners.add(listener);
+        listeners.set(type, typeListeners);
+      }),
+      removeEventListener: vi.fn((type: string, listener: EventListener) => {
+        listeners.get(type)?.delete(listener);
+      }),
+    } as unknown as VisualViewport;
+
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('button', { name: 'Pin Jordan' });
+
+    const shell = screen.getByTestId('map-home-shell');
+    expect(shell).toHaveStyle({
+      height: '714px',
+      left: '24px',
+      maxHeight: '714px',
+      minHeight: '714px',
+      top: '52px',
+      width: '360px',
+    });
+    expect(shell).not.toHaveClass('inset-0');
+    expect(shell).toContainElement(screen.getByTestId('map-top-actions'));
+    expect(shell).toContainElement(screen.getByTestId('map-right-actions'));
+
+    Object.assign(visualViewport, {
+      height: 766,
+      offsetLeft: 0,
+      offsetTop: 0,
+      width: 384,
+    });
+    act(() => {
+      listeners.get('resize')?.forEach((listener) => listener(new Event('resize')));
+    });
+
+    await waitFor(() => expect(shell).toHaveStyle({
+      height: '766px',
+      left: '0px',
+      maxHeight: '766px',
+      minHeight: '766px',
+      top: '0px',
+      width: '384px',
+    }));
   });
 
   it('exposes the real Ping control to the tutorial and opens the Ping sheet', async () => {
