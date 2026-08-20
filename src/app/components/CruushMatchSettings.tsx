@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, MapPin, MessageCircle } from 'lucide-react';
 import { Button } from './ui/button';
@@ -71,6 +71,7 @@ export default function CruushMatchSettings() {
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(DEFAULT_PRIVACY_SETTINGS);
   const [status, setStatus] = useState<'loading' | 'idle' | 'saving'>('loading');
   const [error, setError] = useState<string | null>(null);
+  const saveRequestIdRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -105,34 +106,52 @@ export default function CruushMatchSettings() {
   }, []);
 
   const persistMatchSettings = async (nextSettings: CruushMatchSettingsRecord) => {
+    const requestId = saveRequestIdRef.current + 1;
+    saveRequestIdRef.current = requestId;
     setMatchSettings(nextSettings);
     setStatus('saving');
     setError(null);
 
     try {
-      setMatchSettings(await saveCruushMatchSettings({
+      const savedSettings = await saveCruushMatchSettings({
         messageVisibility: nextSettings.messageVisibility,
         nsfwMessageVisibility: nextSettings.nsfwMessageVisibility,
         nsfwSendVisibility: nextSettings.nsfwSendVisibility,
-      }));
+      });
+      if (saveRequestIdRef.current === requestId) {
+        setMatchSettings(savedSettings);
+      }
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Failed to save match settings.');
+      if (saveRequestIdRef.current === requestId) {
+        setError(saveError instanceof Error ? saveError.message : 'Failed to save match settings.');
+      }
     } finally {
-      setStatus('idle');
+      if (saveRequestIdRef.current === requestId) {
+        setStatus('idle');
+      }
     }
   };
 
   const persistPrivacySettings = async (nextSettings: PrivacySettings) => {
+    const requestId = saveRequestIdRef.current + 1;
+    saveRequestIdRef.current = requestId;
     setPrivacySettings(nextSettings);
     setStatus('saving');
     setError(null);
 
     try {
-      setPrivacySettings(await saveMyPrivacySettings(nextSettings));
+      const savedSettings = await saveMyPrivacySettings(nextSettings);
+      if (saveRequestIdRef.current === requestId) {
+        setPrivacySettings(savedSettings);
+      }
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Failed to save mutual cruush rules.');
+      if (saveRequestIdRef.current === requestId) {
+        setError(saveError instanceof Error ? saveError.message : 'Failed to save mutual cruush rules.');
+      }
     } finally {
-      setStatus('idle');
+      if (saveRequestIdRef.current === requestId) {
+        setStatus('idle');
+      }
     }
   };
 
