@@ -7,6 +7,7 @@ import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  resolveNotificationNavigationPath,
   type NotificationRecord,
 } from '../lib/notificationsApi';
 import { Button } from './ui/button';
@@ -118,12 +119,7 @@ export default function NotificationCenter() {
       }
     }
 
-    if (notification.actorUserId && (notification.type === 'nearby_user' || notification.type === 'incoming_cruush' || !notification.linkUrl || notification.linkUrl === '/map')) {
-      navigate(`/map?focusUserId=${encodeURIComponent(notification.actorUserId)}`);
-      return;
-    }
-
-    navigate(notification.linkUrl || '/notifications');
+    navigate(resolveNotificationNavigationPath(notification));
   };
 
   return (

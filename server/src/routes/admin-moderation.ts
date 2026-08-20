@@ -248,6 +248,40 @@ type SupportRequestRow = {
   total_count?: string | number;
 };
 
+type SurveyMessageRow = {
+  message: string;
+};
+
+type SurveyRatingKey = "overall" | "ease" | "map" | "privacy";
+
+const surveyRatingFields: Array<{ key: SurveyRatingKey; pattern: RegExp }> = [
+  { key: "overall", pattern: /^Overall experience \(1[–-]5\):\s*([1-5])\s*$/im },
+  { key: "ease", pattern: /^Ease of use \(1[–-]5\):\s*([1-5])\s*$/im },
+  { key: "map", pattern: /^Map experience \(1[–-]5\):\s*([1-5])\s*$/im },
+  { key: "privacy", pattern: /^Privacy controls \(1[–-]5\):\s*([1-5])\s*$/im }
+];
+
+function summarizeSurveyRatings(rows: SurveyMessageRow[]) {
+  return {
+    responseCount: rows.length,
+    ratings: surveyRatingFields.map(({ key, pattern }) => {
+      const values = rows.flatMap(({ message }) => {
+        const match = pattern.exec(message);
+        return match?.[1] ? [Number(match[1])] : [];
+      });
+      const distribution = [1, 2, 3, 4, 5].map((rating) => values.filter((value) => value === rating).length);
+      return {
+        key,
+        responseCount: values.length,
+        average: values.length > 0
+          ? Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(2))
+          : null,
+        distribution
+      };
+    })
+  };
+}
+
 type AdminNotificationRow = {
   id: string;
   user_id: string;
@@ -1186,10 +1220,17 @@ export async function registerAdminModerationRoutes(app: FastifyInstance) {
        limit $2 offset $3`,
       [status, query.limit, query.offset]
     );
+    const surveyResult = await app.db.query<SurveyMessageRow>(
+      `select message
+       from support_requests
+       where source = 'survey'
+          or lower(subject) = 'cruush survey response'`
+    );
     const total = Number(result.rows[0]?.total_count ?? 0);
     return reply.send({
       data: {
         requests: result.rows.map((row) => mapSupportRequestRow(row, moderator.role)),
+        surveySummary: summarizeSurveyRatings(surveyResult.rows),
         page: {
           limit: query.limit,
           offset: query.offset,

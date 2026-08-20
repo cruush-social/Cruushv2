@@ -216,8 +216,21 @@ export type SupportRequest = {
   updatedAt: string;
 };
 
+export type SurveyRatingKey = 'overall' | 'ease' | 'map' | 'privacy';
+
+export type SurveyRatingSummary = {
+  responseCount: number;
+  ratings: Array<{
+    key: SurveyRatingKey;
+    responseCount: number;
+    average: number | null;
+    distribution: number[];
+  }>;
+};
+
 export type SupportRequestListResponse = {
   requests: SupportRequest[];
+  surveySummary?: SurveyRatingSummary;
   page: {
     limit: number;
     offset: number;

@@ -7024,6 +7024,26 @@ describe("server", () => {
           updated_at: "2026-04-29T12:00:00.000Z",
           total_count: "1"
         }]
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            message: [
+              "Overall experience (1–5): 5",
+              "Ease of use (1–5): 4",
+              "Map experience (1–5): 3",
+              "Privacy controls (1–5): 2"
+            ].join("\n")
+          },
+          {
+            message: [
+              "Overall experience (1–5): 3",
+              "Ease of use (1–5): 4",
+              "Map experience (1–5): Not answered",
+              "Privacy controls (1–5): 2"
+            ].join("\n")
+          }
+        ]
       });
 
     const listResponse = await app.inject({
@@ -7042,6 +7062,15 @@ describe("server", () => {
         displayName: "Jordan",
         email: "j*****@example.com"
       }
+    });
+    expect(listResponse.json().data.surveySummary).toEqual({
+      responseCount: 2,
+      ratings: [
+        { key: "overall", responseCount: 2, average: 4, distribution: [0, 0, 1, 0, 1] },
+        { key: "ease", responseCount: 2, average: 4, distribution: [0, 0, 0, 2, 0] },
+        { key: "map", responseCount: 1, average: 3, distribution: [0, 0, 1, 0, 0] },
+        { key: "privacy", responseCount: 2, average: 2, distribution: [0, 2, 0, 0, 0] }
+      ]
     });
 
     query.mockReset();
@@ -9343,7 +9372,7 @@ describe("server", () => {
     expect(query.mock.calls.some(([sql]) => String(sql).toLowerCase().includes("insert into ghost_rotation_tokens"))).toBe(true);
   });
 
-  it("marks active mutual cruushes in discovery results", async () => {
+  it("marks active mutual cruushes and honors the target's precise-location preference", async () => {
     const matchedUserId = "53fd68d7-24fc-4cff-8cd7-a97ec0cadf97";
     const otherUserId = "8f707f0b-81aa-470d-b0e1-321d493d04d2";
     const matchRecord = await encryptedRelationshipRecordRow({
@@ -9357,7 +9386,7 @@ describe("server", () => {
       userOneId: userId,
       userTwoId: matchedUserId
     });
-    const targetPolicy = await encryptedVisibilityPolicyRow({
+    let targetPolicy = await encryptedVisibilityPolicyRow({
       subjectUserId: matchedUserId,
       baseMode: "GHOST",
       preciseToMutualCruushes: true
@@ -9431,6 +9460,10 @@ describe("server", () => {
         return Promise.resolve({ rows: params[0] === matchRecord.id ? [matchToken] : [] });
       }
 
+      if (normalizedSql.includes("insert into ghost_rotation_tokens")) {
+        return Promise.resolve({ rows: [{ subject_user_id: matchedUserId }] });
+      }
+
       return Promise.resolve({ rows: [] });
     });
 
@@ -9477,6 +9510,38 @@ describe("server", () => {
         })
       })
     ]);
+
+    targetPolicy = await encryptedVisibilityPolicyRow({
+      subjectUserId: matchedUserId,
+      baseMode: "GHOST",
+      preciseToMutualCruushes: false
+    });
+    const privateResponse = await app.inject({
+      method: "GET",
+      url: "/api/users?lat=40.7128&lng=-74.006",
+      headers: {
+        "x-user-id": userId
+      }
+    });
+    const privateMatchedProfile = privateResponse.json().data.profiles[0];
+    const privateMatchedLocation = decryptDisplayLocationTokenForTest({
+      key: displayKeyResponse.json().data.key,
+      token: privateMatchedProfile.displayLocationToken
+    });
+
+    expect(privateResponse.statusCode).toBe(200);
+    expect(privateMatchedLocation.displayMode).toBe("GHOST");
+    expect({
+      latE7: privateMatchedLocation.latE7,
+      lonE7: privateMatchedLocation.lonE7
+    }).not.toEqual({
+      latE7: 407110000,
+      lonE7: -740020000
+    });
+    expect(privateMatchedProfile.relationship).toMatchObject({
+      mutualCruush: true,
+      precision: "fuzzy"
+    });
   });
 
   it("rejects discovery limits above the backend cap", async () => {

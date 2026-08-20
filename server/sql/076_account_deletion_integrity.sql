@@ -20,7 +20,11 @@ alter table support_requests
   check (
     (
       requester_account_deleted_at is null and
-      (requester_user_id is not null or nullif(contact_email, '') is not null)
+      (
+        source = 'survey' or
+        requester_user_id is not null or
+        nullif(contact_email, '') is not null
+      )
     ) or
     (
       requester_account_deleted_at is not null and

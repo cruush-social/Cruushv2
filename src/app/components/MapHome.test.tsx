@@ -3066,6 +3066,44 @@ describe('MapHome', () => {
     expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
   });
 
+  it('focuses a nearby notification target at the server-authorized Ghost coordinates', async () => {
+    useIsMobile.mockReturnValue(false);
+    getNearbyUsers.mockResolvedValue([{
+      id: 'user-ghost',
+      name: 'River',
+      display_name: 'River',
+      age: 29,
+      pronouns: 'they/them',
+      lat: 40.721,
+      lng: -73.981,
+      lastActive: '4m ago',
+      distance: 'Nearby',
+      lookingFor: ['Dates'],
+      vibes: ['Chill'],
+      position: [],
+      hostingTravel: [],
+      photo: null,
+      displayMode: 'GHOST',
+      privacyRadiusMeters: 1609,
+    }]);
+
+    render(
+      <MemoryRouter initialEntries={['/map?focusUserId=user-ghost']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Pin River' })).toBeInTheDocument();
+    expect(screen.getByTestId('marker-user-ghost')).toHaveAttribute('data-display-mode', 'GHOST');
+    expect(screen.getByTestId('marker-user-ghost')).toHaveAttribute('data-lat', '40.721');
+    expect(screen.getByTestId('marker-user-ghost')).toHaveAttribute('data-lng', '-73.981');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lat', '40.721');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-lng', '-73.981');
+    expect(screen.getByTestId('map-focus')).toHaveAttribute('data-fit-to-markers', 'false');
+  });
+
   it('does not inject a developer-only demo NYC pin when discovery returns no nearby users', async () => {
     useIsMobile.mockReturnValue(false);
     getNearbyUsers.mockResolvedValue([]);

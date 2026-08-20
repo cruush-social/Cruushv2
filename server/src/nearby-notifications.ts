@@ -287,7 +287,7 @@ export async function notifyNearbyUsersForLocationUpdate(app: FastifyInstance, i
       type: "nearby_activity",
       title: "Someone nearby",
       body: "Someone within your radar may be in your area.",
-      linkUrl: "/map?layer=nearby",
+      linkUrl: `/map?layer=nearby&focusUserId=${encodeURIComponent(input.sourceUserId)}`,
       dedupeKey: `nearby:${recipient.id}:${recipientWindowBucket}`,
       // The distance is computed from the subject's precise coordinates and is
       // deliberately not exposed. Ghost Mode subjects reach this point (only

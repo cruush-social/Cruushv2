@@ -107,7 +107,12 @@ describe('smoke: declared overlay geometry matches the components', () => {
     [
       'map-right-actions',
       'src/app/components/MapHome.tsx',
-      ['right-3 top-[3.75rem]', 'sm:right-4 sm:top-[4.25rem]', 'data-testid="map-right-actions"'],
+      [
+        'right-3 top-[3.875rem]',
+        'sm:right-4 sm:top-[4.625rem]',
+        'lg:top-[4.875rem]',
+        'data-testid="map-right-actions"',
+      ],
     ],
     [
       'mobile-install-prompt',

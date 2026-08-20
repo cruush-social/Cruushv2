@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClientError } from '../lib/apiClient';
@@ -213,6 +213,20 @@ const supportRequest = {
   updatedAt: report.updatedAt,
 };
 
+const surveyRequest = {
+  ...supportRequest,
+  id: 'survey-1',
+  requester: null,
+  contactEmail: null,
+  category: 'comment',
+  subject: 'cruush survey response',
+  message: 'Overall experience (1–5): 5',
+  source: 'survey',
+  pageUrl: '/survey',
+  githubIssueNumber: null,
+  triageBranch: null,
+};
+
 function queue(items = [reportItem], page = { limit: 25, offset: 0, total: items.length, hasMore: false }) {
   return { items, page };
 }
@@ -281,6 +295,7 @@ describe('ModeratorReview', () => {
     });
     getSupportRequests.mockResolvedValue({
       requests: [supportRequest],
+      surveySummary: { responseCount: 0, ratings: [] },
       page: { limit: 25, offset: 0, total: 1, hasMore: false },
     });
     updateSupportRequestStatus.mockResolvedValue({ request: { ...supportRequest, status: 'closed' } });
@@ -468,9 +483,37 @@ describe('ModeratorReview', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Surveys & support' }));
     expect(await screen.findByText('Messages are missing')).toBeInTheDocument();
     expect(screen.getByText('The chat screen is blank.')).toBeInTheDocument();
+    expect(screen.getByText('No survey responses yet.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Status for Messages are missing'), { target: { value: 'closed' } });
     await waitFor(() => expect(updateSupportRequestStatus).toHaveBeenCalledWith('support-1', 'closed'));
     expect(toastSuccess).toHaveBeenCalledWith('Request marked closed.');
+  });
+
+  it('marks survey responses and visualizes star-rating averages and distributions', async () => {
+    getSupportRequests.mockResolvedValue({
+      requests: [surveyRequest],
+      surveySummary: {
+        responseCount: 2,
+        ratings: [
+          { key: 'overall', responseCount: 2, average: 4, distribution: [0, 0, 1, 0, 1] },
+          { key: 'ease', responseCount: 2, average: 4.5, distribution: [0, 0, 0, 1, 1] },
+          { key: 'map', responseCount: 1, average: 3, distribution: [0, 0, 1, 0, 0] },
+          { key: 'privacy', responseCount: 2, average: 2.5, distribution: [0, 1, 1, 0, 0] },
+        ],
+      },
+      page: { limit: 25, offset: 0, total: 1, hasMore: false },
+    });
+    renderReview();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Surveys & support' }));
+
+    expect(await screen.findByText('Survey response')).toBeInTheDocument();
+    expect(screen.getByText('2 survey responses across all inbox statuses')).toBeInTheDocument();
+    const overallCard = screen.getByRole('heading', { name: 'Overall experience' }).closest('article');
+    expect(overallCard).not.toBeNull();
+    expect(within(overallCard!).getByText('4.0 / 5')).toBeInTheDocument();
+    expect(within(overallCard!).getByRole('meter', { name: 'Overall experience average 4.0 out of 5' })).toHaveAttribute('aria-valuenow', '4');
+    expect(within(overallCard!).getByLabelText('5 stars: 1')).toHaveTextContent('5★ 1');
   });
 
   it('does not expose the dashboard to unauthorized users', async () => {

@@ -68,6 +68,35 @@ describe("support mailer", () => {
     expect(body.text).toContain("Can AI answer most support questions?");
   });
 
+  it("marks survey responses in the reports inbox subject", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendSupportRequestInboxEmail({
+      config,
+      logger,
+      request: {
+        id: "survey-1",
+        category: "comment",
+        contactEmail: null,
+        createdAt: "2026-08-19T12:00:00.000Z",
+        message: "Overall experience (1–5): 5",
+        pageUrl: "/survey",
+        requesterUserId: null,
+        source: "survey",
+        subject: "cruush survey response"
+      }
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+
+    expect(body.to).toEqual(["reports@cruush.app"]);
+    expect(body.subject).toBe("[survey] cruush survey response");
+    expect(body.text).toContain("Source: survey");
+  });
+
   it("sends support replies back to the reporter with reports inbox reply-to", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true

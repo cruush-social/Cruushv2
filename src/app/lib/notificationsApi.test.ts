@@ -7,6 +7,7 @@ import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  resolveNotificationNavigationPath,
   subscribeToPushNotifications,
   updateNotificationPreferences,
 } from './notificationsApi';
@@ -82,5 +83,31 @@ describe('notificationsApi', () => {
     remove();
     emitNotificationsChanged({ unreadCount: 1 });
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('focuses nearby notifications on the source pin while preserving current navigation', () => {
+    const sourceUserId = '00000000-0000-4000-8000-000000000002';
+
+    expect(resolveNotificationNavigationPath({
+      type: 'nearby_activity',
+      linkUrl: '/map?layer=nearby',
+      metadata: { sourceUserId },
+    })).toBe(`/map?layer=nearby&focusUserId=${sourceUserId}`);
+    expect(resolveNotificationNavigationPath({
+      type: 'incoming_cruush',
+      linkUrl: '/map',
+      actorUserId: sourceUserId,
+      metadata: {},
+    })).toBe(`/map?focusUserId=${sourceUserId}`);
+    expect(resolveNotificationNavigationPath({
+      type: 'direct_message',
+      linkUrl: '/chat/conversation-1',
+      metadata: { sourceUserId },
+    })).toBe('/chat/conversation-1');
+    expect(resolveNotificationNavigationPath({
+      type: 'direct_message',
+      linkUrl: 'https://example.com',
+      metadata: {},
+    })).toBe('/notifications');
   });
 });

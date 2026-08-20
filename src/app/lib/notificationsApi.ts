@@ -52,6 +52,40 @@ export type NotificationsChangedPayload = {
   unreadCount: number;
 };
 
+function safeNotificationLink(linkUrl: string | null | undefined) {
+  if (!linkUrl || !linkUrl.startsWith('/') || linkUrl.startsWith('//')) {
+    return '/notifications';
+  }
+
+  return linkUrl;
+}
+
+export function resolveNotificationNavigationPath(
+  notification: Pick<NotificationRecord, 'type' | 'linkUrl' | 'metadata'> & Partial<Pick<NotificationRecord, 'actorUserId'>>,
+) {
+  const safeLink = safeNotificationLink(notification.linkUrl);
+  const sourceUserId = typeof notification.metadata?.sourceUserId === 'string'
+    ? notification.metadata.sourceUserId.trim()
+    : '';
+
+  if (notification.type === 'nearby_activity' && sourceUserId) {
+    const safeDestination = new URL(safeLink, 'https://cruush.app');
+    const destination = safeDestination.pathname === '/map'
+      ? safeDestination
+      : new URL('/map?layer=nearby', 'https://cruush.app');
+    destination.searchParams.set('focusUserId', sourceUserId);
+    return `${destination.pathname}${destination.search}${destination.hash}`;
+  }
+
+  const actorUserId = notification.actorUserId?.trim() ?? '';
+  const legacyNearbyType = (notification.type as string) === 'nearby_user';
+  if (actorUserId && (legacyNearbyType || notification.type === 'incoming_cruush' || !notification.linkUrl || notification.linkUrl === '/map')) {
+    return `/map?focusUserId=${encodeURIComponent(actorUserId)}`;
+  }
+
+  return safeLink;
+}
+
 export function getNotifications(input: {
   filter?: 'all' | 'unread';
   cursor?: string | null;

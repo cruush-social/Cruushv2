@@ -22,20 +22,26 @@ describe('Changelog', () => {
     getUserNoticeDismissal.mockResolvedValue({ dismissed: true, dismissedAt: '2026-08-09T12:00:00.000Z' });
   });
 
-  it('shows v1.4 before the restored v1.3 and preserved earlier history', () => {
+  it('shows v1.5 before the preserved earlier history', () => {
     render(
       <MemoryRouter>
         <Changelog />
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('v1.4')).toBeInTheDocument();
+    expect(screen.getByText('v1.5')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'cruush v1.5',
       'cruush v1.4',
       'cruush v1.3',
       'cruush v1.2',
       'cruush v1.1',
     ]);
+    const v15Section = screen.getByRole('heading', { level: 3, name: 'cruush v1.5' }).closest('section');
+    expect(v15Section).not.toBeNull();
+    expect(v15Section?.textContent ?? '').toMatch(/full 4:5 profile photos/i);
+    expect(v15Section?.textContent ?? '').toMatch(/Seeking filters now stay selected/i);
+    expect(v15Section?.textContent ?? '').toMatch(/relevant person’s map pin/i);
     const v13Section = screen.getByRole('heading', { level: 3, name: 'cruush v1.3' }).closest('section');
     expect(v13Section).not.toBeNull();
     expect(v13Section?.textContent ?? '').toMatch(/Ghost Mode has clearer controls and status feedback/i);

@@ -529,13 +529,16 @@ export async function sendSupportRequestInboxEmail(input: SupportRequestInboxEma
     "",
     request.message
   ].join("\n");
+  const inboxSubject = request.source === "survey"
+    ? `[survey] ${request.subject}`
+    : `[support] ${request.category}: ${request.subject}`;
 
   await sendResendEmail({
     config,
     email: REPORTS_INBOX_EMAIL,
     logger,
     replyTo: request.contactEmail,
-    subject: `[support] ${request.category}: ${request.subject}`,
+    subject: inboxSubject,
     html: `<p>New cruush support request.</p><table>${htmlRows}</table><h2>${escapeHtml(request.subject)}</h2><p>${escapedMessage}</p>`,
     text,
     attachments: request.screenshot ? [request.screenshot] : undefined,

@@ -45,6 +45,8 @@ import {
   type SupportRequest,
   type SupportRequestStatus,
   type SupportRequestStatusFilter,
+  type SurveyRatingKey,
+  type SurveyRatingSummary,
 } from '../lib/moderationApi';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -123,6 +125,18 @@ const supportStatusLabels: Record<SupportRequestStatus, string> = {
   dismissed: 'Dismissed',
 };
 
+const surveyRatingLabels: Record<SurveyRatingKey, string> = {
+  overall: 'Overall experience',
+  ease: 'Ease of use',
+  map: 'Map experience',
+  privacy: 'Privacy controls',
+};
+
+const emptySurveySummary: SurveyRatingSummary = {
+  responseCount: 0,
+  ratings: [],
+};
+
 function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Unknown time';
@@ -138,6 +152,10 @@ function formatDateTime(value: string) {
 function formatCode(value: string | null | undefined) {
   if (!value) return 'Moderation review';
   return reasonLabels[value] ?? value.replaceAll('_', ' ');
+}
+
+function isSurveyRequest(request: Pick<SupportRequest, 'source' | 'subject'>) {
+  return request.source === 'survey' || request.subject.trim().toLowerCase() === 'cruush survey response';
 }
 
 function isAccessDenied(error: unknown) {
@@ -330,6 +348,7 @@ export default function ModeratorReview() {
   const [systemErrorsError, setSystemErrorsError] = useState<string | null>(null);
   const [supportStatusFilter, setSupportStatusFilter] = useState<SupportRequestStatusFilter>('open');
   const [supportRequests, setSupportRequests] = useState<SupportRequest[]>([]);
+  const [surveySummary, setSurveySummary] = useState<SurveyRatingSummary>(emptySurveySummary);
   const [supportOffset, setSupportOffset] = useState(0);
   const [supportPage, setSupportPage] = useState({ limit: PAGE_SIZE, offset: 0, total: 0, hasMore: false });
   const [supportLoading, setSupportLoading] = useState(false);
@@ -488,10 +507,12 @@ export default function ModeratorReview() {
         offset: supportOffset,
       });
       setSupportRequests(Array.isArray(data.requests) ? data.requests : []);
+      setSurveySummary(data.surveySummary ?? emptySurveySummary);
       setSupportPage(data.page);
     } catch (error) {
       if (isAccessDenied(error)) {
         setSupportRequests([]);
+        setSurveySummary(emptySurveySummary);
         setAccessState('denied');
       } else {
         setSupportError('Unable to load email requests right now.');
@@ -947,6 +968,56 @@ export default function ModeratorReview() {
               </select>
             </div>
 
+            <div className="mt-5 rounded-lg border border-border bg-card p-4" aria-labelledby="survey-ratings-heading">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 id="survey-ratings-heading" className="font-medium">Survey ratings</h3>
+                <p className="text-xs text-muted-foreground">
+                  {surveySummary.responseCount} survey response{surveySummary.responseCount === 1 ? '' : 's'} across all inbox statuses
+                </p>
+              </div>
+              {surveySummary.responseCount === 0 ? (
+                <p className="mt-4 text-sm text-muted-foreground">No survey responses yet.</p>
+              ) : (
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {surveySummary.ratings.map((rating) => {
+                    const average = rating.average ?? 0;
+                    return (
+                      <article key={rating.key} className="rounded-md border border-border bg-background p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h4 className="text-sm font-medium">{surveyRatingLabels[rating.key]}</h4>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {rating.responseCount} rating{rating.responseCount === 1 ? '' : 's'}
+                            </p>
+                          </div>
+                          <p className="shrink-0 font-mono text-sm font-semibold">
+                            {rating.average === null ? 'No rating' : `${rating.average.toFixed(1)} / 5`}
+                          </p>
+                        </div>
+                        <div
+                          aria-label={`${surveyRatingLabels[rating.key]} average ${rating.average?.toFixed(1) ?? 'not rated'} out of 5`}
+                          aria-valuemax={5}
+                          aria-valuemin={0}
+                          aria-valuenow={rating.average ?? undefined}
+                          className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
+                          role="meter"
+                        >
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${(average / 5) * 100}%` }} />
+                        </div>
+                        <div className="mt-3 grid grid-cols-5 gap-1 text-center font-mono text-[11px] text-muted-foreground" aria-label={`${surveyRatingLabels[rating.key]} rating distribution`}>
+                          {[1, 2, 3, 4, 5].map((star, index) => (
+                            <span key={star} aria-label={`${star} star${star === 1 ? '' : 's'}: ${rating.distribution[index] ?? 0}`}>
+                              {star}★ {rating.distribution[index] ?? 0}
+                            </span>
+                          ))}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {supportError ? (
               <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{supportError}</div>
             ) : null}
@@ -960,6 +1031,7 @@ export default function ModeratorReview() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant={request.status === 'open' ? 'default' : 'outline'}>{supportStatusLabels[request.status]}</Badge>
+                        {isSurveyRequest(request) ? <Badge variant="secondary">Survey response</Badge> : null}
                         <Badge variant="secondary">{formatCode(request.category)}</Badge>
                         <Badge variant="outline">{formatCode(request.aiTriageStatus)}</Badge>
                         <span className="text-xs text-muted-foreground">{formatDateTime(request.createdAt)}</span>

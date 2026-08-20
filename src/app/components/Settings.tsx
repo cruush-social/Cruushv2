@@ -580,7 +580,7 @@ export default function Settings() {
               src={cruushLogo}
             />
             <p className="flex items-center justify-center gap-2 whitespace-nowrap text-xs text-muted-foreground">
-              <span>Version 1.4</span>
+              <span>Version 1.5</span>
               <span>OPEN BETA</span>
             </p>
           </div>

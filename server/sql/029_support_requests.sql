@@ -6,7 +6,7 @@ create table if not exists support_requests (
   category text not null check (category in ('bug', 'comment', 'question', 'policy')),
   subject text not null,
   message text not null,
-  source text not null default 'unknown' check (source in ('auth', 'settings', 'policy', 'unknown')),
+  source text not null default 'unknown' check (source in ('auth', 'settings', 'policy', 'survey', 'unknown')),
   page_url text not null default '',
   ai_triage_status text not null default 'pending' check (ai_triage_status in ('pending', 'processing', 'complete', 'failed')),
   status text not null default 'open' check (status in ('open', 'in_progress', 'closed', 'dismissed')),
@@ -16,7 +16,11 @@ create table if not exists support_requests (
   constraint support_requests_requester_required_check check (
     (
       requester_account_deleted_at is null and
-      (requester_user_id is not null or nullif(contact_email, '') is not null)
+      (
+        source = 'survey' or
+        requester_user_id is not null or
+        nullif(contact_email, '') is not null
+      )
     ) or
     (
       requester_account_deleted_at is not null and

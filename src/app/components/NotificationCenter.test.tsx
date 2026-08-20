@@ -29,7 +29,7 @@ vi.mock('../lib/notificationsApi', async () => {
 
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location-probe">{location.pathname}</div>;
+  return <div data-testid="location-probe">{location.pathname}{location.search}</div>;
 }
 
 describe('NotificationCenter', () => {
@@ -109,6 +109,41 @@ describe('NotificationCenter', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mark all as read' }));
 
     await waitFor(() => expect(markAllNotificationsRead).toHaveBeenCalled());
+  });
+
+  it('opens an existing nearby notification on its source pin', async () => {
+    const sourceUserId = '00000000-0000-4000-8000-000000000002';
+    getNotifications.mockResolvedValue({
+      notifications: [{
+        id: 'notification-nearby',
+        userId: 'user-1',
+        type: 'nearby_activity',
+        title: 'Someone nearby',
+        body: 'Someone within your radar may be in your area.',
+        linkUrl: '/map?layer=nearby',
+        actorUserId: null,
+        conversationId: null,
+        metadata: { sourceUserId },
+        readAt: null,
+        createdAt: '2026-08-19T12:00:00.000Z',
+      }],
+      nextCursor: null,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/notifications']}>
+        <Routes>
+          <Route path="/notifications" element={<NotificationCenter />} />
+          <Route path="*" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Someone nearby' }));
+    await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('notification-nearby'));
+    expect(await screen.findByTestId('location-probe')).toHaveTextContent(
+      `/map?layer=nearby&focusUserId=${sourceUserId}`,
+    );
   });
 
   it('clears visible notifications', async () => {

@@ -8,6 +8,7 @@ import {
   getNotificationSummary,
   getNotifications,
   markNotificationRead,
+  resolveNotificationNavigationPath,
   type NotificationPreferences,
   type NotificationRecord,
 } from '../lib/notificationsApi';
@@ -66,14 +67,6 @@ export function shouldShowInAppNotificationPopup(pathname: string, notification:
 
 export function shouldPlayInAppNotificationSound(pathname: string, notification: NotificationRecord) {
   return !isActiveConversationPath(pathname, notification);
-}
-
-export function resolveNotificationNavigationPath(linkUrl: string | null | undefined) {
-  if (!linkUrl || !linkUrl.startsWith('/') || linkUrl.startsWith('//')) {
-    return '/notifications';
-  }
-
-  return linkUrl;
 }
 
 export function notificationPopupTheme() {
@@ -214,7 +207,7 @@ export default function ForegroundNotifications() {
     }
 
     toast.dismiss(toastId);
-    navigate(resolveNotificationNavigationPath(notification.linkUrl));
+    navigate(resolveNotificationNavigationPath(notification));
   }, [navigate]);
 
   const showPopup = useCallback((notification: NotificationRecord) => {
