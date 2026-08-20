@@ -55,6 +55,10 @@
   max-width: min(34rem, calc(100dvw - 2rem));
   max-height: calc(100dvh - max(1.3rem, env(safe-area-inset-top)) - max(1.3rem, env(safe-area-inset-bottom)));
   margin-inline: auto;
+  /* D5: the auto block margins soak up every pixel of leftover height above the
+     footer, so the card stays optically centred while the footer sits flush to
+     the bottom of the shell on tall viewports (tablet and desktop). */
+  margin-block: auto;
   overflow: visible;
 }
 
