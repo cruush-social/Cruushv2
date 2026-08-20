@@ -634,6 +634,9 @@ test('previews four enlarged recently active profiles before horizontal scrollin
   await expect(page.getByTestId('map-home-shell')).toBeVisible();
   await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible();
 
+  // The tray is collapsed behind its own toggle until the user opens it.
+  await page.getByRole('button', { name: 'Show recently active bar' }).click();
+
   const tray = page.getByTestId('recently-active-tray');
   const tiles = tray.locator('[data-testid^="recently-active-tile-"]');
   await expect(tiles).toHaveCount(6);

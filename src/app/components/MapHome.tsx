@@ -2349,7 +2349,11 @@ export default function MapHome(_props: MapHomeProps = {}) {
         ) : null}
 
         <div
-          className="pointer-events-auto absolute right-3 top-[3.75rem] z-40 flex flex-col items-end gap-2 sm:right-4 sm:top-[4.25rem]"
+          // The top offsets clear the top-actions bar by the same 8px the stack
+          // uses between its own controls. The bar grows at sm and again at lg
+          // (h-9/p-1 -> h-10/p-1.5 -> h-11), so each step needs its own offset:
+          // its bottom edge lands at 54px, 66px and 70px.
+          className="pointer-events-auto absolute right-3 top-[3.875rem] z-40 flex flex-col items-end gap-2 sm:right-4 sm:top-[4.625rem] lg:top-[4.875rem]"
           data-testid="map-right-actions"
         >
           {activeCrowdNotice ? (
