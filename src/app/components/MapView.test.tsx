@@ -642,6 +642,8 @@ describe('MapView', () => {
     );
 
     await waitFor(() => expect(mapInstances[0]).toBeDefined());
+    expect(screen.queryByTestId('marker-current-fallback-me')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('marker-badge-me')).not.toBeInTheDocument();
     act(() => {
       mapInstances[0].trigger('load');
     });
@@ -780,7 +782,7 @@ describe('MapView', () => {
     expect(heart).toHaveAttribute('data-has-photo', 'true');
     expect(screen.getByTestId('marker-photo-fill-me')).toHaveAttribute('href', 'https://example.com/me.jpg');
     expect(heart.querySelector('path[stroke]')).toHaveAttribute('stroke', '#0BA8FF');
-    expect(screen.getByTestId('marker-badge-me')).toHaveClass('border-[#0BA8FF]');
+    expect(screen.queryByTestId('marker-badge-me')).not.toBeInTheDocument();
     expect(screen.getByTestId('marker-signal-badge-me')).toHaveClass('border-[#0BA8FF]');
   });
 
