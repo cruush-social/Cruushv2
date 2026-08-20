@@ -2825,6 +2825,53 @@ describe("server", () => {
     expect(response.headers["set-cookie"]).toContain("Max-Age=0");
   });
 
+  it("deletes the current user's account through the POST fallback endpoint", async () => {
+    const sessionToken = "test-session-token";
+    const passwordHash = await hashPassword("current-password");
+
+    query
+      .mockResolvedValueOnce({
+        rows: [{
+          user_id: userId,
+          account_status: "active"
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: userId,
+          password_hash: passwordHash
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: userId }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/me/delete",
+      cookies: {
+        cruush_session: sessionToken
+      },
+      payload: {
+        password: "current-password",
+        confirmation: "DELETE"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(query.mock.calls[0]?.[0]).toContain("from app_sessions s");
+    expect(query.mock.calls[0]?.[1]).toEqual([hashSessionToken(sessionToken)]);
+    expect(query.mock.calls[2]?.[0]).toBe("begin");
+    expect(query.mock.calls[3]?.[0]).toContain("insert into account_deletion_media_cleanup");
+    expect(query.mock.calls[4]?.[0]).toContain("delete from app_sessions");
+    expect(query.mock.calls[5]?.[0]).toContain("delete from app_users");
+    expect(query.mock.calls[6]?.[0]).toBe("commit");
+    expect(response.headers["set-cookie"]).toContain("cruush_session=");
+    expect(response.headers["set-cookie"]).toContain("Max-Age=0");
+  });
+
   it("requires authentication before deleting an account", async () => {
     const response = await app.inject({
       method: "DELETE",

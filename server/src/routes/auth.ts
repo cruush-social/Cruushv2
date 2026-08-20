@@ -929,16 +929,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     });
   });
 
-  app.delete("/api/auth/me", async (request, reply) => {
-    const session = await resolveCurrentSession(request, { allowAccountDeletion: true });
-    const payload = deleteAccountPayloadSchema.parse(request.body);
-    await applyRateLimits(app, [{
-      key: `account-delete:user:${session.userId}`,
-      max: AUTH_ATTEMPT_MAX,
-      windowMs: AUTH_ATTEMPT_WINDOW_MS,
-      message: "Too many account deletion attempts. Try again later."
-    }]);
-
+  const completeAccountDeletion = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+    session: { userId: string }
+  ) => {
     const userResult = await app.db.query<PasswordCredentialRow>(
       `select id, password_hash
        from app_users
@@ -1001,6 +996,30 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     clearSessionCookie(reply, request);
 
     return reply.code(204).send();
+  };
+
+  app.delete("/api/auth/me", async (request, reply) => {
+    const session = await resolveCurrentSession(request, { allowAccountDeletion: true });
+    deleteAccountPayloadSchema.parse(request.body);
+    await applyRateLimits(app, [{
+      key: `account-delete:user:${session.userId}`,
+      max: AUTH_ATTEMPT_MAX,
+      windowMs: AUTH_ATTEMPT_WINDOW_MS,
+      message: "Too many account deletion attempts. Try again later."
+    }]);
+    return completeAccountDeletion(request, reply, session);
+  });
+
+  app.post("/api/auth/me/delete", async (request, reply) => {
+    const session = await resolveCurrentSession(request, { allowAccountDeletion: true });
+    deleteAccountPayloadSchema.parse(request.body);
+    await applyRateLimits(app, [{
+      key: `account-delete:user:${session.userId}`,
+      max: AUTH_ATTEMPT_MAX,
+      windowMs: AUTH_ATTEMPT_WINDOW_MS,
+      message: "Too many account deletion attempts. Try again later."
+    }]);
+    return completeAccountDeletion(request, reply, session);
   });
 
   app.post("/api/auth/verification/resend", async (request, reply) => {

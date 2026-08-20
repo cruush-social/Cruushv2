@@ -148,8 +148,8 @@ export function changePassword(payload: { currentPassword: string; newPassword: 
 }
 
 export function deleteAccount(payload: { password: string; confirmation: 'DELETE' }) {
-  return requestApi<void>('/api/auth/me', {
-    method: 'DELETE',
+  return requestApi<void>('/api/auth/me/delete', {
+    method: 'POST',
     body: JSON.stringify(payload),
   });
 }

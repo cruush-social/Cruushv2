@@ -90,8 +90,8 @@ describe('authApi', () => {
         newPassword: 'new-password-123',
       }),
     }));
-    expect(fetch).toHaveBeenNthCalledWith(2, '/api/auth/me', expect.objectContaining({
-      method: 'DELETE',
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/auth/me/delete', expect.objectContaining({
+      method: 'POST',
       body: JSON.stringify({
         password: 'current-password',
         confirmation: 'DELETE',
