@@ -619,14 +619,17 @@
     width: 100vw;
     width: 100dvw;
     max-width: none;
-    min-height: 100vh;
-    min-height: 100dvh;
-    height: auto;
+    min-height: 0;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
+    overflow-y: scroll;
+    overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     padding:
       max(0.75rem, env(safe-area-inset-top))
       max(0.75rem, env(safe-area-inset-right))

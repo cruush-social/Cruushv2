@@ -90,12 +90,10 @@ describe('Auth', () => {
     expect(authCss).toContain('width: 100%;');
   });
 
-  it('allows the auth page to scroll only when larger text needs more room', () => {
+  it('makes the mobile auth shell the touch scroll owner', () => {
     render(<Auth onAuth={vi.fn()} />);
 
-    expect(authCss).toContain('html[data-cruush-larger-text] .launch-login-auth-shell');
-    expect(authCss).toContain('overflow-y: auto;');
-    expect(authCss).not.toContain('overflow: visible !important');
+    expect(authCss).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.launch-login-auth-shell \{[\s\S]*?height: 100dvh;[\s\S]*?overflow-y: scroll;[\s\S]*?overscroll-behavior-y: auto;[\s\S]*?-webkit-overflow-scrolling: touch;[\s\S]*?touch-action: pan-y;/);
   });
 
   it('keeps the age suspension appeal reachable from sign in', () => {

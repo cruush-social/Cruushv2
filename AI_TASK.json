@@ -1,9 +1,38 @@
 {
-  "status": "active",
-  "task": "Resolve unresolved merge conflict markers that broke the production build; restore clear-notifications control; bug tip placement",
+  "status": "validating",
+  "product": "cruush",
+  "repository": "cruush-social/Cruushv2",
+  "job": "Restore reliable touch scrolling through the complete signed-out signup form on deployed mobile browsers.",
+  "base": "cbf9be5201228e1c1280a090781b067a86deed02",
+  "branch": "main",
   "allowedPaths": [
-    "**"
+    "AI_TASK.json",
+    "src/app/components/Auth.css",
+    "src/app/components/Auth.test.tsx"
   ],
-  "forbiddenPaths": [],
-  "publicationTarget": "production"
+  "preserved": [
+    "Keep every signup field, action, link, validation rule, authentication behavior, visual asset, and public-facing word unchanged.",
+    "Keep the existing desktop auth layout and all signed-in app routes unchanged.",
+    "Preserve the carousel work and every unrelated committed change already on main."
+  ],
+  "nonGoals": [
+    "Do not change account creation, beta access, age verification, consent, CAPTCHA, password, email, or support behavior.",
+    "Do not redesign the auth page, alter its spacing, remove content, or change carousel or profile UI in this patch.",
+    "Do not commit, push, or deploy without a separate explicit request."
+  ],
+  "proof": [
+    "Render the real signed-out signup flow at 360 by 800 and 412 by 915.",
+    "Confirm the auth shell itself has scrollHeight greater than clientHeight and responds to scrolling from the form body.",
+    "Scroll from the top through Create Account, secondary actions, all support links, and all legal links with no overlap or clipping.",
+    "Confirm the signed-in route remains outside the changed selector and run the focused existing auth tests, public-copy scan, and git diff check."
+  ],
+  "proofResults": [
+    "Before the patch at 360 by 800, #root held the 63-pixel overflow while the signup shell had no scroll range and overscroll containment could intercept mobile touch scrolling.",
+    "After the patch at 360 by 800, the signup shell owned the full 800-pixel viewport and a 863-pixel scroll area; scrolling from the form moved it from 0 to 62.5 pixels and exposed every support and legal link.",
+    "At 412 by 915, the full signup form, Create Account action, secondary actions, four support links, and all legal links fit visibly inside the viewport.",
+    "Measured Create Account, both secondary actions, all support links, and the legal-link region had zero vertical overlaps at the bottom of the 360 by 800 flow.",
+    "The focused Auth suite passed 17 of 17. The production build, public-copy, JSON, and git diff checks passed before publication."
+  ],
+  "publicationTarget": "origin/main and production",
+  "environmentChanges": []
 }
