@@ -2,36 +2,38 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Restore reliable touch scrolling through the complete signed-out signup form on deployed mobile browsers.",
-  "base": "cbf9be5201228e1c1280a090781b067a86deed02",
+  "job": "Make the three landing-page signup checkboxes visually match the existing pink-to-blue cruush theme, retain the deployed mobile signup scroll fix, and prevent the desktop signup footer from overlapping the form.",
+  "base": "9846fc06bf5d8056d5736565079cd2fc2da4f981",
   "branch": "main",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/Auth.css",
-    "src/app/components/Auth.test.tsx"
+    "src/app/components/Auth.css"
   ],
   "preserved": [
-    "Keep every signup field, action, link, validation rule, authentication behavior, visual asset, and public-facing word unchanged.",
-    "Keep the existing desktop auth layout and all signed-in app routes unchanged.",
-    "Preserve the carousel work and every unrelated committed change already on main."
+    "Keep all signup copy, fields, validation, consent behavior, authentication behavior, links, assets, and desktop visual design unchanged apart from the minimum scroll containment needed to prevent overlap.",
+    "Keep commit 9846fc06bf5d8056d5736565079cd2fc2da4f981 mobile touch scrolling behavior unchanged.",
+    "Keep every signed-in route and unrelated committed change unchanged."
   ],
   "nonGoals": [
-    "Do not change account creation, beta access, age verification, consent, CAPTCHA, password, email, or support behavior.",
-    "Do not redesign the auth page, alter its spacing, remove content, or change carousel or profile UI in this patch.",
-    "Do not commit, push, or deploy without a separate explicit request."
+    "Do not change checkbox meaning, required or optional status, click behavior, form submission, or accessibility labels.",
+    "Do not restyle the signup panel, inputs, buttons, links, carousel, profile UI, or other checkbox components. Do not compress, hide, or remove signup content to resolve the overlap.",
+    "Do not add copy, dependencies, environment variables, provider changes, or production configuration."
   ],
   "proof": [
-    "Render the real signed-out signup flow at 360 by 800 and 412 by 915.",
-    "Confirm the auth shell itself has scrollHeight greater than clientHeight and responds to scrolling from the form body.",
-    "Scroll from the top through Create Account, secondary actions, all support links, and all legal links with no overlap or clipping.",
-    "Confirm the signed-in route remains outside the changed selector and run the focused existing auth tests, public-copy scan, and git diff check."
+    "Render the real signed-out signup flow before and after at 360 by 800, 412 by 915, and 1280 by 800.",
+    "Exercise unchecked and checked checkbox states and inspect focus visibility.",
+    "Scroll through the entire signup form and confirm controls, support links, and legal links remain reachable with no overlap or clipping on mobile and desktop.",
+    "Run the focused Auth suite, production build, public-copy scan, JSON validation, spelling scan, and git diff checks before publication.",
+    "After deployment, confirm origin/main, the production build SHA, frontend response, API health, live checkbox assets, and the live signed-out mobile interaction when an unauthenticated browser is available."
   ],
   "proofResults": [
-    "Before the patch at 360 by 800, #root held the 63-pixel overflow while the signup shell had no scroll range and overscroll containment could intercept mobile touch scrolling.",
-    "After the patch at 360 by 800, the signup shell owned the full 800-pixel viewport and a 863-pixel scroll area; scrolling from the form moved it from 0 to 62.5 pixels and exposed every support and legal link.",
-    "At 412 by 915, the full signup form, Create Account action, secondary actions, four support links, and all legal links fit visibly inside the viewport.",
-    "Measured Create Account, both secondary actions, all support links, and the legal-link region had zero vertical overlaps at the bottom of the 360 by 800 flow.",
-    "The focused Auth suite passed 17 of 17. The production build, public-copy, JSON, and git diff checks passed before publication."
+    "At 360 by 800, all three 18.4-pixel checkbox controls retained their size and spacing, rendered a pink-to-blue gradient edge when unchecked, rendered the full gradient and white checkmark when checked, and exposed a two-pixel white focus outline with pink and blue glow.",
+    "All three checkbox controls toggled from unchecked to checked and back without submitting the form or changing their labels or behavior.",
+    "At 360 by 800, the auth shell retained an 800-pixel viewport and 972-pixel scroll area, scrolled from 0 to 172.5 pixels, and exposed every action, support link, and legal link with zero measured overlaps.",
+    "At 412 by 915, the auth shell retained a 915-pixel viewport and 996-pixel scroll area, scrolled from 0 to 81.5 pixels, and kept the form, footer, and legal links separate with zero measured overlaps.",
+    "Before the desktop containment fix at 1280 by 800, the form extended to 850.7 pixels while the constrained card ended and footer began at 771.2 pixels. After the fix, the 800-pixel shell owned an 1111-pixel scroll area and the form and footer met at 930.2 pixels without overlap.",
+    "At 1280 by 800, the shorter sign-in state still fit an 800-pixel shell without scrolling and its form ended at 570.1 pixels before the footer began at 619.4 pixels.",
+    "The focused Auth suite passed 17 of 17. The production build transformed 2019 modules successfully. Public-copy, JSON, and git diff checks passed before publication."
   ],
   "publicationTarget": "origin/main and production",
   "environmentChanges": []
