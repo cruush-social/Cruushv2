@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { ApiClientError } from '../lib/apiClient';
 import MapHome, { canUseDeveloperMapToolsEmail } from './MapHome';
 
@@ -307,6 +307,11 @@ vi.mock('./MapView', async () => {
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-probe">{location.pathname}</div>;
+}
+
+function ProfileBackProbe() {
+  const navigate = useNavigate();
+  return <button onClick={() => navigate(-1)}>Back to map</button>;
 }
 
 const launchEvent = {
@@ -1151,6 +1156,44 @@ describe('MapHome', () => {
       longitude: -73.97,
       zoom: 13.75,
     });
+  });
+
+  it('keeps an applied Seeking filter after opening a mobile profile and returning to the map', async () => {
+    useIsMobile.mockReturnValue(true);
+
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <Routes>
+          <Route path="/map" element={<MapHome />} />
+          <Route path="/profile/:userId" element={<ProfileBackProbe />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const seekingButton = await screen.findByRole('button', { name: /^seeking$/i });
+    fireEvent.click(seekingButton);
+    fireEvent.click(screen.getByRole('button', { name: 'Gender Identities' }));
+    fireEvent.click(screen.getByRole('option', { name: 'man' }));
+    fireEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^seeking$/i }).style.background).toBe('var(--cruush-gradient)');
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pin Jordan' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to map' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^seeking$/i }).style.background).toBe('var(--cruush-gradient)');
+    });
+    expect(getNearbyUsers).toHaveBeenLastCalledWith(
+      {
+        lat: expect.any(Number),
+        lng: expect.any(Number),
+      },
+      expect.objectContaining({ identities: ['man'] }),
+      { limit: 500 },
+    );
   });
 
   it('starts recently active closed above the mobile bottom nav and keeps the toggle working', async () => {

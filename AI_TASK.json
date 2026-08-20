@@ -2,38 +2,36 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Make the three landing-page signup checkboxes visually match the existing pink-to-blue cruush theme, retain the deployed mobile signup scroll fix, and prevent the desktop signup footer from overlapping the form.",
-  "base": "9846fc06bf5d8056d5736565079cd2fc2da4f981",
+  "job": "Preserve an applied Seeking filter when a mobile user opens a profile from the map and returns to the map, resolving GitHub issue 130.",
+  "base": "a06cba4bf5502745eccb8b0f82ddddb72c60c8ca",
   "branch": "main",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/Auth.css"
+    "src/app/components/MapHome.tsx",
+    "src/app/components/MapHome.test.tsx"
   ],
   "preserved": [
-    "Keep all signup copy, fields, validation, consent behavior, authentication behavior, links, assets, and desktop visual design unchanged apart from the minimum scroll containment needed to prevent overlap.",
-    "Keep commit 9846fc06bf5d8056d5736565079cd2fc2da4f981 mobile touch scrolling behavior unchanged.",
-    "Keep every signed-in route and unrelated committed change unchanged."
+    "Keep the existing Seeking fields, limits, server filtering, visibility controls, map viewport restoration, profile navigation, and mutual-map behavior unchanged.",
+    "Keep all location-privacy policy and pin-coordinate behavior unchanged.",
+    "Keep the deployed signup scrolling and themed checkbox fixes unchanged."
   ],
   "nonGoals": [
-    "Do not change checkbox meaning, required or optional status, click behavior, form submission, or accessibility labels.",
-    "Do not restyle the signup panel, inputs, buttons, links, carousel, profile UI, or other checkbox components. Do not compress, hide, or remove signup content to resolve the overlap.",
-    "Do not add copy, dependencies, environment variables, provider changes, or production configuration."
+    "Do not change filter choices, cruush+ gating, profile content, map layout, pin layout, privacy settings, or server APIs.",
+    "Do not address GitHub issue 132 with a code change until its live privacy behavior is verified and any required plan is approved.",
+    "Do not close GitHub issues or pull requests as part of this patch."
   ],
   "proof": [
-    "Render the real signed-out signup flow before and after at 360 by 800, 412 by 915, and 1280 by 800.",
-    "Exercise unchecked and checked checkbox states and inspect focus visibility.",
-    "Scroll through the entire signup form and confirm controls, support links, and legal links remain reachable with no overlap or clipping on mobile and desktop.",
-    "Run the focused Auth suite, production build, public-copy scan, JSON validation, spelling scan, and git diff checks before publication.",
-    "After deployment, confirm origin/main, the production build SHA, frontend response, API health, live checkbox assets, and the live signed-out mobile interaction when an unauthenticated browser is available."
+    "Add a focused regression that applies a Seeking filter, opens a profile on mobile, returns to the map, and observes the filter still active.",
+    "Run the focused MapHome test file and the nearest build and copy gates.",
+    "Exercise the real authenticated mobile route when a safe test session is available; otherwise state that live authenticated verification remains blocked.",
+    "Before publication, inspect the full diff, check for conflict markers and secrets, and confirm only allowed paths changed."
   ],
   "proofResults": [
-    "At 360 by 800, all three 18.4-pixel checkbox controls retained their size and spacing, rendered a pink-to-blue gradient edge when unchecked, rendered the full gradient and white checkmark when checked, and exposed a two-pixel white focus outline with pink and blue glow.",
-    "All three checkbox controls toggled from unchecked to checked and back without submitting the form or changing their labels or behavior.",
-    "At 360 by 800, the auth shell retained an 800-pixel viewport and 972-pixel scroll area, scrolled from 0 to 172.5 pixels, and exposed every action, support link, and legal link with zero measured overlaps.",
-    "At 412 by 915, the auth shell retained a 915-pixel viewport and 996-pixel scroll area, scrolled from 0 to 81.5 pixels, and kept the form, footer, and legal links separate with zero measured overlaps.",
-    "Before the desktop containment fix at 1280 by 800, the form extended to 850.7 pixels while the constrained card ended and footer began at 771.2 pixels. After the fix, the 800-pixel shell owned an 1111-pixel scroll area and the form and footer met at 930.2 pixels without overlap.",
-    "At 1280 by 800, the shorter sign-in state still fit an 800-pixel shell without scrolling and its form ended at 570.1 pixels before the footer began at 619.4 pixels.",
-    "The focused Auth suite passed 17 of 17. The production build transformed 2019 modules successfully. Public-copy, JSON, and git diff checks passed before publication."
+    "On the deployed pre-fix build at 360 by 800, a temporary 99-mile Seeking filter showed the active gradient, then lost the gradient after opening a profile and returning to the map.",
+    "The new regression reproduces the mobile map-to-profile-to-map path and confirms the selected identity filter remains active and is included in the next discovery request.",
+    "The complete MapHome test file passed 67 of 67 tests.",
+    "The production build transformed 2019 modules successfully. Public-copy, product-name casing, JSON validation, and git diff checks passed before publication.",
+    "Post-deployment authenticated mobile verification remains pending."
   ],
   "publicationTarget": "origin/main and production",
   "environmentChanges": []

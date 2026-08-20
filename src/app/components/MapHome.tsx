@@ -103,6 +103,28 @@ function uniqueValues(values: string[] = []) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
+function hasActiveSeekingFilters(filters: FilterState) {
+  return filters.ageRange[0] !== DEFAULT_FILTER_STATE.ageRange[0] ||
+    filters.ageRange[1] !== DEFAULT_FILTER_STATE.ageRange[1] ||
+    filters.distance !== DEFAULT_FILTER_STATE.distance ||
+    [
+      filters.identities,
+      filters.presentations,
+      filters.lookingFor,
+      filters.timing,
+      filters.hosting,
+      filters.vibes,
+      filters.crowds,
+      filters.hobbies,
+      filters.positions,
+      filters.roles,
+      filters.kinks,
+      filters.bodyTypes,
+      filters.sexuality,
+      filters.substanceBoundaries,
+    ].some((items) => items.length > 0);
+}
+
 function normalizeVisibilityRules(rules?: ProfileVisibilityRules): ProfileVisibilityRules {
   const defaults = emptyProfilePayload.visibility_rules;
 
@@ -341,6 +363,7 @@ type MapRouteState = {
   openOwnProfilePanel?: boolean;
   centerEventSlug?: string;
   focusUserId?: string;
+  seekingFilters?: FilterState;
 } | null;
 
 type StoredMapViewport = {
@@ -501,6 +524,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const routeState = location.state as MapRouteState;
   const isMobile = useIsMobile();
   const [users, setUsers] = useState<DiscoveryUser[]>([]);
   const [userApproximateLocation, setUserApproximateLocation] = useState<ApproximateCoordinates | null>(null);
@@ -519,7 +543,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [luckySlot, setLuckySlot] = useState<LuckySlotState | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
+  const [filters, setFilters] = useState<FilterState>(() => routeState?.seekingFilters ?? DEFAULT_FILTER_STATE);
   const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
   const [visibility, setVisibility] = useState<VisibilityControlState>(DEFAULT_VISIBILITY_STATE);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
@@ -565,7 +589,6 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const isMutualMapMode = searchParams.get('mode') === 'mutuals';
   const lastMutualMapModeRef = useRef(isMutualMapMode);
   const shouldReplayTutorial = searchParams.get('replayTutorial') === '1';
-  const routeState = location.state as MapRouteState;
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
   const shouldOpenOwnProfilePanel = !isMobile && routeState?.openOwnProfilePanel === true;
   const hasCruushPlus = billingStatus?.cruushPlus === true;
@@ -932,7 +955,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
 
         if (isMounted) {
           hasFetchedInitialUsersRef.current = true;
-          void fetchUsers(initialFetchCoordinates);
+          void fetchUsers(initialFetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
         }
       })
       .catch((profileError) => {
@@ -940,7 +963,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
         if (isMounted) {
           setCurrentProfile(null);
           hasFetchedInitialUsersRef.current = true;
-          void fetchUsers(null);
+          void fetchUsers(null, hasActiveSeekingFilters(filters) ? filters : undefined);
         }
       })
       .finally(() => {
@@ -1146,7 +1169,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
       ]);
       mapInstance?.setZoom(14);
     }
-    void fetchUsers(fetchCoordinates);
+    void fetchUsers(fetchCoordinates, hasActiveSeekingFilters(filters) ? filters : undefined);
 
     if (requireLocationSync) {
       await locationSync;
@@ -1273,27 +1296,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
     requestUserLocation();
   }, [currentProfile, isMutualMapMode, locationStatus, profileLoaded, userApproximateLocation]);
 
-  const hasActiveFilters =
-    isMutualMapMode ||
-    filters.ageRange[0] !== DEFAULT_FILTER_STATE.ageRange[0] ||
-    filters.ageRange[1] !== DEFAULT_FILTER_STATE.ageRange[1] ||
-    filters.distance !== DEFAULT_FILTER_STATE.distance ||
-    [
-      filters.identities,
-      filters.presentations,
-      filters.lookingFor,
-      filters.timing,
-      filters.hosting,
-      filters.vibes,
-      filters.crowds,
-      filters.hobbies,
-      filters.positions,
-      filters.roles,
-      filters.kinks,
-      filters.bodyTypes,
-      filters.sexuality,
-      filters.substanceBoundaries,
-    ].some((items) => items.length > 0);
+  const hasActiveFilters = isMutualMapMode || hasActiveSeekingFilters(filters);
 
   const availableCrowdModes = getAvailableCrowdModes(currentProfile);
   const safeVisibility: VisibilityControlState = {
@@ -2561,10 +2564,18 @@ export default function MapHome(_props: MapHomeProps = {}) {
           hasCruushPlus={hasCruushPlus}
           onUpgrade={() => navigate('/rewards')}
           onClear={() => {
+            navigate(`${location.pathname}${location.search}`, {
+              replace: true,
+              state: { ...(routeState ?? {}), seekingFilters: undefined },
+            });
             setFilters(DEFAULT_FILTER_STATE);
             void fetchUsers(getCurrentFetchCoordinates(), DEFAULT_FILTER_STATE);
           }}
           onApply={() => {
+            navigate(`${location.pathname}${location.search}`, {
+              replace: true,
+              state: { ...(routeState ?? {}), seekingFilters: filters },
+            });
             setIsFiltersOpen(false);
             void fetchUsers(getCurrentFetchCoordinates(), filters);
           }}
