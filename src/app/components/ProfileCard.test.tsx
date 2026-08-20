@@ -127,4 +127,53 @@ describe('ProfileCard', () => {
     expect(screen.queryByText('Leather')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'View Full Profile' })).toHaveClass('h-10');
   });
+
+  it('renders the carousel result as a 4:5 photo with dark glass information and controls', () => {
+    const onBrowseAgain = vi.fn();
+    const onViewProfile = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          density="compact"
+          fillAvailableHeight
+          placement="inline"
+          presentation="carousel"
+          user={{
+            id: 'user-1',
+            name: 'Jordan with a deliberately long display name',
+            age: 26,
+            pronouns: 'they/them',
+            distance: '0.2 mi',
+            lookingFor: ['Fun'],
+            vibes: ['Goth', 'Punk', 'Club kid', 'Leather'],
+            photo: '/jordan.jpg',
+            relationship: {
+              canMessage: false,
+            },
+          }}
+          onBrowseAgain={onBrowseAgain}
+          onClose={vi.fn()}
+          onViewProfile={onViewProfile}
+        />
+      </MemoryRouter>
+    );
+
+    const card = screen.getByTestId('profile-card');
+    const browseAgainButton = screen.getByRole('button', { name: 'Browse again' });
+    expect(card).toHaveClass('aspect-[4/5]', 'overflow-hidden');
+    expect(screen.getByTestId('profile-card-media')).toHaveClass('absolute', 'inset-0');
+    expect(screen.getByRole('img', { name: 'Jordan with a deliberately long display name' })).toHaveClass('h-full', 'w-full', 'object-cover');
+    expect(screen.getByTestId('carousel-profile-glass')).toHaveClass('bg-black/60', 'backdrop-blur-xl');
+    expect(card).toContainElement(browseAgainButton);
+    expect(browseAgainButton).toHaveClass('bg-black/55', 'backdrop-blur-xl');
+    expect(screen.getByRole('button', { name: 'Mutuals only' })).toBeDisabled();
+    expect(screen.getByTestId('profile-card-vibes')).toHaveTextContent('GothPunkClub kid');
+    expect(screen.queryByText('Leather')).not.toBeInTheDocument();
+
+    fireEvent.click(browseAgainButton);
+    fireEvent.click(screen.getByRole('button', { name: 'View Full Profile' }));
+    expect(onBrowseAgain).toHaveBeenCalledTimes(1);
+    expect(onViewProfile).toHaveBeenCalledTimes(1);
+  });
 });

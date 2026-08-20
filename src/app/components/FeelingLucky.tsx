@@ -163,18 +163,12 @@ export default function FeelingLucky() {
               density="compact"
               fillAvailableHeight
               placement="inline"
+              presentation="carousel"
               user={targetUser}
+              onBrowseAgain={handleBrowseAgain}
               onClose={() => navigate(-1)}
               onViewProfile={() => navigate(`/profile/${targetUser.id}`)}
             />
-            <Button
-              onClick={handleBrowseAgain}
-              variant="outline"
-              className="mx-auto flex h-10 w-full max-w-sm rounded-xl border-white/18 text-white"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Browse again
-            </Button>
           </div>
         ) : null}
 

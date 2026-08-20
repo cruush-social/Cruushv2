@@ -2,36 +2,47 @@
   "status": "validating",
   "product": "cruush",
   "repository": "cruush-social/Cruushv2",
-  "job": "Preserve an applied Seeking filter when a mobile user opens a profile from the map and returns to the map, resolving GitHub issue 130.",
-  "base": "a06cba4bf5502745eccb8b0f82ddddb72c60c8ca",
+  "job": "Ship the verified Activity card and vibe work, then finish the cruise carousel selected-profile result as a complete 4:5 photo with profile information and existing actions overlaid in map-style dark glass controls.",
+  "base": "0e2b1dcbd7887191a6c8120f1823724ddf94edf2",
   "branch": "main",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/MapHome.tsx",
-    "src/app/components/MapHome.test.tsx"
+    "server/src/app.test.ts",
+    "server/src/routes/cruush.ts",
+    "src/app/components/CruushActivity.test.tsx",
+    "src/app/components/CruushActivity.tsx",
+    "src/app/components/FeelingLucky.test.tsx",
+    "src/app/components/FeelingLucky.tsx",
+    "src/app/components/ProfileCard.test.tsx",
+    "src/app/components/ProfileCard.tsx",
+    "src/app/lib/cruushApi.ts"
   ],
   "preserved": [
-    "Keep the existing Seeking fields, limits, server filtering, visibility controls, map viewport restoration, profile navigation, and mutual-map behavior unchanged.",
-    "Keep all location-privacy policy and pin-coordinate behavior unchanged.",
-    "Keep the deployed signup scrolling and themed checkbox fixes unchanged."
+    "Keep the verified Activity counts, tabs, locked and upgrade states, top-three vibe labels, and mutual cruush action behavior unchanged.",
+    "Keep carousel animation, candidate selection, cruush+ billing gate, empty and error states, reduced motion, and desktop versus mobile routing unchanged.",
+    "Keep close, browse again, send cruush, revoke cruush, message, and full-profile actions wired to their existing handlers.",
+    "Keep DL Mode photo masking, relationship state, distance formatting, badges, and three-vibe limit unchanged.",
+    "Keep every non-carousel ProfileCard rendering unchanged."
   ],
   "nonGoals": [
-    "Do not change filter choices, cruush+ gating, profile content, map layout, pin layout, privacy settings, or server APIs.",
-    "Do not address GitHub issue 132 with a code change until its live privacy behavior is verified and any required plan is approved.",
-    "Do not close GitHub issues or pull requests as part of this patch."
+    "Do not change map layout or styling, bottom navigation, profile editing, relationship rules, billing, discovery eligibility, APIs beyond the already verified Activity vibe payload, or database schema.",
+    "Do not add or replace visual assets, dependencies, copy, routes, analytics, notifications, moderation, deployment configuration, or environment variables.",
+    "Do not publish any unrelated worktree changes."
   ],
   "proof": [
-    "Add a focused regression that applies a Seeking filter, opens a profile on mobile, returns to the map, and observes the filter still active.",
-    "Run the focused MapHome test file and the nearest build and copy gates.",
-    "Exercise the real authenticated mobile route when a safe test session is available; otherwise state that live authenticated verification remains blocked.",
-    "Before publication, inspect the full diff, check for conflict markers and secrets, and confirm only allowed paths changed."
+    "Render the exact carousel result before and after at 360 by 800, 375 by 812, and desktop width, including long names, three vibes, missing photo, disabled message, and bottom navigation clearance.",
+    "Verify the selected profile uses a 4 by 5 media frame and that information, Browse again, send cruush, message, and full-profile controls are over the photo in dark glass surfaces.",
+    "Exercise Browse again and navigation locally; do not mutate a production relationship.",
+    "Run focused Activity, FeelingLucky, ProfileCard, carousel, and server Activity tests plus frontend and server production builds, copy, casing, layout, diff, conflict-marker, and secret gates.",
+    "Push the verified commit to origin/main, confirm the remote SHA, poll deployment until the deployed SHA matches, then verify one public frontend response, direct API health, and the live carousel route."
   ],
   "proofResults": [
-    "On the deployed pre-fix build at 360 by 800, a temporary 99-mile Seeking filter showed the active gradient, then lost the gradient after opening a profile and returning to the map.",
-    "The new regression reproduces the mobile map-to-profile-to-map path and confirms the selected identity filter remains active and is included in the next discovery request.",
-    "The complete MapHome test file passed 67 of 67 tests.",
-    "The production build transformed 2019 modules successfully. Public-copy, product-name casing, JSON validation, and git diff checks passed before publication.",
-    "Post-deployment authenticated mobile verification remains pending."
+    "Current source inspection confirmed the prior carousel work shipped upright 4 by 5 reel tiles and photo switching, but the selected-profile result still placed distance, vibes, actions, and Browse again below the photo.",
+    "The exact production build rendered the carousel result at 360 by 800, 375 by 812, 768 by 1024, and 1280 by 720 with a 4 by 5 photo, dark glass information and controls, three vibes, long-name truncation, missing-photo fallback, and disabled-message state.",
+    "Browse again cycled to another profile and View Full Profile opened the profile route in the safe local flow. No production relationship was mutated.",
+    "Carousel tests passed 10 of 10, Activity tests passed 11 of 11, and focused server Activity tests passed 14 with 281 unrelated tests skipped.",
+    "Frontend and server production builds, public copy, product casing, security, layout invariants, JSON, diff, and allowed-path checks passed before publication.",
+    "No environment variables were added, removed, or changed. No provider or cost impact."
   ],
   "publicationTarget": "origin/main and production",
   "environmentChanges": []

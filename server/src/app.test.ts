@@ -10766,6 +10766,9 @@ describe("server", () => {
           display_name: "Alex",
           pronouns: ["they/them"],
           photos: ["https://example.com/alex.jpg"],
+          vibes: ["Artsy", "Chill"],
+          scenes: ["Drag"],
+          archetypes: [],
           ghost_mode_enabled: false
         }]
       })
@@ -10798,7 +10801,8 @@ describe("server", () => {
             name: "Alex",
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
-            photoExplicit: false
+            photoExplicit: false,
+            vibes: ["Artsy", "Chill", "Drag"]
           }
         }],
         sent: [{
@@ -10812,7 +10816,8 @@ describe("server", () => {
             name: "Jordan",
             pronouns: "they/them",
             photo: null,
-            photoExplicit: false
+            photoExplicit: false,
+            vibes: []
           }
         }]
       }
@@ -10934,12 +10939,18 @@ describe("server", () => {
           display_name: "Alex",
           pronouns: ["they/them"],
           photos: ["https://example.com/alex.jpg"],
+          vibes: ["Artsy", "Chill"],
+          scenes: ["Drag"],
+          archetypes: [],
           ghost_mode_enabled: false
         }, {
           id: "8f707f0b-81aa-470d-b0e1-321d493d04d2",
           display_name: "Sam",
           pronouns: ["she/they"],
           photos: [],
+          vibes: ["Soft", "Goth", "Geek"],
+          scenes: [],
+          archetypes: [],
           ghost_mode_enabled: false
         }]
       })
@@ -10979,7 +10990,8 @@ describe("server", () => {
             name: "Alex",
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
-            photoExplicit: false
+            photoExplicit: false,
+            vibes: ["Artsy", "Chill", "Drag"]
           }
         }, {
           id: "incoming-2",
@@ -10998,7 +11010,8 @@ describe("server", () => {
             name: "Alex",
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
-            photoExplicit: false
+            photoExplicit: false,
+            vibes: ["Artsy", "Chill", "Drag"]
           }
         }],
         mutual: [],
@@ -11012,7 +11025,8 @@ describe("server", () => {
             name: "Alex",
             pronouns: "they/them",
             photo: "https://example.com/alex.jpg",
-            photoExplicit: false
+            photoExplicit: false,
+            vibes: ["Artsy", "Chill", "Drag"]
           }
         }, {
           id: "view-2",

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Eye, X } from 'lucide-react';
+import { Eye, RefreshCw, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import CruushBadge from './CruushBadge';
@@ -28,9 +28,20 @@ interface ProfileCardProps {
   placement?: 'overlay' | 'inline';
   density?: 'regular' | 'compact';
   fillAvailableHeight?: boolean;
+  presentation?: 'standard' | 'carousel';
+  onBrowseAgain?: () => void;
 }
 
-export default function ProfileCard({ user, onClose, onViewProfile, placement = 'overlay', density = 'regular', fillAvailableHeight = false }: ProfileCardProps) {
+export default function ProfileCard({
+  user,
+  onClose,
+  onViewProfile,
+  placement = 'overlay',
+  density = 'regular',
+  fillAvailableHeight = false,
+  presentation = 'standard',
+  onBrowseAgain,
+}: ProfileCardProps) {
   const navigate = useNavigate();
   const distancePreferences = useDistancePreferences();
   const [cruushed, setCruushed] = useState(false);
@@ -47,6 +58,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   const canMessage = !mutualRevoked && user.relationship?.canMessage !== false;
   const cruushDisabled = sendingCruush || revokingCruush;
   const maskPhoto = shouldMaskPhoto(dlModeActive, user.photoExplicit);
+  const carouselPresentation = presentation === 'carousel';
   const compact = placement === 'inline' && density === 'compact';
   const mediaStyle = fillAvailableHeight
     ? undefined
@@ -59,7 +71,7 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
   const vibeItems = Array.isArray(user.vibes)
     ? user.vibes.filter((item: string) => item.trim().length > 0)
     : [];
-  const visibleVibeItems = compact ? vibeItems.slice(0, 3) : vibeItems;
+  const visibleVibeItems = compact || carouselPresentation ? vibeItems.slice(0, 3) : vibeItems;
   const contentClassName = compact ? 'p-3 space-y-3' : 'p-4 space-y-4';
   const titleClassName = compact ? 'text-xl' : 'text-2xl';
   const actionButtonClassName = compact ? 'h-10 min-w-0 flex-1' : 'flex-1';
@@ -144,6 +156,129 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
       setOpeningMessage(false);
     }
   };
+
+  if (carouselPresentation) {
+    const carouselActionClassName = 'h-10 min-w-0 rounded-xl border border-white/10 bg-black/55 px-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl hover:bg-black/70';
+
+    return (
+      <div
+        data-testid="profile-card"
+        className="relative mx-auto aspect-[4/5] w-full max-w-sm overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.48)]"
+      >
+        <div data-testid="profile-card-media" className="absolute inset-0" style={{ background: 'var(--cruush-gradient)' }}>
+          {user.photo && !maskPhoto ? (
+            <img src={resolveMediaUrl(user.photo)} alt={user.name} className="h-full w-full object-cover" />
+          ) : maskPhoto ? (
+            <div
+              aria-label={user.name}
+              className="flex h-full w-full items-center justify-center"
+              role="img"
+              style={{ background: getProfileGradientCss(user.id) }}
+            >
+              <Eye className="h-12 w-12 text-white/80" strokeWidth={2.35} />
+            </div>
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <CruushIcon name="cruush" className="h-24 w-24 opacity-20" />
+            </div>
+          )}
+        </div>
+
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/15" />
+
+        <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-3">
+          {onBrowseAgain ? (
+            <button
+              type="button"
+              onClick={onBrowseAgain}
+              className="flex h-10 items-center gap-2 rounded-full border border-white/10 bg-black/55 px-3 text-sm text-white/90 backdrop-blur-xl transition hover:bg-black/70 hover:text-white"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Browse again
+            </button>
+          ) : <span />}
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/55 text-white/90 backdrop-blur-xl transition hover:bg-black/70 hover:text-white"
+            aria-label="Close profile preview"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="absolute inset-x-0 bottom-0 z-20 p-3">
+          <div
+            data-testid="carousel-profile-glass"
+            className="rounded-2xl border border-white/10 bg-black/60 p-3 text-white shadow-[0_18px_50px_rgba(0,0,0,0.42)] backdrop-blur-xl"
+          >
+            <div className="min-w-0">
+              <h3 className="truncate text-2xl">
+                {user.name}, {user.age}
+              </h3>
+              <div className="mt-1">
+                <CruushBadge badges={user.badges} compact />
+              </div>
+              <p className="mt-1 text-sm text-white/80">{user.pronouns}</p>
+            </div>
+
+            <div className="mt-2 flex items-center gap-2 text-sm text-white/80">
+              <CruushIcon name="map" className="h-4 w-4 opacity-80" />
+              <span>{formatDistanceLabel(user.distance, distancePreferences.mode)} away</span>
+            </div>
+
+            {visibleVibeItems.length > 0 ? (
+              <div data-testid="profile-card-vibes" className="mt-2 flex min-w-0 flex-nowrap gap-1.5 overflow-hidden">
+                {visibleVibeItems.map((vibe: string) => (
+                  <Badge
+                    key={vibe}
+                    variant="outline"
+                    className="min-w-0 shrink border-primary/50 bg-black/35 px-2 py-0.5 text-[11px] uppercase tracking-[0.08em] text-primary backdrop-blur-sm"
+                  >
+                    <span className="block min-w-0 truncate">{vibe}</span>
+                  </Badge>
+                ))}
+              </div>
+            ) : null}
+
+            <div data-testid="carousel-profile-actions" className="mt-3 grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                className={`${carouselActionClassName} ${hasRevocableCruush ? 'text-[#FF8BBB]' : ''}`}
+                onClick={() => {
+                  void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
+                }}
+                disabled={cruushDisabled}
+                aria-label={revokingCruush ? (isAlreadyMutual ? 'Removing mutual cruush' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual cruush' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+              >
+                <CruushIcon name="safety" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
+                {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
+              </Button>
+              <Button
+                type="button"
+                className={carouselActionClassName}
+                disabled={openingMessage || !canMessage}
+                onClick={() => {
+                  void handleMessage();
+                }}
+              >
+                <CruushIcon name="send" className="mr-2 h-4 w-4" variant="white" />
+                {!canMessage ? 'Mutuals only' : openingMessage ? 'Opening...' : 'Message'}
+              </Button>
+              <Button
+                type="button"
+                onClick={onViewProfile}
+                className={`${carouselActionClassName} col-span-2`}
+                variant="secondary"
+              >
+                View Full Profile
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const cardClassName = placement === 'inline'
     ? `bg-card rounded-2xl border border-border overflow-hidden shadow-2xl max-w-sm w-full mx-auto ${fillAvailableHeight ? 'flex min-h-0 flex-1 flex-col' : compact ? '' : 'overflow-y-auto'}`

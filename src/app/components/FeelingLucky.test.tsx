@@ -130,11 +130,16 @@ describe('FeelingLucky', () => {
       { limit: 20 },
     ));
     expect(await screen.findByText(/Jordan/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Browse again' })).toBeInTheDocument();
+    const browseAgainButton = screen.getByRole('button', { name: 'Browse again' });
+    const profileCard = screen.getByTestId('profile-card');
+    expect(profileCard).toContainElement(browseAgainButton);
+    expect(profileCard).toHaveClass('aspect-[4/5]');
     expect(container.firstElementChild).toHaveClass('pb-[calc(7rem+env(safe-area-inset-bottom))]');
     expect(screen.getByTestId('lucky-profile-result')).toHaveClass('flex', 'min-h-0', 'flex-1', 'flex-col', 'gap-3');
     expect(screen.getByTestId('profile-card')).not.toHaveClass('overflow-y-auto');
-    expect(screen.getByTestId('profile-card-media')).toHaveClass('min-h-0', 'flex-1');
+    expect(screen.getByTestId('profile-card-media')).toHaveClass('absolute', 'inset-0');
+    expect(screen.getByTestId('carousel-profile-glass')).toHaveClass('bg-black/60', 'backdrop-blur-xl');
+    expect(screen.getByTestId('carousel-profile-actions')).toContainElement(screen.getByRole('button', { name: 'send cruush' }));
   });
 
   it('treats billing failures as locked and does not reveal profile data', async () => {

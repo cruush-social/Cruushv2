@@ -43,6 +43,7 @@ export type CruushActivityPerson = {
   photo: string | null;
   photoExplicit?: boolean;
   badges?: CruushBadge[];
+  vibes?: string[];
 };
 
 export type CruushLockableActivityItem = {

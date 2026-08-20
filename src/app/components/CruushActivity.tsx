@@ -28,8 +28,10 @@ import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
+type CruushActionState = 'available' | 'sending' | 'sent' | 'mutual';
 
-const activityHeartClassName = 'w-16 shrink-0';
+const activityHeartClassName = 'w-20 shrink-0';
+const activityRowClassName = 'flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-card/70 p-3 text-left shadow-[0_12px_32px_rgba(0,0,0,0.24)] transition-colors hover:bg-white/[0.06]';
 
 function formatRelativeTime(isoTimestamp: string) {
   const now = Date.now();
@@ -57,11 +59,82 @@ function ActivityBadge({ children }: { children: string }) {
   );
 }
 
+function ActivityVibes({ vibes = [], mutual = false }: { vibes?: string[]; mutual?: boolean }) {
+  const visibleVibes = [...new Set(vibes.map((vibe) => vibe.trim()).filter(Boolean))].slice(0, 3);
+
+  if (visibleVibes.length === 0) {
+    return null;
+  }
+
+  return (
+    <span className="mt-2 flex min-w-0 flex-wrap gap-1.5" data-testid="activity-vibes">
+      {visibleVibes.map((vibe) => (
+        <span
+          key={vibe}
+          className={[
+            'max-w-full truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]',
+            mutual
+              ? 'border-[#6F00FF]/55 bg-[#6F00FF]/12 text-[#DCC7FF]'
+              : 'border-[#FF0072]/55 bg-[#FF0072]/12 text-[#FF8BBB]',
+          ].join(' ')}
+          title={vibe}
+        >
+          {vibe}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function CruushActionButton({
+  state,
+  userName,
+  onClick,
+}: {
+  state: CruushActionState;
+  userName: string;
+  onClick: () => void;
+}) {
+  const labels: Record<CruushActionState, string> = {
+    available: `Send cruush to ${userName}`,
+    sending: `Sending cruush to ${userName}`,
+    sent: `cruush sent to ${userName}`,
+    mutual: `Mutual cruush with ${userName}`,
+  };
+  const disabled = state !== 'available';
+
+  return (
+    <Button
+      type="button"
+      size="icon"
+      variant="secondary"
+      className={[
+        'h-11 w-11 shrink-0 rounded-full border disabled:opacity-100',
+        state === 'available'
+          ? 'border-[#8B5CF6]/45 bg-[#8B5CF6]/12 hover:bg-[#8B5CF6]/20'
+          : state === 'mutual'
+            ? 'border-[#6F00FF]/35 bg-[#6F00FF]/10'
+            : 'border-white/10 bg-white/[0.06]',
+      ].join(' ')}
+      aria-label={labels[state]}
+      title={labels[state]}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <CruushIcon
+        name="cruush"
+        className={`h-6 w-6 ${state === 'sending' || state === 'sent' ? 'opacity-45 grayscale' : ''}`}
+        variant="colored"
+      />
+    </Button>
+  );
+}
+
 function LockedHeart({ label = 'Locked profile preview' }: { label?: string }) {
   return (
     <div className={`relative ${activityHeartClassName}`}>
       <HeartPhoto
-        className="w-16 blur-[2px]"
+        className="w-20 blur-[2px]"
         label={label}
         masked
         theme="mutual"
@@ -122,7 +195,7 @@ function UpgradeBanner({
     : label;
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-primary/18 bg-primary/10 px-4 py-4">
+    <div className="relative overflow-hidden rounded-2xl border border-primary/18 bg-primary/10 px-4 py-4">
       <div className="absolute inset-0 opacity-40" style={{ background: 'var(--cruush-gradient-soft-28)' }} />
       <div className="relative flex items-center justify-between gap-4">
         <div className="flex items-start gap-3">
@@ -157,9 +230,14 @@ function IncomingRow({
   onOpenProfile: (userId: string) => void;
 }) {
   const unlocked = !item.locked && item.user;
+  const actionState: CruushActionState = item.mutual
+    ? 'mutual'
+    : pendingCruush
+      ? 'sending'
+      : 'available';
 
   return (
-    <div className="flex items-center gap-4 border-b border-white/8 py-3 last:border-b-0">
+    <div className={activityRowClassName}>
       <PersonHeart item={item} fallbackLabel="Locked incoming cruush" onOpenProfile={onOpenProfile} />
       <button
         type="button"
@@ -175,29 +253,17 @@ function IncomingRow({
         <p className="mt-1 text-sm text-white/64">
           {unlocked ? `${item.user.pronouns || 'Ask me'} - ${formatRelativeTime(item.createdAt)}` : `Has a cruush on you - ${formatRelativeTime(item.createdAt)}`}
         </p>
+        {unlocked ? <ActivityVibes vibes={item.user.vibes} mutual={item.mutual} /> : null}
         {item.locked ? (
           <p className="mt-1 text-xs text-primary">Upgrade to view</p>
         ) : null}
       </button>
       {unlocked ? (
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            className={[
-              'h-11 w-11 rounded-full text-white',
-              item.mutual || pendingCruush
-                ? 'bg-white/8 opacity-65 grayscale hover:bg-white/8'
-                : 'bg-white/10 hover:bg-white/14',
-            ].join(' ')}
-            aria-label={item.mutual ? `Already mutual with ${item.user.name}` : pendingCruush ? `sending cruush to ${item.user.name}` : `cruush ${item.user.name} back`}
-            disabled={item.mutual || pendingCruush}
-            onClick={() => onCruushBack(item)}
-          >
-            <CruushIcon name="cruush" className={`h-6 w-6 ${item.mutual || pendingCruush ? 'opacity-45' : ''}`} variant={item.mutual || pendingCruush ? 'white' : 'colored'} />
-          </Button>
-        </div>
+        <CruushActionButton
+          state={actionState}
+          userName={item.user.name}
+          onClick={() => onCruushBack(item)}
+        />
       ) : null}
     </div>
   );
@@ -220,7 +286,7 @@ function SentRow({
   }
 
   return (
-    <div className="flex w-full items-center gap-3 border-b border-white/8 py-3 last:border-b-0">
+    <div className={activityRowClassName}>
       <button
         type="button"
         className="flex min-w-0 flex-1 items-center gap-4 text-left"
@@ -242,12 +308,13 @@ function SentRow({
             <ActivityBadge>{item.mutual ? 'Mutual' : 'Pending'}</ActivityBadge>
           </div>
           <p className="mt-1 truncate text-sm text-white/62">{item.user.pronouns || 'Ask me'} - {formatRelativeTime(item.createdAt)}</p>
+          <ActivityVibes vibes={item.user.vibes} mutual={item.mutual} />
         </div>
       </button>
       <Button
         type="button"
         variant="secondary"
-        className="h-10 shrink-0 rounded-lg border border-[#FF0072]/35 bg-[#FF0072]/10 px-3 text-xs text-[#FF8BBB] hover:bg-[#FF0072]/16"
+        className="h-10 shrink-0 rounded-full border border-[#FF0072]/35 bg-[#FF0072]/10 px-3 text-xs text-[#FF8BBB] hover:bg-[#FF0072]/16"
         aria-label={pendingRevoke ? (item.mutual ? `Removing mutual cruush with ${item.user.name}` : `Unsending cruush to ${item.user.name}`) : item.mutual ? `Remove mutual cruush with ${item.user.name}` : `Unsend cruush to ${item.user.name}`}
         disabled={pendingRevoke}
         onClick={() => onRevoke(item)}
@@ -271,7 +338,7 @@ function MutualRow({
 }) {
   const dlModeActive = useDlMode();
   return (
-    <div className="flex items-center gap-4 border-b border-white/8 py-3 last:border-b-0">
+    <div className={activityRowClassName}>
       <button type="button" className={activityHeartClassName} onClick={() => onOpenProfile(item.user.id)}>
         <HeartPhoto
           className={activityHeartClassName}
@@ -296,11 +363,7 @@ function MutualRow({
           <span className="text-emerald-400">{item.distance}</span>
           <span className="text-white/52">{item.lastActive}</span>
         </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {[...item.mutualCrowds, ...item.vibes].slice(0, 3).map((tag) => (
-            <ActivityBadge key={tag}>{tag}</ActivityBadge>
-          ))}
-        </div>
+        <ActivityVibes vibes={item.vibes} mutual />
       </button>
       <div className="flex gap-2">
         <Button
@@ -329,11 +392,21 @@ function MutualRow({
   );
 }
 
-function ViewRow({ item, onOpenProfile }: { item: ProfileViewActivityItem; onOpenProfile: (userId: string) => void }) {
+function ViewRow({
+  item,
+  actionState,
+  onCruush,
+  onOpenProfile,
+}: {
+  item: ProfileViewActivityItem;
+  actionState: CruushActionState;
+  onCruush: (item: ProfileViewActivityItem) => void;
+  onOpenProfile: (userId: string) => void;
+}) {
   const unlocked = !item.locked && item.user;
 
   return (
-    <div className="flex items-center gap-4 border-b border-white/8 py-3 last:border-b-0">
+    <div className={activityRowClassName}>
       <PersonHeart item={item} fallbackLabel="Locked profile view" onOpenProfile={onOpenProfile} />
       <button
         type="button"
@@ -346,19 +419,15 @@ function ViewRow({ item, onOpenProfile }: { item: ProfileViewActivityItem; onOpe
         <p className="mt-1 text-sm text-white/62">
           {unlocked ? `Viewed you ${formatRelativeTime(item.viewedAt)}` : `Viewed your profile - ${formatRelativeTime(item.viewedAt)}`}
         </p>
+        {unlocked ? <ActivityVibes vibes={item.user.vibes} mutual={actionState === 'mutual'} /> : null}
         {item.locked ? <p className="mt-1 text-xs text-primary">Upgrade to view</p> : null}
       </button>
       {unlocked ? (
-        <Button
-          type="button"
-          size="icon"
-          variant="secondary"
-          className="h-11 w-11 rounded-full bg-white/10 text-white hover:bg-white/14"
-          aria-label={`Open ${item.user.name} profile`}
-          onClick={() => onOpenProfile(item.user!.id)}
-        >
-          <CruushIcon name="visibility" className="h-5 w-5" variant="white" />
-        </Button>
+        <CruushActionButton
+          state={actionState}
+          userName={item.user.name}
+          onClick={() => onCruush(item)}
+        />
       ) : null}
     </div>
   );
@@ -499,6 +568,16 @@ export default function CruushActivity() {
   };
 
   const messageableMutuals = (activity?.mutual ?? []).filter((item) => item.canMessage !== false);
+  const sentUserIds = new Set((activity?.sent ?? []).flatMap((item) => item.user ? [item.user.id] : []));
+  const mutualUserIds = new Set((activity?.mutual ?? []).map((item) => item.user.id));
+
+  const viewActionState = (item: ProfileViewActivityItem): CruushActionState => {
+    if (!item.user) return 'available';
+    if (mutualUserIds.has(item.user.id)) return 'mutual';
+    if (sentUserIds.has(item.user.id)) return 'sent';
+    if (pendingCruushUserIds.has(item.user.id)) return 'sending';
+    return 'available';
+  };
 
   const lockedIncomingCount = Math.max(0, (activity?.counts.incoming ?? 0) - (activity?.incoming.filter((item) => !item.locked).length ?? 0));
   const lockedViewsCount = Math.max(0, (activity?.counts.views ?? 0) - (activity?.views.filter((item) => !item.locked).length ?? 0));
@@ -507,7 +586,7 @@ export default function CruushActivity() {
     <div className="min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
         <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-          <div className="w-full space-y-4">
+          <div className="mx-auto w-full max-w-2xl space-y-4">
             <div className="grid grid-cols-[84px_minmax(0,1fr)_84px] items-center gap-2 pr-[3.5rem]">
               <div className="flex items-center justify-start">
                 <Button
@@ -580,7 +659,7 @@ export default function CruushActivity() {
           />
         ) : null}
 
-        <main className="w-full px-4 pt-4">
+        <main className="mx-auto w-full max-w-2xl px-4 pt-4">
               {error ? (
                 <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                   {error}
@@ -634,7 +713,13 @@ export default function CruushActivity() {
                     <UpgradeBanner count={lockedViewsCount} label="viewed your profile" onUpgrade={() => navigate('/rewards')} />
                     <ActivitySurface empty={activity.views.length === 0} emptyText="No profile views yet.">
                       {activity.views.map((item) => (
-                        <ViewRow key={item.id} item={item} onOpenProfile={openProfile} />
+                        <ViewRow
+                          key={item.id}
+                          item={item}
+                          actionState={viewActionState(item)}
+                          onCruush={handleCruushBack}
+                          onOpenProfile={openProfile}
+                        />
                       ))}
                     </ActivitySurface>
                   </TabsContent>
@@ -674,14 +759,14 @@ function ActivitySurface({
 }) {
   if (empty) {
     return (
-      <div className="rounded-lg border border-dashed border-white/10 bg-card/60 px-5 py-10 text-center text-sm text-white/58">
+      <div className="rounded-2xl border border-dashed border-white/10 bg-card/60 px-5 py-10 text-center text-sm text-white/58">
         {emptyText}
       </div>
     );
   }
 
   return (
-    <div className="w-full rounded-lg border border-white/10 bg-black/72 px-4 shadow-[0_20px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+    <div className="w-full space-y-3">
       {children}
     </div>
   );

@@ -358,6 +358,7 @@ function mapActivityPerson(row: {
   fallbackPronouns?: string | null;
   fallbackPhoto?: string | null;
   badges?: string[] | null;
+  vibes?: string[] | null;
 }) {
   return {
     id: row.userId,
@@ -365,8 +366,17 @@ function mapActivityPerson(row: {
     pronouns: row.pronouns?.join(", ") ?? row.fallbackPronouns ?? "",
     photo: row.photos?.[0] ?? null,
     photoExplicit: row.photoExplicit === true,
+    vibes: row.vibes ?? [],
     ...((row.badges?.length ?? 0) > 0 ? { badges: row.badges } : {})
   };
+}
+
+function activityProfileVibes(profile: ActivityProfileRow | null | undefined) {
+  return uniqueStrings([
+    ...(profile?.vibes ?? []),
+    ...(profile?.scenes ?? []),
+    ...(profile?.archetypes ?? [])
+  ]);
 }
 
 function lockable<T extends { locked?: boolean; user?: unknown }>(
@@ -854,7 +864,8 @@ async function mapTokenizedMutualCruushRow(
       pronouns: row.pronouns,
       photos: row.photos,
       photoExplicit: row.photo_explicit,
-      badges: row.badges ?? null
+      badges: row.badges ?? null,
+      vibes
     }),
     mutualCrowds: sharedCrowds,
     vibes,
@@ -914,7 +925,8 @@ function mapMutualCruushRow(
       pronouns: row.pronouns,
       photos: row.photos,
       photoExplicit: row.photo_explicit,
-      badges: row.badges ?? null
+      badges: row.badges ?? null,
+      vibes
     }),
     mutualCrowds: sharedCrowds,
     vibes,
@@ -991,7 +1003,8 @@ async function mapIncomingCruushRecords(
         pronouns: senderProfile?.pronouns ?? null,
         photos: senderProfile?.photos ?? null,
         photoExplicit: senderProfile?.photo_explicit,
-        badges: senderProfile?.badges ?? null
+        badges: senderProfile?.badges ?? null,
+        vibes: activityProfileVibes(senderProfile)
       })
     };
   }));
@@ -1023,7 +1036,8 @@ async function mapSentCruushRecords(
         photoExplicit: targetProfile?.photo_explicit,
         fallbackName: snapshot?.name ?? null,
         fallbackPronouns: snapshot?.pronouns ?? null,
-        badges: targetProfile?.badges ?? null
+        badges: targetProfile?.badges ?? null,
+        vibes: activityProfileVibes(targetProfile)
       })
     };
   }));
@@ -1053,7 +1067,8 @@ function mapProfileViewRecords(
           pronouns: viewerProfile?.pronouns ?? null,
           photos: viewerProfile?.photos ?? null,
           photoExplicit: viewerProfile?.photo_explicit,
-          badges: viewerProfile?.badges ?? null
+          badges: viewerProfile?.badges ?? null,
+          vibes: activityProfileVibes(viewerProfile)
         })
       };
     })

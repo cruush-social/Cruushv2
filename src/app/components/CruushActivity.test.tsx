@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import AlphaBugButton from './AlphaBugButton';
@@ -53,7 +53,7 @@ function selectTab(name: RegExp) {
 }
 
 function expectHeartPreviewSize(label: string) {
-  expect(screen.getByRole('img', { name: label }).parentElement).toHaveClass('w-16');
+  expect(screen.getByRole('img', { name: label }).parentElement).toHaveClass('w-20');
 }
 
 const activityFixture = {
@@ -77,6 +77,7 @@ const activityFixture = {
       name: 'luna',
       pronouns: 'they/them',
       photo: null,
+      vibes: ['Artsy', 'Chill', 'Goth', 'Extra'],
     },
   }, {
     id: 'incoming-locked',
@@ -95,6 +96,7 @@ const activityFixture = {
       name: 'jay',
       pronouns: 'he/they',
       photo: null,
+      vibes: ['Punk', 'Geek', 'Leather'],
     },
   }],
   mutual: [{
@@ -107,9 +109,10 @@ const activityFixture = {
       name: 'river',
       pronouns: 'they/them',
       photo: null,
+      vibes: ['Goth', 'Alt', 'Artsy'],
     },
     mutualCrowds: ['T4T'],
-    vibes: ['Goth'],
+    vibes: ['Goth', 'Alt', 'Artsy', 'Extra'],
     distance: '0.4 mi away',
     lastActive: 'Active now',
     canMessage: true,
@@ -130,6 +133,7 @@ const activityFixture = {
       name: 'indigo',
       pronouns: 'she/they',
       photo: null,
+      vibes: ['Soft', 'Chill', 'Artsy'],
     },
   }, {
     id: 'view-locked',
@@ -206,6 +210,8 @@ describe('CruushActivity', () => {
     expect(container.firstElementChild).not.toHaveClass('overflow-y-scroll');
     expect(container.firstElementChild).not.toHaveClass('[scrollbar-gutter:stable]');
     expect(screen.getByTestId('cruush-activity-header')).toHaveClass('sticky', 'top-0');
+    expect(screen.getByTestId('cruush-activity-header').firstElementChild).toHaveClass('mx-auto', 'max-w-2xl');
+    expect(container.querySelector('main')).toHaveClass('mx-auto', 'max-w-2xl');
     expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
     expect(container.querySelector('img[src*="cruush-logo.svg"]')).not.toBeInTheDocument();
     expect(screen.getByTestId('cruush-count-grid')).toHaveClass('grid-cols-[repeat(4,minmax(0,1fr))]');
@@ -226,7 +232,12 @@ describe('CruushActivity', () => {
     expectHeartPreviewSize('luna preview');
     expectHeartPreviewSize('Locked incoming cruush');
 
-    fireEvent.click(screen.getByRole('button', { name: 'cruush luna back' }));
+    const incomingVibes = screen.getByTestId('activity-vibes');
+    expect(within(incomingVibes).getAllByText(/Artsy|Chill|Goth/)).toHaveLength(3);
+    expect(within(incomingVibes).queryByText('Extra')).not.toBeInTheDocument();
+    const incomingCruushButton = screen.getByRole('button', { name: 'Send cruush to luna' });
+    expect(incomingCruushButton.querySelector('img')?.getAttribute('src')).toContain('cruush-colored');
+    fireEvent.click(incomingCruushButton);
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-luna', expect.objectContaining({
       name: 'luna',
     })));
@@ -235,6 +246,7 @@ describe('CruushActivity', () => {
     expect(await screen.findByText('jay')).toBeInTheDocument();
     expect(screen.getByText(/pending/i)).toBeInTheDocument();
     expectHeartPreviewSize('jay preview');
+    expect(screen.getByTestId('activity-vibes')).toHaveTextContent('PunkGeekLeather');
 
     selectTab(/mutual/i);
     await waitFor(() => expect(screen.getByText('river')).toBeInTheDocument());
@@ -243,6 +255,8 @@ describe('CruushActivity', () => {
     expect(screen.getByText('river')).toBeInTheDocument();
     expect(screen.getByText('0.4 mi away')).toBeInTheDocument();
     expectHeartPreviewSize('river preview');
+    expect(screen.getByTestId('activity-vibes')).toHaveTextContent('GothAltArtsy');
+    expect(within(screen.getByTestId('activity-vibes')).queryByText('Extra')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Message river' }));
     expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river');
@@ -325,6 +339,14 @@ describe('CruushActivity', () => {
     expect(screen.getByText('Upgrade to view')).toBeInTheDocument();
     expectHeartPreviewSize('indigo preview');
     expectHeartPreviewSize('Locked profile view');
+    expect(screen.getByTestId('activity-vibes')).toHaveTextContent('SoftChillArtsy');
+
+    const cruushButton = screen.getByRole('button', { name: 'Send cruush to indigo' });
+    expect(cruushButton.querySelector('img')?.getAttribute('src')).toContain('cruush-colored');
+    fireEvent.click(cruushButton);
+    await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-indigo', expect.objectContaining({
+      name: 'indigo',
+    })));
   });
 
   it('refreshes activity when cruush state changes elsewhere', async () => {
@@ -365,7 +387,7 @@ describe('CruushActivity', () => {
     );
 
     expect(await screen.findByText('luna')).toBeInTheDocument();
-    const mutualButton = screen.getByRole('button', { name: 'Already mutual with luna' });
+    const mutualButton = screen.getByRole('button', { name: 'Mutual cruush with luna' });
     expect(mutualButton).toBeDisabled();
 
     fireEvent.click(mutualButton);
