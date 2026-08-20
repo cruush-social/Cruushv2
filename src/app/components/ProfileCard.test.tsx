@@ -113,6 +113,14 @@ describe('ProfileCard', () => {
     expect(screen.queryByText('Looking for')).not.toBeInTheDocument();
     expect(screen.queryByText('Vibes')).not.toBeInTheDocument();
     expect(screen.getByTestId('profile-card-vibes')).toHaveClass('flex-nowrap', 'overflow-hidden');
+    // A long vibe has to ellipsise inside its own block box. Truncating on the
+    // badge itself clipped the label at both ends, because the badge is a
+    // centred flex row and text-overflow does not apply to a flex item.
+    const clubKidLabel = screen.getByText('Club kid');
+    expect(clubKidLabel.tagName).toBe('SPAN');
+    expect(clubKidLabel).toHaveClass('block', 'truncate');
+    expect(clubKidLabel.parentElement).toHaveClass('min-w-0', 'shrink');
+    expect(clubKidLabel.parentElement).not.toHaveClass('truncate');
     expect(screen.getByText('Goth')).toBeInTheDocument();
     expect(screen.getByText('Punk')).toBeInTheDocument();
     expect(screen.getByText('Club kid')).toBeInTheDocument();

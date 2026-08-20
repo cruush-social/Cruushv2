@@ -220,10 +220,13 @@ export default function ProfileCard({ user, onClose, onViewProfile, placement = 
                   key={vibe}
                   variant="outline"
                   className={compact
-                    ? 'max-w-[calc(33.333%-0.25rem)] shrink truncate whitespace-nowrap border-primary/50 px-2 py-0.5 text-[11px] uppercase tracking-[0.08em] text-primary'
+                    ? 'min-w-0 shrink whitespace-nowrap border-primary/50 px-2 py-0.5 text-[11px] uppercase tracking-[0.08em] text-primary'
                     : 'border-primary/50 text-primary'}
                 >
-                  {vibe}
+                  {/* Badge is a centred flex row, so text-overflow on the badge
+                      itself clips the label at both ends instead of ellipsising
+                      it. The label needs its own block box to truncate. */}
+                  {compact ? <span className="block min-w-0 truncate">{vibe}</span> : vibe}
                 </Badge>
               ))}
             </div>
