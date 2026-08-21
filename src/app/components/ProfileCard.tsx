@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import CruushBadge from './CruushBadge';
 import { CruushIcon } from './CruushIconImage';
+import HeartPhoto from './HeartPhoto';
 import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
 import { resolveMediaUrl } from '../lib/apiClient';
 import {
@@ -20,6 +21,7 @@ import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } fro
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
+import { getProfileById } from '../lib/profileApi';
 
 interface ProfileCardProps {
   user: any;
@@ -30,6 +32,27 @@ interface ProfileCardProps {
   fillAvailableHeight?: boolean;
   presentation?: 'standard' | 'carousel';
   onBrowseAgain?: () => void;
+}
+
+function getCarouselPhotos(user: any) {
+  const suppliedPhotos = Array.isArray(user.photos) ? user.photos : [];
+
+  return Array.from(new Set(
+    [user.photo, ...suppliedPhotos]
+      .filter((photo): photo is string => typeof photo === 'string' && photo.trim().length > 0),
+  )).slice(0, 4);
+}
+
+function getPhotoExplicitMap(photoMetadata: unknown) {
+  if (!Array.isArray(photoMetadata)) {
+    return {} as Record<string, boolean>;
+  }
+
+  return Object.fromEntries(photoMetadata
+    .filter((metadata): metadata is { url: string; explicit?: boolean } => (
+      Boolean(metadata) && typeof metadata.url === 'string'
+    ))
+    .map((metadata) => [metadata.url, metadata.explicit === true]));
 }
 
 export default function ProfileCard({
@@ -52,6 +75,11 @@ export default function ProfileCard({
   const [outgoingRevoked, setOutgoingRevoked] = useState(false);
   const [openingMessage, setOpeningMessage] = useState(false);
   const [dlModeActive, setDlModeActive] = useState(() => isDlModeEnabled());
+  const [carouselPhotos, setCarouselPhotos] = useState<string[]>(() => getCarouselPhotos(user));
+  const [carouselPhotoExplicit, setCarouselPhotoExplicit] = useState<Record<string, boolean>>(
+    () => getPhotoExplicitMap(user.photo_metadata),
+  );
+  const [activeCarouselPhotoIndex, setActiveCarouselPhotoIndex] = useState(0);
   const isAlreadyMutual = !mutualRevoked && (cruushBecameMutual || user.relationship?.mutualCruush === true);
   const hasSentCruush = !isAlreadyMutual && !outgoingRevoked && (cruushed || user.relationship?.outgoingCruush === true);
   const hasRevocableCruush = isAlreadyMutual || hasSentCruush;
@@ -80,6 +108,45 @@ export default function ProfileCard({
     : 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4';
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
+  useEffect(() => {
+    if (!carouselPresentation) {
+      return undefined;
+    }
+
+    const suppliedPhotos = getCarouselPhotos(user);
+    setCarouselPhotos(suppliedPhotos);
+    setCarouselPhotoExplicit(getPhotoExplicitMap(user.photo_metadata));
+    setActiveCarouselPhotoIndex(0);
+
+    if (Array.isArray(user.photos) || !user.id) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    void getProfileById(user.id)
+      .then((profile) => {
+        if (cancelled) {
+          return;
+        }
+
+        const profilePhotos = getCarouselPhotos({
+          photo: user.photo,
+          photos: profile.photos,
+        });
+        setCarouselPhotos(profilePhotos);
+        setCarouselPhotoExplicit(getPhotoExplicitMap(profile.photo_metadata));
+        setActiveCarouselPhotoIndex(0);
+      })
+      .catch(() => {
+        // Discovery already supplied the primary photo. Keep that usable when
+        // optional gallery details are unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [carouselPresentation, user.id, user.photo]);
 
   const handleCruush = async () => {
     if (sendingCruush || revokingCruush || hasSentCruush || isAlreadyMutual) {
@@ -159,16 +226,42 @@ export default function ProfileCard({
 
   if (carouselPresentation) {
     const carouselActionClassName = 'h-10 min-w-0 rounded-xl border border-white/10 bg-black/55 px-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl hover:bg-black/70';
+    const carouselTextOutlineStyle = {
+      WebkitTextStroke: '0.65px rgba(0, 0, 0, 0.98)',
+      textShadow: '0 1px 2px #000, 0 2px 6px #000, 0 0 10px rgba(0, 0, 0, 0.95)',
+    };
+    const activeCarouselPhoto = carouselPhotos[activeCarouselPhotoIndex] ?? user.photo ?? null;
+    const activeCarouselPhotoMasked = Boolean(activeCarouselPhoto && shouldMaskPhoto(
+      dlModeActive,
+      carouselPhotoExplicit[activeCarouselPhoto] ?? (activeCarouselPhoto === user.photo ? user.photoExplicit : false),
+    ));
+    const previewCarouselPhotos = carouselPhotos
+      .map((photo, index) => ({ photo, index }))
+      .filter(({ index }) => index !== activeCarouselPhotoIndex)
+      .slice(0, 3);
 
     return (
       <div
         data-testid="profile-card"
-        className="relative mx-auto aspect-[4/5] w-full max-w-sm overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.48)]"
+        className="relative mx-auto h-full min-h-0 w-full max-w-2xl overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.48)]"
       >
-        <div data-testid="profile-card-media" className="absolute inset-0" style={{ background: 'var(--cruush-gradient)' }}>
-          {user.photo && !maskPhoto ? (
-            <img src={resolveMediaUrl(user.photo)} alt={user.name} className="h-full w-full object-cover" />
-          ) : maskPhoto ? (
+        <div data-testid="profile-card-media" className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{ background: 'var(--cruush-gradient)' }}>
+          {activeCarouselPhoto && !activeCarouselPhotoMasked ? (
+            <>
+              <img
+                aria-hidden="true"
+                src={resolveMediaUrl(activeCarouselPhoto)}
+                alt=""
+                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-55 blur-2xl"
+              />
+              <img
+                src={resolveMediaUrl(activeCarouselPhoto)}
+                alt={user.name}
+                className="relative z-10 h-full w-full object-contain"
+                data-testid="carousel-profile-photo"
+              />
+            </>
+          ) : activeCarouselPhotoMasked ? (
             <div
               aria-label={user.name}
               className="flex h-full w-full items-center justify-center"
@@ -184,7 +277,7 @@ export default function ProfileCard({
           )}
         </div>
 
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/15" />
+        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black via-transparent to-black/20" />
 
         <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-3">
           {onBrowseAgain ? (
@@ -207,23 +300,46 @@ export default function ProfileCard({
           </button>
         </div>
 
+        {previewCarouselPhotos.length > 0 ? (
+          <div
+            data-testid="carousel-profile-photo-hearts"
+            className="pointer-events-none absolute bottom-[14.5rem] right-3 top-[4.75rem] z-30 flex flex-col items-center justify-center gap-2"
+          >
+            {previewCarouselPhotos.map(({ photo, index }) => (
+              <HeartPhoto
+                key={photo}
+                className="pointer-events-auto h-[clamp(2.75rem,8dvh,3.6rem)] w-[clamp(2.75rem,8dvh,3.6rem)] shrink-0 drop-shadow-[0_8px_18px_rgba(0,0,0,0.55)] transition hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                label={`Show profile photo ${index + 1}`}
+                masked={shouldMaskPhoto(
+                  dlModeActive,
+                  carouselPhotoExplicit[photo] ?? (photo === user.photo ? user.photoExplicit : false),
+                )}
+                onClick={() => setActiveCarouselPhotoIndex(index)}
+                photo={photo}
+                theme="nearby"
+                userId={user.id}
+              />
+            ))}
+          </div>
+        ) : null}
+
         <div className="absolute inset-x-0 bottom-0 z-20 p-3">
           <div
             data-testid="carousel-profile-glass"
-            className="rounded-2xl border border-white/10 bg-black/60 p-3 text-white shadow-[0_18px_50px_rgba(0,0,0,0.42)] backdrop-blur-xl"
+            className="text-white"
           >
             <div className="min-w-0">
-              <h3 className="truncate text-2xl">
+              <h3 className="truncate text-2xl font-semibold" style={carouselTextOutlineStyle}>
                 {user.name}, {user.age}
               </h3>
               <div className="mt-1">
                 <CruushBadge badges={user.badges} compact />
               </div>
-              <p className="mt-1 text-sm text-white/80">{user.pronouns}</p>
+              <p className="mt-1 text-sm text-white" style={carouselTextOutlineStyle}>{user.pronouns}</p>
             </div>
 
-            <div className="mt-2 flex items-center gap-2 text-sm text-white/80">
-              <CruushIcon name="map" className="h-4 w-4 opacity-80" />
+            <div className="mt-2 flex items-center gap-2 text-sm text-white" style={carouselTextOutlineStyle}>
+              <CruushIcon name="map" className="h-4 w-4 drop-shadow-[0_1px_2px_#000]" />
               <span>{formatDistanceLabel(user.distance, distancePreferences.mode)} away</span>
             </div>
 

@@ -3,7 +3,8 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProfileCard from './ProfileCard';
 
-const { revokeMutualCruush, sendCruush } = vi.hoisted(() => ({
+const { getProfileById, revokeMutualCruush, sendCruush } = vi.hoisted(() => ({
+  getProfileById: vi.fn(),
   revokeMutualCruush: vi.fn(),
   sendCruush: vi.fn(),
 }));
@@ -18,10 +19,24 @@ vi.mock('../lib/cruushApi', async () => {
   };
 });
 
+vi.mock('../lib/profileApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/profileApi')>('../lib/profileApi');
+
+  return {
+    ...actual,
+    getProfileById,
+  };
+});
+
 describe('ProfileCard', () => {
   beforeEach(() => {
+    getProfileById.mockReset();
     revokeMutualCruush.mockReset();
     sendCruush.mockReset();
+    getProfileById.mockResolvedValue({
+      photos: ['/jordan.jpg'],
+      photo_metadata: [{ url: '/jordan.jpg', explicit: false }],
+    });
     revokeMutualCruush.mockResolvedValue({ revoked: true });
   });
 
@@ -128,9 +143,18 @@ describe('ProfileCard', () => {
     expect(screen.getByRole('button', { name: 'View Full Profile' })).toHaveClass('h-10');
   });
 
-  it('renders the carousel result as a 4:5 photo with dark glass information and controls', () => {
+  it('fills the carousel result and switches its full 4:5 photo from heart-shaped gallery controls', async () => {
     const onBrowseAgain = vi.fn();
     const onViewProfile = vi.fn();
+    getProfileById.mockResolvedValue({
+      photos: ['/jordan.jpg', '/jordan-2.jpg', '/jordan-3.jpg', '/jordan-4.jpg'],
+      photo_metadata: [
+        { url: '/jordan.jpg', explicit: false },
+        { url: '/jordan-2.jpg', explicit: false },
+        { url: '/jordan-3.jpg', explicit: false },
+        { url: '/jordan-4.jpg', explicit: false },
+      ],
+    });
 
     render(
       <MemoryRouter>
@@ -161,19 +185,56 @@ describe('ProfileCard', () => {
 
     const card = screen.getByTestId('profile-card');
     const browseAgainButton = screen.getByRole('button', { name: 'Browse again' });
-    expect(card).toHaveClass('aspect-[4/5]', 'overflow-hidden');
-    expect(screen.getByTestId('profile-card-media')).toHaveClass('absolute', 'inset-0');
-    expect(screen.getByRole('img', { name: 'Jordan with a deliberately long display name' })).toHaveClass('h-full', 'w-full', 'object-cover');
-    expect(screen.getByTestId('carousel-profile-glass')).toHaveClass('bg-black/60', 'backdrop-blur-xl');
+    expect(card).toHaveClass('h-full', 'min-h-0', 'max-w-2xl', 'overflow-hidden');
+    expect(card).not.toHaveClass('aspect-[4/5]');
+    expect(screen.getByTestId('profile-card-media')).toHaveClass('absolute', 'inset-0', 'items-center', 'justify-center');
+    expect(screen.getByRole('img', { name: 'Jordan with a deliberately long display name' })).toHaveClass('h-full', 'w-full', 'object-contain');
+    expect(screen.getByTestId('carousel-profile-glass')).not.toHaveClass('bg-black/60', 'backdrop-blur-xl');
     expect(card).toContainElement(browseAgainButton);
     expect(browseAgainButton).toHaveClass('bg-black/55', 'backdrop-blur-xl');
     expect(screen.getByRole('button', { name: 'Mutuals only' })).toBeDisabled();
     expect(screen.getByTestId('profile-card-vibes')).toHaveTextContent('GothPunkClub kid');
     expect(screen.queryByText('Leather')).not.toBeInTheDocument();
 
+    const secondPhotoHeart = await screen.findByRole('button', { name: 'Show profile photo 2' });
+    expect(screen.getByTestId('carousel-profile-photo-hearts')).toContainElement(secondPhotoHeart);
+    fireEvent.click(secondPhotoHeart);
+    expect(screen.getByTestId('carousel-profile-photo')).toHaveAttribute('src', '/jordan-2.jpg');
+    expect(screen.getByRole('button', { name: 'Show profile photo 1' })).toBeInTheDocument();
+
     fireEvent.click(browseAgainButton);
     fireEvent.click(screen.getByRole('button', { name: 'View Full Profile' }));
     expect(onBrowseAgain).toHaveBeenCalledTimes(1);
     expect(onViewProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a single-photo carousel result free of empty gallery controls', () => {
+    render(
+      <MemoryRouter>
+        <ProfileCard
+          density="compact"
+          fillAvailableHeight
+          placement="inline"
+          presentation="carousel"
+          user={{
+            id: 'user-1',
+            name: 'Jordan',
+            age: 26,
+            pronouns: 'they/them',
+            distance: '0.2 mi',
+            lookingFor: ['Fun'],
+            vibes: ['Goth'],
+            photo: '/jordan.jpg',
+            photos: ['/jordan.jpg'],
+          }}
+          onClose={vi.fn()}
+          onViewProfile={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('carousel-profile-photo')).toHaveAttribute('src', '/jordan.jpg');
+    expect(screen.queryByTestId('carousel-profile-photo-hearts')).not.toBeInTheDocument();
+    expect(getProfileById).not.toHaveBeenCalled();
   });
 });

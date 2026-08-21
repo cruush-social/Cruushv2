@@ -100,7 +100,14 @@
     "server/sql/024_open_beta_storage_messaging.sql",
     "server/src/routes/support.ts",
     "server/src/support-routes.test.ts",
-    "server/src/app.test.ts"
+    "server/src/app.test.ts",
+    "src/app/components/ProfileCard.tsx",
+    "src/app/components/ProfileCard.test.tsx",
+    "src/app/components/DebugCruushPlusToggle.tsx",
+    "server/src/routes/media.ts",
+    "src/app/components/Auth.tsx",
+    "src/app/components/Auth.test.tsx",
+    "src/app/components/PublicPolicyLinks.tsx"
   ],
   "preserved": [
     "Keep private trans status as the eligibility gate for the optional T4T crowd; do not infer it from a selected gender identity.",

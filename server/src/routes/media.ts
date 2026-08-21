@@ -5,6 +5,7 @@ import { toReportablePhotoUploadError } from "../photo-upload-incident.js";
 import {
   createPendingMediaAsset,
   deletePendingMediaAsset,
+  isModerationEvidenceRetained,
   isPhotoModerationUnavailable,
   moderatePendingMediaAsset,
   removeOwnedNonPublicMediaAsset
@@ -618,7 +619,7 @@ export async function registerMediaRoutes(app: FastifyInstance) {
           }
         });
       }
-      if (pendingAsset) {
+      if (pendingAsset && !isModerationEvidenceRetained(error)) {
         await deletePendingMediaAsset(app, request, pendingAsset);
       }
       throw toReportablePhotoUploadError(app, request, error, { surface: "profile_photo", userId });
