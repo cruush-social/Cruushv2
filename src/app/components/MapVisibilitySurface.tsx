@@ -193,7 +193,7 @@ export default function MapVisibilitySurface({
 
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">
-              Pick who should not see you. Crowd Mode is different: it makes you visible only to the active crowds you choose.
+              Pick who should not see you.
             </p>
           </div>
 
@@ -317,6 +317,9 @@ export default function MapVisibilitySurface({
               <FieldGroup label="Gender Identities" options={IDENTITIES} stateKey="identities" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Presentation" options={PRESENTATIONS} stateKey="presentations" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <p className="-mt-4 text-sm text-muted-foreground">
+                A crowd you select here cannot see you.
+              </p>
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
