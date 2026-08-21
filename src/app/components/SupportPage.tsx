@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
+import { Link, useLocation } from 'react-router';
 import { Button } from './ui/button';
 import PublicPolicyLinks from './PublicPolicyLinks';
 import SupportRequestForm from './SupportRequestForm';
@@ -10,10 +11,9 @@ type SupportPageProps = {
 };
 
 export default function SupportPage({ appealOnly = false, publicAccess = false }: SupportPageProps = {}) {
+  const location = useLocation();
   const goBack = useBackOrFallback('/');
-  const appealMode = appealOnly || (
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('appeal') === '1'
-  );
+  const appealMode = appealOnly || new URLSearchParams(location.search).get('appeal') === '1';
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -38,7 +38,10 @@ export default function SupportPage({ appealOnly = false, publicAccess = false }
           />
           {!appealMode ? (
             <p className="text-sm text-muted-foreground">
-              Need to appeal an age-related suspension? <a className="underline" href="/support?appeal=1">Submit an appeal</a>.
+              Need to appeal an age-related suspension?{' '}
+              <Link className="inline-flex min-h-11 items-center underline" to="/support?appeal=1">
+                Submit an appeal
+              </Link>.
             </p>
           ) : null}
         </div>

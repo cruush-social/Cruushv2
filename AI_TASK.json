@@ -1,36 +1,31 @@
 {
-  "status": "validating",
+  "status": "active",
   "product": "cruush",
   "release": "1.5",
   "repository": "cruush-social/Cruushv2",
-  "job": "Add a suspension-appeals-only filter to the Surveys & support view in the moderation dashboard, backed by server-side filtering so pagination cannot hide matching appeals.",
-  "base": "136ce24bd35578e53429667e44333355c7239fd7",
-  "branch": "codex/staged-update-20260820",
+  "job": "Fix the age-related suspension appeal link so it opens the dedicated appeal form in-app and remains available before sign-in.",
+  "base": "ab111a92110d88a5aef35b9b7d9a0194c5aee35c",
+  "branch": "codex/age-appeal-route-hotfix-20260821",
   "allowedPaths": [
     "AI_TASK.json",
-    "server/src/app.test.ts",
-    "server/src/routes/admin-moderation.ts",
-    "src/app/components/ModeratorReview.test.tsx",
-    "src/app/components/ModeratorReview.tsx",
-    "src/app/lib/moderationApi.test.ts",
-    "src/app/lib/moderationApi.ts"
+    "src/app/components/SupportPage.tsx",
+    "src/app/components/SupportPage.test.tsx"
   ],
   "preserved": [
-    "Existing support-request status filtering, pagination, survey summaries, moderator permissions, request status actions, and appeal evidence handling remain unchanged.",
-    "The default view continues to show all support-request categories.",
-    "V2 worktrees and all unrelated user work remain untouched."
+    "Keep the general support form, authentication, appeal evidence requirements, encrypted storage, reports inbox delivery, and moderation dashboard behavior unchanged.",
+    "Preserve all unrelated branches, worktrees, and local changes."
   ],
   "nonGoals": [
-    "Do not change appeal submission, evidence encryption, evidence retention, notifications, moderation permissions, or production data.",
-    "Do not redesign the moderation dashboard or add filters for other categories.",
-    "Do not publish V2 worktrees or unrelated local changes."
+    "Do not include carousel, map, profile, bug-report, Settings, V2, or unrelated moderation changes.",
+    "Do not submit a real production appeal or upload identity evidence during verification."
   ],
   "proof": [
-    "Add focused server, API-client, and dashboard tests proving the suspension appeal filter and preserved default behavior.",
-    "Run the focused test files, frontend and server builds, product-name casing, public-copy, JSON, diff, and conflict-marker checks.",
-    "Render and exercise the actual moderation dashboard route with representative local data at 360x714 and 1440x900, confirming the filter changes results without overlap or clipping.",
-    "After publication, verify origin/main, Coolify completion, frontend and direct API health, deployed revision metadata, and the authenticated production filter flow."
+    "A focused component test proves pressing Submit an appeal switches the current support route to the dedicated appeal form.",
+    "A focused app test proves the appeal route renders before authentication.",
+    "Existing server tests prove signed-out appeal submission stores encrypted evidence and targets reports@cruush.app.",
+    "Render the signed-out support route at 390x844, press Submit an appeal, and confirm the dedicated form appears without overlap or clipping.",
+    "After deployment, verify origin/main, Coolify health, a public frontend response, direct API health, and the live signed-out appeal route."
   ],
-  "publicationTarget": "Commit the scoped filter, publish it to origin/main, deploy V1 production, and verify the live deployed revision and authenticated moderator flow. V2 remains local-only and undeployed.",
+  "publicationTarget": "Commit this isolated hotfix, push it to origin/main, deploy V1 production, and verify the live route.",
   "environmentChanges": []
 }

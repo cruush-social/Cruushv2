@@ -75,6 +75,32 @@ describe('SupportPage', () => {
     expect(screen.getByText(/Hold a card showing your account email and today.s date\./)).toBeInTheDocument();
   });
 
+  it('switches the support route into suspension appeal mode from the router query', async () => {
+    render(
+      <MemoryRouter initialEntries={['/support?appeal=1']}>
+        <SupportPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('form', { name: 'Suspension appeal' })).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Contact support' })).not.toBeInTheDocument();
+  });
+
+  it('opens the appeal form when Submit an appeal is pressed', async () => {
+    render(
+      <MemoryRouter initialEntries={['/support']}>
+        <Routes>
+          <Route path="/support" element={<SupportPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('link', { name: 'Submit an appeal' }));
+
+    expect(await screen.findByRole('form', { name: 'Suspension appeal' })).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Contact support' })).not.toBeInTheDocument();
+  });
+
   it('submits general support before authentication with a reply email', async () => {
     window.history.pushState({}, '', '/support');
 
