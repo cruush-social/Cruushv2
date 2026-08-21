@@ -2258,8 +2258,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
             onClose={() => setLuckySlot(null)}
             onComplete={luckySlot.mode === 'profile'
               ? () => {
-                  setSelectedUser(luckySlot.targetUser);
-                  setLuckySlot(null);
+                  handleUserSelect(luckySlot.targetUser);
                 }
               : undefined}
             onRetry={handleFeelingLucky}
