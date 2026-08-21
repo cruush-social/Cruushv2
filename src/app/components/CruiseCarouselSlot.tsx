@@ -423,7 +423,7 @@ export default function CruiseCarouselSlot({
               Get <CruushPlusWord />
             </Button>
           ) : null}
-          {settled && mode === 'empty' && onRetry ? (
+          {settled && (mode === 'empty' || mode === 'profile') && onRetry ? (
             <Button
               type="button"
               variant="outline"
