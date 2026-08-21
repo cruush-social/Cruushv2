@@ -422,9 +422,24 @@
 }
 
 @media (min-width: 641px) {
+  .launch-login-auth-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem 2.25rem;
+  }
+
+  .launch-login-auth-footer .launch-login-auth-contact {
+    width: auto;
+    max-width: none;
+    margin-inline: 0;
+  }
+
   .launch-login-auth-footer [aria-label="Legal and safety links"] {
-    text-align: justify;
-    text-align-last: justify;
+    flex-basis: 100%;
+    text-align: center;
+    word-spacing: 0.22rem;
   }
 }
 
