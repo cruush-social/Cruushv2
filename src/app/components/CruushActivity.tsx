@@ -28,6 +28,15 @@ import { openConversationOrInbox } from '../lib/openConversation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import ProfileActionTrio from './ProfileActionTrio';
+import CruushMatchSettings from './CruushMatchSettings';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './ui/dialog';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
@@ -455,6 +464,7 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
   const [pendingCruushUserIds, setPendingCruushUserIds] = useState<Set<string>>(() => new Set());
   const [pendingRevokeUserIds, setPendingRevokeUserIds] = useState<Set<string>>(() => new Set());
   const [composeChooserOpen, setComposeChooserOpen] = useState(false);
+  const [matchSettingsOpen, setMatchSettingsOpen] = useState(false);
   const [directComposerOpen, setDirectComposerOpen] = useState(false);
 
   const fetchCruushActivity = async () => {
@@ -599,7 +609,7 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
     <div className={embedded ? 'min-h-full bg-[#050505] pb-6' : 'min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))]'}>
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
         <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-          <div className="mx-auto w-full max-w-2xl space-y-4">
+          <div className="w-full space-y-4">
             <div className="grid grid-cols-[84px_minmax(0,1fr)_84px] items-center gap-2 pr-[3.5rem]">
               <div className="flex items-center justify-start">
                 <Button
@@ -619,20 +629,30 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
               </div>
               <div className="flex items-center justify-end gap-2">
                 <div data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon"
-                  className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
-                  aria-label="Open cruush match settings"
-                  onClick={() => navigate('/cruush/settings')}
-                >
-                  <CruushIcon name="settings" className="h-5 w-5" />
-                </Button>
+                <Dialog open={matchSettingsOpen} onOpenChange={setMatchSettingsOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+                      aria-label="Open cruush match settings"
+                    >
+                      <CruushIcon name="settings" className="h-5 w-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto overscroll-contain rounded-lg border-white/10 bg-background pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                    <DialogHeader>
+                      <DialogTitle>cruush match settings</DialogTitle>
+                      <DialogDescription>Choose who can start a chat with you.</DialogDescription>
+                    </DialogHeader>
+                    <CruushMatchSettings embedded />
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
 
-            <div data-testid="cruush-count-grid" className="grid grid-cols-[repeat(4,minmax(0,1fr))] gap-2">
+            <div data-testid="cruush-count-grid" className="mx-auto grid w-full max-w-2xl grid-cols-[repeat(4,minmax(0,1fr))] gap-2">
               {(['incoming', 'sent', 'mutual', 'views'] as ActivityTab[]).map((tab) => (
                 <div key={tab} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-center">
                   <p className="truncate text-[9px] uppercase tracking-[0.08em] text-white/46 sm:text-[10px]">{tab}</p>
@@ -643,7 +663,7 @@ export default function CruushActivity({ embedded = false }: { embedded?: boolea
 
             <TabsList
               data-testid="cruush-tab-grid"
-              className="grid h-auto w-full grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+              className="mx-auto grid h-auto w-full max-w-2xl grid-cols-[repeat(4,minmax(0,1fr))] rounded-lg border border-white/10 bg-background/25 p-1 shadow-[0_20px_55px_rgba(0,0,0,0.32)] backdrop-blur-xl"
             >
               <ActivityTabButton value="incoming" label="incoming" />
               <ActivityTabButton value="sent" label="sent" />
