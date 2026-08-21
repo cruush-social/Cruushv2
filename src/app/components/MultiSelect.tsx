@@ -273,13 +273,13 @@ export default function MultiSelect({
   const menuContent = (
     <>
       {hasCategoryPicker ? (
-        <div className="flex min-h-0 min-w-0 flex-col h-[18rem] max-h-[inherit] sm:grid sm:grid-cols-[11rem_minmax(0,1fr)] sm:h-full">
+        <div className="flex h-[18rem] min-h-0 min-w-0 max-h-[inherit] flex-col overflow-hidden sm:h-full sm:flex-row">
           {/* Horizontal Category Tabstrip for Mobile, Vertical Sidebar for Desktop */}
           <div
             ref={tablistRef}
             role="tablist"
             aria-label={`${ariaLabel ?? 'Options'} categories`}
-            className="scrollbar-subtle flex w-full min-w-0 max-w-full gap-1 overflow-x-auto overscroll-x-contain border-b border-border p-2 shrink-0 sm:max-h-[inherit] sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
+            className="scrollbar-subtle flex w-full min-w-0 max-w-full shrink-0 gap-1 overflow-x-auto overscroll-x-contain border-b border-border p-2 sm:h-full sm:w-44 sm:flex-none sm:flex-col sm:overflow-y-auto sm:border-b-0 sm:border-r"
             style={HORIZONTAL_TOUCH_SCROLL_STYLE}
             onTouchStart={handleTablistTouchStart}
             onTouchMove={handleTablistTouchMove}
@@ -315,7 +315,7 @@ export default function MultiSelect({
           </div>
 
           {/* Options List for Active Category */}
-          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle min-h-0 min-w-0 flex-1 overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
+          <div role="listbox" aria-label={ariaLabel} className="scrollbar-subtle h-full min-h-0 min-w-0 flex-1 overflow-y-auto py-1" style={TOUCH_SCROLL_STYLE}>
             <div role="group" aria-label={activeGroup.label || undefined}>
               {activeGroup.options.map((option) => {
                 const isSelected = selected.includes(option);
