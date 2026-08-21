@@ -11,12 +11,16 @@ const {
   saveMyPrivacySettings,
   getMyMapPresenceSettings,
   saveMyMapPresenceSettings,
+  getMyGhostPulseSettings,
+  saveMyGhostPulseSettings,
 } = vi.hoisted(() => ({
   getMyBillingStatus: vi.fn(),
   getMyPrivacySettings: vi.fn(),
   saveMyPrivacySettings: vi.fn(),
   getMyMapPresenceSettings: vi.fn(),
   saveMyMapPresenceSettings: vi.fn(),
+  getMyGhostPulseSettings: vi.fn(),
+  saveMyGhostPulseSettings: vi.fn(),
 }));
 
 vi.mock('../lib/billingApi', async () => {
@@ -37,6 +41,8 @@ vi.mock('../lib/privacyApi', async () => {
     saveMyPrivacySettings,
     getMyMapPresenceSettings,
     saveMyMapPresenceSettings,
+    getMyGhostPulseSettings,
+    saveMyGhostPulseSettings,
   };
 });
 
@@ -52,6 +58,11 @@ describe('GhostModeSettings', () => {
     saveMyPrivacySettings.mockReset();
     getMyMapPresenceSettings.mockReset();
     saveMyMapPresenceSettings.mockReset();
+    getMyGhostPulseSettings.mockReset();
+    saveMyGhostPulseSettings.mockReset();
+
+    getMyGhostPulseSettings.mockResolvedValue({ enabled: true });
+    saveMyGhostPulseSettings.mockImplementation((enabled: boolean) => Promise.resolve({ enabled }));
 
     getMyPrivacySettings.mockResolvedValue({
       ghostModeEnabled: false,
@@ -162,7 +173,7 @@ describe('GhostModeSettings', () => {
     expect(preciseSwitch).not.toBeChecked();
   });
 
-  it('keeps v1.2 Ghost Mode static without V2 heartbeat controls', async () => {
+  it('offers the pin countdown as an opt-out that starts on', async () => {
     render(
       <MemoryRouter initialEntries={['/privacy/ghost-mode']}>
         <Routes>
@@ -172,11 +183,19 @@ describe('GhostModeSettings', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Ghost Mode' })).toBeInTheDocument();
-    expect(screen.queryByRole('switch', {
+    expect(screen.getByText('Countdown before you move')).toBeInTheDocument();
+
+    const countdownToggle = await screen.findByRole('switch', {
       name: 'Show a countdown before your pin moves',
-    })).not.toBeInTheDocument();
-    expect(screen.queryByText('Countdown before you move')).not.toBeInTheDocument();
-    expect(screen.queryByText(/heart beats faster/i)).not.toBeInTheDocument();
+    });
+
+    // The countdown announces "this profile is about to relocate", so it is a
+    // setting rather than fixed behaviour, and it is on unless someone opts out.
+    await waitFor(() => expect(countdownToggle).toBeChecked());
+
+    fireEvent.click(countdownToggle);
+
+    await waitFor(() => expect(saveMyGhostPulseSettings).toHaveBeenCalledWith(false));
   });
 
   it('shows a ticking server-authoritative rotation countdown only while Ghost Mode is active', async () => {

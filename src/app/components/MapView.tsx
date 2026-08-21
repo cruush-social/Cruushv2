@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import type {
@@ -906,6 +906,31 @@ function getMarkerBorderClass(marker: MapMarker, isCurrentUser: boolean) {
     : 'border-[#FF0072]/80';
 }
 
+// The class twin of getMarkerBorderClass. Inline styles cannot read a Tailwind
+// class, and the ghost flash swaps the border through a CSS variable, so the
+// same colours are needed as values.
+function getMarkerBorderColor(marker: MapMarker, isCurrentUser: boolean) {
+  if (marker.activePing) {
+    return '#C8FF31';
+  }
+
+  if (isCurrentUser && marker.ownerStealthActive) {
+    return '#0BA8FF';
+  }
+
+  if ((isCurrentUser && marker.displayMode === 'GHOST') || marker.npcGhostDemo) {
+    return '#0BA8FF';
+  }
+
+  if (isCurrentUser || marker.npcGhostDemo) {
+    return 'rgba(0, 75, 255, 0.8)';
+  }
+
+  return marker.relationship?.kind === 'mutual_cruush'
+    ? 'rgba(111, 0, 255, 0.8)'
+    : 'rgba(255, 0, 114, 0.8)';
+}
+
 function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUser: boolean }) {
   const badge = marker.badge;
   const Icon = getBadgeIcon(badge);
@@ -926,12 +951,17 @@ function MarkerBadge({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       ].join(' ')}
       data-testid={`marker-badge-${marker.id}`}
       role="img"
+      style={{
+        backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.85))',
+        borderColor: `var(--cruush-ghost-flash-border-color, ${getMarkerBorderColor(marker, isCurrentUser)})`,
+        borderWidth: '3.2px',
+      } as CSSProperties}
       title={isCurrentUser ? 'Your profile' : badge?.label}
     >
       {isCurrentUser ? (
-        <User aria-hidden="true" className="h-[1.0625rem] w-[1.0625rem]" strokeWidth={2.6} />
+        <User aria-hidden="true" className="cruush-ghost-rotation-badge-symbol h-[1.0625rem] w-[1.0625rem]" strokeWidth={2.6} />
       ) : Icon ? (
-        <Icon aria-hidden="true" className="h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.6} />
+        <Icon aria-hidden="true" className="cruush-ghost-rotation-badge-symbol h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.6} />
       ) : null}
     </span>
   );
@@ -963,9 +993,290 @@ function MarkerRelationshipBadge({ marker, isCurrentUser }: { marker: MapMarker;
       ].join(' ')}
       data-testid={`marker-relationship-${marker.id}`}
       role="img"
+      style={{
+        backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.85))',
+        borderColor: `var(--cruush-ghost-flash-border-color, ${getMarkerBorderColor(marker, isCurrentUser)})`,
+        borderWidth: '3.2px',
+      } as CSSProperties}
       title={title}
     >
-      <CruushIcon name="safety" className="h-[1.171875rem] w-[1.171875rem] opacity-85" variant="white" />
+      <CruushIcon name="safety" className="cruush-ghost-rotation-badge-symbol h-[1.171875rem] w-[1.171875rem] opacity-85" variant="white" />
+    </span>
+  );
+}
+
+// Ghost pins rotate to a new spot inside their radius every 15 minutes. Through
+// the last minute the heart border flashes electric blue at an accelerating
+// rate so a viewer can tell this profile is about to move.
+const GHOST_PULSE_WINDOW_MS = 60_000;
+const GHOST_ROTATION_EXIT_MS = 2_000;
+
+function ghostPulseBeatSchedule() {
+  const beats: { t: number; amplitude: number }[] = [];
+  let elapsed = 0;
+
+  while (elapsed < 59.55) {
+    const progress = elapsed / 60;
+    // Flat for the first three quarters, then near vertical: 62bpm up to ~310.
+    const beatsPerMinute = 62 + 82 * progress ** 1.5 + 178 * Math.max(0, (progress - 0.72) / 0.28) ** 2.1;
+    const interval = 60 / beatsPerMinute;
+    const amplitude = progress < 0.55
+      ? 0.68 + progress * 0.72
+      : progress < 0.86 ? 1.08 : Math.max(0.62, 1.08 - (progress - 0.86) * 2.4);
+
+    beats.push({ t: elapsed, amplitude });
+    elapsed += interval;
+  }
+
+  return beats;
+}
+
+const GHOST_PULSE_BEATS = ghostPulseBeatSchedule();
+
+// Pepper's ghost: the lit parts of the pin turn spectral electric blue while
+// the dark parts stay dark, the way a reflected stage apparition reads.
+const GHOST_PEPPER_FILTER = 'grayscale(1) sepia(1) saturate(2.6) hue-rotate(155deg) brightness(1.04) contrast(0.9)';
+
+// The border flash is gated to a fixed on-window per beat rather than to the
+// summed contraction, so the pin keeps alternating purple and electric blue
+// through the accelerating end of the minute instead of sitting solid blue.
+function ghostFlashOn(elapsedSeconds: number) {
+  for (let index = GHOST_PULSE_BEATS.length - 1; index >= 0; index -= 1) {
+    const beat = GHOST_PULSE_BEATS[index];
+    const delta = elapsedSeconds - beat.t;
+
+    if (delta < 0) {
+      continue;
+    }
+
+    const next = GHOST_PULSE_BEATS[index + 1];
+    const intervalMs = ((next ? next.t : beat.t + 0.2) - beat.t) * 1000;
+    const onMs = Math.min(220, Math.max(60, intervalMs * 0.45));
+
+    return delta * 1000 < onMs;
+  }
+
+  return false;
+}
+
+function ghostPulseContraction(elapsedSeconds: number) {
+  let total = 0;
+
+  for (const beat of GHOST_PULSE_BEATS) {
+    const delta = elapsedSeconds - beat.t;
+
+    if (delta < 0) {
+      break;
+    }
+
+    if (delta > 0.42) {
+      continue;
+    }
+
+    // S1 then S2: the second sound lands 155ms later at 40% of the first.
+    total += beat.amplitude * (delta < 0.038 ? delta / 0.038 : Math.exp(-(delta - 0.038) / 0.072));
+    const second = delta - 0.155;
+
+    if (second > 0 && second < 0.26) {
+      total += beat.amplitude * 0.4 * (second < 0.026 ? second / 0.026 : Math.exp(-(second - 0.026) / 0.05));
+    }
+  }
+
+  return total;
+}
+
+const GHOST_PULSE_PEAK_CONTRACTION = (() => {
+  let peak = 0;
+
+  for (let sample = 0; sample < 6000; sample += 1) {
+    peak = Math.max(peak, ghostPulseContraction(sample / 100));
+  }
+
+  return peak;
+})();
+
+export function ghostPulseScale(elapsedSeconds: number) {
+  if (elapsedSeconds >= 59.55) {
+    return 0.83;
+  }
+
+  // The resting size sags as the chamber stops refilling, so the swing widens
+  // from roughly 1.0-1.35 early to 0.83-1.5 at the end without the peak moving.
+  const resting = 1 - 0.17 * (elapsedSeconds / 60) ** 1.25;
+  const normalized = Math.min(1, ghostPulseContraction(elapsedSeconds) / GHOST_PULSE_PEAK_CONTRACTION);
+
+  return resting + normalized * (1.5 - resting);
+}
+
+function GhostRotationFlyIcon({ id, style }: { id: string; style?: CSSProperties }) {
+  const ghostFillId = `marker-ghost-fly-fill-${id}`;
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="cruush-ghost-rotation-fly-icon absolute left-1/2 top-1/2 z-40 h-[4.39875rem] w-[3.825rem] overflow-visible"
+      data-testid={`marker-ghost-fly-icon-${id}`}
+      style={style}
+      viewBox="0 0 243.6 278.74"
+    >
+      <defs>
+        <linearGradient id={ghostFillId} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#0BA8FF" stopOpacity="0.98" />
+          <stop offset="62%" stopColor="#0BA8FF" stopOpacity="0.92" />
+          <stop offset="82%" stopColor="#0BA8FF" stopOpacity="0.72" />
+          <stop offset="91%" stopColor="#48BFFF" stopOpacity="0.42" />
+          <stop offset="97%" stopColor="#B8EBFF" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.05" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M819.81,476.56c-34.13-58.3-26.19-113.51-55.56-158.35,12.27-37.63,6.39-54.79-33.1-74.86,8.28,15.93,20.09,32.56-.57,52.21-28.82-12.72-65.37-.06-65.57,1-25-22.52-8.13-44.24-4.3-52-29.38,4.1-51.47,52.94-26.88,78-15.72,22.66-24.44,64.55-26.39,91.57-9.7,32.8-50.38,78-14.55,93.06,3.49,1.25,7.13,0,10.76-2.44,24.39-24.79,33.65,15.74,58,17,10.94,1,12.5-4.6,17.84-9.9,32.33-23.07,36.38,4.92,57.53,9.66,20.37,4.09,22.28-16,35.63-24.71,14.35-10.48,16.69,0,27.42,5.81C825.71,512.31,823.42,488,819.81,476.56Zm-138.68-111c-27.55,36.3-58.55,11.4-37.27-24.94,0,.12-.16.42-.35.94C644.92,341,681.55,348.43,681.13,365.56Zm73.74,4.78c-9.21,33.66-88.09-12.23-6.77-29.82C750.66,347.21,757,361.13,754.87,370.34Z"
+        fill={`url(#${ghostFillId})`}
+        transform="translate(-578.4 -243.35)"
+      />
+    </svg>
+  );
+}
+
+function GhostRotationPuff({ id, style }: { id: string; style?: CSSProperties }) {
+  return (
+    <span aria-hidden="true" className="cruush-ghost-rotation-puff-cloud absolute inset-0 z-20" data-testid={`marker-ghost-puff-${id}`} style={style}>
+      <span className="cruush-ghost-fog-wisp absolute left-[18%] top-[43%] h-8 w-8" />
+      <span className="cruush-ghost-fog-wisp absolute left-[34%] top-[23%] h-9 w-10" />
+      <span className="cruush-ghost-fog-wisp absolute right-[16%] top-[44%] h-8 w-9" />
+      <span className="cruush-ghost-fog-wisp absolute bottom-[10%] left-[36%] h-7 w-10" />
+      <span className="cruush-ghost-fog-wisp absolute left-[12%] top-[22%] h-6 w-7" />
+      <span className="cruush-ghost-fog-wisp absolute right-[10%] top-[25%] h-7 w-8" />
+    </span>
+  );
+}
+
+function GhostRotationPulse({ marker, children }: { marker: MapMarker; children: (exitActive: boolean, exitStyle?: CSSProperties) => ReactNode }) {
+  const expiresAtMs = marker.ghostRotationExpiresAtMs;
+  const canAnimate = marker.displayMode === 'GHOST' &&
+    marker.animationHint === 'FADE_LAST_MINUTE' &&
+    typeof expiresAtMs === 'number' &&
+    !shouldReduceMotion();
+  const [exitElapsedMs, setExitElapsedMs] = useState<number | null>(null);
+  const pulseRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    if (!canAnimate || typeof expiresAtMs !== 'number') return;
+    const remainingMs = expiresAtMs - Date.now();
+    const exitStartMs = remainingMs - GHOST_ROTATION_EXIT_MS;
+    if (exitStartMs <= 0 && remainingMs > 0) {
+      setExitElapsedMs(Math.min(GHOST_ROTATION_EXIT_MS, -exitStartMs));
+    }
+    const exitTimer = window.setTimeout(() => setExitElapsedMs(0), Math.max(0, exitStartMs));
+    const endTimer = window.setTimeout(() => setExitElapsedMs(null), Math.max(0, remainingMs));
+    return () => {
+      window.clearTimeout(exitTimer);
+      window.clearTimeout(endTimer);
+    };
+  }, [canAnimate, expiresAtMs]);
+
+  useEffect(() => {
+    const node = pulseRef.current;
+
+    if (!canAnimate || !node || typeof expiresAtMs !== 'number') {
+      return;
+    }
+
+    const effectHost = node.parentElement ?? node;
+
+    let frame = 0;
+    // Driven from the rotation deadline rather than from mount, so a re-render
+    // or a pan back into view resumes mid-beat instead of restarting the minute.
+    const step = () => {
+      const remainingMs = expiresAtMs - Date.now();
+      const elapsedSeconds = (GHOST_PULSE_WINDOW_MS - remainingMs) / 1000;
+      // The flash stops the instant the exit starts so the pin poofs and the
+      // ghost flies from its own purple state instead of holding electric blue.
+      const inExit = remainingMs <= GHOST_ROTATION_EXIT_MS;
+
+      if (elapsedSeconds >= 0 && elapsedSeconds < 60 && !inExit) {
+        const visibleFlash = ghostFlashOn(elapsedSeconds) ? 1 : 0;
+        effectHost.style.setProperty('--cruush-ghost-border-opacity', visibleFlash.toFixed(4));
+        if (visibleFlash) {
+          effectHost.style.setProperty('--cruush-ghost-flash-border-color', '#0BA8FF');
+        } else {
+          effectHost.style.removeProperty('--cruush-ghost-flash-border-color');
+        }
+        effectHost.style.setProperty(
+          '--cruush-ghost-heart-border-color',
+          visibleFlash ? '#0BA8FF' : 'var(--cruush-ghost-heart-base-border)',
+        );
+        effectHost.style.setProperty(
+          '--cruush-ghost-badge-border-color',
+          visibleFlash ? '#0BA8FF' : 'var(--cruush-ghost-badge-base-border)',
+        );
+        effectHost.style.setProperty(
+          '--cruush-ghost-signal-border-color',
+          visibleFlash ? '#0BA8FF' : 'rgba(255, 255, 255, 0.12)',
+        );
+        effectHost.style.setProperty('--cruush-ghost-material-opacity', '1');
+        effectHost.style.setProperty('--cruush-ghost-unit-opacity', '1');
+        // The apparition reads through the map on flash frames, so the photo,
+        // the badge symbols, and the signal all drop opacity together.
+        effectHost.style.setProperty('--cruush-ghost-photo-opacity', visibleFlash ? '0.62' : '1');
+        effectHost.style.setProperty('--cruush-ghost-photo-echo-opacity', '0');
+        effectHost.style.setProperty('--cruush-ghost-badge-opacity', '1');
+        effectHost.style.setProperty('--cruush-ghost-pepper-opacity', visibleFlash ? '0.72' : '1');
+        if (visibleFlash) {
+          effectHost.style.setProperty('--cruush-ghost-surface-alpha', '0.34');
+        } else {
+          effectHost.style.removeProperty('--cruush-ghost-surface-alpha');
+        }
+        effectHost.style.setProperty(
+          '--cruush-ghost-photo-filter',
+          visibleFlash >= 0.5
+            ? GHOST_PEPPER_FILTER
+            : 'none',
+        );
+        effectHost.style.setProperty(
+          '--cruush-ghost-pepper-filter',
+          visibleFlash >= 0.5
+            ? GHOST_PEPPER_FILTER
+            : 'none',
+        );
+      } else {
+        effectHost.style.setProperty('--cruush-ghost-border-opacity', '0');
+        effectHost.style.removeProperty('--cruush-ghost-flash-border-color');
+        effectHost.style.setProperty('--cruush-ghost-heart-border-color', 'var(--cruush-ghost-heart-base-border)');
+        effectHost.style.setProperty('--cruush-ghost-badge-border-color', 'var(--cruush-ghost-badge-base-border)');
+        effectHost.style.setProperty('--cruush-ghost-signal-border-color', 'rgba(255, 255, 255, 0.12)');
+        effectHost.style.setProperty('--cruush-ghost-material-opacity', '1');
+        effectHost.style.setProperty('--cruush-ghost-unit-opacity', '1');
+        effectHost.style.setProperty('--cruush-ghost-photo-opacity', '1');
+        effectHost.style.setProperty('--cruush-ghost-photo-echo-opacity', '0');
+        effectHost.style.setProperty('--cruush-ghost-badge-opacity', '1');
+        effectHost.style.setProperty('--cruush-ghost-photo-filter', 'none');
+        effectHost.style.setProperty('--cruush-ghost-pepper-filter', 'none');
+        effectHost.style.setProperty('--cruush-ghost-pepper-opacity', '1');
+        effectHost.style.removeProperty('--cruush-ghost-surface-alpha');
+      }
+
+      frame = requestAnimationFrame(step);
+    };
+
+    frame = requestAnimationFrame(step);
+
+    return () => cancelAnimationFrame(frame);
+  }, [canAnimate, expiresAtMs]);
+
+  const exitActive = exitElapsedMs != null;
+  const exitStyle = exitActive ? ({ '--cruush-ghost-rotation-exit-delay': `${-exitElapsedMs}ms` } as CSSProperties) : undefined;
+
+  return (
+    <span
+      className="relative flex h-20 w-[103px] origin-bottom items-center justify-center"
+      data-ghost-rotation-exit={exitActive ? 'true' : 'false'}
+      data-testid={canAnimate ? `marker-ghost-pulse-${marker.id}` : undefined}
+      ref={pulseRef}
+    >
+      {exitActive ? <GhostRotationPuff id={marker.id} style={exitStyle} /> : null}
+      {exitActive ? <GhostRotationFlyIcon id={marker.id} style={exitStyle} /> : null}
+      {children(exitActive, exitStyle)}
     </span>
   );
 }
@@ -996,6 +1307,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
     ? ['6%', '53%', '81%', '100%']
     : ['0%', '52%', '100%'];
   const borderPaint = borderColor;
+  const borderStyle = { stroke: `var(--cruush-ghost-flash-border-color, ${borderColor})` } as CSSProperties;
   const fillPaint = isNpcGhostDemo ? '#0BA8FF' : `url(#${gradientId})`;
 
   return (
@@ -1024,6 +1336,7 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       {hasPhoto ? (
         <>
           <image
+            className="cruush-ghost-rotation-heart-photo"
             clipPath={`url(#${clipId})`}
             data-testid={`marker-photo-fill-${marker.id}`}
             height="64"
@@ -1031,16 +1344,25 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
             preserveAspectRatio="xMidYMid slice"
             width="64"
           />
-          <path d={HEART_PIN_PATH} fill="none" stroke={borderPaint} strokeWidth={3.2} />
+          <path
+            d={HEART_PIN_PATH}
+            data-testid={`marker-ghost-border-${marker.id}`}
+            fill="none"
+            stroke={borderPaint}
+            strokeWidth={3.2}
+            style={borderStyle}
+          />
         </>
       ) : isCurrentUser && !isMutualCruush ? (
         <>
           <path
             d={HEART_PIN_PATH}
+            data-testid={`marker-ghost-border-${marker.id}`}
             fill={fillPaint}
             fillOpacity={1}
             stroke={borderPaint}
             strokeWidth={3.2}
+            style={borderStyle}
           />
           <foreignObject data-testid={`marker-current-fallback-${marker.id}`} height="36" width="36" x="14" y="16">
             <div className="flex h-9 w-9 items-center justify-center">
@@ -1051,10 +1373,12 @@ function MarkerHeart({ marker, isCurrentUser }: { marker: MapMarker; isCurrentUs
       ) : (
         <path
           d={HEART_PIN_PATH}
+          data-testid={`marker-ghost-border-${marker.id}`}
           fill={fillPaint}
           fillOpacity={1}
           stroke={borderPaint}
           strokeWidth={3.2}
+          style={borderStyle}
         />
       )}
     </svg>
@@ -1066,7 +1390,7 @@ function VenueClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
       data-testid={`venue-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -1079,7 +1403,7 @@ function PeopleClusterMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-primary/40 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_34px_rgba(255,0,114,0.44)] backdrop-blur-md"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-primary/40 bg-black/86 px-4 text-xl font-semibold text-white shadow-[0_0_34px_rgba(255,0,114,0.44)] backdrop-blur-md"
       data-testid={`people-cluster-marker-${marker.cluster?.id ?? marker.id}`}
     >
       {count > 999 ? '999+' : count}
@@ -1092,7 +1416,7 @@ function LaunchPartyMarker({ marker }: { marker: MapMarker }) {
 
   return (
     <span
-      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
+      className="flex h-16 min-w-16 items-center justify-center rounded-full border border-[3.2px] border-white/20 bg-black/82 px-4 text-xl font-semibold text-white shadow-[0_0_28px_rgba(255,0,114,0.34)] backdrop-blur-md"
       data-testid={`launch-party-marker-${marker.id}`}
     >
       {attendeeCount > 999 ? '999+' : attendeeCount}
@@ -1111,6 +1435,11 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
     : (isCurrentUser && (marker.ownerStealthActive || marker.displayMode === 'GHOST')) || marker.npcGhostDemo
       ? 'border-[#0BA8FF]'
       : 'border-white/12';
+  const signalBorderColor = pingActive
+    ? '#C8FF31'
+    : (isCurrentUser && (marker.ownerStealthActive || marker.displayMode === 'GHOST')) || marker.npcGhostDemo
+      ? '#0BA8FF'
+      : 'rgba(255, 255, 255, 0.12)';
 
   if (marker.kind === 'cluster') {
     return isPersonCluster(marker) ? <PeopleClusterMarker marker={marker} /> : <VenueClusterMarker marker={marker} />;
@@ -1127,13 +1456,17 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
       data-active-ping={pingActive ? 'true' : 'false'}
     >
       <span
-        className={`relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-[1.38] group-focus-within:scale-[1.38] ${previewed ? 'scale-[1.38]' : ''} ${pingActive ? 'cruush-map-ping-heart' : ''}`}
+        className={`cruush-ghost-rotation-unit-material relative flex h-20 w-[103px] origin-bottom items-center justify-center transition-transform duration-150 group-hover:scale-[1.38] group-focus-within:scale-[1.38] ${previewed ? 'scale-[1.38]' : ''} ${pingActive ? 'cruush-map-ping-heart' : ''}`}
         data-testid={`marker-heart-layer-${marker.id}`}
       >
-            <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
-            <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
-            <MarkerRelationshipBadge marker={marker} isCurrentUser={isCurrentUser} />
-            {signalPreview ? (
+        <GhostRotationPulse marker={marker}>
+          {(exitActive, exitStyle) => <>
+            <span className={exitActive ? 'cruush-ghost-rotation-heart-exit' : ''} style={exitStyle}>
+              <MarkerHeart marker={marker} isCurrentUser={isCurrentUser} />
+              <MarkerBadge marker={marker} isCurrentUser={isCurrentUser} />
+              <MarkerRelationshipBadge marker={marker} isCurrentUser={isCurrentUser} />
+            </span>
+            {signalPreview && !exitActive ? (
               <span
                 className={`absolute left-1/2 top-0 z-30 flex w-max max-w-[16rem] -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-opacity duration-150 ${pingActive || previewed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'}`}
                 data-signal-position="v2-frame-top"
@@ -1142,11 +1475,18 @@ function MapMarkerPin({ marker, previewed = false }: { marker: MapMarker; previe
                 <span
                   className={`rounded-full border bg-black/86 px-3 py-1 text-center text-[0.7rem] font-semibold leading-tight text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md ${signalBorderClass}`}
                   data-testid={`marker-signal-badge-${marker.id}`}
+                  style={{
+                    backgroundColor: 'rgba(0, 0, 0, var(--cruush-ghost-surface-alpha, 0.86))',
+                    borderColor: `var(--cruush-ghost-flash-border-color, ${signalBorderColor})`,
+                    borderWidth: '3.2px',
+                  } as CSSProperties}
                 >
-                  {signalPreview}
+                  <span className="cruush-ghost-rotation-signal-symbol">{signalPreview}</span>
                 </span>
               </span>
             ) : null}
+          </>}
+        </GhostRotationPulse>
       </span>
       {postPreview ? (
         <span
@@ -1179,7 +1519,21 @@ function createMarkerElement(
   const element = document.createElement(isInteractive ? 'button' : 'div');
   const name = getDisplayName(marker);
 
-  element.className = 'group relative flex h-[88px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0';
+  const animationHint = marker.animationHint ?? 'NONE';
+
+  // The box is tall enough to hold the exit Ghost without clipping it. The last
+  // minute is not dimmed: the pin announces itself by flashing, and dimming it
+  // as well made every ghost profile look like it had already left.
+  element.className = [
+    'group relative flex h-[128px] w-[103px] items-start justify-center overflow-visible border-0 bg-transparent p-0 transition-opacity duration-700',
+    animationHint === 'SIGNAL_LOSS' ? 'opacity-15 animate-pulse' : '',
+    animationHint === 'REAPPEAR' ? 'opacity-100' : '',
+  ].filter(Boolean).join(' ');
+  // Only markers that actually carry a hint get tagged, so a ghost pin with no
+  // rotation data stays exactly as static as it was before the countdown.
+  if (marker.animationHint) {
+    element.dataset.animationHint = marker.animationHint;
+  }
   element.dataset.displayMode = marker.displayMode ?? 'PRECISE';
   element.dataset.mapMarkerPin = 'true';
   element.dataset.mapMarkerKind = marker.kind ?? 'person';

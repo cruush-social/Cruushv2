@@ -243,7 +243,8 @@ describe('MapView', () => {
     );
     expect(screen.getByTestId('marker-pin-unit-user-1')).toHaveClass('origin-bottom', 'scale-100');
     expect(MAP_PIN_UNIT_SCALE).toBe(1);
-    expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
+    // Tall enough to hold the ghost exit animation without clipping it.
+    expect(markerInstances[0].element).toHaveClass('h-[128px]', 'w-[103px]');
     expect(markerInstances[0].element.className).not.toContain('drop-shadow');
     expect(markerInstances[1].element.className).not.toContain('drop-shadow');
     expect(screen.getByTestId('marker-heart-me').querySelector('filter')).toBeNull();
@@ -872,7 +873,8 @@ describe('MapView', () => {
     expect(await screen.findByTestId('marker-photo-fill-user-mutual')).toHaveAttribute('href', 'https://example.com/river.jpg');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveAttribute('data-marker-theme', 'mutual');
     expect(screen.getByTestId('marker-heart-user-mutual')).toHaveClass('h-20', 'w-20');
-    expect(markerInstances[0].element).toHaveClass('h-[88px]', 'w-[103px]');
+    // Tall enough to hold the ghost exit animation without clipping it.
+    expect(markerInstances[0].element).toHaveClass('h-[128px]', 'w-[103px]');
     expect(screen.getByTestId('marker-badge-user-mutual')).toHaveClass(
       'border-[#6f00ff]/80',
       'right-[-0.25rem]',

@@ -1874,6 +1874,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
         photo: user.photo,
         photoExplicit: user.photoExplicit,
         badge: createMapMarkerBadge(user.position, user.hostingTravel),
+        animationHint: user.animationHint,
+        ghostRotationExpiresAtMs: user.ghostRotationExpiresAtMs,
         displayMode: user.displayMode,
         privacyRadiusMeters: user.privacyRadiusMeters,
         npcGhostDemo: user.npcGhostDemo,

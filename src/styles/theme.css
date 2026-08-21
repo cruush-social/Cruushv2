@@ -681,6 +681,86 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
     }
   }
 
+  @keyframes cruush-ghost-rotation-heart-exit {
+    0%, 12% { opacity: 1; }
+    28%, 100% { opacity: 0; }
+  }
+
+  @keyframes cruush-ghost-rotation-puff-cloud {
+    0% { opacity: 0.18; transform: translateY(0) scale(0.58); }
+    22% { opacity: 0.82; transform: translateY(0) scale(0.92); }
+    100% { opacity: 0; transform: translateY(0.25rem) scale(1.72); }
+  }
+
+  @keyframes cruush-ghost-rotation-fly-icon {
+    0%, 10% { opacity: 0; transform: translate(-50%, -50%) translateY(0); }
+    24% { opacity: 0.96; transform: translate(-50%, -50%) translateY(-0.55rem); }
+    100% { opacity: 0; transform: translate(-50%, -50%) translateY(-1.875rem); }
+  }
+
+  .cruush-ghost-rotation-heart-exit {
+    animation: cruush-ghost-rotation-heart-exit 2s ease-out forwards;
+    animation-delay: var(--cruush-ghost-rotation-exit-delay, 0ms);
+  }
+
+  .cruush-ghost-rotation-border-outer-glow,
+  .cruush-ghost-rotation-heart-material {
+    opacity: var(--cruush-ghost-material-opacity, 1);
+  }
+
+  .cruush-ghost-rotation-vector-border {
+    fill: none;
+    filter: none !important;
+    opacity: 1;
+    stroke: var(--cruush-ghost-vector-border-color) !important;
+    stroke-linejoin: round;
+    stroke-opacity: 1 !important;
+    stroke-width: var(--cruush-ghost-badge-border-width, 3.2px);
+    vector-effect: non-scaling-stroke;
+  }
+
+  .cruush-ghost-rotation-heart-surface {
+    isolation: isolate;
+    mix-blend-mode: normal;
+  }
+
+  .cruush-ghost-rotation-unit-material {
+    opacity: var(--cruush-ghost-unit-opacity, 1);
+  }
+
+  .cruush-ghost-rotation-badge-symbol,
+  .cruush-ghost-rotation-signal-symbol {
+    color: #FFFFFF;
+    filter: var(--cruush-ghost-pepper-filter, none);
+    opacity: var(--cruush-ghost-pepper-opacity, 1);
+  }
+
+  .cruush-ghost-rotation-heart-photo {
+    filter: var(--cruush-ghost-photo-filter, none);
+    opacity: var(--cruush-ghost-photo-opacity, 1);
+  }
+
+  .cruush-ghost-rotation-puff-cloud {
+    animation: cruush-ghost-rotation-puff-cloud 2s ease-out forwards;
+    animation-delay: var(--cruush-ghost-rotation-exit-delay, 0ms);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .cruush-ghost-fog-wisp {
+    background: radial-gradient(ellipse at center, rgba(184, 235, 255, 0.74) 0%, rgba(11, 168, 255, 0.58) 38%, rgba(11, 168, 255, 0) 76%);
+    border-radius: 48% 52% 58% 42%;
+    filter: blur(4px);
+  }
+
+  .cruush-ghost-rotation-fly-icon {
+    animation: cruush-ghost-rotation-fly-icon 2s ease-out forwards;
+    animation-delay: var(--cruush-ghost-rotation-exit-delay, 0ms);
+    color: #0BA8FF;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .cruush-map-ping-heart {
     animation: cruush-map-ping-heart-pulse 1.35s ease-in-out infinite;
   }

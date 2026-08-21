@@ -48,6 +48,7 @@ import {
   formatDistanceLabel,
   loadLocationEnvelope,
   locationPayloadToCoordinates,
+  describeGhostRotation,
   makeDisplayLocationToken,
   type DisplayMode
 } from "../location-privacy.js";
@@ -845,6 +846,9 @@ async function mapTokenizedMutualCruushRow(
     displayMode,
     relationshipGrantVersion: relationship.isMutualCruush ? 1 : 0
   });
+  const ghostRotation = displayMode === "GHOST"
+    ? await describeGhostRotation(app, row.other_user_id, policy)
+    : null;
   const currentCrowds = new Set(options.currentCrowds.map((crowd) => crowd.toLowerCase()));
   const sharedCrowds = otherCrowds.filter((crowd) => currentCrowds.has(crowd.toLowerCase()));
   const vibes = uniqueStrings([
@@ -883,7 +887,12 @@ async function mapTokenizedMutualCruushRow(
     canRevealPreciseLocation: relationship.canRevealPreciseLocation,
     displayLocationToken: token,
     displayExpiresAtMs: token.expiresAtMs,
-    animationHint: "NONE" as const,
+    // Same reason as the discovery route: the hint belongs to this profile's own
+    // rotation window, not to every ghost profile at once.
+    animationHint: ghostRotation?.animationHint ?? "NONE",
+    ...(ghostRotation?.rotationExpiresAtMs
+      ? { ghostRotationExpiresAtMs: ghostRotation.rotationExpiresAtMs }
+      : {}),
     relationshipContext: "MUTUAL_CRUUSH",
     relationship: {
       mutualCruush: true,

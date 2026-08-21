@@ -62,6 +62,10 @@ const mapPresencePayloadSchema = z.object({
   days: z.coerce.number().int().min(MIN_MAP_PRESENCE_DAYS).max(MAX_MAP_PRESENCE_DAYS)
 }).strict();
 
+const ghostPulsePayloadSchema = z.object({
+  enabled: z.boolean()
+}).strict();
+
 const ghostModePayloadSchema = z.object({
   baseMode: z.enum(["PUBLIC_PRECISE", "GHOST", "STEALTH"]).optional(),
   enabled: z.boolean().optional(),
@@ -315,6 +319,42 @@ export async function registerPrivacyRoutes(app: FastifyInstance) {
         days: normalizeMapPresenceDays(result.rows[0]?.map_presence_days ?? payload.days),
         minDays: MIN_MAP_PRESENCE_DAYS,
         maxDays: MAX_MAP_PRESENCE_DAYS
+      }
+    });
+  });
+
+  app.get("/api/privacy/ghost-pulse", async (request, reply) => {
+    const userId = await getAuthenticatedUserId(request);
+    const result = await app.db.query<{ ghost_pulse_enabled: boolean | null }>(
+      `select ghost_pulse_enabled
+       from user_privacy_settings
+       where user_id = $1`,
+      [userId]
+    );
+
+    return reply.send({
+      data: {
+        enabled: result.rows[0]?.ghost_pulse_enabled !== false
+      }
+    });
+  });
+
+  app.put("/api/privacy/ghost-pulse", async (request, reply) => {
+    const userId = await getActiveAccountUserId(request);
+    const payload = ghostPulsePayloadSchema.parse(request.body);
+    const result = await app.db.query<{ ghost_pulse_enabled: boolean | null }>(
+      `insert into user_privacy_settings (user_id, ghost_pulse_enabled)
+       values ($1, $2)
+       on conflict (user_id) do update
+       set ghost_pulse_enabled = excluded.ghost_pulse_enabled,
+           updated_at = now()
+       returning ghost_pulse_enabled`,
+      [userId, payload.enabled]
+    );
+
+    return reply.send({
+      data: {
+        enabled: result.rows[0]?.ghost_pulse_enabled !== false
       }
     });
   });

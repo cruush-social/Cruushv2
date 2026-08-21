@@ -82,6 +82,25 @@ export function saveMyMapPresenceSettings(days: number) {
   });
 }
 
+export type GhostPulseSettings = {
+  enabled: boolean;
+};
+
+export const DEFAULT_GHOST_PULSE_SETTINGS: GhostPulseSettings = {
+  enabled: true,
+};
+
+export function getMyGhostPulseSettings() {
+  return requestApi<GhostPulseSettings>('/api/privacy/ghost-pulse');
+}
+
+export function saveMyGhostPulseSettings(enabled: boolean) {
+  return requestApi<GhostPulseSettings>('/api/privacy/ghost-pulse', {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
 export type PrivacyAuditAccess = {
   viewer_profile_token: string;
   viewer: {

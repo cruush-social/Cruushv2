@@ -20,6 +20,8 @@ export type MapMarker = {
   // Local UI state for the signed-in user's marker. Never populate from discovery data.
   ownerStealthActive?: boolean;
   displayMode?: 'PRECISE' | 'GHOST';
+  animationHint?: 'NONE' | 'FADE_LAST_MINUTE' | 'SIGNAL_LOSS' | 'REAPPEAR';
+  ghostRotationExpiresAtMs?: number;
   privacyRadiusMeters?: number;
   npcGhostDemo?: boolean;
   activePing?: {

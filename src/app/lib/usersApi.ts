@@ -34,6 +34,7 @@ export type DiscoveryUser = {
   isCurrentUser?: boolean;
   displayMode?: DisplayMode;
   displayExpiresAtMs?: number;
+  ghostRotationExpiresAtMs?: number;
   privacyRadiusMeters?: number;
   npcGhostDemo?: boolean;
   hasSharedCrowd?: boolean;
@@ -88,6 +89,8 @@ type TokenizedDiscoveryProfile = {
   distanceLabel: string;
   displayLocationToken: DisplayLocationToken;
   displayExpiresAtMs: number;
+  animationHint: DisplayAnimationHint;
+  ghostRotationExpiresAtMs?: number;
   demoDisplayMode?: 'NPC_GHOST_TEST';
   relationshipContext: 'PUBLIC' | 'MUTUAL_CRUUSH' | 'MUTUAL_CROWD';
   hasSharedCrowd?: boolean;
@@ -195,6 +198,14 @@ export async function getNearbyUsers(
       badges: profile.badges,
       displayMode: displayPayload.displayMode,
       displayExpiresAtMs: profile.displayExpiresAtMs,
+      // The in-memory NPC demo pins have no rotation of their own, so they stay
+      // out of the countdown rather than borrowing someone else's deadline.
+      ...(profile.demoDisplayMode === 'NPC_GHOST_TEST'
+        ? {}
+        : {
+          animationHint: profile.animationHint,
+          ghostRotationExpiresAtMs: profile.ghostRotationExpiresAtMs,
+        }),
       privacyRadiusMeters: displayPayload.accuracyDisplayM,
       npcGhostDemo: profile.demoDisplayMode === 'NPC_GHOST_TEST',
       hasSharedCrowd: profile.hasSharedCrowd === true || profile.relationshipContext === 'MUTUAL_CROWD',

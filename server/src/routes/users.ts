@@ -39,6 +39,7 @@ import {
   isPreciseLocationRevoked,
   loadLocationEnvelopes,
   locationPayloadToCoordinates,
+  describeGhostRotation,
   makeDisplayLocationToken,
   type DisplayMode,
   type LocationPayload
@@ -863,6 +864,9 @@ async function mapModernDiscoveryRow(
     displayMode,
     relationshipGrantVersion: relationship?.isMutualCruush || canRevealSameCrowdPreciseLocation ? 1 : 0
   });
+  const ghostRotation = displayMode === "GHOST"
+    ? await describeGhostRotation(app, row.id, policy)
+    : null;
   const latestFeedPostPreview = canViewLatestFeedPreview(row, viewerUserId, relationship)
     ? decryptTextContentOrFallback(app.config, "feed", {
         ciphertext: row.latest_feed_post_content_ciphertext ?? undefined,
@@ -890,7 +894,13 @@ async function mapModernDiscoveryRow(
     }),
     displayLocationToken,
     displayExpiresAtMs: displayLocationToken.expiresAtMs,
-    animationHint: "NONE" as const,
+    // The hint has to come from this profile's own rotation window. Reporting
+    // FADE_LAST_MINUTE for every ghost profile left them all permanently faded
+    // instead of only during the last minute before their pin moves.
+    animationHint: ghostRotation?.animationHint ?? "NONE",
+    ...(ghostRotation?.rotationExpiresAtMs
+      ? { ghostRotationExpiresAtMs: ghostRotation.rotationExpiresAtMs }
+      : {}),
     ...(npcGhostDemoActive ? { demoDisplayMode: "NPC_GHOST_TEST" as const } : {}),
     relationshipContext: relationship?.isMutualCruush
       ? "MUTUAL_CRUUSH"

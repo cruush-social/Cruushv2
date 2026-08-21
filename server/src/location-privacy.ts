@@ -990,6 +990,66 @@ function rotationExpiresAtMs(activationAnchorMs: number, rotationEpoch: number) 
   return activationAnchorMs + (rotationEpoch + 1) * ROTATION_INTERVAL_MS;
 }
 
+// The last minute before a ghost pin relocates. Viewers get the deadline itself
+// rather than the display token's TTL, so the pin can animate against the real
+// countdown and pick up mid-animation on a re-render instead of restarting.
+const GHOST_FADE_WINDOW_MS = 60 * 1000;
+
+export async function loadGhostPulseEnabled(context: LocationPrivacyContext, subjectUserId: string) {
+  const result = await context.db.query<{ ghost_pulse_enabled: boolean | null }>(
+    `select ghost_pulse_enabled
+     from user_privacy_settings
+     where user_id = $1
+     limit 1`,
+    [subjectUserId]
+  );
+
+  return result.rows[0]?.ghost_pulse_enabled !== false;
+}
+
+// The countdown broadcasts "this profile is about to relocate", so a subject who
+// turns it off gets no hint and no deadline rather than one hidden on the client.
+export async function describeGhostRotation(
+  context: LocationPrivacyContext,
+  subjectUserId: string,
+  policy: VisibilityPolicyPayload,
+  nowMs = Date.now()
+) {
+  const activationAnchorMs = ghostActivationAnchorMs(policy);
+  const rotationEpoch = currentRotationEpoch(nowMs, activationAnchorMs);
+  const expiresAtMs = rotationExpiresAtMs(activationAnchorMs, rotationEpoch);
+  const remainingMs = expiresAtMs - nowMs;
+
+  // The deadline is derived from the policy already in hand, but the opt-out is
+  // a settings read. Only a pin inside its final minute can animate, so the map
+  // feed does not pay that read for every ghost profile it returns.
+  if (remainingMs > GHOST_FADE_WINDOW_MS) {
+    return {
+      pulseEnabled: true,
+      rotationExpiresAtMs: null,
+      animationHint: "NONE" as DisplayAnimationHint
+    };
+  }
+
+  const pulseEnabled = await loadGhostPulseEnabled(context, subjectUserId);
+
+  // Opting out withholds the deadline as well as the hint. Sending the deadline
+  // alone would still publish "this profile relocates at 12:45".
+  if (!pulseEnabled) {
+    return {
+      pulseEnabled,
+      rotationExpiresAtMs: null,
+      animationHint: "NONE" as DisplayAnimationHint
+    };
+  }
+
+  return {
+    pulseEnabled,
+    rotationExpiresAtMs: expiresAtMs,
+    animationHint: (remainingMs <= 0 ? "SIGNAL_LOSS" : "FADE_LAST_MINUTE") as DisplayAnimationHint
+  };
+}
+
 async function loadOrCreateGhostRotation(context: LocationPrivacyContext, input: {
   subjectUserId: string;
   policy: VisibilityPolicyPayload;

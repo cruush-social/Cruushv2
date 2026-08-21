@@ -98,7 +98,8 @@ const migrationFiles = [
   "089_site_wide_announcements.sql",
   "090_feed_orphaned_author_cleanup.sql",
   "091_feed_legacy_deleted_profile_cleanup.sql",
-  "092_support_request_survey_source.sql"
+  "092_support_request_survey_source.sql",
+  "093_ghost_pulse_setting.sql"
 ];
 const rewardSafetyPreflightFiles = [
   "079_daily_check_in_rewards.sql",

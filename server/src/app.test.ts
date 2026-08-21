@@ -12072,7 +12072,10 @@ describe("server", () => {
     expect(query.mock.calls.some(([sql]) => /ghost_mode_anchor_ms|ghost_pulse_enabled/.test(String(sql)))).toBe(false);
   });
 
-  it("does not expose the V2-only Ghost pulse preference routes", async () => {
+  it("serves the Ghost pulse preference routes with the countdown on by default", async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+    query.mockResolvedValueOnce({ rows: [{ ghost_pulse_enabled: false }] });
+
     const getResponse = await app.inject({
       method: "GET",
       url: "/api/privacy/ghost-pulse",
@@ -12091,9 +12094,12 @@ describe("server", () => {
       }
     });
 
-    expect(getResponse.statusCode).toBe(404);
-    expect(putResponse.statusCode).toBe(404);
-    expect(query).not.toHaveBeenCalled();
+    expect(getResponse.statusCode).toBe(200);
+    // No stored row means nobody has opted out, so the countdown reads as on.
+    expect(getResponse.json().data).toEqual({ enabled: true });
+    expect(putResponse.statusCode).toBe(200);
+    expect(putResponse.json().data).toEqual({ enabled: false });
+    expect(query.mock.calls.some(([sql]) => /ghost_pulse_enabled/.test(String(sql)))).toBe(true);
   });
 
   it("requires cruush+ before enabling stealth mode", async () => {

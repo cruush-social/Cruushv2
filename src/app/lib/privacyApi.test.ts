@@ -57,10 +57,12 @@ describe('privacyApi', () => {
     }));
   });
 
-  it('does not expose V2 Ghost heartbeat APIs', () => {
+  it('exposes the ghost pin countdown as its own opt-out setting', () => {
+    // The countdown is a per-profile setting rather than a field on the privacy
+    // policy, so the policy payload still carries no animation state.
     expect(privacyApi.DEFAULT_PRIVACY_SETTINGS).not.toHaveProperty('animationHint');
-    expect(privacyApi).not.toHaveProperty('DEFAULT_GHOST_PULSE_SETTINGS');
-    expect(privacyApi).not.toHaveProperty('getMyGhostPulseSettings');
-    expect(privacyApi).not.toHaveProperty('saveMyGhostPulseSettings');
+    expect(privacyApi.DEFAULT_GHOST_PULSE_SETTINGS).toEqual({ enabled: true });
+    expect(typeof privacyApi.getMyGhostPulseSettings).toBe('function');
+    expect(typeof privacyApi.saveMyGhostPulseSettings).toBe('function');
   });
 });
