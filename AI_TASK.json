@@ -123,7 +123,9 @@
     "src/app/lib/openConversation.test.ts",
     "src/app/lib/publicLegalContent.tsx",
     "src/app/lib/vibeTone.ts",
-    "src/app/components/ProfileActionTrio.tsx"
+    "src/app/components/ProfileActionTrio.tsx",
+    "src/app/components/MapPingSheet.tsx",
+    "src/app/components/MapPingSheet.test.tsx"
   ],
   "preserved": [
     "Keep private trans status as the eligibility gate for the optional T4T crowd; do not infer it from a selected gender identity.",

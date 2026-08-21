@@ -44,6 +44,7 @@ import {
   emptyProfilePayload,
   addProfileChangedListener,
   getMyProfile,
+  saveMyProfile,
   saveMyVisibilityRules,
   type ProfileRecord,
   type ProfileVisibilityRules,
@@ -2736,6 +2737,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
           loading={mapPingStatusLoading}
           hasMapLocation={Boolean(currentUserMapLocation)}
           signal={currentProfile?.signal}
+          onSaveSignal={async (signal) => {
+            const savedProfile = await saveMyProfile({
+              ...emptyProfilePayload,
+              ...(currentProfile ?? {}),
+              signal,
+            });
+            setCurrentProfile(savedProfile);
+          }}
           onRefresh={refreshMapPingStatus}
           onSend={handleSendMapPing}
           hasCruushPlus={hasCruushPlus}

@@ -7,6 +7,7 @@ import {
   type MapPingStatus,
 } from '../lib/mapPingsApi';
 import { Button } from './ui/button';
+import { Textarea } from './ui/textarea';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import CruushPlusGateNotice from './CruushPlusGateNotice';
 import {
@@ -27,6 +28,7 @@ type MapPingSheetProps = {
   signal: string | null | undefined;
   onRefresh: () => Promise<void>;
   onSend: (radiusMiles: MapPingRadiusMiles) => Promise<void>;
+  onSaveSignal?: (signal: string) => Promise<void>;
   hasCruushPlus?: boolean;
   onUpgrade?: () => void;
 };
@@ -76,11 +78,15 @@ export default function MapPingSheet({
   signal,
   onRefresh,
   onSend,
+  onSaveSignal,
   hasCruushPlus = false,
   onUpgrade,
 }: MapPingSheetProps) {
   const [radiusMiles, setRadiusMiles] = useState<MapPingRadiusMiles>(3);
   const [sending, setSending] = useState(false);
+  const [editingSignal, setEditingSignal] = useState(false);
+  const [signalDraft, setSignalDraft] = useState('');
+  const [savingSignal, setSavingSignal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -177,7 +183,7 @@ export default function MapPingSheet({
       >
         <SheetHeader className="pr-10">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/12 text-primary">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#c8ff31]/45 bg-[#c8ff31]/12 text-[#c8ff31]">
               <Radio aria-hidden="true" className="h-5 w-5" />
             </span>
             <div>
@@ -189,10 +195,64 @@ export default function MapPingSheet({
 
         <div className="space-y-4 px-4">
           <div className="rounded-xl border border-white/10 bg-white/[0.045] p-3">
-            <p className="text-xs uppercase tracking-[0.14em] text-white/48">Your signal</p>
-            <p className="mt-1 text-sm text-white">
-              {normalizedSignal || 'Add a signal to your profile before sending a Ping.'}
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs uppercase tracking-[0.14em] text-white/48">Your signal</p>
+              {onSaveSignal && !editingSignal ? (
+                <button
+                  type="button"
+                  className="text-xs uppercase tracking-[0.12em] text-[#c8ff31] transition hover:brightness-110"
+                  onClick={() => {
+                    setSignalDraft(normalizedSignal);
+                    setEditingSignal(true);
+                  }}
+                >
+                  Edit
+                </button>
+              ) : null}
+            </div>
+
+            {editingSignal && onSaveSignal ? (
+              <div className="mt-2 space-y-2">
+                <Textarea
+                  aria-label="Your signal"
+                  className="min-h-[64px] bg-input-background"
+                  maxLength={140}
+                  onChange={(event) => setSignalDraft(event.target.value)}
+                  value={signalDraft}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9 rounded-full border-white/15 text-white"
+                    disabled={savingSignal}
+                    onClick={() => setEditingSignal(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    className="h-9 rounded-full font-semibold text-[#0B1200]"
+                    style={{ background: '#c8ff31' }}
+                    disabled={savingSignal}
+                    onClick={() => {
+                      setSavingSignal(true);
+                      setError(null);
+                      void onSaveSignal(signalDraft.trim())
+                        .then(() => setEditingSignal(false))
+                        .catch((saveError) => setError(resolvePingErrorMessage(saveError)))
+                        .finally(() => setSavingSignal(false));
+                    }}
+                  >
+                    {savingSignal ? 'Saving...' : 'Save signal'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-white">
+                {normalizedSignal || 'Add a signal to your profile before sending a Ping.'}
+              </p>
+            )}
           </div>
 
           <fieldset>
@@ -205,10 +265,10 @@ export default function MapPingSheet({
             >
               {MAP_PING_RADII_MILES.map((radius) => (
                 <label
-                  className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-2 text-center text-xs text-white/72 has-[[data-state=checked]]:border-primary/70 has-[[data-state=checked]]:bg-primary/12 has-[[data-state=checked]]:text-white"
+                  className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/[0.035] px-1 py-2 text-center text-xs text-white/72 has-[[data-state=checked]]:border-[#c8ff31]/70 has-[[data-state=checked]]:bg-[#c8ff31]/14 has-[[data-state=checked]]:text-white"
                   key={radius}
                 >
-                  <RadioGroupItem value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
+                  <RadioGroupItem className="border-[#c8ff31]/55 text-[#c8ff31] focus-visible:ring-[#c8ff31]/40" value={String(radius)} aria-label={`${radius} ${radius === 1 ? 'mile' : 'miles'}`} />
                   <span>{radius} mi</span>
                 </label>
               ))}
@@ -223,7 +283,7 @@ export default function MapPingSheet({
                 : 'Share your map location before sending a Ping.'}
           </p>
           {cooldownCountdown && status?.allowance.nextEligibleAt ? (
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.08] px-3 py-2.5 text-sm">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-[#c8ff31]/25 bg-[#c8ff31]/[0.08] px-3 py-2.5 text-sm">
               <span className="text-white/65">Next Ping in</span>
               <time
                 aria-label="Ping cooldown"
@@ -243,7 +303,7 @@ export default function MapPingSheet({
             />
           ) : null}
           {error ? (
-            <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+            <p className="rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-sm text-white/85" role="alert">
               {error}
             </p>
           ) : null}
@@ -252,10 +312,10 @@ export default function MapPingSheet({
         <SheetFooter>
           <Button
             type="button"
-            className="h-11 rounded-full text-white"
+            className="h-11 rounded-full font-semibold text-[#0B1200] disabled:text-white/45"
             disabled={sendDisabled}
             onClick={() => void handleSend()}
-            style={{ background: sendDisabled ? undefined : 'var(--cruush-gradient)' }}
+            style={{ background: sendDisabled ? undefined : '#c8ff31' }}
           >
             <Radio aria-hidden="true" className="mr-2 h-4 w-4" />
             {sending ? 'Sending Ping...' : activePing ? 'Ping active' : 'Send Ping'}
