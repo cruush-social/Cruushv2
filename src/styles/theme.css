@@ -467,13 +467,14 @@ html[data-cruush-alpha-bug-corner='top-right'] [data-testid='accessibility-quick
 
   .profile-card-scroll {
     overflow-y: auto;
+    overscroll-behavior: contain;
     scrollbar-color: rgba(156, 163, 175, 0.58) transparent;
-    scrollbar-gutter: auto;
+    scrollbar-gutter: stable;
     scrollbar-width: thin;
   }
 
   .profile-card-scroll::-webkit-scrollbar {
-    width: 0.1875rem;
+    width: 0.5rem;
   }
 
   .profile-card-scroll::-webkit-scrollbar-track {

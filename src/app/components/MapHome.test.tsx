@@ -1964,9 +1964,9 @@ describe('MapHome', () => {
 
     await screen.findByRole('button', { name: 'Pin Jordan' });
 
-    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-0', 'right-4', 'pl-4', 'pr-0');
+    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-0', 'right-0', 'px-4');
     expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('pointer-events-none');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('max-w-max', 'p-0', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('max-w-max', 'p-0', 'mx-auto');
     expect(screen.getByTestId('recently-active-panel')).toHaveClass('pointer-events-auto');
   });
 
@@ -2044,8 +2044,8 @@ describe('MapHome', () => {
     expect(screen.getByRole('complementary')).not.toHaveClass('w-72', 'lg:block', '2xl:block');
     expect(screen.getByRole('complementary').querySelector('.profile-card-scroll')).toBeInTheDocument();
     expect(screen.getByRole('complementary').querySelector('.scrollbar-hide')).not.toBeInTheDocument();
-    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-[calc(26rem+1.5rem)]', 'right-4', 'pl-2', 'pr-0');
-    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[30rem]', 'lg:ml-auto', 'lg:mr-0');
+    expect(screen.getByTestId('recently-active-panel').parentElement).toHaveClass('left-4', 'right-[calc(26rem+1.5rem)]', 'px-2');
+    expect(screen.getByTestId('recently-active-panel')).toHaveClass('w-fit', 'max-w-[30rem]', 'mx-auto');
     expect(await screen.findByRole('tab', { name: 'Basics' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Intimacy' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Health' })).toBeInTheDocument();
@@ -2791,7 +2791,7 @@ describe('MapHome', () => {
 
     expect(recentToggle).toHaveAttribute('aria-expanded', 'true');
     expect(recentToggle).toHaveTextContent('Recently Active');
-    expect(recentToggle.parentElement).toHaveClass('justify-end');
+    expect(recentToggle.parentElement).toHaveClass('justify-center');
     expect(recentToggle).toHaveStyle({ background: 'var(--cruush-gradient)' });
     expect(recentPanel.parentElement).toHaveClass('bottom-[calc(6.25rem+env(safe-area-inset-bottom))]', 'left-0');
     expect(recentPanel).toHaveClass('max-w-[30rem]', 'p-3');

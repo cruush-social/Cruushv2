@@ -172,8 +172,8 @@ export default function MapFiltersSurface({
           <Tabs defaultValue="basics" className="w-full">
             <TabsList className="grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/25 p-1">
               <TabsTrigger value="basics" className="min-h-11">Basics</TabsTrigger>
-              <TabsTrigger value="looking" className="min-h-11">Looking</TabsTrigger>
               <TabsTrigger value="intimacy" className="min-h-11">Intimacy</TabsTrigger>
+              <TabsTrigger value="health" className="min-h-11">Health</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basics" className="mt-6 space-y-6">
@@ -210,14 +210,20 @@ export default function MapFiltersSurface({
               <FieldGroup label="Crowds" options={CROWDS} stateKey="crowds" value={value} onChange={onChange} />
               <FieldGroup label="Body Type" options={BODY_TYPES} stateKey="bodyTypes" value={value} onChange={onChange} />
               <FieldGroup label="Sexuality" options={SEXUALITY} stateKey="sexuality" value={value} onChange={onChange} />
+              <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
+              <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} onChange={onChange} />
             </TabsContent>
 
-            <TabsContent value="looking" className="mt-6 space-y-6">
+            <TabsContent value="intimacy" className="mt-6 space-y-6">
               <FieldGroup label="Looking For" options={LOOKING_FOR} stateKey="lookingFor" value={value} onChange={onChange} />
               <FieldGroup label="Timing" options={AVAILABILITY} stateKey="timing" value={value} onChange={onChange} />
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} onChange={onChange} />
-              <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} onChange={onChange} />
-              <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} onChange={onChange} />
+              <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
+              <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
+              <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
+            </TabsContent>
+
+            <TabsContent value="health" className="mt-6 space-y-6">
               <FieldGroup
                 label="Substance Boundaries"
                 options={SUBSTANCE_BOUNDARIES}
@@ -225,12 +231,6 @@ export default function MapFiltersSurface({
                 value={value}
                 onChange={onChange}
               />
-            </TabsContent>
-
-            <TabsContent value="intimacy" className="mt-6 space-y-6">
-              <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} onChange={onChange} />
-              <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} onChange={onChange} />
-              <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} onChange={onChange} />
             </TabsContent>
 
           </Tabs>

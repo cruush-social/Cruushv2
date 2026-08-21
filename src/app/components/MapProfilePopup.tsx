@@ -134,7 +134,7 @@ export default function MapProfilePopup({
   const canMessage = profileView?.relationship ? profileView.relationship.can_message : user.relationship?.canMessage;
   const cruushDisabled = isDemo || sendingCruush || revokingCruush;
 
-  const popupClassName = `${fixed ? 'fixed' : 'absolute'} bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-6 top-[calc(0.75rem+env(safe-area-inset-top))] z-50 block w-[26rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl`;
+  const popupClassName = `${fixed ? 'fixed' : 'absolute'} bottom-[calc(0.75rem+env(safe-area-inset-bottom))] right-6 top-[calc(0.75rem+env(safe-area-inset-top))] z-50 block w-[26rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl`;
 
   const handleCruush = async () => {
     if (isDemo || isOwnProfile || sendingCruush || revokingCruush || hasSentCruush || isAlreadyMutual) {

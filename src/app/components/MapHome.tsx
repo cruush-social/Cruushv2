@@ -2581,8 +2581,8 @@ export default function MapHome(_props: MapHomeProps = {}) {
               isMobile
                 ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
                 : shouldAlignRecentlyActiveWithPreview
-                ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-[calc(26rem+1.5rem)] right-4 z-30 pl-2 pr-0'
-                : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-4 z-30 pl-4 pr-0'
+                ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-4 right-[calc(26rem+1.5rem)] z-30 px-2'
+                : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 px-4'
             }`}
           >
             <div
@@ -2590,10 +2590,10 @@ export default function MapHome(_props: MapHomeProps = {}) {
                 isRecentlyActiveOpen
                   ? `${isMobile ? 'w-fit max-w-full' : 'w-fit max-w-[30rem]'} rounded-2xl border border-white/10 bg-background/68 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.42)] backdrop-blur-md`
                   : 'max-w-max p-0'
-              } ${!isMobile ? 'lg:ml-auto lg:mr-0' : ''} pointer-events-auto`}
+              } pointer-events-auto`}
               data-testid="recently-active-panel"
             >
-              <div className={`flex ${isMobile ? 'justify-center' : 'justify-end'} ${isRecentlyActiveOpen ? 'mb-2' : 'mb-0'}`}>
+              <div className={`flex justify-center ${isRecentlyActiveOpen ? 'mb-2' : 'mb-0'}`}>
                 <button
                   type="button"
                   aria-controls="recently-active-tray"
