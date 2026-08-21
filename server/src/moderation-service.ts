@@ -315,10 +315,25 @@ export function userMessageForDecision(
   return "This content violates cruush safety rules and cannot be saved.";
 }
 
+const HUMAN_PROOF_CONFIDENCE = 0.7;
+// A completed provider pass that recommends keeping the photo has already
+// cleared every blocking rule, so a softer human signal is enough to confirm a
+// person is in frame instead of sending an ordinary selfie to manual review.
+const KEPT_PHOTO_HUMAN_PROOF_CONFIDENCE = 0.5;
+
+function providerCompletedWithKeep(providerResult: ProviderModerationResult) {
+  return ["complete", "completed"].includes(providerResult.status?.toLowerCase() ?? "") &&
+    providerResult.recommended_action?.toLowerCase() === "keep";
+}
+
 function hasHumanProof(providerResult: ProviderModerationResult) {
+  const requiredConfidence = providerCompletedWithKeep(providerResult)
+    ? KEPT_PHOTO_HUMAN_PROOF_CONFIDENCE
+    : HUMAN_PROOF_CONFIDENCE;
+
   return providerResult.labels.some((label) =>
     ["adult_human_body", "human_present"].includes(label.normalized_label) &&
-    label.confidence >= 0.7
+    label.confidence >= requiredConfidence
   );
 }
 

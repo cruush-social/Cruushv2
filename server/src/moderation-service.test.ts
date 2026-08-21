@@ -307,6 +307,26 @@ describe("profile-photo adult-human gate", () => {
     });
   });
 
+  it("accepts a softer human signal on a photo the provider already kept", () => {
+    expect(resolveProfilePhotoAdultHumanGate(
+      streamResult({
+        provider: "mock+aws_rekognition",
+        status: "complete",
+        labels: [{
+          provider_label: "Amazon Rekognition: Person",
+          normalized_label: "human_present",
+          confidence: 0.55,
+          severity: "none"
+        }]
+      }),
+      ALLOW_POLICY_DECISION,
+      { allowManualReview: true }
+    )).toMatchObject({
+      status: "resolved",
+      decision: { decision: "allow" }
+    });
+  });
+
   it("retains the dormant manual fallback only when explicitly allowed", () => {
     expect(resolveProfilePhotoAdultHumanGate(
       streamResult({ provider: "mock" }),
