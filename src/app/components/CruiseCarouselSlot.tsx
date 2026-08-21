@@ -443,9 +443,11 @@ export default function CruiseCarouselSlot({
     return (
       <aside
         aria-label="cruise carousel"
-        className="absolute bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-6 top-[8.75rem] z-50 hidden w-[23rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl lg:block"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/88 p-6 backdrop-blur-xl"
       >
-        {content}
+        <div className="h-full max-h-[46rem] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-white/10 bg-black/84 shadow-[0_24px_80px_rgba(0,0,0,0.48)]">
+          {content}
+        </div>
       </aside>
     );
   }

@@ -439,7 +439,7 @@
   .launch-login-auth-footer [aria-label="Legal and safety links"] {
     flex-basis: 100%;
     text-align: center;
-    word-spacing: 0.22rem;
+    word-spacing: 0.5rem;
   }
 }
 
