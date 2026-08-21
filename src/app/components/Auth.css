@@ -421,6 +421,13 @@
   text-shadow: 0 0.45rem 1.4rem rgba(0, 0, 0, 0.72);
 }
 
+@media (min-width: 641px) {
+  .launch-login-auth-footer [aria-label="Legal and safety links"] {
+    text-align: justify;
+    text-align-last: justify;
+  }
+}
+
 .launch-login-auth-contact {
   display: inline-flex;
   width: 100%;
