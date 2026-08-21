@@ -25,6 +25,7 @@
     "src/app/components/MapProfilePopup.tsx",
     "src/app/components/MapProfilePopup.test.tsx",
     "src/app/components/ProfileEdit.tsx",
+    "src/app/components/MultiSelect.tsx",
     "src/app/components/ProfileEdit.test.tsx",
     "src/app/components/ProfileOnboarding.tsx",
     "src/app/components/ProfileOnboarding.test.tsx",

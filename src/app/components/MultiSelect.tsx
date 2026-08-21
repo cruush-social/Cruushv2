@@ -273,7 +273,7 @@ export default function MultiSelect({
   const menuContent = (
     <>
       {hasCategoryPicker ? (
-        <div className="flex flex-col min-w-0 h-[18rem] max-h-[inherit] sm:grid sm:grid-cols-[11rem_minmax(0,1fr)] sm:h-full">
+        <div className="flex min-h-0 min-w-0 flex-col h-[18rem] max-h-[inherit] sm:grid sm:grid-cols-[11rem_minmax(0,1fr)] sm:h-full">
           {/* Horizontal Category Tabstrip for Mobile, Vertical Sidebar for Desktop */}
           <div
             ref={tablistRef}
