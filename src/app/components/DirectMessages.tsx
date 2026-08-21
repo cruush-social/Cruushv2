@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, Settings2, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, Settings2, SlidersHorizontal, Trash2, X, ArrowLeft } from 'lucide-react';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import mapIconWhite from '../assets/ui-icons/map-white.png';
 import HeartPhoto from './HeartPhoto';
@@ -140,9 +140,30 @@ function seekingSortScore(user: DiscoveryUser) {
   );
 }
 
-function comparePrivacySafeDistance(a: DiscoveryUser, b: DiscoveryUser) {
-  const aDistance = parseDistanceMiles(a.distance);
-  const bDistance = parseDistanceMiles(b.distance);
+function displayCoordinateMiles(user: DiscoveryUser, viewer: { lat: number; lng: number } | null) {
+  // Only the display coordinates the app already shows for this person, so an
+  // approximate sharer never becomes more precise than their own setting.
+  if (!viewer || typeof user.lat !== 'number' || typeof user.lng !== 'number') {
+    return null;
+  }
+
+  const earthRadiusMiles = 3958.7613;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const deltaLat = toRadians(user.lat - viewer.lat);
+  const deltaLng = toRadians(user.lng - viewer.lng);
+  const haversine = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(toRadians(viewer.lat)) * Math.cos(toRadians(user.lat)) * Math.sin(deltaLng / 2) ** 2;
+
+  return 2 * earthRadiusMiles * Math.asin(Math.min(1, Math.sqrt(haversine)));
+}
+
+function comparePrivacySafeDistance(a: DiscoveryUser, b: DiscoveryUser, viewer: { lat: number; lng: number } | null = null) {
+  const aLabelled = parseDistanceMiles(a.distance);
+  const bLabelled = parseDistanceMiles(b.distance);
+  // Approximate labels read the same for everyone. When neither row carries a
+  // numeric label, rank them by the coordinates already on screen instead.
+  const aDistance = aLabelled ?? (bLabelled === null ? displayCoordinateMiles(a, viewer) : null);
+  const bDistance = bLabelled ?? (aLabelled === null ? displayCoordinateMiles(b, viewer) : null);
 
   if (aDistance === null && bDistance === null) return 0;
   if (aDistance === null) return 1;
@@ -150,16 +171,16 @@ function comparePrivacySafeDistance(a: DiscoveryUser, b: DiscoveryUser) {
   return aDistance - bDistance;
 }
 
-function compareRecentActivity(a: DiscoveryUser, b: DiscoveryUser) {
+function compareRecentActivity(a: DiscoveryUser, b: DiscoveryUser, viewer: { lat: number; lng: number } | null = null) {
   return parseLastActiveRank(a.lastActive) - parseLastActiveRank(b.lastActive)
     || seekingSortScore(b) - seekingSortScore(a)
-    || comparePrivacySafeDistance(a, b)
+    || comparePrivacySafeDistance(a, b, viewer)
     || a.name.localeCompare(b.name);
 }
 
-function compareDistance(a: DiscoveryUser, b: DiscoveryUser) {
-  return comparePrivacySafeDistance(a, b)
-    || compareRecentActivity(a, b);
+function compareDistance(a: DiscoveryUser, b: DiscoveryUser, viewer: { lat: number; lng: number } | null = null) {
+  return comparePrivacySafeDistance(a, b, viewer)
+    || compareRecentActivity(a, b, viewer);
 }
 
 function describeDiscoveryUser(user: DiscoveryUser) {
@@ -219,6 +240,7 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
   const [directError, setDirectError] = useState<string | null>(null);
   const [directLoading, setDirectLoading] = useState(false);
   const [directHasCruushPlus, setDirectHasCruushPlus] = useState(false);
+  const [viewerCoordinates, setViewerCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [groupCreating, setGroupCreating] = useState(false);
   const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -321,6 +343,11 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
             lng: savedLocation.fuzzy_lng ?? savedLocation.lng,
           }
         : null;
+      setViewerCoordinates(
+        typeof coordinates?.lat === 'number' && typeof coordinates?.lng === 'number'
+          ? { lat: coordinates.lat, lng: coordinates.lng }
+          : null,
+      );
       const messageableMutuals = (activity.mutual ?? []).filter((item) => item.canMessage !== false);
       setMutualOptions(messageableMutuals);
       setDirectHasCruushPlus(billing?.cruushPlus === true);
@@ -454,21 +481,22 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
     <div className={embedded ? 'relative min-h-full bg-[#050505] pb-6 text-white' : 'relative min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] text-white'}>
       <header data-testid="direct-messages-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
         <div data-testid="direct-messages-header-content" className="mx-auto max-w-2xl space-y-4 px-4">
-          <div data-testid="direct-messages-header-row" className="flex items-center justify-between gap-4 pr-[3.5rem]">
-            <div>
-              <h1 className="text-3xl leading-none text-white">Messages</h1>
+          <div data-testid="direct-messages-header-row" className="flex items-center gap-3 pr-[3.5rem]">
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              aria-label="Back"
+              title="Back"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-0 flex-1 text-center">
+              <h1 className="text-2xl leading-none text-white sm:text-3xl">Messages</h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="icon"
-                aria-label="Message settings"
-                title="Message settings"
-                onClick={() => navigate('/cruush/settings')}
-                className="h-11 w-11 rounded-full border border-white/12 bg-white/[0.06] text-white hover:bg-white/[0.12]"
-              >
-                <Settings2 className="size-4" />
-              </Button>
               <Button
                 type="button"
                 size="icon"
@@ -479,6 +507,16 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
                 style={{ background: 'var(--cruush-gradient)' }}
               >
                 <Plus className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                aria-label="Message settings"
+                title="Message settings"
+                onClick={() => navigate('/cruush/settings')}
+                className="h-11 w-11 rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+              >
+                <CruushIcon name="settings" className="h-5 w-5" />
               </Button>
             </div>
           </div>
@@ -532,6 +570,7 @@ export default function DirectMessages({ embedded = false }: { embedded?: boolea
           loading={directLoading}
           users={directOptions}
           mutuals={mutualOptions}
+          viewerCoordinates={viewerCoordinates}
           hasCruushPlus={directHasCruushPlus}
           requestedCruushIds={requestedCruushIds}
           onAskMutual={(user) => {
@@ -923,6 +962,7 @@ function DirectUserOverlay({
   loading,
   users,
   mutuals,
+  viewerCoordinates,
   hasCruushPlus,
   requestedCruushIds,
   onAskMutual,
@@ -938,6 +978,7 @@ function DirectUserOverlay({
   loading: boolean;
   users: DiscoveryUser[];
   mutuals: MutualCruushActivityItem[];
+  viewerCoordinates: { lat: number; lng: number } | null;
   hasCruushPlus: boolean;
   requestedCruushIds: string[];
   onAskMutual: (user: DiscoveryUser) => void;
@@ -966,8 +1007,10 @@ function DirectUserOverlay({
   }, [publicUsers, filters]);
   const broadenedPublicUsers = filteredPublicUsers.length > 0 ? filteredPublicUsers : publicUsers;
   const sortedPublicUsers = useMemo(() => {
-    return [...broadenedPublicUsers].sort(sortMode === 'distance' ? compareDistance : compareRecentActivity);
-  }, [broadenedPublicUsers, sortMode]);
+    return [...broadenedPublicUsers].sort((a, b) => (sortMode === 'distance'
+      ? compareDistance(a, b, viewerCoordinates)
+      : compareRecentActivity(a, b, viewerCoordinates)));
+  }, [broadenedPublicUsers, sortMode, viewerCoordinates]);
 
   const requestMutual = async (user: DiscoveryUser) => {
     if (requestingUserId || requestedCruushIds.includes(user.id)) {
