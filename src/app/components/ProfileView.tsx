@@ -36,6 +36,20 @@ const PROFILE_VIEW_HEADER_HEIGHT = '4.3125rem';
 const PROFILE_VIEW_STYLE = {
   '--profile-view-header-height': PROFILE_VIEW_HEADER_HEIGHT,
 } as CSSProperties;
+const PROFILE_OVERLAY_TEXT_STYLE = {
+  textShadow: [
+    '1px 0 0 #000',
+    '-1px 0 0 #000',
+    '0 1px 0 #000',
+    '0 -1px 0 #000',
+    '1px 1px 0 #000',
+    '-1px 1px 0 #000',
+    '1px -1px 0 #000',
+    '-1px -1px 0 #000',
+    '0 2px 3px rgba(0, 0, 0, 0.55)',
+  ].join(', '),
+};
+
 const PROFILE_VIEW_GALLERY_FRAME_STYLE = {
   width: `min(100%, calc((100dvh - var(--profile-view-header-height, ${PROFILE_VIEW_HEADER_HEIGHT}) - 1px) * 0.8))`,
 } as const;
@@ -456,7 +470,7 @@ export default function ProfileView() {
 
       <div
         data-testid="profile-gallery-frame"
-        className="mx-auto max-w-2xl"
+        className="relative mx-auto max-w-2xl"
         style={PROFILE_VIEW_GALLERY_FRAME_STYLE}
       >
         <ProfilePhotoGallery
@@ -468,15 +482,35 @@ export default function ProfileView() {
           theme={heartTheme}
           userId={profileView.id}
         />
+
+        <div
+          data-testid="profile-photo-overlay"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-4 pb-4 pt-10 text-white"
+        >
+          <h1 className="truncate text-3xl sm:text-4xl" style={PROFILE_OVERLAY_TEXT_STYLE}>
+            {profileView.name}
+            {profileView.age ? <span>, {profileView.age}</span> : null}
+          </h1>
+          <p className="mt-1 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>{profileView.pronouns}</p>
+          {profileView.distance ? (
+            <div className="mt-1 flex items-center gap-2 text-sm text-white" style={PROFILE_OVERLAY_TEXT_STYLE}>
+              <CruushIcon name="map" className="h-4 w-4" />
+              <span>{formatDistanceLabel(profileView.distance, distancePreferences.mode)} away</span>
+              {profileView.lastActive ? <span>• {profileView.lastActive}</span> : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-6">
         <div className="space-y-5">
           <div className="space-y-3">
             <div>
-              <h1 className="text-4xl mb-2">
-                {profileView.name}
-                {profileView.age ? <span>, {profileView.age}</span> : null}
+              <h1 className="mb-2 text-4xl">
+                <span className="sr-only">
+                  {profileView.name}
+                  {profileView.age ? `, ${profileView.age}` : ''}
+                </span>
                 {profileView.attendingLaunchParty ? (
                   <button
                     type="button"
@@ -494,14 +528,6 @@ export default function ProfileView() {
                 ) : null}
               </h1>
               <CruushBadge badges={profileView.badges} />
-              <p className="text-muted-foreground">{profileView.pronouns}</p>
-              {profileView.distance ? (
-                <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                  <CruushIcon name="map" className="h-4 w-4 opacity-70" />
-                  <span>{formatDistanceLabel(profileView.distance, distancePreferences.mode)} away</span>
-                  {profileView.lastActive ? <span>• {profileView.lastActive}</span> : null}
-                </div>
-              ) : null}
               {profileView.signal ? (
                 <p className="mt-3 rounded-2xl border border-white/10 bg-card/70 px-4 py-3 text-sm leading-6 text-foreground shadow-[0_12px_32px_rgba(0,0,0,0.24)]">
                   {profileView.signal}
