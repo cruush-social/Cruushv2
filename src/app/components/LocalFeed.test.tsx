@@ -150,7 +150,7 @@ describe('LocalFeed', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'Local Feed' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Feed' })).toBeInTheDocument();
     expect(screen.getByTestId('local-feed-screen')).toHaveClass(
       'flex',
       'h-[100dvh]',
@@ -332,7 +332,7 @@ describe('LocalFeed', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { name: 'Local Feed' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument();
     expect(screen.queryByText('Nearby posts expire after 24h')).not.toBeInTheDocument();
     expect(await screen.findByText('mine to delete')).toBeInTheDocument();
     expect(screen.getByText('someone else post')).toBeInTheDocument();
@@ -534,7 +534,7 @@ describe('LocalFeed', () => {
     expect(createFeedPost).not.toHaveBeenCalled();
   });
 
-  it('lets basic members dismiss the cruush+ feed gate', async () => {
+  it('keeps the cruush+ feed gate visible for basic members', async () => {
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
       expiresAt: null,
@@ -547,10 +547,8 @@ describe('LocalFeed', () => {
     render(<MemoryRouter initialEntries={['/feed']}><LocalFeed /></MemoryRouter>);
 
     const notice = await screen.findByTestId('local-feed-cruush-plus-notice');
-    fireEvent.click(within(notice).getByRole('button', { name: 'Dismiss cruush+ notice' }));
-
-    expect(screen.queryByTestId('local-feed-cruush-plus-notice')).not.toBeInTheDocument();
-    expect(window.localStorage.getItem('cruush:feed-cruush-plus-notice-dismissed:user-1')).toBe('true');
+    expect(within(notice).queryByRole('button', { name: 'Dismiss cruush+ notice' })).not.toBeInTheDocument();
+    expect(within(notice).getByRole('button', { name: /Unlock/ })).toBeInTheDocument();
   });
 
   it('posts to no crowds or multiple allowed crowds selected from the composer', async () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { Clock, MapPin, Settings2, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Settings2, Trash2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
 import ReportAction from './ReportAction';
@@ -465,18 +465,29 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
       data-testid="local-feed-screen"
     >
       <header
-        className="sticky top-0 z-40 flex shrink-0 items-center gap-4 border-b border-white/10 bg-black/92 px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] shadow-[0_18px_48px_rgba(0,0,0,0.36)] backdrop-blur-xl"
+        className="sticky top-0 z-40 flex shrink-0 items-center gap-3 border-b border-white/10 bg-black/88 px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl"
         data-testid="local-feed-header"
       >
-        <div>
-          <h2 className="text-xl">Local Feed</h2>
+        <Button
+          type="button"
+          size="icon"
+          variant="secondary"
+          className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+          aria-label="Back"
+          title="Back"
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="min-w-0 flex-1 text-center">
+          <h2 className="text-2xl text-white sm:text-3xl">Feed</h2>
         </div>
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="ml-auto rounded-full text-white/88 hover:bg-white/10"
+              className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
               aria-label="Feed settings"
               title="Feed settings"
             >
@@ -613,20 +624,6 @@ export default function LocalFeed({ embedded = false }: { embedded?: boolean } =
                   onClick={() => navigate('/rewards')}
                 >
                   Unlock <CruushPlusWord />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Dismiss cruush+ notice"
-                  onClick={() => {
-                    setShowCruushPlusNotice(false);
-                    if (currentUserId) {
-                      setPersistentNoticeFlag(`${CRUUSH_PLUS_FEED_NOTICE_KEY}:${currentUserId}`);
-                    }
-                  }}
-                >
-                  <X aria-hidden="true" className="size-4" />
                 </Button>
               </div>
             </div>
