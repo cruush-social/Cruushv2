@@ -206,13 +206,10 @@ describe('BottomNav', () => {
     const profileIcon = screen.getByTestId('bottom-nav-profile-icon');
 
     expect(profileButton).toHaveAttribute('aria-current', 'page');
-    expect(profileIcon.tagName).toBe('SPAN');
+    expect(profileIcon.tagName).toBe('IMG');
     expect(profileIcon).toHaveAttribute('data-tone', 'gradient');
-    expect(profileIcon).toHaveStyle({
-      background: 'var(--cruush-gradient)',
-    });
+    expect(profileIcon).toHaveAttribute('src', expect.stringContaining('humanity-profile-selected-winged-heart-symmetric-gradient'));
     expect(profileIcon).toHaveClass('h-11', 'w-11');
-    expect(profileIcon.getAttribute('style')).toContain('humanity-profile-selected-winged-heart');
   });
 
   it('opens the desktop profile side panel from the profile icon on the map', () => {

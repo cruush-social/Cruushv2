@@ -1,4 +1,3 @@
-import { type CSSProperties } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import cruushLogo from '../assets/brand/cruush-logo.svg';
 import cruushIconColored from '../assets/ui-icons/cruush-colored.png';
@@ -8,9 +7,8 @@ import mapIconWhite from '../assets/ui-icons/map-white.png';
 import messagesIconColored from '../assets/ui-icons/messages-colored.png';
 import messagesIconWhite from '../assets/ui-icons/messages-white.png';
 import humanityProfileIcon from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png';
+import humanityProfileIconGradient from '../assets/ui-icons/humanity-profile-selected-winged-heart-symmetric-gradient.png';
 import { useIsMobile } from './ui/use-mobile';
-
-const CRUUSH_GRADIENT = 'var(--cruush-gradient)';
 
 const navItems = [
   { path: '/map', icon: mapIconWhite, activeIcon: mapIconColored, label: 'Map' },
@@ -21,39 +19,15 @@ const navItems = [
 ];
 
 function ProfileNavIcon({ active }: { active: boolean }) {
-  if (!active) {
-    return (
-      <img
-        alt=""
-        aria-hidden="true"
-        className="h-11 w-11 object-contain"
-        data-testid="bottom-nav-profile-icon"
-        data-tone="white"
-        draggable={false}
-        src={humanityProfileIcon}
-      />
-    );
-  }
-
-  const maskStyle: CSSProperties = {
-    background: CRUUSH_GRADIENT,
-    maskImage: `url(${humanityProfileIcon})`,
-    maskPosition: 'center',
-    maskRepeat: 'no-repeat',
-    maskSize: 'contain',
-    WebkitMaskImage: `url(${humanityProfileIcon})`,
-    WebkitMaskPosition: 'center',
-    WebkitMaskRepeat: 'no-repeat',
-    WebkitMaskSize: 'contain',
-  };
-
   return (
-    <span
+    <img
+      alt=""
       aria-hidden="true"
-      className="h-11 w-11"
+      className="h-11 w-11 object-contain"
       data-testid="bottom-nav-profile-icon"
-      data-tone="gradient"
-      style={maskStyle}
+      data-tone={active ? 'gradient' : 'white'}
+      draggable={false}
+      src={active ? humanityProfileIconGradient : humanityProfileIcon}
     />
   );
 }

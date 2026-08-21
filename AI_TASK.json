@@ -1,31 +1,38 @@
 {
-  "status": "active",
+  "status": "validating",
   "product": "cruush",
   "release": "1.5",
   "repository": "cruush-social/Cruushv2",
-  "job": "Fix the age-related suspension appeal link so it opens the dedicated appeal form in-app and remains available before sign-in.",
-  "base": "ab111a92110d88a5aef35b9b7d9a0194c5aee35c",
-  "branch": "codex/age-appeal-route-hotfix-20260821",
+  "job": "Make the heart cutout in the active Profile edit bottom-navigation icon use a smooth symmetrical heart shape derived from the Messages icon.",
+  "branch": "main",
   "allowedPaths": [
     "AI_TASK.json",
-    "src/app/components/SupportPage.tsx",
-    "src/app/components/SupportPage.test.tsx"
+    "src/app/assets/ui-icons/humanity-profile-selected-winged-heart-symmetric.png",
+    "src/app/assets/ui-icons/humanity-profile-selected-winged-heart-symmetric-gradient.png",
+    "src/app/components/BottomNav.test.tsx",
+    "src/app/components/BottomNav.tsx"
   ],
   "preserved": [
-    "Keep the general support form, authentication, appeal evidence requirements, encrypted storage, reports inbox delivery, and moderation dashboard behavior unchanged.",
-    "Preserve all unrelated branches, worktrees, and local changes."
+    "Preserve the Profile icon person and wing silhouette, transparency, placement, sizing, and navigation behavior.",
+    "Preserve the Messages icon unchanged as the shape reference.",
+    "Preserve all other icons and UI behavior."
   ],
   "nonGoals": [
-    "Do not include carousel, map, profile, bug-report, Settings, V2, or unrelated moderation changes.",
-    "Do not submit a real production appeal or upload identity evidence during verification."
+    "Do not change icon spacing, routes, labels, dependencies, copy, or unrelated work.",
+    "Do not trigger a separate manual deployment."
   ],
   "proof": [
-    "A focused component test proves pressing Submit an appeal switches the current support route to the dedicated appeal form.",
-    "A focused app test proves the appeal route renders before authentication.",
-    "Existing server tests prove signed-out appeal submission stores encrypted evidence and targets reports@cruush.app.",
-    "Render the signed-out support route at 390x844, press Submit an appeal, and confirm the dedicated form appears without overlap or clipping.",
-    "After deployment, verify origin/main, Coolify health, a public frontend response, direct API health, and the live signed-out appeal route."
+    "Inspect the exact target and reference assets before and after at full and real display size.",
+    "Render the actual Profile edit route at a real mobile viewport and verify the gradient active state.",
+    "Run focused BottomNav tests and the frontend production build."
   ],
-  "publicationTarget": "Commit this isolated hotfix, push it to origin/main, deploy V1 production, and verify the live route.",
+  "proofResults": [
+    "The white and cruush-gradient Profile icons are separate 3340 by 3312 transparent PNG assets.",
+    "The heart is a symmetrical full-resolution cubic contour centered at the existing position with antialiased edges and no final raster downsampling pass.",
+    "The actual Profile edit flow rendered at 390 by 844 with natural raster size 3340 by 3312, rendered size 44 by 44, and the gradient PNG active state.",
+    "BottomNav focused tests passed 14 of 14. Frontend production build, copy, casing, security, and diff gates passed.",
+    "Layout invariants passed mobile. Existing unrelated tablet and desktop D5 footer-width violations remain: footer 320 versus content column 544."
+  ],
+  "publicationTarget": "Push this isolated icon slice to origin/main and verify any automatic production deployment without triggering a separate deploy.",
   "environmentChanges": []
 }
