@@ -253,11 +253,10 @@ export default function MapVisibilitySurface({
           </div>
 
           <Tabs defaultValue="basics" className="w-full">
-            <TabsList className="grid h-auto w-full grid-cols-4 rounded-full border border-white/10 bg-background/25 p-1">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-full border border-white/10 bg-background/25 p-1">
               <TabsTrigger value="basics" className="min-h-11">Basics</TabsTrigger>
               <TabsTrigger value="looking" className="min-h-11">Looking</TabsTrigger>
               <TabsTrigger value="intimacy" className="min-h-11">Intimacy</TabsTrigger>
-              <TabsTrigger value="lifestyle" className="min-h-11">Lifestyle</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basics" className="mt-6 space-y-6">
@@ -328,15 +327,6 @@ export default function MapVisibilitySurface({
               <FieldGroup label="Hosting/Travel" options={HOSTING} stateKey="hosting" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Vibes" optionGroups={VIBE_GROUPS} stateKey="vibes" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
               <FieldGroup label="Hobbies" options={HOBBIES} stateKey="hobbies" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-            </TabsContent>
-
-            <TabsContent value="intimacy" className="mt-6 space-y-6">
-              <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-              <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-              <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
-            </TabsContent>
-
-            <TabsContent value="lifestyle" className="mt-6 space-y-6">
               <FieldGroup
                 label="Substance Boundaries"
                 options={SUBSTANCE_BOUNDARIES}
@@ -347,6 +337,13 @@ export default function MapVisibilitySurface({
                 onChange={handleLimitedChange}
               />
             </TabsContent>
+
+            <TabsContent value="intimacy" className="mt-6 space-y-6">
+              <FieldGroup label="Position" options={POSITIONS} stateKey="positions" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup label="Role" options={ROLES} stateKey="roles" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+              <FieldGroup label="Kinks & Fetishes" optionGroups={KINK_GROUPS} stateKey="kinks" value={value} limitReached={freeLimitReached} onLimitReached={showLimitNotice} onChange={handleLimitedChange} />
+            </TabsContent>
+
           </Tabs>
         </div>
 
