@@ -450,4 +450,34 @@ describe('Settings', () => {
     }));
     expect(clearCurrentUser).toHaveBeenCalled();
   });
+
+  it('dispatches an install request from its own settings row', async () => {
+    const listener = vi.fn();
+    window.addEventListener('cruush:install-requested', listener);
+
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /Install cruush/ }));
+
+    expect(listener).toHaveBeenCalled();
+    window.removeEventListener('cruush:install-requested', listener);
+  });
+
+  it('filters settings rows with the search box', async () => {
+    render(
+      <MemoryRouter>
+        <Settings />
+      </MemoryRouter>
+    );
+
+    const search = await screen.findByLabelText('Search settings');
+    fireEvent.change(search, { target: { value: 'install' } });
+
+    expect(screen.getByRole('button', { name: /Install cruush/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Contact support/ })).not.toBeInTheDocument();
+  });
 });

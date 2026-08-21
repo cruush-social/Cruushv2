@@ -280,8 +280,15 @@ export default function MapVisibilitySurface({
                 <p className="text-sm text-muted-foreground">
                   {value.restrictDistance ? `Hide me from people farther than ${value.distance} miles` : 'No distance-based hiding'}
                 </p>
-                <div className="pt-2 flex items-center justify-between gap-4 border-t border-white/10">
-                  <Label htmlFor="visibility-approx-distance">Approximate distance labels</Label>
+                <div className="pt-2 flex items-start justify-between gap-4 border-t border-white/10">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="visibility-approx-distance">Approximate distance labels</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {distancePreferences.mode === 'approximate'
+                        ? 'Approximate both ways: you see approximate distances, and others see an approximate distance for you.'
+                        : 'Exact both ways: you see an exact distance only from people who also share exact, and they see yours the same way.'}
+                    </p>
+                  </div>
                   <Switch
                     id="visibility-approx-distance"
                     checked={distancePreferences.mode === 'approximate'}

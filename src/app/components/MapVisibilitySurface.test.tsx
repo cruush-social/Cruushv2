@@ -47,7 +47,7 @@ describe('MapVisibilitySurface', () => {
     expect(screen.getByText('Basic includes up to 3 hidden filters.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Get cruush+' }));
     expect(onUpgrade).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Pick who should not see you. Crowd Mode is different: it makes you visible only to the active crowds you choose.')).toBeInTheDocument();
+    expect(screen.getByText('Pick who should not see you.')).toBeInTheDocument();
     expect(screen.getByTestId('crowd-mode-tutorial-target')).toHaveAttribute('data-tutorial-target', 'crowds');
 
     selectVisibilityOption('Gender Identities', 'man');

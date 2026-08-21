@@ -243,17 +243,8 @@ export default function NotificationSettings() {
               <p className="mt-1 text-sm text-muted-foreground">
                 {installed
                   ? 'cruush is already running as a Home Screen app.'
-                  : 'On iPhone, open Safari share and choose Add to Home Screen. On Android, use the install option in your browser menu.'}
+                  : 'Install cruush from its own row on the settings page.'}
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => window.dispatchEvent(new Event('cruush:install-requested'))}
-                className="mt-4 gap-2 rounded-full"
-              >
-                <Download className="h-4 w-4" />
-                Install cruush
-              </Button>
             </div>
           </div>
         </section>

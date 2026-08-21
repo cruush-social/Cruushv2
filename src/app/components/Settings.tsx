@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
-import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, type LucideIcon } from 'lucide-react';
+import { Accessibility, ArrowLeft, BookOpen, ChevronRight, Contrast, ExternalLink, Eye, Gift, History, KeyRound, LifeBuoy, LogOut, MapPin, MessageCircle, MessageSquareReply, ShieldAlert, ShieldCheck, Trash2, Type, UserX, type LucideIcon, Download } from 'lucide-react';
 import { Button } from './ui/button';
 import CruushPlusWord from './CruushPlusWord';
 import {
@@ -184,6 +184,7 @@ export default function Settings() {
     }
   };
 
+  const [settingsQuery, setSettingsQuery] = useState('');
   const settingsSections: Array<{ title: string; items: SettingsItem[] }> = [
     ...(moderatorRole ? [{
       title: 'Moderation',
@@ -217,6 +218,12 @@ export default function Settings() {
           action: () => navigate('/settings/2fa'),
         },
         { iconName: 'notifications' as const, label: 'Notifications', action: () => navigate('/settings/notifications') },
+        {
+          icon: Download,
+          label: 'Install cruush',
+          description: 'Add cruush to your Home Screen.',
+          action: () => window.dispatchEvent(new Event('cruush:install-requested')),
+        },
         { icon: LifeBuoy, label: 'Contact support', action: () => navigate('/support') },
       ],
     },
@@ -261,8 +268,10 @@ export default function Settings() {
         },
         {
           icon: MapPin,
-          label: 'Approximate distance labels',
-          description: distancePreferences.mode === 'approximate' ? 'Showing approximate distances (~0.5 mi)' : 'Showing exact distances (0.4 mi)',
+          label: 'Distance labels',
+          description: distancePreferences.mode === 'approximate'
+            ? 'Approximate both ways: you see approximate distances, and others see an approximate distance for you.'
+            : 'Exact both ways: you see an exact distance only from people who also share exact, and they see yours the same way.',
           checked: distancePreferences.mode === 'approximate',
           onCheckedChange: (checked: boolean) => saveDistancePreferences({ mode: checked ? 'approximate' : 'exact' }),
         },
@@ -298,6 +307,23 @@ export default function Settings() {
       ],
     },
   ];
+
+  const normalizedSettingsQuery = settingsQuery.trim().toLowerCase();
+  const settingsItemText = (item: SettingsItem) => [
+    typeof item.label === 'string' ? item.label : '',
+    'description' in item && typeof item.description === 'string' ? item.description : '',
+  ].join(' ').toLowerCase();
+  const visibleSettingsSections = normalizedSettingsQuery
+    ? settingsSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => (
+          settingsItemText(item).includes(normalizedSettingsQuery)
+          || section.title.toLowerCase().includes(normalizedSettingsQuery)
+        )),
+      }))
+      .filter((section) => section.items.length > 0)
+    : settingsSections;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -387,7 +413,24 @@ export default function Settings() {
           </div>
         </div>
 
-        {settingsSections.map((section) => (
+        <div className="px-2">
+          <label className="sr-only" htmlFor="settings-search">Search settings</label>
+          <Input
+            autoComplete="off"
+            className="bg-input-background"
+            id="settings-search"
+            onChange={(event) => setSettingsQuery(event.target.value)}
+            placeholder="Search settings"
+            type="search"
+            value={settingsQuery}
+          />
+        </div>
+
+        {visibleSettingsSections.length === 0 ? (
+          <p className="px-2 text-sm text-muted-foreground">No settings match that search.</p>
+        ) : null}
+
+        {visibleSettingsSections.map((section) => (
           <div key={section.title} className="space-y-2">
             <h3 className="text-sm text-muted-foreground px-2">{section.title}</h3>
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
