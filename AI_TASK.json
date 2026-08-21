@@ -3,7 +3,7 @@
   "product": "cruush",
   "release": "1.5",
   "repository": "cruush-social/Cruushv2",
-  "job": "Release the current cruush 1.5 fixes: preserve the fixed global bug-report control, keep desktop map profile panels at a usable phone width, shift the bottom navigation away from open panels, force the full-page mobile profile treatment when width or height cannot fit the desktop composition, and run the exact worktree locally with seeded profiles plus one active Ping. Private-message images may contain nonhuman subjects or multiple adults, while gore, hate symbols, violence, screenshots, image text or URLs, and people who appear underage remain blocked. Profile photos remain limited to one adult human. Remove redundant private-message toolbar labels and icons without changing timer behavior. Make map heart units 15 percent larger than their current enlarged size on hover, keyboard focus, and long-press preview while preserving their default size. Include the existing approved profile, appeal, moderation, activity, distance, and carousel fixes in this release.",
+  "job": "Release the current cruush 1.5 fixes: preserve the fixed global bug-report control, keep desktop map profile panels at a usable phone width, shift the bottom navigation away from open panels, force the full-page mobile profile treatment when width or height cannot fit the desktop composition, and run the exact worktree locally with seeded profiles plus one active Ping. Private-message images may contain nonhuman subjects or multiple adults, while gore, hate symbols, violence, screenshots, image text or URLs, and people who appear underage remain blocked. Profile photos remain limited to one adult human. Remove redundant private-message toolbar labels and icons without changing timer behavior. Make map heart units 15 percent larger than their current enlarged size on hover, keyboard focus, and long-press preview while preserving their default size. Include the existing approved profile, appeal, moderation, activity, distance, carousel, profile-menu scrolling and alphabetization, SF and VC tabs, desktop signup footer, and dark-glass signup checkbox fixes in this release.",
   "base": "ab111a92110d88a5aef35b9b7d9a0194c5aee35c",
   "branch": "codex/carousel-photo-gallery-20260820",
   "allowedPaths": [
@@ -14,6 +14,9 @@
     "src/app/App.test.tsx",
     "src/app/components/SupportPage.tsx",
     "src/app/components/SupportPage.test.tsx",
+    "src/app/components/Auth.css",
+    "src/app/components/PublicInfoPage.tsx",
+    "src/app/components/PublicInfoPage.test.tsx",
     "src/app/components/SupportRequestForm.tsx",
     "src/app/components/Settings.tsx",
     "src/app/components/Settings.test.tsx",
@@ -120,7 +123,7 @@
     "Do not attach sensitive images to email or create a public media URL.",
     "Do not weaken CSAM, underage, gore, hate-symbol, violence, screenshot, image-text, or image-URL enforcement in private messages.",
     "Do not modify or discard the existing local carousel, Settings, or bug-button work.",
-    "Do not commit, push, or deploy without a separate user request."
+    "Do not change authentication, signup validation, policy-link destinations, or consent behavior."
   ],
   "proof": [
     "Focused profile tests prove trans is an explicit gender option and private trans status no longer adds a separate visible trans identity label.",
@@ -147,7 +150,9 @@
     "Focused map tests prove hover, keyboard focus, and long-press preview use a 1.38 scale while the resting heart remains at 1.00 scale.",
     "Render the actual map at desktop and mobile viewports, exercise hover and long-press preview, and inspect the enlarged heart unit for clipping or overlap.",
     "The local migration replay accepts an existing valid 1-hour disappearing timer without rewriting or deleting conversation data.",
-    "Run focused frontend and server tests, git diff check, and product-name casing checks."
+    "Run focused frontend and server tests, git diff check, and product-name casing checks.",
+    "Render the actual signup page at a desktop viewport. Verify footer links use the full bottom width and dark-glass checkbox unchecked and checked states remain visible and accessible.",
+    "Render the public About page and verify Julien's contact link is julien@cruush.app."
   ],
   "publicationTarget": "origin/main and production",
   "environmentChanges": []

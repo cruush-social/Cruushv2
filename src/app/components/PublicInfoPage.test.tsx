@@ -13,7 +13,7 @@ describe('PublicInfoPage', () => {
 
     expect(screen.getByRole('heading', { name: 'about' })).toBeInTheDocument();
     expect(screen.getByText('cruush is developed by three queers in a trenchcoat.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'hello@cruush.app' })).toHaveAttribute('href', 'mailto:hello@cruush.app');
+    expect(screen.getByRole('link', { name: 'julien@cruush.app' })).toHaveAttribute('href', 'mailto:julien@cruush.app');
     expect(screen.getByRole('link', { name: 'hazel@cruush.app' })).toHaveAttribute('href', 'mailto:hazel@cruush.app');
     expect(screen.getByRole('link', { name: 'cyberomancer@cruush.app' })).toHaveAttribute(
       'href',

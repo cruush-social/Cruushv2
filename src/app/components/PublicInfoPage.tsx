@@ -42,7 +42,7 @@ const aboutSections: PolicySection[] = [
   },
   {
     title: 'julien',
-    body: [<a href="mailto:hello@cruush.app">hello@cruush.app</a>],
+    body: [<a href="mailto:julien@cruush.app">julien@cruush.app</a>],
   },
   {
     title: 'hazel',

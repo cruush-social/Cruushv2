@@ -403,8 +403,8 @@
   position: relative;
   z-index: 20;
   grid-row: 2;
-  width: min(34rem, calc(100vw - 2rem));
-  width: min(34rem, calc(100dvw - 2rem));
+  align-self: stretch;
+  width: 100%;
   max-width: 100%;
   margin-inline: auto;
   margin-bottom: clamp(0.08rem, 0.8dvh, 0.45rem);
@@ -412,8 +412,7 @@
 }
 
 .launch-login-auth-footer [aria-label="Legal and safety links"] {
-  width: min(20rem, calc(100vw - 3rem));
-  width: min(20rem, calc(100dvw - 3rem));
+  width: 100%;
   max-width: 100%;
   margin-inline: auto;
   color: rgba(255, 255, 255, 0.62);
@@ -424,8 +423,7 @@
 
 .launch-login-auth-contact {
   display: inline-flex;
-  width: min(20rem, calc(100vw - 3rem));
-  width: min(20rem, calc(100dvw - 3rem));
+  width: 100%;
   max-width: 100%;
   min-height: 1.12rem;
   align-items: center;

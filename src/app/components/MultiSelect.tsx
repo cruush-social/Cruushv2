@@ -162,7 +162,11 @@ export default function MultiSelect({
       const availableHeight = Math.max(0, placeAbove ? topSpace : bottomSpace);
       const maxHeight = Math.max(MENU_MIN_HEIGHT, Math.min(MENU_MAX_HEIGHT, availableHeight));
       setResolvedMenuPlacement(placeAbove ? 'top' : 'bottom');
-      setLocalMenuStyle(menuPortal ? null : { maxHeight });
+      // A max-height does not establish a definite height for the desktop
+      // category picker. Its h-full children then expand to their content
+      // instead of making their own options panes scrollable.
+      const menuHeight = hasCategoryPicker ? { height: maxHeight } : { maxHeight };
+      setLocalMenuStyle(menuPortal ? null : menuHeight);
       // Radix locks touch scrolling outside modal content. Keep fixed portal
       // geometry while mounting the menu inside that allowed scroll boundary.
       setPortalRoot(menuPortal ? modalContent ?? ownerDocument.body : null);
@@ -188,13 +192,13 @@ export default function MultiSelect({
         ? {
             bottom: window.innerHeight - rect.top + MENU_OFFSET,
             left,
-            maxHeight,
+            ...menuHeight,
             position: 'fixed',
             width,
           }
         : {
             left,
-            maxHeight,
+            ...menuHeight,
             position: 'fixed',
             top: rect.bottom + MENU_OFFSET,
             width,
@@ -220,7 +224,7 @@ export default function MultiSelect({
       window.removeEventListener('scroll', updatePortalStyle, true);
       observer?.disconnect();
     };
-  }, [isOpen, menuPlacement, menuPortal, selected.length]);
+  }, [hasCategoryPicker, isOpen, menuPlacement, menuPortal, selected.length]);
 
   useEffect(() => {
     if (!isOpen || !menuPortal) {
