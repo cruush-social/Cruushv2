@@ -19,6 +19,10 @@ type CarouselItem =
       label: string;
     }
   | {
+      kind: 'plus-ad';
+      label: string;
+    }
+  | {
       kind: 'profile';
       user: DiscoveryUser;
       label: string;
@@ -107,7 +111,11 @@ function makeProfileBrowseItems(
     label: user.name,
   }));
 
-  const fallbackIcons = CAROUSEL_ICONS.filter((item) => item.kind === 'icon');
+  const repeatProfile = (index: number): CarouselItem => {
+    const user = profileCandidates[index % Math.max(1, profileCandidates.length)] ?? targetUser;
+    return { kind: 'profile', user, label: user.name };
+  };
+
   if (settled) {
     const selectedItem: CarouselItem = { kind: 'profile', user: targetUser, label: targetUser.name };
     const otherItems = profileItems.filter((item) => item.kind !== 'profile' || item.user.id !== targetUser.id);
@@ -115,17 +123,17 @@ function makeProfileBrowseItems(
     const rightItems = otherItems.slice(FEATURED_ITEM_INDEX, 4);
 
     while (leftItems.length < FEATURED_ITEM_INDEX) {
-      leftItems.unshift(fallbackIcons[leftItems.length % fallbackIcons.length]);
+      leftItems.unshift(repeatProfile(leftItems.length));
     }
     while (rightItems.length < 2) {
-      rightItems.push(fallbackIcons[(FEATURED_ITEM_INDEX + rightItems.length) % fallbackIcons.length]);
+      rightItems.push(repeatProfile(FEATURED_ITEM_INDEX + rightItems.length + 1));
     }
 
     return [...leftItems, selectedItem, ...rightItems];
   }
 
   while (profileItems.length < 5) {
-    profileItems.push(fallbackIcons[profileItems.length % fallbackIcons.length]);
+    profileItems.push(repeatProfile(profileItems.length));
   }
 
   return profileItems;
@@ -142,10 +150,36 @@ function makeBrowseItems(
     return makeProfileBrowseItems(candidateUsers, targetUser, cycleStep, settled);
   }
 
+  const spinCandidates = candidateUsers.filter((user) => !user.isCurrentUser);
+
   if (!settled) {
+    if (spinCandidates.length > 0) {
+      return Array.from({ length: 5 }, (_, offset) => {
+        const user = spinCandidates[(cycleStep + offset) % spinCandidates.length];
+        return { kind: 'profile', user, label: user.name } as CarouselItem;
+      });
+    }
+
     return Array.from({ length: 5 }, (_, offset) => (
       CAROUSEL_ICONS[(cycleStep + offset) % CAROUSEL_ICONS.length]
     ));
+  }
+
+  if (mode === 'locked') {
+    const surround = (offset: number): CarouselItem => {
+      const user = spinCandidates[offset % Math.max(1, spinCandidates.length)];
+      return user
+        ? { kind: 'profile', user, label: user.name }
+        : CAROUSEL_ICONS[offset % CAROUSEL_ICONS.length];
+    };
+
+    return [
+      surround(0),
+      surround(1),
+      { kind: 'plus-ad', label: 'cruush+' },
+      surround(2),
+      surround(3),
+    ];
   }
 
   const featuredItem: CarouselItem = mode === 'profile' && targetUser
@@ -189,6 +223,22 @@ function CarouselTile({ item, featured, itemIndex, spinning, activePhotoIndex, o
   const cycleClass = spinning ? 'cruise-carousel-profile-spinning' : '';
 
   useEffect(() => addDlModeChangedListener(setDlModeActive), []);
+
+  if (item.kind === 'plus-ad') {
+    return (
+      <div
+        data-testid="cruise-carousel-plus-ad-tile"
+        className={`relative flex ${profileSizeClass} shrink-0 flex-col items-center justify-center gap-2 overflow-hidden border ${tileFrameClass} ${positionClass} ${cycleClass} px-3 text-center transition-all duration-300`}
+        style={{ background: 'var(--cruush-gradient)' }}
+      >
+        <CruushIcon name="cruush" className="h-8 w-8" variant="white" />
+        <p className="text-sm font-semibold text-white">
+          <CruushPlusWord /> unlocks this
+        </p>
+        <p className="text-[11px] leading-tight text-white/85">See who the carousel finds nearby.</p>
+      </div>
+    );
+  }
 
   if (item.kind === 'profile') {
     const allPhotos = item.user.photos && item.user.photos.length > 0
@@ -347,9 +397,9 @@ export default function CruiseCarouselSlot({
     () => makeBrowseItems(mode, targetUser, profileCandidates, cycleStep, settled),
     [cycleStep, mode, profileCandidates, settled, targetUser],
   );
-  const featuredFrameClass = browseItems[FEATURED_ITEM_INDEX]?.kind === 'profile'
-    ? 'aspect-[4/5] w-[9.6rem] sm:w-[12.2rem]'
-    : 'h-[7rem] w-[7rem] sm:h-[10rem] sm:w-[10rem]';
+  const featuredFrameClass = browseItems[FEATURED_ITEM_INDEX]?.kind === 'icon'
+    ? 'h-[7rem] w-[7rem] sm:h-[10rem] sm:w-[10rem]'
+    : 'aspect-[4/5] w-[9.6rem] sm:w-[12.2rem]';
 
   const title = mode === 'profile'
     ? 'browsing nearby profiles'
@@ -397,7 +447,7 @@ export default function CruiseCarouselSlot({
             >
               {browseItems.map((item, itemIndex) => (
                 <CarouselTile
-                  key={`${item.kind}-${item.kind === 'icon' ? item.icon : item.user.id}-${itemIndex}`}
+                  key={`${item.kind}-${item.kind === 'icon' ? item.icon : item.kind === 'profile' ? item.user.id : 'plus-ad'}-${itemIndex}`}
                   item={item}
                   featured={settled && itemIndex === FEATURED_ITEM_INDEX}
                   itemIndex={itemIndex}

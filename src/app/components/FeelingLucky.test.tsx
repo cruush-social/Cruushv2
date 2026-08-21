@@ -73,7 +73,7 @@ describe('FeelingLucky', () => {
     vi.restoreAllMocks();
   });
 
-  it('shows the locked carousel result for free users without fetching profiles', async () => {
+  it('spins real profiles for free users and lands on the cruush+ frame', async () => {
     getMyBillingStatus.mockResolvedValue({
       cruushPlus: false,
       expiresAt: null,
@@ -85,8 +85,8 @@ describe('FeelingLucky', () => {
     renderLucky();
 
     expect(await screen.findByLabelText('cruise carousel')).toBeInTheDocument();
-    expect(getMyProfile).not.toHaveBeenCalled();
-    expect(getNearbyUsers).not.toHaveBeenCalled();
+    await waitFor(() => expect(getNearbyUsers).toHaveBeenCalled());
+    expect(await screen.findByTestId('cruise-carousel-plus-ad-tile')).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Get cruush+' }));
 

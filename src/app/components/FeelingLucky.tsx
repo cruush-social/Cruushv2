@@ -93,6 +93,15 @@ export default function FeelingLucky() {
     }
 
     if (!billingStatus.cruushPlus) {
+      // Basic members still watch real nearby profiles go by; only the landing
+      // frame is the cruush+ pitch.
+      try {
+        const coordinates = await loadProfileDiscoveryCoordinates();
+        setCandidateUsers(await getNearbyUsers(coordinates, undefined, { limit: 20 }));
+      } catch {
+        setCandidateUsers([]);
+      }
+
       setStatus('locked');
       return;
     }
@@ -141,6 +150,7 @@ export default function FeelingLucky() {
           <CruiseCarouselSlot
             key={`locked-${browseNonce}`}
             mode="locked"
+            candidateUsers={candidateUsers}
             variant="page"
             onUpgrade={() => navigate('/rewards')}
           />

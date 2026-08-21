@@ -81,8 +81,10 @@ describe('CruiseCarouselSlot', () => {
       />,
     );
 
-    expect(screen.getByTestId('cruise-carousel-profile-tile')).toHaveClass('aspect-[4/5]');
-    expect(screen.getByTestId('cruise-carousel-featured-frame')).toHaveClass('h-[7rem]', 'w-[7rem]');
+    const tiles = screen.getAllByTestId('cruise-carousel-profile-tile');
+    expect(tiles.length).toBeGreaterThan(0);
+    tiles.forEach((tile) => expect(tile).toHaveClass('aspect-[4/5]'));
+    expect(screen.getByTestId('cruise-carousel-featured-frame')).toHaveClass('aspect-[4/5]');
 
     await screen.findByText('Found Nearby user nearby.');
 
