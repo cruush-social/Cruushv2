@@ -30,7 +30,7 @@ const visibilityOptions: Array<{
   {
     value: 'mutual_cruushes',
     label: 'Mutuals',
-    description: 'Only mutual cruushes can start a chat. This is the default.',
+    description: 'Only mutuals can start a chat. This is the default.',
   },
   {
     value: 'mutual_crowds',
@@ -130,7 +130,7 @@ export default function CruushMatchSettings() {
     try {
       setPrivacySettings(await saveMyPrivacySettings(nextSettings));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Failed to save mutual cruush rules.');
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save mutual rules.');
     } finally {
       setStatus('idle');
     }
@@ -184,12 +184,12 @@ export default function CruushMatchSettings() {
             <div className="flex items-start gap-3">
               <MapPin className="mt-1 h-5 w-5 text-primary" />
               <div>
-                <h3 className="text-base">Precise location for mutual cruushes</h3>
-                <p className="mt-1 text-sm text-white/58">When on, mutual cruushes may see precise live location instead of your Ghost location.</p>
+                <h3 className="text-base">Precise location for mutuals</h3>
+                <p className="mt-1 text-sm text-white/58">When on, mutuals may see precise live location instead of your Ghost location.</p>
               </div>
             </div>
             <Switch
-              aria-label="Toggle precise location for mutual cruushes"
+              aria-label="Toggle precise location for mutuals"
               checked={privacySettings.preciseToMutualCruushes}
               disabled={disabled}
               onCheckedChange={(enabled) => void persistPrivacySettings({

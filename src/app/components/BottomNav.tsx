@@ -52,7 +52,24 @@ export default function BottomNav() {
     return location.pathname === path || location.pathname.startsWith(path);
   };
   const isMapRoute = location.pathname === '/map' || location.pathname.startsWith('/map/');
+  const desktopSidePanelViews: Record<string, 'feed' | 'activity' | 'messages'> = {
+    '/feed': 'feed',
+    '/cruush': 'activity',
+    '/messages': 'messages',
+  };
+
   const handleNavClick = (path: string) => {
+    const sidePanelView = desktopSidePanelViews[path];
+
+    if (sidePanelView && !usesFullPageProfile) {
+      navigate('/map', {
+        state: {
+          openSidePanel: sidePanelView,
+        },
+      });
+      return;
+    }
+
     if (path === '/profile' && !usesFullPageProfile) {
       navigate('/map', {
         state: {

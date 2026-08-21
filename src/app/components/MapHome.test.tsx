@@ -2992,7 +2992,7 @@ describe('MapHome', () => {
 
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-1')).toHaveAttribute('data-can-message', 'true');
-    const mutualButton = screen.getByRole('button', { name: 'Remove mutual cruush' });
+    const mutualButton = screen.getByRole('button', { name: 'Remove mutual' });
     expect(mutualButton).toBeEnabled();
 
     fireEvent.click(mutualButton);
@@ -3038,7 +3038,7 @@ describe('MapHome', () => {
     expect(await screen.findByRole('button', { name: 'Pin River' })).toBeInTheDocument();
     expect(getMutualCruushMap).toHaveBeenCalledTimes(1);
     expect(getNearbyUsers).not.toHaveBeenCalled();
-    expect(screen.getByText('mutual cruushes')).toBeInTheDocument();
+    expect(screen.getByText('mutuals')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /MUTUALS/ })).toBeInTheDocument();
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-relationship', 'mutual_cruush');
     expect(screen.getByTestId('marker-user-mutual')).toHaveAttribute('data-precision', 'precise');
@@ -3046,7 +3046,7 @@ describe('MapHome', () => {
     expect(screen.queryByText(/Demo NYC pin/i)).not.toBeInTheDocument();
   });
 
-  it('focuses the requested mutual cruush pin from the map query', async () => {
+  it('focuses the requested mutual pin from the map query', async () => {
     useIsMobile.mockReturnValue(false);
     getMutualCruushMap.mockResolvedValue([{
       id: 'match-1',

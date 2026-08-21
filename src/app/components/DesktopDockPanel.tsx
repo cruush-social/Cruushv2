@@ -1,0 +1,212 @@
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+export type DesktopDockSlot = 'left' | 'right';
+
+type DockGeometry = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type DesktopDockPanelProps = {
+  slot: DesktopDockSlot;
+  ariaLabel: string;
+  children: ReactNode;
+  className?: string;
+  minWidth?: number;
+  minHeight?: number;
+};
+
+const EDGE_GAP = 24;
+const DEFAULT_WIDTH = 416;
+const MIN_WIDTH = 360;
+const MIN_HEIGHT = 420;
+
+function storageKey(slot: DesktopDockSlot) {
+  return `cruush.desktopDock.${slot}`;
+}
+
+function clampGeometry(geometry: DockGeometry, minWidth: number, minHeight: number): DockGeometry {
+  if (typeof window === 'undefined') {
+    return geometry;
+  }
+
+  const maxWidth = Math.max(minWidth, window.innerWidth - EDGE_GAP * 2);
+  const maxHeight = Math.max(minHeight, window.innerHeight - EDGE_GAP * 2);
+  const width = Math.min(Math.max(geometry.width, minWidth), maxWidth);
+  const height = Math.min(Math.max(geometry.height, minHeight), maxHeight);
+  const x = Math.min(Math.max(geometry.x, EDGE_GAP), Math.max(EDGE_GAP, window.innerWidth - width - EDGE_GAP));
+  const y = Math.min(Math.max(geometry.y, EDGE_GAP), Math.max(EDGE_GAP, window.innerHeight - height - EDGE_GAP));
+
+  return { x, y, width, height };
+}
+
+function defaultGeometry(slot: DesktopDockSlot, minWidth: number, minHeight: number): DockGeometry {
+  if (typeof window === 'undefined') {
+    return { x: EDGE_GAP, y: EDGE_GAP, width: DEFAULT_WIDTH, height: minHeight };
+  }
+
+  const width = Math.max(minWidth, Math.min(DEFAULT_WIDTH, window.innerWidth - EDGE_GAP * 2));
+  const height = Math.max(minHeight, window.innerHeight - EDGE_GAP * 2);
+  const x = slot === 'left' ? EDGE_GAP : Math.max(EDGE_GAP, window.innerWidth - width - EDGE_GAP);
+
+  return clampGeometry({ x, y: EDGE_GAP, width, height }, minWidth, minHeight);
+}
+
+function readStoredGeometry(slot: DesktopDockSlot): DockGeometry | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(storageKey(slot));
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<DockGeometry>;
+    if (
+      typeof parsed.x !== 'number'
+      || typeof parsed.y !== 'number'
+      || typeof parsed.width !== 'number'
+      || typeof parsed.height !== 'number'
+    ) {
+      return null;
+    }
+
+    return { x: parsed.x, y: parsed.y, width: parsed.width, height: parsed.height };
+  } catch {
+    return null;
+  }
+}
+
+export default function DesktopDockPanel({
+  slot,
+  ariaLabel,
+  children,
+  className,
+  minWidth = MIN_WIDTH,
+  minHeight = MIN_HEIGHT,
+}: DesktopDockPanelProps) {
+  const [geometry, setGeometry] = useState<DockGeometry>(() => {
+    const stored = readStoredGeometry(slot);
+    return stored
+      ? clampGeometry(stored, minWidth, minHeight)
+      : defaultGeometry(slot, minWidth, minHeight);
+  });
+  const dragStateRef = useRef<{ pointerId: number; mode: 'move' | 'resize'; originX: number; originY: number; start: DockGeometry } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleResize = () => setGeometry((current) => clampGeometry(current, minWidth, minHeight));
+    window.addEventListener('resize', handleResize);
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, [minHeight, minWidth]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(storageKey(slot), JSON.stringify(geometry));
+    } catch {
+      // Position is a convenience. Ignore storage failures.
+    }
+  }, [geometry, slot]);
+
+  const beginDrag = useCallback((event: ReactPointerEvent<HTMLElement>, mode: 'move' | 'resize') => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      mode,
+      originX: event.clientX,
+      originY: event.clientY,
+      start: geometry,
+    };
+  }, [geometry]);
+
+  const continueDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragState.originX;
+    const deltaY = event.clientY - dragState.originY;
+
+    setGeometry(clampGeometry(
+      dragState.mode === 'move'
+        ? { ...dragState.start, x: dragState.start.x + deltaX, y: dragState.start.y + deltaY }
+        : { ...dragState.start, width: dragState.start.width + deltaX, height: dragState.start.height + deltaY },
+      minWidth,
+      minHeight,
+    ));
+  }, [minHeight, minWidth]);
+
+  const endDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    dragStateRef.current = null;
+  }, []);
+
+  const panelStyle: CSSProperties = {
+    left: `${geometry.x}px`,
+    top: `${geometry.y}px`,
+    width: `${geometry.width}px`,
+    height: `${geometry.height}px`,
+  };
+
+  return (
+    <aside
+      aria-label={ariaLabel}
+      data-dock-slot={slot}
+      data-testid={`desktop-dock-${slot}`}
+      className={`fixed z-50 flex flex-col overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl ${className ?? ''}`}
+      style={panelStyle}
+    >
+      <div
+        data-testid={`desktop-dock-${slot}-handle`}
+        aria-label={`Move ${ariaLabel}`}
+        className="absolute inset-x-0 top-0 z-30 h-9 cursor-grab active:cursor-grabbing"
+        onPointerCancel={endDrag}
+        onPointerDown={(event) => beginDrag(event, 'move')}
+        onPointerMove={continueDrag}
+        onPointerUp={endDrag}
+      >
+        <span className="mx-auto mt-2 block h-1 w-12 rounded-full bg-white/25" />
+      </div>
+
+      <div className="min-h-0 flex-1">{children}</div>
+
+      <div
+        data-testid={`desktop-dock-${slot}-resize`}
+        aria-label={`Resize ${ariaLabel}`}
+        className="absolute bottom-0 right-0 z-30 h-6 w-6 cursor-nwse-resize"
+        onPointerCancel={endDrag}
+        onPointerDown={(event) => beginDrag(event, 'resize')}
+        onPointerMove={continueDrag}
+        onPointerUp={endDrag}
+      >
+        <span className="absolute bottom-2 right-2 block h-2.5 w-2.5 rounded-[3px] border-b-2 border-r-2 border-white/45" />
+      </div>
+    </aside>
+  );
+}

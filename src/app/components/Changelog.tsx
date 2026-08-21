@@ -71,7 +71,7 @@ const changelogReleases = [
       'Feed settings include a 7-day post window, broader nearby radius, and clearer feed pin controls.',
       'Privacy Audit now summarizes where you are visible, who can message you, and revocable precise-location grants.',
       'Notification controls now include a real clear action.',
-      'Mutual cruush states use the purple mutual treatment more consistently across chat surfaces.',
+      'Mutual states use the purple mutual treatment more consistently across chat surfaces.',
     ],
   },
 ];

@@ -377,12 +377,12 @@ export default function GhostModeSettings() {
             <div className="flex items-start gap-3">
               <CruushIcon name="map" className="mt-1 h-5 w-5 opacity-65" />
               <div>
-                <p>Precise location for mutual cruushes</p>
-                <p className="text-sm text-muted-foreground">Off by default. When on, mutual cruushes can see your precise live location instead of your Ghost location.</p>
+                <p>Precise location for mutuals</p>
+                <p className="text-sm text-muted-foreground">Off by default. When on, mutuals can see your precise live location instead of your Ghost location.</p>
               </div>
             </div>
             <Switch
-              aria-label="Toggle precise location for mutual cruushes"
+              aria-label="Toggle precise location for mutuals"
               checked={privacySettings.preciseToMutualCruushes}
               disabled={privacyStatus === 'loading' || privacyStatus === 'saving'}
               onCheckedChange={(enabled) => {

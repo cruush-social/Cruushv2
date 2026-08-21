@@ -64,7 +64,7 @@ describe('ProfileCard', () => {
       </MemoryRouter>
     );
 
-    const cruushButton = screen.getByRole('button', { name: 'Remove mutual cruush' });
+    const cruushButton = screen.getByRole('button', { name: 'Remove mutual' });
     expect(cruushButton).not.toBeDisabled();
     expect(cruushButton).toHaveTextContent('remove');
 

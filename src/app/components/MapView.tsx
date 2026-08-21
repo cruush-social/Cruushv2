@@ -943,15 +943,15 @@ function MarkerRelationshipBadge({ marker, isCurrentUser }: { marker: MapMarker;
   }
 
   const precisionLabel = marker.relationship.precision === 'precise'
-    ? 'precise mutual cruush location'
+    ? 'precise mutual location'
     : marker.relationship.precision === 'fuzzy'
-      ? 'fuzzy mutual cruush location'
-      : 'mutual cruush';
+      ? 'fuzzy mutual location'
+      : 'mutual';
   const title = marker.relationship.precision === 'precise'
     ? 'precise mutual location'
     : marker.relationship.precision === 'fuzzy'
       ? 'fuzzy mutual location'
-      : 'mutual cruush';
+      : 'mutual';
 
   return (
     <span

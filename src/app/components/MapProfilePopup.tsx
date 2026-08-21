@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
 import BlockUserAction from './BlockUserAction';
@@ -6,6 +7,7 @@ import ReportAction from './ReportAction';
 import CruushBadge from './CruushBadge';
 import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import ProfilePhotoGallery from './ProfilePhotoGallery';
+import DesktopDockPanel from './DesktopDockPanel';
 import ProfileEdit from './ProfileEdit';
 import { ProfileDetailsTabs, profileRecordToProfileView } from './ProfileView';
 import { revokeMutualCruush, revokeSentCruush, sendCruush } from '../lib/cruushApi';
@@ -39,6 +41,7 @@ export default function MapProfilePopup({
   onBlockedUser,
   onProfileSaved,
 }: MapProfilePopupProps) {
+  const navigate = useNavigate();
   const [cruushed, setCruushed] = useState(false);
   const [cruushBecameMutual, setCruushBecameMutual] = useState(false);
   const [sendingCruush, setSendingCruush] = useState(false);
@@ -116,6 +119,7 @@ export default function MapProfilePopup({
     });
   }, [fullProfile, user.distance, user.lastActive]);
 
+  const canRevealPreciseLocation = fullProfile?.viewer_relationship?.can_reveal_precise_location === true;
   const displayName = profileView?.name ?? user.name;
   const displayAge = profileView?.age ?? user.age;
   const displayPronouns = profileView?.pronouns ?? user.pronouns;
@@ -134,7 +138,6 @@ export default function MapProfilePopup({
   const canMessage = profileView?.relationship ? profileView.relationship.can_message : user.relationship?.canMessage;
   const cruushDisabled = isDemo || sendingCruush || revokingCruush;
 
-  const popupClassName = `${fixed ? 'fixed' : 'absolute'} bottom-[calc(0.75rem+env(safe-area-inset-bottom))] right-6 top-[calc(0.75rem+env(safe-area-inset-top))] z-50 block w-[26rem] max-w-[calc(100vw-3rem)] overflow-hidden rounded-[28px] border border-white/10 bg-black/80 shadow-[0_24px_80px_rgba(0,0,0,0.48)] backdrop-blur-xl`;
 
   const handleCruush = async () => {
     if (isDemo || isOwnProfile || sendingCruush || revokingCruush || hasSentCruush || isAlreadyMutual) {
@@ -210,7 +213,7 @@ export default function MapProfilePopup({
 
   if (isOwnProfile && ownProfileMode === 'edit') {
     return (
-      <aside className={popupClassName} aria-label="Edit profile preview">
+      <DesktopDockPanel slot="left" ariaLabel="Edit profile preview">
         <div className="profile-card-scroll h-full">
           <ProfileEdit
             embedded
@@ -227,12 +230,12 @@ export default function MapProfilePopup({
             }}
           />
         </div>
-      </aside>
+      </DesktopDockPanel>
     );
   }
 
   return (
-    <aside className={popupClassName}>
+    <DesktopDockPanel slot="left" ariaLabel={isOwnProfile ? 'Your profile' : `${displayName} profile`}>
       <div className="profile-card-scroll h-full">
         <div className="relative overflow-hidden">
           <ProfilePhotoGallery
@@ -338,15 +341,28 @@ export default function MapProfilePopup({
               className="h-12 w-12 rounded-2xl border-0 px-0 text-white"
               style={{
                 background: hasRevocableCruush
-                  ? 'rgba(255,0,114,0.18)'
+                  ? 'var(--cruush-gradient-soft-28)'
                   : cruushDisabled
                   ? 'rgba(255,255,255,0.16)'
                   : 'var(--cruush-gradient)',
               }}
-              aria-label={isDemo ? 'Demo profile' : revokingCruush ? (isAlreadyMutual ? 'Removing mutual cruush' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual cruush' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+              aria-label={isDemo ? 'Demo profile' : revokingCruush ? (isAlreadyMutual ? 'Removing mutual' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
             >
               <CruushIcon name="safety" className={`h-6 w-6 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
             </Button>
+
+            {canRevealPreciseLocation ? (
+              <Button
+                type="button"
+                className="h-12 w-12 rounded-2xl border-0 px-0 text-white"
+                style={{ background: 'var(--cruush-gradient)' }}
+                aria-label={`Center the map on ${displayName}`}
+                title={`Center the map on ${displayName}`}
+                onClick={() => navigate('/map', { state: { focusUserId: user.id } })}
+              >
+                <CruushIconImage src={mapIconWhite} className="h-5 w-5" />
+              </Button>
+            ) : null}
 
             <Button
               className="h-12 justify-center rounded-2xl border-0 text-base text-white"
@@ -366,6 +382,6 @@ export default function MapProfilePopup({
           </div>
         ) : null}
       </div>
-    </aside>
+    </DesktopDockPanel>
   );
 }

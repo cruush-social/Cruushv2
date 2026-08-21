@@ -165,7 +165,7 @@ describe('Settings', () => {
     expect(await screen.findByText('Edit Profile')).toBeInTheDocument();
     expect(screen.queryByText('Privacy & Safety')).not.toBeInTheDocument();
     expect(screen.queryByRole('switch', { name: 'Toggle Ghost Mode' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('switch', { name: 'Toggle precise location for mutual cruushes' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: 'Toggle precise location for mutuals' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Location privacy/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /DL Mode/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Two-factor authentication/i })).toBeInTheDocument();

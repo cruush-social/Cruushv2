@@ -1,7 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ChevronLeft, ChevronRight, Clock3, MapPin, Pin, Plus, Search, Settings2, SlidersHorizontal, Trash2, X } from 'lucide-react';
-import { CruushIcon } from './CruushIconImage';
+import CruushIconImage, { CruushIcon } from './CruushIconImage';
+import mapIconWhite from '../assets/ui-icons/map-white.png';
 import HeartPhoto from './HeartPhoto';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
@@ -20,6 +21,7 @@ import { getNearbyUsers, type DiscoveryUser } from '../lib/usersApi';
 import { getMyBillingStatus } from '../lib/billingApi';
 import { getMyProfile } from '../lib/profileApi';
 import { openConversationOrInbox } from '../lib/openConversation';
+import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
@@ -88,7 +90,7 @@ const mutualBadgeClassName = 'rounded-md border border-[#8B5CF6]/45 bg-[#8B5CF6]
 const quietBadgeClassName = 'rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/52';
 const vibeBadgeBaseClassName = 'rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]';
 const mutualVibeBadgeClassName = `${vibeBadgeBaseClassName} border-[#6F00FF]/55 bg-[#6F00FF]/12 text-[#DCC7FF]`;
-const nearbyVibeBadgeClassName = `${vibeBadgeBaseClassName} border-[#FF0072]/55 bg-[#FF0072]/12 text-[#FF8BBB]`;
+const nearbyVibeBadgeClassName = `${vibeBadgeBaseClassName} border-transparent bg-[rgba(111,0,255,0.22)] text-white/88`;
 
 function topVibeTags(...groups: Array<string[] | undefined>) {
   return [...new Set(groups.flatMap((group) => group ?? []).map((value) => value.trim()).filter(Boolean))].slice(0, 3);
@@ -194,7 +196,7 @@ function matchesMessageFilterBasics(user: DiscoveryUser, filters: FilterState) {
   return true;
 }
 
-export default function DirectMessages() {
+export default function DirectMessages({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [conversations, setConversations] = useState<ConversationThread[]>([]);
@@ -283,9 +285,9 @@ export default function DirectMessages() {
       const activity = await getMyCruushActivity();
       setMutualOptions((activity.mutual ?? []).filter((item) => item.canMessage !== false));
     } catch (error) {
-      console.error('Error loading mutual cruushes:', error);
+      console.error('Error loading mutuals:', error);
       setMutualOptions([]);
-      setComposerError(error instanceof Error ? error.message : 'Failed to load mutual cruushes.');
+      setComposerError(error instanceof Error ? error.message : 'Failed to load mutuals.');
     } finally {
       setComposerLoading(false);
     }
@@ -448,7 +450,7 @@ export default function DirectMessages() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] text-white">
+    <div className={embedded ? 'relative min-h-full bg-[#050505] pb-6 text-white' : 'relative min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))] text-white'}>
       <header data-testid="direct-messages-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
         <div data-testid="direct-messages-header-content" className="mx-auto max-w-2xl space-y-4 px-4">
           <div data-testid="direct-messages-header-row" className="flex items-center justify-between gap-4 pr-[3.5rem]">
@@ -598,7 +600,7 @@ export default function DirectMessages() {
             </label>
 
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Mutual cruushes</p>
+              <p className="text-sm text-muted-foreground">Mutuals</p>
               {groupLoading ? (
                 <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
                   Loading mutuals...
@@ -606,7 +608,7 @@ export default function DirectMessages() {
               ) : null}
               {!groupLoading && mutualOptions.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-                  No mutual cruushes available.
+                  No mutuals available.
                 </div>
               ) : null}
               <div className="space-y-2">
@@ -825,7 +827,7 @@ export default function DirectMessages() {
                     title={deleteLabel}
                     disabled={deletingConversationId === conversation.id}
                     onClick={() => void handleDeleteConversation(conversation)}
-                    className="absolute right-3 top-3 size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="absolute right-3 top-3 size-8 text-white/55 hover:bg-white/10 hover:text-white"
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -852,7 +854,7 @@ export default function DirectMessages() {
               {conversations.length === 0 ? (
                 <>
                   <p className="text-muted-foreground">No messages yet.</p>
-                  <p className="mt-2 text-sm text-muted-foreground">Mutual cruush conversations will appear here.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Mutual conversations will appear here.</p>
                 </>
               ) : (
                 <>
@@ -907,7 +909,7 @@ function ComposeChoiceOverlay({
             onClick={onStartGroup}
           >
             <span className="block">Create group message</span>
-            <span className="mt-1 block text-sm text-muted-foreground">Choose mutual cruushes for a group thread.</span>
+            <span className="mt-1 block text-sm text-muted-foreground">Choose mutuals for a group thread.</span>
           </button>
         </div>
       </div>
@@ -1077,7 +1079,7 @@ function DirectUserOverlay({
 
         {!loading && activeComposerTab === 'mutuals' && mutuals.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-            No mutual cruushes are available right now.
+            No mutuals are available right now.
           </div>
         ) : null}
 
@@ -1111,9 +1113,15 @@ function DirectUserOverlay({
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">{describeDiscoveryUser(user) || user.distance}</span>
                     <span className="mt-2 flex flex-wrap items-center gap-1.5">
                       <Badge variant="outline" className={quietBadgeClassName}>{user.distance}</Badge>
-                      {user.hasSharedCrowd ? <Badge variant="outline" className={mutualBadgeClassName}>Crowd</Badge> : null}
                       {vibeTags.map((vibe) => (
-                        <Badge key={vibe} variant="outline" className={nearbyVibeBadgeClassName}>{vibe}</Badge>
+                        <Badge
+                          key={vibe}
+                          variant="outline"
+                          className={vibeBadgeBaseClassName}
+                          style={vibeCapsuleStyle(resolveVibeTone({ mutual: user.relationship?.mutualCruush, isCurrentUser: user.isCurrentUser }))}
+                        >
+                          {vibe}
+                        </Badge>
                       ))}
                       {user.latestFeedPostPreview ? (
                         <Badge variant="outline" className="max-w-[12rem] border-white/10 bg-white/[0.04] text-[10px] text-white/62">
@@ -1130,7 +1138,7 @@ function DirectUserOverlay({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="rounded-full border-[#FF0072]/55 bg-[#FF0072]/12 text-[#FF8BBB] hover:bg-[#FF0072]/18"
+                      className="rounded-full border-transparent bg-[rgba(111,0,255,0.22)] text-white/88 hover:bg-[#FF0072]/18"
                       onClick={(event) => {
                         event.stopPropagation();
                         onMessage(user.id);
@@ -1198,10 +1206,14 @@ function DirectUserOverlay({
                   <span className="mt-2 flex flex-wrap items-center gap-1.5">
                     <Badge variant="outline" className={mutualBadgeClassName}>Mutual</Badge>
                     {topVibeTags(item.vibes).map((vibe) => (
-                      <Badge key={vibe} variant="outline" className={mutualVibeBadgeClassName}>{vibe}</Badge>
-                    ))}
-                    {item.mutualCrowds.map((crowd) => (
-                      <Badge key={crowd} variant="outline" className={quietBadgeClassName}>{crowd}</Badge>
+                      <Badge
+                        key={vibe}
+                        variant="outline"
+                        className={vibeBadgeBaseClassName}
+                        style={vibeCapsuleStyle('mutual')}
+                      >
+                        {vibe}
+                      </Badge>
                     ))}
                   </span>
                 </span>
@@ -1209,14 +1221,14 @@ function DirectUserOverlay({
               {item.coordinates?.precision === 'precise' ? (
                 <Button
                   type="button"
-                  variant="outline"
                   size="icon"
-                  className="size-9 shrink-0 rounded-full border-white/16 bg-background/72 text-white/78 hover:bg-white/10"
-                  aria-label={`View ${item.user.name}'s precise location on the map`}
-                  title="Precise location"
+                  className="size-9 shrink-0 rounded-full border-0 text-white transition hover:brightness-110"
+                  style={{ background: 'var(--cruush-gradient)' }}
+                  aria-label={`Center the map on ${item.user.name}`}
+                  title="Center the map on them"
                   onClick={() => onOpenMap(item.user.id, true)}
                 >
-                  <MapPin className="size-4" />
+                  <CruushIconImage src={mapIconWhite} className="size-4" />
                 </Button>
               ) : null}
             </div>

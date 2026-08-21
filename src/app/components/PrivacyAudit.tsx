@@ -91,7 +91,7 @@ export default function PrivacyAudit() {
       ? 'Crowd'
       : 'Mutuals';
   const precisePrivileges = [
-    privacySettings.preciseToMutualCruushes ? 'Mutual cruushes can receive precise location.' : 'Mutual cruushes do not get precise location by default.',
+    privacySettings.preciseToMutualCruushes ? 'Mutuals can receive precise location.' : 'Mutuals do not get precise location by default.',
     ...privacySettings.preciseToMutualCrowds
       .filter((policy) => policy.precisionEnabled && !policy.revokedAtMs)
       .map((policy) => `${policy.crowdId} crowd precise access is enabled.`),

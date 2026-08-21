@@ -188,13 +188,13 @@ describe('CruushActivity', () => {
       'fixed',
       'right-[calc(0.75rem+env(safe-area-inset-right))]',
       'top-[calc(0.75rem+env(safe-area-inset-top))]',
-      'z-50',
+      'z-[70]',
     );
     expect(screen.getByTestId('cruush-count-grid')).not.toContainElement(reportButton);
     expect(screen.getByTestId('cruush-tab-grid')).not.toContainElement(reportButton);
   });
 
-  it('renders locked free rows, mutual actions, and list-only mutual cruushes', async () => {
+  it('renders locked free rows, mutual actions, and list-only mutuals', async () => {
     const { container } = render(
       <MemoryRouter initialEntries={['/cruush']}>
         <Routes>
@@ -250,7 +250,7 @@ describe('CruushActivity', () => {
 
     selectTab(/mutual/i);
     await waitFor(() => expect(screen.getByText('river')).toBeInTheDocument());
-    expect(screen.queryByText('your mutual cruushes')).not.toBeInTheDocument();
+    expect(screen.queryByText('your mutuals')).not.toBeInTheDocument();
     expect(screen.queryByText('People you are mutually into.')).not.toBeInTheDocument();
     expect(screen.getByText('river')).toBeInTheDocument();
     expect(screen.getByText('0.4 mi away')).toBeInTheDocument();
@@ -265,10 +265,10 @@ describe('CruushActivity', () => {
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/map?mode=mutuals&focusUserId=user-river');
 
     expect(screen.queryByRole('button', { name: /^Map$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /See mutual cruushes on the map/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /See mutuals on the map/i })).not.toBeInTheDocument();
   }, 10000);
 
-  it('offers direct and group chat choices from the cruush plus menu', async () => {
+  it('offers a back control instead of a new chat control in the header', async () => {
     render(
       <MemoryRouter initialEntries={['/cruush']}>
         <Routes>
@@ -280,17 +280,8 @@ describe('CruushActivity', () => {
 
     expect(await screen.findByText('luna')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'New cruush chat' }));
-    expect(screen.getByRole('button', { name: /^Start chat with mutual/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Create group message/ })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /^Start chat with mutual/ }));
-    fireEvent.click(screen.getAllByRole('button', { name: /river/ })[0]);
-    expect(openConversationOrInbox).toHaveBeenCalledWith(expect.any(Function), 'user-river');
-
-    fireEvent.click(screen.getByRole('button', { name: 'New cruush chat' }));
-    fireEvent.click(screen.getByRole('button', { name: /^Create group message/ }));
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('/messages?compose=group');
+    expect(screen.queryByRole('button', { name: 'New cruush chat' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
   it('unsends a pending cruush from the sent activity list', async () => {
@@ -387,7 +378,7 @@ describe('CruushActivity', () => {
     );
 
     expect(await screen.findByText('luna')).toBeInTheDocument();
-    const mutualButton = screen.getByRole('button', { name: 'Mutual cruush with luna' });
+    const mutualButton = screen.getByRole('button', { name: 'Mutual with luna' });
     expect(mutualButton).toBeDisabled();
 
     fireEvent.click(mutualButton);

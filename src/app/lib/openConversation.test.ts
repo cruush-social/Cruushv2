@@ -26,19 +26,19 @@ describe('openConversationOrInbox', () => {
     toastInfo.mockReset();
   });
 
-  it('uses a toast instead of a browser alert when a mutual cruush is required', async () => {
+  it('uses a toast instead of a browser alert when a mutual is required', async () => {
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
     const navigate = vi.fn();
 
     openDirectConversation.mockRejectedValue(new ApiClientError(
       403,
       'MUTUAL_CRUUSH_REQUIRED',
-      'You can message after a mutual cruush.',
+      'You can message after a mutual.',
     ));
 
     await expect(openConversationOrInbox(navigate, 'user-1')).resolves.toBeNull();
 
-    expect(toastInfo).toHaveBeenCalledWith('You can message after a mutual cruush.');
+    expect(toastInfo).toHaveBeenCalledWith('You can message after a mutual.');
     expect(alertSpy).not.toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
 

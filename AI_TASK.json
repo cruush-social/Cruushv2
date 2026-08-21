@@ -107,7 +107,22 @@
     "server/src/routes/media.ts",
     "src/app/components/Auth.tsx",
     "src/app/components/Auth.test.tsx",
-    "src/app/components/PublicPolicyLinks.tsx"
+    "src/app/components/PublicPolicyLinks.tsx",
+    "src/app/components/Changelog.tsx",
+    "src/app/components/CruushMatchSettings.test.tsx",
+    "src/app/components/CruushMatchSettings.tsx",
+    "src/app/components/DesktopDockPanel.tsx",
+    "src/app/components/DirectMessages.test.tsx",
+    "src/app/components/DirectMessages.tsx",
+    "src/app/components/GhostModeSettings.test.tsx",
+    "src/app/components/GhostModeSettings.tsx",
+    "src/app/components/MapSidePanel.tsx",
+    "src/app/components/PrivacyAudit.tsx",
+    "src/app/components/Tutorial.tsx",
+    "src/app/lib/cruushNotifications.ts",
+    "src/app/lib/openConversation.test.ts",
+    "src/app/lib/publicLegalContent.tsx",
+    "src/app/lib/vibeTone.ts"
   ],
   "preserved": [
     "Keep private trans status as the eligibility gate for the optional T4T crowd; do not infer it from a selected gender identity.",

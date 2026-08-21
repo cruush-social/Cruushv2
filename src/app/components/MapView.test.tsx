@@ -879,7 +879,7 @@ describe('MapView', () => {
       'top-[62%]',
       '-translate-y-1/2',
     );
-    expect(screen.getByLabelText('mutual cruush')).toBeInTheDocument();
+    expect(screen.getByLabelText('mutual')).toBeInTheDocument();
     expect(screen.getByTestId('marker-relationship-user-mutual')).toHaveClass(
       'border-[#6f00ff]/80',
       'left-[-0.25rem]',

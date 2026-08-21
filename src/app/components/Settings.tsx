@@ -226,7 +226,7 @@ export default function Settings() {
         {
           iconName: 'ghost' as const,
           label: 'Location privacy',
-          description: 'Ghost Mode and precise location access for mutual cruushes.',
+          description: 'Ghost Mode and precise location access for mutuals.',
           action: () => navigate('/privacy/ghost-mode'),
         },
         {
@@ -554,9 +554,9 @@ export default function Settings() {
               draggable={false}
               src={cruushLogo}
             />
-            <p className="flex items-center justify-center gap-2 whitespace-nowrap text-xs text-muted-foreground">
+            <p className="flex flex-col items-center justify-center gap-0.5 whitespace-nowrap text-xs text-muted-foreground">
+              <span className="tracking-[0.18em]">OPEN BETA</span>
               <span>Version 1.5</span>
-              <span>OPEN BETA</span>
             </p>
           </div>
         </div>

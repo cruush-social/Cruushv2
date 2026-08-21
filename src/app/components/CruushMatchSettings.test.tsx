@@ -74,7 +74,7 @@ describe('CruushMatchSettings', () => {
 
     expect(await screen.findByRole('heading', { name: 'message settings' })).toBeInTheDocument();
     expect(screen.getByText('Mutuals')).toBeInTheDocument();
-    expect(screen.getByText('Only mutual cruushes can start a chat. This is the default.')).toBeInTheDocument();
+    expect(screen.getByText('Only mutuals can start a chat. This is the default.')).toBeInTheDocument();
     expect(screen.getByText('Crowd')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Crowd').closest('button') as HTMLButtonElement);

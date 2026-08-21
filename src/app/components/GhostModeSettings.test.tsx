@@ -111,7 +111,7 @@ describe('GhostModeSettings', () => {
     expect(screen.getByText('Larger radius gives you more cover; smaller radius keeps your public pin closer to where you are.')).toBeInTheDocument();
 
     const preciseSwitch = await screen.findByRole('switch', {
-      name: 'Toggle precise location for mutual cruushes',
+      name: 'Toggle precise location for mutuals',
     });
     const ghostSwitch = screen.getByRole('switch', {
       name: 'Toggle Ghost Mode',
@@ -157,7 +157,7 @@ describe('GhostModeSettings', () => {
     );
 
     const preciseSwitch = await screen.findByRole('switch', {
-      name: 'Toggle precise location for mutual cruushes',
+      name: 'Toggle precise location for mutuals',
     });
     await waitFor(() => expect(preciseSwitch).not.toBeDisabled());
 
@@ -245,7 +245,7 @@ describe('GhostModeSettings', () => {
     );
 
     const ghostSwitch = await screen.findByRole('switch', { name: 'Toggle Ghost Mode' });
-    const preciseSwitch = screen.getByRole('switch', { name: 'Toggle precise location for mutual cruushes' });
+    const preciseSwitch = screen.getByRole('switch', { name: 'Toggle precise location for mutuals' });
     await waitFor(() => {
       expect(ghostSwitch).not.toBeDisabled();
       expect(preciseSwitch).not.toBeDisabled();

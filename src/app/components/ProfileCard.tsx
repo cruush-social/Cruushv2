@@ -20,6 +20,7 @@ import { openConversationOrInbox } from '../lib/openConversation';
 import { PROFILE_CARD_COMPACT_MEDIA_STYLE, PROFILE_CARD_MEDIA_ASPECT_STYLE } from '../lib/photoLayout';
 import { addDlModeChangedListener, isDlModeEnabled, shouldMaskPhoto } from '../lib/dlMode';
 import { getProfileGradientCss } from '../lib/profileGradient';
+import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import { formatDistanceLabel, useDistancePreferences } from '../lib/distancePreferences';
 import { getProfileById } from '../lib/profileApi';
 
@@ -227,8 +228,17 @@ export default function ProfileCard({
   if (carouselPresentation) {
     const carouselActionClassName = 'h-10 min-w-0 rounded-xl border border-white/10 bg-black/55 px-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl hover:bg-black/70';
     const carouselTextOutlineStyle = {
-      WebkitTextStroke: '0.65px rgba(0, 0, 0, 0.98)',
-      textShadow: '0 1px 2px #000, 0 2px 6px #000, 0 0 10px rgba(0, 0, 0, 0.95)',
+      textShadow: [
+        '1px 0 0 #000',
+        '-1px 0 0 #000',
+        '0 1px 0 #000',
+        '0 -1px 0 #000',
+        '1px 1px 0 #000',
+        '-1px 1px 0 #000',
+        '1px -1px 0 #000',
+        '-1px -1px 0 #000',
+        '0 2px 3px rgba(0, 0, 0, 0.55)',
+      ].join(', '),
     };
     const activeCarouselPhoto = carouselPhotos[activeCarouselPhotoIndex] ?? user.photo ?? null;
     const activeCarouselPhotoMasked = Boolean(activeCarouselPhoto && shouldMaskPhoto(
@@ -349,7 +359,8 @@ export default function ProfileCard({
                   <Badge
                     key={vibe}
                     variant="outline"
-                    className="min-w-0 shrink border-primary/50 bg-black/35 px-2 py-0.5 text-[11px] uppercase tracking-[0.08em] text-primary backdrop-blur-sm"
+                    className="min-w-0 shrink border px-2 py-0.5 text-[11px] uppercase tracking-[0.08em] backdrop-blur-sm"
+                    style={vibeCapsuleStyle(resolveVibeTone({ mutual: isAlreadyMutual, isCurrentUser: user.isCurrentUser }))}
                   >
                     <span className="block min-w-0 truncate">{vibe}</span>
                   </Badge>
@@ -360,12 +371,13 @@ export default function ProfileCard({
             <div data-testid="carousel-profile-actions" className="mt-3 grid grid-cols-2 gap-2">
               <Button
                 type="button"
-                className={`${carouselActionClassName} ${hasRevocableCruush ? 'text-[#FF8BBB]' : ''}`}
+                className={carouselActionClassName}
+                style={hasRevocableCruush ? { background: 'var(--cruush-gradient-soft-28)' } : undefined}
                 onClick={() => {
                   void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
                 }}
                 disabled={cruushDisabled}
-                aria-label={revokingCruush ? (isAlreadyMutual ? 'Removing mutual cruush' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual cruush' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+                aria-label={revokingCruush ? (isAlreadyMutual ? 'Removing mutual' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
               >
                 <CruushIcon name="safety" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />
                 {revokingCruush ? (isAlreadyMutual ? 'removing...' : 'unsending...') : isAlreadyMutual ? 'remove' : hasSentCruush ? 'unsend' : sendingCruush ? 'sending...' : 'cruush'}
@@ -487,7 +499,7 @@ export default function ProfileCard({
         <div className="flex gap-2 pt-2">
           <Button
             className={`${actionButtonClassName} rounded-xl border ${hasRevocableCruush
-              ? 'border-[#FF0072]/45 bg-[#FF0072]/10 text-[#FF8BBB] hover:bg-[#FF0072]/16'
+              ? 'border-transparent text-white hover:brightness-125'
               : cruushDisabled
                 ? 'border-white/10 bg-white/[0.06] text-white/45'
                 : 'border-transparent text-white hover:brightness-110'}`}
@@ -495,9 +507,13 @@ export default function ProfileCard({
               void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
             }}
             disabled={cruushDisabled}
-            aria-label={revokingCruush ? (isAlreadyMutual ? 'Removing mutual cruush' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual cruush' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+            aria-label={revokingCruush ? (isAlreadyMutual ? 'Removing mutual' : 'Unsending cruush') : isAlreadyMutual ? 'Remove mutual' : hasSentCruush ? 'Unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
             style={{
-              background: !hasRevocableCruush && !cruushDisabled ? 'var(--cruush-gradient)' : undefined,
+              background: cruushDisabled
+                ? undefined
+                : hasRevocableCruush
+                  ? 'var(--cruush-gradient-soft-28)'
+                  : 'var(--cruush-gradient)',
             }}
           >
             <CruushIcon name="safety" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />

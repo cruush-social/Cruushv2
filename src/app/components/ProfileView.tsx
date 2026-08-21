@@ -1,3 +1,4 @@
+import { IDENTITIES } from '../lib/profileOptions';
 import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -91,8 +92,14 @@ function formatSingle(values: string[]) {
   return values.find((value) => value.trim()) ?? null;
 }
 
+function canonicalIdentityLabel(identity: string) {
+  const match = IDENTITIES.find((option) => option.toLowerCase() === identity.trim().toLowerCase());
+
+  return match ?? identity;
+}
+
 function profileIdentityItems(profileView: Pick<ProfileViewModel, 'identities'>) {
-  return profileView.identities;
+  return profileView.identities.map(canonicalIdentityLabel);
 }
 
 function removeViewerCruush(profile: ProfileRecord, mutualRevoked: boolean): ProfileRecord {
@@ -503,7 +510,7 @@ export default function ProfileView() {
               <div className="flex gap-2">
                 <Button
                   className={`flex-1 rounded-xl border ${hasRevocableCruush
-                    ? 'border-[#FF0072]/45 bg-[#FF0072]/10 text-[#FF8BBB] hover:bg-[#FF0072]/16'
+                    ? 'border-transparent text-white hover:brightness-125'
                     : cruushDisabled
                       ? 'border-white/10 bg-white/[0.06] text-white/45'
                       : 'border-transparent text-white hover:brightness-110'}`}
@@ -511,9 +518,13 @@ export default function ProfileView() {
                     void (hasRevocableCruush ? handleRevokeCruush() : handleCruush());
                   }}
                   disabled={cruushDisabled}
-                  aria-label={revokingCruush ? (isAlreadyMutual ? 'removing mutual cruush' : 'unsending cruush') : isAlreadyMutual ? 'remove mutual cruush' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
+                  aria-label={revokingCruush ? (isAlreadyMutual ? 'removing mutual' : 'unsending cruush') : isAlreadyMutual ? 'remove mutual' : hasSentCruush ? 'unsend cruush' : sendingCruush ? 'sending cruush' : 'send cruush'}
                   style={{
-                    background: !hasRevocableCruush && !cruushDisabled ? 'var(--cruush-gradient)' : undefined,
+                    background: cruushDisabled
+                      ? undefined
+                      : hasRevocableCruush
+                        ? 'var(--cruush-gradient-soft-28)'
+                        : 'var(--cruush-gradient)',
                   }}
                 >
                   <CruushIcon name="safety" className={`mr-2 h-4 w-4 ${cruushDisabled ? 'opacity-45 grayscale' : ''}`} variant="white" />

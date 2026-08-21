@@ -198,7 +198,7 @@ describe('DirectMessages', () => {
     confirmSpy.mockRestore();
   });
 
-  it('creates a group from mutual cruushes only', async () => {
+  it('creates a group from mutuals only', async () => {
     getConversations.mockResolvedValue([]);
     getMyCruushActivity.mockResolvedValue({
       mutual: [{
@@ -484,7 +484,7 @@ describe('DirectMessages', () => {
     expect(screen.getByRole('button', { name: 'Sort by Recently online' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Sort by Distance' })).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(screen.getByRole('button', { name: 'Seeking filters' }));
-    const lookingTab = await screen.findByRole('tab', { name: 'Looking' });
+    const lookingTab = await screen.findByRole('tab', { name: 'Intimacy' });
     fireEvent.mouseDown(lookingTab);
     fireEvent.mouseUp(lookingTab);
     fireEvent.click(lookingTab);

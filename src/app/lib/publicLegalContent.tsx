@@ -208,7 +208,7 @@ export const privacySections: PolicySection[] = [
   {
     title: "How we use information",
     body: [
-      "We use information to operate cruush, manage the waitlist, provide accounts, show nearby users, support mutual cruushes, process subscriptions, send service, launch, event, and ticket communications when you opt in, provide support, enforce our policies, investigate reports, prevent abuse, improve the product, comply with law, and protect users and the service.",
+      "We use information to operate cruush, manage the waitlist, provide accounts, show nearby users, support mutuals, process subscriptions, send service, launch, event, and ticket communications when you opt in, provide support, enforce our policies, investigate reports, prevent abuse, improve the product, comply with law, and protect users and the service.",
       "We do not sell your personal information."
     ]
   },

@@ -360,7 +360,7 @@ describe('ProfileView', () => {
     await waitFor(() => expect(sendCruush).toHaveBeenCalledWith('user-1', expect.objectContaining({
       name: 'Jordan',
     })));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'remove mutual cruush' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'remove mutual' })).toBeEnabled());
     await waitFor(() => expect(getProfileById).toHaveBeenCalledTimes(2));
 
     expect(eventListener).toHaveBeenCalledWith(expect.objectContaining({
@@ -408,7 +408,7 @@ describe('ProfileView', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'unsend cruush' })).toBeEnabled());
   });
 
-  it('unsends a persisted outgoing non-mutual cruush', async () => {
+  it('unsends a persisted outgoing non-mutual', async () => {
     getProfileById.mockResolvedValueOnce(createProfileFixture({
       viewer_relationship: {
         match_id: null,
@@ -439,7 +439,7 @@ describe('ProfileView', () => {
 
     expect(cruushButton).toBeEnabled();
     expect(cruushButton).toHaveTextContent('unsend');
-    expect(screen.queryByRole('button', { name: 'mutual cruush' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'mutual' })).not.toBeInTheDocument();
 
     fireEvent.click(cruushButton);
     await waitFor(() => expect(revokeSentCruush).toHaveBeenCalledWith('user-1'));
@@ -479,7 +479,7 @@ describe('ProfileView', () => {
 
     expect(await screen.findByTestId('profile-hero-media')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Share profile' })).not.toBeInTheDocument();
-    const cruushButton = screen.getByRole('button', { name: 'remove mutual cruush' });
+    const cruushButton = screen.getByRole('button', { name: 'remove mutual' });
 
     expect(cruushButton).toBeEnabled();
     expect(cruushButton).toHaveTextContent('remove mutual');
@@ -488,7 +488,7 @@ describe('ProfileView', () => {
 
     await waitFor(() => expect(revokeMutualCruush).toHaveBeenCalledWith('user-1'));
     expect(sendCruush).not.toHaveBeenCalled();
-    expect(toastSuccess).toHaveBeenCalledWith('Removed mutual cruush with Jordan.');
+    expect(toastSuccess).toHaveBeenCalledWith('Removed mutual with Jordan.');
     await waitFor(() => expect(screen.getByRole('button', { name: 'send cruush' })).toBeEnabled());
   });
 
@@ -512,7 +512,7 @@ describe('ProfileView', () => {
     );
 
     expect(await screen.findByTestId('profile-hero-media')).toBeInTheDocument();
-    const cruushButton = screen.getByRole('button', { name: 'remove mutual cruush' });
+    const cruushButton = screen.getByRole('button', { name: 'remove mutual' });
 
     expect(cruushButton).toBeEnabled();
 

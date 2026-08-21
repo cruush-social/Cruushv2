@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import {
+  ArrowLeft,
   Lock,
   Plus,
   X,
@@ -25,6 +26,7 @@ import {
 } from '../lib/cruushNotifications';
 import { openConversationOrInbox } from '../lib/openConversation';
 import { shouldMaskPhoto, useDlMode } from '../lib/dlMode';
+import { resolveVibeTone, vibeCapsuleStyle } from '../lib/vibeTone';
 import { registerBugButtonSlot } from '../lib/bugButtonSlot';
 
 type ActivityTab = 'incoming' | 'sent' | 'mutual' | 'views';
@@ -53,7 +55,10 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
 
 function ActivityBadge({ children }: { children: string }) {
   return (
-    <span className="rounded-md border border-primary/20 bg-primary/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-primary">
+    <span
+      className="rounded-md border border-transparent px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-white/88"
+      style={{ background: 'var(--cruush-gradient-soft-28)' }}
+    >
       {children}
     </span>
   );
@@ -71,12 +76,8 @@ function ActivityVibes({ vibes = [], mutual = false }: { vibes?: string[]; mutua
       {visibleVibes.map((vibe) => (
         <span
           key={vibe}
-          className={[
-            'max-w-full truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]',
-            mutual
-              ? 'border-[#6F00FF]/55 bg-[#6F00FF]/12 text-[#DCC7FF]'
-              : 'border-[#FF0072]/55 bg-[#FF0072]/12 text-[#FF8BBB]',
-          ].join(' ')}
+          className="max-w-full truncate rounded-full border px-2 py-0.5 text-[11px] uppercase leading-tight tracking-[0.08em]"
+          style={vibeCapsuleStyle(resolveVibeTone({ mutual }))}
           title={vibe}
         >
           {vibe}
@@ -90,18 +91,20 @@ function CruushActionButton({
   state,
   userName,
   onClick,
+  revocable = false,
 }: {
   state: CruushActionState;
   userName: string;
   onClick: () => void;
+  revocable?: boolean;
 }) {
   const labels: Record<CruushActionState, string> = {
     available: `Send cruush to ${userName}`,
     sending: `Sending cruush to ${userName}`,
-    sent: `cruush sent to ${userName}`,
-    mutual: `Mutual cruush with ${userName}`,
+    sent: revocable ? `Unsend cruush to ${userName}` : `cruush sent to ${userName}`,
+    mutual: revocable ? `Remove mutual with ${userName}` : `Mutual with ${userName}`,
   };
-  const disabled = state !== 'available';
+  const disabled = state === 'sending' || (!revocable && state !== 'available');
 
   return (
     <Button
@@ -109,13 +112,14 @@ function CruushActionButton({
       size="icon"
       variant="secondary"
       className={[
-        'h-11 w-11 shrink-0 rounded-full border disabled:opacity-100',
+        'h-11 w-11 shrink-0 rounded-full text-white transition disabled:opacity-100',
         state === 'available'
-          ? 'border-[#8B5CF6]/45 bg-[#8B5CF6]/12 hover:bg-[#8B5CF6]/20'
-          : state === 'mutual'
-            ? 'border-[#6F00FF]/35 bg-[#6F00FF]/10'
-            : 'border-white/10 bg-white/[0.06]',
+          ? 'border border-[#8B5CF6]/45 bg-[#8B5CF6]/12 hover:bg-[#8B5CF6]/20'
+          : 'border-0 hover:brightness-125',
       ].join(' ')}
+      style={state === 'available'
+        ? undefined
+        : { background: state === 'mutual' ? 'var(--cruush-gradient)' : 'var(--cruush-gradient-soft-28)' }}
       aria-label={labels[state]}
       title={labels[state]}
       disabled={disabled}
@@ -123,8 +127,8 @@ function CruushActionButton({
     >
       <CruushIcon
         name={state === 'mutual' ? 'safety' : 'cruush'}
-        className={`h-6 w-6 ${state === 'sending' || state === 'sent' ? 'opacity-45 grayscale' : ''}`}
-        variant={state === 'mutual' ? 'white' : 'colored'}
+        className="h-6 w-6"
+        variant={state === 'available' ? 'colored' : 'white'}
       />
     </Button>
   );
@@ -311,16 +315,12 @@ function SentRow({
           <ActivityVibes vibes={item.user.vibes} mutual={item.mutual} />
         </div>
       </button>
-      <Button
-        type="button"
-        variant="secondary"
-        className="h-10 shrink-0 rounded-full border border-[#FF0072]/35 bg-[#FF0072]/10 px-3 text-xs text-[#FF8BBB] hover:bg-[#FF0072]/16"
-        aria-label={pendingRevoke ? (item.mutual ? `Removing mutual cruush with ${item.user.name}` : `Unsending cruush to ${item.user.name}`) : item.mutual ? `Remove mutual cruush with ${item.user.name}` : `Unsend cruush to ${item.user.name}`}
-        disabled={pendingRevoke}
+      <CruushActionButton
+        revocable
+        state={pendingRevoke ? 'sending' : item.mutual ? 'mutual' : 'sent'}
+        userName={item.user.name}
         onClick={() => onRevoke(item)}
-      >
-        {pendingRevoke ? (item.mutual ? 'removing...' : 'unsending...') : item.mutual ? 'remove' : 'unsend'}
-      </Button>
+      />
     </div>
   );
 }
@@ -357,7 +357,7 @@ function MutualRow({
           {item.canRevealPreciseLocation ? <ActivityBadge>Precise</ActivityBadge> : null}
         </div>
         <p className="mt-1 text-sm text-white/62">
-          {item.mutualCrowds.length > 0 ? pluralize(item.mutualCrowds.length, 'mutual Crowd') : 'Mutual cruush'}
+          {item.mutualCrowds.length > 0 ? pluralize(item.mutualCrowds.length, 'mutual Crowd') : 'Mutual'}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
           <span className="text-emerald-400">{item.distance}</span>
@@ -435,7 +435,7 @@ function ViewRow({
   );
 }
 
-export default function CruushActivity() {
+export default function CruushActivity({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
   const [activity, setActivity] = useState<CruushActivity | null>(null);
   const [activeTab, setActiveTab] = useState<ActivityTab>('incoming');
@@ -585,7 +585,7 @@ export default function CruushActivity() {
   const lockedViewsCount = Math.max(0, (activity?.counts.views ?? 0) - (activity?.views.filter((item) => !item.locked).length ?? 0));
 
   return (
-    <div className="min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))]">
+    <div className={embedded ? 'min-h-full bg-[#050505] pb-6' : 'min-h-screen bg-[#050505] pb-[calc(7rem+env(safe-area-inset-bottom))]'}>
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActivityTab)}>
         <header data-testid="cruush-activity-header" className="sticky top-0 z-20 border-b border-white/10 bg-black/88 px-4 pb-4 pt-4 shadow-[0_20px_55px_rgba(0,0,0,0.34)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-2xl space-y-4">
@@ -594,12 +594,13 @@ export default function CruushActivity() {
                 <Button
                   type="button"
                   size="icon"
-                  className="rounded-full text-white"
-                  aria-label="New cruush chat"
-                  title="New cruush chat"
-                  onClick={() => setComposeChooserOpen(true)}
+                  variant="secondary"
+                  className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
+                  aria-label="Back"
+                  title="Back"
+                  onClick={() => navigate(-1)}
                 >
-                  <Plus className="h-4 w-4" />
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
               </div>
               <div className="flex justify-center">
@@ -609,9 +610,9 @@ export default function CruushActivity() {
                 <div data-testid="cruush-activity-bug-button-slot" ref={registerBugButtonSlot} />
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="secondary"
                   size="icon"
-                  className="rounded-full text-white/78 hover:bg-white/10"
+                  className="rounded-full border border-white/10 bg-background/55 text-white backdrop-blur-md hover:bg-white/10"
                   aria-label="Open cruush match settings"
                   onClick={() => navigate('/cruush/settings')}
                 >
@@ -704,7 +705,7 @@ export default function CruushActivity() {
                   </TabsContent>
 
                   <TabsContent value="mutual" className="mt-0">
-                    <ActivitySurface empty={activity.mutual.length === 0} emptyText="No mutual cruushes yet.">
+                    <ActivitySurface empty={activity.mutual.length === 0} emptyText="No mutuals yet.">
                       {activity.mutual.map((item) => (
                         <MutualRow key={item.id} item={item} onOpenMap={openMutualOnMap} onMessage={openMessage} onOpenProfile={openProfile} />
                       ))}
@@ -803,7 +804,7 @@ function ComposeChoiceOverlay({
             onClick={onStartDirect}
           >
             <span className="block text-base text-white">Start chat with mutual</span>
-            <span className="mt-1 block text-sm text-white/58">Pick one mutual cruush and open a direct chat.</span>
+            <span className="mt-1 block text-sm text-white/58">Pick one mutual and open a direct chat.</span>
           </button>
           <button
             type="button"
@@ -811,7 +812,7 @@ function ComposeChoiceOverlay({
             onClick={onStartGroup}
           >
             <span className="block text-base text-white">Create group message</span>
-            <span className="mt-1 block text-sm text-white/58">Choose mutual cruushes for a group thread.</span>
+            <span className="mt-1 block text-sm text-white/58">Choose mutuals for a group thread.</span>
           </button>
         </div>
       </div>
@@ -846,7 +847,7 @@ function MutualDirectOverlay({
 
         {mutuals.length === 0 ? (
           <div className="rounded-lg border border-dashed border-white/12 bg-card/60 p-5 text-sm text-white/58">
-            No mutual cruushes available.
+            No mutuals available.
           </div>
         ) : (
           <div className="space-y-2">

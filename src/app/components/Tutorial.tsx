@@ -38,7 +38,7 @@ export default function Tutorial() {
             <div>
               <h3 className="text-base">Messages default to Mutuals</h3>
               <p className="mt-1 text-sm text-white/58">
-                New accounts default to Mutuals, so only mutual cruushes can start chats unless you change it to Public or Crowd.
+                New accounts default to Mutuals, so only mutuals can start chats unless you change it to Public or Crowd.
               </p>
               <Button className="mt-4 rounded-full" variant="outline" onClick={() => navigate('/cruush/settings')}>
                 Open message permissions

@@ -67,7 +67,7 @@ function formatFeedExpiry(expiry: FeedPostExpiry) {
 }
 
 const FEED_LOCATION_PIN_OPTIONS: Array<{ value: FeedLocationPinVisibility; label: string; description: string }> = [
-  { value: 'mutuals', label: 'mutuals', description: 'Only mutual cruushes see your feed pin.' },
+  { value: 'mutuals', label: 'mutuals', description: 'Only mutuals see your feed pin.' },
   { value: 'same_crowd', label: 'same crowd', description: 'People sharing one of your crowds see your feed pin.' },
   { value: 'public', label: 'public', description: 'Anyone who can read your post can tap through to your map pin.' },
   { value: 'off', label: 'off', description: 'Do not show a feed pin on your posts.' },
@@ -99,7 +99,8 @@ const DEFAULT_FEED_SETTINGS: FeedSettings = {
 const CRUUSH_PLUS_FEED_NOTICE_KEY = 'cruush:feed-cruush-plus-notice-dismissed';
 const feedVibeTagBaseClassName = 'w-full min-w-0 max-w-full shrink truncate rounded-full border px-1 py-0.5 text-center text-[11px] uppercase leading-tight tracking-[0.06em]';
 const mutualFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#6F00FF]/55 bg-[#6F00FF]/12 text-[#DCC7FF]`;
-const nearbyFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#FF0072]/55 bg-[#FF0072]/12 text-[#FF8BBB]`;
+const ownFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#3826FF]/62 bg-[#3826FF]/20 text-[#C3D0FF]`;
+const nearbyFeedVibeTagClassName = `${feedVibeTagBaseClassName} border-[#FF0072]/55 bg-[#FF0072]/16 text-[#FFB3D2]`;
 
 type FeedCoordinates = {
   lat: number;
@@ -116,7 +117,7 @@ function profileFeedCoordinates(profile: ProfileRecord): FeedCoordinates | null 
     : null;
 }
 
-export default function LocalFeed() {
+export default function LocalFeed({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [newPost, setNewPost] = useState('');
@@ -458,7 +459,9 @@ export default function LocalFeed() {
 
   return (
     <div
-      className="fixed inset-0 flex h-[100dvh] w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] pt-[env(safe-area-inset-top)] text-foreground"
+      className={embedded
+        ? 'flex h-full w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] text-foreground'
+        : 'fixed inset-0 flex h-[100dvh] w-full max-w-full flex-col overflow-x-clip overflow-y-hidden bg-[#050505] pt-[env(safe-area-inset-top)] text-foreground'}
       data-testid="local-feed-screen"
     >
       <header
@@ -717,7 +720,7 @@ export default function LocalFeed() {
                           {post.user.vibes.slice(0, 3).map((vibe) => (
                             <span
                               key={vibe}
-                              className={mutualAuthor ? mutualFeedVibeTagClassName : nearbyFeedVibeTagClassName}
+                              className={currentUserId && post.user.id === currentUserId ? ownFeedVibeTagClassName : mutualAuthor ? mutualFeedVibeTagClassName : nearbyFeedVibeTagClassName}
                               title={vibe}
                             >
                               {vibe}
@@ -786,7 +789,7 @@ export default function LocalFeed() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                className="h-8 w-8 text-muted-foreground hover:text-white"
                                 aria-label={`Delete feed post: ${post.content.slice(0, 48)}`}
                                 title="Delete post"
                                 disabled={deletingPostId === post.id}
@@ -801,12 +804,12 @@ export default function LocalFeed() {
                                   targetType="post"
                                   targetId={post.id}
                                   targetLabel={`post by ${post.user.name}`}
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  className="h-8 w-8 text-muted-foreground hover:text-white"
                                 />
                                 <BlockUserAction
                                   userId={post.user.id}
                                   displayName={post.user.name}
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  className="h-8 w-8 text-muted-foreground hover:text-white"
                                   onBlocked={handleBlockedUser}
                                 />
                               </>

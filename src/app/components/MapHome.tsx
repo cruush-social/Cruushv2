@@ -10,6 +10,7 @@ import CruushIconImage, { CruushIcon } from './CruushIconImage';
 import CruushPlusWord from './CruushPlusWord';
 import MapProfilePopup from './MapProfilePopup';
 import CruiseCarouselSlot from './CruiseCarouselSlot';
+import MapSidePanel, { type MapSidePanelView } from './MapSidePanel';
 import MapFiltersSurface, { DEFAULT_FILTER_STATE, type FilterState } from './MapFiltersSurface';
 import MapVisibilitySurface, { DEFAULT_VISIBILITY_STATE, type VisibilityControlState } from './MapVisibilitySurface';
 import MapPingSheet from './MapPingSheet';
@@ -408,7 +409,7 @@ function mutualMapItemToDiscoveryUser(item: MutualCruushActivityItem): Discovery
     lng: item.coordinates?.lng ?? -74.006,
     lastActive: item.lastActive,
     distance: item.distance,
-    lookingFor: ['Mutual cruush'],
+    lookingFor: ['Mutual'],
     vibes: item.vibes,
     scenes: [],
     archetypes: [],
@@ -434,6 +435,7 @@ type MapHomeProps = {
 
 type MapRouteState = {
   openOwnProfilePanel?: boolean;
+  openSidePanel?: MapSidePanelView;
   centerEventSlug?: string;
   focusUserId?: string;
   seekingFilters?: FilterState;
@@ -616,6 +618,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<DiscoveryUser | null>(null);
   const [luckySlot, setLuckySlot] = useState<LuckySlotState | null>(null);
+  const [sidePanelView, setSidePanelView] = useState<MapSidePanelView | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isRecentlyActiveOpen, setIsRecentlyActiveOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(() => routeState?.seekingFilters ?? DEFAULT_FILTER_STATE);
@@ -666,6 +669,19 @@ export default function MapHome(_props: MapHomeProps = {}) {
   const shouldReplayTutorial = searchParams.get('replayTutorial') === '1';
   const focusUserId = searchParams.get('focusUserId') ?? routeState?.focusUserId ?? null;
   const shouldOpenOwnProfilePanel = !usesFullPageProfile && routeState?.openOwnProfilePanel === true;
+  const requestedSidePanelView = usesFullPageProfile ? null : routeState?.openSidePanel ?? null;
+
+  useEffect(() => {
+    if (requestedSidePanelView) {
+      setSidePanelView(requestedSidePanelView);
+    }
+  }, [requestedSidePanelView]);
+
+  useEffect(() => {
+    if (usesFullPageProfile && sidePanelView) {
+      setSidePanelView(null);
+    }
+  }, [sidePanelView, usesFullPageProfile]);
   const hasCruushPlus = billingStatus?.cruushPlus === true;
 
   useEffect(() => {
@@ -1169,7 +1185,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
           user.displayExpiresAtMs == null || user.displayExpiresAtMs > Date.now()));
       } else {
         setUsers([]);
-        setError(fetchError instanceof Error ? fetchError.message : isMutualMapMode ? 'Failed to load mutual cruushes.' : 'Failed to load nearby people.');
+        setError(fetchError instanceof Error ? fetchError.message : isMutualMapMode ? 'Failed to load mutuals.' : 'Failed to load nearby people.');
       }
     } finally {
       if (!options.background) {
@@ -2086,7 +2102,7 @@ export default function MapHome(_props: MapHomeProps = {}) {
               className="pointer-events-auto absolute right-0 top-full mt-1 inline-flex max-w-[5.75rem] items-center rounded-full border border-white/10 bg-background/35 px-1.5 py-0.5 text-[8px] lowercase leading-none tracking-[0.08em] text-white/72 backdrop-blur-md sm:max-w-none sm:px-2 sm:text-[9px] sm:tracking-[0.1em]"
               data-testid="map-beta-stack"
             >
-              mutual cruushes
+              mutuals
             </div>
           ) : null}
 
@@ -2263,6 +2279,14 @@ export default function MapHome(_props: MapHomeProps = {}) {
               : undefined}
             onRetry={handleFeelingLucky}
             onUpgrade={() => navigate('/rewards')}
+          />
+        ) : null}
+
+        {!usesFullPageProfile && sidePanelView ? (
+          <MapSidePanel
+            view={sidePanelView}
+            onViewChange={setSidePanelView}
+            onClose={() => setSidePanelView(null)}
           />
         ) : null}
 
@@ -2580,9 +2604,9 @@ export default function MapHome(_props: MapHomeProps = {}) {
             className={`pointer-events-none absolute ${
               isMobile
                 ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 px-0'
-                : shouldAlignRecentlyActiveWithPreview
-                ? 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-4 right-[calc(26rem+1.5rem)] z-30 px-2'
-                : 'bottom-[calc(6.25rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 px-4'
+                : `bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-30 px-4 ${
+                    shouldAlignRecentlyActiveWithPreview ? 'left-[calc(26rem+3rem)]' : 'left-0'
+                  } ${sidePanelView ? 'right-[calc(26rem+3rem)]' : 'right-0'}`
             }`}
           >
             <div

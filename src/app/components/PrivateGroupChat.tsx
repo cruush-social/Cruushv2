@@ -940,7 +940,7 @@ export default function PrivateGroupChat() {
                     ) : null}
                     {conversation.mutual ? (
                       <Badge variant="outline" className="border-[#8B5CF6]/45 bg-[#8B5CF6]/15 text-[10px] uppercase tracking-[0.18em] text-[#DCC7FF]">
-                        Mutual cruush
+                        Mutual
                       </Badge>
                     ) : null}
                   </div>
@@ -1109,12 +1109,12 @@ export default function PrivateGroupChat() {
 
                     <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                       <select
-                        aria-label="Add mutual cruush"
+                        aria-label="Add mutual"
                         value={addMemberId}
                         onChange={(event) => setAddMemberId(event.target.value)}
                         className="h-11 w-full rounded-md border border-border bg-input-background px-3 text-sm"
                       >
-                        <option value="">Add a mutual cruush</option>
+                        <option value="">Add a mutual</option>
                         {availableAddOptions.map((item) => (
                           <option key={item.user.id} value={item.user.id}>
                             {item.user.name}
